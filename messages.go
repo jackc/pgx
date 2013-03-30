@@ -9,11 +9,11 @@ const (
 )
 
 type startupMessage struct {
-	options map[string] string
+	options map[string]string
 }
 
 func newStartupMessage() *startupMessage {
-	return &startupMessage{map[string] string{}}
+	return &startupMessage{map[string]string{}}
 }
 
 func (self *startupMessage) Bytes() (buf []byte) {

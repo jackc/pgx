@@ -9,7 +9,7 @@ type conn struct {
 	conn net.Conn
 }
 
-func Connect(options map[string] string) (c *conn, err error) {
+func Connect(options map[string]string) (c *conn, err error) {
 	c = new(conn)
 
 	var present bool
@@ -17,7 +17,9 @@ func Connect(options map[string] string) (c *conn, err error) {
 
 	if socket, present = options["socket"]; present {
 		c.conn, err = net.Dial("unix", socket)
-		if err != nil { return nil, err }
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// conn, err := net.Dial("tcp", "localhost:5432")
