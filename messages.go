@@ -9,15 +9,15 @@ const (
 	protocolVersionNumber = 196608 // 3.0
 )
 
-type startupMsg struct {
+type startupMessage struct {
 	options map[string] string
 }
 
-func newStartupMsg() *startupMsg {
-	return &startupMsg{map[string] string{}}
+func newStartupMessage() *startupMessage {
+	return &startupMessage{map[string] string{}}
 }
 
-func (self *startupMsg) WriteTo(w io.Writer) (n int64, err error) {
+func (self *startupMessage) WriteTo(w io.Writer) (n int64, err error) {
 	buf := make([]byte, 8, 128)
 	binary.BigEndian.PutUint32(buf[4:8], uint32(protocolVersionNumber))
 	for key, value := range self.options {
