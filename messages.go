@@ -2,7 +2,6 @@ package pqx
 
 import (
 	"encoding/binary"
-	"io"
 )
 
 const (
@@ -17,8 +16,8 @@ func newStartupMessage() *startupMessage {
 	return &startupMessage{map[string] string{}}
 }
 
-func (self *startupMessage) WriteTo(w io.Writer) (n int64, err error) {
-	buf := make([]byte, 8, 128)
+func (self *startupMessage) Bytes() (buf []byte) {
+	buf = make([]byte, 8, 128)
 	binary.BigEndian.PutUint32(buf[4:8], uint32(protocolVersionNumber))
 	for key, value := range self.options {
 		buf = append(buf, key...)
@@ -28,14 +27,8 @@ func (self *startupMessage) WriteTo(w io.Writer) (n int64, err error) {
 	}
 	buf = append(buf, ("\000")...)
 	binary.BigEndian.PutUint32(buf[0:4], uint32(len(buf)))
-
-	var n32 int
-	n32, err = w.Write(buf)
-	return int64(n32), err
+	return buf
 }
 
 type authenticationOk struct {
 }
-
-
-

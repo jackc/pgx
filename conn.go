@@ -24,9 +24,7 @@ func Connect(options map[string] string) (c *conn, err error) {
 
 	msg := newStartupMessage()
 	msg.options["user"] = "jack"
-
-	msg.WriteTo(c.conn)
-
+	c.conn.Write(msg.Bytes())
 
 	buf := make([]byte, 512)
 
