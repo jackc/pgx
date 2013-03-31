@@ -46,3 +46,20 @@ type parameterStatus struct {
 func (self *parameterStatus) String() string {
 	return fmt.Sprintf("ParameterStatus %s: %s", self.name, self.value)
 }
+
+type backendKeyData struct {
+	pid       int32
+	secretKey int32
+}
+
+func (self *backendKeyData) String() string {
+	return fmt.Sprintf("BackendKeyData pid: %d, secretKey: %d", self.pid, self.secretKey)
+}
+
+type readyForQuery struct {
+	txStatus byte
+}
+
+func (self *readyForQuery) String() string {
+	return fmt.Sprintf("ReadyForQuery txStatus: %c", self.txStatus)
+}

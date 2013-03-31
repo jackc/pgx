@@ -68,10 +68,14 @@ func (c *conn) rxMsg() (msg interface{}, err error) {
 	}
 
 	switch t {
+	case 'K':
+		return c.rxBackendKeyData(buf), nil
 	case 'R':
 		return c.rxAuthenticationX(buf)
 	case 'S':
 		return c.rxParameterStatus(buf)
+	case 'Z':
+		return c.rxReadyForQuery(buf), nil
 	default:
 		return nil, fmt.Errorf("Received unknown message type: %c", t)
 	}
@@ -123,5 +127,18 @@ func (c *conn) rxParameterStatus(buf []byte) (msg *parameterStatus, err error) {
 	}
 
 	msg.value, err = r.ReadString(0)
+	return
+}
+
+func (c *conn) rxBackendKeyData(buf []byte) (msg *backendKeyData) {
+	msg = new(backendKeyData)
+	msg.pid = int32(binary.BigEndian.Uint32(buf[:4]))
+	msg.secretKey = int32(binary.BigEndian.Uint32(buf[4:8]))
+	return
+}
+
+func (c *conn) rxReadyForQuery(buf []byte) (msg *readyForQuery) {
+	msg = new(readyForQuery)
+	msg.txStatus = buf[0]
 	return
 }
