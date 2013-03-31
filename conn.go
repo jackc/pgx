@@ -53,6 +53,14 @@ func Connect(options map[string]string) (c *conn, err error) {
 	return c, nil
 }
 
+func (c *conn) Close() (err error) {
+	buf := c.getBuf(5)
+	buf[0] = 'X'
+	binary.BigEndian.PutUint32(buf[1:], 4)
+	_, err = c.conn.Write(buf)
+	return
+}
+
 func (c *conn) rxMsg() (msg interface{}, err error) {
 	var t byte
 	var bodySize int32

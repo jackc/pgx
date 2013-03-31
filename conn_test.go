@@ -5,8 +5,13 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	_, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
 	}
 }
