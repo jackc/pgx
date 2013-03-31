@@ -32,3 +32,7 @@ func (self *startupMessage) Bytes() (buf []byte) {
 
 type authenticationOk struct {
 }
+
+func (self *authenticationOk) String() string {
+	return "AuthenticationOk"
+}
