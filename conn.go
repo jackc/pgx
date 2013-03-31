@@ -34,7 +34,7 @@ func Connect(options map[string]string) (c *conn, err error) {
 
 	msg := newStartupMessage()
 	msg.options["user"] = "jack"
-	c.conn.Write(msg.Bytes())
+	c.txStartupMessage(msg)
 
 	var response interface{}
 	response, err = c.rxMsg()
@@ -141,5 +141,10 @@ func (c *conn) rxBackendKeyData(buf []byte) (msg *backendKeyData) {
 func (c *conn) rxReadyForQuery(buf []byte) (msg *readyForQuery) {
 	msg = new(readyForQuery)
 	msg.txStatus = buf[0]
+	return
+}
+
+func (c *conn) txStartupMessage(msg *startupMessage) (err error) {
+	_, err = c.conn.Write(msg.Bytes())
 	return
 }
