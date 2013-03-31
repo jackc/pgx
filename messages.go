@@ -2,6 +2,7 @@ package pqx
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 const (
@@ -35,4 +36,13 @@ type authenticationOk struct {
 
 func (self *authenticationOk) String() string {
 	return "AuthenticationOk"
+}
+
+type parameterStatus struct {
+	name  string
+	value string
+}
+
+func (self *parameterStatus) String() string {
+	return fmt.Sprintf("ParameterStatus %s: %s", self.name, self.value)
 }

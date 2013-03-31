@@ -1,6 +1,8 @@
 package pqx
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -39,6 +41,16 @@ func Connect(options map[string]string) (c *conn, err error) {
 	fmt.Println(err)
 	fmt.Println(response)
 
+	for {
+		response, err = c.rxMsg()
+		if err != nil {
+			break
+		}
+		fmt.Println(response)
+	}
+
+	fmt.Println(err)
+
 	return c, nil
 }
 
@@ -58,8 +70,10 @@ func (c *conn) rxMsg() (msg interface{}, err error) {
 	switch t {
 	case 'R':
 		return c.rxAuthenticationX(buf)
+	case 'S':
+		return c.rxParameterStatus(buf)
 	default:
-		return nil, errors.New("Received unknown message type")
+		return nil, fmt.Errorf("Received unknown message type: %c", t)
 	}
 
 	panic("Unreachable")
@@ -97,4 +111,17 @@ func (c *conn) rxAuthenticationX(buf []byte) (msg interface{}, err error) {
 	}
 
 	panic("Unreachable")
+}
+
+func (c *conn) rxParameterStatus(buf []byte) (msg *parameterStatus, err error) {
+	msg = new(parameterStatus)
+
+	r := bufio.NewReader(bytes.NewReader(buf))
+	msg.name, err = r.ReadString(0)
+	if err != nil {
+		return
+	}
+
+	msg.value, err = r.ReadString(0)
+	return
 }
