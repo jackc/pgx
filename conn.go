@@ -94,12 +94,7 @@ func (c *conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 }
 
 func (c *conn) rxMsgBody(bodySize int32) (buf []byte, err error) {
-	if int(bodySize) <= cap(c.buf) {
-		buf = c.buf[:bodySize]
-	} else {
-		buf = make([]byte, bodySize)
-	}
-
+	buf = c.getBuf(int(bodySize))
 	_, err = io.ReadFull(c.conn, buf)
 	return
 }
@@ -144,5 +139,16 @@ func (c *conn) rxReadyForQuery(buf []byte) (msg *readyForQuery) {
 
 func (c *conn) txStartupMessage(msg *startupMessage) (err error) {
 	_, err = c.conn.Write(msg.Bytes())
+	return
+}
+
+// Gets a []byte of n length. If possible it will reuse the connection buffer
+// otherwise it will allocate a new buffer
+func (c *conn) getBuf(n int) (buf []byte) {
+	if n <= cap(c.buf) {
+		buf = c.buf[:n]
+	} else {
+		buf = make([]byte, n)
+	}
 	return
 }
