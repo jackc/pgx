@@ -44,12 +44,13 @@ func Connect(options map[string]string) (c *conn, err error) {
 	for {
 		response, err = c.rxMsg()
 		if err != nil {
-			break
+			return nil, err
 		}
 		fmt.Println(response)
+		if _, ok := response.(*readyForQuery); ok {
+			break
+		}
 	}
-
-	fmt.Println(err)
 
 	return c, nil
 }
