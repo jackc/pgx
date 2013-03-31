@@ -38,8 +38,6 @@ func Connect(options map[string]string) (c *conn, err error) {
 
 	var response interface{}
 	response, err = c.rxMsg()
-	fmt.Println(err)
-	fmt.Println(response)
 
 	for {
 		response, err = c.rxMsg()
