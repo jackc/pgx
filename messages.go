@@ -63,3 +63,23 @@ type readyForQuery struct {
 func (self *readyForQuery) String() string {
 	return fmt.Sprintf("ReadyForQuery txStatus: %c", self.txStatus)
 }
+
+type oid int32
+
+type fieldDescription struct {
+	name string
+	table oid
+	attributeNumber int16
+	dataType oid
+	dataTypeSize int16
+	modifier int32
+	formatCode int16
+}
+
+type rowDescription struct {
+	fields []fieldDescription
+}
+
+func (self *rowDescription) String() string {
+	return fmt.Sprintf("RowDescription field count: %d", len(self.fields))
+}

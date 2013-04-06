@@ -12,6 +12,7 @@ import (
 
 type conn struct {
 	conn net.Conn // the underlying TCP or unix domain socket connection
+	rowDesc rowDescription // current query rowDescription
 	buf  []byte   // work buffer to avoid constant alloc and dealloc
 }
 
@@ -61,6 +62,35 @@ func (c *conn) Close() (err error) {
 	return
 }
 
+func (c *conn) Query(sql string) (rows []map[string]string, err error) {
+	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
+	buf := c.getBuf(bufSize)
+	buf[0] = 'Q'
+	binary.BigEndian.PutUint32(buf[1:5], uint32(bufSize-1))
+	copy(buf[5:], sql)
+	buf[bufSize-1] = 0
+
+	_, err = c.conn.Write(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	var response interface{}
+	for {
+		response, err = c.rxMsg()
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+		fmt.Println(response)
+		if _, ok := response.(*readyForQuery); ok {
+			break
+		}
+	}
+
+	return nil, err
+}
+
 func (c *conn) rxMsg() (msg interface{}, err error) {
 	var t byte
 	var bodySize int32
@@ -83,6 +113,12 @@ func (c *conn) rxMsg() (msg interface{}, err error) {
 		return c.rxParameterStatus(buf)
 	case 'Z':
 		return c.rxReadyForQuery(buf), nil
+	case 'T':
+		return c.rxRowDescription(buf)
+	case 'D':
+		return c.rxDataRow(buf)
+	case 'C':
+		return c.rxCommandComplete(buf), nil
 	default:
 		return nil, fmt.Errorf("Received unknown message type: %c", t)
 	}
@@ -143,6 +179,47 @@ func (c *conn) rxReadyForQuery(buf []byte) (msg *readyForQuery) {
 	msg = new(readyForQuery)
 	msg.txStatus = buf[0]
 	return
+}
+
+func (c *conn) rxRowDescription(buf []byte) (msg *rowDescription, err error) {
+	r := newMessageReader(buf)
+	fieldCount := r.readInt16()
+	c.rowDesc.fields = make([]fieldDescription, fieldCount)
+	for i := int16(0); i < fieldCount; i++ {
+		f := &c.rowDesc.fields[i]
+		f.name = r.readString()
+		f.table = r.readOid()
+		f.attributeNumber = r.readInt16()
+		f.dataType = r.readOid()
+		f.dataTypeSize = r.readInt16()
+		f.modifier = r.readInt32()
+		f.formatCode = r.readInt16()
+	}
+	return
+}
+
+func (c *conn) rxDataRow(buf []byte) (row map[string]string, err error) {
+	r := newMessageReader(buf)
+	fieldCount := r.readInt16()
+
+	if fieldCount != int16(len(c.rowDesc.fields)) {
+		return nil, fmt.Errorf("Received DataRow with %d fields, expected %d fields", fieldCount, c.rowDesc.fields)
+	}
+
+	row = make(map[string]string, fieldCount)
+	for i := int16(0); i < fieldCount; i++ {
+		// TODO - handle nulls
+		size := r.readInt32()
+		fmt.Println(size)
+		row[c.rowDesc.fields[i].name] = r.readByteString(size)
+	}
+	return
+}
+
+
+func (c *conn) rxCommandComplete(buf []byte) string {
+	r := newMessageReader(buf)
+	return r.readString()
 }
 
 func (c *conn) txStartupMessage(msg *startupMessage) (err error) {
