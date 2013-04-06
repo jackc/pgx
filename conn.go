@@ -63,16 +63,8 @@ func (c *conn) Close() (err error) {
 }
 
 func (c *conn) Query(sql string) (rows []map[string]string, err error) {
-	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
-	buf := c.getBuf(bufSize)
-	buf[0] = 'Q'
-	binary.BigEndian.PutUint32(buf[1:5], uint32(bufSize-1))
-	copy(buf[5:], sql)
-	buf[bufSize-1] = 0
-
-	_, err = c.conn.Write(buf)
-	if err != nil {
-		return nil, err
+	if err = c.sendSimpleQuery(sql); err != nil {
+		return
 	}
 
 	var response interface{}
@@ -89,6 +81,18 @@ func (c *conn) Query(sql string) (rows []map[string]string, err error) {
 	}
 
 	return nil, err
+}
+
+func (c *conn) sendSimpleQuery(sql string) (err error) {
+	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
+	buf := c.getBuf(bufSize)
+	buf[0] = 'Q'
+	binary.BigEndian.PutUint32(buf[1:5], uint32(bufSize-1))
+	copy(buf[5:], sql)
+	buf[bufSize-1] = 0
+
+	_, err = c.conn.Write(buf)
+	return err
 }
 
 func (c *conn) rxMsg() (msg interface{}, err error) {
