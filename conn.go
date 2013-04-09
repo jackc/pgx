@@ -110,8 +110,8 @@ func (c *conn) processMsg() (msg interface{}, err error) {
 	return c.parseMsg(t, body)
 }
 
-// Processes messages that could potentially occur in multiple contexts
-func (c *conn) processCommonMsg(t byte, body []byte) (err error) {
+// Processes messages that are not exclusive to one context such as authentication sdakl sdafj sda sda sd ds  ds sad sd sa sd sad dsfsd af
+func (c *conn) processContextFreeMsg(t byte, body []byte) (err error) {
 	switch t {
 	case 'S':
 		c.rxParameterStatus(body)
@@ -140,7 +140,7 @@ func (c *conn) parseMsg(t byte, body []byte) (msg interface{}, err error) {
 	case 'C':
 		return c.rxCommandComplete(body), nil
 	default:
-		return nil, c.processCommonMsg(t, body)
+		return nil, c.processContextFreeMsg(t, body)
 	}
 
 	panic("Unreachable")
