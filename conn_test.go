@@ -35,10 +35,18 @@ func TestQuery(t *testing.T) {
 		t.Fatal("Unable to establish connection")
 	}
 
-	// var rows []map[string]string
-	_, err = conn.Query("SELECT * FROM people")
+	var rows []map[string]string
+	rows, err = conn.Query("select 'Jack' as name")
 	if err != nil {
 		t.Fatal("Query failed")
+	}
+
+	if len(rows) != 1 {
+		t.Fatal("Received wrong number of rows")
+	}
+
+	if rows[0]["name"] != "Jack" {
+		t.Fatal("Received incorrect name")
 	}
 
 	err = conn.Close()
