@@ -12,6 +12,12 @@ func newMessageReader(buf []byte) *messageReader {
 	return &r
 }
 
+func (r *messageReader) readByte() byte {
+	b := (*r)[0]
+	*r = (*r)[1:]
+	return b
+}
+
 func (r *messageReader) readInt16() int16 {
 	n := int16(binary.BigEndian.Uint16((*r)[:2]))
 	*r = (*r)[2:]
