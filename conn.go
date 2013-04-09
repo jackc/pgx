@@ -39,23 +39,28 @@ func Connect(options map[string]string) (c *conn, err error) {
 	msg.options["user"] = "jack"
 	c.txStartupMessage(msg)
 
-	var response interface{}
-	response, err = c.processMsg()
-
 	for {
-		response, err = c.processMsg()
-		if err != nil {
+		var t byte
+		var r *messageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			switch t {
+			case 'K':
+				c.rxBackendKeyData(r)
+			case 'R':
+				c.rxAuthenticationX(r)
+			case 'Z':
+				return c, nil
+			default:
+				if err = c.processContextFreeMsg(t, r); err != nil {
+					return nil, err
+				}
+			}
+		} else {
 			return nil, err
-		}
-		fmt.Println(response)
-		if _, ok := response.(*readyForQuery); ok {
-			break
 		}
 	}
 
-	fmt.Println(c.runtimeParams)
-
-	return c, nil
+	panic("Unreachable")
 }
 
 func (c *conn) Close() (err error) {
@@ -128,11 +133,6 @@ func (c *conn) processContextFreeMsg(t byte, r *messageReader) (err error) {
 
 func (c *conn) parseMsg(t byte, r *messageReader) (msg interface{}, err error) {
 	switch t {
-	case 'K':
-		c.rxBackendKeyData(r)
-		return nil, nil
-	case 'R':
-		return c.rxAuthenticationX(r)
 	case 'Z':
 		return c.rxReadyForQuery(r), nil
 	case 'T':
