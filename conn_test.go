@@ -14,6 +14,14 @@ func TestConnect(t *testing.T) {
 		t.Error("Runtime parameters not stored")
 	}
 
+	if conn.pid == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	if conn.secretKey == 0 {
+		t.Error("Backend secret key not stored")
+	}
+
 	err = conn.Close()
 	if err != nil {
 		t.Fatal("Unable to close connection")

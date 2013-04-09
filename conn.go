@@ -12,6 +12,8 @@ type conn struct {
 	conn net.Conn // the underlying TCP or unix domain socket connection
 	rowDesc rowDescription // current query rowDescription
 	buf  []byte   // work buffer to avoid constant alloc and dealloc
+	pid       int32 // backend pid
+	secretKey int32 // key to use to send a cancel query message to the server
 	runtimeParams map[string]string // parameters that have been reported by the server
 }
 
@@ -125,7 +127,8 @@ func (c *conn) processCommonMsg(t byte, body []byte) (err error) {
 func (c *conn) parseMsg(t byte, body []byte) (msg interface{}, err error) {
 	switch t {
 	case 'K':
-		return c.rxBackendKeyData(body), nil
+		c.rxBackendKeyData(body)
+		return nil, nil
 	case 'R':
 		return c.rxAuthenticationX(body)
 	case 'Z':
@@ -190,11 +193,10 @@ func (c *conn) rxParameterStatus(buf []byte) {
 	c.runtimeParams[key] = value
 }
 
-func (c *conn) rxBackendKeyData(buf []byte) (msg *backendKeyData) {
-	msg = new(backendKeyData)
-	msg.pid = int32(binary.BigEndian.Uint32(buf[:4]))
-	msg.secretKey = int32(binary.BigEndian.Uint32(buf[4:8]))
-	return
+func (c *conn) rxBackendKeyData(buf []byte) {
+	r := newMessageReader(buf)
+	c.pid = r.readInt32()
+	c.secretKey = r.readInt32()
 }
 
 func (c *conn) rxReadyForQuery(buf []byte) (msg *readyForQuery) {

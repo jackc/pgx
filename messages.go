@@ -38,15 +38,6 @@ func (self *authenticationOk) String() string {
 	return "AuthenticationOk"
 }
 
-type backendKeyData struct {
-	pid       int32
-	secretKey int32
-}
-
-func (self *backendKeyData) String() string {
-	return fmt.Sprintf("BackendKeyData pid: %d, secretKey: %d", self.pid, self.secretKey)
-}
-
 type readyForQuery struct {
 	txStatus byte
 }
