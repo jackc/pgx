@@ -77,17 +77,18 @@ func (c *conn) Query(sql string) (rows []map[string]string, err error) {
 	}
 
 	var fields []fieldDescription
+	rows = make([]map[string]string, 0)
 	for {
 		var t byte
 		var r *messageReader
 		if t, r, err = c.rxMsg(); err == nil {
 			switch t {
 			case readyForQuery:
-				return nil, nil
+				return rows, nil
 			case rowDescription:
 				fields = c.rxRowDescription(r)
 			case dataRow:
-				c.rxDataRow(r, fields)
+				rows = append(rows, c.rxDataRow(r, fields))
 			case commandComplete:
 				c.rxCommandComplete(r)
 			default:
@@ -206,7 +207,7 @@ func (c *conn) rxRowDescription(r *messageReader) (fields []fieldDescription) {
 	return
 }
 
-func (c *conn) rxDataRow(r *messageReader, fields []fieldDescription) (row map[string]string, err error) {
+func (c *conn) rxDataRow(r *messageReader, fields []fieldDescription) (row map[string]string) {
 	fieldCount := r.readInt16()
 
 	row = make(map[string]string, fieldCount)
