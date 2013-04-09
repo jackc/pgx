@@ -2,11 +2,19 @@ package pqx
 
 import (
 	"encoding/binary"
-	"fmt"
 )
 
 const (
 	protocolVersionNumber = 196608 // 3.0
+)
+
+const (
+	backendKeyData  = 'K'
+	authenticationX = 'R'
+	readyForQuery   = 'Z'
+	rowDescription  = 'T'
+	dataRow         = 'D'
+	commandComplete = 'C'
 )
 
 type startupMessage struct {
@@ -31,21 +39,6 @@ func (self *startupMessage) Bytes() (buf []byte) {
 	return buf
 }
 
-type authenticationOk struct {
-}
-
-func (self *authenticationOk) String() string {
-	return "AuthenticationOk"
-}
-
-type readyForQuery struct {
-	txStatus byte
-}
-
-func (self *readyForQuery) String() string {
-	return fmt.Sprintf("ReadyForQuery txStatus: %c", self.txStatus)
-}
-
 type oid int32
 
 type fieldDescription struct {
@@ -56,12 +49,4 @@ type fieldDescription struct {
 	dataTypeSize    int16
 	modifier        int32
 	formatCode      int16
-}
-
-type rowDescription struct {
-	fields []fieldDescription
-}
-
-func (self *rowDescription) String() string {
-	return fmt.Sprintf("RowDescription field count: %d", len(self.fields))
 }
