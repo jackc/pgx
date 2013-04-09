@@ -1,8 +1,6 @@
 package pqx
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -14,6 +12,7 @@ type conn struct {
 	conn net.Conn // the underlying TCP or unix domain socket connection
 	rowDesc rowDescription // current query rowDescription
 	buf  []byte   // work buffer to avoid constant alloc and dealloc
+	runtimeParams map[string]string // parameters that have been reported by the server
 }
 
 func Connect(options map[string]string) (c *conn, err error) {
@@ -30,6 +29,7 @@ func Connect(options map[string]string) (c *conn, err error) {
 	}
 
 	c.buf = make([]byte, 1024)
+	c.runtimeParams = make(map[string]string)
 
 	// conn, err := net.Dial("tcp", "localhost:5432")
 
@@ -50,6 +50,8 @@ func Connect(options map[string]string) (c *conn, err error) {
 			break
 		}
 	}
+
+	fmt.Println(c.runtimeParams)
 
 	return c, nil
 }
@@ -106,14 +108,26 @@ func (c *conn) processMsg() (msg interface{}, err error) {
 	return c.parseMsg(t, body)
 }
 
+// Processes messages that could potentially occur in multiple contexts
+func (c *conn) processCommonMsg(t byte, body []byte) (err error) {
+	switch t {
+	case 'S':
+		c.rxParameterStatus(body)
+		return nil
+	default:
+		return fmt.Errorf("Received unknown message type: %c", t)
+	}
+
+	panic("Unreachable")
+
+}
+
 func (c *conn) parseMsg(t byte, body []byte) (msg interface{}, err error) {
 	switch t {
 	case 'K':
 		return c.rxBackendKeyData(body), nil
 	case 'R':
 		return c.rxAuthenticationX(body)
-	case 'S':
-		return c.rxParameterStatus(body)
 	case 'Z':
 		return c.rxReadyForQuery(body), nil
 	case 'T':
@@ -123,7 +137,7 @@ func (c *conn) parseMsg(t byte, body []byte) (msg interface{}, err error) {
 	case 'C':
 		return c.rxCommandComplete(body), nil
 	default:
-		return nil, fmt.Errorf("Received unknown message type: %c", t)
+		return nil, c.processCommonMsg(t, body)
 	}
 
 	panic("Unreachable")
@@ -169,17 +183,11 @@ func (c *conn) rxAuthenticationX(buf []byte) (msg interface{}, err error) {
 	panic("Unreachable")
 }
 
-func (c *conn) rxParameterStatus(buf []byte) (msg *parameterStatus, err error) {
-	msg = new(parameterStatus)
-
-	r := bufio.NewReader(bytes.NewReader(buf))
-	msg.name, err = r.ReadString(0)
-	if err != nil {
-		return
-	}
-
-	msg.value, err = r.ReadString(0)
-	return
+func (c *conn) rxParameterStatus(buf []byte) {
+	r := newMessageReader(buf)
+	key := r.readString()
+	value := r.readString()
+	c.runtimeParams[key] = value
 }
 
 func (c *conn) rxBackendKeyData(buf []byte) (msg *backendKeyData) {
