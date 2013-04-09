@@ -10,6 +10,10 @@ func TestConnect(t *testing.T) {
 		t.Fatal("Unable to establish connection")
 	}
 
+	if _, present := conn.runtimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
 	err = conn.Close()
 	if err != nil {
 		t.Fatal("Unable to close connection")
