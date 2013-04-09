@@ -28,7 +28,6 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-
 func TestQuery(t *testing.T) {
 	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432"})
 	if err != nil {

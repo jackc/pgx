@@ -9,11 +9,11 @@ import (
 )
 
 type conn struct {
-	conn net.Conn // the underlying TCP or unix domain socket connection
-	rowDesc rowDescription // current query rowDescription
-	buf  []byte   // work buffer to avoid constant alloc and dealloc
-	pid       int32 // backend pid
-	secretKey int32 // key to use to send a cancel query message to the server
+	conn          net.Conn          // the underlying TCP or unix domain socket connection
+	rowDesc       rowDescription    // current query rowDescription
+	buf           []byte            // work buffer to avoid constant alloc and dealloc
+	pid           int32             // backend pid
+	secretKey     int32             // key to use to send a cancel query message to the server
 	runtimeParams map[string]string // parameters that have been reported by the server
 }
 
@@ -239,7 +239,6 @@ func (c *conn) rxDataRow(buf []byte) (row map[string]string, err error) {
 	}
 	return
 }
-
 
 func (c *conn) rxCommandComplete(buf []byte) string {
 	r := newMessageReader(buf)

@@ -1,8 +1,8 @@
 package pqx
 
 import (
-	"encoding/binary"
 	"bytes"
+	"encoding/binary"
 )
 
 type messageReader []byte

@@ -49,13 +49,13 @@ func (self *readyForQuery) String() string {
 type oid int32
 
 type fieldDescription struct {
-	name string
-	table oid
+	name            string
+	table           oid
 	attributeNumber int16
-	dataType oid
-	dataTypeSize int16
-	modifier int32
-	formatCode int16
+	dataType        oid
+	dataTypeSize    int16
+	modifier        int32
+	formatCode      int16
 }
 
 type rowDescription struct {
