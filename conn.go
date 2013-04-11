@@ -17,6 +17,9 @@ type conn struct {
 	txStatus      byte
 }
 
+// options:
+//   socket: path to unix domain socket
+//   database: name of database
 func Connect(options map[string]string) (c *conn, err error) {
 	c = new(conn)
 
@@ -35,7 +38,12 @@ func Connect(options map[string]string) (c *conn, err error) {
 
 	// conn, err := net.Dial("tcp", "localhost:5432")
 
+	var database string
+
 	msg := newStartupMessage()
+	if database, present = options["database"]; present {
+		msg.options["database"] = database
+	}
 	msg.options["user"] = "jack"
 	c.txStartupMessage(msg)
 

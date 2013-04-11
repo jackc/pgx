@@ -5,7 +5,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
@@ -20,6 +20,12 @@ func TestConnect(t *testing.T) {
 
 	if conn.secretKey == 0 {
 		t.Error("Backend secret key not stored")
+	}
+
+	var rows []map[string]string
+	rows, err = conn.Query("select current_database()")
+	if err != nil || rows[0]["current_database"] != "pgx_test" {
+		t.Error("Did not connect to specified database (pgx_text)")
 	}
 
 	err = conn.Close()
