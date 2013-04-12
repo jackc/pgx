@@ -15,6 +15,7 @@ const (
 	rowDescription  = 'T'
 	dataRow         = 'D'
 	commandComplete = 'C'
+	errorResponse = 'E'
 )
 
 type startupMessage struct {
@@ -49,4 +50,14 @@ type fieldDescription struct {
 	dataTypeSize    int16
 	modifier        int32
 	formatCode      int16
+}
+
+type PgError struct {
+	Severity string
+	Code string
+	Message string
+}
+
+func (self PgError) Error() string {
+	return self.Severity + ": " + self.Message + " (SQLSTATE " + self.Code + ")"
 }

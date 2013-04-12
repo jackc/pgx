@@ -132,6 +132,8 @@ func (c *conn) processContextFreeMsg(t byte, r *messageReader) (err error) {
 	case 'S':
 		c.rxParameterStatus(r)
 		return nil
+	case errorResponse:
+		return c.rxErrorResponse(r)
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
@@ -188,6 +190,25 @@ func (c *conn) rxParameterStatus(r *messageReader) {
 	key := r.readString()
 	value := r.readString()
 	c.runtimeParams[key] = value
+}
+
+func (c *conn) rxErrorResponse(r *messageReader) (err PgError) {
+	for {
+		switch r.readByte() {
+		case 'S':
+			err.Severity = r.readString()
+		case 'C':
+			err.Code = r.readString()
+		case 'M':
+			err.Message = r.readString()
+		case 0: // End of error message
+			return
+		default: // Ignore other error fields
+			r.readString();
+		}
+	}
+
+	panic("Unreachable")
 }
 
 func (c *conn) rxBackendKeyData(r *messageReader) {

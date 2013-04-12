@@ -34,6 +34,13 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectWithInvalidUser(t *testing.T) {
+	_, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "invalid_user", "database": "pgx_test"})
+	pgErr := err.(PgError)
+	if pgErr.Code != "28000" {
+		t.Fatal("Did not receive expected error when connecting with invalid user")
+	}
+}
 func TestQuery(t *testing.T) {
 	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx", "database": "pgx_test"})
 	if err != nil {
