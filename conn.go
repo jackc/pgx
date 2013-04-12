@@ -41,10 +41,10 @@ func Connect(options map[string]string) (c *conn, err error) {
 	var database string
 
 	msg := newStartupMessage()
+	msg.options["user"], _ = options["user"]
 	if database, present = options["database"]; present {
 		msg.options["database"] = database
 	}
-	msg.options["user"] = "jack"
 	c.txStartupMessage(msg)
 
 	for {

@@ -5,7 +5,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "database": "pgx_test"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
@@ -35,7 +35,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
