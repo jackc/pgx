@@ -28,6 +28,11 @@ func TestConnect(t *testing.T) {
 		t.Error("Did not connect to specified database (pgx_text)")
 	}
 
+	rows, err = conn.Query("select current_user")
+	if err != nil || rows[0]["current_user"] != "pgx" {
+		t.Error("Did not connect as specified user (pgx)")
+	}
+
 	err = conn.Close()
 	if err != nil {
 		t.Fatal("Unable to close connection")
