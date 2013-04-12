@@ -15,7 +15,7 @@ const (
 	rowDescription  = 'T'
 	dataRow         = 'D'
 	commandComplete = 'C'
-	errorResponse = 'E'
+	errorResponse   = 'E'
 )
 
 type startupMessage struct {
@@ -54,8 +54,8 @@ type fieldDescription struct {
 
 type PgError struct {
 	Severity string
-	Code string
-	Message string
+	Code     string
+	Message  string
 }
 
 func (self PgError) Error() string {

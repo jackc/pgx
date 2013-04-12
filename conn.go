@@ -204,7 +204,7 @@ func (c *conn) rxErrorResponse(r *messageReader) (err PgError) {
 		case 0: // End of error message
 			return
 		default: // Ignore other error fields
-			r.readString();
+			r.readString()
 		}
 	}
 
