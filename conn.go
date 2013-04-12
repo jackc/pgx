@@ -1,7 +1,9 @@
 package pqx
 
 import (
+	"crypto/md5"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -189,11 +191,21 @@ func (c *conn) rxAuthenticationX(r *messageReader) (err error) {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
 		c.txPasswordMessage(c.options["password"])
+	case 5: // AuthenticationMD5Password
+		salt := r.readByteString(4)
+		digestedPassword := "md5" + hexMD5(hexMD5(c.options["password"]+c.options["user"])+salt)
+		c.txPasswordMessage(digestedPassword)
 	default:
 		err = errors.New("Received unknown authentication message")
 	}
 
 	return
+}
+
+func hexMD5(s string) string {
+	hash := md5.New()
+	io.WriteString(hash, s)
+	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func (c *conn) rxParameterStatus(r *messageReader) {

@@ -47,8 +47,20 @@ func TestConnectWithInvalidUser(t *testing.T) {
 	}
 }
 
-func TestConnectWithPassword(t *testing.T) {
+func TestConnectWithPlainTextPassword(t *testing.T) {
 	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_pw", "password": "secret", "database": "pgx_test"})
+	if err != nil {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithMD5Password(t *testing.T) {
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_md5", "password": "secret", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
