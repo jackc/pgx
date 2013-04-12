@@ -5,7 +5,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx", "database": "pgx_test"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
@@ -29,8 +29,8 @@ func TestConnect(t *testing.T) {
 	}
 
 	rows, err = conn.Query("select current_user")
-	if err != nil || rows[0]["current_user"] != "pgx" {
-		t.Error("Did not connect as specified user (pgx)")
+	if err != nil || rows[0]["current_user"] != "pgx_none" {
+		t.Error("Did not connect as specified user (pgx_none)")
 	}
 
 	err = conn.Close()
@@ -46,8 +46,21 @@ func TestConnectWithInvalidUser(t *testing.T) {
 		t.Fatal("Did not receive expected error when connecting with invalid user")
 	}
 }
+
+func TestConnectWithPassword(t *testing.T) {
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_pw", "password": "secret", "database": "pgx_test"})
+	if err != nil {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestQuery(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx", "database": "pgx_test"})
+	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}

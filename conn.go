@@ -14,6 +14,7 @@ type conn struct {
 	pid           int32             // backend pid
 	secretKey     int32             // key to use to send a cancel query message to the server
 	runtimeParams map[string]string // parameters that have been reported by the server
+	options       map[string]string // options used when establishing connection
 	txStatus      byte
 }
 
@@ -22,6 +23,11 @@ type conn struct {
 //   database: name of database
 func Connect(options map[string]string) (c *conn, err error) {
 	c = new(conn)
+
+	c.options = make(map[string]string)
+	for k, v := range options {
+		c.options[k] = v
+	}
 
 	var present bool
 	var socket string
@@ -55,7 +61,9 @@ func Connect(options map[string]string) (c *conn, err error) {
 			case backendKeyData:
 				c.rxBackendKeyData(r)
 			case authenticationX:
-				c.rxAuthenticationX(r)
+				if err = c.rxAuthenticationX(r); err != nil {
+					return nil, err
+				}
 			case readyForQuery:
 				return c, nil
 			default:
@@ -179,6 +187,8 @@ func (c *conn) rxAuthenticationX(r *messageReader) (err error) {
 	code := r.readInt32()
 	switch code {
 	case 0: // AuthenticationOk
+	case 3: // AuthenticationCleartextPassword
+		c.txPasswordMessage(c.options["password"])
 	default:
 		err = errors.New("Received unknown authentication message")
 	}
@@ -255,6 +265,18 @@ func (c *conn) rxCommandComplete(r *messageReader) string {
 func (c *conn) txStartupMessage(msg *startupMessage) (err error) {
 	_, err = c.conn.Write(msg.Bytes())
 	return
+}
+
+func (c *conn) txPasswordMessage(password string) (err error) {
+	bufSize := 5 + len(password) + 1 // message identifier (1), message size (4), password, null string terminator (1)
+	buf := c.getBuf(bufSize)
+	buf[0] = 'p'
+	binary.BigEndian.PutUint32(buf[1:5], uint32(bufSize-1))
+	copy(buf[5:], password)
+	buf[bufSize-1] = 0
+
+	_, err = c.conn.Write(buf)
+	return err
 }
 
 // Gets a []byte of n length. If possible it will reuse the connection buffer
