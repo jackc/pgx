@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 )
 
 type conn struct {
@@ -120,6 +121,90 @@ func (c *conn) Query(sql string) (rows []map[string]string, err error) {
 	}
 
 	panic("Unreachable")
+}
+
+func (c *conn) selectOne(sql string) (s string, err error) {
+	if err = c.sendSimpleQuery(sql); err != nil {
+		return
+	}
+
+	for {
+		var t byte
+		var r *messageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			switch t {
+			case readyForQuery:
+				return
+			case rowDescription:
+			case dataRow:
+				s = c.rxDataRowFirstValue(r)
+			case commandComplete:
+			default:
+				if err = c.processContextFreeMsg(t, r); err != nil {
+					return
+				}
+			}
+		} else {
+			return
+		}
+	}
+
+	panic("Unreachable")
+}
+
+func (c *conn) SelectString(sql string) (s string, err error) {
+	return c.selectOne(sql)
+}
+
+func (c *conn) selectInt(sql string, size int) (i int64, err error) {
+	var s string
+	s, err = c.selectOne(sql)
+	if err != nil {
+		return
+	}
+
+	i, err = strconv.ParseInt(s, 10, size)
+	return
+}
+
+func (c *conn) SelectInt64(sql string) (i int64, err error) {
+	return c.selectInt(sql, 64)
+}
+
+func (c *conn) SelectInt32(sql string) (i int32, err error) {
+	var i64 int64
+	i64, err = c.selectInt(sql, 32)
+	i = int32(i64)
+	return
+}
+
+func (c *conn) SelectInt16(sql string) (i int16, err error) {
+	var i64 int64
+	i64, err = c.selectInt(sql, 16)
+	i = int16(i64)
+	return
+}
+
+func (c *conn) selectFloat(sql string, size int) (f float64, err error) {
+	var s string
+	s, err = c.selectOne(sql)
+	if err != nil {
+		return
+	}
+
+	f, err = strconv.ParseFloat(s, size)
+	return
+}
+
+func (c *conn) SelectFloat64(sql string) (f float64, err error) {
+	return c.selectFloat(sql, 64)
+}
+
+func (c *conn) SelectFloat32(sql string) (f float32, err error) {
+	var f64 float64
+	f64, err = c.selectFloat(sql, 32)
+	f = float32(f64)
+	return
 }
 
 func (c *conn) sendSimpleQuery(sql string) (err error) {
@@ -268,6 +353,15 @@ func (c *conn) rxDataRow(r *messageReader, fields []fieldDescription) (row map[s
 		row[fields[i].name] = r.readByteString(size)
 	}
 	return
+}
+
+func (c *conn) rxDataRowFirstValue(r *messageReader) (s string) {
+	r.readInt16() // ignore field count
+
+	// TODO - handle nulls
+	size := r.readInt32()
+	s = r.readByteString(size)
+	return s
 }
 
 func (c *conn) rxCommandComplete(r *messageReader) string {
