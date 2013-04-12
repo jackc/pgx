@@ -1,4 +1,4 @@
-package pqx
+package pgx
 
 import (
 	"testing"
