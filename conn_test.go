@@ -5,6 +5,20 @@ import (
 	"testing"
 )
 
+var sharedConn *conn
+
+func getSharedConn() (c *conn) {
+	if sharedConn == nil {
+		var err error
+		sharedConn, err = Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
+		if err != nil {
+			panic("Unable to establish connection")
+		}
+
+	}
+	return sharedConn
+}
+
 func TestConnect(t *testing.T) {
 	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
 	if err != nil {
@@ -73,13 +87,9 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var rows []map[string]string
-	rows, err = conn.Query("select 'Jack' as name")
+	rows, err := conn.Query("select 'Jack' as name")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
@@ -91,21 +101,12 @@ func TestQuery(t *testing.T) {
 	if rows[0]["name"] != "Jack" {
 		t.Fatal("Received incorrect name")
 	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
 }
 
 func TestSelectString(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var s string
-	s, err = conn.SelectString("select 'foo'")
+	s, err := conn.SelectString("select 'foo'")
 	if err != nil {
 		t.Fatal("Unable to select string: " + err.Error())
 	}
@@ -116,13 +117,9 @@ func TestSelectString(t *testing.T) {
 }
 
 func TestSelectInt64(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var i int64
-	i, err = conn.SelectInt64("select 1")
+	i, err := conn.SelectInt64("select 1")
 	if err != nil {
 		t.Fatal("Unable to select int64: " + err.Error())
 	}
@@ -143,13 +140,9 @@ func TestSelectInt64(t *testing.T) {
 }
 
 func TestSelectInt32(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var i int32
-	i, err = conn.SelectInt32("select 1")
+	i, err := conn.SelectInt32("select 1")
 	if err != nil {
 		t.Fatal("Unable to select int32: " + err.Error())
 	}
@@ -170,13 +163,9 @@ func TestSelectInt32(t *testing.T) {
 }
 
 func TestSelectInt16(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var i int16
-	i, err = conn.SelectInt16("select 1")
+	i, err := conn.SelectInt16("select 1")
 	if err != nil {
 		t.Fatal("Unable to select int16: " + err.Error())
 	}
@@ -197,13 +186,9 @@ func TestSelectInt16(t *testing.T) {
 }
 
 func TestSelectFloat64(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var f float64
-	f, err = conn.SelectFloat64("select 1.23")
+	f, err := conn.SelectFloat64("select 1.23")
 	if err != nil {
 		t.Fatal("Unable to select float64: " + err.Error())
 	}
@@ -214,13 +199,9 @@ func TestSelectFloat64(t *testing.T) {
 }
 
 func TestSelectFloat32(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
-	if err != nil {
-		t.Fatal("Unable to establish connection")
-	}
+	conn := getSharedConn()
 
-	var f float32
-	f, err = conn.SelectFloat32("select 1.23")
+	f, err := conn.SelectFloat32("select 1.23")
 	if err != nil {
 		t.Fatal("Unable to select float32: " + err.Error())
 	}
