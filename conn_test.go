@@ -211,7 +211,6 @@ func TestSelectFloat32(t *testing.T) {
 	}
 }
 
-
 func TestSelectAllString(t *testing.T) {
 	conn := getSharedConn()
 
