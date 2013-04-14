@@ -207,6 +207,111 @@ func (c *conn) SelectFloat32(sql string) (f float32, err error) {
 	return
 }
 
+func (c *conn) SelectAllString(sql string) (strings []string, err error) {
+	if err = c.sendSimpleQuery(sql); err != nil {
+		return
+	}
+
+	strings = make([]string, 0)
+
+	for {
+		var t byte
+		var r *messageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			switch t {
+			case readyForQuery:
+				return
+			case rowDescription:
+			case dataRow:
+				strings = append(strings, c.rxDataRowFirstValue(r))
+			case commandComplete:
+			default:
+				if err = c.processContextFreeMsg(t, r); err != nil {
+					return
+				}
+			}
+		} else {
+			return
+		}
+	}
+
+	panic("Unreachable")
+}
+
+func (c *conn) selectAllInt(sql string, size int) (ints []int64, err error) {
+	var strings []string
+	strings, err = c.SelectAllString(sql)
+	if err != nil {
+		return
+	}
+
+	ints = make([]int64, len(strings))
+	for i, s := range strings {
+		ints[i], err = strconv.ParseInt(s, 10, size)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (c *conn) SelectAllInt64(sql string) (ints []int64, err error) {
+	return c.selectAllInt(sql, 64)
+}
+
+func (c *conn) SelectAllInt32(sql string) (ints []int32, err error) {
+	var int64s []int64
+	int64s, err = c.selectAllInt(sql, 32)
+	ints = make([]int32, len(int64s))
+	for i := 0; i < len(int64s); i++ {
+		ints[i] = int32(int64s[i])
+	}
+	return
+}
+
+func (c *conn) SelectAllInt16(sql string) (ints []int16, err error) {
+	var int64s []int64
+	int64s, err = c.selectAllInt(sql, 16)
+	ints = make([]int16, len(int64s))
+	for i := 0; i < len(int64s); i++ {
+		ints[i] = int16(int64s[i])
+	}
+	return
+}
+
+func (c *conn) selectAllFloat(sql string, size int) (floats []float64, err error) {
+	var strings []string
+	strings, err = c.SelectAllString(sql)
+	if err != nil {
+		return
+	}
+
+	floats = make([]float64, len(strings))
+	for i, s := range strings {
+		floats[i], err = strconv.ParseFloat(s, size)
+		if err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (c *conn) SelectAllFloat64(sql string) (floats []float64, err error) {
+	return c.selectAllFloat(sql, 64)
+}
+
+func (c *conn) SelectAllFloat32(sql string) (floats []float32, err error) {
+	var float64s []float64
+	float64s, err = c.selectAllFloat(sql, 32)
+	floats = make([]float32, len(float64s))
+	for i := 0; i < len(float64s); i++ {
+		floats[i] = float32(float64s[i])
+	}
+	return
+}
+
 func (c *conn) sendSimpleQuery(sql string) (err error) {
 	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
 	buf := c.getBuf(bufSize)
