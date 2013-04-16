@@ -89,7 +89,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 func TestQuery(t *testing.T) {
 	conn := getSharedConn()
 
-	rows, err := conn.Query("select 'Jack' as name")
+	rows, err := conn.Query("select $1 as name", "Jack")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
@@ -106,7 +106,7 @@ func TestQuery(t *testing.T) {
 func TestSelectString(t *testing.T) {
 	conn := getSharedConn()
 
-	s, err := conn.SelectString("select 'foo'")
+	s, err := conn.SelectString("select $1", "foo")
 	if err != nil {
 		t.Fatal("Unable to select string: " + err.Error())
 	}
@@ -119,7 +119,7 @@ func TestSelectString(t *testing.T) {
 func TestSelectInt64(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectInt64("select 1")
+	i, err := conn.SelectInt64("select $1", 1)
 	if err != nil {
 		t.Fatal("Unable to select int64: " + err.Error())
 	}
@@ -142,7 +142,7 @@ func TestSelectInt64(t *testing.T) {
 func TestSelectInt32(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectInt32("select 1")
+	i, err := conn.SelectInt32("select $1", 1)
 	if err != nil {
 		t.Fatal("Unable to select int32: " + err.Error())
 	}
@@ -165,7 +165,7 @@ func TestSelectInt32(t *testing.T) {
 func TestSelectInt16(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectInt16("select 1")
+	i, err := conn.SelectInt16("select $1", 1)
 	if err != nil {
 		t.Fatal("Unable to select int16: " + err.Error())
 	}
@@ -188,7 +188,7 @@ func TestSelectInt16(t *testing.T) {
 func TestSelectFloat64(t *testing.T) {
 	conn := getSharedConn()
 
-	f, err := conn.SelectFloat64("select 1.23")
+	f, err := conn.SelectFloat64("select $1", 1.23)
 	if err != nil {
 		t.Fatal("Unable to select float64: " + err.Error())
 	}
@@ -201,7 +201,7 @@ func TestSelectFloat64(t *testing.T) {
 func TestSelectFloat32(t *testing.T) {
 	conn := getSharedConn()
 
-	f, err := conn.SelectFloat32("select 1.23")
+	f, err := conn.SelectFloat32("select $1", 1.23)
 	if err != nil {
 		t.Fatal("Unable to select float32: " + err.Error())
 	}
@@ -214,7 +214,7 @@ func TestSelectFloat32(t *testing.T) {
 func TestSelectAllString(t *testing.T) {
 	conn := getSharedConn()
 
-	s, err := conn.SelectAllString("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t")
+	s, err := conn.SelectAllString("select * from (values ($1), ($2), ($3), ($4)) t", "Matthew", "Mark", "Luke", "John")
 	if err != nil {
 		t.Fatal("Unable to select all strings: " + err.Error())
 	}
@@ -227,7 +227,7 @@ func TestSelectAllString(t *testing.T) {
 func TestSelectAllInt64(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectAllInt64("select * from (values (1), (2)) t")
+	i, err := conn.SelectAllInt64("select * from (values ($1), ($2)) t", 1, 2)
 	if err != nil {
 		t.Fatal("Unable to select all int64: " + err.Error())
 	}
@@ -250,7 +250,7 @@ func TestSelectAllInt64(t *testing.T) {
 func TestSelectAllInt32(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectAllInt32("select * from (values (1), (2)) t")
+	i, err := conn.SelectAllInt32("select * from (values ($1), ($2)) t", 1, 2)
 	if err != nil {
 		t.Fatal("Unable to select all int32: " + err.Error())
 	}
@@ -273,7 +273,7 @@ func TestSelectAllInt32(t *testing.T) {
 func TestSelectAllInt16(t *testing.T) {
 	conn := getSharedConn()
 
-	i, err := conn.SelectAllInt16("select * from (values (1), (2)) t")
+	i, err := conn.SelectAllInt16("select * from (values ($1), ($2)) t", 1, 2)
 	if err != nil {
 		t.Fatal("Unable to select all int16: " + err.Error())
 	}
@@ -296,7 +296,7 @@ func TestSelectAllInt16(t *testing.T) {
 func TestSelectAllFloat64(t *testing.T) {
 	conn := getSharedConn()
 
-	f, err := conn.SelectAllFloat64("select * from (values (1.23), (4.56)) t")
+	f, err := conn.SelectAllFloat64("select * from (values ($1), ($2)) t", 1.23, 4.56)
 	if err != nil {
 		t.Fatal("Unable to select all float64: " + err.Error())
 	}
@@ -309,7 +309,7 @@ func TestSelectAllFloat64(t *testing.T) {
 func TestSelectAllFloat32(t *testing.T) {
 	conn := getSharedConn()
 
-	f, err := conn.SelectAllFloat32("select * from (values (1.23), (4.56)) t")
+	f, err := conn.SelectAllFloat32("select * from (values ($1), ($2)) t", 1.23, 4.56)
 	if err != nil {
 		t.Fatal("Unable to select all float32: " + err.Error())
 	}
