@@ -90,9 +90,8 @@ func (c *conn) Close() (err error) {
 	return
 }
 
-func (c *conn) query(sql string, params []interface{}, onDataRow func(*messageReader, []fieldDescription) error) (err error) {
-	sanitized_sql := c.SanitizeSql(sql, params...)
-	if err = c.sendSimpleQuery(sanitized_sql); err != nil {
+func (c *conn) query(sql string, onDataRow func(*messageReader, []fieldDescription) error) (err error) {
+	if err = c.sendSimpleQuery(sql); err != nil {
 		return
 	}
 
@@ -129,28 +128,28 @@ func (c *conn) query(sql string, params []interface{}, onDataRow func(*messageRe
 	panic("Unreachable")
 }
 
-func (c *conn) Query(sql string, params ...interface{}) (rows []map[string]string, err error) {
+func (c *conn) Query(sql string) (rows []map[string]string, err error) {
 	rows = make([]map[string]string, 0, 8)
 	onDataRow := func(r *messageReader, fields []fieldDescription) error {
 		rows = append(rows, c.rxDataRow(r, fields))
 		return nil
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectString(sql string, params ...interface{}) (s string, err error) {
+func (c *conn) SelectString(sql string) (s string, err error) {
 	onDataRow := func(r *messageReader, _ []fieldDescription) error {
 		s = c.rxDataRowFirstValue(r)
 		return nil
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) selectInt(sql string, size int, params []interface{}) (i int64, err error) {
+func (c *conn) selectInt(sql string, size int) (i int64, err error) {
 	var s string
-	s, err = c.SelectString(sql, params...)
+	s, err = c.SelectString(sql)
 	if err != nil {
 		return
 	}
@@ -159,27 +158,27 @@ func (c *conn) selectInt(sql string, size int, params []interface{}) (i int64, e
 	return
 }
 
-func (c *conn) SelectInt64(sql string, params ...interface{}) (i int64, err error) {
-	return c.selectInt(sql, 64, params)
+func (c *conn) SelectInt64(sql string) (i int64, err error) {
+	return c.selectInt(sql, 64)
 }
 
-func (c *conn) SelectInt32(sql string, params ...interface{}) (i int32, err error) {
+func (c *conn) SelectInt32(sql string) (i int32, err error) {
 	var i64 int64
-	i64, err = c.selectInt(sql, 32, params)
+	i64, err = c.selectInt(sql, 32)
 	i = int32(i64)
 	return
 }
 
-func (c *conn) SelectInt16(sql string, params ...interface{}) (i int16, err error) {
+func (c *conn) SelectInt16(sql string) (i int16, err error) {
 	var i64 int64
-	i64, err = c.selectInt(sql, 16, params)
+	i64, err = c.selectInt(sql, 16)
 	i = int16(i64)
 	return
 }
 
-func (c *conn) selectFloat(sql string, size int, params []interface{}) (f float64, err error) {
+func (c *conn) selectFloat(sql string, size int) (f float64, err error) {
 	var s string
-	s, err = c.SelectString(sql, params...)
+	s, err = c.SelectString(sql)
 	if err != nil {
 		return
 	}
@@ -188,28 +187,28 @@ func (c *conn) selectFloat(sql string, size int, params []interface{}) (f float6
 	return
 }
 
-func (c *conn) SelectFloat64(sql string, params ...interface{}) (f float64, err error) {
-	return c.selectFloat(sql, 64, params)
+func (c *conn) SelectFloat64(sql string) (f float64, err error) {
+	return c.selectFloat(sql, 64)
 }
 
-func (c *conn) SelectFloat32(sql string, params ...interface{}) (f float32, err error) {
+func (c *conn) SelectFloat32(sql string) (f float32, err error) {
 	var f64 float64
-	f64, err = c.selectFloat(sql, 32, params)
+	f64, err = c.selectFloat(sql, 32)
 	f = float32(f64)
 	return
 }
 
-func (c *conn) SelectAllString(sql string, params ...interface{}) (strings []string, err error) {
+func (c *conn) SelectAllString(sql string) (strings []string, err error) {
 	strings = make([]string, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) error {
 		strings = append(strings, c.rxDataRowFirstValue(r))
 		return nil
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectAllInt64(sql string, params ...interface{}) (ints []int64, err error) {
+func (c *conn) SelectAllInt64(sql string) (ints []int64, err error) {
 	ints = make([]int64, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
 		var i int64
@@ -217,11 +216,11 @@ func (c *conn) SelectAllInt64(sql string, params ...interface{}) (ints []int64, 
 		ints = append(ints, i)
 		return
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectAllInt32(sql string, params ...interface{}) (ints []int32, err error) {
+func (c *conn) SelectAllInt32(sql string) (ints []int32, err error) {
 	ints = make([]int32, 0, 8)
 	onDataRow := func(r *messageReader, fields []fieldDescription) (parseError error) {
 		var i int64
@@ -229,11 +228,11 @@ func (c *conn) SelectAllInt32(sql string, params ...interface{}) (ints []int32, 
 		ints = append(ints, int32(i))
 		return
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectAllInt16(sql string, params ...interface{}) (ints []int16, err error) {
+func (c *conn) SelectAllInt16(sql string) (ints []int16, err error) {
 	ints = make([]int16, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
 		var i int64
@@ -241,11 +240,11 @@ func (c *conn) SelectAllInt16(sql string, params ...interface{}) (ints []int16, 
 		ints = append(ints, int16(i))
 		return
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectAllFloat64(sql string, params ...interface{}) (floats []float64, err error) {
+func (c *conn) SelectAllFloat64(sql string) (floats []float64, err error) {
 	floats = make([]float64, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
 		var f float64
@@ -253,11 +252,11 @@ func (c *conn) SelectAllFloat64(sql string, params ...interface{}) (floats []flo
 		floats = append(floats, f)
 		return
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
-func (c *conn) SelectAllFloat32(sql string, params ...interface{}) (floats []float32, err error) {
+func (c *conn) SelectAllFloat32(sql string) (floats []float32, err error) {
 	floats = make([]float32, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
 		var f float64
@@ -265,7 +264,7 @@ func (c *conn) SelectAllFloat32(sql string, params ...interface{}) (floats []flo
 		floats = append(floats, float32(f))
 		return
 	}
-	err = c.query(sql, params, onDataRow)
+	err = c.query(sql, onDataRow)
 	return
 }
 
