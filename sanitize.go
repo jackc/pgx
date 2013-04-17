@@ -9,12 +9,12 @@ import (
 
 var literalPattern *regexp.Regexp = regexp.MustCompile(`\$\d+`)
 
-func (c *conn) QuoteString(input string) (output string) {
+func (c *Connection) QuoteString(input string) (output string) {
 	output = "'" + strings.Replace(input, "'", "''", -1) + "'"
 	return
 }
 
-func (c *conn) SanitizeSql(sql string, args ...interface{}) (output string) {
+func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string) {
 	replacer := func(match string) (replacement string) {
 		n, _ := strconv.ParseInt(match[1:], 10, 0)
 		switch arg := args[n-1].(type) {

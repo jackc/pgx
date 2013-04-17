@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-var sharedConn *conn
+var SharedConnection *Connection
 
-func getSharedConn() (c *conn) {
-	if sharedConn == nil {
+func getSharedConnection() (c *Connection) {
+	if SharedConnection == nil {
 		var err error
-		sharedConn, err = Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
+		SharedConnection, err = Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
 		if err != nil {
 			panic("Unable to establish connection")
 		}
 
 	}
-	return sharedConn
+	return SharedConnection
 }
 
 func TestConnect(t *testing.T) {
@@ -87,7 +87,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	results, err := conn.Execute("create temporary table foo(id serial primary key);")
 	if err != nil {
@@ -116,7 +116,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	rows, err := conn.Query("select 'Jack' as name")
 	if err != nil {
@@ -133,7 +133,7 @@ func TestQuery(t *testing.T) {
 }
 
 func TestSelectString(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	s, err := conn.SelectString("select 'foo'")
 	if err != nil {
@@ -146,7 +146,7 @@ func TestSelectString(t *testing.T) {
 }
 
 func TestSelectInt64(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectInt64("select 1")
 	if err != nil {
@@ -169,7 +169,7 @@ func TestSelectInt64(t *testing.T) {
 }
 
 func TestSelectInt32(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectInt32("select 1")
 	if err != nil {
@@ -192,7 +192,7 @@ func TestSelectInt32(t *testing.T) {
 }
 
 func TestSelectInt16(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectInt16("select 1")
 	if err != nil {
@@ -215,7 +215,7 @@ func TestSelectInt16(t *testing.T) {
 }
 
 func TestSelectFloat64(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	f, err := conn.SelectFloat64("select 1.23")
 	if err != nil {
@@ -228,7 +228,7 @@ func TestSelectFloat64(t *testing.T) {
 }
 
 func TestSelectFloat32(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	f, err := conn.SelectFloat32("select 1.23")
 	if err != nil {
@@ -241,7 +241,7 @@ func TestSelectFloat32(t *testing.T) {
 }
 
 func TestSelectAllString(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	s, err := conn.SelectAllString("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t")
 	if err != nil {
@@ -254,7 +254,7 @@ func TestSelectAllString(t *testing.T) {
 }
 
 func TestSelectAllInt64(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectAllInt64("select * from (values (1), (2)) t")
 	if err != nil {
@@ -277,7 +277,7 @@ func TestSelectAllInt64(t *testing.T) {
 }
 
 func TestSelectAllInt32(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectAllInt32("select * from (values (1), (2)) t")
 	if err != nil {
@@ -300,7 +300,7 @@ func TestSelectAllInt32(t *testing.T) {
 }
 
 func TestSelectAllInt16(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	i, err := conn.SelectAllInt16("select * from (values (1), (2)) t")
 	if err != nil {
@@ -323,7 +323,7 @@ func TestSelectAllInt16(t *testing.T) {
 }
 
 func TestSelectAllFloat64(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	f, err := conn.SelectAllFloat64("select * from (values (1.23), (4.56)) t")
 	if err != nil {
@@ -336,7 +336,7 @@ func TestSelectAllFloat64(t *testing.T) {
 }
 
 func TestSelectAllFloat32(t *testing.T) {
-	conn := getSharedConn()
+	conn := getSharedConnection()
 
 	f, err := conn.SelectAllFloat32("select * from (values (1.23), (4.56)) t")
 	if err != nil {
