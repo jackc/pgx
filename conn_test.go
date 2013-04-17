@@ -86,6 +86,35 @@ func TestConnectWithMD5Password(t *testing.T) {
 	}
 }
 
+func TestExecute(t *testing.T) {
+	conn := getSharedConn()
+
+	results, err := conn.Execute("create temporary table foo(id serial primary key);")
+	if err != nil {
+		t.Fatal("Execute failed: " + err.Error())
+	}
+	if results != "CREATE TABLE" {
+		t.Error("Unexpected results from Execute")
+	}
+
+	results, err = conn.Execute("drop table foo;")
+	if err != nil {
+		t.Fatal("Execute failed: " + err.Error())
+	}
+	if results != "DROP TABLE" {
+		t.Error("Unexpected results from Execute")
+	}
+
+	// Multiple statements can be executed -- last command tag is returned
+	results, err = conn.Execute("create temporary table foo(id serial primary key); drop table foo;")
+	if err != nil {
+		t.Fatal("Execute failed: " + err.Error())
+	}
+	if results != "DROP TABLE" {
+		t.Error("Unexpected results from Execute")
+	}
+}
+
 func TestQuery(t *testing.T) {
 	conn := getSharedConn()
 

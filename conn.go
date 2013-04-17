@@ -280,6 +280,35 @@ func (c *conn) sendSimpleQuery(sql string) (err error) {
 	return err
 }
 
+func (c *conn) Execute(sql string) (commandTag string, err error) {
+	if err = c.sendSimpleQuery(sql); err != nil {
+		return
+	}
+
+	for {
+		var t byte
+		var r *messageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			switch t {
+			case readyForQuery:
+				return
+			case rowDescription:
+			case dataRow:
+			case commandComplete:
+				 commandTag = r.readString()
+			default:
+				if err = c.processContextFreeMsg(t, r); err != nil {
+					return
+				}
+			}
+		} else {
+			return
+		}
+	}
+
+	panic("Unreachable")
+}
+
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
@@ -290,6 +319,8 @@ func (c *conn) processContextFreeMsg(t byte, r *messageReader) (err error) {
 		return nil
 	case errorResponse:
 		return c.rxErrorResponse(r)
+	case noticeResponse:
+		return nil
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
