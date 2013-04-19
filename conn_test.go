@@ -133,7 +133,7 @@ func TestSelect(t *testing.T) {
 	}
 }
 
-func TestQuery(t *testing.T) {
+func TestSelectRows(t *testing.T) {
 	conn := getSharedConnection()
 
 	rows, err := conn.SelectRows("select 'Jack' as name")
