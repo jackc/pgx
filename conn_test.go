@@ -115,6 +115,24 @@ func TestExecute(t *testing.T) {
 	}
 }
 
+func TestSelect(t *testing.T) {
+	conn := getSharedConnection()
+
+	rowCount := 0
+	onDataRow := func(r *messageReader, fields []fieldDescription) error {
+		rowCount++
+		return nil
+	}
+
+	err := conn.Select("select generate_series(1,10)", onDataRow)
+	if err != nil {
+		t.Fatal("Select failed: " + err.Error())
+	}
+	if rowCount != 10 {
+		t.Fatal("Select called onDataRow wrong number of times")
+	}
+}
+
 func TestQuery(t *testing.T) {
 	conn := getSharedConnection()
 
