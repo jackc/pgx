@@ -128,7 +128,7 @@ func (c *Connection) Select(sql string, onDataRow func(*messageReader, []fieldDe
 	panic("Unreachable")
 }
 
-func (c *Connection) Query(sql string) (rows []map[string]string, err error) {
+func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error) {
 	rows = make([]map[string]string, 0, 8)
 	onDataRow := func(r *messageReader, fields []fieldDescription) error {
 		rows = append(rows, c.rxDataRow(r, fields))

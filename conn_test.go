@@ -38,12 +38,12 @@ func TestConnect(t *testing.T) {
 	}
 
 	var rows []map[string]string
-	rows, err = conn.Query("select current_database()")
+	rows, err = conn.SelectRows("select current_database()")
 	if err != nil || rows[0]["current_database"] != "pgx_test" {
 		t.Error("Did not connect to specified database (pgx_text)")
 	}
 
-	rows, err = conn.Query("select current_user")
+	rows, err = conn.SelectRows("select current_user")
 	if err != nil || rows[0]["current_user"] != "pgx_none" {
 		t.Error("Did not connect as specified user (pgx_none)")
 	}
@@ -136,7 +136,7 @@ func TestSelect(t *testing.T) {
 func TestQuery(t *testing.T) {
 	conn := getSharedConnection()
 
-	rows, err := conn.Query("select 'Jack' as name")
+	rows, err := conn.SelectRows("select 'Jack' as name")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
