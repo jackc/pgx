@@ -115,7 +115,7 @@ func TestExecute(t *testing.T) {
 	}
 }
 
-func TestSelect(t *testing.T) {
+func TestSelectFunc(t *testing.T) {
 	conn := getSharedConnection()
 
 	rowCount := 0
@@ -124,7 +124,7 @@ func TestSelect(t *testing.T) {
 		return nil
 	}
 
-	err := conn.Select("select generate_series(1,10)", onDataRow)
+	err := conn.SelectFunc("select generate_series(1,10)", onDataRow)
 	if err != nil {
 		t.Fatal("Select failed: " + err.Error())
 	}
