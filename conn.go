@@ -295,7 +295,7 @@ func (c *Connection) Execute(sql string) (commandTag string, err error) {
 			case rowDescription:
 			case dataRow:
 			case commandComplete:
-				 commandTag = r.readString()
+				commandTag = r.readString()
 			default:
 				if err = c.processContextFreeMsg(t, r); err != nil {
 					return

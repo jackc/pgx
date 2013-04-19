@@ -16,7 +16,7 @@ const (
 	dataRow         = 'D'
 	commandComplete = 'C'
 	errorResponse   = 'E'
-	noticeResponse   = 'N'
+	noticeResponse  = 'N'
 )
 
 type startupMessage struct {
