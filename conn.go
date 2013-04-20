@@ -128,6 +128,10 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*messageReader, []fie
 	panic("Unreachable")
 }
 
+// Null values are not included in rows. However, because maps return the 0 value
+// for missing values this flattens nulls to empty string. If the caller needs to
+// distinguish between a real empty string and a null it can use the comma ok
+// pattern when accessing the map
 func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error) {
 	rows = make([]map[string]string, 0, 8)
 	onDataRow := func(r *messageReader, fields []fieldDescription) error {
@@ -140,7 +144,11 @@ func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error
 
 func (c *Connection) SelectString(sql string) (s string, err error) {
 	onDataRow := func(r *messageReader, _ []fieldDescription) error {
-		s = c.rxDataRowFirstValue(r)
+		var null bool
+		s, null = c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
@@ -201,7 +209,11 @@ func (c *Connection) SelectFloat32(sql string) (f float32, err error) {
 func (c *Connection) SelectAllString(sql string) (strings []string, err error) {
 	strings = make([]string, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) error {
-		strings = append(strings, c.rxDataRowFirstValue(r))
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
+		strings = append(strings, s)
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
@@ -211,8 +223,12 @@ func (c *Connection) SelectAllString(sql string) (strings []string, err error) {
 func (c *Connection) SelectAllInt64(sql string) (ints []int64, err error) {
 	ints = make([]int64, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		var i int64
-		i, parseError = strconv.ParseInt(c.rxDataRowFirstValue(r), 10, 64)
+		i, parseError = strconv.ParseInt(s, 10, 64)
 		ints = append(ints, i)
 		return
 	}
@@ -223,8 +239,12 @@ func (c *Connection) SelectAllInt64(sql string) (ints []int64, err error) {
 func (c *Connection) SelectAllInt32(sql string) (ints []int32, err error) {
 	ints = make([]int32, 0, 8)
 	onDataRow := func(r *messageReader, fields []fieldDescription) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		var i int64
-		i, parseError = strconv.ParseInt(c.rxDataRowFirstValue(r), 10, 32)
+		i, parseError = strconv.ParseInt(s, 10, 32)
 		ints = append(ints, int32(i))
 		return
 	}
@@ -235,8 +255,12 @@ func (c *Connection) SelectAllInt32(sql string) (ints []int32, err error) {
 func (c *Connection) SelectAllInt16(sql string) (ints []int16, err error) {
 	ints = make([]int16, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		var i int64
-		i, parseError = strconv.ParseInt(c.rxDataRowFirstValue(r), 10, 16)
+		i, parseError = strconv.ParseInt(s, 10, 16)
 		ints = append(ints, int16(i))
 		return
 	}
@@ -247,8 +271,12 @@ func (c *Connection) SelectAllInt16(sql string) (ints []int16, err error) {
 func (c *Connection) SelectAllFloat64(sql string) (floats []float64, err error) {
 	floats = make([]float64, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		var f float64
-		f, parseError = strconv.ParseFloat(c.rxDataRowFirstValue(r), 64)
+		f, parseError = strconv.ParseFloat(s, 64)
 		floats = append(floats, f)
 		return
 	}
@@ -259,8 +287,12 @@ func (c *Connection) SelectAllFloat64(sql string) (floats []float64, err error) 
 func (c *Connection) SelectAllFloat32(sql string) (floats []float32, err error) {
 	floats = make([]float32, 0, 8)
 	onDataRow := func(r *messageReader, _ []fieldDescription) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r)
+		if null {
+			return errors.New("Unexpected NULL")
+		}
 		var f float64
-		f, parseError = strconv.ParseFloat(c.rxDataRowFirstValue(r), 32)
+		f, parseError = strconv.ParseFloat(s, 32)
 		floats = append(floats, float32(f))
 		return
 	}
@@ -440,20 +472,25 @@ func (c *Connection) rxDataRow(r *messageReader, fields []fieldDescription) (row
 
 	row = make(map[string]string, fieldCount)
 	for i := int16(0); i < fieldCount; i++ {
-		// TODO - handle nulls
 		size := r.readInt32()
-		row[fields[i].name] = r.readByteString(size)
+		if size > -1 {
+			row[fields[i].name] = r.readByteString(size)
+		}
 	}
 	return
 }
 
-func (c *Connection) rxDataRowFirstValue(r *messageReader) (s string) {
+func (c *Connection) rxDataRowFirstValue(r *messageReader) (s string, null bool) {
 	r.readInt16() // ignore field count
 
-	// TODO - handle nulls
 	size := r.readInt32()
-	s = r.readByteString(size)
-	return s
+	if size > -1 {
+		s = r.readByteString(size)
+	} else {
+		null = true
+	}
+
+	return
 }
 
 func (c *Connection) rxCommandComplete(r *messageReader) string {

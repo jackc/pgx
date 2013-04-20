@@ -136,7 +136,7 @@ func TestSelectFunc(t *testing.T) {
 func TestSelectRows(t *testing.T) {
 	conn := getSharedConnection()
 
-	rows, err := conn.SelectRows("select 'Jack' as name")
+	rows, err := conn.SelectRows("select 'Jack' as name, null as position")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
@@ -146,7 +146,15 @@ func TestSelectRows(t *testing.T) {
 	}
 
 	if rows[0]["name"] != "Jack" {
-		t.Fatal("Received incorrect name")
+		t.Error("Received incorrect name")
+	}
+
+	value, presence := rows[0]["position"]
+	if value != "" {
+		t.Error("Should have received empty string for null")
+	}
+	if presence != false {
+		t.Error("Null value shouldn't have been present in map")
 	}
 }
 
@@ -155,11 +163,14 @@ func TestSelectString(t *testing.T) {
 
 	s, err := conn.SelectString("select 'foo'")
 	if err != nil {
-		t.Fatal("Unable to select string: " + err.Error())
+		t.Error("Unable to select string: " + err.Error())
+	} else if s != "foo" {
+		t.Error("Received incorrect string")
 	}
 
-	if s != "foo" {
-		t.Error("Received incorrect string")
+	_, err = conn.SelectString("select null")
+	if err == nil {
+		t.Error("Should have received error on null")
 	}
 }
 
@@ -184,6 +195,11 @@ func TestSelectInt64(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int64")
 	}
+
+	_, err = conn.SelectInt64("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectInt32(t *testing.T) {
@@ -206,6 +222,11 @@ func TestSelectInt32(t *testing.T) {
 	i, err = conn.SelectInt32("select -power(2,33)::numeric")
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int32")
+	}
+
+	_, err = conn.SelectInt32("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
 	}
 }
 
@@ -230,6 +251,11 @@ func TestSelectInt16(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int16")
 	}
+
+	_, err = conn.SelectInt16("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectFloat64(t *testing.T) {
@@ -242,6 +268,11 @@ func TestSelectFloat64(t *testing.T) {
 
 	if f != 1.23 {
 		t.Error("Received incorrect float64")
+	}
+
+	_, err = conn.SelectFloat64("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
 	}
 }
 
@@ -256,6 +287,11 @@ func TestSelectFloat32(t *testing.T) {
 	if f != 1.23 {
 		t.Error("Received incorrect float32")
 	}
+
+	_, err = conn.SelectFloat32("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectAllString(t *testing.T) {
@@ -268,6 +304,11 @@ func TestSelectAllString(t *testing.T) {
 
 	if s[0] != "Matthew" || s[1] != "Mark" || s[2] != "Luke" || s[3] != "John" {
 		t.Error("Received incorrect strings")
+	}
+
+	_, err = conn.SelectAllString("select * from (values ('Matthew'), (null)) t")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
 	}
 }
 
@@ -292,6 +333,11 @@ func TestSelectAllInt64(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int64")
 	}
+
+	_, err = conn.SelectAllInt64("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectAllInt32(t *testing.T) {
@@ -314,6 +360,11 @@ func TestSelectAllInt32(t *testing.T) {
 	i, err = conn.SelectAllInt32("select -power(2,33)::numeric")
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int32")
+	}
+
+	_, err = conn.SelectAllInt32("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
 	}
 }
 
@@ -338,6 +389,11 @@ func TestSelectAllInt16(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "value out of range") {
 		t.Error("Expected value out of range error when selecting number less than min int16")
 	}
+
+	_, err = conn.SelectAllInt16("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectAllFloat64(t *testing.T) {
@@ -351,6 +407,11 @@ func TestSelectAllFloat64(t *testing.T) {
 	if f[0] != 1.23 || f[1] != 4.56 {
 		t.Error("Received incorrect float64")
 	}
+
+	_, err = conn.SelectAllFloat64("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
 }
 
 func TestSelectAllFloat32(t *testing.T) {
@@ -363,5 +424,10 @@ func TestSelectAllFloat32(t *testing.T) {
 
 	if f[0] != 1.23 || f[1] != 4.56 {
 		t.Error("Received incorrect float32")
+	}
+
+	_, err = conn.SelectAllFloat32("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
 	}
 }
