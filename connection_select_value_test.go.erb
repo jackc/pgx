@@ -1,0 +1,72 @@
+package pgx
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestSelectString(t *testing.T) {
+	conn := getSharedConnection()
+
+	s, err := conn.SelectString("select 'foo'")
+	if err != nil {
+		t.Error("Unable to select string: " + err.Error())
+	} else if s != "foo" {
+		t.Error("Received incorrect string")
+	}
+
+	_, err = conn.SelectString("select null")
+	if err == nil {
+		t.Error("Should have received error on null")
+	}
+}
+
+<% [64, 32, 16].each do |size| %>
+func TestSelectInt<%= size %>(t *testing.T) {
+	conn := getSharedConnection()
+
+	i, err := conn.SelectInt<%= size %>("select 1")
+	if err != nil {
+		t.Fatal("Unable to select int<%= size %>: " + err.Error())
+	}
+
+	if i != 1 {
+		t.Error("Received incorrect int<%= size %>")
+	}
+
+	i, err = conn.SelectInt<%= size %>("select power(2,<%= size + 1 %>)::numeric")
+	if err == nil || !strings.Contains(err.Error(), "value out of range") {
+		t.Error("Expected value out of range error when selecting number greater than max int<%= size %>")
+	}
+
+	i, err = conn.SelectInt<%= size %>("select -power(2,<%= size + 1 %>)::numeric")
+	if err == nil || !strings.Contains(err.Error(), "value out of range") {
+		t.Error("Expected value out of range error when selecting number less than min int<%= size %>")
+	}
+
+	_, err = conn.SelectInt<%= size %>("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
+}
+<% end %>
+
+<% [64, 32].each do |size| %>
+func TestSelectFloat<%= size %>(t *testing.T) {
+	conn := getSharedConnection()
+
+	f, err := conn.SelectFloat<%= size %>("select 1.23")
+	if err != nil {
+		t.Fatal("Unable to select float<%= size %>: " + err.Error())
+	}
+
+	if f != 1.23 {
+		t.Error("Received incorrect float<%= size %>")
+	}
+
+	_, err = conn.SelectFloat<%= size %>("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
+}
+<% end %>
