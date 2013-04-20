@@ -1,0 +1,74 @@
+package pgx
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestSelectAllString(t *testing.T) {
+	conn := getSharedConnection()
+
+	s, err := conn.SelectAllString("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t")
+	if err != nil {
+		t.Fatal("Unable to select all strings: " + err.Error())
+	}
+
+	if s[0] != "Matthew" || s[1] != "Mark" || s[2] != "Luke" || s[3] != "John" {
+		t.Error("Received incorrect strings")
+	}
+
+	_, err = conn.SelectAllString("select * from (values ('Matthew'), (null)) t")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
+}
+
+<% [64, 32, 16].each do |size| %>
+func TestSelectAllInt<%= size %>(t *testing.T) {
+	conn := getSharedConnection()
+
+	i, err := conn.SelectAllInt<%= size %>("select * from (values (1), (2)) t")
+	if err != nil {
+		t.Fatal("Unable to select all int<%= size %>: " + err.Error())
+	}
+
+	if i[0] != 1 || i[1] != 2 {
+		t.Error("Received incorrect int<%= size %>s")
+	}
+
+	i, err = conn.SelectAllInt<%= size %>("select power(2,<%= size + 1 %>)::numeric")
+	if err == nil || !strings.Contains(err.Error(), "value out of range") {
+		t.Error("Expected value out of range error when selecting number greater than max int<%= size %>")
+	}
+
+	i, err = conn.SelectAllInt<%= size %>("select -power(2,<%= size + 1 %>)::numeric")
+	if err == nil || !strings.Contains(err.Error(), "value out of range") {
+		t.Error("Expected value out of range error when selecting number less than min int<%= size %>")
+	}
+
+	_, err = conn.SelectAllInt<%= size %>("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
+}
+<% end %>
+
+<% [64, 32].each do |size| %>
+func TestSelectAllFloat<%= size %>(t *testing.T) {
+	conn := getSharedConnection()
+
+	f, err := conn.SelectAllFloat<%= size %>("select * from (values (1.23), (4.56)) t")
+	if err != nil {
+		t.Fatal("Unable to select all float<%= size %>: " + err.Error())
+	}
+
+	if f[0] != 1.23 || f[1] != 4.56 {
+		t.Error("Received incorrect float<%= size %>")
+	}
+
+	_, err = conn.SelectAllFloat<%= size %>("select null")
+	if err == nil || !strings.Contains(err.Error(), "NULL") {
+		t.Error("Should have received error on null")
+	}
+}
+<% end %>

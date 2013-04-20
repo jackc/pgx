@@ -60,7 +60,7 @@ func TestSelectAllInt32(t *testing.T) {
 	}
 
 	if i[0] != 1 || i[1] != 2 {
-		t.Error("Received incorrect int32")
+		t.Error("Received incorrect int32s")
 	}
 
 	i, err = conn.SelectAllInt32("select power(2,33)::numeric")
@@ -88,7 +88,7 @@ func TestSelectAllInt16(t *testing.T) {
 	}
 
 	if i[0] != 1 || i[1] != 2 {
-		t.Error("Received incorrect int16")
+		t.Error("Received incorrect int16s")
 	}
 
 	i, err = conn.SelectAllInt16("select power(2,17)::numeric")
