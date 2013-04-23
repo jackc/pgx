@@ -53,6 +53,18 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectWithTcp(t *testing.T) {
+	conn, err := Connect(ConnectionParameters{host: "127.0.0.1", user: "pgx_md5", password: "secret", database: "pgx_test"})
+	if err != nil {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnectWithInvalidUser(t *testing.T) {
 	_, err := Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "invalid_user", database: "pgx_test"})
 	pgErr := err.(PgError)

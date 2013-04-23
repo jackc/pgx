@@ -12,6 +12,8 @@ import (
 
 type ConnectionParameters struct {
 	socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
+	host     string
+	port     uint16 // default: 5432
 	database string
 	user     string
 	password string
@@ -27,18 +29,21 @@ type Connection struct {
 	txStatus      byte
 }
 
-// options:
-//   socket: path to unix domain socket
-//   host: TCP address
-//   port:
-//   database: name of database
-func Connect(paramaters ConnectionParameters) (c *Connection, err error) {
+func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
-	c.parameters = paramaters
+	c.parameters = parameters
+	if c.parameters.port == 0 {
+		c.parameters.port = 5432
+	}
 
 	if c.parameters.socket != "" {
 		c.conn, err = net.Dial("unix", c.parameters.socket)
+		if err != nil {
+			return nil, err
+		}
+	} else if c.parameters.host != "" {
+		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.parameters.host, c.parameters.port))
 		if err != nil {
 			return nil, err
 		}
@@ -46,8 +51,6 @@ func Connect(paramaters ConnectionParameters) (c *Connection, err error) {
 
 	c.buf = make([]byte, 1024)
 	c.runtimeParams = make(map[string]string)
-
-	// conn, err := net.Dial("tcp", "localhost:5432")
 
 	msg := newStartupMessage()
 	msg.options["user"] = c.parameters.user
