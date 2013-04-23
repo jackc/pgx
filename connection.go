@@ -10,32 +10,35 @@ import (
 	"net"
 )
 
+type ConnectionParameters struct {
+	socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
+	database string
+	user     string
+	password string
+}
+
 type Connection struct {
-	conn          net.Conn          // the underlying TCP or unix domain socket connection
-	buf           []byte            // work buffer to avoid constant alloc and dealloc
-	pid           int32             // backend pid
-	secretKey     int32             // key to use to send a cancel query message to the server
-	runtimeParams map[string]string // parameters that have been reported by the server
-	options       map[string]string // options used when establishing connection
+	conn          net.Conn             // the underlying TCP or unix domain socket connection
+	buf           []byte               // work buffer to avoid constant alloc and dealloc
+	pid           int32                // backend pid
+	secretKey     int32                // key to use to send a cancel query message to the server
+	runtimeParams map[string]string    // parameters that have been reported by the server
+	parameters    ConnectionParameters // parameters used when establishing this connection
 	txStatus      byte
 }
 
 // options:
 //   socket: path to unix domain socket
+//   host: TCP address
+//   port:
 //   database: name of database
-func Connect(options map[string]string) (c *Connection, err error) {
+func Connect(paramaters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
-	c.options = make(map[string]string)
-	for k, v := range options {
-		c.options[k] = v
-	}
+	c.parameters = paramaters
 
-	var present bool
-	var socket string
-
-	if socket, present = options["socket"]; present {
-		c.conn, err = net.Dial("unix", socket)
+	if c.parameters.socket != "" {
+		c.conn, err = net.Dial("unix", c.parameters.socket)
 		if err != nil {
 			return nil, err
 		}
@@ -46,12 +49,10 @@ func Connect(options map[string]string) (c *Connection, err error) {
 
 	// conn, err := net.Dial("tcp", "localhost:5432")
 
-	var database string
-
 	msg := newStartupMessage()
-	msg.options["user"], _ = options["user"]
-	if database, present = options["database"]; present {
-		msg.options["database"] = database
+	msg.options["user"] = c.parameters.user
+	if c.parameters.database != "" {
+		msg.options["database"] = c.parameters.database
 	}
 	c.txStartupMessage(msg)
 
@@ -240,10 +241,10 @@ func (c *Connection) rxAuthenticationX(r *messageReader) (err error) {
 	switch code {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
-		c.txPasswordMessage(c.options["password"])
+		c.txPasswordMessage(c.parameters.password)
 	case 5: // AuthenticationMD5Password
 		salt := r.readByteString(4)
-		digestedPassword := "md5" + hexMD5(hexMD5(c.options["password"]+c.options["user"])+salt)
+		digestedPassword := "md5" + hexMD5(hexMD5(c.parameters.password+c.parameters.user)+salt)
 		c.txPasswordMessage(digestedPassword)
 	default:
 		err = errors.New("Received unknown authentication message")

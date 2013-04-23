@@ -9,7 +9,7 @@ var SharedConnection *Connection
 func getSharedConnection() (c *Connection) {
 	if SharedConnection == nil {
 		var err error
-		SharedConnection, err = Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
+		SharedConnection, err = Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_none", database: "pgx_test"})
 		if err != nil {
 			panic("Unable to establish connection")
 		}
@@ -19,7 +19,7 @@ func getSharedConnection() (c *Connection) {
 }
 
 func TestConnect(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"})
+	conn, err := Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_none", database: "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
@@ -54,7 +54,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestConnectWithInvalidUser(t *testing.T) {
-	_, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "invalid_user", "database": "pgx_test"})
+	_, err := Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "invalid_user", database: "pgx_test"})
 	pgErr := err.(PgError)
 	if pgErr.Code != "28000" {
 		t.Fatal("Did not receive expected error when connecting with invalid user")
@@ -62,7 +62,7 @@ func TestConnectWithInvalidUser(t *testing.T) {
 }
 
 func TestConnectWithPlainTextPassword(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_pw", "password": "secret", "database": "pgx_test"})
+	conn, err := Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_pw", password: "secret", database: "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -74,7 +74,7 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 }
 
 func TestConnectWithMD5Password(t *testing.T) {
-	conn, err := Connect(map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_md5", "password": "secret", "database": "pgx_test"})
+	conn, err := Connect(ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_md5", password: "secret", database: "pgx_test"})
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}

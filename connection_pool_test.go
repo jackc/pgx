@@ -6,7 +6,7 @@ import (
 )
 
 func createConnectionPool(maxConnections int) *ConnectionPool {
-	connectionOptions := map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"}
+	connectionOptions := ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_none", database: "pgx_test"}
 	pool, err := NewConnectionPool(connectionOptions, maxConnections)
 	if err != nil {
 		panic("Unable to create connection pool")
@@ -15,7 +15,7 @@ func createConnectionPool(maxConnections int) *ConnectionPool {
 }
 
 func TestNewConnectionPool(t *testing.T) {
-	connectionOptions := map[string]string{"socket": "/private/tmp/.s.PGSQL.5432", "user": "pgx_none", "database": "pgx_test"}
+	connectionOptions := ConnectionParameters{socket: "/private/tmp/.s.PGSQL.5432", user: "pgx_none", database: "pgx_test"}
 	pool, err := NewConnectionPool(connectionOptions, 5)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
