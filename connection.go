@@ -11,12 +11,12 @@ import (
 )
 
 type ConnectionParameters struct {
-	socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
-	host     string
-	port     uint16 // default: 5432
-	database string
-	user     string
-	password string
+	Socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
+	Host     string
+	Port     uint16 // default: 5432
+	Database string
+	User     string
+	Password string
 }
 
 type Connection struct {
@@ -33,17 +33,17 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
 	c.parameters = parameters
-	if c.parameters.port == 0 {
-		c.parameters.port = 5432
+	if c.parameters.Port == 0 {
+		c.parameters.Port = 5432
 	}
 
-	if c.parameters.socket != "" {
-		c.conn, err = net.Dial("unix", c.parameters.socket)
+	if c.parameters.Socket != "" {
+		c.conn, err = net.Dial("unix", c.parameters.Socket)
 		if err != nil {
 			return nil, err
 		}
-	} else if c.parameters.host != "" {
-		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.parameters.host, c.parameters.port))
+	} else if c.parameters.Host != "" {
+		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.parameters.Host, c.parameters.Port))
 		if err != nil {
 			return nil, err
 		}
@@ -53,9 +53,9 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c.runtimeParams = make(map[string]string)
 
 	msg := newStartupMessage()
-	msg.options["user"] = c.parameters.user
-	if c.parameters.database != "" {
-		msg.options["database"] = c.parameters.database
+	msg.options["user"] = c.parameters.User
+	if c.parameters.Database != "" {
+		msg.options["database"] = c.parameters.Database
 	}
 	c.txStartupMessage(msg)
 
@@ -244,10 +244,10 @@ func (c *Connection) rxAuthenticationX(r *messageReader) (err error) {
 	switch code {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
-		c.txPasswordMessage(c.parameters.password)
+		c.txPasswordMessage(c.parameters.Password)
 	case 5: // AuthenticationMD5Password
 		salt := r.readByteString(4)
-		digestedPassword := "md5" + hexMD5(hexMD5(c.parameters.password+c.parameters.user)+salt)
+		digestedPassword := "md5" + hexMD5(hexMD5(c.parameters.Password+c.parameters.User)+salt)
 		c.txPasswordMessage(digestedPassword)
 	default:
 		err = errors.New("Received unknown authentication message")
