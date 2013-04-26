@@ -6,7 +6,7 @@ import (
 )
 
 func (c *Connection) SelectString(sql string) (s string, err error) {
-	onDataRow := func(r *messageReader, _ []fieldDescription) error {
+	onDataRow := func(r *MessageReader, _ []FieldDescription) error {
 		var null bool
 		s, null = c.rxDataRowFirstValue(r)
 		if null {

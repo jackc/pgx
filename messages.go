@@ -43,14 +43,14 @@ func (self *startupMessage) Bytes() (buf []byte) {
 
 type oid int32
 
-type fieldDescription struct {
-	name            string
-	table           oid
-	attributeNumber int16
-	dataType        oid
-	dataTypeSize    int16
-	modifier        int32
-	formatCode      int16
+type FieldDescription struct {
+	Name            string
+	Table           oid
+	AttributeNumber int16
+	DataType        oid
+	DataTypeSize    int16
+	Modifier        int32
+	FormatCode      int16
 }
 
 type PgError struct {

@@ -130,7 +130,7 @@ func TestSelectFunc(t *testing.T) {
 	conn := getSharedConnection()
 
 	rowCount := 0
-	onDataRow := func(r *messageReader, fields []fieldDescription) error {
+	onDataRow := func(r *MessageReader, fields []FieldDescription) error {
 		rowCount++
 		return nil
 	}

@@ -5,38 +5,38 @@ import (
 	"encoding/binary"
 )
 
-type messageReader []byte
+type MessageReader []byte
 
-func newMessageReader(buf []byte) *messageReader {
-	r := messageReader(buf)
+func newMessageReader(buf []byte) *MessageReader {
+	r := MessageReader(buf)
 	return &r
 }
 
-func (r *messageReader) readByte() byte {
+func (r *MessageReader) ReadByte() byte {
 	b := (*r)[0]
 	*r = (*r)[1:]
 	return b
 }
 
-func (r *messageReader) readInt16() int16 {
+func (r *MessageReader) ReadInt16() int16 {
 	n := int16(binary.BigEndian.Uint16((*r)[:2]))
 	*r = (*r)[2:]
 	return n
 }
 
-func (r *messageReader) readInt32() int32 {
+func (r *MessageReader) ReadInt32() int32 {
 	n := int32(binary.BigEndian.Uint32((*r)[:4]))
 	*r = (*r)[4:]
 	return n
 }
 
-func (r *messageReader) readOid() oid {
+func (r *MessageReader) ReadOid() oid {
 	n := oid(binary.BigEndian.Uint32((*r)[:4]))
 	*r = (*r)[4:]
 	return n
 }
 
-func (r *messageReader) readString() string {
+func (r *MessageReader) ReadString() string {
 	n := bytes.IndexByte(*r, 0)
 	s := (*r)[:n]
 	*r = (*r)[n+1:]
@@ -44,7 +44,7 @@ func (r *messageReader) readString() string {
 }
 
 // Read count bytes and return as string
-func (r *messageReader) readByteString(count int32) string {
+func (r *MessageReader) ReadByteString(count int32) string {
 	s := (*r)[:count]
 	*r = (*r)[count:]
 	return string(s)
