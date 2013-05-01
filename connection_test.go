@@ -129,9 +129,10 @@ func TestExecute(t *testing.T) {
 func TestSelectFunc(t *testing.T) {
 	conn := getSharedConnection()
 
-	rowCount := 0
-	onDataRow := func(r *MessageReader, fields []FieldDescription) error {
+	var sum, rowCount int32
+	onDataRow := func(r *DataRowReader) error {
 		rowCount++
+		sum += r.ReadInt32()
 		return nil
 	}
 
@@ -140,7 +141,10 @@ func TestSelectFunc(t *testing.T) {
 		t.Fatal("Select failed: " + err.Error())
 	}
 	if rowCount != 10 {
-		t.Fatal("Select called onDataRow wrong number of times")
+		t.Error("Select called onDataRow wrong number of times")
+	}
+	if sum != 55 {
+		t.Error("Wrong values returned")
 	}
 }
 

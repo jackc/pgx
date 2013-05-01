@@ -7,8 +7,8 @@ import (
 
 func (c *Connection) SelectAllString(sql string) (strings []string, err error) {
 	strings = make([]string, 0, 8)
-	onDataRow := func(r *MessageReader, _ []FieldDescription) error {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) error {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
@@ -21,8 +21,8 @@ func (c *Connection) SelectAllString(sql string) (strings []string, err error) {
 
 func (c *Connection) SelectAllInt64(sql string) (ints []int64, err error) {
 	ints = make([]int64, 0, 8)
-	onDataRow := func(r *MessageReader, _ []FieldDescription) (parseError error) {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
@@ -37,8 +37,8 @@ func (c *Connection) SelectAllInt64(sql string) (ints []int64, err error) {
 
 func (c *Connection) SelectAllInt32(sql string) (ints []int32, err error) {
 	ints = make([]int32, 0, 8)
-	onDataRow := func(r *MessageReader, fields []FieldDescription) (parseError error) {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
@@ -53,8 +53,8 @@ func (c *Connection) SelectAllInt32(sql string) (ints []int32, err error) {
 
 func (c *Connection) SelectAllInt16(sql string) (ints []int16, err error) {
 	ints = make([]int16, 0, 8)
-	onDataRow := func(r *MessageReader, _ []FieldDescription) (parseError error) {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
@@ -69,8 +69,8 @@ func (c *Connection) SelectAllInt16(sql string) (ints []int16, err error) {
 
 func (c *Connection) SelectAllFloat64(sql string) (floats []float64, err error) {
 	floats = make([]float64, 0, 8)
-	onDataRow := func(r *MessageReader, _ []FieldDescription) (parseError error) {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
@@ -85,8 +85,8 @@ func (c *Connection) SelectAllFloat64(sql string) (floats []float64, err error) 
 
 func (c *Connection) SelectAllFloat32(sql string) (floats []float32, err error) {
 	floats = make([]float32, 0, 8)
-	onDataRow := func(r *MessageReader, _ []FieldDescription) (parseError error) {
-		s, null := c.rxDataRowFirstValue(r)
+	onDataRow := func(r *DataRowReader) (parseError error) {
+		s, null := c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}

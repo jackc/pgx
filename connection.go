@@ -93,7 +93,7 @@ func (c *Connection) Close() (err error) {
 	return
 }
 
-func (c *Connection) SelectFunc(sql string, onDataRow func(*MessageReader, []FieldDescription) error) (err error) {
+func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error) (err error) {
 	if err = c.sendSimpleQuery(sql); err != nil {
 		return
 	}
@@ -115,7 +115,7 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*MessageReader, []Fie
 				fields = c.rxRowDescription(r)
 			case dataRow:
 				if callbackError == nil {
-					callbackError = onDataRow(r, fields)
+					callbackError = onDataRow(newDataRowReader(r, fields))
 				}
 			case commandComplete:
 			default:
@@ -137,8 +137,8 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*MessageReader, []Fie
 // pattern when accessing the map
 func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error) {
 	rows = make([]map[string]string, 0, 8)
-	onDataRow := func(r *MessageReader, fields []FieldDescription) error {
-		rows = append(rows, c.rxDataRow(r, fields))
+	onDataRow := func(r *DataRowReader) error {
+		rows = append(rows, c.rxDataRow(r))
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
@@ -312,22 +312,21 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 	return
 }
 
-func (c *Connection) rxDataRow(r *MessageReader, fields []FieldDescription) (row map[string]string) {
-	fieldCount := r.ReadInt16()
+func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]string) {
+	fieldCount := len(r.fields)
+	mr := r.mr
 
 	row = make(map[string]string, fieldCount)
-	for i := int16(0); i < fieldCount; i++ {
-		size := r.ReadInt32()
+	for i := 0; i < fieldCount; i++ {
+		size := mr.ReadInt32()
 		if size > -1 {
-			row[fields[i].Name] = r.ReadByteString(size)
+			row[r.fields[i].Name] = mr.ReadByteString(size)
 		}
 	}
 	return
 }
 
 func (c *Connection) rxDataRowFirstValue(r *MessageReader) (s string, null bool) {
-	r.ReadInt16() // ignore field count
-
 	size := r.ReadInt32()
 	if size > -1 {
 		s = r.ReadByteString(size)

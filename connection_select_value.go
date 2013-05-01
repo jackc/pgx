@@ -6,9 +6,9 @@ import (
 )
 
 func (c *Connection) SelectString(sql string) (s string, err error) {
-	onDataRow := func(r *MessageReader, _ []FieldDescription) error {
+	onDataRow := func(r *DataRowReader) error {
 		var null bool
-		s, null = c.rxDataRowFirstValue(r)
+		s, null = c.rxDataRowFirstValue(r.mr)
 		if null {
 			return errors.New("Unexpected NULL")
 		}
