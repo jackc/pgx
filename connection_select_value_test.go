@@ -105,6 +105,7 @@ func TestSelectInt16(t *testing.T) {
 	}
 }
 
+
 func TestSelectFloat64(t *testing.T) {
 	conn := getSharedConnection()
 
@@ -140,3 +141,4 @@ func TestSelectFloat32(t *testing.T) {
 		t.Error("Should have received error on null")
 	}
 }
+

@@ -49,6 +49,7 @@ func TestSelectInt<%= size %>(t *testing.T) {
 		t.Error("Should have received error on null")
 	}
 }
+
 <% end %>
 
 <% [64, 32].each do |size| %>
@@ -69,4 +70,5 @@ func TestSelectFloat<%= size %>(t *testing.T) {
 		t.Error("Should have received error on null")
 	}
 }
+
 <% end %>
