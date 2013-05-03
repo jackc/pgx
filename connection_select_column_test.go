@@ -23,6 +23,7 @@ func TestSelectAllString(t *testing.T) {
 	}
 }
 
+
 func TestSelectAllInt64(t *testing.T) {
 	conn := getSharedConnection()
 
@@ -106,6 +107,7 @@ func TestSelectAllInt16(t *testing.T) {
 		t.Error("Should have received error on null")
 	}
 }
+
 
 
 func TestSelectAllFloat64(t *testing.T) {

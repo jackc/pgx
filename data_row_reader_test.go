@@ -22,6 +22,7 @@ func TestDataRowReaderReadString(t *testing.T) {
 	}
 }
 
+
 func TestDataRowReaderReadInt64(t *testing.T) {
 	conn := getSharedConnection()
 
@@ -75,6 +76,7 @@ func TestDataRowReaderReadInt16(t *testing.T) {
 		t.Error("Wrong value returned")
 	}
 }
+
 
 
 func TestDataRowReaderReadFloat64(t *testing.T) {
