@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"encoding/hex"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -44,6 +45,8 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 			return strconv.FormatFloat(float64(arg), 'f', -1, 32)
 		case float64:
 			return strconv.FormatFloat(arg, 'f', -1, 64)
+		case []byte:
+			return `E'\\x` + hex.EncodeToString(arg) + `'`
 		default:
 			panic("Unable to sanitize type: " + reflect.TypeOf(arg).String())
 		}
