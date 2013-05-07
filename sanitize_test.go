@@ -19,7 +19,19 @@ func TestQuoteString(t *testing.T) {
 func TestSanitizeSql(t *testing.T) {
 	conn := getSharedConnection()
 
+	if conn.SanitizeSql("select $1", "Jack's") != "select 'Jack''s'" {
+		t.Error("Failed to sanitize string")
+	}
+
+	if conn.SanitizeSql("select $1", 42) != "select 42" {
+		t.Error("Failed to pass through integer")
+	}
+
+	if conn.SanitizeSql("select $1", 1.23) != "select 1.23" {
+		t.Error("Failed to pass through float")
+	}
+
 	if conn.SanitizeSql("select $1, $2, $3", "Jack's", 42, 1.23) != "select 'Jack''s', 42, 1.23" {
-		t.Error("Failed to sanitize sql")
+		t.Error("Failed to sanitize multiple params")
 	}
 }
