@@ -145,6 +145,19 @@ func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error
 	return
 }
 
+// Null values are not included in row. However, because maps return the 0 value
+// for missing values this flattens nulls to empty string. If the caller needs to
+// distinguish between a real empty string and a null it can use the comma ok
+// pattern when accessing the map
+func (c *Connection) SelectRow(sql string) (row map[string]string, err error) {
+	onDataRow := func(r *DataRowReader) error {
+		row = c.rxDataRow(r)
+		return nil
+	}
+	err = c.SelectFunc(sql, onDataRow)
+	return
+}
+
 func (c *Connection) sendSimpleQuery(sql string) (err error) {
 	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
 	buf := c.getBuf(bufSize)

@@ -172,3 +172,32 @@ func TestSelectRows(t *testing.T) {
 		t.Error("Null value shouldn't have been present in map")
 	}
 }
+
+func TestSelectRow(t *testing.T) {
+	conn := getSharedConnection()
+
+	row, err := conn.SelectRow("select 'Jack' as name, null as position")
+	if err != nil {
+		t.Fatal("Query failed")
+	}
+
+	if row["name"] != "Jack" {
+		t.Error("Received incorrect name")
+	}
+
+	value, presence := row["position"]
+	if value != "" {
+		t.Error("Should have received empty string for null")
+	}
+	if presence != false {
+		t.Error("Null value shouldn't have been present in map")
+	}
+
+	row, err = conn.SelectRow("select 'Jack' as name where 1=2")
+	if row != nil {
+		t.Error("No matching row should have returned nil")
+	}
+	if err != nil {
+		t.Fatal("Query failed")
+	}
+}
