@@ -29,6 +29,12 @@ type Connection struct {
 	txStatus      byte
 }
 
+type NoRowsFoundError struct {
+	msg string
+}
+
+func (e NoRowsFoundError) Error() string { return e.msg }
+
 func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
@@ -131,12 +137,8 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 	panic("Unreachable")
 }
 
-// Null values are not included in rows. However, because maps return the 0 value
-// for missing values this flattens nulls to empty string. If the caller needs to
-// distinguish between a real empty string and a null it can use the comma ok
-// pattern when accessing the map
-func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error) {
-	rows = make([]map[string]string, 0, 8)
+func (c *Connection) SelectRows(sql string) (rows []map[string]interface{}, err error) {
+	rows = make([]map[string]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		rows = append(rows, c.rxDataRow(r))
 		return nil
@@ -145,25 +147,37 @@ func (c *Connection) SelectRows(sql string) (rows []map[string]string, err error
 	return
 }
 
-// Null values are not included in row. However, because maps return the 0 value
-// for missing values this flattens nulls to empty string. If the caller needs to
-// distinguish between a real empty string and a null it can use the comma ok
-// pattern when accessing the map
-func (c *Connection) SelectRow(sql string) (row map[string]string, err error) {
+func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err error) {
+	var numRowsFound int64
+
 	onDataRow := func(r *DataRowReader) error {
+		numRowsFound++
 		row = c.rxDataRow(r)
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
+	if err == nil {
+		if numRowsFound == 0 {
+			err = NoRowsFoundError{}
+		}
+	}
 	return
 }
 
 func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
+	var numRowsFound int64
+
 	onDataRow := func(r *DataRowReader) error {
+		numRowsFound++
 		v = r.ReadValue()
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
+	if err == nil {
+		if numRowsFound == 0 {
+			err = NoRowsFoundError{}
+		}
+	}
 	return
 }
 
@@ -344,16 +358,12 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 	return
 }
 
-func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]string) {
+func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 	fieldCount := len(r.fields)
-	mr := r.mr
 
-	row = make(map[string]string, fieldCount)
+	row = make(map[string]interface{}, fieldCount)
 	for i := 0; i < fieldCount; i++ {
-		size := mr.ReadInt32()
-		if size > -1 {
-			row[r.fields[i].Name] = mr.ReadByteString(size)
-		}
+		row[r.fields[i].Name] = r.ReadValue()
 	}
 	return
 }

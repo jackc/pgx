@@ -36,7 +36,7 @@ func TestConnect(t *testing.T) {
 		t.Error("Backend secret key not stored")
 	}
 
-	var rows []map[string]string
+	var rows []map[string]interface{}
 	rows, err = conn.SelectRows("select current_database()")
 	if err != nil || rows[0]["current_database"] != "pgx_test" {
 		t.Error("Did not connect to specified database (pgx_text)")
@@ -164,12 +164,12 @@ func TestSelectRows(t *testing.T) {
 		t.Error("Received incorrect name")
 	}
 
-	value, presence := rows[0]["position"]
-	if value != "" {
-		t.Error("Should have received empty string for null")
-	}
-	if presence != false {
-		t.Error("Null value shouldn't have been present in map")
+	if value, presence := rows[0]["position"]; presence {
+		if value != nil {
+			t.Error("Should have received nil for null")
+		}
+	} else {
+		t.Error("Null value should have been present in map as nil")
 	}
 }
 
@@ -185,20 +185,17 @@ func TestSelectRow(t *testing.T) {
 		t.Error("Received incorrect name")
 	}
 
-	value, presence := row["position"]
-	if value != "" {
-		t.Error("Should have received empty string for null")
-	}
-	if presence != false {
-		t.Error("Null value shouldn't have been present in map")
+	if value, presence := row["position"]; presence {
+		if value != nil {
+			t.Error("Should have received nil for null")
+		}
+	} else {
+		t.Error("Null value should have been present in map as nil")
 	}
 
-	row, err = conn.SelectRow("select 'Jack' as name where 1=2")
-	if row != nil {
-		t.Error("No matching row should have returned nil")
-	}
-	if err != nil {
-		t.Fatal("Query failed")
+	_, err = conn.SelectRow("select 'Jack' as name where 1=2")
+	if _, ok := err.(NoRowsFoundError); !ok {
+		t.Error("No matching row should have returned NoRowsFoundError")
 	}
 }
 
@@ -224,6 +221,11 @@ func TestConnectionSelectValue(t *testing.T) {
 	test("select 1::int8", int64(1))
 	test("select 1.23::float4", float32(1.23))
 	test("select 1.23::float8", float64(1.23))
+
+	_, err := conn.SelectValue("select 'Jack' as name where 1=2")
+	if _, ok := err.(NoRowsFoundError); !ok {
+		t.Error("No matching row should have returned NoRowsFoundError")
+	}
 }
 
 func TestSelectValues(t *testing.T) {
