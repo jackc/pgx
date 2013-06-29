@@ -1,146 +1,90 @@
 package pgx
 
 import (
-	"strings"
 	"testing"
 )
 
-func TestSelectString(t *testing.T) {
+func TestSelectValue(t *testing.T) {
 	conn := getSharedConnection()
+	var v interface{}
+	var err error
 
-	s, err := conn.SelectString("select 'foo'")
+	v, err = conn.SelectValue("select null")
 	if err != nil {
-		t.Error("Unable to select string: " + err.Error())
-	} else if s != "foo" {
-		t.Error("Received incorrect string")
+		t.Errorf("Unable to select null: %v", err)
+	} else {
+		if v != nil {
+			t.Errorf("Expected: nil, recieved: %v", v)
+		}
 	}
 
-	_, err = conn.SelectString("select null")
-	if err == nil {
-		t.Error("Should have received error on null")
+	v, err = conn.SelectValue("select 'foo'")
+	if err != nil {
+		t.Errorf("Unable to select string: %v", err)
+	} else {
+		s, ok := v.(string)
+		if !(ok && s == "foo") {
+			t.Errorf("Expected: foo, recieved: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select true")
+	if err != nil {
+		t.Errorf("Unable to select bool: %#v", err)
+	} else {
+		s, ok := v.(bool)
+		if !(ok && s == true) {
+			t.Errorf("Expected true, received: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select false")
+	if err != nil {
+		t.Errorf("Unable to select bool: %v", err)
+	} else {
+		s, ok := v.(bool)
+		if !(ok && s == false) {
+			t.Errorf("Expected false, received: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select 1::int2")
+	if err != nil {
+		t.Errorf("Unable to select int2: %v", err)
+	} else {
+		s, ok := v.(int16)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select 1::int4")
+	if err != nil {
+		t.Errorf("Unable to select int4: %v", err)
+	} else {
+		s, ok := v.(int32)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select 1::int8")
+	if err != nil {
+		t.Errorf("Unable to select int8: %#v", err)
+	} else {
+		s, ok := v.(int64)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	v, err = conn.SelectValue("select 1.23::float4")
+	if err != nil {
+		t.Errorf("Unable to select float4: %#v", err)
+	} else {
+		s, ok := v.(float32)
+		if !(ok && s == float32(1.23)) {
+			t.Errorf("Expected 1.23, received: %#v", v)
+		}
 	}
 }
-
-
-func TestSelectInt64(t *testing.T) {
-	conn := getSharedConnection()
-
-	i, err := conn.SelectInt64("select 1")
-	if err != nil {
-		t.Fatal("Unable to select int64: " + err.Error())
-	}
-
-	if i != 1 {
-		t.Error("Received incorrect int64")
-	}
-
-	i, err = conn.SelectInt64("select power(2,65)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number greater than max int64")
-	}
-
-	i, err = conn.SelectInt64("select -power(2,65)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number less than min int64")
-	}
-
-	_, err = conn.SelectInt64("select null")
-	if err == nil || !strings.Contains(err.Error(), "NULL") {
-		t.Error("Should have received error on null")
-	}
-}
-
-func TestSelectInt32(t *testing.T) {
-	conn := getSharedConnection()
-
-	i, err := conn.SelectInt32("select 1")
-	if err != nil {
-		t.Fatal("Unable to select int32: " + err.Error())
-	}
-
-	if i != 1 {
-		t.Error("Received incorrect int32")
-	}
-
-	i, err = conn.SelectInt32("select power(2,33)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number greater than max int32")
-	}
-
-	i, err = conn.SelectInt32("select -power(2,33)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number less than min int32")
-	}
-
-	_, err = conn.SelectInt32("select null")
-	if err == nil || !strings.Contains(err.Error(), "NULL") {
-		t.Error("Should have received error on null")
-	}
-}
-
-func TestSelectInt16(t *testing.T) {
-	conn := getSharedConnection()
-
-	i, err := conn.SelectInt16("select 1")
-	if err != nil {
-		t.Fatal("Unable to select int16: " + err.Error())
-	}
-
-	if i != 1 {
-		t.Error("Received incorrect int16")
-	}
-
-	i, err = conn.SelectInt16("select power(2,17)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number greater than max int16")
-	}
-
-	i, err = conn.SelectInt16("select -power(2,17)::numeric")
-	if err == nil || !strings.Contains(err.Error(), "value out of range") {
-		t.Error("Expected value out of range error when selecting number less than min int16")
-	}
-
-	_, err = conn.SelectInt16("select null")
-	if err == nil || !strings.Contains(err.Error(), "NULL") {
-		t.Error("Should have received error on null")
-	}
-}
-
-
-
-func TestSelectFloat64(t *testing.T) {
-	conn := getSharedConnection()
-
-	f, err := conn.SelectFloat64("select 1.23")
-	if err != nil {
-		t.Fatal("Unable to select float64: " + err.Error())
-	}
-
-	if f != 1.23 {
-		t.Error("Received incorrect float64")
-	}
-
-	_, err = conn.SelectFloat64("select null")
-	if err == nil || !strings.Contains(err.Error(), "NULL") {
-		t.Error("Should have received error on null")
-	}
-}
-
-func TestSelectFloat32(t *testing.T) {
-	conn := getSharedConnection()
-
-	f, err := conn.SelectFloat32("select 1.23")
-	if err != nil {
-		t.Fatal("Unable to select float32: " + err.Error())
-	}
-
-	if f != 1.23 {
-		t.Error("Received incorrect float32")
-	}
-
-	_, err = conn.SelectFloat32("select null")
-	if err == nil || !strings.Contains(err.Error(), "NULL") {
-		t.Error("Should have received error on null")
-	}
-}
-

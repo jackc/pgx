@@ -88,11 +88,12 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	allConnections = acquireAll()
 
 	for _, c := range allConnections {
-		n, err := c.SelectInt32("select counter from t")
+		v, err := c.SelectValue("select counter from t")
 		if err != nil {
 			t.Fatal("Unable to read back execution counter: " + err.Error())
 		}
 
+		n := v.(int32)
 		if n == 0 {
 			t.Error("A connection was never used")
 		}
