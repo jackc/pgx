@@ -11,20 +11,6 @@ TODO
 Development
 ===========
 
-ERB Templating
---------------
-
-Sometimes Go code can be repetitive especially with dealing with functions that only differ in the type (e.g. ReadInt16, ReadInt32, ReadInt64). Some of this repetition can be eliminated by using a template preprocessor. pgx uses Ruby erb templates. Files that end in .go.erb are used to produce the corresponding .go files. These files are automatically automatically processed with [rake](https://github.com/jimweirich/rake).
-
-Prerequisites:
-
-* Ruby
-* Rake
-
-To automatically process .go.erb files and run the tests:
-
-    jack@hk-47~/dev/pgx$ rake test
-
 Testing
 -------
 
