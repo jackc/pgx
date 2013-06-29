@@ -7,8 +7,8 @@ import (
 
 type MessageReader []byte
 
-func newMessageReader(buf []byte) *MessageReader {
-	r := MessageReader(buf)
+func newMessageReader(buf *bytes.Buffer) *MessageReader {
+	r := MessageReader(buf.Bytes())
 	return &r
 }
 
