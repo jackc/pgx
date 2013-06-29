@@ -194,8 +194,13 @@ func TestSelectRow(t *testing.T) {
 	}
 
 	_, err = conn.SelectRow("select 'Jack' as name where 1=2")
-	if _, ok := err.(NoRowsFoundError); !ok {
-		t.Error("No matching row should have returned NoRowsFoundError")
+	if _, ok := err.(NotSingleRowError); !ok {
+		t.Error("No matching row should have returned NotSingleRowError")
+	}
+
+	_, err = conn.SelectRow("select * from (values ('Matthew'), ('Mark')) t")
+	if _, ok := err.(NotSingleRowError); !ok {
+		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
 }
 
@@ -223,8 +228,13 @@ func TestConnectionSelectValue(t *testing.T) {
 	test("select 1.23::float8", float64(1.23))
 
 	_, err := conn.SelectValue("select 'Jack' as name where 1=2")
-	if _, ok := err.(NoRowsFoundError); !ok {
+	if _, ok := err.(NotSingleRowError); !ok {
 		t.Error("No matching row should have returned NoRowsFoundError")
+	}
+
+	_, err = conn.SelectValue("select * from (values ('Matthew'), ('Mark')) t")
+	if _, ok := err.(NotSingleRowError); !ok {
+		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
 }
 

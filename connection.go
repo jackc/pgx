@@ -29,11 +29,13 @@ type Connection struct {
 	txStatus      byte
 }
 
-type NoRowsFoundError struct {
-	msg string
+type NotSingleRowError struct {
+	RowCount int64
 }
 
-func (e NoRowsFoundError) Error() string { return e.msg }
+func (e NotSingleRowError) Error() string {
+	return fmt.Sprintf("Expected to find 1 row exactly, instead found %d", e.RowCount)
+}
 
 func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
@@ -147,6 +149,7 @@ func (c *Connection) SelectRows(sql string) (rows []map[string]interface{}, err 
 	return
 }
 
+// Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err error) {
 	var numRowsFound int64
 
@@ -156,14 +159,13 @@ func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err erro
 		return nil
 	}
 	err = c.SelectFunc(sql, onDataRow)
-	if err == nil {
-		if numRowsFound == 0 {
-			err = NoRowsFoundError{}
-		}
+	if err == nil && numRowsFound != 1 {
+		err = NotSingleRowError{RowCount: numRowsFound}
 	}
 	return
 }
 
+// Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 	var numRowsFound int64
 
@@ -174,8 +176,8 @@ func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 	}
 	err = c.SelectFunc(sql, onDataRow)
 	if err == nil {
-		if numRowsFound == 0 {
-			err = NoRowsFoundError{}
+		if numRowsFound != 1 {
+			err = NotSingleRowError{RowCount: numRowsFound}
 		}
 	}
 	return
