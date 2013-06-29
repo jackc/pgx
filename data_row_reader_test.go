@@ -4,114 +4,89 @@ import (
 	"testing"
 )
 
-func TestDataRowReaderReadString(t *testing.T) {
+func TestDataRowReaderReadValue(t *testing.T) {
 	conn := getSharedConnection()
+	var v interface{}
+	var err error
 
-	var s string
 	onDataRow := func(r *DataRowReader) error {
-		s = r.ReadString()
+		v = r.ReadValue()
 		return nil
 	}
 
-	err := conn.SelectFunc("select 'Jack'", onDataRow)
+	err = conn.SelectFunc("select null", onDataRow)
 	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
+		t.Fatalf("Select failed: %v", err)
 	}
-	if s != "Jack" {
-		t.Error("Wrong value returned")
+	if v != nil {
+		t.Errorf("Wrong value returned: %v", v)
+	}
+
+	err = conn.SelectFunc("select 'Jack'", onDataRow)
+	if err != nil {
+		t.Fatalf("Select failed: %v", err)
+	}
+	if typedValue, _ := v.(string); typedValue != "Jack" {
+		t.Errorf("Wrong value returned: %v", typedValue)
+	}
+
+	err = conn.SelectFunc("select true", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select bool: %#v", err)
+	} else {
+		s, ok := v.(bool)
+		if !(ok && s == true) {
+			t.Errorf("Expected true, received: %#v", v)
+		}
+	}
+
+	err = conn.SelectFunc("select false", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select bool: %v", err)
+	} else {
+		s, ok := v.(bool)
+		if !(ok && s == false) {
+			t.Errorf("Expected false, received: %#v", v)
+		}
+	}
+
+	err = conn.SelectFunc("select 1::int2", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select int2: %v", err)
+	} else {
+		s, ok := v.(int16)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	err = conn.SelectFunc("select 1::int4", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select int4: %v", err)
+	} else {
+		s, ok := v.(int32)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	err = conn.SelectFunc("select 1::int8", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select int8: %#v", err)
+	} else {
+		s, ok := v.(int64)
+		if !(ok && s == 1) {
+			t.Errorf("Expected 1, received: %#v", v)
+		}
+	}
+
+	err = conn.SelectFunc("select 1.23::float4", onDataRow)
+	if err != nil {
+		t.Errorf("Unable to select float4: %#v", err)
+	} else {
+		s, ok := v.(float32)
+		if !(ok && s == float32(1.23)) {
+			t.Errorf("Expected 1.23, received: %#v", v)
+		}
 	}
 }
-
-
-func TestDataRowReaderReadInt64(t *testing.T) {
-	conn := getSharedConnection()
-
-	var n int64
-	onDataRow := func(r *DataRowReader) error {
-		n = r.ReadInt64()
-		return nil
-	}
-
-	err := conn.SelectFunc("select 1", onDataRow)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
-	}
-	if n != 1 {
-		t.Error("Wrong value returned")
-	}
-}
-
-func TestDataRowReaderReadInt32(t *testing.T) {
-	conn := getSharedConnection()
-
-	var n int32
-	onDataRow := func(r *DataRowReader) error {
-		n = r.ReadInt32()
-		return nil
-	}
-
-	err := conn.SelectFunc("select 1", onDataRow)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
-	}
-	if n != 1 {
-		t.Error("Wrong value returned")
-	}
-}
-
-func TestDataRowReaderReadInt16(t *testing.T) {
-	conn := getSharedConnection()
-
-	var n int16
-	onDataRow := func(r *DataRowReader) error {
-		n = r.ReadInt16()
-		return nil
-	}
-
-	err := conn.SelectFunc("select 1", onDataRow)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
-	}
-	if n != 1 {
-		t.Error("Wrong value returned")
-	}
-}
-
-
-
-func TestDataRowReaderReadFloat64(t *testing.T) {
-	conn := getSharedConnection()
-
-	var n float64
-	onDataRow := func(r *DataRowReader) error {
-		n = r.ReadFloat64()
-		return nil
-	}
-
-	err := conn.SelectFunc("select 1.5", onDataRow)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
-	}
-	if n != 1.5 {
-		t.Error("Wrong value returned")
-	}
-}
-
-func TestDataRowReaderReadFloat32(t *testing.T) {
-	conn := getSharedConnection()
-
-	var n float32
-	onDataRow := func(r *DataRowReader) error {
-		n = r.ReadFloat32()
-		return nil
-	}
-
-	err := conn.SelectFunc("select 1.5", onDataRow)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
-	}
-	if n != 1.5 {
-		t.Error("Wrong value returned")
-	}
-}
-

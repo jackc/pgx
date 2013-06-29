@@ -158,6 +158,25 @@ func (c *Connection) SelectRow(sql string) (row map[string]string, err error) {
 	return
 }
 
+func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
+	onDataRow := func(r *DataRowReader) error {
+		v = r.ReadValue()
+		return nil
+	}
+	err = c.SelectFunc(sql, onDataRow)
+	return
+}
+
+func (c *Connection) SelectValues(sql string) (values []interface{}, err error) {
+	values = make([]interface{}, 0, 8)
+	onDataRow := func(r *DataRowReader) error {
+		values = append(values, r.ReadValue())
+		return nil
+	}
+	err = c.SelectFunc(sql, onDataRow)
+	return
+}
+
 func (c *Connection) sendSimpleQuery(sql string) (err error) {
 	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
 	buf := c.getBuf(bufSize)
