@@ -37,6 +37,15 @@ func (e NotSingleRowError) Error() string {
 	return fmt.Sprintf("Expected to find 1 row exactly, instead found %d", e.RowCount)
 }
 
+type UnexpectedColumnCountError struct {
+	ExpectedCount int16
+	ActualCount   int16
+}
+
+func (e UnexpectedColumnCountError) Error() string {
+	return fmt.Sprintf("Expected result to have %d column(s), instead it has %d", e.ExpectedCount, e.ActualCount)
+}
+
 func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
@@ -165,11 +174,16 @@ func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err erro
 	return
 }
 
+// Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 	var numRowsFound int64
 
 	onDataRow := func(r *DataRowReader) error {
+		if len(r.fields) != 1 {
+			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.fields))}
+		}
+
 		numRowsFound++
 		v = r.ReadValue()
 		return nil
@@ -183,9 +197,14 @@ func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 	return
 }
 
+// Returns a UnexpectedColumnCountError if exactly one column is not found
 func (c *Connection) SelectValues(sql string) (values []interface{}, err error) {
 	values = make([]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
+		if len(r.fields) != 1 {
+			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.fields))}
+		}
+
 		values = append(values, r.ReadValue())
 		return nil
 	}

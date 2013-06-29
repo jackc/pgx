@@ -236,6 +236,11 @@ func TestConnectionSelectValue(t *testing.T) {
 	if _, ok := err.(NotSingleRowError); !ok {
 		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
+
+	_, err = conn.SelectValue("select 'Matthew', 'Mark'")
+	if _, ok := err.(UnexpectedColumnCountError); !ok {
+		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
+	}
 }
 
 func TestSelectValues(t *testing.T) {
@@ -262,4 +267,9 @@ func TestSelectValues(t *testing.T) {
 	test("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t", []interface{}{"Matthew", "Mark", "Luke", "John"})
 	test("select * from (values ('Matthew'), (null)) t", []interface{}{"Matthew", nil})
 	test("select * from (values (1::int4), (2::int4), (null), (3::int4)) t", []interface{}{int32(1), int32(2), nil, int32(3)})
+
+	_, err := conn.SelectValues("select 'Matthew', 'Mark'")
+	if _, ok := err.(UnexpectedColumnCountError); !ok {
+		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
+	}
 }
