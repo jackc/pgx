@@ -106,11 +106,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 }
 
 func (c *Connection) Close() (err error) {
-	buf := c.getBuf(5)
-	buf.WriteByte('X')
-	binary.Write(buf, binary.BigEndian, 4)
-	_, err = buf.WriteTo(c.conn)
-	return
+	return c.txMsg('X', c.getBuf(0))
 }
 
 func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error) (err error) {
@@ -216,15 +212,19 @@ func (c *Connection) SelectValues(sql string) (values []interface{}, err error) 
 }
 
 func (c *Connection) sendSimpleQuery(sql string) (err error) {
-	bufSize := 5 + len(sql) + 1 // message identifier (1), message size (4), null string terminator (1)
+	bufSize := len(sql) + 1 // sql, null string terminator (1)
 	buf := c.getBuf(bufSize)
-	buf.WriteByte('Q')
-	binary.Write(buf, binary.BigEndian, uint32(bufSize-1))
-	buf.WriteString(sql)
-	buf.WriteByte(0)
 
-	_, err = buf.WriteTo(c.conn)
-	return err
+	_, err = buf.WriteString(sql)
+	if err != nil {
+		return
+	}
+	err = buf.WriteByte(0)
+	if err != nil {
+		return
+	}
+
+	return c.txMsg('Q', buf)
 }
 
 func (c *Connection) Execute(sql string) (commandTag string, err error) {
@@ -405,17 +405,25 @@ func (c *Connection) txStartupMessage(msg *startupMessage) (err error) {
 	return
 }
 
+func (c *Connection) txMsg(identifier byte, buf *bytes.Buffer) (err error) {
+	err = binary.Write(c.conn, binary.BigEndian, identifier)
+	if err != nil {
+		return
+	}
+
+	err = binary.Write(c.conn, binary.BigEndian, int32(buf.Len()+4))
+	if err != nil {
+		return
+	}
+
+	_, err = buf.WriteTo(c.conn)
+	return
+}
+
 func (c *Connection) txPasswordMessage(password string) (err error) {
-	bufSize := 5 + len(password) + 1 // message identifier (1), message size (4), password, null string terminator (1)
+	bufSize := len(password) + 1 // password, null string terminator (1)
 	buf := c.getBuf(bufSize)
-	err = buf.WriteByte('p')
-	if err != nil {
-		return
-	}
-	err = binary.Write(buf, binary.BigEndian, int32(bufSize-1))
-	if err != nil {
-		return
-	}
+
 	_, err = buf.WriteString(password)
 	if err != nil {
 		return
@@ -424,7 +432,7 @@ func (c *Connection) txPasswordMessage(password string) (err error) {
 	if err != nil {
 		return
 	}
-	_, err = buf.WriteTo(c.conn)
+	err = c.txMsg('p', buf)
 	return
 }
 
