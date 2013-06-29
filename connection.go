@@ -370,17 +370,6 @@ func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 	return
 }
 
-func (c *Connection) rxDataRowFirstValue(r *MessageReader) (s string, null bool) {
-	size := r.ReadInt32()
-	if size > -1 {
-		s = r.ReadByteString(size)
-	} else {
-		null = true
-	}
-
-	return
-}
-
 func (c *Connection) rxCommandComplete(r *MessageReader) string {
 	return r.ReadString()
 }
