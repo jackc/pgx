@@ -101,8 +101,6 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 			return nil, err
 		}
 	}
-
-	panic("Unreachable")
 }
 
 func (c *Connection) Close() (err error) {
@@ -143,8 +141,6 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 			return
 		}
 	}
-
-	panic("Unreachable")
 }
 
 func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
@@ -255,8 +251,6 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 			return
 		}
 	}
-
-	panic("Unreachable")
 }
 
 // Processes messages that are not exclusive to one context such as
@@ -274,9 +268,6 @@ func (c *Connection) processContextFreeMsg(t byte, r *MessageReader) (err error)
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
-
-	panic("Unreachable")
-
 }
 
 func (c *Connection) rxMsg() (t byte, r *MessageReader, err error) {
@@ -360,8 +351,6 @@ func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
 			r.ReadString()
 		}
 	}
-
-	panic("Unreachable")
 }
 
 func (c *Connection) rxBackendKeyData(r *MessageReader) {

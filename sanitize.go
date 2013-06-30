@@ -50,7 +50,6 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 		default:
 			panic("Unable to sanitize type: " + reflect.TypeOf(arg).String())
 		}
-		panic("Unreachable")
 	}
 
 	output = literalPattern.ReplaceAllStringFunc(sql, replacer)
