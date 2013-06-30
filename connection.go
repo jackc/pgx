@@ -109,8 +109,8 @@ func (c *Connection) Close() (err error) {
 	return c.txMsg('X', c.getBuf())
 }
 
-func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error) (err error) {
-	if err = c.sendSimpleQuery(sql); err != nil {
+func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
+	if err = c.sendSimpleQuery(sql, arguments...); err != nil {
 		return
 	}
 
@@ -147,18 +147,18 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 	panic("Unreachable")
 }
 
-func (c *Connection) SelectRows(sql string) (rows []map[string]interface{}, err error) {
+func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
 	rows = make([]map[string]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		rows = append(rows, c.rxDataRow(r))
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow)
+	err = c.SelectFunc(sql, onDataRow, arguments...)
 	return
 }
 
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err error) {
+func (c *Connection) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
 	var numRowsFound int64
 
 	onDataRow := func(r *DataRowReader) error {
@@ -166,7 +166,7 @@ func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err erro
 		row = c.rxDataRow(r)
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow)
+	err = c.SelectFunc(sql, onDataRow, arguments...)
 	if err == nil && numRowsFound != 1 {
 		err = NotSingleRowError{RowCount: numRowsFound}
 	}
@@ -175,7 +175,7 @@ func (c *Connection) SelectRow(sql string) (row map[string]interface{}, err erro
 
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
+func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
 	var numRowsFound int64
 
 	onDataRow := func(r *DataRowReader) error {
@@ -187,7 +187,7 @@ func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 		v = r.ReadValue()
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow)
+	err = c.SelectFunc(sql, onDataRow, arguments...)
 	if err == nil {
 		if numRowsFound != 1 {
 			err = NotSingleRowError{RowCount: numRowsFound}
@@ -197,7 +197,7 @@ func (c *Connection) SelectValue(sql string) (v interface{}, err error) {
 }
 
 // Returns a UnexpectedColumnCountError if exactly one column is not found
-func (c *Connection) SelectValues(sql string) (values []interface{}, err error) {
+func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
 	values = make([]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		if len(r.fields) != 1 {
@@ -207,11 +207,15 @@ func (c *Connection) SelectValues(sql string) (values []interface{}, err error) 
 		values = append(values, r.ReadValue())
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow)
+	err = c.SelectFunc(sql, onDataRow, arguments...)
 	return
 }
 
-func (c *Connection) sendSimpleQuery(sql string) (err error) {
+func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
+	if len(arguments) > 0 {
+		sql = c.SanitizeSql(sql, arguments...)
+	}
+
 	buf := c.getBuf()
 
 	_, err = buf.WriteString(sql)
@@ -226,8 +230,8 @@ func (c *Connection) sendSimpleQuery(sql string) (err error) {
 	return c.txMsg('Q', buf)
 }
 
-func (c *Connection) Execute(sql string) (commandTag string, err error) {
-	if err = c.sendSimpleQuery(sql); err != nil {
+func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+	if err = c.sendSimpleQuery(sql, arguments...); err != nil {
 		return
 	}
 

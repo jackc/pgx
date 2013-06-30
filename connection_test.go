@@ -100,12 +100,21 @@ func TestConnectWithMD5Password(t *testing.T) {
 func TestExecute(t *testing.T) {
 	conn := getSharedConnection()
 
-	results, err := conn.Execute("create temporary table foo(id serial primary key);")
+	results, err := conn.Execute("create temporary table foo(id integer primary key);")
 	if err != nil {
 		t.Fatal("Execute failed: " + err.Error())
 	}
 	if results != "CREATE TABLE" {
 		t.Error("Unexpected results from Execute")
+	}
+
+	// Accept parameters
+	results, err = conn.Execute("insert into foo(id) values($1)", 1)
+	if err != nil {
+		t.Errorf("Execute failed: %v", err)
+	}
+	if results != "INSERT 0 1" {
+		t.Errorf("Unexpected results from Execute: %v", results)
 	}
 
 	results, err = conn.Execute("drop table foo;")
@@ -124,6 +133,7 @@ func TestExecute(t *testing.T) {
 	if results != "DROP TABLE" {
 		t.Error("Unexpected results from Execute")
 	}
+
 }
 
 func TestSelectFunc(t *testing.T) {
@@ -136,7 +146,7 @@ func TestSelectFunc(t *testing.T) {
 		return nil
 	}
 
-	err := conn.SelectFunc("select generate_series(1,10)", onDataRow)
+	err := conn.SelectFunc("select generate_series(1,$1)", onDataRow, 10)
 	if err != nil {
 		t.Fatal("Select failed: " + err.Error())
 	}
@@ -151,7 +161,7 @@ func TestSelectFunc(t *testing.T) {
 func TestSelectRows(t *testing.T) {
 	conn := getSharedConnection()
 
-	rows, err := conn.SelectRows("select 'Jack' as name, null as position")
+	rows, err := conn.SelectRows("select $1 as name, null as position", "Jack")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
@@ -176,7 +186,7 @@ func TestSelectRows(t *testing.T) {
 func TestSelectRow(t *testing.T) {
 	conn := getSharedConnection()
 
-	row, err := conn.SelectRow("select 'Jack' as name, null as position")
+	row, err := conn.SelectRow("select $1 as name, null as position", "Jack")
 	if err != nil {
 		t.Fatal("Query failed")
 	}
@@ -207,8 +217,8 @@ func TestSelectRow(t *testing.T) {
 func TestConnectionSelectValue(t *testing.T) {
 	conn := getSharedConnection()
 
-	test := func(sql string, expected interface{}) {
-		v, err := conn.SelectValue(sql)
+	test := func(sql string, expected interface{}, arguments ...interface{}) {
+		v, err := conn.SelectValue(sql, arguments...)
 		if err != nil {
 			t.Errorf("%v while running %v", err, sql)
 		} else {
@@ -218,6 +228,7 @@ func TestConnectionSelectValue(t *testing.T) {
 		}
 	}
 
+	test("select $1", "foo", "foo")
 	test("select 'foo'", "foo")
 	test("select true", true)
 	test("select false", false)
@@ -246,8 +257,8 @@ func TestConnectionSelectValue(t *testing.T) {
 func TestSelectValues(t *testing.T) {
 	conn := getSharedConnection()
 
-	test := func(sql string, expected []interface{}) {
-		values, err := conn.SelectValues(sql)
+	test := func(sql string, expected []interface{}, arguments ...interface{}) {
+		values, err := conn.SelectValues(sql, arguments...)
 		if err != nil {
 			t.Errorf("%v while running %v", err, sql)
 			return
@@ -264,6 +275,7 @@ func TestSelectValues(t *testing.T) {
 		}
 	}
 
+	test("select * from (values ($1)) t", []interface{}{"Matthew"}, "Matthew")
 	test("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t", []interface{}{"Matthew", "Mark", "Luke", "John"})
 	test("select * from (values ('Matthew'), (null)) t", []interface{}{"Matthew", nil})
 	test("select * from (values (1::int4), (2::int4), (null), (3::int4)) t", []interface{}{int32(1), int32(2), nil, int32(3)})
