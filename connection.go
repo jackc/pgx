@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"reflect"
-	"strconv"
 )
 
 type ConnectionParameters struct {
@@ -350,37 +348,20 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	buf.WriteByte(0)
 	buf.WriteString(ps.Name)
 	buf.WriteByte(0)
-	binary.Write(buf, binary.BigEndian, int16(0))
-	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
-	for _, iArg := range arguments {
-		var s string
-		switch arg := iArg.(type) {
-		case string:
-			s = arg
-		case int16:
-			s = strconv.FormatInt(int64(arg), 10)
-		case int32:
-			s = strconv.FormatInt(int64(arg), 10)
-		case int64:
-			s = strconv.FormatInt(int64(arg), 10)
-		case float32:
-			s = strconv.FormatFloat(float64(arg), 'f', -1, 32)
-		case float64:
-			s = strconv.FormatFloat(arg, 'f', -1, 64)
-		case []byte:
-			s = `E'\\x` + hex.EncodeToString(arg) + `'`
-		default:
-			panic("Unable to encode type: " + reflect.TypeOf(arg).String())
+	binary.Write(buf, binary.BigEndian, int16(len(ps.ParameterOids)))
+	for _, oid := range ps.ParameterOids {
+		transcoder := valueTranscoders[oid]
+		if transcoder == nil {
+			panic(fmt.Sprintf("can't encode %#v", oid))
 		}
-		binary.Write(buf, binary.BigEndian, int32(len(s)))
-		buf.WriteString(s)
+		binary.Write(buf, binary.BigEndian, transcoder.EncodeFormat)
 	}
-	// for _, pd := range ps.ParameterOids {
-	// 	transcoder := valueTranscoders[pd]
-	// 	if transcoder == nil {
-	// 		return
-	// 	}
-	// }
+
+	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
+	for i, oid := range ps.ParameterOids {
+		transcoder := valueTranscoders[oid]
+		transcoder.EncodeTo(buf, arguments[i])
+	}
 	binary.Write(buf, binary.BigEndian, int16(0))
 
 	err = c.txMsg('B', buf)
