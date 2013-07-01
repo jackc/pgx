@@ -285,3 +285,47 @@ func TestSelectValues(t *testing.T) {
 		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
 	}
 }
+
+func TestPrepare(t *testing.T) {
+	conn, err := Connect(ConnectionParameters{Socket: "/private/tmp/.s.PGSQL.5432", User: "pgx_none", Database: "pgx_test"})
+	if err != nil {
+		t.Fatal("Unable to establish connection")
+	}
+
+	testTranscode := func(sql string, value interface{}) {
+		if err = conn.Prepare("testTranscode", sql); err != nil {
+			t.Errorf("Unable to prepare statement: %v", err)
+			return
+		}
+		defer func() {
+			err := conn.Deallocate("testTranscode")
+			if err != nil {
+				t.Errorf("Deallocate failed: %v", err)
+			}
+		}()
+
+		var result interface{}
+		result, err = conn.SelectValue("testTranscode", value)
+		if err != nil {
+			t.Errorf("%v while running %v", err, "testTranscode")
+		} else {
+			if result != value {
+				t.Errorf("Expected: %#v Received: %#v", value, result)
+			}
+		}
+
+	}
+
+	// Test parameter encoding and decoding for simple supported data types
+	testTranscode("select $1::varchar", "foo")
+	testTranscode("select $1::text", "foo")
+	testTranscode("select $1::int2", int16(1))
+	testTranscode("select $1::int4", int32(1))
+	testTranscode("select $1::int8", int64(1))
+	testTranscode("select $1::float4", float32(1.23))
+	testTranscode("select $1::float8", float64(1.23))
+
+	// case []byte:
+	// 	s = `E'\\x` + hex.EncodeToString(arg) + `'`
+
+}

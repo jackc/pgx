@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"reflect"
+	"strconv"
 )
 
 type ConnectionParameters struct {
@@ -21,13 +23,20 @@ type ConnectionParameters struct {
 }
 
 type Connection struct {
-	conn          net.Conn             // the underlying TCP or unix domain socket connection
-	buf           *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
-	pid           int32                // backend pid
-	secretKey     int32                // key to use to send a cancel query message to the server
-	runtimeParams map[string]string    // parameters that have been reported by the server
-	parameters    ConnectionParameters // parameters used when establishing this connection
-	txStatus      byte
+	conn               net.Conn             // the underlying TCP or unix domain socket connection
+	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
+	pid                int32                // backend pid
+	secretKey          int32                // key to use to send a cancel query message to the server
+	runtimeParams      map[string]string    // parameters that have been reported by the server
+	parameters         ConnectionParameters // parameters used when establishing this connection
+	txStatus           byte
+	preparedStatements map[string]*PreparedStatement
+}
+
+type PreparedStatement struct {
+	Name              string
+	FieldDescriptions []FieldDescription
+	ParameterOids     []oid
 }
 
 type NotSingleRowError struct {
@@ -71,6 +80,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 
 	c.buf = bytes.NewBuffer(make([]byte, sharedBufferSize))
 	c.runtimeParams = make(map[string]string)
+	c.preparedStatements = make(map[string]*PreparedStatement)
 
 	msg := newStartupMessage()
 	msg.options["user"] = c.parameters.User
@@ -108,12 +118,19 @@ func (c *Connection) Close() (err error) {
 }
 
 func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
-	if err = c.sendSimpleQuery(sql, arguments...); err != nil {
+	var fields []FieldDescription
+
+	if ps, present := c.preparedStatements[sql]; present {
+		fields = ps.FieldDescriptions
+		err = c.sendPreparedQuery(ps, arguments...)
+	} else {
+		err = c.sendSimpleQuery(sql, arguments...)
+	}
+	if err != nil {
 		return
 	}
 
 	var callbackError error
-	var fields []FieldDescription
 
 	for {
 		var t byte
@@ -132,6 +149,7 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 					callbackError = onDataRow(newDataRowReader(r, fields))
 				}
 			case commandComplete:
+			case bindComplete:
 			default:
 				if err = c.processContextFreeMsg(t, r); err != nil {
 					return
@@ -207,6 +225,101 @@ func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values 
 	return
 }
 
+func (c *Connection) Prepare(name, sql string) (err error) {
+	// parse
+	buf := c.getBuf()
+	_, err = buf.WriteString(name)
+	if err != nil {
+		return
+	}
+	err = buf.WriteByte(0)
+	if err != nil {
+		return
+	}
+	_, err = buf.WriteString(sql)
+	if err != nil {
+		return
+	}
+	err = buf.WriteByte(0)
+	if err != nil {
+		return
+	}
+	err = binary.Write(buf, binary.BigEndian, int16(0))
+	if err != nil {
+		return
+	}
+
+	err = c.txMsg('P', buf)
+	if err != nil {
+		return
+	}
+
+	// describe
+	buf = c.getBuf()
+	err = buf.WriteByte('S')
+	if err != nil {
+		return
+	}
+	_, err = buf.WriteString(name)
+	if err != nil {
+		return
+	}
+	err = buf.WriteByte(0)
+	if err != nil {
+		return
+	}
+
+	err = c.txMsg('D', buf)
+	if err != nil {
+		return
+	}
+
+	// sync
+	err = c.txMsg('S', c.getBuf())
+	if err != nil {
+		return err
+	}
+
+	ps := PreparedStatement{Name: name}
+
+	for {
+		var t byte
+		var r *MessageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			switch t {
+			case parseComplete:
+			case parameterDescription:
+				ps.ParameterOids = c.rxParameterDescription(r)
+			case rowDescription:
+				ps.FieldDescriptions = c.rxRowDescription(r)
+			case readyForQuery:
+				c.preparedStatements[name] = &ps
+				return
+			default:
+				if err = c.processContextFreeMsg(t, r); err != nil {
+					return
+				}
+			}
+		} else {
+			return
+		}
+	}
+}
+
+func (c *Connection) Deallocate(name string) (err error) {
+	delete(c.preparedStatements, name)
+	_, err = c.Execute("deallocate " + c.QuoteIdentifier(name))
+	return
+}
+
+func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error) {
+	if ps, present := c.preparedStatements[sql]; present {
+		return c.sendPreparedQuery(ps, arguments...)
+	} else {
+		return c.sendSimpleQuery(sql, arguments...)
+	}
+}
+
 func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
 	if len(arguments) > 0 {
 		sql = c.SanitizeSql(sql, arguments...)
@@ -226,8 +339,78 @@ func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err 
 	return c.txMsg('Q', buf)
 }
 
+func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
+	if len(ps.ParameterOids) != len(arguments) {
+		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
+	}
+
+	// bind
+	buf := c.getBuf()
+	buf.WriteString("")
+	buf.WriteByte(0)
+	buf.WriteString(ps.Name)
+	buf.WriteByte(0)
+	binary.Write(buf, binary.BigEndian, int16(0))
+	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
+	for _, iArg := range arguments {
+		var s string
+		switch arg := iArg.(type) {
+		case string:
+			s = arg
+		case int16:
+			s = strconv.FormatInt(int64(arg), 10)
+		case int32:
+			s = strconv.FormatInt(int64(arg), 10)
+		case int64:
+			s = strconv.FormatInt(int64(arg), 10)
+		case float32:
+			s = strconv.FormatFloat(float64(arg), 'f', -1, 32)
+		case float64:
+			s = strconv.FormatFloat(arg, 'f', -1, 64)
+		case []byte:
+			s = `E'\\x` + hex.EncodeToString(arg) + `'`
+		default:
+			panic("Unable to encode type: " + reflect.TypeOf(arg).String())
+		}
+		binary.Write(buf, binary.BigEndian, int32(len(s)))
+		buf.WriteString(s)
+	}
+	// for _, pd := range ps.ParameterOids {
+	// 	transcoder := valueTranscoders[pd]
+	// 	if transcoder == nil {
+	// 		return
+	// 	}
+	// }
+	binary.Write(buf, binary.BigEndian, int16(0))
+
+	err = c.txMsg('B', buf)
+	if err != nil {
+		return err
+	}
+
+	// execute
+	buf = c.getBuf()
+	buf.WriteString("")
+	buf.WriteByte(0)
+	binary.Write(buf, binary.BigEndian, int32(0))
+
+	err = c.txMsg('E', buf)
+	if err != nil {
+		return err
+	}
+
+	// sync
+	err = c.txMsg('S', c.getBuf())
+	if err != nil {
+		return err
+	}
+
+	return
+
+}
+
 func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
-	if err = c.sendSimpleQuery(sql, arguments...); err != nil {
+	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
 	}
 
@@ -235,11 +418,13 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 		var t byte
 		var r *MessageReader
 		if t, r, err = c.rxMsg(); err == nil {
+			// fmt.Printf("Execute received: %c\n", t)
 			switch t {
 			case readyForQuery:
 				return
 			case rowDescription:
 			case dataRow:
+			case bindComplete:
 			case commandComplete:
 				commandTag = r.ReadString()
 			default:
@@ -374,6 +559,15 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 		f.DataTypeSize = r.ReadInt16()
 		f.Modifier = r.ReadInt32()
 		f.FormatCode = r.ReadInt16()
+	}
+	return
+}
+
+func (c *Connection) rxParameterDescription(r *MessageReader) (parameters []oid) {
+	parameterCount := r.ReadInt16()
+	parameters = make([]oid, 0, parameterCount)
+	for i := int16(0); i < parameterCount; i++ {
+		parameters = append(parameters, r.ReadOid())
 	}
 	return
 }

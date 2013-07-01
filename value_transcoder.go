@@ -2,14 +2,15 @@ package pgx
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 )
 
 type valueTranscoder struct {
-	FromText func(*MessageReader, int32) interface{}
-	// FromBinary func(*MessageReader, int32) interface{}
-	// ToText func(interface{}) string
-	// ToBinary func(interface{}) []byte
+	DecodeText   func(*MessageReader, int32) interface{}
+	DecodeBinary func(*MessageReader, int32) interface{}
+	EncodeTo     func(io.Writer, interface{})
+	EncodeFormat int16
 }
 
 var valueTranscoders map[oid]*valueTranscoder
@@ -18,22 +19,22 @@ func init() {
 	valueTranscoders = make(map[oid]*valueTranscoder)
 
 	// bool
-	valueTranscoders[oid(16)] = &valueTranscoder{FromText: decodeBoolFromText}
+	valueTranscoders[oid(16)] = &valueTranscoder{DecodeText: decodeBoolFromText}
 
 	// int8
-	valueTranscoders[oid(20)] = &valueTranscoder{FromText: decodeInt8FromText}
+	valueTranscoders[oid(20)] = &valueTranscoder{DecodeText: decodeInt8FromText}
 
 	// int2
-	valueTranscoders[oid(21)] = &valueTranscoder{FromText: decodeInt2FromText}
+	valueTranscoders[oid(21)] = &valueTranscoder{DecodeText: decodeInt2FromText}
 
 	// int4
-	valueTranscoders[oid(23)] = &valueTranscoder{FromText: decodeInt4FromText}
+	valueTranscoders[oid(23)] = &valueTranscoder{DecodeText: decodeInt4FromText}
 
 	// float4
-	valueTranscoders[oid(700)] = &valueTranscoder{FromText: decodeFloat4FromText}
+	valueTranscoders[oid(700)] = &valueTranscoder{DecodeText: decodeFloat4FromText}
 
 	// float8
-	valueTranscoders[oid(701)] = &valueTranscoder{FromText: decodeFloat8FromText}
+	valueTranscoders[oid(701)] = &valueTranscoder{DecodeText: decodeFloat8FromText}
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {

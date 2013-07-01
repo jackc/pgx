@@ -15,6 +15,11 @@ func (c *Connection) QuoteString(input string) (output string) {
 	return
 }
 
+func (c *Connection) QuoteIdentifier(input string) (output string) {
+	output = `"` + strings.Replace(input, `"`, `""`, -1) + `"`
+	return
+}
+
 func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string) {
 	replacer := func(match string) (replacement string) {
 		n, _ := strconv.ParseInt(match[1:], 10, 0)

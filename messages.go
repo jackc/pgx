@@ -9,14 +9,17 @@ const (
 )
 
 const (
-	backendKeyData  = 'K'
-	authenticationX = 'R'
-	readyForQuery   = 'Z'
-	rowDescription  = 'T'
-	dataRow         = 'D'
-	commandComplete = 'C'
-	errorResponse   = 'E'
-	noticeResponse  = 'N'
+	backendKeyData       = 'K'
+	authenticationX      = 'R'
+	readyForQuery        = 'Z'
+	rowDescription       = 'T'
+	dataRow              = 'D'
+	commandComplete      = 'C'
+	errorResponse        = 'E'
+	noticeResponse       = 'N'
+	parseComplete        = '1'
+	parameterDescription = 't'
+	bindComplete         = '2'
 )
 
 type startupMessage struct {

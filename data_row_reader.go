@@ -20,13 +20,20 @@ func newDataRowReader(mr *MessageReader, fields []FieldDescription) (r *DataRowR
 }
 
 func (r *DataRowReader) ReadValue() interface{} {
-	dataType := r.fields[r.currentFieldIdx].DataType
+	fieldDescription := r.fields[r.currentFieldIdx]
 	r.currentFieldIdx++
 
 	size := r.mr.ReadInt32()
 	if size > -1 {
-		if vt, present := valueTranscoders[dataType]; present {
-			return vt.FromText(r.mr, size)
+		if vt, present := valueTranscoders[fieldDescription.DataType]; present {
+			switch fieldDescription.FormatCode {
+			case 0:
+				return vt.DecodeText(r.mr, size)
+			case 1:
+				return vt.DecodeBinary(r.mr, size)
+			default:
+				panic("Unknown format")
+			}
 		} else {
 			return r.mr.ReadByteString(size)
 		}
