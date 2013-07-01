@@ -324,6 +324,7 @@ func TestPrepare(t *testing.T) {
 	testTranscode("select $1::int8", int64(1))
 	testTranscode("select $1::float4", float32(1.23))
 	testTranscode("select $1::float8", float64(1.23))
+	testTranscode("select $1::boolean", true)
 
 	// case []byte:
 	// 	s = `E'\\x` + hex.EncodeToString(arg) + `'`
