@@ -352,7 +352,7 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	for _, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
 		if transcoder == nil {
-			panic(fmt.Sprintf("can't encode %#v", oid))
+			transcoder = defaultTranscoder
 		}
 		binary.Write(buf, binary.BigEndian, transcoder.EncodeFormat)
 	}
@@ -360,6 +360,9 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
+		if transcoder == nil {
+			transcoder = defaultTranscoder
+		}
 		transcoder.EncodeTo(buf, arguments[i])
 	}
 	binary.Write(buf, binary.BigEndian, int16(0))

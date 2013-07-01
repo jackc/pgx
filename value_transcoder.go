@@ -15,6 +15,7 @@ type valueTranscoder struct {
 }
 
 var valueTranscoders map[oid]*valueTranscoder
+var defaultTranscoder *valueTranscoder
 
 func init() {
 	valueTranscoders = make(map[oid]*valueTranscoder)
@@ -56,6 +57,9 @@ func init() {
 
 	// varchar -- same as text
 	valueTranscoders[oid(1043)] = valueTranscoders[oid(25)]
+
+	// use text transcoder for anything we don't understand
+	defaultTranscoder = valueTranscoders[oid(25)]
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {

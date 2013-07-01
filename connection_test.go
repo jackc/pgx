@@ -326,6 +326,9 @@ func TestPrepare(t *testing.T) {
 	testTranscode("select $1::float8", float64(1.23))
 	testTranscode("select $1::boolean", true)
 
+	// Ensure that unknown types are just treated as strings
+	testTranscode("select $1::point", "(0,0)")
+
 	// case []byte:
 	// 	s = `E'\\x` + hex.EncodeToString(arg) + `'`
 
