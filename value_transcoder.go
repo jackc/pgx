@@ -3,6 +3,7 @@ package pgx
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 )
@@ -24,6 +25,12 @@ func init() {
 	valueTranscoders[oid(16)] = &valueTranscoder{
 		DecodeText: decodeBoolFromText,
 		EncodeTo:   encodeBool}
+
+	// bytea
+	valueTranscoders[oid(17)] = &valueTranscoder{
+		DecodeText:   decodeByteaFromText,
+		EncodeTo:     encodeBytea,
+		EncodeFormat: 1}
 
 	// int8
 	valueTranscoders[oid(20)] = &valueTranscoder{
@@ -169,4 +176,19 @@ func encodeText(buf *bytes.Buffer, value interface{}) {
 	s := value.(string)
 	binary.Write(buf, binary.BigEndian, int32(len(s)))
 	buf.WriteString(s)
+}
+
+func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadByteString(size)
+	b, err := hex.DecodeString(s[2:])
+	if err != nil {
+		panic("Can't decode byte array")
+	}
+	return b
+}
+
+func encodeBytea(buf *bytes.Buffer, value interface{}) {
+	b := value.([]byte)
+	binary.Write(buf, binary.BigEndian, int32(len(b)))
+	buf.Write(b)
 }

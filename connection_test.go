@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -291,6 +292,7 @@ func TestPrepare(t *testing.T) {
 	if err != nil {
 		t.Fatal("Unable to establish connection")
 	}
+	defer conn.Close()
 
 	testTranscode := func(sql string, value interface{}) {
 		if err = conn.Prepare("testTranscode", sql); err != nil {
@@ -313,7 +315,6 @@ func TestPrepare(t *testing.T) {
 				t.Errorf("Expected: %#v Received: %#v", value, result)
 			}
 		}
-
 	}
 
 	// Test parameter encoding and decoding for simple supported data types
@@ -329,7 +330,33 @@ func TestPrepare(t *testing.T) {
 	// Ensure that unknown types are just treated as strings
 	testTranscode("select $1::point", "(0,0)")
 
-	// case []byte:
-	// 	s = `E'\\x` + hex.EncodeToString(arg) + `'`
+	if err = conn.Prepare("testByteSliceTranscode", "select $1::bytea"); err != nil {
+		t.Errorf("Unable to prepare statement: %v", err)
+		return
+	}
+	defer func() {
+		err := conn.Deallocate("testByteSliceTranscode")
+		if err != nil {
+			t.Errorf("Deallocate failed: %v", err)
+		}
+	}()
 
+	bytea := make([]byte, 4)
+	bytea[0] = 0   // 0x00
+	bytea[1] = 15  // 0x0F
+	bytea[2] = 255 // 0xFF
+	bytea[3] = 17  // 0x11
+
+	if conn.SanitizeSql("select $1", bytea) != `select E'\\x000fff11'` {
+		t.Error("Failed to sanitize []byte")
+	}
+	var result interface{}
+	result, err = conn.SelectValue("testByteSliceTranscode", bytea)
+	if err != nil {
+		t.Errorf("%v while running %v", err, "testByteSliceTranscode")
+	} else {
+		if bytes.Compare(result.([]byte), bytea) != 0 {
+			t.Errorf("Expected: %#v Received: %#v", bytea, result)
+		}
+	}
 }
