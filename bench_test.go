@@ -8,6 +8,7 @@ import (
 
 var testJoinsDataLoaded bool
 var narrowTestDataLoaded bool
+var int2TextVsBinaryTestDataLoaded bool
 var int4TextVsBinaryTestDataLoaded bool
 var int8TextVsBinaryTestDataLoaded bool
 
@@ -222,6 +223,66 @@ func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := conn.SelectRows("joinAggregate"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func createInt2TextVsBinaryTestData(b *testing.B, conn *Connection) {
+	if int2TextVsBinaryTestDataLoaded {
+		return
+	}
+
+	if _, err := conn.Execute(`
+		drop table if exists t;
+
+		create temporary table t(
+			a int2 not null,
+			b int2 not null,
+			c int2 not null,
+			d int2 not null,
+			e int2 not null
+		);
+
+		insert into t(a, b, c, d, e)
+		select
+			(random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2
+		from generate_series(1, 10);
+	`); err != nil {
+		b.Fatalf("Could not set up test data: %v", err)
+	}
+
+	int2TextVsBinaryTestDataLoaded = true
+}
+
+func BenchmarkInt2Text(b *testing.B) {
+	conn := getSharedConnection()
+	createInt2TextVsBinaryTestData(b, conn)
+
+	binaryDecoder := valueTranscoders[oid(21)].DecodeBinary
+	valueTranscoders[oid(21)].DecodeBinary = nil
+	defer func() { valueTranscoders[oid(21)].DecodeBinary = binaryDecoder }()
+
+	mustPrepare(b, conn, "selectInt16", "select * from t")
+	defer func() { conn.Deallocate("selectInt16") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectInt16"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func BenchmarkInt2Binary(b *testing.B) {
+	conn := getSharedConnection()
+	createInt2TextVsBinaryTestData(b, conn)
+	mustPrepare(b, conn, "selectInt16", "select * from t")
+	defer func() { conn.Deallocate("selectInt16") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectInt16"); err != nil {
 			b.Fatalf("Failure while benchmarking: %v", err)
 		}
 	}
