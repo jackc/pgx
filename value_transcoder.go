@@ -36,7 +36,8 @@ func init() {
 	valueTranscoders[oid(20)] = &valueTranscoder{
 		DecodeText:   decodeInt8FromText,
 		DecodeBinary: decodeInt8FromBinary,
-		EncodeTo:     encodeInt8}
+		EncodeTo:     encodeInt8,
+		EncodeFormat: 1}
 
 	// int2
 	valueTranscoders[oid(21)] = &valueTranscoder{
@@ -47,7 +48,8 @@ func init() {
 	valueTranscoders[oid(23)] = &valueTranscoder{
 		DecodeText:   decodeInt4FromText,
 		DecodeBinary: decodeInt4FromBinary,
-		EncodeTo:     encodeInt4}
+		EncodeTo:     encodeInt4,
+		EncodeFormat: 1}
 
 	// text
 	valueTranscoders[oid(25)] = &valueTranscoder{
@@ -108,9 +110,8 @@ func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 
 func encodeInt8(buf *bytes.Buffer, value interface{}) {
 	v := value.(int64)
-	s := strconv.FormatInt(int64(v), 10)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	binary.Write(buf, binary.BigEndian, int32(8))
+	binary.Write(buf, binary.BigEndian, v)
 }
 
 func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
@@ -147,9 +148,8 @@ func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 
 func encodeInt4(buf *bytes.Buffer, value interface{}) {
 	v := value.(int32)
-	s := strconv.FormatInt(int64(v), 10)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	binary.Write(buf, binary.BigEndian, int32(4))
+	binary.Write(buf, binary.BigEndian, v)
 }
 
 func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
