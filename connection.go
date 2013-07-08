@@ -76,7 +76,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 		}
 	}
 
-	c.buf = bytes.NewBuffer(make([]byte, sharedBufferSize))
+	c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
 	c.runtimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 
@@ -402,7 +402,6 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 		var t byte
 		var r *MessageReader
 		if t, r, err = c.rxMsg(); err == nil {
-			// fmt.Printf("Execute received: %c\n", t)
 			switch t {
 			case readyForQuery:
 				return
@@ -611,7 +610,7 @@ func (c *Connection) txPasswordMessage(password string) (err error) {
 func (c *Connection) getBuf() *bytes.Buffer {
 	c.buf.Reset()
 	if cap(c.buf.Bytes()) > sharedBufferSize {
-		c.buf = bytes.NewBuffer(make([]byte, sharedBufferSize))
+		c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
 	}
 	return c.buf
 }

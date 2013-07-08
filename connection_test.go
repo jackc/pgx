@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
@@ -168,6 +169,15 @@ func TestExecute(t *testing.T) {
 	}
 	if results != "DROP TABLE" {
 		t.Error("Unexpected results from Execute")
+	}
+
+	// Can execute longer SQL strings than sharedBufferSize
+	results, err = conn.Execute(strings.Repeat("select 42; ", 1000))
+	if err != nil {
+		t.Fatal("Execute failed: " + err.Error())
+	}
+	if results != "SELECT 1" {
+		t.Errorf("Unexpected results from Execute: %v", results)
 	}
 
 }
