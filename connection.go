@@ -128,33 +128,24 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 		return
 	}
 
-	var callbackError error
-
 	for {
-		var t byte
-		var r *MessageReader
-		if t, r, err = c.rxMsg(); err == nil {
+		if t, r, rxErr := c.rxMsg(); rxErr == nil {
 			switch t {
 			case readyForQuery:
-				if err == nil {
-					err = callbackError
-				}
 				return
 			case rowDescription:
 				fields = c.rxRowDescription(r)
 			case dataRow:
-				if callbackError == nil {
-					callbackError = onDataRow(newDataRowReader(r, fields))
+				if err == nil {
+					err = onDataRow(newDataRowReader(r, fields))
 				}
 			case commandComplete:
 			case bindComplete:
 			default:
-				if err = c.processContextFreeMsg(t, r); err != nil {
-					return
-				}
+				err = c.processContextFreeMsg(t, r)
 			}
 		} else {
-			return
+			return rxErr
 		}
 	}
 }
