@@ -281,6 +281,12 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 				ps.ParameterOids = c.rxParameterDescription(r)
 			case rowDescription:
 				ps.FieldDescriptions = c.rxRowDescription(r)
+				for i := range ps.FieldDescriptions {
+					oid := ps.FieldDescriptions[i].DataType
+					if valueTranscoders[oid] != nil && valueTranscoders[oid].DecodeBinary != nil {
+						ps.FieldDescriptions[i].FormatCode = 1
+					}
+				}
 			case readyForQuery:
 				c.preparedStatements[name] = &ps
 				return
@@ -339,6 +345,7 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	buf.WriteByte(0)
 	buf.WriteString(ps.Name)
 	buf.WriteByte(0)
+
 	binary.Write(buf, binary.BigEndian, int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
@@ -356,7 +363,16 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 		}
 		transcoder.EncodeTo(buf, arguments[i])
 	}
-	binary.Write(buf, binary.BigEndian, int16(0))
+
+	binary.Write(buf, binary.BigEndian, int16(len(ps.FieldDescriptions)))
+	for _, fd := range ps.FieldDescriptions {
+		transcoder := valueTranscoders[fd.DataType]
+		if transcoder != nil && transcoder.DecodeBinary != nil {
+			binary.Write(buf, binary.BigEndian, int16(1))
+		} else {
+			binary.Write(buf, binary.BigEndian, int16(0))
+		}
+	}
 
 	err = c.txMsg('B', buf)
 	if err != nil {

@@ -34,8 +34,9 @@ func init() {
 
 	// int8
 	valueTranscoders[oid(20)] = &valueTranscoder{
-		DecodeText: decodeInt8FromText,
-		EncodeTo:   encodeInt8}
+		DecodeText:   decodeInt8FromText,
+		DecodeBinary: decodeInt8FromBinary,
+		EncodeTo:     encodeInt8}
 
 	// int2
 	valueTranscoders[oid(21)] = &valueTranscoder{
@@ -44,8 +45,9 @@ func init() {
 
 	// int4
 	valueTranscoders[oid(23)] = &valueTranscoder{
-		DecodeText: decodeInt4FromText,
-		EncodeTo:   encodeInt4}
+		DecodeText:   decodeInt4FromText,
+		DecodeBinary: decodeInt4FromBinary,
+		EncodeTo:     encodeInt4}
 
 	// text
 	valueTranscoders[oid(25)] = &valueTranscoder{
@@ -97,6 +99,13 @@ func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
 	return n
 }
 
+func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 8 {
+		panic("Received an invalid size for an int8")
+	}
+	return mr.ReadInt64()
+}
+
 func encodeInt8(buf *bytes.Buffer, value interface{}) {
 	v := value.(int64)
 	s := strconv.FormatInt(int64(v), 10)
@@ -127,6 +136,13 @@ func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
 		panic(fmt.Sprintf("Received invalid int4: %v", s))
 	}
 	return int32(n)
+}
+
+func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 4 {
+		panic("Received an invalid size for an int4")
+	}
+	return mr.ReadInt32()
 }
 
 func encodeInt4(buf *bytes.Buffer, value interface{}) {

@@ -30,6 +30,12 @@ func (r *MessageReader) ReadInt32() int32 {
 	return n
 }
 
+func (r *MessageReader) ReadInt64() int64 {
+	n := int64(binary.BigEndian.Uint64((*r)[:8]))
+	*r = (*r)[8:]
+	return n
+}
+
 func (r *MessageReader) ReadOid() oid {
 	n := oid(binary.BigEndian.Uint32((*r)[:4]))
 	*r = (*r)[4:]
