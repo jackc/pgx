@@ -219,27 +219,13 @@ func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values 
 func (c *Connection) Prepare(name, sql string) (err error) {
 	// parse
 	buf := c.getBuf()
-	_, err = buf.WriteString(name)
-	if err != nil {
-		return
+	w := newMessageWriter(buf)
+	w.writeStringNull(name)
+	w.writeStringNull(sql)
+	w.write(int16(0))
+	if w.err != nil {
+		return w.err
 	}
-	err = buf.WriteByte(0)
-	if err != nil {
-		return
-	}
-	_, err = buf.WriteString(sql)
-	if err != nil {
-		return
-	}
-	err = buf.WriteByte(0)
-	if err != nil {
-		return
-	}
-	err = binary.Write(buf, binary.BigEndian, int16(0))
-	if err != nil {
-		return
-	}
-
 	err = c.txMsg('P', buf)
 	if err != nil {
 		return
@@ -247,18 +233,9 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 
 	// describe
 	buf = c.getBuf()
-	err = buf.WriteByte('S')
-	if err != nil {
-		return
-	}
-	_, err = buf.WriteString(name)
-	if err != nil {
-		return
-	}
-	err = buf.WriteByte(0)
-	if err != nil {
-		return
-	}
+	w = newMessageWriter(buf)
+	w.writeByte('S')
+	w.writeStringNull(name)
 
 	err = c.txMsg('D', buf)
 	if err != nil {
