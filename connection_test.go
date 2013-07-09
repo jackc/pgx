@@ -437,3 +437,20 @@ func TestPrepare(t *testing.T) {
 		}
 	}
 }
+
+func TestPrepareFailure(t *testing.T) {
+	conn, err := Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+
+	if err = conn.Prepare("badSQL", "select foo"); err == nil {
+		t.Fatal("Prepare should have failed with syntax error")
+	}
+
+	if _, err = conn.SelectValue("select 1"); err != nil {
+		t.Fatalf("Prepare failure appears to have broken connection: %v", err)
+	}
+}

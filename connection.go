@@ -274,9 +274,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	ps := PreparedStatement{Name: name}
 
 	for {
-		var t byte
-		var r *MessageReader
-		if t, r, err = c.rxMsg(); err == nil {
+		if t, r, rxErr := c.rxMsg(); rxErr == nil {
 			switch t {
 			case parseComplete:
 			case parameterDescription:
@@ -293,12 +291,12 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 				c.preparedStatements[name] = &ps
 				return
 			default:
-				if err = c.processContextFreeMsg(t, r); err != nil {
-					return
+				if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
+					err = e
 				}
 			}
 		} else {
-			return
+			return rxErr
 		}
 	}
 }
