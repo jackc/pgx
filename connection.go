@@ -236,6 +236,9 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	w = newMessageWriter(buf)
 	w.writeByte('S')
 	w.writeStringNull(name)
+	if w.err != nil {
+		return w.err
+	}
 
 	err = c.txMsg('D', buf)
 	if err != nil {
@@ -318,21 +321,19 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 
 	// bind
 	buf := c.getBuf()
-	buf.WriteString("")
-	buf.WriteByte(0)
-	buf.WriteString(ps.Name)
-	buf.WriteByte(0)
-
-	binary.Write(buf, binary.BigEndian, int16(len(ps.ParameterOids)))
+	w := newMessageWriter(buf)
+	w.writeStringNull("")
+	w.writeStringNull(ps.Name)
+	w.write(int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
-		binary.Write(buf, binary.BigEndian, transcoder.EncodeFormat)
+		w.write(transcoder.EncodeFormat)
 	}
 
-	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
+	w.write(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
 		if transcoder == nil {
@@ -341,14 +342,17 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 		transcoder.EncodeTo(buf, arguments[i])
 	}
 
-	binary.Write(buf, binary.BigEndian, int16(len(ps.FieldDescriptions)))
+	w.write(int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
 		transcoder := valueTranscoders[fd.DataType]
 		if transcoder != nil && transcoder.DecodeBinary != nil {
-			binary.Write(buf, binary.BigEndian, int16(1))
+			w.write(int16(1))
 		} else {
-			binary.Write(buf, binary.BigEndian, int16(0))
+			w.write(int16(0))
 		}
+	}
+	if w.err != nil {
+		return w.err
 	}
 
 	err = c.txMsg('B', buf)
@@ -358,9 +362,13 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 
 	// execute
 	buf = c.getBuf()
-	buf.WriteString("")
-	buf.WriteByte(0)
-	binary.Write(buf, binary.BigEndian, int32(0))
+	w = newMessageWriter(buf)
+	w.writeStringNull("")
+	w.write(int32(0))
+
+	if w.err != nil {
+		return w.err
+	}
 
 	err = c.txMsg('E', buf)
 	if err != nil {
