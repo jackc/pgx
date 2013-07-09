@@ -179,7 +179,22 @@ func TestExecute(t *testing.T) {
 	if results != "SELECT 1" {
 		t.Errorf("Unexpected results from Execute: %v", results)
 	}
+}
 
+func TestExecuteFailure(t *testing.T) {
+	conn, err := Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.Execute("select;"); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+
+	if _, err := conn.SelectValue("select 1"); err != nil {
+		t.Fatalf("Execute failure appears to have broken connection: %v", err)
+	}
 }
 
 func TestSelectFunc(t *testing.T) {
@@ -201,6 +216,23 @@ func TestSelectFunc(t *testing.T) {
 	}
 	if sum != 55 {
 		t.Error("Wrong values returned")
+	}
+}
+
+func TestSelectFuncFailure(t *testing.T) {
+	conn, err := Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	// using SelectValue as it delegates to SelectFunc and is easier to work with
+	if _, err := conn.SelectValue("select;"); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+
+	if _, err := conn.SelectValue("select 1"); err != nil {
+		t.Fatalf("SelectFunc failure appears to have broken connection: %v", err)
 	}
 }
 

@@ -142,7 +142,9 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 			case commandComplete:
 			case bindComplete:
 			default:
-				err = c.processContextFreeMsg(t, r)
+				if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
+					err = e
+				}
 			}
 		} else {
 			return rxErr
@@ -406,9 +408,7 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 	}
 
 	for {
-		var t byte
-		var r *MessageReader
-		if t, r, err = c.rxMsg(); err == nil {
+		if t, r, rxErr := c.rxMsg(); rxErr == nil {
 			switch t {
 			case readyForQuery:
 				return
@@ -418,12 +418,12 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 			case commandComplete:
 				commandTag = r.ReadString()
 			default:
-				if err = c.processContextFreeMsg(t, r); err != nil {
-					return
+				if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
+					err = e
 				}
 			}
 		} else {
-			return
+			return "", rxErr
 		}
 	}
 }
