@@ -339,7 +339,7 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
-		transcoder.EncodeTo(buf, arguments[i])
+		transcoder.EncodeTo(w, arguments[i])
 	}
 
 	w.write(int16(len(ps.FieldDescriptions)))

@@ -1,8 +1,6 @@
 package pgx
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strconv"
@@ -11,7 +9,7 @@ import (
 type valueTranscoder struct {
 	DecodeText   func(*MessageReader, int32) interface{}
 	DecodeBinary func(*MessageReader, int32) interface{}
-	EncodeTo     func(*bytes.Buffer, interface{})
+	EncodeTo     func(*messageWriter, interface{})
 	EncodeFormat int16
 }
 
@@ -87,11 +85,11 @@ func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
 	}
 }
 
-func encodeBool(buf *bytes.Buffer, value interface{}) {
+func encodeBool(w *messageWriter, value interface{}) {
 	v := value.(bool)
 	s := strconv.FormatBool(v)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	w.write(int32(len(s)))
+	w.writeString(s)
 }
 
 func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
@@ -110,10 +108,10 @@ func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt64()
 }
 
-func encodeInt8(buf *bytes.Buffer, value interface{}) {
+func encodeInt8(w *messageWriter, value interface{}) {
 	v := value.(int64)
-	binary.Write(buf, binary.BigEndian, int32(8))
-	binary.Write(buf, binary.BigEndian, v)
+	w.write(int32(8))
+	w.write(v)
 }
 
 func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
@@ -132,10 +130,10 @@ func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt16()
 }
 
-func encodeInt2(buf *bytes.Buffer, value interface{}) {
+func encodeInt2(w *messageWriter, value interface{}) {
 	v := value.(int16)
-	binary.Write(buf, binary.BigEndian, int32(2))
-	binary.Write(buf, binary.BigEndian, v)
+	w.write(int32(2))
+	w.write(v)
 }
 
 func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
@@ -154,10 +152,10 @@ func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt32()
 }
 
-func encodeInt4(buf *bytes.Buffer, value interface{}) {
+func encodeInt4(w *messageWriter, value interface{}) {
 	v := value.(int32)
-	binary.Write(buf, binary.BigEndian, int32(4))
-	binary.Write(buf, binary.BigEndian, v)
+	w.write(int32(4))
+	w.write(v)
 }
 
 func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
@@ -169,11 +167,11 @@ func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
 	return float32(n)
 }
 
-func encodeFloat4(buf *bytes.Buffer, value interface{}) {
+func encodeFloat4(w *messageWriter, value interface{}) {
 	v := value.(float32)
 	s := strconv.FormatFloat(float64(v), 'e', -1, 32)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	w.write(int32(len(s)))
+	w.writeString(s)
 }
 
 func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
@@ -185,21 +183,21 @@ func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
 	return v
 }
 
-func encodeFloat8(buf *bytes.Buffer, value interface{}) {
+func encodeFloat8(w *messageWriter, value interface{}) {
 	v := value.(float64)
 	s := strconv.FormatFloat(float64(v), 'e', -1, 64)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	w.write(int32(len(s)))
+	w.writeString(s)
 }
 
 func decodeTextFromText(mr *MessageReader, size int32) interface{} {
 	return mr.ReadByteString(size)
 }
 
-func encodeText(buf *bytes.Buffer, value interface{}) {
+func encodeText(w *messageWriter, value interface{}) {
 	s := value.(string)
-	binary.Write(buf, binary.BigEndian, int32(len(s)))
-	buf.WriteString(s)
+	w.write(int32(len(s)))
+	w.writeString(s)
 }
 
 func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
@@ -211,8 +209,8 @@ func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
 	return b
 }
 
-func encodeBytea(buf *bytes.Buffer, value interface{}) {
+func encodeBytea(w *messageWriter, value interface{}) {
 	b := value.([]byte)
-	binary.Write(buf, binary.BigEndian, int32(len(b)))
-	buf.Write(b)
+	w.write(int32(len(b)))
+	w.write(b)
 }

@@ -24,6 +24,15 @@ func (w *messageWriter) writeStringNull(s string) {
 	w.err = w.buf.WriteByte(0)
 }
 
+func (w *messageWriter) writeString(s string) {
+	if w.err != nil {
+		return
+	}
+	if _, w.err = w.buf.WriteString(s); w.err != nil {
+		return
+	}
+}
+
 func (w *messageWriter) writeByte(b byte) {
 	if w.err != nil {
 		return
