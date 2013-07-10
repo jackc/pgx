@@ -14,7 +14,7 @@ func newMessageWriter(buf *bytes.Buffer) *messageWriter {
 	return &messageWriter{buf: buf}
 }
 
-func (w *messageWriter) writeStringNull(s string) {
+func (w *messageWriter) writeCString(s string) {
 	if w.err != nil {
 		return
 	}

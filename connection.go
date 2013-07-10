@@ -220,8 +220,8 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	// parse
 	buf := c.getBuf()
 	w := newMessageWriter(buf)
-	w.writeStringNull(name)
-	w.writeStringNull(sql)
+	w.writeCString(name)
+	w.writeCString(sql)
 	w.write(int16(0))
 	if w.err != nil {
 		return w.err
@@ -235,7 +235,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	buf = c.getBuf()
 	w = newMessageWriter(buf)
 	w.writeByte('S')
-	w.writeStringNull(name)
+	w.writeCString(name)
 	if w.err != nil {
 		return w.err
 	}
@@ -322,8 +322,8 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	// bind
 	buf := c.getBuf()
 	w := newMessageWriter(buf)
-	w.writeStringNull("")
-	w.writeStringNull(ps.Name)
+	w.writeCString("")
+	w.writeCString(ps.Name)
 	w.write(int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := valueTranscoders[oid]
@@ -363,7 +363,7 @@ func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...inter
 	// execute
 	buf = c.getBuf()
 	w = newMessageWriter(buf)
-	w.writeStringNull("")
+	w.writeCString("")
 	w.write(int32(0))
 
 	if w.err != nil {
