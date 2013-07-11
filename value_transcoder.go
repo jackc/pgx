@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"unsafe"
 )
 
 type valueTranscoder struct {
@@ -58,13 +59,15 @@ func init() {
 
 	// float4
 	valueTranscoders[oid(700)] = &valueTranscoder{
-		DecodeText: decodeFloat4FromText,
-		EncodeTo:   encodeFloat4}
+		DecodeText:   decodeFloat4FromText,
+		DecodeBinary: decodeFloat4FromBinary,
+		EncodeTo:     encodeFloat4}
 
 	// float8
 	valueTranscoders[oid(701)] = &valueTranscoder{
-		DecodeText: decodeFloat8FromText,
-		EncodeTo:   encodeFloat8}
+		DecodeText:   decodeFloat8FromText,
+		DecodeBinary: decodeFloat8FromBinary,
+		EncodeTo:     encodeFloat8}
 
 	// varchar -- same as text
 	valueTranscoders[oid(1043)] = valueTranscoders[oid(25)]
@@ -167,6 +170,16 @@ func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
 	return float32(n)
 }
 
+func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 4 {
+		panic("Received an invalid size for an float4")
+	}
+
+	i := mr.ReadInt32()
+	p := unsafe.Pointer(&i)
+	return *(*float32)(p)
+}
+
 func encodeFloat4(w *messageWriter, value interface{}) {
 	v := value.(float32)
 	s := strconv.FormatFloat(float64(v), 'e', -1, 32)
@@ -181,6 +194,16 @@ func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
 		panic(fmt.Sprintf("Received invalid float8: %v", s))
 	}
 	return v
+}
+
+func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 8 {
+		panic("Received an invalid size for an float4")
+	}
+
+	i := mr.ReadInt64()
+	p := unsafe.Pointer(&i)
+	return *(*float64)(p)
 }
 
 func encodeFloat8(w *messageWriter, value interface{}) {

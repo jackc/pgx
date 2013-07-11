@@ -11,6 +11,8 @@ var narrowTestDataLoaded bool
 var int2TextVsBinaryTestDataLoaded bool
 var int4TextVsBinaryTestDataLoaded bool
 var int8TextVsBinaryTestDataLoaded bool
+var float4TextVsBinaryTestDataLoaded bool
+var float8TextVsBinaryTestDataLoaded bool
 
 func mustPrepare(b *testing.B, conn *Connection, name, sql string) {
 	if err := conn.Prepare(name, sql); err != nil {
@@ -403,6 +405,126 @@ func BenchmarkInt8Binary(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := conn.SelectRows("selectInt64"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func createFloat4TextVsBinaryTestData(b *testing.B, conn *Connection) {
+	if float4TextVsBinaryTestDataLoaded {
+		return
+	}
+
+	if _, err := conn.Execute(`
+		drop table if exists t;
+
+		create temporary table t(
+			a float4 not null,
+			b float4 not null,
+			c float4 not null,
+			d float4 not null,
+			e float4 not null
+		);
+
+		insert into t(a, b, c, d, e)
+		select
+			(random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4
+		from generate_series(1, 10);
+	`); err != nil {
+		b.Fatalf("Could not set up test data: %v", err)
+	}
+
+	float4TextVsBinaryTestDataLoaded = true
+}
+
+func BenchmarkFloat4Text(b *testing.B) {
+	conn := getSharedConnection()
+	createFloat4TextVsBinaryTestData(b, conn)
+
+	binaryDecoder := valueTranscoders[oid(700)].DecodeBinary
+	valueTranscoders[oid(700)].DecodeBinary = nil
+	defer func() { valueTranscoders[oid(700)].DecodeBinary = binaryDecoder }()
+
+	mustPrepare(b, conn, "selectFloat32", "select * from t")
+	defer func() { conn.Deallocate("selectFloat32") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectFloat32"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func BenchmarkFloat4Binary(b *testing.B) {
+	conn := getSharedConnection()
+	createFloat4TextVsBinaryTestData(b, conn)
+	mustPrepare(b, conn, "selectFloat32", "select * from t")
+	defer func() { conn.Deallocate("selectFloat32") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectFloat32"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func createFloat8TextVsBinaryTestData(b *testing.B, conn *Connection) {
+	if float8TextVsBinaryTestDataLoaded {
+		return
+	}
+
+	if _, err := conn.Execute(`
+		drop table if exists t;
+
+		create temporary table t(
+			a float8 not null,
+			b float8 not null,
+			c float8 not null,
+			d float8 not null,
+			e float8 not null
+		);
+
+		insert into t(a, b, c, d, e)
+		select
+			(random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8
+		from generate_series(1, 10);
+	`); err != nil {
+		b.Fatalf("Could not set up test data: %v", err)
+	}
+
+	float8TextVsBinaryTestDataLoaded = true
+}
+
+func BenchmarkFloat8Text(b *testing.B) {
+	conn := getSharedConnection()
+	createFloat8TextVsBinaryTestData(b, conn)
+
+	binaryDecoder := valueTranscoders[oid(701)].DecodeBinary
+	valueTranscoders[oid(701)].DecodeBinary = nil
+	defer func() { valueTranscoders[oid(701)].DecodeBinary = binaryDecoder }()
+
+	mustPrepare(b, conn, "selectFloat32", "select * from t")
+	defer func() { conn.Deallocate("selectFloat32") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectFloat32"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func BenchmarkFloat8Binary(b *testing.B) {
+	conn := getSharedConnection()
+	createFloat8TextVsBinaryTestData(b, conn)
+	mustPrepare(b, conn, "selectFloat32", "select * from t")
+	defer func() { conn.Deallocate("selectFloat32") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectFloat32"); err != nil {
 			b.Fatalf("Failure while benchmarking: %v", err)
 		}
 	}
