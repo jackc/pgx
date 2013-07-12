@@ -42,3 +42,43 @@ func (p *ConnectionPool) Close() {
 		_ = c.Close()
 	}
 }
+
+// Acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.SelectFunc(sql, onDataRow, arguments...)
+}
+
+// Acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.SelectRows(sql, arguments...)
+}
+
+// Acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.SelectRow(sql, arguments...)
+}
+
+// Acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.SelectValue(sql, arguments...)
+}
+
+// Acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.SelectValues(sql, arguments...)
+}
