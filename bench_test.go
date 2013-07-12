@@ -13,6 +13,7 @@ var int4TextVsBinaryTestDataLoaded bool
 var int8TextVsBinaryTestDataLoaded bool
 var float4TextVsBinaryTestDataLoaded bool
 var float8TextVsBinaryTestDataLoaded bool
+var boolTextVsBinaryTestDataLoaded bool
 
 func mustPrepare(b *testing.B, conn *Connection, name, sql string) {
 	if err := conn.Prepare(name, sql); err != nil {
@@ -525,6 +526,66 @@ func BenchmarkFloat8Binary(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if _, err := conn.SelectRows("selectFloat32"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func createBoolTextVsBinaryTestData(b *testing.B, conn *Connection) {
+	if boolTextVsBinaryTestDataLoaded {
+		return
+	}
+
+	if _, err := conn.Execute(`
+		drop table if exists t;
+
+		create temporary table t(
+			a bool not null,
+			b bool not null,
+			c bool not null,
+			d bool not null,
+			e bool not null
+		);
+
+		insert into t(a, b, c, d, e)
+		select
+			random() > 0.5, random() > 0.5, random() > 0.5, random() > 0.5, random() > 0.5
+		from generate_series(1, 10);
+	`); err != nil {
+		b.Fatalf("Could not set up test data: %v", err)
+	}
+
+	boolTextVsBinaryTestDataLoaded = true
+}
+
+func BenchmarkBoolText(b *testing.B) {
+	conn := getSharedConnection()
+	createBoolTextVsBinaryTestData(b, conn)
+
+	binaryDecoder := valueTranscoders[oid(16)].DecodeBinary
+	valueTranscoders[oid(16)].DecodeBinary = nil
+	defer func() { valueTranscoders[oid(16)].DecodeBinary = binaryDecoder }()
+
+	mustPrepare(b, conn, "selectBool", "select * from t")
+	defer func() { conn.Deallocate("selectBool") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectBool"); err != nil {
+			b.Fatalf("Failure while benchmarking: %v", err)
+		}
+	}
+}
+
+func BenchmarkBoolBinary(b *testing.B) {
+	conn := getSharedConnection()
+	createBoolTextVsBinaryTestData(b, conn)
+	mustPrepare(b, conn, "selectBool", "select * from t")
+	defer func() { conn.Deallocate("selectBool") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := conn.SelectRows("selectBool"); err != nil {
 			b.Fatalf("Failure while benchmarking: %v", err)
 		}
 	}

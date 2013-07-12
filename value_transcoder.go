@@ -22,8 +22,10 @@ func init() {
 
 	// bool
 	valueTranscoders[oid(16)] = &valueTranscoder{
-		DecodeText: decodeBoolFromText,
-		EncodeTo:   encodeBool}
+		DecodeText:   decodeBoolFromText,
+		DecodeBinary: decodeBoolFromBinary,
+		EncodeTo:     encodeBool,
+		EncodeFormat: 1}
 
 	// bytea
 	valueTranscoders[oid(17)] = &valueTranscoder{
@@ -90,11 +92,22 @@ func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
 	}
 }
 
+func decodeBoolFromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 1 {
+		panic("Received an invalid size for an bool")
+	}
+	b := mr.ReadByte()
+	return b != 0
+}
+
 func encodeBool(w *messageWriter, value interface{}) {
 	v := value.(bool)
-	s := strconv.FormatBool(v)
-	w.write(int32(len(s)))
-	w.writeString(s)
+	w.write(int32(1))
+	if v {
+		w.writeByte(1)
+	} else {
+		w.writeByte(0)
+	}
 }
 
 func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
