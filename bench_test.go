@@ -52,6 +52,21 @@ func createNarrowTestData(b *testing.B, conn *Connection) {
 	narrowTestDataLoaded = true
 }
 
+func removeBinaryEncoders() (encoders map[oid]func(*MessageReader, int32) interface{}) {
+	encoders = make(map[oid]func(*MessageReader, int32) interface{})
+	for k, v := range valueTranscoders {
+		encoders[k] = v.DecodeBinary
+		valueTranscoders[k].DecodeBinary = nil
+	}
+	return
+}
+
+func restoreBinaryEncoders(encoders map[oid]func(*MessageReader, int32) interface{}) {
+	for k, v := range encoders {
+		valueTranscoders[k].DecodeBinary = v
+	}
+}
+
 func BenchmarkSelectRowSimpleNarrow(b *testing.B) {
 	conn := getSharedConnection()
 	createNarrowTestData(b, conn)
@@ -262,9 +277,8 @@ func BenchmarkInt2Text(b *testing.B) {
 	conn := getSharedConnection()
 	createInt2TextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(21)].DecodeBinary
-	valueTranscoders[oid(21)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(21)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectInt16", "select * from t")
 	defer func() { conn.Deallocate("selectInt16") }()
@@ -322,9 +336,8 @@ func BenchmarkInt4Text(b *testing.B) {
 	conn := getSharedConnection()
 	createInt4TextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(23)].DecodeBinary
-	valueTranscoders[oid(23)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(23)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectInt32", "select * from t")
 	defer func() { conn.Deallocate("selectInt32") }()
@@ -382,9 +395,8 @@ func BenchmarkInt8Text(b *testing.B) {
 	conn := getSharedConnection()
 	createInt8TextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(20)].DecodeBinary
-	valueTranscoders[oid(20)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(20)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectInt64", "select * from t")
 	defer func() { conn.Deallocate("selectInt64") }()
@@ -442,9 +454,8 @@ func BenchmarkFloat4Text(b *testing.B) {
 	conn := getSharedConnection()
 	createFloat4TextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(700)].DecodeBinary
-	valueTranscoders[oid(700)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(700)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectFloat32", "select * from t")
 	defer func() { conn.Deallocate("selectFloat32") }()
@@ -502,9 +513,8 @@ func BenchmarkFloat8Text(b *testing.B) {
 	conn := getSharedConnection()
 	createFloat8TextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(701)].DecodeBinary
-	valueTranscoders[oid(701)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(701)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectFloat32", "select * from t")
 	defer func() { conn.Deallocate("selectFloat32") }()
@@ -562,9 +572,8 @@ func BenchmarkBoolText(b *testing.B) {
 	conn := getSharedConnection()
 	createBoolTextVsBinaryTestData(b, conn)
 
-	binaryDecoder := valueTranscoders[oid(16)].DecodeBinary
-	valueTranscoders[oid(16)].DecodeBinary = nil
-	defer func() { valueTranscoders[oid(16)].DecodeBinary = binaryDecoder }()
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
 
 	mustPrepare(b, conn, "selectBool", "select * from t")
 	defer func() { conn.Deallocate("selectBool") }()
