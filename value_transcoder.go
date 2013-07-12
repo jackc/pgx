@@ -61,13 +61,15 @@ func init() {
 	valueTranscoders[oid(700)] = &valueTranscoder{
 		DecodeText:   decodeFloat4FromText,
 		DecodeBinary: decodeFloat4FromBinary,
-		EncodeTo:     encodeFloat4}
+		EncodeTo:     encodeFloat4,
+		EncodeFormat: 1}
 
 	// float8
 	valueTranscoders[oid(701)] = &valueTranscoder{
 		DecodeText:   decodeFloat8FromText,
 		DecodeBinary: decodeFloat8FromBinary,
-		EncodeTo:     encodeFloat8}
+		EncodeTo:     encodeFloat8,
+		EncodeFormat: 1}
 
 	// varchar -- same as text
 	valueTranscoders[oid(1043)] = valueTranscoders[oid(25)]
@@ -182,9 +184,8 @@ func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
 
 func encodeFloat4(w *messageWriter, value interface{}) {
 	v := value.(float32)
-	s := strconv.FormatFloat(float64(v), 'e', -1, 32)
-	w.write(int32(len(s)))
-	w.writeString(s)
+	w.write(int32(4))
+	w.write(v)
 }
 
 func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
@@ -208,9 +209,8 @@ func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
 
 func encodeFloat8(w *messageWriter, value interface{}) {
 	v := value.(float64)
-	s := strconv.FormatFloat(float64(v), 'e', -1, 64)
-	w.write(int32(len(s)))
-	w.writeString(s)
+	w.write(int32(8))
+	w.write(v)
 }
 
 func decodeTextFromText(mr *MessageReader, size int32) interface{} {
