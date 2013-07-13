@@ -33,6 +33,9 @@ func (p *ConnectionPool) Acquire() (c *Connection) {
 }
 
 func (p *ConnectionPool) Release(c *Connection) {
+	if c.txStatus != 'I' {
+		c.Execute("rollback")
+	}
 	p.connectionChannel <- c
 }
 

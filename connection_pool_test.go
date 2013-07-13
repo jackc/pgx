@@ -108,3 +108,40 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 		pool.Release(c)
 	}
 }
+
+func TestPoolReleaseWithTransactions(t *testing.T) {
+	pool := createConnectionPool(1)
+	defer pool.Close()
+
+	var err error
+	conn := pool.Acquire()
+	if _, err = conn.Execute("begin"); err != nil {
+		t.Fatalf("Unexpected error begining transaction: %v", err)
+	}
+	if _, err = conn.Execute("select"); err == nil {
+		t.Fatal("Did not receive expected error")
+	}
+	if conn.txStatus != 'E' {
+		t.Fatalf("Expected txStatus to be 'E', instead it was '%c'", conn.txStatus)
+	}
+
+	pool.Release(conn)
+
+	if conn.txStatus != 'I' {
+		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.txStatus)
+	}
+
+	conn = pool.Acquire()
+	if _, err = conn.Execute("begin"); err != nil {
+		t.Fatalf("Unexpected error begining transaction: %v", err)
+	}
+	if conn.txStatus != 'T' {
+		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.txStatus)
+	}
+
+	pool.Release(conn)
+
+	if conn.txStatus != 'I' {
+		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.txStatus)
+	}
+}
