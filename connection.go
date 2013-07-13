@@ -415,6 +415,26 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 	}
 }
 
+func (c *Connection) Transaction(f func() bool) (committed bool, err error) {
+	if _, err = c.Execute("begin"); err != nil {
+		return
+	}
+	defer func() {
+		if committed && c.txStatus == 'T' {
+			_, err = c.Execute("commit")
+			if err != nil {
+				committed = false
+			}
+		} else {
+			_, err = c.Execute("rollback")
+			committed = false
+		}
+	}()
+
+	committed = f()
+	return
+}
+
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
