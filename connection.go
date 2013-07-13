@@ -99,6 +99,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 					return nil, err
 				}
 			case readyForQuery:
+				c.rxReadyForQuery(r)
 				return c, nil
 			default:
 				if err = c.processContextFreeMsg(t, r); err != nil {
@@ -132,6 +133,7 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 		if t, r, rxErr := c.rxMsg(); rxErr == nil {
 			switch t {
 			case readyForQuery:
+				c.rxReadyForQuery(r)
 				return
 			case rowDescription:
 				fields = c.rxRowDescription(r)
@@ -268,6 +270,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 					}
 				}
 			case readyForQuery:
+				c.rxReadyForQuery(r)
 				c.preparedStatements[name] = &ps
 				return
 			default:
@@ -394,6 +397,7 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 		if t, r, rxErr := c.rxMsg(); rxErr == nil {
 			switch t {
 			case readyForQuery:
+				c.rxReadyForQuery(r)
 				return
 			case rowDescription:
 			case dataRow:
