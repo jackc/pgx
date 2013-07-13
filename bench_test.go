@@ -15,12 +15,6 @@ var float4TextVsBinaryTestDataLoaded bool
 var float8TextVsBinaryTestDataLoaded bool
 var boolTextVsBinaryTestDataLoaded bool
 
-func mustPrepare(b *testing.B, conn *Connection, name, sql string) {
-	if err := conn.Prepare(name, sql); err != nil {
-		b.Fatalf("Could not prepare %v: %v", name, err)
-	}
-}
-
 func createNarrowTestData(b *testing.B, conn *Connection) {
 	if narrowTestDataLoaded {
 		return
