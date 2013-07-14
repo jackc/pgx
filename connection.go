@@ -416,7 +416,22 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 }
 
 func (c *Connection) Transaction(f func() bool) (committed bool, err error) {
-	if _, err = c.Execute("begin"); err != nil {
+	return c.transaction("", f)
+}
+
+func (c *Connection) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
+	return c.transaction(isoLevel, f)
+}
+
+func (c *Connection) transaction(isoLevel string, f func() bool) (committed bool, err error) {
+	var beginSql string
+	if isoLevel == "" {
+		beginSql = "begin"
+	} else {
+		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
+	}
+
+	if _, err = c.Execute(beginSql); err != nil {
 		return
 	}
 	defer func() {

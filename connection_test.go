@@ -536,3 +536,24 @@ func TestTransaction(t *testing.T) {
 		}
 	}()
 }
+
+func TestTransactionIso(t *testing.T) {
+	conn, err := Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	isoLevels := []string{"serializable", "repeatable read", "read committed", "read uncommitted"}
+	for _, iso := range isoLevels {
+		_, err := conn.TransactionIso(iso, func() bool {
+			if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != iso {
+				t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
+			}
+			return true
+		})
+		if err != nil {
+			t.Fatalf("Unexpected transaction failure: %v", err)
+		}
+	}
+}
