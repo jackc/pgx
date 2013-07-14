@@ -1,3 +1,6 @@
+// Package pgx is a PostgreSQL database driver.
+//
+// It does not implement the standard database/sql interface.
 package pgx
 
 import (
@@ -11,15 +14,19 @@ import (
 	"net"
 )
 
+// ConnectionParameters contains all the options used to establish a connection.
 type ConnectionParameters struct {
 	Socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
-	Host     string
+	Host     string // url (e.g. localhost)
 	Port     uint16 // default: 5432
 	Database string
 	User     string
 	Password string
 }
 
+// Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
+// Use ConnectionPool to manage access to multiple database connections from multiple
+// goroutines.
 type Connection struct {
 	conn               net.Conn             // the underlying TCP or unix domain socket connection
 	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
@@ -28,10 +35,10 @@ type Connection struct {
 	runtimeParams      map[string]string    // parameters that have been reported by the server
 	parameters         ConnectionParameters // parameters used when establishing this connection
 	txStatus           byte
-	preparedStatements map[string]*PreparedStatement
+	preparedStatements map[string]*preparedStatement
 }
 
-type PreparedStatement struct {
+type preparedStatement struct {
 	Name              string
 	FieldDescriptions []FieldDescription
 	ParameterOids     []oid
@@ -78,7 +85,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 
 	c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
 	c.runtimeParams = make(map[string]string)
-	c.preparedStatements = make(map[string]*PreparedStatement)
+	c.preparedStatements = make(map[string]*preparedStatement)
 
 	msg := newStartupMessage()
 	msg.options["user"] = c.parameters.User
@@ -253,7 +260,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 		return err
 	}
 
-	ps := PreparedStatement{Name: name}
+	ps := preparedStatement{Name: name}
 
 	for {
 		if t, r, rxErr := c.rxMsg(); rxErr == nil {
@@ -317,7 +324,7 @@ func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err 
 	return c.txMsg('Q', buf)
 }
 
-func (c *Connection) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
+func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOids) != len(arguments) {
 		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
 	}
