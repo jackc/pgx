@@ -44,6 +44,8 @@ type preparedStatement struct {
 	ParameterOids     []oid
 }
 
+// NotSingleRowError is returned when exactly 1 row is expected, but 0 or more than
+// 1 row is returned
 type NotSingleRowError struct {
 	RowCount int64
 }
@@ -52,6 +54,8 @@ func (e NotSingleRowError) Error() string {
 	return fmt.Sprintf("Expected to find 1 row exactly, instead found %d", e.RowCount)
 }
 
+// UnexpectedColumnCountError is returned when an unexpected number of columns is
+// returned from a Select.
 type UnexpectedColumnCountError struct {
 	ExpectedCount int16
 	ActualCount   int16
@@ -61,8 +65,12 @@ func (e UnexpectedColumnCountError) Error() string {
 	return fmt.Sprintf("Expected result to have %d column(s), instead it has %d", e.ExpectedCount, e.ActualCount)
 }
 
+// sharedBufferSize is the default number of bytes of work buffer per connection
 const sharedBufferSize = 1024
 
+// Connect establishes a connection with a PostgreSQL server using parameters. One
+// of parameters.Socket or parameters.Host must be specified. parameters.User must
+// also the included. Other parameters fields are optional.
 func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
