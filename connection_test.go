@@ -44,8 +44,7 @@ func TestConnect(t *testing.T) {
 		t.Errorf("Did not connect to specified database (%v)", defaultConnectionParameters.Database)
 	}
 
-	rows, err = conn.SelectRows("select current_user")
-	if err != nil || rows[0]["current_user"] != defaultConnectionParameters.User {
+	if user := mustSelectValue(t, conn, "select current_user"); user != defaultConnectionParameters.User {
 		t.Errorf("Did not connect as specified user (%v)", defaultConnectionParameters.User)
 	}
 
@@ -137,46 +136,26 @@ func TestConnectWithMD5Password(t *testing.T) {
 func TestExecute(t *testing.T) {
 	conn := getSharedConnection()
 
-	results, err := conn.Execute("create temporary table foo(id integer primary key);")
-	if err != nil {
-		t.Fatal("Execute failed: " + err.Error())
-	}
-	if results != "CREATE TABLE" {
+	if results := mustExecute(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
 		t.Error("Unexpected results from Execute")
 	}
 
 	// Accept parameters
-	results, err = conn.Execute("insert into foo(id) values($1)", 1)
-	if err != nil {
-		t.Errorf("Execute failed: %v", err)
-	}
-	if results != "INSERT 0 1" {
+	if results := mustExecute(t, conn, "insert into foo(id) values($1)", 1); results != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Execute: %v", results)
 	}
 
-	results, err = conn.Execute("drop table foo;")
-	if err != nil {
-		t.Fatal("Execute failed: " + err.Error())
-	}
-	if results != "DROP TABLE" {
+	if results := mustExecute(t, conn, "drop table foo;"); results != "DROP TABLE" {
 		t.Error("Unexpected results from Execute")
 	}
 
 	// Multiple statements can be executed -- last command tag is returned
-	results, err = conn.Execute("create temporary table foo(id serial primary key); drop table foo;")
-	if err != nil {
-		t.Fatal("Execute failed: " + err.Error())
-	}
-	if results != "DROP TABLE" {
+	if results := mustExecute(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); results != "DROP TABLE" {
 		t.Error("Unexpected results from Execute")
 	}
 
 	// Can execute longer SQL strings than sharedBufferSize
-	results, err = conn.Execute(strings.Repeat("select 42; ", 1000))
-	if err != nil {
-		t.Fatal("Execute failed: " + err.Error())
-	}
-	if results != "SELECT 1" {
+	if results := mustExecute(t, conn, strings.Repeat("select 42; ", 1000)); results != "SELECT 1" {
 		t.Errorf("Unexpected results from Execute: %v", results)
 	}
 }
@@ -239,10 +218,7 @@ func TestSelectFuncFailure(t *testing.T) {
 func TestSelectRows(t *testing.T) {
 	conn := getSharedConnection()
 
-	rows, err := conn.SelectRows("select $1 as name, null as position", "Jack")
-	if err != nil {
-		t.Fatal("Query failed")
-	}
+	rows := mustSelectRows(t, conn, "select $1 as name, null as position", "Jack")
 
 	if len(rows) != 1 {
 		t.Fatal("Received wrong number of rows")
@@ -264,11 +240,7 @@ func TestSelectRows(t *testing.T) {
 func TestSelectRow(t *testing.T) {
 	conn := getSharedConnection()
 
-	row, err := conn.SelectRow("select $1 as name, null as position", "Jack")
-	if err != nil {
-		t.Fatal("Query failed")
-	}
-
+	row := mustSelectRow(t, conn, "select $1 as name, null as position", "Jack")
 	if row["name"] != "Jack" {
 		t.Error("Received incorrect name")
 	}
@@ -281,7 +253,7 @@ func TestSelectRow(t *testing.T) {
 		t.Error("Null value should have been present in map as nil")
 	}
 
-	_, err = conn.SelectRow("select 'Jack' as name where 1=2")
+	_, err := conn.SelectRow("select 'Jack' as name where 1=2")
 	if _, ok := err.(NotSingleRowError); !ok {
 		t.Error("No matching row should have returned NotSingleRowError")
 	}
@@ -476,9 +448,7 @@ func TestTransaction(t *testing.T) {
 
 	// Transaction happy path -- it executes function and commits
 	committed, err = conn.Transaction(func() bool {
-		if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-			t.Fatalf("Failed to insert into table: %v", err)
-		}
+		mustExecute(t, conn, "insert into foo(id) values (1)")
 		return true
 	})
 	if err != nil {
@@ -489,24 +459,16 @@ func TestTransaction(t *testing.T) {
 	}
 
 	var n interface{}
-	n, err = conn.SelectValue("select count(*) from foo")
-	if err != nil {
-		t.Fatalf("Unexpected error selecting value from foo: %v", err)
-	}
+	n = mustSelectValue(t, conn, "select count(*) from foo")
 	if n.(int64) != 1 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
-	_, err = conn.Execute("truncate foo")
-	if err != nil {
-		t.Fatalf("Unexpected error truncating foo: %v", err)
-	}
+	mustExecute(t, conn, "truncate foo")
 
 	// It rolls back when passed function returns false
 	committed, err = conn.Transaction(func() bool {
-		if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-			t.Fatalf("Failed to insert into table: %v", err)
-		}
+		mustExecute(t, conn, "insert into foo(id) values (1)")
 		return false
 	})
 	if err != nil {
@@ -515,19 +477,14 @@ func TestTransaction(t *testing.T) {
 	if committed {
 		t.Fatal("Transaction should not have been committed")
 	}
-	n, err = conn.SelectValue("select count(*) from foo")
-	if err != nil {
-		t.Fatalf("Unexpected error selecting value from foo: %v", err)
-	}
+	n = mustSelectValue(t, conn, "select count(*) from foo")
 	if n.(int64) != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
 	// it rolls back changes when connection is in error state
 	committed, err = conn.Transaction(func() bool {
-		if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-			t.Fatalf("Failed to insert into table: %v", err)
-		}
+		mustExecute(t, conn, "insert into foo(id) values (1)")
 		if _, err := conn.Execute("invalid"); err == nil {
 			t.Fatal("Execute was supposed to error but didn't")
 		}
@@ -539,22 +496,15 @@ func TestTransaction(t *testing.T) {
 	if committed {
 		t.Fatal("Transaction was committed when it shouldn't have been")
 	}
-	n, err = conn.SelectValue("select count(*) from foo")
-	if err != nil {
-		t.Fatalf("Unexpected error selecting value from foo: %v", err)
-	}
+	n = mustSelectValue(t, conn, "select count(*) from foo")
 	if n.(int64) != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
 	// when commit fails
 	committed, err = conn.Transaction(func() bool {
-		if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-			t.Fatalf("Failed to insert into table: %v", err)
-		}
-		if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-			t.Fatalf("Failed to insert into table: %v", err)
-		}
+		mustExecute(t, conn, "insert into foo(id) values (1)")
+		mustExecute(t, conn, "insert into foo(id) values (1)")
 		return true
 	})
 	if err == nil {
@@ -564,10 +514,7 @@ func TestTransaction(t *testing.T) {
 		t.Fatal("Transaction was committed when it should have failed")
 	}
 
-	n, err = conn.SelectValue("select count(*) from foo")
-	if err != nil {
-		t.Fatalf("Unexpected error selecting value from foo: %v", err)
-	}
+	n = mustSelectValue(t, conn, "select count(*) from foo")
 	if n.(int64) != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
@@ -579,17 +526,11 @@ func TestTransaction(t *testing.T) {
 		}()
 
 		committed, err = conn.Transaction(func() bool {
-			if _, err := conn.Execute("insert into foo(id) values (1)"); err != nil {
-				t.Fatalf("Failed to insert into table: %v", err)
-			}
+			mustExecute(t, conn, "insert into foo(id) values (1)")
 			panic("stop!")
-			return true
 		})
 
-		n, err = conn.SelectValue("select count(*) from foo")
-		if err != nil {
-			t.Fatalf("Unexpected error selecting value from foo: %v", err)
-		}
+		n = mustSelectValue(t, conn, "select count(*) from foo")
 		if n.(int64) != 0 {
 			t.Fatalf("Did not receive correct number of rows: %v", n)
 		}

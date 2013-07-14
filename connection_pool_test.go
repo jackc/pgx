@@ -43,13 +43,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	allConnections := acquireAll()
 
 	for _, c := range allConnections {
-		var err error
-		if _, err = c.Execute("create temporary table t(counter integer not null)"); err != nil {
-			t.Fatal("Unable to create temp table:" + err.Error())
-		}
-		if _, err = c.Execute("insert into t(counter) values(0);"); err != nil {
-			t.Fatal("Unable to insert initial counter row: " + err.Error())
-		}
+		mustExecute(t, c, "create temporary table t(counter integer not null)")
+		mustExecute(t, c, "insert into t(counter) values(0);")
 	}
 
 	for _, c := range allConnections {
@@ -65,10 +60,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 		defer pool.Release(conn)
 
 		// Increment counter...
-		_, err = conn.Execute("update t set counter = counter + 1")
-		if err != nil {
-			t.Fatal("Unable to update counter: " + err.Error())
-		}
+		mustExecute(t, conn, "update t set counter = counter + 1")
 		completeSync <- 0
 	}
 
@@ -86,11 +78,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	allConnections = acquireAll()
 
 	for _, c := range allConnections {
-		v, err := c.SelectValue("select counter from t")
-		if err != nil {
-			t.Fatal("Unable to read back execution counter: " + err.Error())
-		}
-
+		v := mustSelectValue(t, c, "select counter from t")
 		n := v.(int32)
 		if n == 0 {
 			t.Error("A connection was never used")
@@ -115,9 +103,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 
 	var err error
 	conn := pool.Acquire()
-	if _, err = conn.Execute("begin"); err != nil {
-		t.Fatalf("Unexpected error begining transaction: %v", err)
-	}
+	mustExecute(t, conn, "begin")
 	if _, err = conn.Execute("select"); err == nil {
 		t.Fatal("Did not receive expected error")
 	}
@@ -132,9 +118,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 	}
 
 	conn = pool.Acquire()
-	if _, err = conn.Execute("begin"); err != nil {
-		t.Fatalf("Unexpected error begining transaction: %v", err)
-	}
+	mustExecute(t, conn, "begin")
 	if conn.txStatus != 'T' {
 		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.txStatus)
 	}

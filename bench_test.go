@@ -73,9 +73,7 @@ func BenchmarkSelectRowSimpleNarrow(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRow("select * from narrow where id=$1", ids[i]); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		_ = mustSelectRow(b, conn, "select * from narrow where id=$1", ids[i])
 	}
 }
 
@@ -91,9 +89,7 @@ func BenchmarkSelectRowPreparedNarrow(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRow("getNarrowById", ids[i]); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRow(b, conn, "getNarrowById", ids[i])
 	}
 }
 
@@ -109,9 +105,7 @@ func BenchmarkSelectRowsSimpleNarrow(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("select * from narrow where id between $1 and $2", ids[i], ids[i]+10); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "select * from narrow where id between $1 and $2", ids[i], ids[i]+10)
 	}
 }
 
@@ -127,9 +121,7 @@ func BenchmarkSelectRowsPreparedNarrow(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("getMultipleNarrowById", ids[i], ids[i]+10); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "getMultipleNarrowById", ids[i], ids[i]+10)
 	}
 }
 
@@ -138,7 +130,7 @@ func createJoinsTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists product_component;
 		drop table if exists component;
 		drop table if exists product;
@@ -189,9 +181,7 @@ func createJoinsTestData(b *testing.B, conn *Connection) {
 		create index on product_component(component_id);
 
 		analyze;
-	`); err != nil {
-		panic(fmt.Sprintf("Unable to create test data: %v", err))
-	}
+	`)
 
 	mustPrepare(b, conn, "joinAggregate", `
 		select product.id, sum(cost*quantity) as total_cost
@@ -222,9 +212,7 @@ func BenchmarkSelectRowsSimpleJoins(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows(sql); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, sql)
 	}
 }
 
@@ -234,9 +222,7 @@ func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("joinAggregate"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "joinAggregate")
 	}
 }
 
@@ -245,7 +231,7 @@ func createInt2TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -260,9 +246,7 @@ func createInt2TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			(random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2, (random() * 32000)::int2
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	int2TextVsBinaryTestDataLoaded = true
 }
@@ -279,9 +263,7 @@ func BenchmarkInt2Text(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt16"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt16")
 	}
 }
 
@@ -293,9 +275,7 @@ func BenchmarkInt2Binary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt16"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt16")
 	}
 }
 
@@ -304,7 +284,7 @@ func createInt4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -319,9 +299,7 @@ func createInt4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			(random() * 1000000)::int4, (random() * 1000000)::int4, (random() * 1000000)::int4, (random() * 1000000)::int4, (random() * 1000000)::int4
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	int4TextVsBinaryTestDataLoaded = true
 }
@@ -338,9 +316,7 @@ func BenchmarkInt4Text(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt32")
 	}
 }
 
@@ -352,9 +328,7 @@ func BenchmarkInt4Binary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt32")
 	}
 }
 
@@ -363,7 +337,7 @@ func createInt8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -378,9 +352,7 @@ func createInt8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			(random() * 1000000)::int8, (random() * 1000000)::int8, (random() * 1000000)::int8, (random() * 1000000)::int8, (random() * 1000000)::int8
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	int8TextVsBinaryTestDataLoaded = true
 }
@@ -397,9 +369,7 @@ func BenchmarkInt8Text(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt64"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt64")
 	}
 }
 
@@ -411,9 +381,7 @@ func BenchmarkInt8Binary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectInt64"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectInt64")
 	}
 }
 
@@ -422,7 +390,7 @@ func createFloat4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -437,9 +405,7 @@ func createFloat4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			(random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4, (random() * 1000000)::float4
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	float4TextVsBinaryTestDataLoaded = true
 }
@@ -456,9 +422,7 @@ func BenchmarkFloat4Text(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectFloat32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectFloat32")
 	}
 }
 
@@ -470,9 +434,7 @@ func BenchmarkFloat4Binary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectFloat32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectFloat32")
 	}
 }
 
@@ -481,7 +443,7 @@ func createFloat8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -496,9 +458,7 @@ func createFloat8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			(random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8, (random() * 1000000)::float8
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	float8TextVsBinaryTestDataLoaded = true
 }
@@ -515,9 +475,7 @@ func BenchmarkFloat8Text(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectFloat32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectFloat32")
 	}
 }
 
@@ -529,9 +487,7 @@ func BenchmarkFloat8Binary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectFloat32"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectFloat32")
 	}
 }
 
@@ -540,7 +496,7 @@ func createBoolTextVsBinaryTestData(b *testing.B, conn *Connection) {
 		return
 	}
 
-	if _, err := conn.Execute(`
+	mustExecute(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -555,9 +511,7 @@ func createBoolTextVsBinaryTestData(b *testing.B, conn *Connection) {
 		select
 			random() > 0.5, random() > 0.5, random() > 0.5, random() > 0.5, random() > 0.5
 		from generate_series(1, 10);
-	`); err != nil {
-		b.Fatalf("Could not set up test data: %v", err)
-	}
+	`)
 
 	boolTextVsBinaryTestDataLoaded = true
 }
@@ -574,9 +528,7 @@ func BenchmarkBoolText(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectBool"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectBool")
 	}
 }
 
@@ -588,8 +540,6 @@ func BenchmarkBoolBinary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := conn.SelectRows("selectBool"); err != nil {
-			b.Fatalf("Failure while benchmarking: %v", err)
-		}
+		mustSelectRows(b, conn, "selectBool")
 	}
 }
