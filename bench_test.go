@@ -48,16 +48,16 @@ func createNarrowTestData(b *testing.B, conn *Connection) {
 
 func removeBinaryEncoders() (encoders map[Oid]func(*MessageReader, int32) interface{}) {
 	encoders = make(map[Oid]func(*MessageReader, int32) interface{})
-	for k, v := range valueTranscoders {
+	for k, v := range ValueTranscoders {
 		encoders[k] = v.DecodeBinary
-		valueTranscoders[k].DecodeBinary = nil
+		ValueTranscoders[k].DecodeBinary = nil
 	}
 	return
 }
 
 func restoreBinaryEncoders(encoders map[Oid]func(*MessageReader, int32) interface{}) {
 	for k, v := range encoders {
-		valueTranscoders[k].DecodeBinary = v
+		ValueTranscoders[k].DecodeBinary = v
 	}
 }
 

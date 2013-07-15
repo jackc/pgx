@@ -7,77 +7,89 @@ import (
 	"unsafe"
 )
 
-type valueTranscoder struct {
-	DecodeText   func(*MessageReader, int32) interface{}
+// ValueTranscoder stores all the data necessary to encode and decode values from
+// a PostgreSQL server
+type ValueTranscoder struct {
+	// DecodeText decodes values returned from the server in text format
+	DecodeText func(*MessageReader, int32) interface{}
+	// DecodeBinary decodes values returned from the server in binary format
 	DecodeBinary func(*MessageReader, int32) interface{}
-	EncodeTo     func(*messageWriter, interface{})
+	// EncodeTo encodes values to send to the server
+	EncodeTo func(*messageWriter, interface{})
+	// EncodeFormat is the format values are encoded for transmission.
+	// 0 = text
+	// 1 = binary
 	EncodeFormat int16
 }
 
-var valueTranscoders map[Oid]*valueTranscoder
-var defaultTranscoder *valueTranscoder
+// ValueTranscoders is used to transcode values being sent to and received from
+// the PostgreSQL server. Additional types can be transcoded by adding a
+// *ValueTranscoder for the appropriate Oid to the map.
+var ValueTranscoders map[Oid]*ValueTranscoder
+
+var defaultTranscoder *ValueTranscoder
 
 func init() {
-	valueTranscoders = make(map[Oid]*valueTranscoder)
+	ValueTranscoders = make(map[Oid]*ValueTranscoder)
 
 	// bool
-	valueTranscoders[Oid(16)] = &valueTranscoder{
+	ValueTranscoders[Oid(16)] = &ValueTranscoder{
 		DecodeText:   decodeBoolFromText,
 		DecodeBinary: decodeBoolFromBinary,
 		EncodeTo:     encodeBool,
 		EncodeFormat: 1}
 
 	// bytea
-	valueTranscoders[Oid(17)] = &valueTranscoder{
+	ValueTranscoders[Oid(17)] = &ValueTranscoder{
 		DecodeText:   decodeByteaFromText,
 		EncodeTo:     encodeBytea,
 		EncodeFormat: 1}
 
 	// int8
-	valueTranscoders[Oid(20)] = &valueTranscoder{
+	ValueTranscoders[Oid(20)] = &ValueTranscoder{
 		DecodeText:   decodeInt8FromText,
 		DecodeBinary: decodeInt8FromBinary,
 		EncodeTo:     encodeInt8,
 		EncodeFormat: 1}
 
 	// int2
-	valueTranscoders[Oid(21)] = &valueTranscoder{
+	ValueTranscoders[Oid(21)] = &ValueTranscoder{
 		DecodeText:   decodeInt2FromText,
 		DecodeBinary: decodeInt2FromBinary,
 		EncodeTo:     encodeInt2,
 		EncodeFormat: 1}
 
 	// int4
-	valueTranscoders[Oid(23)] = &valueTranscoder{
+	ValueTranscoders[Oid(23)] = &ValueTranscoder{
 		DecodeText:   decodeInt4FromText,
 		DecodeBinary: decodeInt4FromBinary,
 		EncodeTo:     encodeInt4,
 		EncodeFormat: 1}
 
 	// text
-	valueTranscoders[Oid(25)] = &valueTranscoder{
+	ValueTranscoders[Oid(25)] = &ValueTranscoder{
 		DecodeText: decodeTextFromText,
 		EncodeTo:   encodeText}
 
 	// float4
-	valueTranscoders[Oid(700)] = &valueTranscoder{
+	ValueTranscoders[Oid(700)] = &ValueTranscoder{
 		DecodeText:   decodeFloat4FromText,
 		DecodeBinary: decodeFloat4FromBinary,
 		EncodeTo:     encodeFloat4,
 		EncodeFormat: 1}
 
 	// float8
-	valueTranscoders[Oid(701)] = &valueTranscoder{
+	ValueTranscoders[Oid(701)] = &ValueTranscoder{
 		DecodeText:   decodeFloat8FromText,
 		DecodeBinary: decodeFloat8FromBinary,
 		EncodeTo:     encodeFloat8,
 		EncodeFormat: 1}
 
 	// varchar -- same as text
-	valueTranscoders[Oid(1043)] = valueTranscoders[Oid(25)]
+	ValueTranscoders[Oid(1043)] = ValueTranscoders[Oid(25)]
 
 	// use text transcoder for anything we don't understand
-	defaultTranscoder = valueTranscoders[Oid(25)]
+	defaultTranscoder = ValueTranscoders[Oid(25)]
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {

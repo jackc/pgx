@@ -27,7 +27,7 @@ func (r *DataRowReader) ReadValue() interface{} {
 
 	size := r.mr.ReadInt32()
 	if size > -1 {
-		if vt, present := valueTranscoders[fieldDescription.DataType]; present {
+		if vt, present := ValueTranscoders[fieldDescription.DataType]; present {
 			switch fieldDescription.FormatCode {
 			case 0:
 				return vt.DecodeText(r.mr, size)

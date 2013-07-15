@@ -310,7 +310,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 				ps.FieldDescriptions = c.rxRowDescription(r)
 				for i := range ps.FieldDescriptions {
 					oid := ps.FieldDescriptions[i].DataType
-					if valueTranscoders[oid] != nil && valueTranscoders[oid].DecodeBinary != nil {
+					if ValueTranscoders[oid] != nil && ValueTranscoders[oid].DecodeBinary != nil {
 						ps.FieldDescriptions[i].FormatCode = 1
 					}
 				}
@@ -375,7 +375,7 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 	w.writeCString(ps.Name)
 	w.write(int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
-		transcoder := valueTranscoders[oid]
+		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
@@ -384,7 +384,7 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 
 	w.write(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		transcoder := valueTranscoders[oid]
+		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
@@ -393,7 +393,7 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 
 	w.write(int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
-		transcoder := valueTranscoders[fd.DataType]
+		transcoder := ValueTranscoders[fd.DataType]
 		if transcoder != nil && transcoder.DecodeBinary != nil {
 			w.write(int16(1))
 		} else {
