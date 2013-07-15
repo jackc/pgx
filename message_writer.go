@@ -5,46 +5,54 @@ import (
 	"encoding/binary"
 )
 
-type messageWriter struct {
+// MessageWriter is a helper for producing messages to send to PostgreSQL.
+// To avoid verbose error handling it internally records errors and no-ops
+// any calls that occur after an error. At the end of a sequence of writes
+// the Err field should be checked to see if any errors occurred.
+type MessageWriter struct {
 	buf *bytes.Buffer
-	err error
+	Err error
 }
 
-func newMessageWriter(buf *bytes.Buffer) *messageWriter {
-	return &messageWriter{buf: buf}
+func newMessageWriter(buf *bytes.Buffer) *MessageWriter {
+	return &MessageWriter{buf: buf}
 }
 
-func (w *messageWriter) writeCString(s string) {
-	if w.err != nil {
+// WriteCString writes a null-terminated string.
+func (w *MessageWriter) WriteCString(s string) {
+	if w.Err != nil {
 		return
 	}
-	if _, w.err = w.buf.WriteString(s); w.err != nil {
+	if _, w.Err = w.buf.WriteString(s); w.Err != nil {
 		return
 	}
-	w.err = w.buf.WriteByte(0)
+	w.Err = w.buf.WriteByte(0)
 }
 
-func (w *messageWriter) writeString(s string) {
-	if w.err != nil {
+// WriteString writes a string without a null terminator.
+func (w *MessageWriter) WriteString(s string) {
+	if w.Err != nil {
 		return
 	}
-	if _, w.err = w.buf.WriteString(s); w.err != nil {
+	if _, w.Err = w.buf.WriteString(s); w.Err != nil {
 		return
 	}
 }
 
-func (w *messageWriter) writeByte(b byte) {
-	if w.err != nil {
+func (w *MessageWriter) WriteByte(b byte) {
+	if w.Err != nil {
 		return
 	}
 
-	w.err = w.buf.WriteByte(b)
+	w.Err = w.buf.WriteByte(b)
 }
 
-func (w *messageWriter) write(data interface{}) {
-	if w.err != nil {
+// Write writes data in the network byte order. data can be an integer type,
+// float type, or byte slice.
+func (w *MessageWriter) Write(data interface{}) {
+	if w.Err != nil {
 		return
 	}
 
-	w.err = binary.Write(w.buf, binary.BigEndian, data)
+	w.Err = binary.Write(w.buf, binary.BigEndian, data)
 }

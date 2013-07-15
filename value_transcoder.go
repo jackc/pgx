@@ -15,7 +15,7 @@ type ValueTranscoder struct {
 	// DecodeBinary decodes values returned from the server in binary format
 	DecodeBinary func(*MessageReader, int32) interface{}
 	// EncodeTo encodes values to send to the server
-	EncodeTo func(*messageWriter, interface{})
+	EncodeTo func(*MessageWriter, interface{})
 	// EncodeFormat is the format values are encoded for transmission.
 	// 0 = text
 	// 1 = binary
@@ -112,13 +112,13 @@ func decodeBoolFromBinary(mr *MessageReader, size int32) interface{} {
 	return b != 0
 }
 
-func encodeBool(w *messageWriter, value interface{}) {
+func encodeBool(w *MessageWriter, value interface{}) {
 	v := value.(bool)
-	w.write(int32(1))
+	w.Write(int32(1))
 	if v {
-		w.writeByte(1)
+		w.WriteByte(1)
 	} else {
-		w.writeByte(0)
+		w.WriteByte(0)
 	}
 }
 
@@ -138,10 +138,10 @@ func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt64()
 }
 
-func encodeInt8(w *messageWriter, value interface{}) {
+func encodeInt8(w *MessageWriter, value interface{}) {
 	v := value.(int64)
-	w.write(int32(8))
-	w.write(v)
+	w.Write(int32(8))
+	w.Write(v)
 }
 
 func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
@@ -160,10 +160,10 @@ func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt16()
 }
 
-func encodeInt2(w *messageWriter, value interface{}) {
+func encodeInt2(w *MessageWriter, value interface{}) {
 	v := value.(int16)
-	w.write(int32(2))
-	w.write(v)
+	w.Write(int32(2))
+	w.Write(v)
 }
 
 func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
@@ -182,10 +182,10 @@ func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt32()
 }
 
-func encodeInt4(w *messageWriter, value interface{}) {
+func encodeInt4(w *MessageWriter, value interface{}) {
 	v := value.(int32)
-	w.write(int32(4))
-	w.write(v)
+	w.Write(int32(4))
+	w.Write(v)
 }
 
 func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
@@ -207,10 +207,10 @@ func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
 	return *(*float32)(p)
 }
 
-func encodeFloat4(w *messageWriter, value interface{}) {
+func encodeFloat4(w *MessageWriter, value interface{}) {
 	v := value.(float32)
-	w.write(int32(4))
-	w.write(v)
+	w.Write(int32(4))
+	w.Write(v)
 }
 
 func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
@@ -232,20 +232,20 @@ func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
 	return *(*float64)(p)
 }
 
-func encodeFloat8(w *messageWriter, value interface{}) {
+func encodeFloat8(w *MessageWriter, value interface{}) {
 	v := value.(float64)
-	w.write(int32(8))
-	w.write(v)
+	w.Write(int32(8))
+	w.Write(v)
 }
 
 func decodeTextFromText(mr *MessageReader, size int32) interface{} {
 	return mr.ReadByteString(size)
 }
 
-func encodeText(w *messageWriter, value interface{}) {
+func encodeText(w *MessageWriter, value interface{}) {
 	s := value.(string)
-	w.write(int32(len(s)))
-	w.writeString(s)
+	w.Write(int32(len(s)))
+	w.WriteString(s)
 }
 
 func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
@@ -257,8 +257,8 @@ func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
 	return b
 }
 
-func encodeBytea(w *messageWriter, value interface{}) {
+func encodeBytea(w *MessageWriter, value interface{}) {
 	b := value.([]byte)
-	w.write(int32(len(b)))
-	w.write(b)
+	w.Write(int32(len(b)))
+	w.Write(b)
 }

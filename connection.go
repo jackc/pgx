@@ -267,11 +267,11 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	// parse
 	buf := c.getBuf()
 	w := newMessageWriter(buf)
-	w.writeCString(name)
-	w.writeCString(sql)
-	w.write(int16(0))
-	if w.err != nil {
-		return w.err
+	w.WriteCString(name)
+	w.WriteCString(sql)
+	w.Write(int16(0))
+	if w.Err != nil {
+		return w.Err
 	}
 	err = c.txMsg('P', buf)
 	if err != nil {
@@ -281,10 +281,10 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	// describe
 	buf = c.getBuf()
 	w = newMessageWriter(buf)
-	w.writeByte('S')
-	w.writeCString(name)
-	if w.err != nil {
-		return w.err
+	w.WriteByte('S')
+	w.WriteCString(name)
+	if w.Err != nil {
+		return w.Err
 	}
 
 	err = c.txMsg('D', buf)
@@ -371,18 +371,18 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 	// bind
 	buf := c.getBuf()
 	w := newMessageWriter(buf)
-	w.writeCString("")
-	w.writeCString(ps.Name)
-	w.write(int16(len(ps.ParameterOids)))
+	w.WriteCString("")
+	w.WriteCString(ps.Name)
+	w.Write(int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
-		w.write(transcoder.EncodeFormat)
+		w.Write(transcoder.EncodeFormat)
 	}
 
-	w.write(int16(len(arguments)))
+	w.Write(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
 		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
@@ -391,17 +391,17 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 		transcoder.EncodeTo(w, arguments[i])
 	}
 
-	w.write(int16(len(ps.FieldDescriptions)))
+	w.Write(int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
 		transcoder := ValueTranscoders[fd.DataType]
 		if transcoder != nil && transcoder.DecodeBinary != nil {
-			w.write(int16(1))
+			w.Write(int16(1))
 		} else {
-			w.write(int16(0))
+			w.Write(int16(0))
 		}
 	}
-	if w.err != nil {
-		return w.err
+	if w.Err != nil {
+		return w.Err
 	}
 
 	err = c.txMsg('B', buf)
@@ -412,11 +412,11 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 	// execute
 	buf = c.getBuf()
 	w = newMessageWriter(buf)
-	w.writeCString("")
-	w.write(int32(0))
+	w.WriteCString("")
+	w.Write(int32(0))
 
-	if w.err != nil {
-		return w.err
+	if w.Err != nil {
+		return w.Err
 	}
 
 	err = c.txMsg('E', buf)
