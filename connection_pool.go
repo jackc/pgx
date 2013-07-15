@@ -6,8 +6,9 @@ type ConnectionPool struct {
 	MaxConnections    int
 }
 
-// options: options used by Connect
-// MaxConnections: max simultaneous connections to use (currently all are immediately connected)
+// NewConnectionPool creates a new ConnectionPool. options are passed through to
+// Connect directly. MaxConnections is max simultaneous connections to use
+// (currently all are immediately connected).
 func NewConnectionPool(parameters ConnectionParameters, MaxConnections int) (p *ConnectionPool, err error) {
 	p = new(ConnectionPool)
 	p.connectionChannel = make(chan *Connection, MaxConnections)
@@ -27,11 +28,13 @@ func NewConnectionPool(parameters ConnectionParameters, MaxConnections int) (p *
 	return
 }
 
+// Acquire takes exclusive use of a connection until it is released.
 func (p *ConnectionPool) Acquire() (c *Connection) {
 	c = <-p.connectionChannel
 	return
 }
 
+// Release gives up use of a connection.
 func (p *ConnectionPool) Release(c *Connection) {
 	if c.txStatus != 'I' {
 		c.Execute("rollback")
@@ -39,6 +42,7 @@ func (p *ConnectionPool) Release(c *Connection) {
 	p.connectionChannel <- c
 }
 
+// Close ends the use of a connection by closing all underlying connections.
 func (p *ConnectionPool) Close() {
 	for i := 0; i < p.MaxConnections; i++ {
 		c := <-p.connectionChannel
@@ -46,7 +50,7 @@ func (p *ConnectionPool) Close() {
 	}
 }
 
-// Acquires a connection, delegates the call to that connection, and releases the connection
+// SelectFunc acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnectionPool) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
 	c := p.Acquire()
 	defer p.Release(c)
@@ -54,7 +58,7 @@ func (p *ConnectionPool) SelectFunc(sql string, onDataRow func(*DataRowReader) e
 	return c.SelectFunc(sql, onDataRow, arguments...)
 }
 
-// Acquires a connection, delegates the call to that connection, and releases the connection
+// SelectRows acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnectionPool) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
 	c := p.Acquire()
 	defer p.Release(c)
@@ -62,7 +66,7 @@ func (p *ConnectionPool) SelectRows(sql string, arguments ...interface{}) (rows 
 	return c.SelectRows(sql, arguments...)
 }
 
-// Acquires a connection, delegates the call to that connection, and releases the connection
+// SelectRow acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnectionPool) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
 	c := p.Acquire()
 	defer p.Release(c)
@@ -70,7 +74,7 @@ func (p *ConnectionPool) SelectRow(sql string, arguments ...interface{}) (row ma
 	return c.SelectRow(sql, arguments...)
 }
 
-// Acquires a connection, delegates the call to that connection, and releases the connection
+// SelectValue acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
 	c := p.Acquire()
 	defer p.Release(c)
@@ -78,7 +82,7 @@ func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v in
 	return c.SelectValue(sql, arguments...)
 }
 
-// Acquires a connection, delegates the call to that connection, and releases the connection
+// SelectValues acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnectionPool) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
 	c := p.Acquire()
 	defer p.Release(c)

@@ -10,16 +10,23 @@ import (
 
 var literalPattern *regexp.Regexp = regexp.MustCompile(`\$\d+`)
 
+// QuoteString escapes and quotes a string making it safe for interpolation
+// into an SQL string.
 func (c *Connection) QuoteString(input string) (output string) {
 	output = "'" + strings.Replace(input, "'", "''", -1) + "'"
 	return
 }
 
+// QuoteIdentifier escapes and quotes an identifier making it safe for
+// interpolation into an SQL string
 func (c *Connection) QuoteIdentifier(input string) (output string) {
 	output = `"` + strings.Replace(input, `"`, `""`, -1) + `"`
 	return
 }
 
+// SanitizeSql substitutely args positionaly into sql. Placeholder values are
+// $ prefixed integers like $1, $2, $3, etc. args are sanitized and quoted as
+// appropriate.
 func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string) {
 	replacer := func(match string) (replacement string) {
 		n, _ := strconv.ParseInt(match[1:], 10, 0)

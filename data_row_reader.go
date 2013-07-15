@@ -1,5 +1,6 @@
 package pgx
 
+// DataRowReader is used by SelectFunc to process incoming rows.
 type DataRowReader struct {
 	mr              *MessageReader
 	fields          []FieldDescription
@@ -19,6 +20,7 @@ func newDataRowReader(mr *MessageReader, fields []FieldDescription) (r *DataRowR
 	return
 }
 
+// ReadValue returns the next value from the current row.
 func (r *DataRowReader) ReadValue() interface{} {
 	fieldDescription := r.fields[r.currentFieldIdx]
 	r.currentFieldIdx++

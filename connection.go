@@ -131,6 +131,15 @@ func (c *Connection) Close() (err error) {
 	return c.txMsg('X', c.getBuf())
 }
 
+// SelectFunc executes sql and for each row returned calls onDataRow. sql can be
+// either a prepared statement name or an SQL string. arguments will be sanitized
+// before being interpolated into sql strings. arguments should be referenced
+// positionally from the sql string as $1, $2, etc.
+//
+// SelectFunc calls onDataRow as the rows are received. This means that it does not
+// need to simultaneously store the entire result set in memory. It also means that
+// it is possible to process some rows and then for an error to occur. Callers
+// should be aware of this possibility.
 func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
 	var fields []FieldDescription
 
@@ -169,6 +178,10 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 	}
 }
 
+// SelectRows executes sql and returns a slice of maps representing the found rows.
+// sql can be either a prepared statement name or an SQL string. arguments will be
+// sanitized before being interpolated into sql strings. arguments should be referenced
+// positionally from the sql string as $1, $2, etc.
 func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
 	rows = make([]map[string]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
@@ -179,6 +192,11 @@ func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []ma
 	return
 }
 
+// SelectRow executes sql and returns a map representing the found row.
+// sql can be either a prepared statement name or an SQL string. arguments will be
+// sanitized before being interpolated into sql strings. arguments should be referenced
+// positionally from the sql string as $1, $2, etc.
+//
 // Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
 	var numRowsFound int64
@@ -195,6 +213,11 @@ func (c *Connection) SelectRow(sql string, arguments ...interface{}) (row map[st
 	return
 }
 
+// SelectValue executes sql and returns a single value. sql can be either a prepared
+// statement name or an SQL string. arguments will be sanitized before being
+// interpolated into sql strings. arguments should be referenced positionally from
+// the sql string as $1, $2, etc.
+//
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
@@ -218,6 +241,11 @@ func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interf
 	return
 }
 
+// SelectValues executes sql and returns a slice of values. sql can be either a prepared
+// statement name or an SQL string. arguments will be sanitized before being
+// interpolated into sql strings. arguments should be referenced positionally from
+// the sql string as $1, $2, etc.
+//
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
 	values = make([]interface{}, 0, 8)
@@ -233,6 +261,8 @@ func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values 
 	return
 }
 
+// Prepare creates a prepared statement with name and sql. sql can contain placeholders
+// for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Connection) Prepare(name, sql string) (err error) {
 	// parse
 	buf := c.getBuf()
@@ -299,6 +329,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 	}
 }
 
+// Deallocate released a prepared statement
 func (c *Connection) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
 	_, err = c.Execute("deallocate " + c.QuoteIdentifier(name))
@@ -403,6 +434,9 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 
 }
 
+// Execute executes sql. sql can be either a prepared statement name or an SQL string.
+// arguments will be sanitized before being interpolated into sql strings. arguments
+// should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
@@ -430,10 +464,24 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 	}
 }
 
+// Transaction runs f in a transaction. f should return true if the transaction
+// should be committed or false if it should be rolled back. Return value committed
+// is if the transaction was committed or not. committed should be checked separately
+// from err as an explicit rollback is not an error. Transaction will use the default
+// isolation level for the current connection. To use a specific isolation level see
+// TransactionIso
 func (c *Connection) Transaction(f func() bool) (committed bool, err error) {
 	return c.transaction("", f)
 }
 
+// TransactionIso is the same as Transaction except it takes an isoLevel argument that
+// it uses as the transaction isolation level.
+//
+// Valid isolation levels are:
+//   serializable
+//   repeatable read
+//   read committed
+//   read uncommitted
 func (c *Connection) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
 	return c.transaction(isoLevel, f)
 }
