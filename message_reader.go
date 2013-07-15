@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 )
 
+// MessageReader is a helper that reads values from a PostgreSQL message.
 type MessageReader struct {
 	buf *bytes.Buffer
 }
@@ -37,6 +38,7 @@ func (r *MessageReader) ReadOid() Oid {
 	return Oid(binary.BigEndian.Uint32(r.buf.Next(4)))
 }
 
+// ReadString reads a null terminated string
 func (r *MessageReader) ReadString() string {
 	b, err := r.buf.ReadBytes(0)
 	if err != nil {
@@ -45,7 +47,7 @@ func (r *MessageReader) ReadString() string {
 	return string(b[:len(b)-1])
 }
 
-// Read count bytes and return as string
+// ReadByteString reads count bytes and return as string
 func (r *MessageReader) ReadByteString(count int32) string {
 	return string(r.buf.Next(int(count)))
 }
