@@ -33,8 +33,8 @@ func (r *MessageReader) ReadInt64() int64 {
 	return int64(binary.BigEndian.Uint64(r.buf.Next(8)))
 }
 
-func (r *MessageReader) ReadOid() oid {
-	return oid(binary.BigEndian.Uint32(r.buf.Next(4)))
+func (r *MessageReader) ReadOid() Oid {
+	return Oid(binary.BigEndian.Uint32(r.buf.Next(4)))
 }
 
 func (r *MessageReader) ReadString() string {

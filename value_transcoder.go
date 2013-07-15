@@ -14,70 +14,70 @@ type valueTranscoder struct {
 	EncodeFormat int16
 }
 
-var valueTranscoders map[oid]*valueTranscoder
+var valueTranscoders map[Oid]*valueTranscoder
 var defaultTranscoder *valueTranscoder
 
 func init() {
-	valueTranscoders = make(map[oid]*valueTranscoder)
+	valueTranscoders = make(map[Oid]*valueTranscoder)
 
 	// bool
-	valueTranscoders[oid(16)] = &valueTranscoder{
+	valueTranscoders[Oid(16)] = &valueTranscoder{
 		DecodeText:   decodeBoolFromText,
 		DecodeBinary: decodeBoolFromBinary,
 		EncodeTo:     encodeBool,
 		EncodeFormat: 1}
 
 	// bytea
-	valueTranscoders[oid(17)] = &valueTranscoder{
+	valueTranscoders[Oid(17)] = &valueTranscoder{
 		DecodeText:   decodeByteaFromText,
 		EncodeTo:     encodeBytea,
 		EncodeFormat: 1}
 
 	// int8
-	valueTranscoders[oid(20)] = &valueTranscoder{
+	valueTranscoders[Oid(20)] = &valueTranscoder{
 		DecodeText:   decodeInt8FromText,
 		DecodeBinary: decodeInt8FromBinary,
 		EncodeTo:     encodeInt8,
 		EncodeFormat: 1}
 
 	// int2
-	valueTranscoders[oid(21)] = &valueTranscoder{
+	valueTranscoders[Oid(21)] = &valueTranscoder{
 		DecodeText:   decodeInt2FromText,
 		DecodeBinary: decodeInt2FromBinary,
 		EncodeTo:     encodeInt2,
 		EncodeFormat: 1}
 
 	// int4
-	valueTranscoders[oid(23)] = &valueTranscoder{
+	valueTranscoders[Oid(23)] = &valueTranscoder{
 		DecodeText:   decodeInt4FromText,
 		DecodeBinary: decodeInt4FromBinary,
 		EncodeTo:     encodeInt4,
 		EncodeFormat: 1}
 
 	// text
-	valueTranscoders[oid(25)] = &valueTranscoder{
+	valueTranscoders[Oid(25)] = &valueTranscoder{
 		DecodeText: decodeTextFromText,
 		EncodeTo:   encodeText}
 
 	// float4
-	valueTranscoders[oid(700)] = &valueTranscoder{
+	valueTranscoders[Oid(700)] = &valueTranscoder{
 		DecodeText:   decodeFloat4FromText,
 		DecodeBinary: decodeFloat4FromBinary,
 		EncodeTo:     encodeFloat4,
 		EncodeFormat: 1}
 
 	// float8
-	valueTranscoders[oid(701)] = &valueTranscoder{
+	valueTranscoders[Oid(701)] = &valueTranscoder{
 		DecodeText:   decodeFloat8FromText,
 		DecodeBinary: decodeFloat8FromBinary,
 		EncodeTo:     encodeFloat8,
 		EncodeFormat: 1}
 
 	// varchar -- same as text
-	valueTranscoders[oid(1043)] = valueTranscoders[oid(25)]
+	valueTranscoders[Oid(1043)] = valueTranscoders[Oid(25)]
 
 	// use text transcoder for anything we don't understand
-	defaultTranscoder = valueTranscoders[oid(25)]
+	defaultTranscoder = valueTranscoders[Oid(25)]
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {

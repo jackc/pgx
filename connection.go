@@ -41,7 +41,7 @@ type Connection struct {
 type preparedStatement struct {
 	Name              string
 	FieldDescriptions []FieldDescription
-	ParameterOids     []oid
+	ParameterOids     []Oid
 }
 
 // NotSingleRowError is returned when exactly 1 row is expected, but 0 or more than
@@ -638,9 +638,9 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 	return
 }
 
-func (c *Connection) rxParameterDescription(r *MessageReader) (parameters []oid) {
+func (c *Connection) rxParameterDescription(r *MessageReader) (parameters []Oid) {
 	parameterCount := r.ReadInt16()
-	parameters = make([]oid, 0, parameterCount)
+	parameters = make([]Oid, 0, parameterCount)
 	for i := int16(0); i < parameterCount; i++ {
 		parameters = append(parameters, r.ReadOid())
 	}

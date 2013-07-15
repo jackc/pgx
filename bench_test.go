@@ -46,8 +46,8 @@ func createNarrowTestData(b *testing.B, conn *Connection) {
 	narrowTestDataLoaded = true
 }
 
-func removeBinaryEncoders() (encoders map[oid]func(*MessageReader, int32) interface{}) {
-	encoders = make(map[oid]func(*MessageReader, int32) interface{})
+func removeBinaryEncoders() (encoders map[Oid]func(*MessageReader, int32) interface{}) {
+	encoders = make(map[Oid]func(*MessageReader, int32) interface{})
 	for k, v := range valueTranscoders {
 		encoders[k] = v.DecodeBinary
 		valueTranscoders[k].DecodeBinary = nil
@@ -55,7 +55,7 @@ func removeBinaryEncoders() (encoders map[oid]func(*MessageReader, int32) interf
 	return
 }
 
-func restoreBinaryEncoders(encoders map[oid]func(*MessageReader, int32) interface{}) {
+func restoreBinaryEncoders(encoders map[Oid]func(*MessageReader, int32) interface{}) {
 	for k, v := range encoders {
 		valueTranscoders[k].DecodeBinary = v
 	}
