@@ -1,7 +1,8 @@
-package pgx
+package pgx_test
 
 import (
 	"fmt"
+	"github.com/JackC/pgx"
 	"math/rand"
 	"testing"
 )
@@ -15,7 +16,7 @@ var float4TextVsBinaryTestDataLoaded bool
 var float8TextVsBinaryTestDataLoaded bool
 var boolTextVsBinaryTestDataLoaded bool
 
-func createNarrowTestData(b *testing.B, conn *Connection) {
+func createNarrowTestData(b *testing.B, conn *pgx.Connection) {
 	if narrowTestDataLoaded {
 		return
 	}
@@ -46,23 +47,23 @@ func createNarrowTestData(b *testing.B, conn *Connection) {
 	narrowTestDataLoaded = true
 }
 
-func removeBinaryEncoders() (encoders map[Oid]func(*MessageReader, int32) interface{}) {
-	encoders = make(map[Oid]func(*MessageReader, int32) interface{})
-	for k, v := range ValueTranscoders {
+func removeBinaryEncoders() (encoders map[pgx.Oid]func(*pgx.MessageReader, int32) interface{}) {
+	encoders = make(map[pgx.Oid]func(*pgx.MessageReader, int32) interface{})
+	for k, v := range pgx.ValueTranscoders {
 		encoders[k] = v.DecodeBinary
-		ValueTranscoders[k].DecodeBinary = nil
+		pgx.ValueTranscoders[k].DecodeBinary = nil
 	}
 	return
 }
 
-func restoreBinaryEncoders(encoders map[Oid]func(*MessageReader, int32) interface{}) {
+func restoreBinaryEncoders(encoders map[pgx.Oid]func(*pgx.MessageReader, int32) interface{}) {
 	for k, v := range encoders {
-		ValueTranscoders[k].DecodeBinary = v
+		pgx.ValueTranscoders[k].DecodeBinary = v
 	}
 }
 
 func BenchmarkSelectRowSimpleNarrow(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createNarrowTestData(b, conn)
 
 	// Get random ids outside of timing
@@ -78,7 +79,7 @@ func BenchmarkSelectRowSimpleNarrow(b *testing.B) {
 }
 
 func BenchmarkSelectRowPreparedNarrow(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createNarrowTestData(b, conn)
 
 	// Get random ids outside of timing
@@ -94,7 +95,7 @@ func BenchmarkSelectRowPreparedNarrow(b *testing.B) {
 }
 
 func BenchmarkSelectRowsSimpleNarrow(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createNarrowTestData(b, conn)
 
 	// Get random ids outside of timing
@@ -110,7 +111,7 @@ func BenchmarkSelectRowsSimpleNarrow(b *testing.B) {
 }
 
 func BenchmarkSelectRowsPreparedNarrow(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createNarrowTestData(b, conn)
 
 	// Get random ids outside of timing
@@ -125,7 +126,7 @@ func BenchmarkSelectRowsPreparedNarrow(b *testing.B) {
 	}
 }
 
-func createJoinsTestData(b *testing.B, conn *Connection) {
+func createJoinsTestData(b *testing.B, conn *pgx.Connection) {
 	if testJoinsDataLoaded {
 		return
 	}
@@ -197,7 +198,7 @@ func createJoinsTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkSelectRowsSimpleJoins(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createJoinsTestData(b, conn)
 
 	sql := `
@@ -217,7 +218,7 @@ func BenchmarkSelectRowsSimpleJoins(b *testing.B) {
 }
 
 func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createJoinsTestData(b, conn)
 
 	b.ResetTimer()
@@ -226,7 +227,7 @@ func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
 	}
 }
 
-func createInt2TextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createInt2TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if int2TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -252,7 +253,7 @@ func createInt2TextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkInt2Text(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt2TextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -268,7 +269,7 @@ func BenchmarkInt2Text(b *testing.B) {
 }
 
 func BenchmarkInt2Binary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt2TextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectInt16", "select * from t")
 	defer func() { conn.Deallocate("selectInt16") }()
@@ -279,7 +280,7 @@ func BenchmarkInt2Binary(b *testing.B) {
 	}
 }
 
-func createInt4TextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createInt4TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if int4TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -305,7 +306,7 @@ func createInt4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkInt4Text(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt4TextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -321,7 +322,7 @@ func BenchmarkInt4Text(b *testing.B) {
 }
 
 func BenchmarkInt4Binary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt4TextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectInt32", "select * from t")
 	defer func() { conn.Deallocate("selectInt32") }()
@@ -332,7 +333,7 @@ func BenchmarkInt4Binary(b *testing.B) {
 	}
 }
 
-func createInt8TextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createInt8TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if int8TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -358,7 +359,7 @@ func createInt8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkInt8Text(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt8TextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -374,7 +375,7 @@ func BenchmarkInt8Text(b *testing.B) {
 }
 
 func BenchmarkInt8Binary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createInt8TextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectInt64", "select * from t")
 	defer func() { conn.Deallocate("selectInt64") }()
@@ -385,7 +386,7 @@ func BenchmarkInt8Binary(b *testing.B) {
 	}
 }
 
-func createFloat4TextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createFloat4TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if float4TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -411,7 +412,7 @@ func createFloat4TextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkFloat4Text(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createFloat4TextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -427,7 +428,7 @@ func BenchmarkFloat4Text(b *testing.B) {
 }
 
 func BenchmarkFloat4Binary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createFloat4TextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectFloat32", "select * from t")
 	defer func() { conn.Deallocate("selectFloat32") }()
@@ -438,7 +439,7 @@ func BenchmarkFloat4Binary(b *testing.B) {
 	}
 }
 
-func createFloat8TextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createFloat8TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if float8TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -464,7 +465,7 @@ func createFloat8TextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkFloat8Text(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createFloat8TextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -480,7 +481,7 @@ func BenchmarkFloat8Text(b *testing.B) {
 }
 
 func BenchmarkFloat8Binary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createFloat8TextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectFloat32", "select * from t")
 	defer func() { conn.Deallocate("selectFloat32") }()
@@ -491,7 +492,7 @@ func BenchmarkFloat8Binary(b *testing.B) {
 	}
 }
 
-func createBoolTextVsBinaryTestData(b *testing.B, conn *Connection) {
+func createBoolTextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
 	if boolTextVsBinaryTestDataLoaded {
 		return
 	}
@@ -517,7 +518,7 @@ func createBoolTextVsBinaryTestData(b *testing.B, conn *Connection) {
 }
 
 func BenchmarkBoolText(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createBoolTextVsBinaryTestData(b, conn)
 
 	encoders := removeBinaryEncoders()
@@ -533,7 +534,7 @@ func BenchmarkBoolText(b *testing.B) {
 }
 
 func BenchmarkBoolBinary(b *testing.B) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 	createBoolTextVsBinaryTestData(b, conn)
 	mustPrepare(b, conn, "selectBool", "select * from t")
 	defer func() { conn.Deallocate("selectBool") }()

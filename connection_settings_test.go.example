@@ -1,18 +1,22 @@
-package pgx
+package pgx_test
 
-var defaultConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
+import (
+  "github.com/JackC/pgx"
+)
+
+var defaultpgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 
 // To skip tests for specific connection / authentication types set that connection param to nil
-var tcpConnectionParameters *ConnectionParameters = nil
-var unixSocketConnectionParameters *ConnectionParameters = nil
-var md5ConnectionParameters *ConnectionParameters = nil
-var plainPasswordConnectionParameters *ConnectionParameters = nil
-var noPasswordConnectionParameters *ConnectionParameters = nil
-var invalidUserConnectionParameters *ConnectionParameters = nil
+var tcppgx.ConnectionParameters *pgx.ConnectionParameters = nil
+var unixSocketpgx.ConnectionParameters *pgx.ConnectionParameters = nil
+var md5pgx.ConnectionParameters *pgx.ConnectionParameters = nil
+var plainPasswordpgx.ConnectionParameters *pgx.ConnectionParameters = nil
+var noPasswordpgx.ConnectionParameters *pgx.ConnectionParameters = nil
+var invalidUserpgx.ConnectionParameters *pgx.ConnectionParameters = nil
 
-// var tcpConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
-// var unixSocketConnectionParameters *ConnectionParameters = &ConnectionParameters{Socket: "/private/tmp/.s.PGSQL.5432", User: "pgx_none", Database: "pgx_test"}
-// var md5ConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
-// var plainPasswordConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "pgx_pw", Password: "secret", Database: "pgx_test"}
-// var noPasswordConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "pgx_none", Database: "pgx_test"}
-// var invalidUserConnectionParameters *ConnectionParameters = &ConnectionParameters{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}
+// var tcppgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
+// var unixSocketpgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Socket: "/private/tmp/.s.PGSQL.5432", User: "pgx_none", Database: "pgx_test"}
+// var md5pgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
+// var plainPasswordpgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_pw", Password: "secret", Database: "pgx_test"}
+// var noPasswordpgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_none", Database: "pgx_test"}
+// var invalidUserpgx.ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}

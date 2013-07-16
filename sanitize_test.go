@@ -1,11 +1,11 @@
-package pgx
+package pgx_test
 
 import (
 	"testing"
 )
 
 func TestQuoteString(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	if conn.QuoteString("test") != "'test'" {
 		t.Error("Failed to quote string")
@@ -17,7 +17,7 @@ func TestQuoteString(t *testing.T) {
 }
 
 func TestSanitizeSql(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	if conn.SanitizeSql("select $1", "Jack's") != "select 'Jack''s'" {
 		t.Error("Failed to sanitize string")

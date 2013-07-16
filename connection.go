@@ -30,11 +30,11 @@ type ConnectionParameters struct {
 type Connection struct {
 	conn               net.Conn             // the underlying TCP or unix domain socket connection
 	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
-	pid                int32                // backend pid
-	secretKey          int32                // key to use to send a cancel query message to the server
-	runtimeParams      map[string]string    // parameters that have been reported by the server
+	Pid                int32                // backend pid
+	SecretKey          int32                // key to use to send a cancel query message to the server
+	RuntimeParams      map[string]string    // parameters that have been reported by the server
 	parameters         ConnectionParameters // parameters used when establishing this connection
-	txStatus           byte
+	TxStatus           byte
 	preparedStatements map[string]*preparedStatement
 }
 
@@ -92,7 +92,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	}
 
 	c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
-	c.runtimeParams = make(map[string]string)
+	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*preparedStatement)
 
 	msg := newStartupMessage()
@@ -498,7 +498,7 @@ func (c *Connection) transaction(isoLevel string, f func() bool) (committed bool
 		return
 	}
 	defer func() {
-		if committed && c.txStatus == 'T' {
+		if committed && c.TxStatus == 'T' {
 			_, err = c.Execute("commit")
 			if err != nil {
 				committed = false
@@ -593,7 +593,7 @@ func hexMD5(s string) string {
 func (c *Connection) rxParameterStatus(r *MessageReader) {
 	key := r.ReadString()
 	value := r.ReadString()
-	c.runtimeParams[key] = value
+	c.RuntimeParams[key] = value
 }
 
 func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
@@ -614,12 +614,12 @@ func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
 }
 
 func (c *Connection) rxBackendKeyData(r *MessageReader) {
-	c.pid = r.ReadInt32()
-	c.secretKey = r.ReadInt32()
+	c.Pid = r.ReadInt32()
+	c.SecretKey = r.ReadInt32()
 }
 
 func (c *Connection) rxReadyForQuery(r *MessageReader) {
-	c.txStatus = r.ReadByte()
+	c.TxStatus = r.ReadByte()
 }
 
 func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescription) {

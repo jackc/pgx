@@ -1,40 +1,27 @@
-package pgx
+package pgx_test
 
 import (
 	"bytes"
+	"github.com/JackC/pgx"
 	"strings"
 	"testing"
 )
 
-var SharedConnection *Connection
-
-func getSharedConnection() (c *Connection) {
-	if SharedConnection == nil {
-		var err error
-		SharedConnection, err = Connect(*defaultConnectionParameters)
-		if err != nil {
-			panic("Unable to establish connection")
-		}
-
-	}
-	return SharedConnection
-}
-
 func TestConnect(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	if _, present := conn.runtimeParams["server_version"]; !present {
+	if _, present := conn.RuntimeParams["server_version"]; !present {
 		t.Error("Runtime parameters not stored")
 	}
 
-	if conn.pid == 0 {
+	if conn.Pid == 0 {
 		t.Error("Backend PID not stored")
 	}
 
-	if conn.secretKey == 0 {
+	if conn.SecretKey == 0 {
 		t.Error("Backend secret key not stored")
 	}
 
@@ -59,7 +46,7 @@ func TestConnectWithUnixSocket(t *testing.T) {
 		return
 	}
 
-	conn, err := Connect(*unixSocketConnectionParameters)
+	conn, err := pgx.Connect(*unixSocketConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -75,7 +62,7 @@ func TestConnectWithTcp(t *testing.T) {
 		return
 	}
 
-	conn, err := Connect(*tcpConnectionParameters)
+	conn, err := pgx.Connect(*tcpConnectionParameters)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -91,8 +78,8 @@ func TestConnectWithInvalidUser(t *testing.T) {
 		return
 	}
 
-	_, err := Connect(*invalidUserConnectionParameters)
-	pgErr, ok := err.(PgError)
+	_, err := pgx.Connect(*invalidUserConnectionParameters)
+	pgErr, ok := err.(pgx.PgError)
 	if !ok {
 		t.Fatalf("Expected to receive a PgError with code 28000, instead received: %v", err)
 	}
@@ -106,7 +93,7 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 		return
 	}
 
-	conn, err := Connect(*plainPasswordConnectionParameters)
+	conn, err := pgx.Connect(*plainPasswordConnectionParameters)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -122,7 +109,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 		return
 	}
 
-	conn, err := Connect(*md5ConnectionParameters)
+	conn, err := pgx.Connect(*md5ConnectionParameters)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -134,7 +121,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	if results := mustExecute(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
 		t.Error("Unexpected results from Execute")
@@ -161,7 +148,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestExecuteFailure(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -177,10 +164,10 @@ func TestExecuteFailure(t *testing.T) {
 }
 
 func TestSelectFunc(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	var sum, rowCount int32
-	onDataRow := func(r *DataRowReader) error {
+	onDataRow := func(r *pgx.DataRowReader) error {
 		rowCount++
 		sum += r.ReadValue().(int32)
 		return nil
@@ -199,7 +186,7 @@ func TestSelectFunc(t *testing.T) {
 }
 
 func TestSelectFuncFailure(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -216,7 +203,7 @@ func TestSelectFuncFailure(t *testing.T) {
 }
 
 func TestSelectRows(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	rows := mustSelectRows(t, conn, "select $1 as name, null as position", "Jack")
 
@@ -238,7 +225,7 @@ func TestSelectRows(t *testing.T) {
 }
 
 func TestSelectRow(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	row := mustSelectRow(t, conn, "select $1 as name, null as position", "Jack")
 	if row["name"] != "Jack" {
@@ -254,18 +241,18 @@ func TestSelectRow(t *testing.T) {
 	}
 
 	_, err := conn.SelectRow("select 'Jack' as name where 1=2")
-	if _, ok := err.(NotSingleRowError); !ok {
+	if _, ok := err.(pgx.NotSingleRowError); !ok {
 		t.Error("No matching row should have returned NotSingleRowError")
 	}
 
 	_, err = conn.SelectRow("select * from (values ('Matthew'), ('Mark')) t")
-	if _, ok := err.(NotSingleRowError); !ok {
+	if _, ok := err.(pgx.NotSingleRowError); !ok {
 		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
 }
 
 func TestConnectionSelectValue(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	test := func(sql string, expected interface{}, arguments ...interface{}) {
 		v, err := conn.SelectValue(sql, arguments...)
@@ -289,23 +276,23 @@ func TestConnectionSelectValue(t *testing.T) {
 	test("select 1.23::float8", float64(1.23))
 
 	_, err := conn.SelectValue("select 'Jack' as name where 1=2")
-	if _, ok := err.(NotSingleRowError); !ok {
+	if _, ok := err.(pgx.NotSingleRowError); !ok {
 		t.Error("No matching row should have returned NoRowsFoundError")
 	}
 
 	_, err = conn.SelectValue("select * from (values ('Matthew'), ('Mark')) t")
-	if _, ok := err.(NotSingleRowError); !ok {
+	if _, ok := err.(pgx.NotSingleRowError); !ok {
 		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
 
 	_, err = conn.SelectValue("select 'Matthew', 'Mark'")
-	if _, ok := err.(UnexpectedColumnCountError); !ok {
+	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
 		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
 	}
 }
 
 func TestSelectValues(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	test := func(sql string, expected []interface{}, arguments ...interface{}) {
 		values, err := conn.SelectValues(sql, arguments...)
@@ -331,13 +318,13 @@ func TestSelectValues(t *testing.T) {
 	test("select * from (values (1::int4), (2::int4), (null), (3::int4)) t", []interface{}{int32(1), int32(2), nil, int32(3)})
 
 	_, err := conn.SelectValues("select 'Matthew', 'Mark'")
-	if _, ok := err.(UnexpectedColumnCountError); !ok {
+	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
 		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
 	}
 }
 
 func TestPrepare(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -411,7 +398,7 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestPrepareFailure(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -427,7 +414,7 @@ func TestPrepareFailure(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -538,7 +525,7 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestTransactionIso(t *testing.T) {
-	conn, err := Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnectionParameters)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}

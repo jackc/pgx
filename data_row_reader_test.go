@@ -1,16 +1,17 @@
-package pgx
+package pgx_test
 
 import (
+	"github.com/JackC/pgx"
 	"testing"
 )
 
 func TestDataRowReaderReadValue(t *testing.T) {
-	conn := getSharedConnection()
+	conn := GetSharedConnection()
 
 	test := func(sql string, expected interface{}) {
 		var v interface{}
 
-		onDataRow := func(r *DataRowReader) error {
+		onDataRow := func(r *pgx.DataRowReader) error {
 			v = r.ReadValue()
 			return nil
 		}

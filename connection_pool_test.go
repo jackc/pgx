@@ -1,12 +1,13 @@
-package pgx
+package pgx_test
 
 import (
 	"fmt"
+	"github.com/JackC/pgx"
 	"testing"
 )
 
-func createConnectionPool(maxConnections int) *ConnectionPool {
-	pool, err := NewConnectionPool(*defaultConnectionParameters, maxConnections)
+func createConnectionPool(maxConnections int) *pgx.ConnectionPool {
+	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, maxConnections)
 	if err != nil {
 		panic("Unable to create connection pool")
 	}
@@ -14,7 +15,7 @@ func createConnectionPool(maxConnections int) *ConnectionPool {
 }
 
 func TestNewConnectionPool(t *testing.T) {
-	pool, err := NewConnectionPool(*defaultConnectionParameters, 5)
+	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, 5)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
 	}
@@ -32,8 +33,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	pool := createConnectionPool(maxConnections)
 	defer pool.Close()
 
-	acquireAll := func() (connections []*Connection) {
-		connections = make([]*Connection, maxConnections)
+	acquireAll := func() (connections []*pgx.Connection) {
+		connections = make([]*pgx.Connection, maxConnections)
 		for i := 0; i < maxConnections; i++ {
 			connections[i] = pool.Acquire()
 		}
@@ -107,25 +108,25 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 	if _, err = conn.Execute("select"); err == nil {
 		t.Fatal("Did not receive expected error")
 	}
-	if conn.txStatus != 'E' {
-		t.Fatalf("Expected txStatus to be 'E', instead it was '%c'", conn.txStatus)
+	if conn.TxStatus != 'E' {
+		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus)
 	}
 
 	pool.Release(conn)
 
-	if conn.txStatus != 'I' {
-		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.txStatus)
+	if conn.TxStatus != 'I' {
+		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus)
 	}
 
 	conn = pool.Acquire()
 	mustExecute(t, conn, "begin")
-	if conn.txStatus != 'T' {
-		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.txStatus)
+	if conn.TxStatus != 'T' {
+		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)
 	}
 
 	pool.Release(conn)
 
-	if conn.txStatus != 'I' {
-		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.txStatus)
+	if conn.TxStatus != 'I' {
+		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus)
 	}
 }

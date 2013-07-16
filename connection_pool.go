@@ -36,7 +36,7 @@ func (p *ConnectionPool) Acquire() (c *Connection) {
 
 // Release gives up use of a connection.
 func (p *ConnectionPool) Release(c *Connection) {
-	if c.txStatus != 'I' {
+	if c.TxStatus != 'I' {
 		c.Execute("rollback")
 	}
 	p.connectionChannel <- c
