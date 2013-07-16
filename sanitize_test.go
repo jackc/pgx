@@ -5,7 +5,7 @@ import (
 )
 
 func TestQuoteString(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	if conn.QuoteString("test") != "'test'" {
 		t.Error("Failed to quote string")
@@ -17,7 +17,7 @@ func TestQuoteString(t *testing.T) {
 }
 
 func TestSanitizeSql(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	if conn.SanitizeSql("select $1", "Jack's") != "select 'Jack''s'" {
 		t.Error("Failed to sanitize string")

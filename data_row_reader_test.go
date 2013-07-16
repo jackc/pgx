@@ -6,7 +6,7 @@ import (
 )
 
 func TestDataRowReaderReadValue(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	test := func(sql string, expected interface{}) {
 		var v interface{}

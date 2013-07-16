@@ -8,18 +8,18 @@ type test interface {
 	Fatalf(format string, args ...interface{})
 }
 
-var SharedConnection *pgx.Connection
+var sharedConnection *pgx.Connection
 
-func GetSharedConnection() (c *pgx.Connection) {
-	if SharedConnection == nil {
+func getSharedConnection() (c *pgx.Connection) {
+	if sharedConnection == nil {
 		var err error
-		SharedConnection, err = pgx.Connect(*defaultConnectionParameters)
+		sharedConnection, err = pgx.Connect(*defaultConnectionParameters)
 		if err != nil {
 			panic("Unable to establish connection")
 		}
 
 	}
-	return SharedConnection
+	return sharedConnection
 }
 
 func mustPrepare(t test, conn *pgx.Connection, name, sql string) {

@@ -121,7 +121,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	if results := mustExecute(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
 		t.Error("Unexpected results from Execute")
@@ -164,7 +164,7 @@ func TestExecuteFailure(t *testing.T) {
 }
 
 func TestSelectFunc(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	var sum, rowCount int32
 	onDataRow := func(r *pgx.DataRowReader) error {
@@ -203,7 +203,7 @@ func TestSelectFuncFailure(t *testing.T) {
 }
 
 func TestSelectRows(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	rows := mustSelectRows(t, conn, "select $1 as name, null as position", "Jack")
 
@@ -225,7 +225,7 @@ func TestSelectRows(t *testing.T) {
 }
 
 func TestSelectRow(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	row := mustSelectRow(t, conn, "select $1 as name, null as position", "Jack")
 	if row["name"] != "Jack" {
@@ -252,7 +252,7 @@ func TestSelectRow(t *testing.T) {
 }
 
 func TestConnectionSelectValue(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	test := func(sql string, expected interface{}, arguments ...interface{}) {
 		v, err := conn.SelectValue(sql, arguments...)
@@ -292,7 +292,7 @@ func TestConnectionSelectValue(t *testing.T) {
 }
 
 func TestSelectValues(t *testing.T) {
-	conn := GetSharedConnection()
+	conn := getSharedConnection()
 
 	test := func(sql string, expected []interface{}, arguments ...interface{}) {
 		values, err := conn.SelectValues(sql, arguments...)
