@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"time"
 	"unsafe"
 )
 
@@ -87,6 +88,11 @@ func init() {
 
 	// varchar -- same as text
 	ValueTranscoders[Oid(1043)] = ValueTranscoders[Oid(25)]
+
+	// date
+	ValueTranscoders[Oid(1082)] = &ValueTranscoder{
+		DecodeText: decodeDateFromText,
+		EncodeTo:   encodeDate}
 
 	// use text transcoder for anything we don't understand
 	defaultTranscoder = ValueTranscoders[Oid(25)]
@@ -261,4 +267,20 @@ func encodeBytea(w *MessageWriter, value interface{}) {
 	b := value.([]byte)
 	w.Write(int32(len(b)))
 	w.Write(b)
+}
+
+func decodeDateFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadByteString(size)
+	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	if err != nil {
+		panic("Can't decode date")
+	}
+	return t
+}
+
+func encodeDate(w *MessageWriter, value interface{}) {
+	t := value.(time.Time)
+	s := t.Format("2006-01-02")
+	w.Write(int32(len(s)))
+	w.WriteString(s)
 }
