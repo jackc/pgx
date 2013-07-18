@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/JackC/pgx"
 	"strings"
 	"testing"
@@ -200,6 +201,26 @@ func TestSelectFuncFailure(t *testing.T) {
 	if _, err := conn.SelectValue("select 1"); err != nil {
 		t.Fatalf("SelectFunc failure appears to have broken connection: %v", err)
 	}
+}
+
+func Example_connectionSelectFunc() {
+	conn := getSharedConnection()
+
+	onDataRow := func(r *pgx.DataRowReader) error {
+		fmt.Println(r.ReadValue())
+		return nil
+	}
+
+	err := conn.SelectFunc("select generate_series(1,$1)", onDataRow, 5)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// Output:
+	// 1
+	// 2
+	// 3
+	// 4
+	// 5
 }
 
 func TestSelectRows(t *testing.T) {
