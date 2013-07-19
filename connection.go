@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 // ConnectionParameters contains all the options used to establish a connection.
@@ -36,12 +37,19 @@ type Connection struct {
 	parameters         ConnectionParameters // parameters used when establishing this connection
 	TxStatus           byte
 	preparedStatements map[string]*preparedStatement
+	notifications      []*Notification
 }
 
 type preparedStatement struct {
 	Name              string
 	FieldDescriptions []FieldDescription
 	ParameterOids     []Oid
+}
+
+type Notification struct {
+	Pid     int32  // backend pid that sent the notification
+	Channel string // channel from which notification was received
+	Payload string
 }
 
 // NotSingleRowError is returned when exactly 1 row is expected, but 0 or more than
@@ -336,6 +344,45 @@ func (c *Connection) Deallocate(name string) (err error) {
 	return
 }
 
+// Listen establishes a PostgreSQL listen/notify to channel
+func (c *Connection) Listen(channel string) (err error) {
+	_, err = c.Execute("listen " + channel)
+	return
+}
+
+// WaitForNotification waits for a PostgreSQL notification for up to timeout
+func (c *Connection) WaitForNotification(timeout time.Duration) (notification *Notification, err error) {
+	err = c.conn.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return
+	}
+	defer func() {
+		var zeroTime time.Time
+		e := c.conn.SetReadDeadline(zeroTime)
+		if err == nil && e != nil {
+			err = e
+		}
+	}()
+
+	for {
+		if len(c.notifications) > 0 {
+			notification = c.notifications[0]
+			c.notifications = c.notifications[1:]
+			return
+		}
+
+		var t byte
+		var r *MessageReader
+		if t, r, err = c.rxMsg(); err == nil {
+			if err = c.processContextFreeMsg(t, r); err != nil {
+				return
+			}
+		} else {
+			return
+		}
+	}
+}
+
 func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error) {
 	if ps, present := c.preparedStatements[sql]; present {
 		return c.sendPreparedQuery(ps, arguments...)
@@ -525,6 +572,8 @@ func (c *Connection) processContextFreeMsg(t byte, r *MessageReader) (err error)
 		return c.rxErrorResponse(r)
 	case noticeResponse:
 		return nil
+	case notificationResponse:
+		return c.rxNotificationResponse(r)
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
@@ -659,6 +708,15 @@ func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 
 func (c *Connection) rxCommandComplete(r *MessageReader) string {
 	return r.ReadString()
+}
+
+func (c *Connection) rxNotificationResponse(r *MessageReader) (err error) {
+	n := new(Notification)
+	n.Pid = r.ReadInt32()
+	n.Channel = r.ReadString()
+	n.Payload = r.ReadString()
+	c.notifications = append(c.notifications, n)
+	return
 }
 
 func (c *Connection) txStartupMessage(msg *startupMessage) (err error) {

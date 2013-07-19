@@ -20,6 +20,7 @@ const (
 	parseComplete        = '1'
 	parameterDescription = 't'
 	bindComplete         = '2'
+	notificationResponse = 'A'
 )
 
 type startupMessage struct {

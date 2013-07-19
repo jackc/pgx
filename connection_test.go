@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/JackC/pgx"
+	"net"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestConnect(t *testing.T) {
@@ -563,5 +565,49 @@ func TestTransactionIso(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unexpected transaction failure: %v", err)
 		}
+	}
+}
+
+func TestListenNotify(t *testing.T) {
+	listener, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer listener.Close()
+
+	if err := listener.Listen("chat"); err != nil {
+		t.Fatalf("Unable to start listening: %v", err)
+	}
+
+	notifier := getSharedConnection()
+	mustExecute(t, notifier, "notify chat")
+
+	// when notification is waiting on the socket to be read
+	notification, err := listener.WaitForNotification(time.Millisecond)
+	if err != nil {
+		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
+	}
+	if notification.Channel != "chat" {
+		t.Errorf("Did not receive notification on expected channel: %v", notification.Channel)
+	}
+
+	// when notification has already been read during previous query
+	mustExecute(t, notifier, "notify chat")
+	mustSelectValue(t, listener, "select 1")
+	notification, err = listener.WaitForNotification(0)
+	if err != nil {
+		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
+	}
+	if notification.Channel != "chat" {
+		t.Errorf("Did not receive notification on expected channel: %v", notification.Channel)
+	}
+
+	// when timeout occurs
+	notification, err = listener.WaitForNotification(time.Millisecond)
+	if _, ok := err.(*net.OpError); !ok {
+		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
+	}
+	if notification != nil {
+		t.Errorf("WaitForNotification returned an unexpected notification: %v", notification)
 	}
 }
