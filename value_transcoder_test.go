@@ -32,3 +32,31 @@ func TestDateTranscode(t *testing.T) {
 		t.Errorf("Did not transcode date successfully: %v is not %v", v, actualDate)
 	}
 }
+
+func TestTimestampTzTranscode(t *testing.T) {
+	conn := getSharedConnection()
+
+	inputTime := time.Date(2013, 1, 2, 3, 4, 5, 6000, time.Local)
+
+	var v interface{}
+	var outputTime time.Time
+
+	v = mustSelectValue(t, conn, "select $1::timestamptz", inputTime)
+	outputTime = v.(time.Time)
+	if !inputTime.Equal(outputTime) {
+		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
+	}
+
+	mustPrepare(t, conn, "testTranscode", "select $1::timestamptz")
+	defer func() {
+		if err := conn.Deallocate("testTranscode"); err != nil {
+			t.Fatalf("Unable to deallocate prepared statement: %v", err)
+		}
+	}()
+
+	v = mustSelectValue(t, conn, "testTranscode", inputTime)
+	outputTime = v.(time.Time)
+	if !inputTime.Equal(outputTime) {
+		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
+	}
+}

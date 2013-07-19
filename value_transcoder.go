@@ -94,6 +94,11 @@ func init() {
 		DecodeText: decodeDateFromText,
 		EncodeTo:   encodeDate}
 
+	// timestamptz
+	ValueTranscoders[Oid(1184)] = &ValueTranscoder{
+		DecodeText: decodeTimestampTzFromText,
+		EncodeTo:   encodeTimestampTz}
+
 	// use text transcoder for anything we don't understand
 	defaultTranscoder = ValueTranscoders[Oid(25)]
 }
@@ -281,6 +286,22 @@ func decodeDateFromText(mr *MessageReader, size int32) interface{} {
 func encodeDate(w *MessageWriter, value interface{}) {
 	t := value.(time.Time)
 	s := t.Format("2006-01-02")
+	w.Write(int32(len(s)))
+	w.WriteString(s)
+}
+
+func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadByteString(size)
+	t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
+	if err != nil {
+		panic(fmt.Sprintf("Can't decode timestamptz: %v", err))
+	}
+	return t
+}
+
+func encodeTimestampTz(w *MessageWriter, value interface{}) {
+	t := value.(time.Time)
+	s := t.Format("2006-01-02 15:04:05.999999 -0700")
 	w.Write(int32(len(s)))
 	w.WriteString(s)
 }

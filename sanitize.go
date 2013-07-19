@@ -45,7 +45,7 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 		case int64:
 			return strconv.FormatInt(int64(arg), 10)
 		case time.Time:
-			return c.QuoteString(arg.Format("2006-01-02 15:04:05.999999999 -0700"))
+			return c.QuoteString(arg.Format("2006-01-02 15:04:05.999999 -0700"))
 		case uint:
 			return strconv.FormatUint(uint64(arg), 10)
 		case uint8:
