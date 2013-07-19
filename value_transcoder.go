@@ -96,8 +96,9 @@ func init() {
 
 	// timestamptz
 	ValueTranscoders[Oid(1184)] = &ValueTranscoder{
-		DecodeText: decodeTimestampTzFromText,
-		EncodeTo:   encodeTimestampTz}
+		DecodeText:   decodeTimestampTzFromText,
+		DecodeBinary: decodeTimestampTzFromBinary,
+		EncodeTo:     encodeTimestampTz}
 
 	// use text transcoder for anything we don't understand
 	defaultTranscoder = ValueTranscoders[Oid(25)]
@@ -297,6 +298,20 @@ func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
 		panic(fmt.Sprintf("Can't decode timestamptz: %v", err))
 	}
 	return t
+}
+
+func decodeTimestampTzFromBinary(mr *MessageReader, size int32) interface{} {
+	if size != 8 {
+		panic("Received an invalid size for an int8")
+	}
+	microsecFromUnixEpochToY2K := int64(946684800 * 1000000)
+	microsecSinceY2K := mr.ReadInt64()
+	microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
+	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
+
+	// 2000-01-01 00:00:00 in 946684800
+	// 946684800 * 1000000
+
 }
 
 func encodeTimestampTz(w *MessageWriter, value interface{}) {

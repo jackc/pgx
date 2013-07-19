@@ -15,6 +15,7 @@ var int8TextVsBinaryTestDataLoaded bool
 var float4TextVsBinaryTestDataLoaded bool
 var float8TextVsBinaryTestDataLoaded bool
 var boolTextVsBinaryTestDataLoaded bool
+var timestampTzTextVsBinaryTestDataLoaded bool
 
 func createNarrowTestData(b *testing.B, conn *pgx.Connection) {
 	if narrowTestDataLoaded {
@@ -542,5 +543,62 @@ func BenchmarkBoolBinary(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mustSelectRows(b, conn, "selectBool")
+	}
+}
+
+func createTimestampTzTextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+	if timestampTzTextVsBinaryTestDataLoaded {
+		return
+	}
+
+	mustExecute(b, conn, `
+		drop table if exists t;
+
+		create temporary table t(
+			a timestamptz not null,
+			b timestamptz not null,
+			c timestamptz not null,
+			d timestamptz not null,
+			e timestamptz not null
+		);
+
+		insert into t(a, b, c, d, e)
+		select
+			now() - '10 years'::interval * random(),
+			now() - '10 years'::interval * random(),
+			now() - '10 years'::interval * random(),
+		  now() - '10 years'::interval * random(),
+		  now() - '10 years'::interval * random()
+		from generate_series(1, 10);
+	`)
+
+	timestampTzTextVsBinaryTestDataLoaded = true
+}
+
+func BenchmarkTimestampTzText(b *testing.B) {
+	conn := getSharedConnection()
+	createTimestampTzTextVsBinaryTestData(b, conn)
+
+	encoders := removeBinaryEncoders()
+	defer func() { restoreBinaryEncoders(encoders) }()
+
+	mustPrepare(b, conn, "selectTimestampTz", "select * from t")
+	defer func() { conn.Deallocate("selectTimestampTz") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mustSelectRows(b, conn, "selectTimestampTz")
+	}
+}
+
+func BenchmarkTimestampTzBinary(b *testing.B) {
+	conn := getSharedConnection()
+	createTimestampTzTextVsBinaryTestData(b, conn)
+	mustPrepare(b, conn, "selectTimestampTz", "select * from t")
+	defer func() { conn.Deallocate("selectTimestampTz") }()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mustSelectRows(b, conn, "selectTimestampTz")
 	}
 }
