@@ -124,7 +124,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	if results := mustExecute(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
 		t.Error("Unexpected results from Execute")
@@ -167,7 +167,7 @@ func TestExecuteFailure(t *testing.T) {
 }
 
 func TestSelectFunc(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	var sum, rowCount int32
 	onDataRow := func(r *pgx.DataRowReader) error {
@@ -206,14 +206,18 @@ func TestSelectFuncFailure(t *testing.T) {
 }
 
 func Example_connectionSelectFunc() {
-	conn := getSharedConnection()
+	conn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		fmt.Printf("Unable to establish connection: %v", err)
+		return
+	}
 
 	onDataRow := func(r *pgx.DataRowReader) error {
 		fmt.Println(r.ReadValue())
 		return nil
 	}
 
-	err := conn.SelectFunc("select generate_series(1,$1)", onDataRow, 5)
+	err = conn.SelectFunc("select generate_series(1,$1)", onDataRow, 5)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -226,7 +230,7 @@ func Example_connectionSelectFunc() {
 }
 
 func TestSelectRows(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	rows := mustSelectRows(t, conn, "select $1 as name, null as position", "Jack")
 
@@ -248,7 +252,7 @@ func TestSelectRows(t *testing.T) {
 }
 
 func TestSelectRow(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	row := mustSelectRow(t, conn, "select $1 as name, null as position", "Jack")
 	if row["name"] != "Jack" {
@@ -275,7 +279,7 @@ func TestSelectRow(t *testing.T) {
 }
 
 func TestConnectionSelectValue(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	test := func(sql string, expected interface{}, arguments ...interface{}) {
 		v, err := conn.SelectValue(sql, arguments...)
@@ -315,7 +319,7 @@ func TestConnectionSelectValue(t *testing.T) {
 }
 
 func TestSelectValues(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	test := func(sql string, expected []interface{}, arguments ...interface{}) {
 		values, err := conn.SelectValues(sql, arguments...)
@@ -406,7 +410,9 @@ func TestPrepare(t *testing.T) {
 	bytea[2] = 255 // 0xFF
 	bytea[3] = 17  // 0x11
 
-	if conn.SanitizeSql("select $1", bytea) != `select E'\\x000fff11'` {
+	if sql, err := conn.SanitizeSql("select $1", bytea); err != nil {
+		t.Errorf("Error sanitizing []byte: %v", err)
+	} else if sql != `select E'\\x000fff11'` {
 		t.Error("Failed to sanitize []byte")
 	}
 	var result interface{}
@@ -579,7 +585,7 @@ func TestListenNotify(t *testing.T) {
 		t.Fatalf("Unable to start listening: %v", err)
 	}
 
-	notifier := getSharedConnection()
+	notifier := getSharedConnection(t)
 	mustExecute(t, notifier, "notify chat")
 
 	// when notification is waiting on the socket to be read

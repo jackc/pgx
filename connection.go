@@ -73,6 +73,12 @@ func (e UnexpectedColumnCountError) Error() string {
 	return fmt.Sprintf("Expected result to have %d column(s), instead it has %d", e.ExpectedCount, e.ActualCount)
 }
 
+type ProtocolError string
+
+func (e ProtocolError) Error() string {
+	return string(e)
+}
+
 // sharedBufferSize is the default number of bytes of work buffer per connection
 const sharedBufferSize = 1024
 
@@ -171,7 +177,11 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 				fields = c.rxRowDescription(r)
 			case dataRow:
 				if err == nil {
-					err = onDataRow(newDataRowReader(r, fields))
+					var drr *DataRowReader
+					drr, err = newDataRowReader(r, fields)
+					if err == nil {
+						err = onDataRow(drr)
+					}
 				}
 			case commandComplete:
 			case bindComplete:
@@ -393,7 +403,10 @@ func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error)
 
 func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
 	if len(arguments) > 0 {
-		sql = c.SanitizeSql(sql, arguments...)
+		sql, err = c.SanitizeSql(sql, arguments...)
+		if err != nil {
+			return
+		}
 	}
 
 	buf := c.getBuf()

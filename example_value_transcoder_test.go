@@ -23,7 +23,11 @@ func Example_customValueTranscoder() {
 		DecodeText: decodePointFromText,
 		EncodeTo:   encodePoint}
 
-	conn := getSharedConnection()
+	conn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		fmt.Printf("Unable to establish connection: %v", err)
+		return
+	}
 
 	v, _ := conn.SelectValue("select point(1.5,2.5)")
 	fmt.Println(v)
@@ -35,18 +39,18 @@ func decodePointFromText(mr *pgx.MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	match := pointRegexp.FindStringSubmatch(s)
 	if match == nil {
-		panic(fmt.Sprintf("Received invalid point: %v", s))
+		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
 	}
 
 	var err error
 	var p Point
 	p.x, err = strconv.ParseFloat(match[1], 64)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid point: %v", s))
+		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
 	}
 	p.y, err = strconv.ParseFloat(match[2], 64)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid point: %v", s))
+		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
 	}
 	return p
 }

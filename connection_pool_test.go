@@ -6,10 +6,10 @@ import (
 	"testing"
 )
 
-func createConnectionPool(maxConnections int) *pgx.ConnectionPool {
+func createConnectionPool(t *testing.T, maxConnections int) *pgx.ConnectionPool {
 	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, maxConnections)
 	if err != nil {
-		panic("Unable to create connection pool")
+		t.Fatalf("Unable to create connection pool: %v", err)
 	}
 	return pool
 }
@@ -30,7 +30,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	maxConnections := 2
 	incrementCount := int32(100)
 	completeSync := make(chan int)
-	pool := createConnectionPool(maxConnections)
+	pool := createConnectionPool(t, maxConnections)
 	defer pool.Close()
 
 	acquireAll := func() (connections []*pgx.Connection) {
@@ -99,7 +99,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 }
 
 func TestPoolReleaseWithTransactions(t *testing.T) {
-	pool := createConnectionPool(1)
+	pool := createConnectionPool(t, 1)
 	defer pool.Close()
 
 	var err error

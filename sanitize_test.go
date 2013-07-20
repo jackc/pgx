@@ -5,7 +5,7 @@ import (
 )
 
 func TestQuoteString(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	if conn.QuoteString("test") != "'test'" {
 		t.Error("Failed to quote string")
@@ -17,22 +17,22 @@ func TestQuoteString(t *testing.T) {
 }
 
 func TestSanitizeSql(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
-	if conn.SanitizeSql("select $1", "Jack's") != "select 'Jack''s'" {
-		t.Error("Failed to sanitize string")
+	if san, err := conn.SanitizeSql("select $1", "Jack's"); err != nil || san != "select 'Jack''s'" {
+		t.Errorf("Failed to sanitize string: %v - %v", san, err)
 	}
 
-	if conn.SanitizeSql("select $1", 42) != "select 42" {
-		t.Error("Failed to pass through integer")
+	if san, err := conn.SanitizeSql("select $1", 42); err != nil || san != "select 42" {
+		t.Errorf("Failed to pass through integer: %v - %v", san, err)
 	}
 
-	if conn.SanitizeSql("select $1", 1.23) != "select 1.23" {
-		t.Error("Failed to pass through float")
+	if san, err := conn.SanitizeSql("select $1", 1.23); err != nil || san != "select 1.23" {
+		t.Errorf("Failed to pass through float: %v - %v", san, err)
 	}
 
-	if conn.SanitizeSql("select $1, $2, $3", "Jack's", 42, 1.23) != "select 'Jack''s', 42, 1.23" {
-		t.Error("Failed to sanitize multiple params")
+	if san, err := conn.SanitizeSql("select $1, $2, $3", "Jack's", 42, 1.23); err != nil || san != "select 'Jack''s', 42, 1.23" {
+		t.Errorf("Failed to sanitize multiple params: %v - %v", san, err)
 	}
 
 	bytea := make([]byte, 4)
@@ -41,7 +41,7 @@ func TestSanitizeSql(t *testing.T) {
 	bytea[2] = 255 // 0xFF
 	bytea[3] = 17  // 0x11
 
-	if conn.SanitizeSql("select $1", bytea) != `select E'\\x000fff11'` {
-		t.Error("Failed to sanitize []byte")
+	if san, err := conn.SanitizeSql("select $1", bytea); err != nil || san != `select E'\\x000fff11'` {
+		t.Errorf("Failed to sanitize []byte: %v - %v", san, err)
 	}
 }

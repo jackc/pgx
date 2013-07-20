@@ -6,7 +6,7 @@ import (
 )
 
 func TestDateTranscode(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	actualDate := time.Date(2013, 1, 2, 0, 0, 0, 0, time.Local)
 
@@ -34,7 +34,7 @@ func TestDateTranscode(t *testing.T) {
 }
 
 func TestTimestampTzTranscode(t *testing.T) {
-	conn := getSharedConnection()
+	conn := getSharedConnection(t)
 
 	inputTime := time.Date(2013, 1, 2, 3, 4, 5, 6000, time.Local)
 

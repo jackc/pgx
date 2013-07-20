@@ -112,13 +112,13 @@ func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
 	case "f":
 		return false
 	default:
-		panic(fmt.Sprintf("Received invalid bool: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid bool: %v", s))
 	}
 }
 
 func decodeBoolFromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 1 {
-		panic("Received an invalid size for an bool")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size))
 	}
 	b := mr.ReadByte()
 	return b != 0
@@ -138,14 +138,14 @@ func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid int8: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid int8: %v", s))
 	}
 	return n
 }
 
 func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 8 {
-		panic("Received an invalid size for an int8")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size))
 	}
 	return mr.ReadInt64()
 }
@@ -160,14 +160,14 @@ func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 16)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid int2: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid int2: %v", s))
 	}
 	return int16(n)
 }
 
 func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 2 {
-		panic("Received an invalid size for an int8")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size))
 	}
 	return mr.ReadInt16()
 }
@@ -182,14 +182,14 @@ func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid int4: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid int4: %v", s))
 	}
 	return int32(n)
 }
 
 func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 4 {
-		panic("Received an invalid size for an int4")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size))
 	}
 	return mr.ReadInt32()
 }
@@ -204,14 +204,14 @@ func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	n, err := strconv.ParseFloat(s, 32)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid float4: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid float4: %v", s))
 	}
 	return float32(n)
 }
 
 func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 4 {
-		panic("Received an invalid size for an float4")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size))
 	}
 
 	i := mr.ReadInt32()
@@ -229,14 +229,14 @@ func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		panic(fmt.Sprintf("Received invalid float8: %v", s))
+		return ProtocolError(fmt.Sprintf("Received invalid float8: %v", s))
 	}
 	return v
 }
 
 func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 8 {
-		panic("Received an invalid size for an float4")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size))
 	}
 
 	i := mr.ReadInt64()
@@ -264,7 +264,7 @@ func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	b, err := hex.DecodeString(s[2:])
 	if err != nil {
-		panic("Can't decode byte array")
+		return ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s))
 	}
 	return b
 }
@@ -279,7 +279,7 @@ func decodeDateFromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
 	if err != nil {
-		panic("Can't decode date")
+		return ProtocolError(fmt.Sprintf("Can't decode date: %v", s))
 	}
 	return t
 }
@@ -295,14 +295,14 @@ func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
 	s := mr.ReadString(size)
 	t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
 	if err != nil {
-		panic(fmt.Sprintf("Can't decode timestamptz: %v", err))
+		return ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s))
 	}
 	return t
 }
 
 func decodeTimestampTzFromBinary(mr *MessageReader, size int32) interface{} {
 	if size != 8 {
-		panic("Received an invalid size for an int8")
+		return ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size))
 	}
 	microsecFromUnixEpochToY2K := int64(946684800 * 1000000)
 	microsecSinceY2K := mr.ReadInt64()

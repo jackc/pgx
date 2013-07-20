@@ -2,7 +2,7 @@ package pgx
 
 import (
 	"encoding/hex"
-	"reflect"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -28,7 +28,7 @@ func (c *Connection) QuoteIdentifier(input string) (output string) {
 // SanitizeSql substitutely args positionaly into sql. Placeholder values are
 // $ prefixed integers like $1, $2, $3, etc. args are sanitized and quoted as
 // appropriate.
-func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string) {
+func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string, err error) {
 	replacer := func(match string) (replacement string) {
 		n, _ := strconv.ParseInt(match[1:], 10, 0)
 		switch arg := args[n-1].(type) {
@@ -63,7 +63,8 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 		case []byte:
 			return `E'\\x` + hex.EncodeToString(arg) + `'`
 		default:
-			panic("Unable to sanitize type: " + reflect.TypeOf(arg).String())
+			err = fmt.Errorf("Unable to sanitize type: %T", arg)
+			return ""
 		}
 	}
 

@@ -10,12 +10,12 @@ type test interface {
 
 var sharedConnection *pgx.Connection
 
-func getSharedConnection() (c *pgx.Connection) {
+func getSharedConnection(t test) (c *pgx.Connection) {
 	if sharedConnection == nil {
 		var err error
 		sharedConnection, err = pgx.Connect(*defaultConnectionParameters)
 		if err != nil {
-			panic("Unable to establish connection")
+			t.Fatalf("Unable to establish connection: %v", err)
 		}
 
 	}
