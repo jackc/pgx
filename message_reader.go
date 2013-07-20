@@ -85,7 +85,7 @@ func (r *MessageReader) ReadOid() (oid Oid) {
 }
 
 // ReadString reads a null terminated string
-func (r *MessageReader) ReadString() (s string) {
+func (r *MessageReader) ReadCString() (s string) {
 	if r.Err != nil {
 		return
 	}
@@ -99,8 +99,8 @@ func (r *MessageReader) ReadString() (s string) {
 	return string(b[:len(b)-1])
 }
 
-// ReadByteString reads count bytes and return as string
-func (r *MessageReader) ReadByteString(count int32) (s string) {
+// ReadString reads count bytes and returns as string
+func (r *MessageReader) ReadString(count int32) (s string) {
 	if r.Err != nil {
 		return
 	}

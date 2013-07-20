@@ -499,7 +499,7 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 			case dataRow:
 			case bindComplete:
 			case commandComplete:
-				commandTag = r.ReadString()
+				commandTag = r.ReadCString()
 			default:
 				if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
 					err = e
@@ -623,7 +623,7 @@ func (c *Connection) rxAuthenticationX(r *MessageReader) (err error) {
 	case 3: // AuthenticationCleartextPassword
 		c.txPasswordMessage(c.parameters.Password)
 	case 5: // AuthenticationMD5Password
-		salt := r.ReadByteString(4)
+		salt := r.ReadString(4)
 		digestedPassword := "md5" + hexMD5(hexMD5(c.parameters.Password+c.parameters.User)+salt)
 		c.txPasswordMessage(digestedPassword)
 	default:
@@ -640,8 +640,8 @@ func hexMD5(s string) string {
 }
 
 func (c *Connection) rxParameterStatus(r *MessageReader) {
-	key := r.ReadString()
-	value := r.ReadString()
+	key := r.ReadCString()
+	value := r.ReadCString()
 	c.RuntimeParams[key] = value
 }
 
@@ -649,15 +649,15 @@ func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
 	for {
 		switch r.ReadByte() {
 		case 'S':
-			err.Severity = r.ReadString()
+			err.Severity = r.ReadCString()
 		case 'C':
-			err.Code = r.ReadString()
+			err.Code = r.ReadCString()
 		case 'M':
-			err.Message = r.ReadString()
+			err.Message = r.ReadCString()
 		case 0: // End of error message
 			return
 		default: // Ignore other error fields
-			r.ReadString()
+			r.ReadCString()
 		}
 	}
 }
@@ -676,7 +676,7 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 	fields = make([]FieldDescription, fieldCount)
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
-		f.Name = r.ReadString()
+		f.Name = r.ReadCString()
 		f.Table = r.ReadOid()
 		f.AttributeNumber = r.ReadInt16()
 		f.DataType = r.ReadOid()
@@ -707,14 +707,14 @@ func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 }
 
 func (c *Connection) rxCommandComplete(r *MessageReader) string {
-	return r.ReadString()
+	return r.ReadCString()
 }
 
 func (c *Connection) rxNotificationResponse(r *MessageReader) (err error) {
 	n := new(Notification)
 	n.Pid = r.ReadInt32()
-	n.Channel = r.ReadString()
-	n.Payload = r.ReadString()
+	n.Channel = r.ReadCString()
+	n.Payload = r.ReadCString()
 	c.notifications = append(c.notifications, n)
 	return
 }

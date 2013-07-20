@@ -32,7 +32,7 @@ func Example_customValueTranscoder() {
 }
 
 func decodePointFromText(mr *pgx.MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	match := pointRegexp.FindStringSubmatch(s)
 	if match == nil {
 		panic(fmt.Sprintf("Received invalid point: %v", s))

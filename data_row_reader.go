@@ -37,7 +37,7 @@ func (r *DataRowReader) ReadValue() interface{} {
 				panic("Unknown format")
 			}
 		} else {
-			return r.mr.ReadByteString(size)
+			return r.mr.ReadString(size)
 		}
 	} else {
 		return nil

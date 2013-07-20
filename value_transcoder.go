@@ -105,7 +105,7 @@ func init() {
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	switch s {
 	case "t":
 		return true
@@ -135,7 +135,7 @@ func encodeBool(w *MessageWriter, value interface{}) {
 }
 
 func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		panic(fmt.Sprintf("Received invalid int8: %v", s))
@@ -157,7 +157,7 @@ func encodeInt8(w *MessageWriter, value interface{}) {
 }
 
 func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 16)
 	if err != nil {
 		panic(fmt.Sprintf("Received invalid int2: %v", s))
@@ -179,7 +179,7 @@ func encodeInt2(w *MessageWriter, value interface{}) {
 }
 
 func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	n, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		panic(fmt.Sprintf("Received invalid int4: %v", s))
@@ -201,7 +201,7 @@ func encodeInt4(w *MessageWriter, value interface{}) {
 }
 
 func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	n, err := strconv.ParseFloat(s, 32)
 	if err != nil {
 		panic(fmt.Sprintf("Received invalid float4: %v", s))
@@ -226,7 +226,7 @@ func encodeFloat4(w *MessageWriter, value interface{}) {
 }
 
 func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		panic(fmt.Sprintf("Received invalid float8: %v", s))
@@ -251,7 +251,7 @@ func encodeFloat8(w *MessageWriter, value interface{}) {
 }
 
 func decodeTextFromText(mr *MessageReader, size int32) interface{} {
-	return mr.ReadByteString(size)
+	return mr.ReadString(size)
 }
 
 func encodeText(w *MessageWriter, value interface{}) {
@@ -261,7 +261,7 @@ func encodeText(w *MessageWriter, value interface{}) {
 }
 
 func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	b, err := hex.DecodeString(s[2:])
 	if err != nil {
 		panic("Can't decode byte array")
@@ -276,7 +276,7 @@ func encodeBytea(w *MessageWriter, value interface{}) {
 }
 
 func decodeDateFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
 	if err != nil {
 		panic("Can't decode date")
@@ -292,7 +292,7 @@ func encodeDate(w *MessageWriter, value interface{}) {
 }
 
 func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadByteString(size)
+	s := mr.ReadString(size)
 	t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
 	if err != nil {
 		panic(fmt.Sprintf("Can't decode timestamptz: %v", err))
