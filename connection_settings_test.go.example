@@ -9,7 +9,7 @@ var defaultConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParam
 // To skip tests for specific connection / authentication types set that connection param to nil
 var tcpConnectionParameters *pgx.ConnectionParameters = nil
 var unixSocketConnectionParameters *pgx.ConnectionParameters = nil
-var md5dConnectionParameters *pgx.ConnectionParameters = nil
+var md5ConnectionParameters *pgx.ConnectionParameters = nil
 var plainPasswordConnectionParameters *pgx.ConnectionParameters = nil
 var noPasswordConnectionParameters *pgx.ConnectionParameters = nil
 var invalidUserConnectionParameters *pgx.ConnectionParameters = nil
