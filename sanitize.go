@@ -62,6 +62,18 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 			return strconv.FormatFloat(arg, 'f', -1, 64)
 		case []byte:
 			return `E'\\x` + hex.EncodeToString(arg) + `'`
+		case []int16:
+			var s string
+			s, err = int16SliceToArrayString(arg)
+			return c.QuoteString(s)
+		case []int32:
+			var s string
+			s, err = int32SliceToArrayString(arg)
+			return c.QuoteString(s)
+		case []int64:
+			var s string
+			s, err = int64SliceToArrayString(arg)
+			return c.QuoteString(s)
 		default:
 			err = fmt.Errorf("Unable to sanitize type: %T", arg)
 			return ""

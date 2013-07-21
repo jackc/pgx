@@ -44,4 +44,34 @@ func TestSanitizeSql(t *testing.T) {
 	if san, err := conn.SanitizeSql("select $1", bytea); err != nil || san != `select E'\\x000fff11'` {
 		t.Errorf("Failed to sanitize []byte: %v - %v", san, err)
 	}
+
+	int2a := make([]int16, 4)
+	int2a[0] = 42
+	int2a[1] = 0
+	int2a[2] = -1
+	int2a[3] = 32123
+
+	if san, err := conn.SanitizeSql("select $1::int2[]", int2a); err != nil || san != `select '{42,0,-1,32123}'::int2[]` {
+		t.Errorf("Failed to sanitize []int16: %v - %v", san, err)
+	}
+
+	int4a := make([]int32, 4)
+	int4a[0] = 42
+	int4a[1] = 0
+	int4a[2] = -1
+	int4a[3] = 32123
+
+	if san, err := conn.SanitizeSql("select $1::int4[]", int4a); err != nil || san != `select '{42,0,-1,32123}'::int4[]` {
+		t.Errorf("Failed to sanitize []int32: %v - %v", san, err)
+	}
+
+	int8a := make([]int64, 4)
+	int8a[0] = 42
+	int8a[1] = 0
+	int8a[2] = -1
+	int8a[3] = 32123
+
+	if san, err := conn.SanitizeSql("select $1::int8[]", int8a); err != nil || san != `select '{42,0,-1,32123}'::int8[]` {
+		t.Errorf("Failed to sanitize []int64: %v - %v", san, err)
+	}
 }

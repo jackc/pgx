@@ -1,8 +1,10 @@
 package pgx
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 	"unsafe"
@@ -86,6 +88,21 @@ func init() {
 		EncodeTo:     encodeFloat8,
 		EncodeFormat: 1}
 
+	// int2[]
+	ValueTranscoders[Oid(1005)] = &ValueTranscoder{
+		DecodeText: decodeInt2ArrayFromText,
+		EncodeTo:   encodeInt2Array}
+
+	// int4[]
+	ValueTranscoders[Oid(1007)] = &ValueTranscoder{
+		DecodeText: decodeInt4ArrayFromText,
+		EncodeTo:   encodeInt4Array}
+
+	// int8[]
+	ValueTranscoders[Oid(1016)] = &ValueTranscoder{
+		DecodeText: decodeInt8ArrayFromText,
+		EncodeTo:   encodeInt8Array}
+
 	// varchar -- same as text
 	ValueTranscoders[Oid(1043)] = ValueTranscoders[Oid(25)]
 
@@ -102,6 +119,24 @@ func init() {
 
 	// use text transcoder for anything we don't understand
 	defaultTranscoder = ValueTranscoders[Oid(25)]
+}
+
+var arrayEl *regexp.Regexp = regexp.MustCompile(`[{,](?:"((?:[^"\\]|\\.)*)"|(NULL)|([^,}]+))`)
+
+// SplitArrayText
+func SplitArrayText(text string) (elements []string) {
+	matches := arrayEl.FindAllStringSubmatch(text, -1)
+	elements = make([]string, 0, len(matches))
+	for _, match := range matches {
+		if match[1] != "" {
+			elements = append(elements, match[1])
+		} else if match[2] != "" {
+			elements = append(elements, match[2])
+		} else if match[3] != "" {
+			elements = append(elements, match[3])
+		}
+	}
+	return
 }
 
 func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
@@ -317,6 +352,129 @@ func decodeTimestampTzFromBinary(mr *MessageReader, size int32) interface{} {
 func encodeTimestampTz(w *MessageWriter, value interface{}) {
 	t := value.(time.Time)
 	s := t.Format("2006-01-02 15:04:05.999999 -0700")
+	w.Write(int32(len(s)))
+	w.WriteString(s)
+}
+
+func decodeInt2ArrayFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadString(size)
+
+	elements := SplitArrayText(s)
+
+	numbers := make([]int16, 0, len(elements))
+
+	for _, e := range elements {
+		n, err := strconv.ParseInt(e, 10, 16)
+		if err != nil {
+			return ProtocolError(fmt.Sprintf("Received invalid int2[]: %v", s))
+		}
+		numbers = append(numbers, int16(n))
+	}
+
+	return numbers
+}
+
+func int16SliceToArrayString(nums []int16) (string, error) {
+	w := newMessageWriter(&bytes.Buffer{})
+	w.WriteString("{")
+	for i, n := range nums {
+		if i > 0 {
+			w.WriteString(",")
+		}
+		w.WriteString(strconv.FormatInt(int64(n), 10))
+	}
+	w.WriteString("}")
+	return w.buf.String(), w.Err
+}
+
+func encodeInt2Array(w *MessageWriter, value interface{}) {
+	v := value.([]int16)
+	s, err := int16SliceToArrayString(v)
+	if err != nil {
+		w.Err = fmt.Errorf("Failed to encode []int16: %v", err)
+	}
+	w.Write(int32(len(s)))
+	w.WriteString(s)
+}
+
+func decodeInt4ArrayFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadString(size)
+
+	elements := SplitArrayText(s)
+
+	numbers := make([]int32, 0, len(elements))
+
+	for _, e := range elements {
+		n, err := strconv.ParseInt(e, 10, 16)
+		if err != nil {
+			return ProtocolError(fmt.Sprintf("Received invalid int4[]: %v", s))
+		}
+		numbers = append(numbers, int32(n))
+	}
+
+	return numbers
+}
+
+func int32SliceToArrayString(nums []int32) (string, error) {
+	w := newMessageWriter(&bytes.Buffer{})
+	w.WriteString("{")
+	for i, n := range nums {
+		if i > 0 {
+			w.WriteString(",")
+		}
+		w.WriteString(strconv.FormatInt(int64(n), 10))
+	}
+	w.WriteString("}")
+	return w.buf.String(), w.Err
+}
+
+func encodeInt4Array(w *MessageWriter, value interface{}) {
+	v := value.([]int32)
+	s, err := int32SliceToArrayString(v)
+	if err != nil {
+		w.Err = fmt.Errorf("Failed to encode []int32: %v", err)
+	}
+	w.Write(int32(len(s)))
+	w.WriteString(s)
+}
+
+func decodeInt8ArrayFromText(mr *MessageReader, size int32) interface{} {
+	s := mr.ReadString(size)
+
+	elements := SplitArrayText(s)
+
+	numbers := make([]int64, 0, len(elements))
+
+	for _, e := range elements {
+		n, err := strconv.ParseInt(e, 10, 16)
+		if err != nil {
+			return ProtocolError(fmt.Sprintf("Received invalid int8[]: %v", s))
+		}
+		numbers = append(numbers, int64(n))
+	}
+
+	return numbers
+}
+
+func int64SliceToArrayString(nums []int64) (string, error) {
+	w := newMessageWriter(&bytes.Buffer{})
+	w.WriteString("{")
+	for i, n := range nums {
+		if i > 0 {
+			w.WriteString(",")
+		}
+		w.WriteString(strconv.FormatInt(int64(n), 10))
+	}
+	w.WriteString("}")
+	return w.buf.String(), w.Err
+}
+
+func encodeInt8Array(w *MessageWriter, value interface{}) {
+	v := value.([]int64)
+	s, err := int64SliceToArrayString(v)
+	if err != nil {
+		w.Err = fmt.Errorf("Failed to encode []int64: %v", err)
+	}
 	w.Write(int32(len(s)))
 	w.WriteString(s)
 }
