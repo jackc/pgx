@@ -589,7 +589,7 @@ func TestListenNotify(t *testing.T) {
 	mustExecute(t, notifier, "notify chat")
 
 	// when notification is waiting on the socket to be read
-	notification, err := listener.WaitForNotification(time.Millisecond)
+	notification, err := listener.WaitForNotification(time.Second)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
