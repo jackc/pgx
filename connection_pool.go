@@ -89,3 +89,11 @@ func (p *ConnectionPool) SelectValues(sql string, arguments ...interface{}) (val
 
 	return c.SelectValues(sql, arguments...)
 }
+
+// Execute acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+	c := p.Acquire()
+	defer p.Release(c)
+
+	return c.Execute(sql, arguments...)
+}
