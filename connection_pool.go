@@ -1,26 +1,36 @@
 package pgx
 
-type ConnectionPool struct {
-	connectionChannel chan *Connection
-	parameters        ConnectionParameters // options used when establishing connection
-	MaxConnections    int
+type ConnectionPoolOptions struct {
+	MaxConnections int // max simultaneous connections to use (currently all are immediately connected)
+	AfterConnect   func(*Connection) error
 }
 
-// NewConnectionPool creates a new ConnectionPool. options are passed through to
-// Connect directly. MaxConnections is max simultaneous connections to use
-// (currently all are immediately connected).
-func NewConnectionPool(parameters ConnectionParameters, MaxConnections int) (p *ConnectionPool, err error) {
+type ConnectionPool struct {
+	connectionChannel chan *Connection
+	parameters        ConnectionParameters // parameters used when establishing connection
+	options           ConnectionPoolOptions
+}
+
+// NewConnectionPool creates a new ConnectionPool. parameters are passed through to
+// Connect directly.
+func NewConnectionPool(parameters ConnectionParameters, options ConnectionPoolOptions) (p *ConnectionPool, err error) {
 	p = new(ConnectionPool)
-	p.connectionChannel = make(chan *Connection, MaxConnections)
-	p.MaxConnections = MaxConnections
+	p.connectionChannel = make(chan *Connection, options.MaxConnections)
 
 	p.parameters = parameters
+	p.options = options
 
-	for i := 0; i < p.MaxConnections; i++ {
+	for i := 0; i < p.options.MaxConnections; i++ {
 		var c *Connection
 		c, err = Connect(p.parameters)
 		if err != nil {
 			return
+		}
+		if p.options.AfterConnect != nil {
+			err = p.options.AfterConnect(c)
+			if err != nil {
+				return
+			}
 		}
 		p.connectionChannel <- c
 	}
@@ -44,7 +54,7 @@ func (p *ConnectionPool) Release(c *Connection) {
 
 // Close ends the use of a connection by closing all underlying connections.
 func (p *ConnectionPool) Close() {
-	for i := 0; i < p.MaxConnections; i++ {
+	for i := 0; i < p.options.MaxConnections; i++ {
 		c := <-p.connectionChannel
 		_ = c.Close()
 	}

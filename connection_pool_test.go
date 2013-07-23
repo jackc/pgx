@@ -1,13 +1,15 @@
 package pgx_test
 
 import (
+	"errors"
 	"fmt"
 	"github.com/JackC/pgx"
 	"testing"
 )
 
 func createConnectionPool(t *testing.T, maxConnections int) *pgx.ConnectionPool {
-	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, maxConnections)
+	options := pgx.ConnectionPoolOptions{MaxConnections: maxConnections}
+	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, options)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
 	}
@@ -15,14 +17,33 @@ func createConnectionPool(t *testing.T, maxConnections int) *pgx.ConnectionPool 
 }
 
 func TestNewConnectionPool(t *testing.T) {
-	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, 5)
+	var numCallbacks int
+	afterConnect := func(c *pgx.Connection) error {
+		numCallbacks++
+		return nil
+	}
+
+	options := pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
+	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, options)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
 	}
 	defer pool.Close()
 
-	if pool.MaxConnections != 5 {
-		t.Error("Wrong maxConnections")
+	if numCallbacks != 2 {
+		t.Errorf("Expected AfterConnect callback to fire %v times but only fired %v times", numCallbacks, numCallbacks)
+	}
+
+	// Pool creation returns an error if any AfterConnect callback does
+	errAfterConnect := errors.New("Some error")
+	afterConnect = func(c *pgx.Connection) error {
+		return errAfterConnect
+	}
+
+	options = pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
+	pool, err = pgx.NewConnectionPool(*defaultConnectionParameters, options)
+	if err != errAfterConnect {
+		t.Errorf("Expected errAfterConnect but received unexpected: %v", err)
 	}
 }
 
