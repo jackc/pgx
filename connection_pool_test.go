@@ -57,7 +57,10 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	acquireAll := func() (connections []*pgx.Connection) {
 		connections = make([]*pgx.Connection, maxConnections)
 		for i := 0; i < maxConnections; i++ {
-			connections[i] = pool.Acquire()
+			var err error
+			if connections[i], err = pool.Acquire(); err != nil {
+				t.Fatalf("Unable to acquire connection: %v", err)
+			}
 		}
 		return
 	}
@@ -74,8 +77,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	}
 
 	f := func() {
-		var err error
-		conn := pool.Acquire()
+		conn, err := pool.Acquire()
 		if err != nil {
 			t.Fatal("Unable to acquire connection")
 		}
@@ -123,8 +125,10 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 	pool := createConnectionPool(t, 1)
 	defer pool.Close()
 
-	var err error
-	conn := pool.Acquire()
+	conn, err := pool.Acquire()
+	if err != nil {
+		t.Fatalf("Unable to acquire connection: %v", err)
+	}
 	mustExecute(t, conn, "begin")
 	if _, err = conn.Execute("select"); err == nil {
 		t.Fatal("Did not receive expected error")
@@ -139,7 +143,10 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus)
 	}
 
-	conn = pool.Acquire()
+	conn, err = pool.Acquire()
+	if err != nil {
+		t.Fatalf("Unable to acquire connection: %v", err)
+	}
 	mustExecute(t, conn, "begin")
 	if conn.TxStatus != 'T' {
 		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)

@@ -610,7 +610,10 @@ func BenchmarkConnectionPool(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		conn := pool.Acquire()
+		var conn *pgx.Connection
+		if conn, err = pool.Acquire(); err != nil {
+			b.Fatalf("Unable to acquire connection: %v", err)
+		}
 		pool.Release(conn)
 	}
 
