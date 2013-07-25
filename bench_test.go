@@ -599,3 +599,19 @@ func BenchmarkTimestampTzBinary(b *testing.B) {
 		mustSelectRows(b, conn, "selectTimestampTz")
 	}
 }
+
+func BenchmarkConnectionPool(b *testing.B) {
+	options := pgx.ConnectionPoolOptions{MaxConnections: 5}
+	pool, err := pgx.NewConnectionPool(*defaultConnectionParameters, options)
+	if err != nil {
+		b.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		conn := pool.Acquire()
+		pool.Release(conn)
+	}
+
+}
