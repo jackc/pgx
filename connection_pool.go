@@ -22,15 +22,9 @@ func NewConnectionPool(parameters ConnectionParameters, options ConnectionPoolOp
 
 	for i := 0; i < p.options.MaxConnections; i++ {
 		var c *Connection
-		c, err = Connect(p.parameters)
+		c, err = p.createConnection()
 		if err != nil {
 			return
-		}
-		if p.options.AfterConnect != nil {
-			err = p.options.AfterConnect(c)
-			if err != nil {
-				return
-			}
 		}
 		p.connectionChannel <- c
 	}
@@ -58,6 +52,20 @@ func (p *ConnectionPool) Close() {
 		c := <-p.connectionChannel
 		_ = c.Close()
 	}
+}
+
+func (p *ConnectionPool) createConnection() (c *Connection, err error) {
+	c, err = Connect(p.parameters)
+	if err != nil {
+		return
+	}
+	if p.options.AfterConnect != nil {
+		err = p.options.AfterConnect(c)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // SelectFunc acquires a connection, delegates the call to that connection, and releases the connection
