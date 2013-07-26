@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/JackC/pgx"
+	"sync"
 	"testing"
 )
 
@@ -30,8 +31,10 @@ func TestNewConnectionPool(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if numCallbacks != 2 {
-		t.Errorf("Expected AfterConnect callback to fire %v times but only fired %v times", numCallbacks, numCallbacks)
+	// It initially connects once
+	stat := pool.Stat()
+	if stat.CurrentConnections != 1 {
+		t.Errorf("Expected 1 connection to be established immediately, but %v were", numCallbacks)
 	}
 
 	// Pool creation returns an error if any AfterConnect callback does
@@ -156,5 +159,44 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 
 	if conn.TxStatus != 'I' {
 		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus)
+	}
+}
+
+func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
+	maxConnections := 3
+	pool := createConnectionPool(t, maxConnections)
+	defer pool.Close()
+
+	doSomething := func() {
+		c, err := pool.Acquire()
+		if err != nil {
+			t.Fatalf("Unable to Acquire: %v", err)
+		}
+		c.SelectValue("select 1")
+		pool.Release(c)
+	}
+
+	for i := 0; i < 1000; i++ {
+		doSomething()
+	}
+
+	stat := pool.Stat()
+	if stat.CurrentConnections != 1 {
+		t.Fatalf("Pool shouldn't have established more connections when no contention: %v", stat.CurrentConnections)
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 1000; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			doSomething()
+		}()
+	}
+	wg.Wait()
+
+	stat = pool.Stat()
+	if stat.CurrentConnections != stat.MaxConnections {
+		t.Fatalf("Pool should have used all possible connections: %v", stat.CurrentConnections)
 	}
 }

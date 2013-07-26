@@ -1,42 +1,83 @@
 package pgx
 
+import (
+	"sync"
+)
+
 type ConnectionPoolOptions struct {
-	MaxConnections int // max simultaneous connections to use (currently all are immediately connected)
+	MaxConnections int // max simultaneous connections to use
 	AfterConnect   func(*Connection) error
 }
 
 type ConnectionPool struct {
-	connectionChannel chan *Connection
-	parameters        ConnectionParameters // parameters used when establishing connection
-	maxConnections    int
-	afterConnect      func(*Connection) error
+	allConnections       []*Connection
+	availableConnections []*Connection
+	cond                 *sync.Cond
+	parameters           ConnectionParameters // parameters used when establishing connection
+	maxConnections       int
+	afterConnect         func(*Connection) error
+}
+
+type ConnectionPoolStat struct {
+	MaxConnections       int // max simultaneous connections to use
+	CurrentConnections   int // current live connections
+	AvailableConnections int // unused live connections
 }
 
 // NewConnectionPool creates a new ConnectionPool. parameters are passed through to
 // Connect directly.
 func NewConnectionPool(parameters ConnectionParameters, options ConnectionPoolOptions) (p *ConnectionPool, err error) {
 	p = new(ConnectionPool)
-	p.connectionChannel = make(chan *Connection, options.MaxConnections)
-
 	p.parameters = parameters
 	p.maxConnections = options.MaxConnections
 	p.afterConnect = options.AfterConnect
 
-	for i := 0; i < p.maxConnections; i++ {
-		var c *Connection
-		c, err = p.createConnection()
-		if err != nil {
-			return
-		}
-		p.connectionChannel <- c
+	p.allConnections = make([]*Connection, 0, p.maxConnections)
+	p.availableConnections = make([]*Connection, 0, p.maxConnections)
+	p.cond = sync.NewCond(new(sync.Mutex))
+
+	// Initially establish one connection
+	var c *Connection
+	c, err = p.createConnection()
+	if err != nil {
+		return
 	}
+	p.allConnections = append(p.allConnections, c)
+	p.availableConnections = append(p.availableConnections, c)
 
 	return
 }
 
 // Acquire takes exclusive use of a connection until it is released.
 func (p *ConnectionPool) Acquire() (c *Connection, err error) {
-	c = <-p.connectionChannel
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	// A connection is available
+	if len(p.availableConnections) > 0 {
+		c = p.availableConnections[len(p.availableConnections)-1]
+		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
+		return
+	}
+
+	// No connections are available, but we can create more
+	if len(p.allConnections) < p.maxConnections {
+		c, err = p.createConnection()
+		if err != nil {
+			return
+		}
+		p.allConnections = append(p.allConnections, c)
+		return
+	}
+
+	// All connections are in use and we cannot create more
+	for len(p.availableConnections) == 0 {
+		p.cond.Wait()
+	}
+
+	c = p.availableConnections[len(p.availableConnections)-1]
+	p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
+
 	return
 }
 
@@ -45,15 +86,37 @@ func (p *ConnectionPool) Release(c *Connection) {
 	if c.TxStatus != 'I' {
 		c.Execute("rollback")
 	}
-	p.connectionChannel <- c
+	p.cond.L.Lock()
+	p.availableConnections = append(p.availableConnections, c)
+	p.cond.L.Unlock()
+	p.cond.Signal()
 }
 
 // Close ends the use of a connection by closing all underlying connections.
 func (p *ConnectionPool) Close() {
 	for i := 0; i < p.maxConnections; i++ {
-		c := <-p.connectionChannel
-		_ = c.Close()
+		if c, err := p.Acquire(); err != nil {
+			_ = c.Close()
+		}
 	}
+}
+
+func (p *ConnectionPool) Stat() (s ConnectionPoolStat) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	s.MaxConnections = p.maxConnections
+	s.CurrentConnections = len(p.allConnections)
+	s.AvailableConnections = len(p.availableConnections)
+	return
+}
+
+func (p *ConnectionPool) MaxConnectionCount() int {
+	return p.maxConnections
+}
+
+func (p *ConnectionPool) CurrentConnectionCount() int {
+	return p.maxConnections
 }
 
 func (p *ConnectionPool) createConnection() (c *Connection, err error) {
