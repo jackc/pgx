@@ -11,7 +11,7 @@ type test interface {
 var sharedConnection *pgx.Connection
 
 func getSharedConnection(t test) (c *pgx.Connection) {
-	if sharedConnection == nil {
+	if sharedConnection == nil || !sharedConnection.IsAlive() {
 		var err error
 		sharedConnection, err = pgx.Connect(*defaultConnectionParameters)
 		if err != nil {
