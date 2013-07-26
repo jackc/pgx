@@ -18,12 +18,13 @@ import (
 
 // ConnectionParameters contains all the options used to establish a connection.
 type ConnectionParameters struct {
-	Socket   string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
-	Host     string // url (e.g. localhost)
-	Port     uint16 // default: 5432
-	Database string
-	User     string
-	Password string
+	Socket     string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
+	Host       string // url (e.g. localhost)
+	Port       uint16 // default: 5432
+	Database   string
+	User       string
+	Password   string
+	MsgBufSize int // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
 }
 
 // Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -33,6 +34,7 @@ type Connection struct {
 	conn               net.Conn             // the underlying TCP or unix domain socket connection
 	writer             *bufio.Writer        // buffered writer to avoid sending tiny packets
 	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
+	bufSize            int                  // desired size of buf
 	Pid                int32                // backend pid
 	SecretKey          int32                // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string    // parameters that have been reported by the server
@@ -83,9 +85,6 @@ func (e ProtocolError) Error() string {
 	return string(e)
 }
 
-// sharedBufferSize is the default number of bytes of work buffer per connection
-const sharedBufferSize = 1024
-
 // Connect establishes a connection with a PostgreSQL server using parameters. One
 // of parameters.Socket or parameters.Host must be specified. parameters.User must
 // also the included. Other parameters fields are optional.
@@ -95,6 +94,9 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c.parameters = parameters
 	if c.parameters.Port == 0 {
 		c.parameters.Port = 5432
+	}
+	if c.parameters.MsgBufSize == 0 {
+		c.parameters.MsgBufSize = 1024
 	}
 
 	if c.parameters.Socket != "" {
@@ -115,7 +117,8 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	}()
 
 	c.writer = bufio.NewWriter(c.conn)
-	c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
+	c.bufSize = c.parameters.MsgBufSize
+	c.buf = bytes.NewBuffer(make([]byte, 0, c.bufSize))
 	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*preparedStatement)
 
@@ -819,8 +822,8 @@ func (c *Connection) txPasswordMessage(password string) (err error) {
 // old one can get GC'ed
 func (c *Connection) getBuf() *bytes.Buffer {
 	c.buf.Reset()
-	if cap(c.buf.Bytes()) > sharedBufferSize {
-		c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
+	if cap(c.buf.Bytes()) > c.bufSize {
+		c.buf = bytes.NewBuffer(make([]byte, 0, c.bufSize))
 	}
 	return c.buf
 }
