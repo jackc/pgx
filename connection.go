@@ -278,6 +278,109 @@ func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interf
 	return
 }
 
+// SelectValueTo executes sql that returns a single value and writes that value to w.
+// No type conversions will be performed. The raw bytes will be written directly to w.
+// This is ideal for returning JSON, files, or large text values directly over HTTP.
+
+// sql can be either a prepared statement name or an SQL string. arguments will be
+// sanitized before being interpolated into sql strings. arguments should be
+// referenced positionally from the sql string as $1, $2, etc.
+//
+// Returns a UnexpectedColumnCountError if exactly one column is not found
+// Returns a NotSingleRowError if exactly one row is not found
+func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+	if err = c.sendQuery(sql, arguments...); err != nil {
+		return
+	}
+
+	var numRowsFound int64
+
+	for {
+		if t, bodySize, rxErr := c.rxMsgHeader(); rxErr == nil {
+			if t == dataRow {
+				numRowsFound++
+
+				if numRowsFound > 1 {
+					err = NotSingleRowError{RowCount: numRowsFound}
+				}
+
+				if err != nil {
+					c.rxMsgBody(bodySize) // Read and discard rest of message
+					continue
+				}
+
+				err = c.rxDataRowValueTo(w, bodySize)
+			} else {
+				var body *bytes.Buffer
+				if body, rxErr = c.rxMsgBody(bodySize); rxErr == nil {
+					r := newMessageReader(body)
+					switch t {
+					case readyForQuery:
+						c.rxReadyForQuery(r)
+						return
+					case rowDescription:
+					case commandComplete:
+					case bindComplete:
+					default:
+						if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
+							err = e
+						}
+					}
+				} else {
+					return rxErr
+				}
+			}
+		} else {
+			return rxErr
+		}
+	}
+	return
+}
+
+func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
+	buf := c.getBuf()
+	if _, err = io.CopyN(buf, c.conn, 6); err != nil {
+		c.die(err)
+		return
+	}
+
+	var columnCount int16
+	err = binary.Read(buf, binary.BigEndian, &columnCount)
+	if err != nil {
+		c.die(err)
+		return
+	}
+
+	if columnCount != 1 {
+		// Read the rest of the data row so it can be discarded
+		if _, err = io.CopyN(buf, c.conn, int64(bodySize-6)); err != nil {
+			c.die(err)
+			return
+		}
+		err = UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: columnCount}
+		return
+	}
+
+	var valueSize int32
+	err = binary.Read(buf, binary.BigEndian, &valueSize)
+	if err != nil {
+		c.die(err)
+		return
+	}
+
+	if valueSize == -1 {
+		err = errors.New("SelectValueTo cannot handle null")
+		return
+	}
+
+	_, err = io.CopyN(w, c.conn, int64(valueSize))
+	if err != nil {
+		c.die(err)
+	}
+
+	return
+}
+
 // SelectValues executes sql and returns a slice of values. sql can be either a prepared
 // statement name or an SQL string. arguments will be sanitized before being
 // interpolated into sql strings. arguments should be referenced positionally from

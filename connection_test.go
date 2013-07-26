@@ -319,6 +319,53 @@ func TestConnectionSelectValue(t *testing.T) {
 	}
 }
 
+func TestConnectionSelectValueTo(t *testing.T) {
+	conn := getSharedConnection(t)
+	var err error
+
+	var buf bytes.Buffer
+	if err := conn.SelectValueTo(&buf, "select '[1,2,3,4,5]'::json"); err != nil {
+		t.Fatalf("SelectValueTo failed: %v", err)
+	}
+	if bytes.Compare(buf.Bytes(), []byte("[1,2,3,4,5]")) != 0 {
+		t.Fatalf("SelectValueTo did not write expected data: %v", string(buf.Bytes()))
+	}
+
+	// NotSingleRowError
+	err = conn.SelectValueTo(&buf, "select * from (values ('Matthew'), ('Mark'), ('Luke')) t")
+	if _, ok := err.(pgx.NotSingleRowError); !ok {
+		t.Fatalf("Multiple matching rows should have returned NotSingleRowError: %#v", err)
+	}
+	if conn.IsAlive() {
+		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
+	} else {
+		t.Fatal("SelectValueTo NotSingleRowError should not have killed connection")
+	}
+
+	// UnexpectedColumnCountError
+	err = conn.SelectValueTo(&buf, "select * from (values ('Matthew', 'Mark', 'Luke')) t")
+	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
+		t.Fatalf("Multiple matching rows should have returned UnexpectedColumnCountError: %#v", err)
+	}
+	if conn.IsAlive() {
+		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
+	} else {
+		t.Fatal("SelectValueTo UnexpectedColumnCountError should not have killed connection")
+	}
+
+	// Null
+	err = conn.SelectValueTo(&buf, "select null")
+	if err == nil || err.Error() != "SelectValueTo cannot handle null" {
+		t.Fatalf("Expected null error: %#v", err)
+	}
+	if conn.IsAlive() {
+		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
+	} else {
+		t.Fatal("SelectValueTo null error should not have killed connection")
+	}
+
+}
+
 func TestSelectValues(t *testing.T) {
 	conn := getSharedConnection(t)
 

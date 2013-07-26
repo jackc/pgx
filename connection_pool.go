@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"io"
 	"sync"
 )
 
@@ -187,6 +188,17 @@ func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v in
 	defer p.Release(c)
 
 	return c.SelectValue(sql, arguments...)
+}
+
+// SelectValueTo acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnectionPool) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+	var c *Connection
+	if c, err = p.Acquire(); err != nil {
+		return
+	}
+	defer p.Release(c)
+
+	return c.SelectValueTo(w, sql, arguments...)
 }
 
 // SelectValues acquires a connection, delegates the call to that connection, and releases the connection
