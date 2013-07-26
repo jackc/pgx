@@ -82,12 +82,24 @@ func (p *ConnectionPool) Acquire() (c *Connection, err error) {
 }
 
 // Release gives up use of a connection.
-func (p *ConnectionPool) Release(c *Connection) {
-	if c.TxStatus != 'I' {
-		c.Execute("rollback")
+func (p *ConnectionPool) Release(conn *Connection) {
+	if conn.TxStatus != 'I' {
+		conn.Execute("rollback")
 	}
+
 	p.cond.L.Lock()
-	p.availableConnections = append(p.availableConnections, c)
+	if conn.IsAlive() {
+		p.availableConnections = append(p.availableConnections, conn)
+	} else {
+		ac := p.allConnections
+		for i, c := range ac {
+			if conn == c {
+				ac[i] = ac[len(ac)-1]
+				p.allConnections = ac[0 : len(ac)-1]
+				break
+			}
+		}
+	}
 	p.cond.L.Unlock()
 	p.cond.Signal()
 }

@@ -38,6 +38,8 @@ type Connection struct {
 	TxStatus           byte
 	preparedStatements map[string]*preparedStatement
 	notifications      []*Notification
+	alive              bool
+	causeOfDeath       error
 }
 
 type preparedStatement struct {
@@ -129,6 +131,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 				}
 			case readyForQuery:
 				c.rxReadyForQuery(r)
+				c.alive = true
 				return c, nil
 			default:
 				if err = c.processContextFreeMsg(t, r); err != nil {
@@ -142,7 +145,9 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 }
 
 func (c *Connection) Close() (err error) {
-	return c.txMsg('X', c.getBuf())
+	err = c.txMsg('X', c.getBuf())
+	c.die(errors.New("Closed"))
+	return err
 }
 
 // SelectFunc executes sql and for each row returned calls onDataRow. sql can be
@@ -393,6 +398,14 @@ func (c *Connection) WaitForNotification(timeout time.Duration) (notification *N
 	}
 }
 
+func (c *Connection) IsAlive() bool {
+	return c.alive
+}
+
+func (c *Connection) CauseOfDeath() error {
+	return c.causeOfDeath
+}
+
 func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error) {
 	if ps, present := c.preparedStatements[sql]; present {
 		return c.sendPreparedQuery(ps, arguments...)
@@ -593,6 +606,12 @@ func (c *Connection) processContextFreeMsg(t byte, r *MessageReader) (err error)
 }
 
 func (c *Connection) rxMsg() (t byte, r *MessageReader, err error) {
+	defer func() {
+		if err != nil {
+			c.die(err)
+		}
+	}()
+
 	var bodySize int32
 	t, bodySize, err = c.rxMsgHeader()
 	if err != nil {
@@ -738,6 +757,12 @@ func (c *Connection) txStartupMessage(msg *startupMessage) (err error) {
 }
 
 func (c *Connection) txMsg(identifier byte, buf *bytes.Buffer) (err error) {
+	defer func() {
+		if err != nil {
+			c.die(err)
+		}
+	}()
+
 	err = binary.Write(c.conn, binary.BigEndian, identifier)
 	if err != nil {
 		return
@@ -776,4 +801,9 @@ func (c *Connection) getBuf() *bytes.Buffer {
 		c.buf = bytes.NewBuffer(make([]byte, 0, sharedBufferSize))
 	}
 	return c.buf
+}
+
+func (c *Connection) die(err error) {
+	c.alive = false
+	c.causeOfDeath = err
 }

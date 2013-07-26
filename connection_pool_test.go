@@ -200,3 +200,63 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 		t.Fatalf("Pool should have used all possible connections: %v", stat.CurrentConnections)
 	}
 }
+
+func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
+	maxConnections := 3
+	pool := createConnectionPool(t, maxConnections)
+	defer pool.Close()
+
+	var c1, c2 *pgx.Connection
+	var err error
+	var stat pgx.ConnectionPoolStat
+
+	if c1, err = pool.Acquire(); err != nil {
+		t.Fatalf("Unexpected error acquiring connection: %v", err)
+	}
+	defer func() {
+		if c1 != nil {
+			pool.Release(c1)
+		}
+	}()
+
+	if c2, err = pool.Acquire(); err != nil {
+		t.Fatalf("Unexpected error acquiring connection: %v", err)
+	}
+	defer func() {
+		if c2 != nil {
+			pool.Release(c2)
+		}
+	}()
+
+	if _, err = c2.Execute("select pg_terminate_backend($1)", c1.Pid); err != nil {
+		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+	}
+
+	// do something with the connection so it knows it's dead
+	if _, err = c1.SelectValue("select 1"); err == nil {
+		t.Fatal("Expected error but none occurred")
+	}
+
+	if c1.IsAlive() {
+		t.Fatal("Expected connection to be dead but it wasn't")
+	}
+
+	stat = pool.Stat()
+	if stat.CurrentConnections != 2 {
+		t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
+	}
+	if stat.AvailableConnections != 0 {
+		t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
+	}
+
+	pool.Release(c1)
+	c1 = nil // so it doesn't get released again by the defer
+
+	stat = pool.Stat()
+	if stat.CurrentConnections != 1 {
+		t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
+	}
+	if stat.AvailableConnections != 0 {
+		t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"github.com/JackC/pgx"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -615,5 +616,71 @@ func TestListenNotify(t *testing.T) {
 	}
 	if notification != nil {
 		t.Errorf("WaitForNotification returned an unexpected notification: %v", notification)
+	}
+}
+
+func TestFatalRxError(t *testing.T) {
+	conn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, err := conn.SelectValue("select 1, pg_sleep(10)")
+		if err == nil {
+			t.Fatal("Expected error but none occurred")
+		}
+	}()
+
+	otherConn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer otherConn.Close()
+
+	if _, err := otherConn.Execute("select pg_terminate_backend($1)", conn.Pid); err != nil {
+		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+	}
+
+	wg.Wait()
+
+	if conn.IsAlive() {
+		t.Fatal("Connection should not be live but was")
+	}
+	if conn.CauseOfDeath().Error() != "EOF" {
+		t.Fatalf("Connection cause of death was unexpected: %v", conn.CauseOfDeath())
+	}
+}
+
+func TestFatalTxError(t *testing.T) {
+	conn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	otherConn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer otherConn.Close()
+
+	if _, err := otherConn.Execute("select pg_terminate_backend($1)", conn.Pid); err != nil {
+		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+	}
+
+	if _, err := conn.SelectValue("select 1"); err == nil {
+		t.Fatal("Expected error but none occurred")
+	}
+
+	if conn.IsAlive() {
+		t.Fatal("Connection should not be live but was")
+	}
+	if conn.CauseOfDeath().Error() != "EOF" {
+		t.Fatalf("Connection cause of death was unexpected: %v", conn.CauseOfDeath())
 	}
 }
