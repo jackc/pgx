@@ -698,9 +698,6 @@ func TestFatalRxError(t *testing.T) {
 	if conn.IsAlive() {
 		t.Fatal("Connection should not be live but was")
 	}
-	if conn.CauseOfDeath().Error() != "EOF" {
-		t.Fatalf("Connection cause of death was unexpected: %v", conn.CauseOfDeath())
-	}
 }
 
 func TestFatalTxError(t *testing.T) {
