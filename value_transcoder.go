@@ -123,7 +123,7 @@ func init() {
 
 var arrayEl *regexp.Regexp = regexp.MustCompile(`[{,](?:"((?:[^"\\]|\\.)*)"|(NULL)|([^,}]+))`)
 
-// SplitArrayText
+// SplitArrayText is used by array transcoders to split array text into elements
 func SplitArrayText(text string) (elements []string) {
 	matches := arrayEl.FindAllStringSubmatch(text, -1)
 	elements = make([]string, 0, len(matches))
