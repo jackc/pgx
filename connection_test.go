@@ -252,6 +252,29 @@ func TestSelectRows(t *testing.T) {
 	}
 }
 
+func Example_connectionSelectRows() {
+	conn, err := pgx.Connect(*defaultConnectionParameters)
+	if err != nil {
+		fmt.Printf("Unable to establish connection: %v", err)
+		return
+	}
+
+	var rows []map[string]interface{}
+	if rows, err = conn.SelectRows("select generate_series(1,$1) as number", 5); err != nil {
+		fmt.Printf("Error selecting rows: %v", err)
+		return
+	}
+	for _, r := range rows {
+		fmt.Println(r["number"])
+	}
+	// Output:
+	// 1
+	// 2
+	// 3
+	// 4
+	// 5
+}
+
 func TestSelectRow(t *testing.T) {
 	conn := getSharedConnection(t)
 
