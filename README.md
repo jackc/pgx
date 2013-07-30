@@ -22,10 +22,13 @@ standard Scan interface. These directly return interface{}, []interface{},
 map[string]interface{}, and []map[string]interface{} respectively. SelectFunc
 offers custom row by row processing.
 
-    if widgets, err := conn.SelectRows("select * from widgets where type=$1", type); err != nil {
-        // do something with widgets
+```go
+if widgets, err := conn.SelectRows("select name, weight from widgets where type=$1", type); err != nil {
+    for w := range widgets {
+        fmt.Printf("%v has a weight of %v.", widgets["name"], widgets["weight"])
     }
-
+}
+```
 
 ### Prepared Statements
 
