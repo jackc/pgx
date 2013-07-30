@@ -65,8 +65,8 @@ ensure all connections have the same prepared statements available or to
 change any other connection settings.
 
 It also delegates Select* and Execute functions to an automatically checked
-out and released connection so you can have as much or as little control of
-the connection pool as you need..
+out and released connection so you can avoid manually acquiring and releasing
+connections when you do not need that level of control.
 
 ```go
 if widgets, err := pool.SelectRows("select * from widgets where type=$1", type); err != nil {
@@ -105,31 +105,33 @@ if notification, err := conn.WaitForNotification(time.Second); err != nil {
 Pgx includes transcoders for the common data types like integers, floats,
 strings, dates, and times that have direct mappings between Go and SQL.
 Transcoders can be added for additional types like point, hstore, numeric,
-etc. that do not have direct mappings in Go. Pgx has a map of PostgreSQL OID's
-to transcoders. All that is needed to add or change how a data type is to set
-that OID's transcoder. See example_value_transcoder_test.go for an example of
-a custom transcoder for the PostgreSQL point type.
+etc. that do not have direct mappings in Go. pgx.ValueTranscoders is a map of
+PostgreSQL OID's to transcoders. All that is needed to add or change how a
+data type is to set that OID's transcoder. See
+example_value_transcoder_test.go for an example of a custom transcoder for the
+PostgreSQL point type.
 
 ### SelectValueTo
 
-There are some cases where go is used as an HTTP server that is directly
-relaying single values from PostgreSQL (such as JSON r binary blobs).
+There are some cases where Go is used as an HTTP server that is directly
+relaying single values from PostgreSQL (such as JSON or binary blobs).
 SelectValueTo copies the single returned value directly from PostgreSQL to a
-io.Writer. This can be faster especially when the values are at least many KB
-in size.
+io.Writer. This can be faster than SelectValue then write especially when the
+values are at least many KB in size.
 
 ### Null Mapping
 
 As pgx uses interface{} for all values SQL nulls are mapped to nil. This
 eliminates the need for wrapping values in structs that include a boolean for
-the null possibility. On the downside, this does present difficulties dealing
-with complex types such as arrays. pgx directly maps a Go []int32 to a
-PostgreSQL int4[]. The problem is the PostgreSQL array can include nulls, but
-the Go slice cannot. Because of this array transcoding should be considered
-experimental. On the plus side, because of the pluggable transcoder support,
-an application that wished to handle arrays (or any types) differently can
-easily override the default transcoding (so even using a strict with value and
-null fields would simply be a matter of changing transcoders).
+the null possibility. On the other hand, returned values usually must be type
+asserted before use. It also presents difficulties dealing with complex types
+such as arrays. pgx directly maps a Go []int32 to a PostgreSQL int4[]. The
+problem is the PostgreSQL array can include nulls, but the Go slice cannot.
+Array transcoding should be considered experimental. On the plus side, because
+of the pluggable transcoder support, an application that wished to handle
+arrays (or any types) differently can easily override the default transcoding
+(so even using a strict with value and null fields would simply be a matter of
+changing transcoders).
 
 ## Testing
 
