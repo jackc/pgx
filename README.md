@@ -1,6 +1,6 @@
 # pgx
 
-Experimental PostgreSQL client library for Go
+PostgreSQL client library for Go
 
 ## Usage
 
