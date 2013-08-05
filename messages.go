@@ -21,6 +21,7 @@ const (
 	parameterDescription = 't'
 	bindComplete         = '2'
 	notificationResponse = 'A'
+	noData               = 'n'
 )
 
 type startupMessage struct {

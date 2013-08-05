@@ -454,6 +454,7 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 						ps.FieldDescriptions[i].FormatCode = 1
 					}
 				}
+			case noData:
 			case readyForQuery:
 				c.rxReadyForQuery(r)
 				c.preparedStatements[name] = &ps

@@ -495,6 +495,11 @@ func TestPrepare(t *testing.T) {
 			t.Errorf("Expected: %#v Received: %#v", bytea, result)
 		}
 	}
+
+	mustExecute(t, conn, "create temporary table foo(id serial)")
+	if err = conn.Prepare("deleteFoo", "delete from foo"); err != nil {
+		t.Fatalf("Unable to prepare delete: %v", err)
+	}
 }
 
 func TestPrepareFailure(t *testing.T) {
