@@ -60,6 +60,8 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 			return strconv.FormatFloat(float64(arg), 'f', -1, 32)
 		case float64:
 			return strconv.FormatFloat(arg, 'f', -1, 64)
+		case bool:
+			return strconv.FormatBool(arg)
 		case []byte:
 			return `E'\\x` + hex.EncodeToString(arg) + `'`
 		case []int16:

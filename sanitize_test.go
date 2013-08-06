@@ -31,6 +31,10 @@ func TestSanitizeSql(t *testing.T) {
 		t.Errorf("Failed to pass through float: %v - %v", san, err)
 	}
 
+	if san, err := conn.SanitizeSql("select $1", true); err != nil || san != "select true" {
+		t.Errorf("Failed to pass through bool: %v - %v", san, err)
+	}
+
 	if san, err := conn.SanitizeSql("select $1, $2, $3", "Jack's", 42, 1.23); err != nil || san != "select 'Jack''s', 42, 1.23" {
 		t.Errorf("Failed to sanitize multiple params: %v - %v", san, err)
 	}
