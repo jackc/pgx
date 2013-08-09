@@ -32,7 +32,7 @@ func NewMigrator(conn *pgx.Connection, versionTable string) (m *Migrator, err er
 }
 
 func (m *Migrator) AppendMigration(name, sql string) {
-	m.Migrations = append(m.Migrations, &Migration{Sequence: int32(len(m.Migrations)), Name: name, SQL: sql})
+	m.Migrations = append(m.Migrations, &Migration{Sequence: int32(len(m.Migrations) + 1), Name: name, SQL: sql})
 	return
 }
 
