@@ -77,6 +77,22 @@ func TestConnectWithTcp(t *testing.T) {
 	}
 }
 
+func TestConnectWithSSL(t *testing.T) {
+	if sslConnectionParameters == nil {
+		return
+	}
+
+	conn, err := pgx.Connect(*sslConnectionParameters)
+	if err != nil {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnectWithInvalidUser(t *testing.T) {
 	if invalidUserConnectionParameters == nil {
 		return
