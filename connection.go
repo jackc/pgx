@@ -25,8 +25,8 @@ type ConnectionParameters struct {
 	Database   string
 	User       string
 	Password   string
-	MsgBufSize int  // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
-	SSL        bool // Require SSL connection
+	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
+	SSLConfig  *tls.Config // config for TLS connection -- nil disables TLS
 }
 
 // Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -125,7 +125,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c.preparedStatements = make(map[string]*preparedStatement)
 	c.alive = true
 
-	if parameters.SSL {
+	if parameters.SSLConfig != nil {
 		if err = c.startSSL(); err != nil {
 			return
 		}
@@ -910,8 +910,7 @@ func (c *Connection) startSSL() (err error) {
 		return
 	}
 
-	config := &tls.Config{InsecureSkipVerify: true}
-	c.conn = tls.Client(c.conn, config)
+	c.conn = tls.Client(c.conn, c.parameters.SSLConfig)
 
 	return nil
 }
