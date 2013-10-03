@@ -100,6 +100,12 @@ if notification, err := conn.WaitForNotification(time.Second); err != nil {
 }
 ```
 
+### TLS
+
+The pgx ConnectionParameters struct has a TLSConfig field. If this field is
+nil, then TLS will be disabled. If it is present, then it will be used to
+configure the TLS connection.
+
 ### Custom Transcoder Support
 
 Pgx includes transcoders for the common data types like integers, floats,
