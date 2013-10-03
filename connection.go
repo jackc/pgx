@@ -26,7 +26,7 @@ type ConnectionParameters struct {
 	User       string
 	Password   string
 	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
-	SSLConfig  *tls.Config // config for TLS connection -- nil disables TLS
+	TLSConfig  *tls.Config // config for TLS connection -- nil disables TLS
 }
 
 // Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -125,8 +125,8 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c.preparedStatements = make(map[string]*preparedStatement)
 	c.alive = true
 
-	if parameters.SSLConfig != nil {
-		if err = c.startSSL(); err != nil {
+	if parameters.TLSConfig != nil {
+		if err = c.startTLS(); err != nil {
 			return
 		}
 	}
@@ -894,7 +894,7 @@ func (c *Connection) rxNotificationResponse(r *MessageReader) (err error) {
 	return
 }
 
-func (c *Connection) startSSL() (err error) {
+func (c *Connection) startTLS() (err error) {
 	err = binary.Write(c.conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
@@ -906,11 +906,11 @@ func (c *Connection) startSSL() (err error) {
 	}
 
 	if response[0] != 'S' {
-		err = errors.New("Could not use SSL")
+		err = errors.New("Could not use TLS")
 		return
 	}
 
-	c.conn = tls.Client(c.conn, c.parameters.SSLConfig)
+	c.conn = tls.Client(c.conn, c.parameters.TLSConfig)
 
 	return nil
 }

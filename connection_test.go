@@ -77,12 +77,12 @@ func TestConnectWithTcp(t *testing.T) {
 	}
 }
 
-func TestConnectWithSSL(t *testing.T) {
-	if sslConnectionParameters == nil {
+func TestConnectWithTLS(t *testing.T) {
+	if tlsConnectionParameters == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*sslConnectionParameters)
+	conn, err := pgx.Connect(*tlsConnectionParameters)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
