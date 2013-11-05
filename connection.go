@@ -27,6 +27,7 @@ type ConnectionParameters struct {
 	Password   string
 	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
 	TLSConfig  *tls.Config // config for TLS connection -- nil disables TLS
+	Logger     Logger
 }
 
 // Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -46,6 +47,7 @@ type Connection struct {
 	notifications      []*Notification
 	alive              bool
 	causeOfDeath       error
+	logger             Logger
 }
 
 type preparedStatement struct {
@@ -94,21 +96,33 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
 	c.parameters = parameters
+	if c.parameters.Logger != nil {
+		c.logger = c.parameters.Logger
+	} else {
+		c.logger = nullLogger("null")
+	}
+
 	if c.parameters.Port == 0 {
+		c.logger.Debug("Using default Port")
 		c.parameters.Port = 5432
 	}
 	if c.parameters.MsgBufSize == 0 {
+		c.logger.Debug("Using default MsgBufSize")
 		c.parameters.MsgBufSize = 1024
 	}
 
 	if c.parameters.Socket != "" {
+		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at socket: %s", c.parameters.Socket))
 		c.conn, err = net.Dial("unix", c.parameters.Socket)
 		if err != nil {
+			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
 		}
 	} else if c.parameters.Host != "" {
+		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at host: %s:%d", c.parameters.Host, c.parameters.Port))
 		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.parameters.Host, c.parameters.Port))
 		if err != nil {
+			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
 		}
 	}
@@ -116,6 +130,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 		if c != nil && err != nil {
 			c.conn.Close()
 			c.alive = false
+			c.logger.Error(err.Error())
 		}
 	}()
 
@@ -126,7 +141,9 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c.alive = true
 
 	if parameters.TLSConfig != nil {
+		c.logger.Debug("Starting TLS handshake")
 		if err = c.startTLS(); err != nil {
+			c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
 			return
 		}
 	}
@@ -155,6 +172,8 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 				}
 			case readyForQuery:
 				c.rxReadyForQuery(r)
+				c.logger = newPidLogger(c.Pid, c.logger)
+				c.logger.Info("Connection established")
 				return c, nil
 			default:
 				if err = c.processContextFreeMsg(t, r); err != nil {
@@ -170,6 +189,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 func (c *Connection) Close() (err error) {
 	err = c.txMsg('X', c.getBuf(), true)
 	c.die(errors.New("Closed"))
+	c.logger.Info("Closed connection")
 	return err
 }
 
@@ -183,6 +203,12 @@ func (c *Connection) Close() (err error) {
 // it is possible to process some rows and then for an error to occur. Callers
 // should be aware of this possibility.
 func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("SelectFunc `%s` with %v failed: %v", sql, arguments, err))
+		}
+	}()
+
 	var fields []FieldDescription
 
 	if ps, present := c.preparedStatements[sql]; present {
@@ -298,6 +324,12 @@ func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interf
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
 func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("SelectValueTo `%s` with %v failed: %v", sql, arguments, err))
+		}
+	}()
+
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
 	}
@@ -413,6 +445,12 @@ func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Connection) Prepare(name, sql string) (err error) {
+	defer func() {
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
+		}
+	}()
+
 	// parse
 	buf := c.getBuf()
 	w := newMessageWriter(buf)
@@ -638,6 +676,12 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+	defer func() {
+		if err != nil {
+			c.logger.Error(fmt.Sprintf("Execute `%s` with %v failed: %v", sql, arguments, err))
+		}
+	}()
+
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
 	}
@@ -978,6 +1022,7 @@ func (c *Connection) txPasswordMessage(password string) (err error) {
 func (c *Connection) getBuf() *bytes.Buffer {
 	c.buf.Reset()
 	if cap(c.buf.Bytes()) > c.bufSize {
+		c.logger.Debug(fmt.Sprintf("c.buf (%d) is larger than c.bufSize (%d) -- resetting", cap(c.buf.Bytes()), c.bufSize))
 		c.buf = bytes.NewBuffer(make([]byte, 0, c.bufSize))
 	}
 	return c.buf

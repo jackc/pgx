@@ -139,6 +139,12 @@ arrays (or any types) differently can easily override the default transcoding
 (so even using a strict with value and null fields would simply be a matter of
 changing transcoders).
 
+### Logging
+
+Pgx defines the pgx.Logger interface. A value that satisfies this interface
+used as part of ConnectionOptions or ConnectionPoolOptions to enable logging
+of pgx activities.
+
 ## Testing
 
 Pgx supports multiple connection and authentication types. Setting up a test

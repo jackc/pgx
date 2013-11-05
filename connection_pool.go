@@ -8,6 +8,7 @@ import (
 type ConnectionPoolOptions struct {
 	MaxConnections int // max simultaneous connections to use
 	AfterConnect   func(*Connection) error
+	Logger         Logger
 }
 
 type ConnectionPool struct {
@@ -17,6 +18,7 @@ type ConnectionPool struct {
 	parameters           ConnectionParameters // parameters used when establishing connection
 	maxConnections       int
 	afterConnect         func(*Connection) error
+	logger               Logger
 }
 
 type ConnectionPoolStat struct {
@@ -32,6 +34,11 @@ func NewConnectionPool(parameters ConnectionParameters, options ConnectionPoolOp
 	p.parameters = parameters
 	p.maxConnections = options.MaxConnections
 	p.afterConnect = options.AfterConnect
+	if options.Logger != nil {
+		p.logger = options.Logger
+	} else {
+		p.logger = nullLogger("null")
+	}
 
 	p.allConnections = make([]*Connection, 0, p.maxConnections)
 	p.availableConnections = make([]*Connection, 0, p.maxConnections)
@@ -72,8 +79,11 @@ func (p *ConnectionPool) Acquire() (c *Connection, err error) {
 	}
 
 	// All connections are in use and we cannot create more
-	for len(p.availableConnections) == 0 {
-		p.cond.Wait()
+	if len(p.availableConnections) == 0 {
+		p.logger.Warning("All connections in pool are busy - waiting...")
+		for len(p.availableConnections) == 0 {
+			p.cond.Wait()
+		}
 	}
 
 	c = p.availableConnections[len(p.availableConnections)-1]
