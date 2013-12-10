@@ -53,10 +53,7 @@ when using the bytea type).
 
 ### Explicit Connection Pool
 
-Connection pool usage is explicit and configurable. The standard Go SQL
-interface automatically uses a connection pool, and does not provide a way to
-control the maximum number of connections (hopefully soon to change --
-https://code.google.com/p/go/issues/detail?id=4805). In pgx, a connection can
+Connection pool usage is explicit and configurable. In pgx, a connection can
 be created and managed directly, or a connection pool with a configurable
 maximum connections can be used. Also, the connection pool offers an after
 connect hook that allows every connection to be automatically setup before
