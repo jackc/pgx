@@ -2,15 +2,12 @@ package pgx_test
 
 import (
 	"github.com/JackC/pgx"
+	"testing"
 )
-
-type test interface {
-	Fatalf(format string, args ...interface{})
-}
 
 var sharedConnection *pgx.Connection
 
-func getSharedConnection(t test) (c *pgx.Connection) {
+func getSharedConnection(t testing.TB) (c *pgx.Connection) {
 	if sharedConnection == nil || !sharedConnection.IsAlive() {
 		var err error
 		sharedConnection, err = pgx.Connect(*defaultConnectionParameters)
@@ -22,13 +19,13 @@ func getSharedConnection(t test) (c *pgx.Connection) {
 	return sharedConnection
 }
 
-func mustPrepare(t test, conn *pgx.Connection, name, sql string) {
+func mustPrepare(t testing.TB, conn *pgx.Connection, name, sql string) {
 	if err := conn.Prepare(name, sql); err != nil {
 		t.Fatalf("Could not prepare %v: %v", name, err)
 	}
 }
 
-func mustExecute(t test, conn *pgx.Connection, sql string, arguments ...interface{}) (commandTag string) {
+func mustExecute(t testing.TB, conn *pgx.Connection, sql string, arguments ...interface{}) (commandTag string) {
 	var err error
 	if commandTag, err = conn.Execute(sql, arguments...); err != nil {
 		t.Fatalf("Execute unexpectedly failed with %v: %v", sql, err)
@@ -36,7 +33,7 @@ func mustExecute(t test, conn *pgx.Connection, sql string, arguments ...interfac
 	return
 }
 
-func mustSelectRow(t test, conn *pgx.Connection, sql string, arguments ...interface{}) (row map[string]interface{}) {
+func mustSelectRow(t testing.TB, conn *pgx.Connection, sql string, arguments ...interface{}) (row map[string]interface{}) {
 	var err error
 	if row, err = conn.SelectRow(sql, arguments...); err != nil {
 		t.Fatalf("SelectRow unexpectedly failed with %v: %v", sql, err)
@@ -44,7 +41,7 @@ func mustSelectRow(t test, conn *pgx.Connection, sql string, arguments ...interf
 	return
 }
 
-func mustSelectRows(t test, conn *pgx.Connection, sql string, arguments ...interface{}) (rows []map[string]interface{}) {
+func mustSelectRows(t testing.TB, conn *pgx.Connection, sql string, arguments ...interface{}) (rows []map[string]interface{}) {
 	var err error
 	if rows, err = conn.SelectRows(sql, arguments...); err != nil {
 		t.Fatalf("SelectRows unexpected failed with %v: %v", sql, err)
@@ -52,7 +49,7 @@ func mustSelectRows(t test, conn *pgx.Connection, sql string, arguments ...inter
 	return
 }
 
-func mustSelectValue(t test, conn *pgx.Connection, sql string, arguments ...interface{}) (value interface{}) {
+func mustSelectValue(t testing.TB, conn *pgx.Connection, sql string, arguments ...interface{}) (value interface{}) {
 	var err error
 	if value, err = conn.SelectValue(sql, arguments...); err != nil {
 		t.Fatalf("SelectValue unexpectedly failed with %v: %v", sql, err)
