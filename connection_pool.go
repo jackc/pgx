@@ -232,3 +232,33 @@ func (p *ConnectionPool) Execute(sql string, arguments ...interface{}) (commandT
 
 	return c.Execute(sql, arguments...)
 }
+
+// Transaction acquires a connection, delegates the call to that connection,
+// and releases the connection. The call signature differs slightly from the
+// underlying Transaction in that the callback function accepts a *Connection
+func (p *ConnectionPool) Transaction(f func(conn *Connection) bool) (committed bool, err error) {
+	var c *Connection
+	if c, err = p.Acquire(); err != nil {
+		return
+	}
+	defer p.Release(c)
+
+	return c.Transaction(func() bool {
+		return f(c)
+	})
+}
+
+// TransactionIso acquires a connection, delegates the call to that connection,
+// and releases the connection. The call signature differs slightly from the
+// underlying TransactionIso in that the callback function accepts a *Connection
+func (p *ConnectionPool) TransactionIso(isoLevel string, f func(conn *Connection) bool) (committed bool, err error) {
+	var c *Connection
+	if c, err = p.Acquire(); err != nil {
+		return
+	}
+	defer p.Release(c)
+
+	return c.TransactionIso(isoLevel, func() bool {
+		return f(c)
+	})
+}

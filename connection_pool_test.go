@@ -260,3 +260,74 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 		t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
 	}
 }
+
+func TestPoolTransaction(t *testing.T) {
+	pool := createConnectionPool(t, 1)
+	defer pool.Close()
+
+	committed, err := pool.Transaction(func(conn *pgx.Connection) bool {
+		mustExecute(t, conn, "create temporary table foo(id serial primary key)")
+		return true
+	})
+	if err != nil {
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
+	}
+	if !committed {
+		t.Fatal("Transaction was not committed when it should have been")
+	}
+
+	committed, err = pool.Transaction(func(conn *pgx.Connection) bool {
+		n := mustSelectValue(t, conn, "select count(*) from foo")
+		if n.(int64) != 0 {
+			t.Fatalf("Did not receive expected value: %v", n)
+		}
+
+		mustExecute(t, conn, "insert into foo(id) values(default)")
+
+		n = mustSelectValue(t, conn, "select count(*) from foo")
+		if n.(int64) != 1 {
+			t.Fatalf("Did not receive expected value: %v", n)
+		}
+
+		return false
+	})
+	if err != nil {
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
+	}
+	if committed {
+		t.Fatal("Transaction was committed when it shouldn't have been")
+	}
+
+	committed, err = pool.Transaction(func(conn *pgx.Connection) bool {
+		n := mustSelectValue(t, conn, "select count(*) from foo")
+		if n.(int64) != 0 {
+			t.Fatalf("Did not receive expected value: %v", n)
+		}
+		return true
+	})
+	if err != nil {
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
+	}
+	if !committed {
+		t.Fatal("Transaction was not committed when it should have been")
+	}
+
+}
+
+func TestPoolTransactionIso(t *testing.T) {
+	pool := createConnectionPool(t, 1)
+	defer pool.Close()
+
+	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Connection) bool {
+		if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != "serializable" {
+			t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
+		}
+		return true
+	})
+	if err != nil {
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
+	}
+	if !committed {
+		t.Fatal("Transaction was not committed when it should have been")
+	}
+}
