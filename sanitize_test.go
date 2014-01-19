@@ -19,6 +19,10 @@ func TestQuoteString(t *testing.T) {
 func TestSanitizeSql(t *testing.T) {
 	conn := getSharedConnection(t)
 
+	if san, err := conn.SanitizeSql("select $1", nil); err != nil || san != "select null" {
+		t.Errorf("Failed to translate nil to null: %v - %v", san, err)
+	}
+
 	if san, err := conn.SanitizeSql("select $1", "Jack's"); err != nil || san != "select 'Jack''s'" {
 		t.Errorf("Failed to sanitize string: %v - %v", san, err)
 	}

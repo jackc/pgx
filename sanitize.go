@@ -76,6 +76,8 @@ func (c *Connection) SanitizeSql(sql string, args ...interface{}) (output string
 			var s string
 			s, err = int64SliceToArrayString(arg)
 			return c.QuoteString(s)
+		case nil:
+			return "null"
 		default:
 			err = fmt.Errorf("Unable to sanitize type: %T", arg)
 			return ""
