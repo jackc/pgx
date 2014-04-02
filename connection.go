@@ -622,11 +622,15 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 
 	w.Write(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		transcoder := ValueTranscoders[oid]
-		if transcoder == nil {
-			transcoder = defaultTranscoder
+		if arguments[i] != nil {
+			transcoder := ValueTranscoders[oid]
+			if transcoder == nil {
+				transcoder = defaultTranscoder
+			}
+			transcoder.EncodeTo(w, arguments[i])
+		} else {
+			w.Write(int32(-1))
 		}
-		transcoder.EncodeTo(w, arguments[i])
 	}
 
 	w.Write(int16(len(ps.FieldDescriptions)))
