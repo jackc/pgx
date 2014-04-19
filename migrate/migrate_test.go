@@ -228,6 +228,7 @@ func (s *MigrateSuite) TestMigrateToLifeCycle(c *C) {
 	c.Assert(onStartCallUpCount, Equals, 6)
 	c.Assert(onStartCallDownCount, Equals, 3)
 }
+
 func (s *MigrateSuite) TestMigrateToBoundaries(c *C) {
 	m := s.createSampleMigrator(c)
 
