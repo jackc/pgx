@@ -14,14 +14,15 @@ func (e BadVersionError) Error() string {
 type Migration struct {
 	Sequence int32
 	Name     string
-	SQL      string
+	UpSQL    string
+	DownSQL  string
 }
 
 type Migrator struct {
 	conn         *pgx.Connection
 	versionTable string
 	Migrations   []*Migration
-	OnStart      func(*Migration) `called when Migrate starts a migration`
+	OnStart      func(*Migration, string) // OnStart is called when a migration is run with the migration and direction
 }
 
 func NewMigrator(conn *pgx.Connection, versionTable string) (m *Migrator, err error) {
@@ -31,50 +32,79 @@ func NewMigrator(conn *pgx.Connection, versionTable string) (m *Migrator, err er
 	return
 }
 
-func (m *Migrator) AppendMigration(name, sql string) {
-	m.Migrations = append(m.Migrations, &Migration{Sequence: int32(len(m.Migrations) + 1), Name: name, SQL: sql})
+func (m *Migrator) AppendMigration(name, upSQL, downSQL string) {
+	m.Migrations = append(m.Migrations, &Migration{Sequence: int32(len(m.Migrations)) + 1, Name: name, UpSQL: upSQL, DownSQL: downSQL})
 	return
 }
 
 // Migrate runs pending migrations
 // It calls m.OnStart when it begins a migration
 func (m *Migrator) Migrate() error {
-	var done bool
+	return m.MigrateTo(int32(len(m.Migrations)))
+}
 
-	for !done {
+// MigrateTo migrates to targetVersion
+func (m *Migrator) MigrateTo(targetVersion int32) (err error) {
+	// Lock to ensure multiple migrations cannot occur simultaneously
+	lockNum := int64(9628173550095224) // arbitrary random number
+	if _, lockErr := m.conn.Execute("select pg_advisory_lock($1)", lockNum); lockErr != nil {
+		return lockErr
+	}
+	defer func() {
+		_, unlockErr := m.conn.Execute("select pg_advisory_unlock($1)", lockNum)
+		if err == nil && unlockErr != nil {
+			err = unlockErr
+		}
+	}()
+
+	currentVersion, err := m.GetCurrentVersion()
+	if err != nil {
+		return err
+	}
+
+	if targetVersion < 0 || int32(len(m.Migrations)) < targetVersion {
+		errMsg := fmt.Sprintf("%s version %d is outside the valid versions of 0 to %d", m.versionTable, targetVersion, len(m.Migrations))
+		return BadVersionError(errMsg)
+	}
+
+	var direction int32
+	if currentVersion < targetVersion {
+		direction = 1
+	} else {
+		direction = -1
+	}
+
+	for currentVersion != targetVersion {
+		var current *Migration
+		var sql, directionName string
+		var sequence int32
+		if direction == 1 {
+			current = m.Migrations[currentVersion]
+			sequence = current.Sequence
+			sql = current.UpSQL
+			directionName = "up"
+		} else {
+			current = m.Migrations[currentVersion-1]
+			sequence = current.Sequence - 1
+			sql = current.DownSQL
+			directionName = "down"
+		}
+
 		var innerErr error
-
-		var txErr error
-		_, txErr = m.conn.Transaction(func() bool {
-			// Lock version table for duration of transaction to ensure multiple migrations cannot occur simultaneously
-			if _, innerErr = m.conn.Execute("lock table " + m.versionTable); innerErr != nil {
-				return false
-			}
-
-			// Get pending migrations
-			var pending []*Migration
-			if pending, innerErr = m.PendingMigrations(); innerErr != nil {
-				return false
-			}
-
-			// If no migrations are pending set the done flag and return
-			if len(pending) == 0 {
-				done = true
-				return true
-			}
+		_, txErr := m.conn.Transaction(func() bool {
 
 			// Fire on start callback
 			if m.OnStart != nil {
-				m.OnStart(pending[0])
+				m.OnStart(current, directionName)
 			}
 
-			// Execute the first pending migration
-			if _, innerErr = m.conn.Execute(pending[0].SQL); innerErr != nil {
+			// Execute the migration
+			if _, innerErr = m.conn.Execute(sql); innerErr != nil {
 				return false
 			}
 
 			// Add one to the version
-			if _, innerErr = m.conn.Execute("update " + m.versionTable + " set version=version+1"); innerErr != nil {
+			if _, innerErr = m.conn.Execute("update "+m.versionTable+" set version=$1", sequence); innerErr != nil {
 				return false
 			}
 
@@ -88,26 +118,11 @@ func (m *Migrator) Migrate() error {
 		if innerErr != nil {
 			return innerErr
 		}
+
+		currentVersion = currentVersion + direction
 	}
 
 	return nil
-}
-
-func (m *Migrator) PendingMigrations() ([]*Migration, error) {
-	if len(m.Migrations) == 0 {
-		return m.Migrations, nil
-	}
-
-	if current, err := m.GetCurrentVersion(); err == nil {
-		current := int(current)
-		if current < 0 || len(m.Migrations) < current {
-			errMsg := fmt.Sprintf("%s version %d is outside the known migrations of 0 to %d", m.versionTable, current, len(m.Migrations))
-			return nil, BadVersionError(errMsg)
-		}
-		return m.Migrations[current:len(m.Migrations)], nil
-	} else {
-		return nil, err
-	}
 }
 
 func (m *Migrator) GetCurrentVersion() (int32, error) {

@@ -4,148 +4,202 @@ import (
 	"fmt"
 	"github.com/JackC/pgx"
 	"github.com/JackC/pgx/migrate"
+	. "gopkg.in/check.v1"
 	"testing"
 )
 
+type MigrateSuite struct {
+	conn *pgx.Connection
+}
+
+func Test(t *testing.T) { TestingT(t) }
+
+var _ = Suite(&MigrateSuite{})
+
 var versionTable string = "schema_version"
 
-func clearMigrate(t *testing.T, conn *pgx.Connection) {
-	tables := []string{versionTable, "t", "t1", "t2"}
-	for _, table := range tables {
-		mustExecute(t, conn, "drop table if exists "+table)
-	}
+func (s *MigrateSuite) SetUpTest(c *C) {
+	var err error
+	s.conn, err = pgx.Connect(*defaultConnectionParameters)
+	c.Assert(err, IsNil)
+
+	s.cleanupSampleMigrator(c)
 }
 
-func TestNewMigrator(t *testing.T) {
-	conn := mustConnect(t, defaultConnectionParameters)
-	clearMigrate(t, conn)
+func (s *MigrateSuite) SelectValue(c *C, sql string, arguments ...interface{}) interface{} {
+	value, err := s.conn.SelectValue(sql, arguments...)
+	c.Assert(err, IsNil)
+	return value
+}
 
-	var m *migrate.Migrator
-	var err error
-	m, err = migrate.NewMigrator(conn, versionTable)
-	if err != nil {
-		t.Fatalf("Unable to create migrator: %v", err)
-	}
+func (s *MigrateSuite) Execute(c *C, sql string, arguments ...interface{}) string {
+	commandTag, err := s.conn.Execute(sql, arguments...)
+	c.Assert(err, IsNil)
+	return commandTag
+}
 
-	schemaVersionExists := mustSelectValue(t,
-		conn,
+func (s *MigrateSuite) tableExists(c *C, tableName string) bool {
+	return s.SelectValue(c,
 		"select exists(select 1 from information_schema.tables where table_catalog=$1 and table_name=$2)",
 		defaultConnectionParameters.Database,
-		versionTable).(bool)
+		tableName).(bool)
+}
 
-	if !schemaVersionExists {
-		t.Fatalf("NewMigrator did not create %v table", versionTable)
-	}
+func (s *MigrateSuite) createEmptyMigrator(c *C) *migrate.Migrator {
+	var err error
+	m, err := migrate.NewMigrator(s.conn, versionTable)
+	c.Assert(err, IsNil)
+	return m
+}
 
-	m, err = migrate.NewMigrator(conn, versionTable)
-	if err != nil {
-		t.Fatalf("NewMigrator failed when %v table already exists: %v", versionTable, err)
-	}
+func (s *MigrateSuite) createSampleMigrator(c *C) *migrate.Migrator {
+	m := s.createEmptyMigrator(c)
+	m.AppendMigration("Create t1", "create table t1(id serial);", "drop table t1;")
+	m.AppendMigration("Create t2", "create table t2(id serial);", "drop table t2;")
+	m.AppendMigration("Create t3", "create table t3(id serial);", "drop table t3;")
+	return m
+}
 
-	var initialVersion int32
-	initialVersion, err = m.GetCurrentVersion()
-	if err != nil {
-		t.Fatalf("Failed to get current version: %v", err)
-	}
-	if initialVersion != 0 {
-		t.Fatalf("Expected initial version to be 0. but it was %v", initialVersion)
+func (s *MigrateSuite) cleanupSampleMigrator(c *C) {
+	tables := []string{versionTable, "t1", "t2", "t3"}
+	for _, table := range tables {
+		s.Execute(c, "drop table if exists "+table)
 	}
 }
 
-func TestAppendMigration(t *testing.T) {
-	conn := mustConnect(t, defaultConnectionParameters)
-	clearMigrate(t, conn)
-	m := mustCreateMigrator(t, conn)
+func (s *MigrateSuite) TestNewMigrator(c *C) {
+	var m *migrate.Migrator
+	var err error
 
-	name := "Update t"
-	sql := "update t set c=1"
-	m.AppendMigration(name, sql)
+	// Initial run
+	m, err = migrate.NewMigrator(s.conn, versionTable)
+	c.Assert(err, IsNil)
 
-	if len(m.Migrations) != 1 {
-		t.Fatal("Expected AppendMigration to add a migration but it didn't")
-	}
-	if m.Migrations[0].Name != name {
-		t.Fatalf("expected first migration Name to be %v, but it was %v", name, m.Migrations[0].Name)
-	}
-	if m.Migrations[0].SQL != sql {
-		t.Fatalf("expected first migration SQL to be %v, but it was %v", sql, m.Migrations[0].SQL)
-	}
+	// Creates version table
+	schemaVersionExists := s.tableExists(c, versionTable)
+	c.Assert(schemaVersionExists, Equals, true)
+
+	// Succeeds when version table is already created
+	m, err = migrate.NewMigrator(s.conn, versionTable)
+	c.Assert(err, IsNil)
+
+	initialVersion, err := m.GetCurrentVersion()
+	c.Assert(err, IsNil)
+	c.Assert(initialVersion, Equals, int32(0))
 }
 
-func TestPendingMigrations(t *testing.T) {
-	conn := mustConnect(t, defaultConnectionParameters)
-	clearMigrate(t, conn)
-	m := mustCreateMigrator(t, conn)
+func (s *MigrateSuite) TestAppendMigration(c *C) {
+	m := s.createEmptyMigrator(c)
 
-	m.AppendMigration("update t", "update t set c=1")
-	m.AppendMigration("update z", "update z set c=1")
+	name := "Create t"
+	upSQL := "create t..."
+	downSQL := "drop t..."
+	m.AppendMigration(name, upSQL, downSQL)
 
-	mustExecute(t, conn, "update "+versionTable+" set version=1")
-
-	pending, err := m.PendingMigrations()
-	if err != nil {
-		t.Fatalf("Unexpected error while getting pending migrations: %v", err)
-	}
-	if len(pending) != 1 {
-		t.Fatalf("Expected 1 pending migrations but there was %v", len(pending))
-	}
-	if pending[0] != m.Migrations[1] {
-		t.Fatal("Did not include expected migration as pending")
-	}
-
-	// Higher version than we know about
-	mustExecute(t, conn, "update "+versionTable+" set version=999")
-	_, err = m.PendingMigrations()
-	if _, ok := err.(migrate.BadVersionError); !ok {
-		t.Fatalf("Expected BadVersionError but received: %#v", err)
-	}
-
-	// Lower version than is possible
-	mustExecute(t, conn, "update "+versionTable+" set version=-1")
-	_, err = m.PendingMigrations()
-	if _, ok := err.(migrate.BadVersionError); !ok {
-		t.Fatalf("Expected BadVersionError but received: %#v", err)
-	}
+	c.Assert(len(m.Migrations), Equals, 1)
+	c.Assert(m.Migrations[0].Name, Equals, name)
+	c.Assert(m.Migrations[0].UpSQL, Equals, upSQL)
+	c.Assert(m.Migrations[0].DownSQL, Equals, downSQL)
 }
 
-func TestMigrate(t *testing.T) {
-	conn := mustConnect(t, defaultConnectionParameters)
-	clearMigrate(t, conn)
-	m := mustCreateMigrator(t, conn)
+func (s *MigrateSuite) TestMigrate(c *C) {
+	m := s.createSampleMigrator(c)
 
-	m.AppendMigration("create t", "create table t(name text primary key)")
+	err := m.Migrate()
+	c.Assert(err, IsNil)
+	currentVersion := s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(3))
+}
 
-	if err := m.Migrate(); err != nil {
-		t.Fatalf("Unexpected error running Migrate: %v", err)
+func (s *MigrateSuite) TestMigrateTo(c *C) {
+	m := s.createSampleMigrator(c)
+
+	var onStartCallUpCount int
+	var onStartCallDownCount int
+	m.OnStart = func(_ *migrate.Migration, direction string) {
+		switch direction {
+		case "up":
+			onStartCallUpCount++
+		case "down":
+			onStartCallDownCount++
+		default:
+			c.Fatalf("Unexpected direction: %s", direction)
+		}
 	}
 
-	if pending, err := m.PendingMigrations(); err != nil {
-		t.Fatalf("Unexpected error while getting pending migrations: %v", err)
-	} else if len(pending) != 0 {
-		t.Fatalf("Migrate did not do all migrations: %v pending", len(pending))
-	}
+	// Migrate to -1 is error
+	err := m.MigrateTo(-1)
+	c.Assert(err, ErrorMatches, "schema_version version -1 is outside the valid versions of 0 to 3")
 
-	// Now test the OnStart callback and the Migrate when some are already done
-	var onStartCallCount int
-	m.OnStart = func(*migrate.Migration) {
-		onStartCallCount++
-	}
-	m.AppendMigration("create t2", "create table t2(name text primary key)")
+	// Migrate past end is error
+	err = m.MigrateTo(int32(len(m.Migrations)) + 1)
+	c.Assert(err, ErrorMatches, "schema_version version 4 is outside the valid versions of 0 to 3")
 
-	if err := m.Migrate(); err != nil {
-		t.Fatalf("Unexpected error running Migrate: %v", err)
-	}
+	// Migrate from 0 up to 1
+	err = m.MigrateTo(1)
+	c.Assert(err, IsNil)
+	currentVersion := s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(1))
+	c.Assert(s.tableExists(c, "t1"), Equals, true)
+	c.Assert(s.tableExists(c, "t2"), Equals, false)
+	c.Assert(s.tableExists(c, "t3"), Equals, false)
+	c.Assert(onStartCallUpCount, Equals, 1)
+	c.Assert(onStartCallDownCount, Equals, 0)
 
-	if pending, err := m.PendingMigrations(); err != nil {
-		t.Fatalf("Unexpected error while getting pending migrations: %v", err)
-	} else if len(pending) != 0 {
-		t.Fatalf("Migrate did not do all migrations: %v pending", len(pending))
-	}
+	// Migrate from 1 up to 3
+	err = m.MigrateTo(3)
+	c.Assert(err, IsNil)
+	currentVersion = s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(3))
+	c.Assert(s.tableExists(c, "t1"), Equals, true)
+	c.Assert(s.tableExists(c, "t2"), Equals, true)
+	c.Assert(s.tableExists(c, "t3"), Equals, true)
+	c.Assert(onStartCallUpCount, Equals, 3)
+	c.Assert(onStartCallDownCount, Equals, 0)
 
-	if onStartCallCount != 1 {
-		t.Fatalf("Expected OnStart to be called 1 time, but it was called %v times", onStartCallCount)
-	}
+	// Migrate from 3 to 3 is no-op
+	err = m.MigrateTo(3)
+	c.Assert(err, IsNil)
+	currentVersion = s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(3))
+	c.Assert(s.tableExists(c, "t1"), Equals, true)
+	c.Assert(s.tableExists(c, "t2"), Equals, true)
+	c.Assert(s.tableExists(c, "t3"), Equals, true)
+	c.Assert(onStartCallUpCount, Equals, 3)
+	c.Assert(onStartCallDownCount, Equals, 0)
 
+	// Migrate from 3 down to 1
+	err = m.MigrateTo(1)
+	c.Assert(err, IsNil)
+	currentVersion = s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(1))
+	c.Assert(s.tableExists(c, "t1"), Equals, true)
+	c.Assert(s.tableExists(c, "t2"), Equals, false)
+	c.Assert(s.tableExists(c, "t3"), Equals, false)
+	c.Assert(onStartCallUpCount, Equals, 3)
+	c.Assert(onStartCallDownCount, Equals, 2)
+
+	// Migrate from 1 down to 0
+	err = m.MigrateTo(0)
+	c.Assert(err, IsNil)
+	currentVersion = s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(0))
+	c.Assert(s.tableExists(c, "t1"), Equals, false)
+	c.Assert(s.tableExists(c, "t2"), Equals, false)
+	c.Assert(s.tableExists(c, "t3"), Equals, false)
+	c.Assert(onStartCallUpCount, Equals, 3)
+	c.Assert(onStartCallDownCount, Equals, 3)
+
+	// Migrate back up to 3
+	err = m.MigrateTo(3)
+	c.Assert(err, IsNil)
+	currentVersion = s.SelectValue(c, "select version from schema_version")
+	c.Assert(currentVersion, Equals, int32(3))
+	c.Assert(s.tableExists(c, "t1"), Equals, true)
+	c.Assert(s.tableExists(c, "t2"), Equals, true)
+	c.Assert(s.tableExists(c, "t3"), Equals, true)
+	c.Assert(onStartCallUpCount, Equals, 6)
+	c.Assert(onStartCallDownCount, Equals, 3)
 }
 
 func Example_OnStartMigrationProgressLogging() {
@@ -168,16 +222,16 @@ func Example_OnStartMigrationProgressLogging() {
 		return
 	}
 
-	m.OnStart = func(migration *migrate.Migration) {
-		fmt.Printf("Executing: %v", migration.Name)
+	m.OnStart = func(migration *migrate.Migration, direction string) {
+		fmt.Printf("Migrating %s: %s", direction, migration.Name)
 	}
 
-	m.AppendMigration("create a table", "create temporary table foo(id serial primary key)")
+	m.AppendMigration("create a table", "create temporary table foo(id serial primary key)", "")
 
 	if err = m.Migrate(); err != nil {
 		fmt.Printf("Unexpected failure migrating: %v", err)
 		return
 	}
 	// Output:
-	// Executing: create a table
+	// Migrating up: create a table
 }
