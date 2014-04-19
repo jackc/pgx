@@ -11,6 +11,14 @@ func (e BadVersionError) Error() string {
 	return string(e)
 }
 
+type IrreversibleMigrationError struct {
+	m *Migration
+}
+
+func (e IrreversibleMigrationError) Error() string {
+	return fmt.Sprintf("Irreversible migration: %d - %s", e.m.Sequence, e.m.Name)
+}
+
 type Migration struct {
 	Sequence int32
 	Name     string
@@ -88,6 +96,9 @@ func (m *Migrator) MigrateTo(targetVersion int32) (err error) {
 			sequence = current.Sequence - 1
 			sql = current.DownSQL
 			directionName = "down"
+			if current.DownSQL == "" {
+				return IrreversibleMigrationError{m: current}
+			}
 		}
 
 		var innerErr error

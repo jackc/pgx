@@ -111,7 +111,7 @@ func (s *MigrateSuite) TestMigrate(c *C) {
 	c.Assert(currentVersion, Equals, int32(3))
 }
 
-func (s *MigrateSuite) TestMigrateTo(c *C) {
+func (s *MigrateSuite) TestMigrateToLifeCycle(c *C) {
 	m := s.createSampleMigrator(c)
 
 	var onStartCallUpCount int
@@ -127,16 +127,8 @@ func (s *MigrateSuite) TestMigrateTo(c *C) {
 		}
 	}
 
-	// Migrate to -1 is error
-	err := m.MigrateTo(-1)
-	c.Assert(err, ErrorMatches, "schema_version version -1 is outside the valid versions of 0 to 3")
-
-	// Migrate past end is error
-	err = m.MigrateTo(int32(len(m.Migrations)) + 1)
-	c.Assert(err, ErrorMatches, "schema_version version 4 is outside the valid versions of 0 to 3")
-
 	// Migrate from 0 up to 1
-	err = m.MigrateTo(1)
+	err := m.MigrateTo(1)
 	c.Assert(err, IsNil)
 	currentVersion := s.SelectValue(c, "select version from schema_version")
 	c.Assert(currentVersion, Equals, int32(1))
@@ -200,6 +192,28 @@ func (s *MigrateSuite) TestMigrateTo(c *C) {
 	c.Assert(s.tableExists(c, "t3"), Equals, true)
 	c.Assert(onStartCallUpCount, Equals, 6)
 	c.Assert(onStartCallDownCount, Equals, 3)
+}
+func (s *MigrateSuite) TestMigrateToBoundaries(c *C) {
+	m := s.createSampleMigrator(c)
+
+	// Migrate to -1 is error
+	err := m.MigrateTo(-1)
+	c.Assert(err, ErrorMatches, "schema_version version -1 is outside the valid versions of 0 to 3")
+
+	// Migrate past end is error
+	err = m.MigrateTo(int32(len(m.Migrations)) + 1)
+	c.Assert(err, ErrorMatches, "schema_version version 4 is outside the valid versions of 0 to 3")
+}
+
+func (s *MigrateSuite) TestMigrateToIrreversible(c *C) {
+	m := s.createEmptyMigrator(c)
+	m.AppendMigration("Foo", "drop table if exists t3", "")
+
+	err := m.MigrateTo(1)
+	c.Assert(err, IsNil)
+
+	err = m.MigrateTo(0)
+	c.Assert(err, ErrorMatches, "Irreversible migration: 1 - Foo")
 }
 
 func Example_OnStartMigrationProgressLogging() {
