@@ -3,6 +3,9 @@ package migrate
 import (
 	"fmt"
 	"github.com/JackC/pgx"
+	"io/ioutil"
+	"path/filepath"
+	"strings"
 )
 
 type BadVersionError string
@@ -17,6 +20,14 @@ type IrreversibleMigrationError struct {
 
 func (e IrreversibleMigrationError) Error() string {
 	return fmt.Sprintf("Irreversible migration: %d - %s", e.m.Sequence, e.m.Name)
+}
+
+type NoMigrationsFoundError struct {
+	Path string
+}
+
+func (e NoMigrationsFoundError) Error() string {
+	return fmt.Sprintf("No migrations found at %s", e.Path)
 }
 
 type Migration struct {
@@ -38,6 +49,33 @@ func NewMigrator(conn *pgx.Connection, versionTable string) (m *Migrator, err er
 	err = m.ensureSchemaVersionTableExists()
 	m.Migrations = make([]*Migration, 0)
 	return
+}
+
+func (m *Migrator) LoadMigrations(path string) error {
+	paths, err := filepath.Glob(filepath.Join(path, "*.sql"))
+	if err != nil {
+		return err
+	}
+	if len(paths) == 0 {
+		return NoMigrationsFoundError{Path: path}
+	}
+
+	for _, p := range paths {
+		body, err := ioutil.ReadFile(p)
+		if err != nil {
+			return err
+		}
+
+		pieces := strings.SplitN(string(body), "---- create above / drop below ----", 2)
+		var upSQL, downSQL string
+		upSQL = strings.TrimSpace(pieces[0])
+		if len(pieces) == 2 {
+			downSQL = strings.TrimSpace(pieces[1])
+		}
+		m.AppendMigration(filepath.Base(p), upSQL, downSQL)
+	}
+
+	return nil
 }
 
 func (m *Migrator) AppendMigration(name, upSQL, downSQL string) {

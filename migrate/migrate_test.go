@@ -102,6 +102,41 @@ func (s *MigrateSuite) TestAppendMigration(c *C) {
 	c.Assert(m.Migrations[0].DownSQL, Equals, downSQL)
 }
 
+func (s *MigrateSuite) TestLoadMigrationsMissingDirectory(c *C) {
+	m := s.createEmptyMigrator(c)
+	err := m.LoadMigrations("testdata/missing")
+	c.Assert(err, ErrorMatches, "No migrations found at testdata/missing")
+}
+
+func (s *MigrateSuite) TestLoadMigrationsEmptyDirectory(c *C) {
+	m := s.createEmptyMigrator(c)
+	err := m.LoadMigrations("testdata/empty")
+	c.Assert(err, ErrorMatches, "No migrations found at testdata/empty")
+}
+
+func (s *MigrateSuite) TestLoadMigrations(c *C) {
+	m := s.createEmptyMigrator(c)
+	err := m.LoadMigrations("testdata/sample")
+	c.Assert(err, IsNil)
+	c.Assert(m.Migrations, HasLen, 3)
+
+	c.Check(m.Migrations[0].Name, Equals, "001_create_t1.sql")
+	c.Check(m.Migrations[0].UpSQL, Equals, `create table t1(
+  id serial primary key
+);`)
+	c.Check(m.Migrations[0].DownSQL, Equals, "drop table t1;")
+
+	c.Check(m.Migrations[1].Name, Equals, "002_create_t2.sql")
+	c.Check(m.Migrations[1].UpSQL, Equals, `create table t2(
+  id serial primary key
+);`)
+	c.Check(m.Migrations[1].DownSQL, Equals, "drop table t2;")
+
+	c.Check(m.Migrations[2].Name, Equals, "003_irreversible.sql")
+	c.Check(m.Migrations[2].UpSQL, Equals, "drop table t2;")
+	c.Check(m.Migrations[2].DownSQL, Equals, "")
+}
+
 func (s *MigrateSuite) TestMigrate(c *C) {
 	m := s.createSampleMigrator(c)
 
