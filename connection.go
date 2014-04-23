@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os/user"
 	"time"
 )
 
@@ -23,7 +24,7 @@ type ConnectionParameters struct {
 	Host       string // url (e.g. localhost)
 	Port       uint16 // default: 5432
 	Database   string
-	User       string
+	User       string // default: OS user name
 	Password   string
 	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
 	TLSConfig  *tls.Config // config for TLS connection -- nil disables TLS
@@ -90,8 +91,8 @@ func (e ProtocolError) Error() string {
 }
 
 // Connect establishes a connection with a PostgreSQL server using parameters. One
-// of parameters.Socket or parameters.Host must be specified. parameters.User must
-// also the included. Other parameters fields are optional.
+// of parameters.Socket or parameters.Host must be specified. parameters.User
+// will default to the OS user name. Other parameters fields are optional.
 func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	c = new(Connection)
 
@@ -100,6 +101,15 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 		c.logger = c.parameters.Logger
 	} else {
 		c.logger = nullLogger("null")
+	}
+
+	if c.parameters.User == "" {
+		user, err := user.Current()
+		if err != nil {
+			return nil, err
+		}
+		c.logger.Debug("Using default User " + user.Username)
+		c.parameters.User = user.Username
 	}
 
 	if c.parameters.Port == 0 {
