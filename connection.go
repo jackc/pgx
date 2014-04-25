@@ -832,21 +832,19 @@ func (c *Connection) rxMsgHeader() (t byte, bodySize int32, err error) {
 	return
 }
 
-func (c *Connection) rxMsgBody(bodySize int32) (buf *bytes.Buffer, err error) {
+func (c *Connection) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
 	if !c.alive {
-		err = errors.New("Connection is dead")
-		return
+		return nil, errors.New("Connection is dead")
 	}
 
-	defer func() {
-		if err != nil {
-			c.die(err)
-		}
-	}()
+	buf := c.getBuf()
+	_, err := io.CopyN(buf, c.conn, int64(bodySize))
+	if err != nil {
+		c.die(err)
+		return nil, err
+	}
 
-	buf = c.getBuf()
-	_, err = io.CopyN(buf, c.conn, int64(bodySize))
-	return
+	return buf, nil
 }
 
 func (c *Connection) rxAuthenticationX(r *MessageReader) (err error) {
