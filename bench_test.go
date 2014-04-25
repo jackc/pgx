@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"github.com/JackC/pgx"
+	"io/ioutil"
 	"math/rand"
 	"testing"
 )
@@ -41,6 +42,7 @@ func createNarrowTestData(b *testing.B, conn *pgx.Connection) {
 
 	mustPrepare(b, conn, "getNarrowById", "select * from narrow where id=$1")
 	mustPrepare(b, conn, "getMultipleNarrowById", "select * from narrow where id between $1 and $2")
+	mustPrepare(b, conn, "getMultipleNarrowByIdAsJSON", "select json_agg(row_to_json(narrow)) from narrow where id between $1 and $2")
 
 	narrowTestDataLoaded = true
 }
@@ -121,6 +123,38 @@ func BenchmarkSelectRowsPreparedNarrow(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mustSelectRows(b, conn, "getMultipleNarrowById", ids[i], ids[i]+10)
+	}
+}
+
+func BenchmarkSelectValuePreparedNarrow(b *testing.B) {
+	conn := getSharedConnection(b)
+	createNarrowTestData(b, conn)
+
+	// Get random ids outside of timing
+	ids := make([]int32, b.N)
+	for i := 0; i < b.N; i++ {
+		ids[i] = 1 + rand.Int31n(9999)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mustSelectValue(b, conn, "getMultipleNarrowByIdAsJSON", ids[i], ids[i]+10)
+	}
+}
+
+func BenchmarkSelectValueToPreparedNarrow(b *testing.B) {
+	conn := getSharedConnection(b)
+	createNarrowTestData(b, conn)
+
+	// Get random ids outside of timing
+	ids := make([]int32, b.N)
+	for i := 0; i < b.N; i++ {
+		ids[i] = 1 + rand.Int31n(9999)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mustSelectValueTo(b, conn, ioutil.Discard, "getMultipleNarrowByIdAsJSON", ids[i], ids[i]+10)
 	}
 }
 

@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"github.com/JackC/pgx"
+	"io"
 	"testing"
 )
 
@@ -55,4 +56,10 @@ func mustSelectValue(t testing.TB, conn *pgx.Connection, sql string, arguments .
 		t.Fatalf("SelectValue unexpectedly failed with %v: %v", sql, err)
 	}
 	return
+}
+
+func mustSelectValueTo(t testing.TB, conn *pgx.Connection, w io.Writer, sql string, arguments ...interface{}) {
+	if err := conn.SelectValueTo(w, sql, arguments...); err != nil {
+		t.Fatalf("SelectValueTo unexpectedly failed with %v: %v", sql, err)
+	}
 }

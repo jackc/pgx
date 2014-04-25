@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os/user"
 	"time"
@@ -393,14 +394,8 @@ func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interfa
 }
 
 func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
-	buf := c.getBuf()
-	if _, err = io.CopyN(buf, c.reader, 6); err != nil {
-		c.die(err)
-		return
-	}
-
 	var columnCount int16
-	err = binary.Read(buf, binary.BigEndian, &columnCount)
+	err = binary.Read(c.reader, binary.BigEndian, &columnCount)
 	if err != nil {
 		c.die(err)
 		return
@@ -408,7 +403,7 @@ func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 
 	if columnCount != 1 {
 		// Read the rest of the data row so it can be discarded
-		if _, err = io.CopyN(buf, c.reader, int64(bodySize-6)); err != nil {
+		if _, err = io.CopyN(ioutil.Discard, c.reader, int64(bodySize-2)); err != nil {
 			c.die(err)
 			return
 		}
@@ -417,7 +412,7 @@ func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 	}
 
 	var valueSize int32
-	err = binary.Read(buf, binary.BigEndian, &valueSize)
+	err = binary.Read(c.reader, binary.BigEndian, &valueSize)
 	if err != nil {
 		c.die(err)
 		return
