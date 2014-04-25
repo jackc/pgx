@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/JackC/pgx"
-	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -702,11 +701,21 @@ func TestListenNotify(t *testing.T) {
 
 	// when timeout occurs
 	notification, err = listener.WaitForNotification(time.Millisecond)
-	if _, ok := err.(*net.OpError); !ok {
+	if err != pgx.NotificationTimeoutError {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 	if notification != nil {
 		t.Errorf("WaitForNotification returned an unexpected notification: %v", notification)
+	}
+
+	// listener can listen again after a timeout
+	mustExecute(t, notifier, "notify chat")
+	notification, err = listener.WaitForNotification(time.Second)
+	if err != nil {
+		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
+	}
+	if notification.Channel != "chat" {
+		t.Errorf("Did not receive notification on expected channel: %v", notification.Channel)
 	}
 }
 
