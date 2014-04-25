@@ -36,6 +36,7 @@ type ConnectionParameters struct {
 // goroutines.
 type Connection struct {
 	conn               net.Conn             // the underlying TCP or unix domain socket connection
+	reader             *bufio.Reader        // buffered reader to improve read performance
 	writer             *bufio.Writer        // buffered writer to avoid sending tiny packets
 	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
 	bufSize            int                  // desired size of buf
@@ -158,6 +159,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 		}
 	}
 
+	c.reader = bufio.NewReader(c.conn)
 	c.writer = bufio.NewWriter(c.conn)
 
 	msg := newStartupMessage()
@@ -390,7 +392,7 @@ func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interfa
 
 func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 	buf := c.getBuf()
-	if _, err = io.CopyN(buf, c.conn, 6); err != nil {
+	if _, err = io.CopyN(buf, c.reader, 6); err != nil {
 		c.die(err)
 		return
 	}
@@ -404,7 +406,7 @@ func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 
 	if columnCount != 1 {
 		// Read the rest of the data row so it can be discarded
-		if _, err = io.CopyN(buf, c.conn, int64(bodySize-6)); err != nil {
+		if _, err = io.CopyN(buf, c.reader, int64(bodySize-6)); err != nil {
 			c.die(err)
 			return
 		}
@@ -424,7 +426,7 @@ func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 		return
 	}
 
-	_, err = io.CopyN(w, c.conn, int64(valueSize))
+	_, err = io.CopyN(w, c.reader, int64(valueSize))
 	if err != nil {
 		c.die(err)
 	}
@@ -819,7 +821,7 @@ func (c *Connection) rxMsgHeader() (t byte, bodySize int32, err error) {
 	}()
 
 	buf := c.getBuf()
-	if _, err = io.CopyN(buf, c.conn, 5); err != nil {
+	if _, err = io.CopyN(buf, c.reader, 5); err != nil {
 		return 0, 0, err
 	}
 
@@ -838,7 +840,7 @@ func (c *Connection) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
 	}
 
 	buf := c.getBuf()
-	_, err := io.CopyN(buf, c.conn, int64(bodySize))
+	_, err := io.CopyN(buf, c.reader, int64(bodySize))
 	if err != nil {
 		c.die(err)
 		return nil, err
