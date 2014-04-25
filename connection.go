@@ -848,16 +848,11 @@ func (c *Connection) rxMsgHeader() (t byte, bodySize int32, err error) {
 		}
 	}()
 
-	buf := c.getBuf()
-	if _, err = io.CopyN(buf, c.reader, 5); err != nil {
-		return 0, 0, err
-	}
-
-	t, err = buf.ReadByte()
+	t, err = c.reader.ReadByte()
 	if err != nil {
 		return
 	}
-	err = binary.Read(buf, binary.BigEndian, &bodySize)
+	err = binary.Read(c.reader, binary.BigEndian, &bodySize)
 	bodySize -= 4 // remove self from size
 	return
 }
