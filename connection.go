@@ -16,12 +16,15 @@ import (
 	"io/ioutil"
 	"net"
 	"os/user"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
 // ConnectionParameters contains all the options used to establish a connection.
 type ConnectionParameters struct {
-	Socket     string // path to unix domain socket (e.g. /private/tmp/.s.PGSQL.5432)
+	Socket     string // path to unix domain socket directory (e.g. /private/tmp)
 	Host       string // url (e.g. localhost)
 	Port       uint16 // default: 5432
 	Database   string
@@ -126,8 +129,14 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	}
 
 	if c.parameters.Socket != "" {
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at socket: %s", c.parameters.Socket))
-		c.conn, err = net.Dial("unix", c.parameters.Socket)
+		// For backward compatibility accept socket file paths -- but directories are now preferred
+		socket := c.parameters.Socket
+		if !strings.Contains(socket, "/.s.PGSQL.") {
+			socket = filepath.Join(socket, ".s.PGSQL.") + strconv.FormatInt(int64(c.parameters.Port), 10)
+		}
+
+		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at socket: %s", socket))
+		c.conn, err = net.Dial("unix", socket)
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err

@@ -15,7 +15,7 @@ var noPasswordConnectionParameters *pgx.ConnectionParameters = nil
 var invalidUserConnectionParameters *pgx.ConnectionParameters = nil
 
 // var tcpConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
-// var unixSocketConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Socket: "/private/tmp/.s.PGSQL.5432", User: "pgx_none", Database: "pgx_test"}
+// var unixSocketConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Socket: "/private/tmp", User: "pgx_none", Database: "pgx_test"}
 // var md5ConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 // var plainPasswordConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_pw", Password: "secret", Database: "pgx_test"}
 // var noPasswordConnectionParameters *pgx.ConnectionParameters = &pgx.ConnectionParameters{Host: "127.0.0.1", User: "pgx_none", Database: "pgx_test"}

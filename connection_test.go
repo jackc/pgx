@@ -44,12 +44,31 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestConnectWithUnixSocket(t *testing.T) {
+func TestConnectWithUnixSocketDirectory(t *testing.T) {
+	// /.s.PGSQL.5432
 	if unixSocketConnectionParameters == nil {
 		return
 	}
 
 	conn, err := pgx.Connect(*unixSocketConnectionParameters)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithUnixSocketFile(t *testing.T) {
+	if unixSocketConnectionParameters == nil {
+		return
+	}
+
+	connParams := *unixSocketConnectionParameters
+	connParams.Socket = connParams.Socket + "/.s.PGSQL.5432"
+	conn, err := pgx.Connect(connParams)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
