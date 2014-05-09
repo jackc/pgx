@@ -158,6 +158,63 @@ func TestConnectWithMD5Password(t *testing.T) {
 	}
 }
 
+func TestParseURI(t *testing.T) {
+	tests := []struct {
+		url        string
+		connParams pgx.ConnectionParameters
+	}{
+		{
+			url: "postgres://jack:secret@localhost:5432/mydb",
+			connParams: pgx.ConnectionParameters{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+			},
+		},
+		{
+			url: "postgresql://jack:secret@localhost:5432/mydb",
+			connParams: pgx.ConnectionParameters{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+			},
+		},
+		{
+			url: "postgres://jack@localhost:5432/mydb",
+			connParams: pgx.ConnectionParameters{
+				User:     "jack",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+			},
+		},
+		{
+			url: "postgres://jack@localhost/mydb",
+			connParams: pgx.ConnectionParameters{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		connParams, err := pgx.ParseURI(tt.url)
+		if err != nil {
+			t.Errorf("%d. Unexpected error from pgx.ParseURL(%q) => %v", i, tt.url, err)
+			continue
+		}
+
+		if connParams != tt.connParams {
+			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
+		}
+	}
+}
+
 func TestExecute(t *testing.T) {
 	conn := getSharedConnection(t)
 

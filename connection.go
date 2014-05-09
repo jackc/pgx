@@ -15,6 +15,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"net/url"
 	"os/user"
 	"path/filepath"
 	"strconv"
@@ -215,6 +216,34 @@ func (c *Connection) Close() (err error) {
 	c.die(errors.New("Closed"))
 	c.logger.Info("Closed connection")
 	return err
+}
+
+// ParseURI parses a database URI into ConnectionParameters
+func ParseURI(uri string) (ConnectionParameters, error) {
+	var cp ConnectionParameters
+
+	url, err := url.Parse(uri)
+	if err != nil {
+		return cp, err
+	}
+
+	if url.User != nil {
+		cp.User = url.User.Username()
+		cp.Password, _ = url.User.Password()
+	}
+
+	parts := strings.SplitN(url.Host, ":", 2)
+	cp.Host = parts[0]
+	if len(parts) == 2 {
+		p, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return cp, err
+		}
+		cp.Port = uint16(p)
+	}
+	cp.Database = strings.TrimLeft(url.Path, "/")
+
+	return cp, nil
 }
 
 // SelectFunc executes sql and for each row returned calls onDataRow. sql can be
