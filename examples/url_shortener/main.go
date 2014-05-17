@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-var pool *pgx.ConnectionPool
+var pool *pgx.ConnPool
 
 // afterConnect creates the prepared statements that this application uses
 func afterConnect(conn *pgx.Conn) (err error) {

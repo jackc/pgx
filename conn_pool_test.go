@@ -8,16 +8,16 @@ import (
 	"testing"
 )
 
-func createConnectionPool(t *testing.T, maxConnections int) *pgx.ConnectionPool {
+func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
 	options := pgx.ConnectionPoolOptions{MaxConnections: maxConnections}
-	pool, err := pgx.NewConnectionPool(*defaultConnConfig, options)
+	pool, err := pgx.NewConnPool(*defaultConnConfig, options)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
 	}
 	return pool
 }
 
-func TestNewConnectionPool(t *testing.T) {
+func TestNewConnPool(t *testing.T) {
 	var numCallbacks int
 	afterConnect := func(c *pgx.Conn) error {
 		numCallbacks++
@@ -25,7 +25,7 @@ func TestNewConnectionPool(t *testing.T) {
 	}
 
 	options := pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
-	pool, err := pgx.NewConnectionPool(*defaultConnConfig, options)
+	pool, err := pgx.NewConnPool(*defaultConnConfig, options)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
 	}
@@ -44,7 +44,7 @@ func TestNewConnectionPool(t *testing.T) {
 	}
 
 	options = pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
-	pool, err = pgx.NewConnectionPool(*defaultConnConfig, options)
+	pool, err = pgx.NewConnPool(*defaultConnConfig, options)
 	if err != errAfterConnect {
 		t.Errorf("Expected errAfterConnect but received unexpected: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	maxConnections := 2
 	incrementCount := int32(100)
 	completeSync := make(chan int)
-	pool := createConnectionPool(t, maxConnections)
+	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
 
 	acquireAll := func() (connections []*pgx.Conn) {
@@ -125,7 +125,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 }
 
 func TestPoolReleaseWithTransactions(t *testing.T) {
-	pool := createConnectionPool(t, 1)
+	pool := createConnPool(t, 1)
 	defer pool.Close()
 
 	conn, err := pool.Acquire()
@@ -164,7 +164,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 
 func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 	maxConnections := 3
-	pool := createConnectionPool(t, maxConnections)
+	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
 
 	doSomething := func() {
@@ -203,7 +203,7 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 
 func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	maxConnections := 3
-	pool := createConnectionPool(t, maxConnections)
+	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
 
 	var c1, c2 *pgx.Conn
@@ -262,7 +262,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 }
 
 func TestPoolTransaction(t *testing.T) {
-	pool := createConnectionPool(t, 1)
+	pool := createConnPool(t, 1)
 	defer pool.Close()
 
 	committed, err := pool.Transaction(func(conn *pgx.Conn) bool {
@@ -315,7 +315,7 @@ func TestPoolTransaction(t *testing.T) {
 }
 
 func TestPoolTransactionIso(t *testing.T) {
-	pool := createConnectionPool(t, 1)
+	pool := createConnPool(t, 1)
 	defer pool.Close()
 
 	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Conn) bool {

@@ -37,7 +37,7 @@ type ConnConfig struct {
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
-// Use ConnectionPool to manage access to multiple database connections from multiple
+// Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
 	conn               net.Conn          // the underlying TCP or unix domain socket connection

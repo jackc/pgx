@@ -11,7 +11,7 @@ type ConnectionPoolOptions struct {
 	Logger         Logger
 }
 
-type ConnectionPool struct {
+type ConnPool struct {
 	allConnections       []*Conn
 	availableConnections []*Conn
 	cond                 *sync.Cond
@@ -27,10 +27,10 @@ type ConnectionPoolStat struct {
 	AvailableConnections int // unused live connections
 }
 
-// NewConnectionPool creates a new ConnectionPool. config are passed through to
+// NewConnPool creates a new ConnPool. config are passed through to
 // Connect directly.
-func NewConnectionPool(config ConnConfig, options ConnectionPoolOptions) (p *ConnectionPool, err error) {
-	p = new(ConnectionPool)
+func NewConnPool(config ConnConfig, options ConnectionPoolOptions) (p *ConnPool, err error) {
+	p = new(ConnPool)
 	p.config = config
 	p.maxConnections = options.MaxConnections
 	p.afterConnect = options.AfterConnect
@@ -57,7 +57,7 @@ func NewConnectionPool(config ConnConfig, options ConnectionPoolOptions) (p *Con
 }
 
 // Acquire takes exclusive use of a connection until it is released.
-func (p *ConnectionPool) Acquire() (c *Conn, err error) {
+func (p *ConnPool) Acquire() (c *Conn, err error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
@@ -93,7 +93,7 @@ func (p *ConnectionPool) Acquire() (c *Conn, err error) {
 }
 
 // Release gives up use of a connection.
-func (p *ConnectionPool) Release(conn *Conn) {
+func (p *ConnPool) Release(conn *Conn) {
 	if conn.TxStatus != 'I' {
 		conn.Execute("rollback")
 	}
@@ -116,7 +116,7 @@ func (p *ConnectionPool) Release(conn *Conn) {
 }
 
 // Close ends the use of a connection by closing all underlying connections.
-func (p *ConnectionPool) Close() {
+func (p *ConnPool) Close() {
 	for i := 0; i < p.maxConnections; i++ {
 		if c, err := p.Acquire(); err != nil {
 			_ = c.Close()
@@ -124,7 +124,7 @@ func (p *ConnectionPool) Close() {
 	}
 }
 
-func (p *ConnectionPool) Stat() (s ConnectionPoolStat) {
+func (p *ConnPool) Stat() (s ConnectionPoolStat) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
@@ -134,15 +134,15 @@ func (p *ConnectionPool) Stat() (s ConnectionPoolStat) {
 	return
 }
 
-func (p *ConnectionPool) MaxConnectionCount() int {
+func (p *ConnPool) MaxConnectionCount() int {
 	return p.maxConnections
 }
 
-func (p *ConnectionPool) CurrentConnectionCount() int {
+func (p *ConnPool) CurrentConnectionCount() int {
 	return p.maxConnections
 }
 
-func (p *ConnectionPool) createConnection() (c *Conn, err error) {
+func (p *ConnPool) createConnection() (c *Conn, err error) {
 	c, err = Connect(p.config)
 	if err != nil {
 		return
@@ -157,7 +157,7 @@ func (p *ConnectionPool) createConnection() (c *Conn, err error) {
 }
 
 // SelectFunc acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
+func (p *ConnPool) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -168,7 +168,7 @@ func (p *ConnectionPool) SelectFunc(sql string, onDataRow func(*DataRowReader) e
 }
 
 // SelectRows acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
+func (p *ConnPool) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -179,7 +179,7 @@ func (p *ConnectionPool) SelectRows(sql string, arguments ...interface{}) (rows 
 }
 
 // SelectRow acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
+func (p *ConnPool) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -190,7 +190,7 @@ func (p *ConnectionPool) SelectRow(sql string, arguments ...interface{}) (row ma
 }
 
 // SelectValue acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
+func (p *ConnPool) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -201,7 +201,7 @@ func (p *ConnectionPool) SelectValue(sql string, arguments ...interface{}) (v in
 }
 
 // SelectValueTo acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+func (p *ConnPool) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -212,7 +212,7 @@ func (p *ConnectionPool) SelectValueTo(w io.Writer, sql string, arguments ...int
 }
 
 // SelectValues acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
+func (p *ConnPool) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -223,7 +223,7 @@ func (p *ConnectionPool) SelectValues(sql string, arguments ...interface{}) (val
 }
 
 // Execute acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnectionPool) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+func (p *ConnPool) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -236,7 +236,7 @@ func (p *ConnectionPool) Execute(sql string, arguments ...interface{}) (commandT
 // Transaction acquires a connection, delegates the call to that connection,
 // and releases the connection. The call signature differs slightly from the
 // underlying Transaction in that the callback function accepts a *Conn
-func (p *ConnectionPool) Transaction(f func(conn *Conn) bool) (committed bool, err error) {
+func (p *ConnPool) Transaction(f func(conn *Conn) bool) (committed bool, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -251,7 +251,7 @@ func (p *ConnectionPool) Transaction(f func(conn *Conn) bool) (committed bool, e
 // TransactionIso acquires a connection, delegates the call to that connection,
 // and releases the connection. The call signature differs slightly from the
 // underlying TransactionIso in that the callback function accepts a *Conn
-func (p *ConnectionPool) TransactionIso(isoLevel string, f func(conn *Conn) bool) (committed bool, err error) {
+func (p *ConnPool) TransactionIso(isoLevel string, f func(conn *Conn) bool) (committed bool, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
