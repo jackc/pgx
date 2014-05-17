@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type ConnectionPoolOptions struct {
+type ConnPoolConfig struct {
 	MaxConnections int // max simultaneous connections to use
 	AfterConnect   func(*Conn) error
 	Logger         Logger
@@ -29,7 +29,7 @@ type ConnPoolStat struct {
 
 // NewConnPool creates a new ConnPool. config are passed through to
 // Connect directly.
-func NewConnPool(config ConnConfig, options ConnectionPoolOptions) (p *ConnPool, err error) {
+func NewConnPool(config ConnConfig, options ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
 	p.config = config
 	p.maxConnections = options.MaxConnections

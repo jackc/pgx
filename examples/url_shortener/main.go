@@ -102,7 +102,7 @@ func main() {
 		User:     "jack",
 		Password: "jack",
 		Database: "url_shortener"}
-	poolOptions := pgx.ConnectionPoolOptions{MaxConnections: 5, AfterConnect: afterConnect}
+	poolOptions := pgx.ConnPoolConfig{MaxConnections: 5, AfterConnect: afterConnect}
 	pool, err = pgx.NewConnectionPool(connectionOptions, poolOptions)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)

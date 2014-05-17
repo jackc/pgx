@@ -9,7 +9,7 @@ import (
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
-	options := pgx.ConnectionPoolOptions{MaxConnections: maxConnections}
+	options := pgx.ConnPoolConfig{MaxConnections: maxConnections}
 	pool, err := pgx.NewConnPool(*defaultConnConfig, options)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
@@ -24,7 +24,7 @@ func TestNewConnPool(t *testing.T) {
 		return nil
 	}
 
-	options := pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
+	options := pgx.ConnPoolConfig{MaxConnections: 2, AfterConnect: afterConnect}
 	pool, err := pgx.NewConnPool(*defaultConnConfig, options)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
@@ -43,7 +43,7 @@ func TestNewConnPool(t *testing.T) {
 		return errAfterConnect
 	}
 
-	options = pgx.ConnectionPoolOptions{MaxConnections: 2, AfterConnect: afterConnect}
+	options = pgx.ConnPoolConfig{MaxConnections: 2, AfterConnect: afterConnect}
 	pool, err = pgx.NewConnPool(*defaultConnConfig, options)
 	if err != errAfterConnect {
 		t.Errorf("Expected errAfterConnect but received unexpected: %v", err)

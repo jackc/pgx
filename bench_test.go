@@ -635,7 +635,7 @@ func BenchmarkTimestampTzBinary(b *testing.B) {
 }
 
 func BenchmarkConnPool(b *testing.B) {
-	options := pgx.ConnectionPoolOptions{MaxConnections: 5}
+	options := pgx.ConnPoolConfig{MaxConnections: 5}
 	pool, err := pgx.NewConnPool(*defaultConnConfig, options)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)

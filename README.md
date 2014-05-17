@@ -139,7 +139,7 @@ changing transcoders).
 ### Logging
 
 Pgx defines the pgx.Logger interface. A value that satisfies this interface
-used as part of ConnectionOptions or ConnectionPoolOptions to enable logging
+used as part of ConnectionOptions or ConnPoolConfig to enable logging
 of pgx activities.
 
 ## Testing
