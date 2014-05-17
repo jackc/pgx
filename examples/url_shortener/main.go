@@ -97,13 +97,13 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	var err error
-	connectionOptions := pgx.ConnConfig{
+	connConfig := pgx.ConnConfig{
 		Host:     "127.0.0.1",
 		User:     "jack",
 		Password: "jack",
 		Database: "url_shortener"}
 	poolOptions := pgx.ConnPoolConfig{MaxConnections: 5, AfterConnect: afterConnect}
-	pool, err = pgx.NewConnectionPool(connectionOptions, poolOptions)
+	pool, err = pgx.NewConnPool(connConfig, poolOptions)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
 		os.Exit(1)
