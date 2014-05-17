@@ -11,7 +11,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -30,12 +30,12 @@ func TestConnect(t *testing.T) {
 
 	var rows []map[string]interface{}
 	rows, err = conn.SelectRows("select current_database()")
-	if err != nil || rows[0]["current_database"] != defaultConnectionParameters.Database {
-		t.Errorf("Did not connect to specified database (%v)", defaultConnectionParameters.Database)
+	if err != nil || rows[0]["current_database"] != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
 	}
 
-	if user := mustSelectValue(t, conn, "select current_user"); user != defaultConnectionParameters.User {
-		t.Errorf("Did not connect as specified user (%v)", defaultConnectionParameters.User)
+	if user := mustSelectValue(t, conn, "select current_user"); user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
 	}
 
 	err = conn.Close()
@@ -46,11 +46,11 @@ func TestConnect(t *testing.T) {
 
 func TestConnectWithUnixSocketDirectory(t *testing.T) {
 	// /.s.PGSQL.5432
-	if unixSocketConnectionParameters == nil {
+	if unixSocketConnConfig == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*unixSocketConnectionParameters)
+	conn, err := pgx.Connect(*unixSocketConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -62,11 +62,11 @@ func TestConnectWithUnixSocketDirectory(t *testing.T) {
 }
 
 func TestConnectWithUnixSocketFile(t *testing.T) {
-	if unixSocketConnectionParameters == nil {
+	if unixSocketConnConfig == nil {
 		return
 	}
 
-	connParams := *unixSocketConnectionParameters
+	connParams := *unixSocketConnConfig
 	connParams.Socket = connParams.Socket + "/.s.PGSQL.5432"
 	conn, err := pgx.Connect(connParams)
 	if err != nil {
@@ -80,11 +80,11 @@ func TestConnectWithUnixSocketFile(t *testing.T) {
 }
 
 func TestConnectWithTcp(t *testing.T) {
-	if tcpConnectionParameters == nil {
+	if tcpConnConfig == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*tcpConnectionParameters)
+	conn, err := pgx.Connect(*tcpConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -96,11 +96,11 @@ func TestConnectWithTcp(t *testing.T) {
 }
 
 func TestConnectWithTLS(t *testing.T) {
-	if tlsConnectionParameters == nil {
+	if tlsConnConfig == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*tlsConnectionParameters)
+	conn, err := pgx.Connect(*tlsConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -112,11 +112,11 @@ func TestConnectWithTLS(t *testing.T) {
 }
 
 func TestConnectWithInvalidUser(t *testing.T) {
-	if invalidUserConnectionParameters == nil {
+	if invalidUserConnConfig == nil {
 		return
 	}
 
-	_, err := pgx.Connect(*invalidUserConnectionParameters)
+	_, err := pgx.Connect(*invalidUserConnConfig)
 	pgErr, ok := err.(pgx.PgError)
 	if !ok {
 		t.Fatalf("Expected to receive a PgError with code 28000, instead received: %v", err)
@@ -127,11 +127,11 @@ func TestConnectWithInvalidUser(t *testing.T) {
 }
 
 func TestConnectWithPlainTextPassword(t *testing.T) {
-	if plainPasswordConnectionParameters == nil {
+	if plainPasswordConnConfig == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*plainPasswordConnectionParameters)
+	conn, err := pgx.Connect(*plainPasswordConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -143,11 +143,11 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 }
 
 func TestConnectWithMD5Password(t *testing.T) {
-	if md5ConnectionParameters == nil {
+	if md5ConnConfig == nil {
 		return
 	}
 
-	conn, err := pgx.Connect(*md5ConnectionParameters)
+	conn, err := pgx.Connect(*md5ConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -161,11 +161,11 @@ func TestConnectWithMD5Password(t *testing.T) {
 func TestParseURI(t *testing.T) {
 	tests := []struct {
 		url        string
-		connParams pgx.ConnectionParameters
+		connParams pgx.ConnConfig
 	}{
 		{
 			url: "postgres://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnectionParameters{
+			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Password: "secret",
 				Host:     "localhost",
@@ -175,7 +175,7 @@ func TestParseURI(t *testing.T) {
 		},
 		{
 			url: "postgresql://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnectionParameters{
+			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Password: "secret",
 				Host:     "localhost",
@@ -185,7 +185,7 @@ func TestParseURI(t *testing.T) {
 		},
 		{
 			url: "postgres://jack@localhost:5432/mydb",
-			connParams: pgx.ConnectionParameters{
+			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Host:     "localhost",
 				Port:     5432,
@@ -194,7 +194,7 @@ func TestParseURI(t *testing.T) {
 		},
 		{
 			url: "postgres://jack@localhost/mydb",
-			connParams: pgx.ConnectionParameters{
+			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Host:     "localhost",
 				Database: "mydb",
@@ -243,7 +243,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestExecuteFailure(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -281,7 +281,7 @@ func TestSelectFunc(t *testing.T) {
 }
 
 func TestSelectFuncFailure(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -298,7 +298,7 @@ func TestSelectFuncFailure(t *testing.T) {
 }
 
 func Example_connectionSelectFunc() {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
@@ -344,7 +344,7 @@ func TestSelectRows(t *testing.T) {
 }
 
 func Example_connectionSelectRows() {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
@@ -513,7 +513,7 @@ func TestSelectValues(t *testing.T) {
 }
 
 func TestPrepare(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -594,7 +594,7 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestPrepareFailure(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -610,7 +610,7 @@ func TestPrepareFailure(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -721,7 +721,7 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestTransactionIso(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -742,7 +742,7 @@ func TestTransactionIso(t *testing.T) {
 }
 
 func TestListenNotify(t *testing.T) {
-	listener, err := pgx.Connect(*defaultConnectionParameters)
+	listener, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -796,7 +796,7 @@ func TestListenNotify(t *testing.T) {
 }
 
 func TestFatalRxError(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -812,7 +812,7 @@ func TestFatalRxError(t *testing.T) {
 		}
 	}()
 
-	otherConn, err := pgx.Connect(*defaultConnectionParameters)
+	otherConn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -830,13 +830,13 @@ func TestFatalRxError(t *testing.T) {
 }
 
 func TestFatalTxError(t *testing.T) {
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 	defer conn.Close()
 
-	otherConn, err := pgx.Connect(*defaultConnectionParameters)
+	otherConn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}

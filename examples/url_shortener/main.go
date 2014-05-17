@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/jackc/pgx"
+	"github.com/JackC/pgx"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -97,7 +97,7 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	var err error
-	connectionOptions := pgx.ConnectionParameters{
+	connectionOptions := pgx.ConnConfig{
 		Host:     "127.0.0.1",
 		User:     "jack",
 		Password: "jack",

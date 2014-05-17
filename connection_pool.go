@@ -15,7 +15,7 @@ type ConnectionPool struct {
 	allConnections       []*Conn
 	availableConnections []*Conn
 	cond                 *sync.Cond
-	parameters           ConnectionParameters // parameters used when establishing connection
+	config               ConnConfig // config used when establishing connection
 	maxConnections       int
 	afterConnect         func(*Conn) error
 	logger               Logger
@@ -27,11 +27,11 @@ type ConnectionPoolStat struct {
 	AvailableConnections int // unused live connections
 }
 
-// NewConnectionPool creates a new ConnectionPool. parameters are passed through to
+// NewConnectionPool creates a new ConnectionPool. config are passed through to
 // Connect directly.
-func NewConnectionPool(parameters ConnectionParameters, options ConnectionPoolOptions) (p *ConnectionPool, err error) {
+func NewConnectionPool(config ConnConfig, options ConnectionPoolOptions) (p *ConnectionPool, err error) {
 	p = new(ConnectionPool)
-	p.parameters = parameters
+	p.config = config
 	p.maxConnections = options.MaxConnections
 	p.afterConnect = options.AfterConnect
 	if options.Logger != nil {
@@ -143,7 +143,7 @@ func (p *ConnectionPool) CurrentConnectionCount() int {
 }
 
 func (p *ConnectionPool) createConnection() (c *Conn, err error) {
-	c, err = Connect(p.parameters)
+	c, err = Connect(p.config)
 	if err != nil {
 		return
 	}

@@ -23,8 +23,8 @@ import (
 	"time"
 )
 
-// ConnectionParameters contains all the options used to establish a connection.
-type ConnectionParameters struct {
+// ConnConfig contains all the options used to establish a connection.
+type ConnConfig struct {
 	Socket     string // path to unix domain socket directory (e.g. /private/tmp)
 	Host       string // url (e.g. localhost)
 	Port       uint16 // default: 5432
@@ -40,15 +40,15 @@ type ConnectionParameters struct {
 // Use ConnectionPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn             // the underlying TCP or unix domain socket connection
-	reader             *bufio.Reader        // buffered reader to improve read performance
-	writer             *bufio.Writer        // buffered writer to avoid sending tiny packets
-	buf                *bytes.Buffer        // work buffer to avoid constant alloc and dealloc
-	bufSize            int                  // desired size of buf
-	Pid                int32                // backend pid
-	SecretKey          int32                // key to use to send a cancel query message to the server
-	RuntimeParams      map[string]string    // parameters that have been reported by the server
-	parameters         ConnectionParameters // parameters used when establishing this connection
+	conn               net.Conn          // the underlying TCP or unix domain socket connection
+	reader             *bufio.Reader     // buffered reader to improve read performance
+	writer             *bufio.Writer     // buffered writer to avoid sending tiny packets
+	buf                *bytes.Buffer     // work buffer to avoid constant alloc and dealloc
+	bufSize            int               // desired size of buf
+	Pid                int32             // backend pid
+	SecretKey          int32             // key to use to send a cancel query message to the server
+	RuntimeParams      map[string]string // parameters that have been reported by the server
+	config             ConnConfig        // config used when establishing this connection
 	TxStatus           byte
 	preparedStatements map[string]*preparedStatement
 	notifications      []*Notification
@@ -98,42 +98,42 @@ func (e ProtocolError) Error() string {
 
 var NotificationTimeoutError = errors.New("Notification Timeout")
 
-// Connect establishes a connection with a PostgreSQL server using parameters. One
-// of parameters.Socket or parameters.Host must be specified. parameters.User
-// will default to the OS user name. Other parameters fields are optional.
-func Connect(parameters ConnectionParameters) (c *Conn, err error) {
+// Connect establishes a connection with a PostgreSQL server using config. One
+// of config.Socket or config.Host must be specified. config.User
+// will default to the OS user name. Other config fields are optional.
+func Connect(config ConnConfig) (c *Conn, err error) {
 	c = new(Conn)
 
-	c.parameters = parameters
-	if c.parameters.Logger != nil {
-		c.logger = c.parameters.Logger
+	c.config = config
+	if c.config.Logger != nil {
+		c.logger = c.config.Logger
 	} else {
 		c.logger = nullLogger("null")
 	}
 
-	if c.parameters.User == "" {
+	if c.config.User == "" {
 		user, err := user.Current()
 		if err != nil {
 			return nil, err
 		}
 		c.logger.Debug("Using default User " + user.Username)
-		c.parameters.User = user.Username
+		c.config.User = user.Username
 	}
 
-	if c.parameters.Port == 0 {
+	if c.config.Port == 0 {
 		c.logger.Debug("Using default Port")
-		c.parameters.Port = 5432
+		c.config.Port = 5432
 	}
-	if c.parameters.MsgBufSize == 0 {
+	if c.config.MsgBufSize == 0 {
 		c.logger.Debug("Using default MsgBufSize")
-		c.parameters.MsgBufSize = 1024
+		c.config.MsgBufSize = 1024
 	}
 
-	if c.parameters.Socket != "" {
+	if c.config.Socket != "" {
 		// For backward compatibility accept socket file paths -- but directories are now preferred
-		socket := c.parameters.Socket
+		socket := c.config.Socket
 		if !strings.Contains(socket, "/.s.PGSQL.") {
-			socket = filepath.Join(socket, ".s.PGSQL.") + strconv.FormatInt(int64(c.parameters.Port), 10)
+			socket = filepath.Join(socket, ".s.PGSQL.") + strconv.FormatInt(int64(c.config.Port), 10)
 		}
 
 		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at socket: %s", socket))
@@ -142,9 +142,9 @@ func Connect(parameters ConnectionParameters) (c *Conn, err error) {
 			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
 		}
-	} else if c.parameters.Host != "" {
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at host: %s:%d", c.parameters.Host, c.parameters.Port))
-		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.parameters.Host, c.parameters.Port))
+	} else if c.config.Host != "" {
+		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at host: %s:%d", c.config.Host, c.config.Port))
+		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.config.Host, c.config.Port))
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
@@ -158,13 +158,13 @@ func Connect(parameters ConnectionParameters) (c *Conn, err error) {
 		}
 	}()
 
-	c.bufSize = c.parameters.MsgBufSize
+	c.bufSize = c.config.MsgBufSize
 	c.buf = bytes.NewBuffer(make([]byte, 0, c.bufSize))
 	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*preparedStatement)
 	c.alive = true
 
-	if parameters.TLSConfig != nil {
+	if config.TLSConfig != nil {
 		c.logger.Debug("Starting TLS handshake")
 		if err = c.startTLS(); err != nil {
 			c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
@@ -176,9 +176,9 @@ func Connect(parameters ConnectionParameters) (c *Conn, err error) {
 	c.writer = bufio.NewWriter(c.conn)
 
 	msg := newStartupMessage()
-	msg.options["user"] = c.parameters.User
-	if c.parameters.Database != "" {
-		msg.options["database"] = c.parameters.Database
+	msg.options["user"] = c.config.User
+	if c.config.Database != "" {
+		msg.options["database"] = c.config.Database
 	}
 	if err = c.txStartupMessage(msg); err != nil {
 		return
@@ -218,9 +218,9 @@ func (c *Conn) Close() (err error) {
 	return err
 }
 
-// ParseURI parses a database URI into ConnectionParameters
-func ParseURI(uri string) (ConnectionParameters, error) {
-	var cp ConnectionParameters
+// ParseURI parses a database URI into ConnConfig
+func ParseURI(uri string) (ConnConfig, error) {
+	var cp ConnConfig
 
 	url, err := url.Parse(uri)
 	if err != nil {
@@ -910,10 +910,10 @@ func (c *Conn) rxAuthenticationX(r *MessageReader) (err error) {
 	switch code {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
-		err = c.txPasswordMessage(c.parameters.Password)
+		err = c.txPasswordMessage(c.config.Password)
 	case 5: // AuthenticationMD5Password
 		salt := r.ReadString(4)
-		digestedPassword := "md5" + hexMD5(hexMD5(c.parameters.Password+c.parameters.User)+salt)
+		digestedPassword := "md5" + hexMD5(hexMD5(c.config.Password+c.config.User)+salt)
 		err = c.txPasswordMessage(digestedPassword)
 	default:
 		err = errors.New("Received unknown authentication message")
@@ -1024,7 +1024,7 @@ func (c *Conn) startTLS() (err error) {
 		return
 	}
 
-	c.conn = tls.Client(c.conn, c.parameters.TLSConfig)
+	c.conn = tls.Client(c.conn, c.config.TLSConfig)
 
 	return nil
 }

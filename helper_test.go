@@ -11,7 +11,7 @@ var sharedConnection *pgx.Conn
 func getSharedConnection(t testing.TB) (c *pgx.Conn) {
 	if sharedConnection == nil || !sharedConnection.IsAlive() {
 		var err error
-		sharedConnection, err = pgx.Connect(*defaultConnectionParameters)
+		sharedConnection, err = pgx.Connect(*defaultConnConfig)
 		if err != nil {
 			t.Fatalf("Unable to establish connection: %v", err)
 		}

@@ -21,4 +21,4 @@ _testmain.go
 
 *.exe
 
-connection_settings_test.go
+conn_config_test.go

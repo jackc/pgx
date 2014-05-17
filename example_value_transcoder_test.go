@@ -23,7 +23,7 @@ func Example_customValueTranscoder() {
 		DecodeText: decodePointFromText,
 		EncodeTo:   encodePoint}
 
-	conn, err := pgx.Connect(*defaultConnectionParameters)
+	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
