@@ -208,7 +208,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 
 	var c1, c2 *pgx.Conn
 	var err error
-	var stat pgx.ConnectionPoolStat
+	var stat pgx.ConnPoolStat
 
 	if c1, err = pool.Acquire(); err != nil {
 		t.Fatalf("Unexpected error acquiring connection: %v", err)

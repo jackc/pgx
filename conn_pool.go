@@ -21,7 +21,7 @@ type ConnPool struct {
 	logger               Logger
 }
 
-type ConnectionPoolStat struct {
+type ConnPoolStat struct {
 	MaxConnections       int // max simultaneous connections to use
 	CurrentConnections   int // current live connections
 	AvailableConnections int // unused live connections
@@ -124,7 +124,7 @@ func (p *ConnPool) Close() {
 	}
 }
 
-func (p *ConnPool) Stat() (s ConnectionPoolStat) {
+func (p *ConnPool) Stat() (s ConnPoolStat) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
