@@ -36,10 +36,10 @@ type ConnectionParameters struct {
 	Logger     Logger
 }
 
-// Connection is a PostgreSQL connection handle. It is not safe for concurrent usage.
+// Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
 // Use ConnectionPool to manage access to multiple database connections from multiple
 // goroutines.
-type Connection struct {
+type Conn struct {
 	conn               net.Conn             // the underlying TCP or unix domain socket connection
 	reader             *bufio.Reader        // buffered reader to improve read performance
 	writer             *bufio.Writer        // buffered writer to avoid sending tiny packets
@@ -101,8 +101,8 @@ var NotificationTimeoutError = errors.New("Notification Timeout")
 // Connect establishes a connection with a PostgreSQL server using parameters. One
 // of parameters.Socket or parameters.Host must be specified. parameters.User
 // will default to the OS user name. Other parameters fields are optional.
-func Connect(parameters ConnectionParameters) (c *Connection, err error) {
-	c = new(Connection)
+func Connect(parameters ConnectionParameters) (c *Conn, err error) {
+	c = new(Conn)
 
 	c.parameters = parameters
 	if c.parameters.Logger != nil {
@@ -211,7 +211,7 @@ func Connect(parameters ConnectionParameters) (c *Connection, err error) {
 	}
 }
 
-func (c *Connection) Close() (err error) {
+func (c *Conn) Close() (err error) {
 	err = c.txMsg('X', c.getBuf(), true)
 	c.die(errors.New("Closed"))
 	c.logger.Info("Closed connection")
@@ -255,7 +255,7 @@ func ParseURI(uri string) (ConnectionParameters, error) {
 // need to simultaneously store the entire result set in memory. It also means that
 // it is possible to process some rows and then for an error to occur. Callers
 // should be aware of this possibility.
-func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
+func (c *Conn) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("SelectFunc `%s` with %v failed: %v", sql, arguments, err))
@@ -307,7 +307,7 @@ func (c *Connection) SelectFunc(sql string, onDataRow func(*DataRowReader) error
 // sql can be either a prepared statement name or an SQL string. arguments will be
 // sanitized before being interpolated into sql strings. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
-func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
+func (c *Conn) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
 	rows = make([]map[string]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		rows = append(rows, c.rxDataRow(r))
@@ -323,7 +323,7 @@ func (c *Connection) SelectRows(sql string, arguments ...interface{}) (rows []ma
 // positionally from the sql string as $1, $2, etc.
 //
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Connection) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
+func (c *Conn) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
 	var numRowsFound int64
 
 	onDataRow := func(r *DataRowReader) error {
@@ -345,7 +345,7 @@ func (c *Connection) SelectRow(sql string, arguments ...interface{}) (row map[st
 //
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
+func (c *Conn) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
 	var numRowsFound int64
 
 	onDataRow := func(r *DataRowReader) error {
@@ -376,7 +376,7 @@ func (c *Connection) SelectValue(sql string, arguments ...interface{}) (v interf
 //
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("SelectValueTo `%s` with %v failed: %v", sql, arguments, err))
@@ -431,7 +431,7 @@ func (c *Connection) SelectValueTo(w io.Writer, sql string, arguments ...interfa
 	return
 }
 
-func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
+func (c *Conn) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 	var columnCount int16
 	err = binary.Read(c.reader, binary.BigEndian, &columnCount)
 	if err != nil {
@@ -475,7 +475,7 @@ func (c *Connection) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 // the sql string as $1, $2, etc.
 //
 // Returns a UnexpectedColumnCountError if exactly one column is not found
-func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
+func (c *Conn) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
 	values = make([]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		if len(r.fields) != 1 {
@@ -491,7 +491,7 @@ func (c *Connection) SelectValues(sql string, arguments ...interface{}) (values 
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-func (c *Connection) Prepare(name, sql string) (err error) {
+func (c *Conn) Prepare(name, sql string) (err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
@@ -565,21 +565,21 @@ func (c *Connection) Prepare(name, sql string) (err error) {
 }
 
 // Deallocate released a prepared statement
-func (c *Connection) Deallocate(name string) (err error) {
+func (c *Conn) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
 	_, err = c.Execute("deallocate " + c.QuoteIdentifier(name))
 	return
 }
 
 // Listen establishes a PostgreSQL listen/notify to channel
-func (c *Connection) Listen(channel string) (err error) {
+func (c *Conn) Listen(channel string) (err error) {
 	_, err = c.Execute("listen " + channel)
 	return
 }
 
 // WaitForNotification waits for a PostgreSQL notification for up to timeout.
 // If the timeout occurs it returns pgx.NotificationTimeoutError
-func (c *Connection) WaitForNotification(timeout time.Duration) (*Notification, error) {
+func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
 		c.notifications = c.notifications[1:]
@@ -636,15 +636,15 @@ func (c *Connection) WaitForNotification(timeout time.Duration) (*Notification, 
 	}
 }
 
-func (c *Connection) IsAlive() bool {
+func (c *Conn) IsAlive() bool {
 	return c.alive
 }
 
-func (c *Connection) CauseOfDeath() error {
+func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error) {
+func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 	if ps, present := c.preparedStatements[sql]; present {
 		return c.sendPreparedQuery(ps, arguments...)
 	} else {
@@ -652,7 +652,7 @@ func (c *Connection) sendQuery(sql string, arguments ...interface{}) (err error)
 	}
 }
 
-func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
+func (c *Conn) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
 	if len(arguments) > 0 {
 		sql, err = c.SanitizeSql(sql, arguments...)
 		if err != nil {
@@ -674,7 +674,7 @@ func (c *Connection) sendSimpleQuery(sql string, arguments ...interface{}) (err 
 	return c.txMsg('Q', buf, true)
 }
 
-func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}) (err error) {
+func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOids) != len(arguments) {
 		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
 	}
@@ -752,7 +752,7 @@ func (c *Connection) sendPreparedQuery(ps *preparedStatement, arguments ...inter
 // Execute executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Execute `%s` with %v failed: %v", sql, arguments, err))
@@ -791,7 +791,7 @@ func (c *Connection) Execute(sql string, arguments ...interface{}) (commandTag s
 // from err as an explicit rollback is not an error. Transaction will use the default
 // isolation level for the current connection. To use a specific isolation level see
 // TransactionIso
-func (c *Connection) Transaction(f func() bool) (committed bool, err error) {
+func (c *Conn) Transaction(f func() bool) (committed bool, err error) {
 	return c.transaction("", f)
 }
 
@@ -803,11 +803,11 @@ func (c *Connection) Transaction(f func() bool) (committed bool, err error) {
 //   repeatable read
 //   read committed
 //   read uncommitted
-func (c *Connection) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
+func (c *Conn) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
 	return c.transaction(isoLevel, f)
 }
 
-func (c *Connection) transaction(isoLevel string, f func() bool) (committed bool, err error) {
+func (c *Conn) transaction(isoLevel string, f func() bool) (committed bool, err error) {
 	var beginSql string
 	if isoLevel == "" {
 		beginSql = "begin"
@@ -837,7 +837,7 @@ func (c *Connection) transaction(isoLevel string, f func() bool) (committed bool
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
-func (c *Connection) processContextFreeMsg(t byte, r *MessageReader) (err error) {
+func (c *Conn) processContextFreeMsg(t byte, r *MessageReader) (err error) {
 	switch t {
 	case 'S':
 		c.rxParameterStatus(r)
@@ -853,7 +853,7 @@ func (c *Connection) processContextFreeMsg(t byte, r *MessageReader) (err error)
 	}
 }
 
-func (c *Connection) rxMsg() (t byte, r *MessageReader, err error) {
+func (c *Conn) rxMsg() (t byte, r *MessageReader, err error) {
 	var bodySize int32
 	t, bodySize, err = c.rxMsgHeader()
 	if err != nil {
@@ -869,7 +869,7 @@ func (c *Connection) rxMsg() (t byte, r *MessageReader, err error) {
 	return
 }
 
-func (c *Connection) rxMsgHeader() (t byte, bodySize int32, err error) {
+func (c *Conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 	if !c.alive {
 		err = errors.New("Connection is dead")
 		return
@@ -890,7 +890,7 @@ func (c *Connection) rxMsgHeader() (t byte, bodySize int32, err error) {
 	return
 }
 
-func (c *Connection) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
+func (c *Conn) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
 	if !c.alive {
 		return nil, errors.New("Connection is dead")
 	}
@@ -905,7 +905,7 @@ func (c *Connection) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
 	return buf, nil
 }
 
-func (c *Connection) rxAuthenticationX(r *MessageReader) (err error) {
+func (c *Conn) rxAuthenticationX(r *MessageReader) (err error) {
 	code := r.ReadInt32()
 	switch code {
 	case 0: // AuthenticationOk
@@ -928,13 +928,13 @@ func hexMD5(s string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (c *Connection) rxParameterStatus(r *MessageReader) {
+func (c *Conn) rxParameterStatus(r *MessageReader) {
 	key := r.ReadCString()
 	value := r.ReadCString()
 	c.RuntimeParams[key] = value
 }
 
-func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
+func (c *Conn) rxErrorResponse(r *MessageReader) (err PgError) {
 	for {
 		switch r.ReadByte() {
 		case 'S':
@@ -951,16 +951,16 @@ func (c *Connection) rxErrorResponse(r *MessageReader) (err PgError) {
 	}
 }
 
-func (c *Connection) rxBackendKeyData(r *MessageReader) {
+func (c *Conn) rxBackendKeyData(r *MessageReader) {
 	c.Pid = r.ReadInt32()
 	c.SecretKey = r.ReadInt32()
 }
 
-func (c *Connection) rxReadyForQuery(r *MessageReader) {
+func (c *Conn) rxReadyForQuery(r *MessageReader) {
 	c.TxStatus = r.ReadByte()
 }
 
-func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescription) {
+func (c *Conn) rxRowDescription(r *MessageReader) (fields []FieldDescription) {
 	fieldCount := r.ReadInt16()
 	fields = make([]FieldDescription, fieldCount)
 	for i := int16(0); i < fieldCount; i++ {
@@ -976,7 +976,7 @@ func (c *Connection) rxRowDescription(r *MessageReader) (fields []FieldDescripti
 	return
 }
 
-func (c *Connection) rxParameterDescription(r *MessageReader) (parameters []Oid) {
+func (c *Conn) rxParameterDescription(r *MessageReader) (parameters []Oid) {
 	parameterCount := r.ReadInt16()
 	parameters = make([]Oid, 0, parameterCount)
 	for i := int16(0); i < parameterCount; i++ {
@@ -985,7 +985,7 @@ func (c *Connection) rxParameterDescription(r *MessageReader) (parameters []Oid)
 	return
 }
 
-func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
+func (c *Conn) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 	fieldCount := len(r.fields)
 
 	row = make(map[string]interface{}, fieldCount)
@@ -995,11 +995,11 @@ func (c *Connection) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
 	return
 }
 
-func (c *Connection) rxCommandComplete(r *MessageReader) string {
+func (c *Conn) rxCommandComplete(r *MessageReader) string {
 	return r.ReadCString()
 }
 
-func (c *Connection) rxNotificationResponse(r *MessageReader) (err error) {
+func (c *Conn) rxNotificationResponse(r *MessageReader) (err error) {
 	n := new(Notification)
 	n.Pid = r.ReadInt32()
 	n.Channel = r.ReadCString()
@@ -1008,7 +1008,7 @@ func (c *Connection) rxNotificationResponse(r *MessageReader) (err error) {
 	return
 }
 
-func (c *Connection) startTLS() (err error) {
+func (c *Conn) startTLS() (err error) {
 	err = binary.Write(c.conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
@@ -1029,7 +1029,7 @@ func (c *Connection) startTLS() (err error) {
 	return nil
 }
 
-func (c *Connection) txStartupMessage(msg *startupMessage) (err error) {
+func (c *Conn) txStartupMessage(msg *startupMessage) (err error) {
 	_, err = c.writer.Write(msg.Bytes())
 	if err != nil {
 		return
@@ -1038,7 +1038,7 @@ func (c *Connection) txStartupMessage(msg *startupMessage) (err error) {
 	return
 }
 
-func (c *Connection) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err error) {
+func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err error) {
 	if !c.alive {
 		return errors.New("Connection is dead")
 	}
@@ -1071,7 +1071,7 @@ func (c *Connection) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err 
 	return
 }
 
-func (c *Connection) txPasswordMessage(password string) (err error) {
+func (c *Conn) txPasswordMessage(password string) (err error) {
 	buf := c.getBuf()
 
 	_, err = buf.WriteString(password)
@@ -1089,7 +1089,7 @@ func (c *Connection) txPasswordMessage(password string) (err error) {
 // Gets the shared connection buffer. Since bytes.Buffer never releases memory from
 // its internal byte array, check on the size and create a new bytes.Buffer so the
 // old one can get GC'ed
-func (c *Connection) getBuf() *bytes.Buffer {
+func (c *Conn) getBuf() *bytes.Buffer {
 	c.buf.Reset()
 	if cap(c.buf.Bytes()) > c.bufSize {
 		c.logger.Debug(fmt.Sprintf("c.buf (%d) is larger than c.bufSize (%d) -- resetting", cap(c.buf.Bytes()), c.bufSize))
@@ -1098,7 +1098,7 @@ func (c *Connection) getBuf() *bytes.Buffer {
 	return c.buf
 }
 
-func (c *Connection) die(err error) {
+func (c *Conn) die(err error) {
 	c.alive = false
 	c.causeOfDeath = err
 }

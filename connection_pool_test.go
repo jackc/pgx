@@ -19,7 +19,7 @@ func createConnectionPool(t *testing.T, maxConnections int) *pgx.ConnectionPool 
 
 func TestNewConnectionPool(t *testing.T) {
 	var numCallbacks int
-	afterConnect := func(c *pgx.Connection) error {
+	afterConnect := func(c *pgx.Conn) error {
 		numCallbacks++
 		return nil
 	}
@@ -39,7 +39,7 @@ func TestNewConnectionPool(t *testing.T) {
 
 	// Pool creation returns an error if any AfterConnect callback does
 	errAfterConnect := errors.New("Some error")
-	afterConnect = func(c *pgx.Connection) error {
+	afterConnect = func(c *pgx.Conn) error {
 		return errAfterConnect
 	}
 
@@ -57,8 +57,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	pool := createConnectionPool(t, maxConnections)
 	defer pool.Close()
 
-	acquireAll := func() (connections []*pgx.Connection) {
-		connections = make([]*pgx.Connection, maxConnections)
+	acquireAll := func() (connections []*pgx.Conn) {
+		connections = make([]*pgx.Conn, maxConnections)
 		for i := 0; i < maxConnections; i++ {
 			var err error
 			if connections[i], err = pool.Acquire(); err != nil {
@@ -206,7 +206,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	pool := createConnectionPool(t, maxConnections)
 	defer pool.Close()
 
-	var c1, c2 *pgx.Connection
+	var c1, c2 *pgx.Conn
 	var err error
 	var stat pgx.ConnectionPoolStat
 
@@ -265,7 +265,7 @@ func TestPoolTransaction(t *testing.T) {
 	pool := createConnectionPool(t, 1)
 	defer pool.Close()
 
-	committed, err := pool.Transaction(func(conn *pgx.Connection) bool {
+	committed, err := pool.Transaction(func(conn *pgx.Conn) bool {
 		mustExecute(t, conn, "create temporary table foo(id serial primary key)")
 		return true
 	})
@@ -276,7 +276,7 @@ func TestPoolTransaction(t *testing.T) {
 		t.Fatal("Transaction was not committed when it should have been")
 	}
 
-	committed, err = pool.Transaction(func(conn *pgx.Connection) bool {
+	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
 		n := mustSelectValue(t, conn, "select count(*) from foo")
 		if n.(int64) != 0 {
 			t.Fatalf("Did not receive expected value: %v", n)
@@ -298,7 +298,7 @@ func TestPoolTransaction(t *testing.T) {
 		t.Fatal("Transaction was committed when it shouldn't have been")
 	}
 
-	committed, err = pool.Transaction(func(conn *pgx.Connection) bool {
+	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
 		n := mustSelectValue(t, conn, "select count(*) from foo")
 		if n.(int64) != 0 {
 			t.Fatalf("Did not receive expected value: %v", n)
@@ -318,7 +318,7 @@ func TestPoolTransactionIso(t *testing.T) {
 	pool := createConnectionPool(t, 1)
 	defer pool.Close()
 
-	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Connection) bool {
+	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Conn) bool {
 		if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != "serializable" {
 			t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
 		}

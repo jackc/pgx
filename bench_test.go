@@ -17,7 +17,7 @@ var float8TextVsBinaryTestDataLoaded bool
 var boolTextVsBinaryTestDataLoaded bool
 var timestampTzTextVsBinaryTestDataLoaded bool
 
-func createNarrowTestData(b *testing.B, conn *pgx.Connection) {
+func createNarrowTestData(b *testing.B, conn *pgx.Conn) {
 	if narrowTestDataLoaded {
 		return
 	}
@@ -158,7 +158,7 @@ func BenchmarkSelectValueToPreparedNarrow(b *testing.B) {
 	}
 }
 
-func createJoinsTestData(b *testing.B, conn *pgx.Connection) {
+func createJoinsTestData(b *testing.B, conn *pgx.Conn) {
 	if testJoinsDataLoaded {
 		return
 	}
@@ -259,7 +259,7 @@ func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
 	}
 }
 
-func createInt2TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createInt2TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if int2TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -312,7 +312,7 @@ func BenchmarkInt2Binary(b *testing.B) {
 	}
 }
 
-func createInt4TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createInt4TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if int4TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -365,7 +365,7 @@ func BenchmarkInt4Binary(b *testing.B) {
 	}
 }
 
-func createInt8TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createInt8TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if int8TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -418,7 +418,7 @@ func BenchmarkInt8Binary(b *testing.B) {
 	}
 }
 
-func createFloat4TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createFloat4TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if float4TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -471,7 +471,7 @@ func BenchmarkFloat4Binary(b *testing.B) {
 	}
 }
 
-func createFloat8TextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createFloat8TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if float8TextVsBinaryTestDataLoaded {
 		return
 	}
@@ -524,7 +524,7 @@ func BenchmarkFloat8Binary(b *testing.B) {
 	}
 }
 
-func createBoolTextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createBoolTextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if boolTextVsBinaryTestDataLoaded {
 		return
 	}
@@ -577,7 +577,7 @@ func BenchmarkBoolBinary(b *testing.B) {
 	}
 }
 
-func createTimestampTzTextVsBinaryTestData(b *testing.B, conn *pgx.Connection) {
+func createTimestampTzTextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
 	if timestampTzTextVsBinaryTestDataLoaded {
 		return
 	}
@@ -644,7 +644,7 @@ func BenchmarkConnectionPool(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var conn *pgx.Connection
+		var conn *pgx.Conn
 		if conn, err = pool.Acquire(); err != nil {
 			b.Fatalf("Unable to acquire connection: %v", err)
 		}

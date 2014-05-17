@@ -11,7 +11,7 @@ import (
 var pool *pgx.ConnectionPool
 
 // afterConnect creates the prepared statements that this application uses
-func afterConnect(conn *pgx.Connection) (err error) {
+func afterConnect(conn *pgx.Conn) (err error) {
 	err = conn.Prepare("getUrl", `
     select url from shortened_urls where id=$1
   `)
