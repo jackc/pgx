@@ -854,3 +854,25 @@ func TestFatalTxError(t *testing.T) {
 		t.Fatal("Connection should not be live but was")
 	}
 }
+
+func TestCommandTag(t *testing.T) {
+	var tests = []struct {
+		commandTag   pgx.CommandTag
+		rowsAffected int64
+	}{
+		{commandTag: "UPDATE 0", rowsAffected: 0},
+		{commandTag: "UPDATE 1", rowsAffected: 1},
+		{commandTag: "DELETE 0", rowsAffected: 0},
+		{commandTag: "DELETE 1", rowsAffected: 1},
+		{commandTag: "CREATE TABLE", rowsAffected: 0},
+		{commandTag: "ALTER TABLE", rowsAffected: 0},
+		{commandTag: "DROP TABLE", rowsAffected: 0},
+	}
+
+	for i, tt := range tests {
+		actual := tt.commandTag.RowsAffected()
+		if tt.rowsAffected != actual {
+			t.Errorf(`%d. "%s" should have affected %d rows but it was %d`, i, tt.commandTag, tt.rowsAffected, actual)
+		}
+	}
+}

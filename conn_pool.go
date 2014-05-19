@@ -223,7 +223,7 @@ func (p *ConnPool) SelectValues(sql string, arguments ...interface{}) (values []
 }
 
 // Execute acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+func (p *ConnPool) Execute(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return

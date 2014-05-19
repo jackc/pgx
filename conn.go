@@ -77,6 +77,20 @@ type Notification struct {
 	Payload string
 }
 
+type CommandTag string
+
+// RowsAffected returns the number of rows affected. If the CommandTag was not
+// for a row affecting command (such as "CREATE TABLE") then it returns 0
+func (ct CommandTag) RowsAffected() int64 {
+	words := strings.SplitN(string(ct), " ", 2)
+	if len(words) != 2 {
+		return 0
+	}
+
+	n, _ := strconv.ParseInt(words[1], 10, 64)
+	return n
+}
+
 // NotSingleRowError is returned when exactly 1 row is expected, but 0 or more than
 // 1 row is returned
 type NotSingleRowError struct {
@@ -760,7 +774,7 @@ func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}
 // Execute executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag string, err error) {
+func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	defer func() {
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Execute `%s` with %v failed: %v", sql, arguments, err))
@@ -781,7 +795,7 @@ func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag string,
 			case dataRow:
 			case bindComplete:
 			case commandComplete:
-				commandTag = r.ReadCString()
+				commandTag = CommandTag(r.ReadCString())
 			default:
 				if e := c.processContextFreeMsg(t, r); e != nil && err == nil {
 					err = e

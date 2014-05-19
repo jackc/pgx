@@ -26,7 +26,7 @@ func mustPrepare(t testing.TB, conn *pgx.Conn, name, sql string) {
 	}
 }
 
-func mustExecute(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag string) {
+func mustExecute(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgx.CommandTag) {
 	var err error
 	if commandTag, err = conn.Execute(sql, arguments...); err != nil {
 		t.Fatalf("Execute unexpectedly failed with %v: %v", sql, err)
