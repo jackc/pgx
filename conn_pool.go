@@ -6,9 +6,9 @@ import (
 )
 
 type ConnPoolConfig struct {
+	ConnConfig
 	MaxConnections int // max simultaneous connections to use
 	AfterConnect   func(*Conn) error
-	Logger         Logger
 }
 
 type ConnPool struct {
@@ -27,15 +27,15 @@ type ConnPoolStat struct {
 	AvailableConnections int // unused live connections
 }
 
-// NewConnPool creates a new ConnPool. config are passed through to
+// NewConnPool creates a new ConnPool. config.ConnConfig is passed through to
 // Connect directly.
-func NewConnPool(config ConnConfig, options ConnPoolConfig) (p *ConnPool, err error) {
+func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
-	p.config = config
-	p.maxConnections = options.MaxConnections
-	p.afterConnect = options.AfterConnect
-	if options.Logger != nil {
-		p.logger = options.Logger
+	p.config = config.ConnConfig
+	p.maxConnections = config.MaxConnections
+	p.afterConnect = config.AfterConnect
+	if config.Logger != nil {
+		p.logger = config.Logger
 	} else {
 		p.logger = nullLogger("null")
 	}
