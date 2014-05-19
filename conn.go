@@ -23,6 +23,14 @@ import (
 	"time"
 )
 
+// Transaction isolation levels
+const (
+	Serializable    = "serializable"
+	RepeatableRead  = "repeatable read"
+	ReadCommitted   = "read committed"
+	ReadUncommitted = "read uncommitted"
+)
+
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	Socket     string // path to unix domain socket directory (e.g. /private/tmp)
@@ -798,11 +806,11 @@ func (c *Conn) Transaction(f func() bool) (committed bool, err error) {
 // TransactionIso is the same as Transaction except it takes an isoLevel argument that
 // it uses as the transaction isolation level.
 //
-// Valid isolation levels are:
-//   serializable
-//   repeatable read
-//   read committed
-//   read uncommitted
+// Valid isolation levels (and their constants) are:
+//   serializable (pgx.Serializable)
+//   repeatable read (pgx.RepeatableRead)
+//   read committed (pgx.ReadCommitted)
+//   read uncommitted (pgx.ReadUncommitted)
 func (c *Conn) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
 	return c.transaction(isoLevel, f)
 }

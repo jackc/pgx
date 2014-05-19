@@ -727,7 +727,7 @@ func TestTransactionIso(t *testing.T) {
 	}
 	defer conn.Close()
 
-	isoLevels := []string{"serializable", "repeatable read", "read committed", "read uncommitted"}
+	isoLevels := []string{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
 		_, err := conn.TransactionIso(iso, func() bool {
 			if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != iso {
