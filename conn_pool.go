@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	log "gopkg.in/inconshreveable/log15.v2"
 	"io"
 	"sync"
 )
@@ -18,7 +19,7 @@ type ConnPool struct {
 	config               ConnConfig // config used when establishing connection
 	maxConnections       int
 	afterConnect         func(*Conn) error
-	logger               Logger
+	logger               log.Logger
 }
 
 type ConnPoolStat struct {
@@ -37,7 +38,8 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	if config.Logger != nil {
 		p.logger = config.Logger
 	} else {
-		p.logger = nullLogger("null")
+		p.logger = log.New()
+		p.logger.SetHandler(log.DiscardHandler())
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
@@ -80,7 +82,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 
 	// All connections are in use and we cannot create more
 	if len(p.availableConnections) == 0 {
-		p.logger.Warning("All connections in pool are busy - waiting...")
+		p.logger.Warn("All connections in pool are busy - waiting...")
 		for len(p.availableConnections) == 0 {
 			p.cond.Wait()
 		}

@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"io"
 	"io/ioutil"
 	"net"
@@ -41,7 +42,7 @@ type ConnConfig struct {
 	Password   string
 	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
 	TLSConfig  *tls.Config // config for TLS connection -- nil disables TLS
-	Logger     Logger
+	Logger     log.Logger
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -62,7 +63,7 @@ type Conn struct {
 	notifications      []*Notification
 	alive              bool
 	causeOfDeath       error
-	logger             Logger
+	logger             log.Logger
 }
 
 type preparedStatement struct {
@@ -130,7 +131,8 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.config.Logger != nil {
 		c.logger = c.config.Logger
 	} else {
-		c.logger = nullLogger("null")
+		c.logger = log.New()
+		c.logger.SetHandler(log.DiscardHandler())
 	}
 
 	if c.config.User == "" {
@@ -219,7 +221,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 				}
 			case readyForQuery:
 				c.rxReadyForQuery(r)
-				c.logger = newPidLogger(c.Pid, c.logger)
+				c.logger = c.logger.New("pid", c.Pid)
 				c.logger.Info("Connection established")
 				return c, nil
 			default:
