@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/JackC/pgx"
+	log "gopkg.in/inconshreveable/log15.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -97,24 +97,29 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 	var err error
-	connConfig := pgx.ConnConfig{
-		Host:     "127.0.0.1",
-		User:     "jack",
-		Password: "jack",
-		Database: "url_shortener"}
-	poolOptions := pgx.ConnPoolConfig{MaxConnections: 5, AfterConnect: afterConnect}
-	pool, err = pgx.NewConnPool(connConfig, poolOptions)
+	connPoolConfig := pgx.ConnPoolConfig{
+		ConnConfig: pgx.ConnConfig{
+			Host:     "127.0.0.1",
+			User:     "jack",
+			Password: "jack",
+			Database: "url_shortener",
+			Logger:   log.New("module", "pgx"),
+		},
+		MaxConnections: 5,
+		AfterConnect:   afterConnect,
+	}
+	pool, err = pgx.NewConnPool(connPoolConfig)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to create connection pool: %v\n", err)
+		log.Crit("Unable to create connection pool", "error", err)
 		os.Exit(1)
 	}
 
 	http.HandleFunc("/", urlHandler)
 
-	fmt.Println("Starting URL shortener on localhost:8080...")
+	log.Info("Starting URL shortener on localhost:8080")
 	err = http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to start web server: %v\n", err)
+		log.Crit("Unable to start web server", "error", err)
 		os.Exit(1)
 	}
 }

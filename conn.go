@@ -140,17 +140,17 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		if err != nil {
 			return nil, err
 		}
-		c.logger.Debug("Using default User " + user.Username)
 		c.config.User = user.Username
+		c.logger.Debug("Using default connection config", "User", c.config.User)
 	}
 
 	if c.config.Port == 0 {
-		c.logger.Debug("Using default Port")
 		c.config.Port = 5432
+		c.logger.Debug("Using default connection config", "Port", c.config.Port)
 	}
 	if c.config.MsgBufSize == 0 {
-		c.logger.Debug("Using default MsgBufSize")
 		c.config.MsgBufSize = 1024
+		c.logger.Debug("Using default connection config", "MsgBufSize", c.config.MsgBufSize)
 	}
 
 	if c.config.Socket != "" {
@@ -279,13 +279,20 @@ func ParseURI(uri string) (ConnConfig, error) {
 // need to simultaneously store the entire result set in memory. It also means that
 // it is possible to process some rows and then for an error to occur. Callers
 // should be aware of this possibility.
-func (c *Conn) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
-	defer func() {
-		if err != nil {
-			c.logger.Error(fmt.Sprintf("SelectFunc `%s` with %v failed: %v", sql, arguments, err))
-		}
-	}()
+func (c *Conn) SelectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) error {
+	startTime := time.Now()
+	err := c.selectFunc(sql, onDataRow, arguments...)
+	if err != nil {
+		c.logger.Error("SelectFunc", "sql", sql, "args", arguments, "error", err)
+		return err
+	}
 
+	endTime := time.Now()
+	c.logger.Info("SelectFunc", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
+	return nil
+}
+
+func (c *Conn) selectFunc(sql string, onDataRow func(*DataRowReader) error, arguments ...interface{}) (err error) {
 	var fields []FieldDescription
 
 	if ps, present := c.preparedStatements[sql]; present {
@@ -777,9 +784,14 @@ func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+	startTime := time.Now()
+
 	defer func() {
-		if err != nil {
-			c.logger.Error(fmt.Sprintf("Execute `%s` with %v failed: %v", sql, arguments, err))
+		if err == nil {
+			endTime := time.Now()
+			c.logger.Info("Execute", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
+		} else {
+			c.logger.Error("Execute", "sql", sql, "args", arguments, "error", err)
 		}
 	}()
 
