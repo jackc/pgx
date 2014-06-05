@@ -338,14 +338,23 @@ func (c *Conn) selectFunc(sql string, onDataRow func(*DataRowReader) error, argu
 // sql can be either a prepared statement name or an SQL string. arguments will be
 // sanitized before being interpolated into sql strings. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
-func (c *Conn) SelectRows(sql string, arguments ...interface{}) (rows []map[string]interface{}, err error) {
-	rows = make([]map[string]interface{}, 0, 8)
+func (c *Conn) SelectRows(sql string, arguments ...interface{}) ([]map[string]interface{}, error) {
+	startTime := time.Now()
+
+	rows := make([]map[string]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		rows = append(rows, c.rxDataRow(r))
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow, arguments...)
-	return
+	err := c.selectFunc(sql, onDataRow, arguments...)
+	if err != nil {
+		c.logger.Error("SelectRows", "sql", sql, "args", arguments, "error", err)
+		return nil, err
+	}
+
+	endTime := time.Now()
+	c.logger.Info("SelectRows", "sql", sql, "args", arguments, "rowsFound", len(rows), "time", endTime.Sub(startTime))
+	return rows, nil
 }
 
 // SelectRow executes sql and returns a map representing the found row.
@@ -354,19 +363,31 @@ func (c *Conn) SelectRows(sql string, arguments ...interface{}) (rows []map[stri
 // positionally from the sql string as $1, $2, etc.
 //
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Conn) SelectRow(sql string, arguments ...interface{}) (row map[string]interface{}, err error) {
+func (c *Conn) SelectRow(sql string, arguments ...interface{}) (map[string]interface{}, error) {
+	startTime := time.Now()
+
 	var numRowsFound int64
+	var row map[string]interface{}
 
 	onDataRow := func(r *DataRowReader) error {
 		numRowsFound++
 		row = c.rxDataRow(r)
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow, arguments...)
-	if err == nil && numRowsFound != 1 {
-		err = NotSingleRowError{RowCount: numRowsFound}
+	err := c.selectFunc(sql, onDataRow, arguments...)
+	if err != nil {
+		c.logger.Error("SelectRow", "sql", sql, "args", arguments, "error", err)
+		return nil, err
 	}
-	return
+	if numRowsFound != 1 {
+		err = NotSingleRowError{RowCount: numRowsFound}
+		row = nil
+	}
+
+	endTime := time.Now()
+	c.logger.Info("SelectRow", "sql", sql, "args", arguments, "rowsFound", numRowsFound, "time", endTime.Sub(startTime))
+
+	return row, err
 }
 
 // SelectValue executes sql and returns a single value. sql can be either a prepared
@@ -376,8 +397,11 @@ func (c *Conn) SelectRow(sql string, arguments ...interface{}) (row map[string]i
 //
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
-func (c *Conn) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
+func (c *Conn) SelectValue(sql string, arguments ...interface{}) (interface{}, error) {
+	startTime := time.Now()
+
 	var numRowsFound int64
+	var v interface{}
 
 	onDataRow := func(r *DataRowReader) error {
 		if len(r.fields) != 1 {
@@ -388,13 +412,20 @@ func (c *Conn) SelectValue(sql string, arguments ...interface{}) (v interface{},
 		v = r.ReadValue()
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow, arguments...)
-	if err == nil {
-		if numRowsFound != 1 {
-			err = NotSingleRowError{RowCount: numRowsFound}
-		}
+	err := c.selectFunc(sql, onDataRow, arguments...)
+	if err != nil {
+		c.logger.Error("SelectValue", "sql", sql, "args", arguments, "error", err)
+		return nil, err
 	}
-	return
+	if numRowsFound != 1 {
+		err = NotSingleRowError{RowCount: numRowsFound}
+		v = nil
+	}
+
+	endTime := time.Now()
+	c.logger.Info("SelectValue", "sql", sql, "args", arguments, "rowsFound", numRowsFound, "time", endTime.Sub(startTime))
+
+	return v, err
 }
 
 // SelectValueTo executes sql that returns a single value and writes that value to w.
@@ -408,14 +439,20 @@ func (c *Conn) SelectValue(sql string, arguments ...interface{}) (v interface{},
 // Returns a UnexpectedColumnCountError if exactly one column is not found
 // Returns a NotSingleRowError if exactly one row is not found
 func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
+	startTime := time.Now()
+
 	defer func() {
-		if err != nil {
+		if err == nil {
+			endTime := time.Now()
+			c.logger.Info("SelectValueTo", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
+		} else {
 			c.logger.Error(fmt.Sprintf("SelectValueTo `%s` with %v failed: %v", sql, arguments, err))
 		}
 	}()
 
-	if err = c.sendQuery(sql, arguments...); err != nil {
-		return
+	err = c.sendQuery(sql, arguments...)
+	if err != nil {
+		return err
 	}
 
 	var numRowsFound int64
@@ -506,8 +543,10 @@ func (c *Conn) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 // the sql string as $1, $2, etc.
 //
 // Returns a UnexpectedColumnCountError if exactly one column is not found
-func (c *Conn) SelectValues(sql string, arguments ...interface{}) (values []interface{}, err error) {
-	values = make([]interface{}, 0, 8)
+func (c *Conn) SelectValues(sql string, arguments ...interface{}) ([]interface{}, error) {
+	startTime := time.Now()
+
+	values := make([]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
 		if len(r.fields) != 1 {
 			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.fields))}
@@ -516,8 +555,15 @@ func (c *Conn) SelectValues(sql string, arguments ...interface{}) (values []inte
 		values = append(values, r.ReadValue())
 		return nil
 	}
-	err = c.SelectFunc(sql, onDataRow, arguments...)
-	return
+	err := c.selectFunc(sql, onDataRow, arguments...)
+	if err != nil {
+		c.logger.Error("SelectValues", "sql", sql, "args", arguments, "error", err)
+		return nil, err
+	}
+
+	endTime := time.Now()
+	c.logger.Info("SelectValues", "sql", sql, "args", arguments, "valuesFound", len(values), "time", endTime.Sub(startTime))
+	return values, nil
 }
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
