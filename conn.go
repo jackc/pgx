@@ -496,7 +496,6 @@ func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) 
 			return rxErr
 		}
 	}
-	return
 }
 
 func (c *Conn) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {

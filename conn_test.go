@@ -635,7 +635,7 @@ func TestTransaction(t *testing.T) {
 		return true
 	})
 	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: ", err)
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
 	}
 	if !committed {
 		t.Fatal("Transaction was not committed")
@@ -655,7 +655,7 @@ func TestTransaction(t *testing.T) {
 		return false
 	})
 	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: ", err)
+		t.Fatalf("Transaction unexpectedly failed: %v", err)
 	}
 	if committed {
 		t.Fatal("Transaction should not have been committed")
