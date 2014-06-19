@@ -588,27 +588,21 @@ func (c *Conn) Prepare(name, sql string) (err error) {
 
 	// parse
 	buf := c.getBuf()
-	w := newMessageWriter(buf)
-	w.WriteCString(name)
-	w.WriteCString(sql)
-	w.Write(int16(0))
-	if w.Err != nil {
-		return w.Err
-	}
+	buf.WriteString(name)
+	buf.WriteByte(0)
+	buf.WriteString(sql)
+	buf.WriteByte(0)
+	binary.Write(buf, binary.BigEndian, int16(0))
 	err = c.txMsg('P', buf, false)
 	if err != nil {
-		return
+		return err
 	}
 
 	// describe
 	buf = c.getBuf()
-	w = newMessageWriter(buf)
-	w.WriteByte('S')
-	w.WriteCString(name)
-	if w.Err != nil {
-		return w.Err
-	}
-
+	buf.WriteByte('S')
+	buf.WriteString(name)
+	buf.WriteByte(0)
 	err = c.txMsg('D', buf, false)
 	if err != nil {
 		return
@@ -774,45 +768,43 @@ func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}
 
 	// bind
 	buf := c.getBuf()
-	w := newMessageWriter(buf)
-	w.WriteCString("")
-	w.WriteCString(ps.Name)
-	w.Write(int16(len(ps.ParameterOids)))
+	buf.WriteString("")
+	buf.WriteByte(0)
+	buf.WriteString(ps.Name)
+	buf.WriteByte(0)
+	binary.Write(buf, binary.BigEndian, int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
-		w.Write(transcoder.EncodeFormat)
+		binary.Write(buf, binary.BigEndian, transcoder.EncodeFormat)
 	}
 
-	w.Write(int16(len(arguments)))
+	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
 		if arguments[i] != nil {
 			transcoder := ValueTranscoders[oid]
 			if transcoder == nil {
 				transcoder = defaultTranscoder
 			}
-			err = transcoder.EncodeTo(w.buf, arguments[i])
+			err = transcoder.EncodeTo(buf, arguments[i])
 			if err != nil {
 				return err
 			}
 		} else {
-			w.Write(int32(-1))
+			binary.Write(buf, binary.BigEndian, int32(-1))
 		}
 	}
 
-	w.Write(int16(len(ps.FieldDescriptions)))
+	binary.Write(buf, binary.BigEndian, int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
 		transcoder := ValueTranscoders[fd.DataType]
 		if transcoder != nil && transcoder.DecodeBinary != nil {
-			w.Write(int16(1))
+			binary.Write(buf, binary.BigEndian, int16(1))
 		} else {
-			w.Write(int16(0))
+			binary.Write(buf, binary.BigEndian, int16(0))
 		}
-	}
-	if w.Err != nil {
-		return w.Err
 	}
 
 	err = c.txMsg('B', buf, false)
@@ -822,14 +814,9 @@ func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}
 
 	// execute
 	buf = c.getBuf()
-	w = newMessageWriter(buf)
-	w.WriteCString("")
-	w.Write(int32(0))
-
-	if w.Err != nil {
-		return w.Err
-	}
-
+	buf.WriteString("")
+	buf.WriteByte(0)
+	binary.Write(buf, binary.BigEndian, int32(0))
 	err = c.txMsg('E', buf, false)
 	if err != nil {
 		return err

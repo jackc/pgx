@@ -462,16 +462,32 @@ func decodeInt2ArrayFromText(mr *MessageReader, size int32) interface{} {
 }
 
 func int16SliceToArrayString(nums []int16) (string, error) {
-	w := newMessageWriter(&bytes.Buffer{})
-	w.WriteString("{")
+	w := &bytes.Buffer{}
+	_, err := w.WriteString("{")
+	if err != nil {
+		return "", err
+	}
+
 	for i, n := range nums {
 		if i > 0 {
-			w.WriteString(",")
+			_, err = w.WriteString(",")
+			if err != nil {
+				return "", err
+			}
 		}
-		w.WriteString(strconv.FormatInt(int64(n), 10))
+
+		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
+		if err != nil {
+			return "", err
+		}
 	}
-	w.WriteString("}")
-	return w.buf.String(), w.Err
+
+	_, err = w.WriteString("}")
+	if err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
 }
 
 func encodeInt2Array(w io.Writer, value interface{}) error {
@@ -513,16 +529,33 @@ func decodeInt4ArrayFromText(mr *MessageReader, size int32) interface{} {
 }
 
 func int32SliceToArrayString(nums []int32) (string, error) {
-	w := newMessageWriter(&bytes.Buffer{})
-	w.WriteString("{")
+	w := &bytes.Buffer{}
+
+	_, err := w.WriteString("{")
+	if err != nil {
+		return "", err
+	}
+
 	for i, n := range nums {
 		if i > 0 {
-			w.WriteString(",")
+			_, err = w.WriteString(",")
+			if err != nil {
+				return "", err
+			}
 		}
-		w.WriteString(strconv.FormatInt(int64(n), 10))
+
+		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
+		if err != nil {
+			return "", err
+		}
 	}
-	w.WriteString("}")
-	return w.buf.String(), w.Err
+
+	_, err = w.WriteString("}")
+	if err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
 }
 
 func encodeInt4Array(w io.Writer, value interface{}) error {
@@ -564,16 +597,33 @@ func decodeInt8ArrayFromText(mr *MessageReader, size int32) interface{} {
 }
 
 func int64SliceToArrayString(nums []int64) (string, error) {
-	w := newMessageWriter(&bytes.Buffer{})
-	w.WriteString("{")
+	w := &bytes.Buffer{}
+
+	_, err := w.WriteString("{")
+	if err != nil {
+		return "", err
+	}
+
 	for i, n := range nums {
 		if i > 0 {
-			w.WriteString(",")
+			_, err = w.WriteString(",")
+			if err != nil {
+				return "", err
+			}
 		}
-		w.WriteString(strconv.FormatInt(int64(n), 10))
+
+		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
+		if err != nil {
+			return "", err
+		}
 	}
-	w.WriteString("}")
-	return w.buf.String(), w.Err
+
+	_, err = w.WriteString("}")
+	if err != nil {
+		return "", err
+	}
+
+	return w.String(), nil
 }
 
 func encodeInt8Array(w io.Writer, value interface{}) error {
