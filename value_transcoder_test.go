@@ -5,6 +5,27 @@ import (
 	"time"
 )
 
+func TestTranscodeError(t *testing.T) {
+	conn := getSharedConnection(t)
+
+	mustPrepare(t, conn, "testTranscode", "select $1::integer")
+	defer func() {
+		if err := conn.Deallocate("testTranscode"); err != nil {
+			t.Fatalf("Unable to deallocate prepared statement: %v", err)
+		}
+	}()
+
+	_, err := conn.SelectValue("testTranscode", "wrong")
+	switch {
+	case err == nil:
+		t.Error("Expected transcode error to return error, but it didn't")
+	case err.Error() == "Expected int32, received string":
+		// Correct behavior
+	default:
+		t.Errorf("Expected transcode error, received %v", err)
+	}
+}
+
 func TestNilTranscode(t *testing.T) {
 	conn := getSharedConnection(t)
 

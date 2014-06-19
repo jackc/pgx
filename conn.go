@@ -793,7 +793,10 @@ func (c *Conn) sendPreparedQuery(ps *preparedStatement, arguments ...interface{}
 			if transcoder == nil {
 				transcoder = defaultTranscoder
 			}
-			transcoder.EncodeTo(w, arguments[i])
+			err = transcoder.EncodeTo(w, arguments[i])
+			if err != nil {
+				return err
+			}
 		} else {
 			w.Write(int32(-1))
 		}
