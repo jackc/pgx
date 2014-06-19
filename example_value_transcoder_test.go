@@ -1,8 +1,10 @@
 package pgx_test
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/JackC/pgx"
+	"io"
 	"regexp"
 	"strconv"
 )
@@ -55,15 +57,19 @@ func decodePointFromText(mr *pgx.MessageReader, size int32) interface{} {
 	return p
 }
 
-func encodePoint(w *pgx.MessageWriter, value interface{}) error {
+func encodePoint(w io.Writer, value interface{}) error {
 	p, ok := value.(Point)
 	if !ok {
 		return fmt.Errorf("Expected Point, received %T", value)
 	}
 
 	s := fmt.Sprintf("point(%v,%v)", p.x, p.y)
-	w.Write(int32(len(s)))
-	w.WriteString(s)
 
-	return nil
+	err := binary.Write(w, binary.BigEndian, int32(len(s)))
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, s)
+	return err
 }
