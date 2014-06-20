@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"time"
@@ -197,9 +198,31 @@ func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 }
 
 func encodeInt8(w io.Writer, value interface{}) error {
-	v, ok := value.(int64)
-	if !ok {
-		return fmt.Errorf("Expected int64, received %T", value)
+	var v int64
+	switch value := value.(type) {
+	case int8:
+		v = int64(value)
+	case uint8:
+		v = int64(value)
+	case int16:
+		v = int64(value)
+	case uint16:
+		v = int64(value)
+	case int32:
+		v = int64(value)
+	case uint32:
+		v = int64(value)
+	case int64:
+		v = int64(value)
+	case uint64:
+		if value > math.MaxInt64 {
+			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, math.MaxInt64)
+		}
+		v = int64(value)
+	case int:
+		v = int64(value)
+	default:
+		return fmt.Errorf("Expected integer representable in int64, received %T %v", value, value)
 	}
 
 	err := binary.Write(w, binary.BigEndian, int32(8))
@@ -227,9 +250,46 @@ func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
 }
 
 func encodeInt2(w io.Writer, value interface{}) error {
-	v, ok := value.(int16)
-	if !ok {
-		return fmt.Errorf("Expected int16, received %T", value)
+	var v int16
+	switch value := value.(type) {
+	case int8:
+		v = int16(value)
+	case uint8:
+		v = int16(value)
+	case int16:
+		v = int16(value)
+	case uint16:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	case int32:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	case uint32:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	case int64:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	case uint64:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	case int:
+		if value > math.MaxInt16 {
+			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
+		}
+		v = int16(value)
+	default:
+		return fmt.Errorf("Expected integer representable in int16, received %T %v", value, value)
 	}
 
 	err := binary.Write(w, binary.BigEndian, int32(2))
@@ -257,9 +317,40 @@ func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 }
 
 func encodeInt4(w io.Writer, value interface{}) error {
-	v, ok := value.(int32)
-	if !ok {
-		return fmt.Errorf("Expected int32, received %T", value)
+	var v int32
+	switch value := value.(type) {
+	case int8:
+		v = int32(value)
+	case uint8:
+		v = int32(value)
+	case int16:
+		v = int32(value)
+	case uint16:
+		v = int32(value)
+	case int32:
+		v = int32(value)
+	case uint32:
+		if value > math.MaxInt32 {
+			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+		}
+		v = int32(value)
+	case int64:
+		if value > math.MaxInt32 {
+			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+		}
+		v = int32(value)
+	case uint64:
+		if value > math.MaxInt32 {
+			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+		}
+		v = int32(value)
+	case int:
+		if value > math.MaxInt32 {
+			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+		}
+		v = int32(value)
+	default:
+		return fmt.Errorf("Expected integer representable in int32, received %T %v", value, value)
 	}
 
 	err := binary.Write(w, binary.BigEndian, int32(4))
@@ -290,9 +381,17 @@ func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
 }
 
 func encodeFloat4(w io.Writer, value interface{}) error {
-	v, ok := value.(float32)
-	if !ok {
-		return fmt.Errorf("Expected float32, received %T", value)
+	var v float32
+	switch value := value.(type) {
+	case float32:
+		v = float32(value)
+	case float64:
+		if value > math.MaxFloat32 {
+			return fmt.Errorf("%T %f is larger than max float32 %f", value, math.MaxFloat32)
+		}
+		v = float32(value)
+	default:
+		return fmt.Errorf("Expected float representable in float32, received %T %v", value, value)
 	}
 
 	err := binary.Write(w, binary.BigEndian, int32(4))
@@ -323,9 +422,14 @@ func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
 }
 
 func encodeFloat8(w io.Writer, value interface{}) error {
-	v, ok := value.(float64)
-	if !ok {
-		return fmt.Errorf("Expected float64, received %T", value)
+	var v float64
+	switch value := value.(type) {
+	case float32:
+		v = float64(value)
+	case float64:
+		v = float64(value)
+	default:
+		return fmt.Errorf("Expected float representable in float64, received %T %v", value, value)
 	}
 
 	err := binary.Write(w, binary.BigEndian, int32(8))

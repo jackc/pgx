@@ -19,7 +19,7 @@ func TestTranscodeError(t *testing.T) {
 	switch {
 	case err == nil:
 		t.Error("Expected transcode error to return error, but it didn't")
-	case err.Error() == "Expected int32, received string":
+	case err.Error() == "Expected integer representable in int32, received string wrong":
 		// Correct behavior
 	default:
 		t.Errorf("Expected transcode error, received %v", err)
