@@ -860,6 +860,7 @@ func TestCommandTag(t *testing.T) {
 		commandTag   pgx.CommandTag
 		rowsAffected int64
 	}{
+		{commandTag: "INSERT 0 5", rowsAffected: 5},
 		{commandTag: "UPDATE 0", rowsAffected: 0},
 		{commandTag: "UPDATE 1", rowsAffected: 1},
 		{commandTag: "DELETE 0", rowsAffected: 0},
