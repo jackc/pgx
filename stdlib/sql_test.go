@@ -6,17 +6,25 @@ import (
 	"testing"
 )
 
-func TestNormalLifeCycle(t *testing.T) {
+func openDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
-	defer func() {
-		err := db.Close()
-		if err != nil {
-			t.Fatalf("db.Close unexpectedly failed: %v", err)
-		}
-	}()
+
+	return db
+}
+
+func closeDB(t *testing.T, db *sql.DB) {
+	err := db.Close()
+	if err != nil {
+		t.Fatalf("db.Close unexpectedly failed: %v", err)
+	}
+}
+
+func TestNormalLifeCycle(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
 
 	stmt, err := db.Prepare("select 'foo', n from generate_series($1::int, $2::int) n")
 	if err != nil {
@@ -66,16 +74,8 @@ func TestNormalLifeCycle(t *testing.T) {
 }
 
 func TestQueryCloseRowsEarly(t *testing.T) {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
-	if err != nil {
-		t.Fatalf("sql.Open failed: %v", err)
-	}
-	defer func() {
-		err := db.Close()
-		if err != nil {
-			t.Fatalf("db.Close unexpectedly failed: %v", err)
-		}
-	}()
+	db := openDB(t)
+	defer closeDB(t, db)
 
 	stmt, err := db.Prepare("select 'foo', n from generate_series($1::int, $2::int) n")
 	if err != nil {
@@ -137,18 +137,10 @@ func TestQueryCloseRowsEarly(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
-	if err != nil {
-		t.Fatalf("sql.Open failed: %v", err)
-	}
-	defer func() {
-		err := db.Close()
-		if err != nil {
-			t.Fatalf("db.Close unexpectedly failed: %v", err)
-		}
-	}()
+	db := openDB(t)
+	defer closeDB(t, db)
 
-	_, err = db.Exec("create temporary table t(a varchar not null)")
+	_, err := db.Exec("create temporary table t(a varchar not null)")
 	if err != nil {
 		t.Fatalf("db.Exec unexpectedly failed: %v", err)
 	}
@@ -168,18 +160,10 @@ func TestExec(t *testing.T) {
 }
 
 func TestTransactionLifeCycle(t *testing.T) {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
-	if err != nil {
-		t.Fatalf("sql.Open failed: %v", err)
-	}
-	defer func() {
-		err := db.Close()
-		if err != nil {
-			t.Fatalf("db.Close unexpectedly failed: %v", err)
-		}
-	}()
+	db := openDB(t)
+	defer closeDB(t, db)
 
-	_, err = db.Exec("create temporary table t(a varchar not null)")
+	_, err := db.Exec("create temporary table t(a varchar not null)")
 	if err != nil {
 		t.Fatalf("db.Exec unexpectedly failed: %v", err)
 	}
