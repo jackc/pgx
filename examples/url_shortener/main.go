@@ -12,14 +12,14 @@ var pool *pgx.ConnPool
 
 // afterConnect creates the prepared statements that this application uses
 func afterConnect(conn *pgx.Conn) (err error) {
-	err = conn.Prepare("getUrl", `
+	_, err = conn.Prepare("getUrl", `
     select url from shortened_urls where id=$1
   `)
 	if err != nil {
 		return
 	}
 
-	err = conn.Prepare("deleteUrl", `
+	_, err = conn.Prepare("deleteUrl", `
     delete from shortened_urls where id=$1
   `)
 	if err != nil {
@@ -30,7 +30,7 @@ func afterConnect(conn *pgx.Conn) (err error) {
 	// where one of two simultaneous requests to the shortened URL would fail
 	// with a unique index violation. As the point of this demo is pgx usage and
 	// not how to perfectly upsert in PostgreSQL it is deemed acceptable.
-	err = conn.Prepare("putUrl", `
+	_, err = conn.Prepare("putUrl", `
     with upsert as (
       update shortened_urls
       set url=$2
