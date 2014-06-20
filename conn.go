@@ -410,8 +410,8 @@ func (c *Conn) SelectValue(sql string, arguments ...interface{}) (interface{}, e
 	var v interface{}
 
 	onDataRow := func(r *DataRowReader) error {
-		if len(r.fields) != 1 {
-			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.fields))}
+		if len(r.FieldDescriptions) != 1 {
+			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.FieldDescriptions))}
 		}
 
 		numRowsFound++
@@ -559,8 +559,8 @@ func (c *Conn) SelectValues(sql string, arguments ...interface{}) ([]interface{}
 
 	values := make([]interface{}, 0, 8)
 	onDataRow := func(r *DataRowReader) error {
-		if len(r.fields) != 1 {
-			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.fields))}
+		if len(r.FieldDescriptions) != 1 {
+			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(r.FieldDescriptions))}
 		}
 
 		values = append(values, r.ReadValue())
@@ -1079,11 +1079,11 @@ func (c *Conn) rxParameterDescription(r *MessageReader) (parameters []Oid) {
 }
 
 func (c *Conn) rxDataRow(r *DataRowReader) (row map[string]interface{}) {
-	fieldCount := len(r.fields)
+	fieldCount := len(r.FieldDescriptions)
 
 	row = make(map[string]interface{}, fieldCount)
 	for i := 0; i < fieldCount; i++ {
-		row[r.fields[i].Name] = r.ReadValue()
+		row[r.FieldDescriptions[i].Name] = r.ReadValue()
 	}
 	return
 }

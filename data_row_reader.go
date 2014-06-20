@@ -6,15 +6,15 @@ import (
 
 // DataRowReader is used by SelectFunc to process incoming rows.
 type DataRowReader struct {
-	mr              *MessageReader
-	fields          []FieldDescription
-	currentFieldIdx int
+	mr                *MessageReader
+	FieldDescriptions []FieldDescription
+	currentFieldIdx   int
 }
 
 func newDataRowReader(mr *MessageReader, fields []FieldDescription) (r *DataRowReader, err error) {
 	r = new(DataRowReader)
 	r.mr = mr
-	r.fields = fields
+	r.FieldDescriptions = fields
 
 	fieldCount := int(mr.ReadInt16())
 	if fieldCount != len(fields) {
@@ -26,7 +26,7 @@ func newDataRowReader(mr *MessageReader, fields []FieldDescription) (r *DataRowR
 
 // ReadValue returns the next value from the current row.
 func (r *DataRowReader) ReadValue() interface{} {
-	fieldDescription := r.fields[r.currentFieldIdx]
+	fieldDescription := r.FieldDescriptions[r.currentFieldIdx]
 	r.currentFieldIdx++
 
 	size := r.mr.ReadInt32()
