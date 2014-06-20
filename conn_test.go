@@ -520,7 +520,7 @@ func TestPrepare(t *testing.T) {
 	defer conn.Close()
 
 	testTranscode := func(sql string, value interface{}) {
-		if err = conn.Prepare("testTranscode", sql); err != nil {
+		if _, err = conn.Prepare("testTranscode", sql); err != nil {
 			t.Errorf("Unable to prepare statement: %v", err)
 			return
 		}
@@ -555,7 +555,7 @@ func TestPrepare(t *testing.T) {
 	// Ensure that unknown types are just treated as strings
 	testTranscode("select $1::point", "(0,0)")
 
-	if err = conn.Prepare("testByteSliceTranscode", "select $1::bytea"); err != nil {
+	if _, err = conn.Prepare("testByteSliceTranscode", "select $1::bytea"); err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return
 	}
@@ -588,7 +588,7 @@ func TestPrepare(t *testing.T) {
 	}
 
 	mustExecute(t, conn, "create temporary table foo(id serial)")
-	if err = conn.Prepare("deleteFoo", "delete from foo"); err != nil {
+	if _, err = conn.Prepare("deleteFoo", "delete from foo"); err != nil {
 		t.Fatalf("Unable to prepare delete: %v", err)
 	}
 }
@@ -600,7 +600,7 @@ func TestPrepareFailure(t *testing.T) {
 	}
 	defer conn.Close()
 
-	if err = conn.Prepare("badSQL", "select foo"); err == nil {
+	if _, err = conn.Prepare("badSQL", "select foo"); err == nil {
 		t.Fatal("Prepare should have failed with syntax error")
 	}
 

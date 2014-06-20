@@ -21,7 +21,7 @@ func getSharedConnection(t testing.TB) (c *pgx.Conn) {
 }
 
 func mustPrepare(t testing.TB, conn *pgx.Conn, name, sql string) {
-	if err := conn.Prepare(name, sql); err != nil {
+	if _, err := conn.Prepare(name, sql); err != nil {
 		t.Fatalf("Could not prepare %v: %v", name, err)
 	}
 }
