@@ -232,7 +232,13 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	}
 }
 
+// Close closes a connection. It is safe to call Close on a already closed
+// connection.
 func (c *Conn) Close() (err error) {
+	if !c.IsAlive() {
+		return nil
+	}
+
 	err = c.txMsg('X', c.getBuf(), true)
 	c.die(errors.New("Closed"))
 	c.logger.Info("Closed connection")
@@ -1190,4 +1196,6 @@ func (c *Conn) getBuf() *bytes.Buffer {
 func (c *Conn) die(err error) {
 	c.alive = false
 	c.causeOfDeath = err
+	c.writer.Flush()
+	c.conn.Close()
 }
