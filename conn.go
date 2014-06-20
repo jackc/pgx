@@ -116,6 +116,7 @@ func (e ProtocolError) Error() string {
 }
 
 var NotificationTimeoutError = errors.New("Notification Timeout")
+var DeadConnError = errors.New("Connection is dead")
 
 // Connect establishes a connection with a PostgreSQL server using config. One
 // of config.Socket or config.Host must be specified. config.User
@@ -966,8 +967,7 @@ func (c *Conn) rxMsg() (t byte, r *MessageReader, err error) {
 
 func (c *Conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 	if !c.alive {
-		err = errors.New("Connection is dead")
-		return
+		return 0, 0, DeadConnError
 	}
 
 	defer func() {
@@ -987,7 +987,7 @@ func (c *Conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 
 func (c *Conn) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
 	if !c.alive {
-		return nil, errors.New("Connection is dead")
+		return nil, DeadConnError
 	}
 
 	buf := c.getBuf()
@@ -1135,7 +1135,7 @@ func (c *Conn) txStartupMessage(msg *startupMessage) (err error) {
 
 func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err error) {
 	if !c.alive {
-		return errors.New("Connection is dead")
+		return DeadConnError
 	}
 
 	defer func() {

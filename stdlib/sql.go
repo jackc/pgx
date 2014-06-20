@@ -36,6 +36,10 @@ type Conn struct {
 }
 
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
@@ -52,6 +56,10 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
 	_, err := c.conn.Execute("begin")
 	if err != nil {
 		return nil, err
@@ -74,12 +82,20 @@ func (s *Stmt) NumInput() int {
 }
 
 func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
+	if !s.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
 	args := valueToInterface(argsV)
 	commandTag, err := s.conn.Execute(s.ps.Name, args...)
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
+	if !s.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
 	args := valueToInterface(argsV)
 
 	rowCount := 0
