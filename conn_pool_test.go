@@ -18,6 +18,8 @@ func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
 }
 
 func TestNewConnPool(t *testing.T) {
+	t.Parallel()
+
 	var numCallbacks int
 	afterConnect := func(c *pgx.Conn) error {
 		numCallbacks++
@@ -51,6 +53,8 @@ func TestNewConnPool(t *testing.T) {
 }
 
 func TestPoolAcquireAndReleaseCycle(t *testing.T) {
+	t.Parallel()
+
 	maxConnections := 2
 	incrementCount := int32(100)
 	completeSync := make(chan int)
@@ -125,6 +129,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 }
 
 func TestPoolReleaseWithTransactions(t *testing.T) {
+	t.Parallel()
+
 	pool := createConnPool(t, 1)
 	defer pool.Close()
 
@@ -163,6 +169,8 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 }
 
 func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
+	t.Parallel()
+
 	maxConnections := 3
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
@@ -202,6 +210,8 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 }
 
 func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
+	t.Parallel()
+
 	maxConnections := 3
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
@@ -262,6 +272,8 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 }
 
 func TestPoolTransaction(t *testing.T) {
+	t.Parallel()
+
 	pool := createConnPool(t, 1)
 	defer pool.Close()
 
@@ -315,6 +327,8 @@ func TestPoolTransaction(t *testing.T) {
 }
 
 func TestPoolTransactionIso(t *testing.T) {
+	t.Parallel()
+
 	pool := createConnPool(t, 1)
 	defer pool.Close()
 

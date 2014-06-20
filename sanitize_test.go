@@ -5,6 +5,8 @@ import (
 )
 
 func TestQuoteString(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -18,6 +20,8 @@ func TestQuoteString(t *testing.T) {
 }
 
 func TestSanitizeSql(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 

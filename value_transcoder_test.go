@@ -6,6 +6,8 @@ import (
 )
 
 func TestTranscodeError(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -28,6 +30,8 @@ func TestTranscodeError(t *testing.T) {
 }
 
 func TestNilTranscode(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -53,6 +57,8 @@ func TestNilTranscode(t *testing.T) {
 }
 
 func TestDateTranscode(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -82,6 +88,8 @@ func TestDateTranscode(t *testing.T) {
 }
 
 func TestTimestampTzTranscode(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -111,6 +119,8 @@ func TestTimestampTzTranscode(t *testing.T) {
 }
 
 func TestInt2SliceTranscode(t *testing.T) {
+	t.Parallel()
+
 	testEqual := func(a, b []int16) {
 		if len(a) != len(b) {
 			t.Errorf("Did not transcode []int16 successfully: %v is not %v", a, b)
@@ -143,6 +153,8 @@ func TestInt2SliceTranscode(t *testing.T) {
 }
 
 func TestInt4SliceTranscode(t *testing.T) {
+	t.Parallel()
+
 	testEqual := func(a, b []int32) {
 		if len(a) != len(b) {
 			t.Errorf("Did not transcode []int32 successfully: %v is not %v", a, b)
@@ -175,6 +187,8 @@ func TestInt4SliceTranscode(t *testing.T) {
 }
 
 func TestInt8SliceTranscode(t *testing.T) {
+	t.Parallel()
+
 	testEqual := func(a, b []int64) {
 		if len(a) != len(b) {
 			t.Errorf("Did not transcode []int64 successfully: %v is not %v", a, b)

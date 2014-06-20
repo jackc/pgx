@@ -11,6 +11,8 @@ import (
 )
 
 func TestConnect(t *testing.T) {
+	t.Parallel()
+
 	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
@@ -45,6 +47,8 @@ func TestConnect(t *testing.T) {
 }
 
 func TestConnectWithUnixSocketDirectory(t *testing.T) {
+	t.Parallel()
+
 	// /.s.PGSQL.5432
 	if unixSocketConnConfig == nil {
 		return
@@ -62,6 +66,8 @@ func TestConnectWithUnixSocketDirectory(t *testing.T) {
 }
 
 func TestConnectWithUnixSocketFile(t *testing.T) {
+	t.Parallel()
+
 	if unixSocketConnConfig == nil {
 		return
 	}
@@ -80,6 +86,8 @@ func TestConnectWithUnixSocketFile(t *testing.T) {
 }
 
 func TestConnectWithTcp(t *testing.T) {
+	t.Parallel()
+
 	if tcpConnConfig == nil {
 		return
 	}
@@ -96,6 +104,8 @@ func TestConnectWithTcp(t *testing.T) {
 }
 
 func TestConnectWithTLS(t *testing.T) {
+	t.Parallel()
+
 	if tlsConnConfig == nil {
 		return
 	}
@@ -112,6 +122,8 @@ func TestConnectWithTLS(t *testing.T) {
 }
 
 func TestConnectWithInvalidUser(t *testing.T) {
+	t.Parallel()
+
 	if invalidUserConnConfig == nil {
 		return
 	}
@@ -127,6 +139,8 @@ func TestConnectWithInvalidUser(t *testing.T) {
 }
 
 func TestConnectWithPlainTextPassword(t *testing.T) {
+	t.Parallel()
+
 	if plainPasswordConnConfig == nil {
 		return
 	}
@@ -143,6 +157,8 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 }
 
 func TestConnectWithMD5Password(t *testing.T) {
+	t.Parallel()
+
 	if md5ConnConfig == nil {
 		return
 	}
@@ -159,6 +175,8 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestParseURI(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		url        string
 		connParams pgx.ConnConfig
@@ -216,6 +234,8 @@ func TestParseURI(t *testing.T) {
 }
 
 func TestExecute(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -244,6 +264,8 @@ func TestExecute(t *testing.T) {
 }
 
 func TestExecuteFailure(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -257,6 +279,8 @@ func TestExecuteFailure(t *testing.T) {
 }
 
 func TestSelectFunc(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -280,6 +304,8 @@ func TestSelectFunc(t *testing.T) {
 }
 
 func TestSelectFuncFailure(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -318,6 +344,8 @@ func Example_connectionSelectFunc() {
 }
 
 func TestSelectRows(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -364,6 +392,8 @@ func Example_connectionSelectRows() {
 }
 
 func TestSelectRow(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -392,6 +422,8 @@ func TestSelectRow(t *testing.T) {
 }
 
 func TestConnectionSelectValue(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -433,6 +465,8 @@ func TestConnectionSelectValue(t *testing.T) {
 }
 
 func TestConnectionSelectValueTo(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -482,6 +516,8 @@ func TestConnectionSelectValueTo(t *testing.T) {
 }
 
 func TestSelectValues(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -515,6 +551,8 @@ func TestSelectValues(t *testing.T) {
 }
 
 func TestPrepare(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -592,6 +630,8 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestPrepareFailure(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -605,6 +645,8 @@ func TestPrepareFailure(t *testing.T) {
 }
 
 func TestTransaction(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -711,6 +753,8 @@ func TestTransaction(t *testing.T) {
 }
 
 func TestTransactionIso(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -729,6 +773,8 @@ func TestTransactionIso(t *testing.T) {
 }
 
 func TestListenNotify(t *testing.T) {
+	t.Parallel()
+
 	listener := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, listener)
 
@@ -782,6 +828,8 @@ func TestListenNotify(t *testing.T) {
 }
 
 func TestFatalRxError(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -813,6 +861,8 @@ func TestFatalRxError(t *testing.T) {
 }
 
 func TestFatalTxError(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
@@ -836,6 +886,8 @@ func TestFatalTxError(t *testing.T) {
 }
 
 func TestCommandTag(t *testing.T) {
+	t.Parallel()
+
 	var tests = []struct {
 		commandTag   pgx.CommandTag
 		rowsAffected int64

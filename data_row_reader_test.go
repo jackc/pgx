@@ -6,6 +6,8 @@ import (
 )
 
 func TestDataRowReaderReadValue(t *testing.T) {
+	t.Parallel()
+
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
