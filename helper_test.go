@@ -6,18 +6,19 @@ import (
 	"testing"
 )
 
-var sharedConnection *pgx.Conn
-
-func getSharedConnection(t testing.TB) (c *pgx.Conn) {
-	if sharedConnection == nil || !sharedConnection.IsAlive() {
-		var err error
-		sharedConnection, err = pgx.Connect(*defaultConnConfig)
-		if err != nil {
-			t.Fatalf("Unable to establish connection: %v", err)
-		}
-
+func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
+	conn, err := pgx.Connect(config)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
 	}
-	return sharedConnection
+	return conn
+}
+
+func closeConn(t testing.TB, conn *pgx.Conn) {
+	err := conn.Close()
+	if err != nil {
+		t.Fatalf("conn.Close unexpectedly failed: %v", err)
+	}
 }
 
 func mustPrepare(t testing.TB, conn *pgx.Conn, name, sql string) {

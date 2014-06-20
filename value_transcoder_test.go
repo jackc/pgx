@@ -6,7 +6,8 @@ import (
 )
 
 func TestTranscodeError(t *testing.T) {
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	mustPrepare(t, conn, "testTranscode", "select $1::integer")
 	defer func() {
@@ -27,7 +28,8 @@ func TestTranscodeError(t *testing.T) {
 }
 
 func TestNilTranscode(t *testing.T) {
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	var inputNil interface{}
 	inputNil = nil
@@ -51,7 +53,8 @@ func TestNilTranscode(t *testing.T) {
 }
 
 func TestDateTranscode(t *testing.T) {
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	actualDate := time.Date(2013, 1, 2, 0, 0, 0, 0, time.Local)
 
@@ -79,7 +82,8 @@ func TestDateTranscode(t *testing.T) {
 }
 
 func TestTimestampTzTranscode(t *testing.T) {
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	inputTime := time.Date(2013, 1, 2, 3, 4, 5, 6000, time.Local)
 
@@ -118,7 +122,8 @@ func TestInt2SliceTranscode(t *testing.T) {
 		}
 	}
 
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	inputNumbers := []int16{1, 2, 3, 4, 5, 6, 7, 8}
 	var outputNumbers []int16
@@ -149,7 +154,8 @@ func TestInt4SliceTranscode(t *testing.T) {
 		}
 	}
 
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	inputNumbers := []int32{1, 2, 3, 4, 5, 6, 7, 8}
 	var outputNumbers []int32
@@ -180,7 +186,8 @@ func TestInt8SliceTranscode(t *testing.T) {
 		}
 	}
 
-	conn := getSharedConnection(t)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
 	inputNumbers := []int64{1, 2, 3, 4, 5, 6, 7, 8}
 	var outputNumbers []int64
