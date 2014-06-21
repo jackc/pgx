@@ -48,7 +48,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 		return nil, err
 	}
 
-	return &Stmt{ps: ps, conn: c.conn}, nil
+	return &Stmt{ps: ps, conn: c}, nil
 }
 
 func (c *Conn) Close() error {
@@ -68,31 +68,18 @@ func (c *Conn) Begin() (driver.Tx, error) {
 	return &Tx{conn: c.conn}, nil
 }
 
-type Stmt struct {
-	ps   *pgx.PreparedStatement
-	conn *pgx.Conn
-}
-
-func (s *Stmt) Close() error {
-	return s.conn.Deallocate(s.ps.Name)
-}
-
-func (s *Stmt) NumInput() int {
-	return len(s.ps.ParameterOids)
-}
-
-func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
-	if !s.conn.IsAlive() {
+func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
+	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
 	args := valueToInterface(argsV)
-	commandTag, err := s.conn.Execute(s.ps.Name, args...)
+	commandTag, err := c.conn.Execute(query, args...)
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
-func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
-	if !s.conn.IsAlive() {
+func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -104,7 +91,7 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	rowChan := make(chan []driver.Value)
 
 	go func() {
-		err := s.conn.SelectFunc(s.ps.Name, func(r *pgx.DataRowReader) error {
+		err := c.conn.SelectFunc(query, func(r *pgx.DataRowReader) error {
 			if rowCount == 0 {
 				fieldNames := make([]string, len(r.FieldDescriptions))
 				for i, fd := range r.FieldDescriptions {
@@ -136,6 +123,27 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	case err := <-errChan:
 		return nil, err
 	}
+}
+
+type Stmt struct {
+	ps   *pgx.PreparedStatement
+	conn *Conn
+}
+
+func (s *Stmt) Close() error {
+	return s.conn.conn.Deallocate(s.ps.Name)
+}
+
+func (s *Stmt) NumInput() int {
+	return len(s.ps.ParameterOids)
+}
+
+func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
+	return s.conn.Exec(s.ps.Name, argsV)
+}
+
+func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
+	return s.conn.Query(s.ps.Name, argsV)
 }
 
 type Rows struct {
