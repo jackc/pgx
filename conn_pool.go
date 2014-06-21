@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"errors"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"io"
 	"sync"
@@ -8,7 +9,7 @@ import (
 
 type ConnPoolConfig struct {
 	ConnConfig
-	MaxConnections int // max simultaneous connections to use
+	MaxConnections int // max simultaneous connections to use, default 5, must be at least 2
 	AfterConnect   func(*Conn) error
 }
 
@@ -34,6 +35,13 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
 	p.config = config.ConnConfig
 	p.maxConnections = config.MaxConnections
+	if p.maxConnections == 0 {
+		p.maxConnections = 5
+	}
+	if p.maxConnections < 2 {
+		return nil, errors.New("MaxConnections must be at least 2")
+	}
+
 	p.afterConnect = config.AfterConnect
 	if config.Logger != nil {
 		p.logger = config.Logger
