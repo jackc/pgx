@@ -60,7 +60,13 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 		return nil, err
 	}
 
-	db.SetMaxIdleConns(0)
+	// Presumably OpenFromConnPool is being used because the user wants to use
+	// database/sql most of the time, but fast path with pgx some of the time.
+	// Allow database/sql to use all the connections, but release 2 idle ones.
+	// Don't have database/sql immediately release all idle connections because
+	// that would mean that prepared statements would be lost (which kills
+	// performance if the prepared statements constantly have to be reprepared)
+	db.SetMaxIdleConns(pool.MaxConnectionCount() - 2)
 	db.SetMaxOpenConns(pool.MaxConnectionCount())
 
 	return db, nil
