@@ -26,7 +26,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 			return nil, err
 		}
 
-		return &Conn{conn: conn}, nil
+		return &Conn{conn: conn, pool: d.Pool}, nil
 	}
 
 	connConfig, err := pgx.ParseURI(name)
@@ -68,6 +68,7 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 
 type Conn struct {
 	conn    *pgx.Conn
+	pool    *pgx.ConnPool
 	psCount int64 // Counter used for creating unique prepared statement names
 }
 
@@ -88,6 +89,11 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) Close() error {
+	if c.pool != nil {
+		c.pool.Release(c.conn)
+		return nil
+	}
+
 	return c.conn.Close()
 }
 
