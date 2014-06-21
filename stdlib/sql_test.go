@@ -277,6 +277,16 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+func TestConnQueryFailure(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Query("select 'foo")
+	if _, ok := err.(pgx.PgError); !ok {
+		t.Fatalf("Expected db.Query to return pgx.PgError, but instead received: %v", err)
+	}
+}
+
 func TestTransactionLifeCycle(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
