@@ -8,12 +8,16 @@ import (
 	"io"
 )
 
+var openFromConnPoolCount int
+
 func init() {
 	d := &Driver{}
 	sql.Register("pgx", d)
 }
 
-type Driver struct{}
+type Driver struct {
+	Pool *pgx.ConnPool
+}
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
 	connConfig, err := pgx.ParseURI(name)
@@ -28,6 +32,29 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 
 	c := &Conn{conn: conn}
 	return c, nil
+}
+
+// OpenFromConnPool takes the existing *pgx.ConnPool pool and returns a *sql.DB
+// with pool as the backend. This enables full control over the connection
+// process and configuration while maintaining compatibility with the
+// database/sql interface. In addition, by calling Driver() on the returned
+// *sql.DB and typecasting to *stdlib.Driver a reference to the pgx.ConnPool can
+// be reaquired later. This allows fast paths targeting pgx to be used while
+// still maintaining compatibility with other databases and drivers.
+func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
+	d := &Driver{Pool: pool}
+	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
+	openFromConnPoolCount++
+	sql.Register(name, d)
+	db, err := sql.Open(name, "")
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxIdleConns(0)
+	db.SetMaxOpenConns(pool.MaxConnectionCount())
+
+	return db, nil
 }
 
 type Conn struct {

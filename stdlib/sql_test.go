@@ -2,7 +2,8 @@ package stdlib_test
 
 import (
 	"database/sql"
-	_ "github.com/jackc/pgx/stdlib"
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/stdlib"
 	"testing"
 )
 
@@ -82,6 +83,43 @@ func TestNormalLifeCycle(t *testing.T) {
 	err = rows.Close()
 	if err != nil {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
+	}
+}
+
+func TestSqlOpenDoesNotHavePool(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	driver := db.Driver().(*stdlib.Driver)
+	if driver.Pool != nil {
+		t.Fatal("Did not expect driver opened through database/sql to have Pool, but it did")
+	}
+}
+
+func TestOpenFromConnPool(t *testing.T) {
+	connConfig := pgx.ConnConfig{
+		Host:     "localhost",
+		User:     "pgx_md5",
+		Password: "secret",
+		Database: "pgx_test",
+	}
+
+	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	db, err := stdlib.OpenFromConnPool(pool)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer closeDB(t, db)
+
+	driver := db.Driver().(*stdlib.Driver)
+	if driver.Pool == nil {
+		t.Fatal("Expected driver opened through OpenFromConnPool to have Pool, but it did not")
 	}
 }
 
