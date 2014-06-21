@@ -73,7 +73,7 @@ func TestConnectWithUnixSocketFile(t *testing.T) {
 	}
 
 	connParams := *unixSocketConnConfig
-	connParams.Socket = connParams.Socket + "/.s.PGSQL.5432"
+	connParams.Host = connParams.Host + "/.s.PGSQL.5432"
 	conn, err := pgx.Connect(connParams)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
