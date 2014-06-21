@@ -117,9 +117,17 @@ func TestOpenFromConnPool(t *testing.T) {
 	}
 	defer closeDB(t, db)
 
+	// Can get pgx.ConnPool from driver
 	driver := db.Driver().(*stdlib.Driver)
 	if driver.Pool == nil {
 		t.Fatal("Expected driver opened through OpenFromConnPool to have Pool, but it did not")
+	}
+
+	// Normal sql/database still works
+	var n int64
+	err = db.QueryRow("select 1").Scan(&n)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
 	}
 }
 

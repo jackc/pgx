@@ -20,6 +20,15 @@ type Driver struct {
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
+	if d.Pool != nil {
+		conn, err := d.Pool.Acquire()
+		if err != nil {
+			return nil, err
+		}
+
+		return &Conn{conn: conn}, nil
+	}
+
 	connConfig, err := pgx.ParseURI(name)
 	if err != nil {
 		return nil, err
