@@ -2,7 +2,7 @@ package stdlib_test
 
 import (
 	"database/sql"
-	_ "github.com/JackC/pgx/stdlib"
+	_ "github.com/jackc/pgx/stdlib"
 	"testing"
 )
 

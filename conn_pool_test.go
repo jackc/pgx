@@ -3,7 +3,7 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
-	"github.com/JackC/pgx"
+	"github.com/jackc/pgx"
 	"sync"
 	"testing"
 )

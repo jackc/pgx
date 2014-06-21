@@ -3,7 +3,7 @@ package pgx_test
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/JackC/pgx"
+	"github.com/jackc/pgx"
 	"io"
 	"regexp"
 	"strconv"

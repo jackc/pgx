@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"github.com/JackC/pgx"
+	"github.com/jackc/pgx"
 	"io"
 )
 

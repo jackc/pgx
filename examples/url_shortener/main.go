@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/JackC/pgx"
+	"github.com/jackc/pgx"
 	log "gopkg.in/inconshreveable/log15.v2"
 	"io/ioutil"
 	"net/http"

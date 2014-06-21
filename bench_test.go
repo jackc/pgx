@@ -1,7 +1,7 @@
 package pgx_test
 
 import (
-	"github.com/JackC/pgx"
+	"github.com/jackc/pgx"
 	"io/ioutil"
 	"math/rand"
 	"testing"
