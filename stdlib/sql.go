@@ -136,7 +136,7 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	rowCount := 0
 	columnsChan := make(chan []string)
 	errChan := make(chan error)
-	rowChan := make(chan []driver.Value)
+	rowChan := make(chan []driver.Value, 8)
 
 	go func() {
 		err := c.conn.SelectFunc(query, func(r *pgx.DataRowReader) error {
