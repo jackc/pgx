@@ -2,10 +2,8 @@ package pgx
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -21,7 +19,7 @@ type ValueTranscoder struct {
 	// DecodeBinary decodes values returned from the server in binary format
 	DecodeBinary func(*MessageReader, int32) interface{}
 	// EncodeTo encodes values to send to the server
-	EncodeTo func(io.Writer, interface{}) error
+	EncodeTo func(*WriteBuf, interface{}) error
 	// EncodeFormat is the format values are encoded for transmission.
 	// 0 = text
 	// 1 = binary
@@ -162,23 +160,22 @@ func decodeBoolFromBinary(mr *MessageReader, size int32) interface{} {
 	return b != 0
 }
 
-func encodeBool(w io.Writer, value interface{}) error {
+func encodeBool(w *WriteBuf, value interface{}) error {
 	v, ok := value.(bool)
 	if !ok {
 		return fmt.Errorf("Expected bool, received %T", value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(1))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(1)
 
 	var n byte
 	if v {
 		n = 1
 	}
 
-	return binary.Write(w, binary.BigEndian, n)
+	w.WriteByte(n)
+
+	return nil
 }
 
 func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
@@ -197,7 +194,7 @@ func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt64()
 }
 
-func encodeInt8(w io.Writer, value interface{}) error {
+func encodeInt8(w *WriteBuf, value interface{}) error {
 	var v int64
 	switch value := value.(type) {
 	case int8:
@@ -225,12 +222,10 @@ func encodeInt8(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Expected integer representable in int64, received %T %v", value, value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(8))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(8)
+	w.WriteInt64(v)
 
-	return binary.Write(w, binary.BigEndian, v)
+	return nil
 }
 
 func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
@@ -249,7 +244,7 @@ func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt16()
 }
 
-func encodeInt2(w io.Writer, value interface{}) error {
+func encodeInt2(w *WriteBuf, value interface{}) error {
 	var v int16
 	switch value := value.(type) {
 	case int8:
@@ -292,12 +287,10 @@ func encodeInt2(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Expected integer representable in int16, received %T %v", value, value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(2))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(2)
+	w.WriteInt16(v)
 
-	return binary.Write(w, binary.BigEndian, v)
+	return nil
 }
 
 func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
@@ -316,7 +309,7 @@ func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
 	return mr.ReadInt32()
 }
 
-func encodeInt4(w io.Writer, value interface{}) error {
+func encodeInt4(w *WriteBuf, value interface{}) error {
 	var v int32
 	switch value := value.(type) {
 	case int8:
@@ -353,12 +346,10 @@ func encodeInt4(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Expected integer representable in int32, received %T %v", value, value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(4))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(4)
+	w.WriteInt32(v)
 
-	return binary.Write(w, binary.BigEndian, v)
+	return nil
 }
 
 func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
@@ -380,7 +371,7 @@ func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
 	return *(*float32)(p)
 }
 
-func encodeFloat4(w io.Writer, value interface{}) error {
+func encodeFloat4(w *WriteBuf, value interface{}) error {
 	var v float32
 	switch value := value.(type) {
 	case float32:
@@ -394,12 +385,12 @@ func encodeFloat4(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Expected float representable in float32, received %T %v", value, value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(4))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(4)
 
-	return binary.Write(w, binary.BigEndian, v)
+	p := unsafe.Pointer(&v)
+	w.WriteInt32(*(*int32)(p))
+
+	return nil
 }
 
 func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
@@ -421,7 +412,7 @@ func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
 	return *(*float64)(p)
 }
 
-func encodeFloat8(w io.Writer, value interface{}) error {
+func encodeFloat8(w *WriteBuf, value interface{}) error {
 	var v float64
 	switch value := value.(type) {
 	case float32:
@@ -432,31 +423,28 @@ func encodeFloat8(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Expected float representable in float64, received %T %v", value, value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(8))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(8)
 
-	return binary.Write(w, binary.BigEndian, v)
+	p := unsafe.Pointer(&v)
+	w.WriteInt64(*(*int64)(p))
+
+	return nil
 }
 
 func decodeTextFromText(mr *MessageReader, size int32) interface{} {
 	return mr.ReadString(size)
 }
 
-func encodeText(w io.Writer, value interface{}) error {
+func encodeText(w *WriteBuf, value interface{}) error {
 	s, ok := value.(string)
 	if !ok {
 		return fmt.Errorf("Expected string, received %T", value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(int32(len(s)))
+	w.WriteBytes([]byte(s))
 
-	_, err = io.WriteString(w, s)
-	return err
+	return nil
 }
 
 func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
@@ -468,19 +456,16 @@ func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
 	return b
 }
 
-func encodeBytea(w io.Writer, value interface{}) error {
+func encodeBytea(w *WriteBuf, value interface{}) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Expected []byte, received %T", value)
 	}
 
-	err := binary.Write(w, binary.BigEndian, int32(len(b)))
-	if err != nil {
-		return err
-	}
+	w.WriteInt32(int32(len(b)))
+	w.WriteBytes(b)
 
-	_, err = w.Write(b)
-	return err
+	return nil
 }
 
 func decodeDateFromText(mr *MessageReader, size int32) interface{} {
@@ -492,20 +477,14 @@ func decodeDateFromText(mr *MessageReader, size int32) interface{} {
 	return t
 }
 
-func encodeDate(w io.Writer, value interface{}) error {
+func encodeDate(w *WriteBuf, value interface{}) error {
 	t, ok := value.(time.Time)
 	if !ok {
 		return fmt.Errorf("Expected time.Time, received %T", value)
 	}
 
 	s := t.Format("2006-01-02")
-	err := binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(w, s)
-	return err
+	return encodeText(w, s)
 }
 
 func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
@@ -531,20 +510,14 @@ func decodeTimestampTzFromBinary(mr *MessageReader, size int32) interface{} {
 
 }
 
-func encodeTimestampTz(w io.Writer, value interface{}) error {
+func encodeTimestampTz(w *WriteBuf, value interface{}) error {
 	t, ok := value.(time.Time)
 	if !ok {
 		return fmt.Errorf("Expected time.Time, received %T", value)
 	}
 
 	s := t.Format("2006-01-02 15:04:05.999999 -0700")
-	err := binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(w, s)
-	return err
+	return encodeText(w, s)
 }
 
 func decodeInt2ArrayFromText(mr *MessageReader, size int32) interface{} {
@@ -594,7 +567,7 @@ func int16SliceToArrayString(nums []int16) (string, error) {
 	return w.String(), nil
 }
 
-func encodeInt2Array(w io.Writer, value interface{}) error {
+func encodeInt2Array(w *WriteBuf, value interface{}) error {
 	v, ok := value.([]int16)
 	if !ok {
 		return fmt.Errorf("Expected []int16, received %T", value)
@@ -605,13 +578,7 @@ func encodeInt2Array(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Failed to encode []int16: %v", err)
 	}
 
-	err = binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(w, s)
-	return err
+	return encodeText(w, s)
 }
 
 func decodeInt4ArrayFromText(mr *MessageReader, size int32) interface{} {
@@ -662,7 +629,7 @@ func int32SliceToArrayString(nums []int32) (string, error) {
 	return w.String(), nil
 }
 
-func encodeInt4Array(w io.Writer, value interface{}) error {
+func encodeInt4Array(w *WriteBuf, value interface{}) error {
 	v, ok := value.([]int32)
 	if !ok {
 		return fmt.Errorf("Expected []int32, received %T", value)
@@ -673,13 +640,7 @@ func encodeInt4Array(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Failed to encode []int32: %v", err)
 	}
 
-	err = binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(w, s)
-	return err
+	return encodeText(w, s)
 }
 
 func decodeInt8ArrayFromText(mr *MessageReader, size int32) interface{} {
@@ -730,7 +691,7 @@ func int64SliceToArrayString(nums []int64) (string, error) {
 	return w.String(), nil
 }
 
-func encodeInt8Array(w io.Writer, value interface{}) error {
+func encodeInt8Array(w *WriteBuf, value interface{}) error {
 	v, ok := value.([]int64)
 	if !ok {
 		return fmt.Errorf("Expected []int64, received %T", value)
@@ -741,11 +702,5 @@ func encodeInt8Array(w io.Writer, value interface{}) error {
 		return fmt.Errorf("Failed to encode []int64: %v", err)
 	}
 
-	err = binary.Write(w, binary.BigEndian, int32(len(s)))
-	if err != nil {
-		return err
-	}
-
-	_, err = io.WriteString(w, s)
-	return err
+	return encodeText(w, s)
 }

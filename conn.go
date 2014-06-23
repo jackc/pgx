@@ -49,9 +49,9 @@ type ConnConfig struct {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn          // the underlying TCP or unix domain socket connection
-	reader             *bufio.Reader     // buffered reader to improve read performance
-	writer             *bufio.Writer     // buffered writer to avoid sending tiny packets
+	conn               net.Conn      // the underlying TCP or unix domain socket connection
+	reader             *bufio.Reader // buffered reader to improve read performance
+	wbuf               [1024]byte
 	buf                *bytes.Buffer     // work buffer to avoid constant alloc and dealloc
 	bufSize            int               // desired size of buf
 	Pid                int32             // backend pid
@@ -196,7 +196,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	}
 
 	c.reader = bufio.NewReader(c.conn)
-	c.writer = bufio.NewWriter(c.conn)
 
 	msg := newStartupMessage()
 	msg.options["user"] = c.config.User
@@ -242,7 +241,7 @@ func (c *Conn) Close() (err error) {
 		return nil
 	}
 
-	err = c.txMsg('X', c.getBuf(), true)
+	err = c.txMsg('X', c.getBuf())
 	c.die(errors.New("Closed"))
 	c.logger.Info("Closed connection")
 	return err
@@ -598,7 +597,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	buf.WriteString(sql)
 	buf.WriteByte(0)
 	binary.Write(buf, binary.BigEndian, int16(0))
-	err = c.txMsg('P', buf, false)
+	err = c.txMsg('P', buf)
 	if err != nil {
 		return nil, err
 	}
@@ -608,13 +607,13 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	buf.WriteByte('S')
 	buf.WriteString(name)
 	buf.WriteByte(0)
-	err = c.txMsg('D', buf, false)
+	err = c.txMsg('D', buf)
 	if err != nil {
 		return nil, err
 	}
 
 	// sync
-	err = c.txMsg('S', c.getBuf(), true)
+	err = c.txMsg('S', c.getBuf())
 	if err != nil {
 		return nil, err
 	}
@@ -763,7 +762,7 @@ func (c *Conn) sendSimpleQuery(sql string, arguments ...interface{}) (err error)
 		return
 	}
 
-	return c.txMsg('Q', buf, true)
+	return c.txMsg('Q', buf)
 }
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
@@ -772,69 +771,57 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	}
 
 	// bind
-	buf := c.getBuf()
-	buf.WriteString("")
-	buf.WriteByte(0)
-	buf.WriteString(ps.Name)
-	buf.WriteByte(0)
-	binary.Write(buf, binary.BigEndian, int16(len(ps.ParameterOids)))
+	wbuf := newWriteBuf(c.wbuf[0:0], 'B')
+	wbuf.WriteByte(0)
+	wbuf.WriteCString(ps.Name)
+
+	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
 	for _, oid := range ps.ParameterOids {
 		transcoder := ValueTranscoders[oid]
 		if transcoder == nil {
 			transcoder = defaultTranscoder
 		}
-		binary.Write(buf, binary.BigEndian, transcoder.EncodeFormat)
+		wbuf.WriteInt16(transcoder.EncodeFormat)
 	}
 
-	binary.Write(buf, binary.BigEndian, int16(len(arguments)))
+	wbuf.WriteInt16(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
 		if arguments[i] != nil {
 			transcoder := ValueTranscoders[oid]
 			if transcoder == nil {
 				transcoder = defaultTranscoder
 			}
-			err = transcoder.EncodeTo(buf, arguments[i])
+			err = transcoder.EncodeTo(wbuf, arguments[i])
 			if err != nil {
 				return err
 			}
 		} else {
-			binary.Write(buf, binary.BigEndian, int32(-1))
+			wbuf.WriteInt32(int32(-1))
 		}
 	}
 
-	binary.Write(buf, binary.BigEndian, int16(len(ps.FieldDescriptions)))
+	wbuf.WriteInt16(int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
 		transcoder := ValueTranscoders[fd.DataType]
 		if transcoder != nil && transcoder.DecodeBinary != nil {
-			binary.Write(buf, binary.BigEndian, int16(1))
+			wbuf.WriteInt16(1)
 		} else {
-			binary.Write(buf, binary.BigEndian, int16(0))
+			wbuf.WriteInt16(0)
 		}
 	}
 
-	err = c.txMsg('B', buf, false)
-	if err != nil {
-		return err
-	}
-
 	// execute
-	buf = c.getBuf()
-	buf.WriteString("")
-	buf.WriteByte(0)
-	binary.Write(buf, binary.BigEndian, int32(0))
-	err = c.txMsg('E', buf, false)
-	if err != nil {
-		return err
-	}
+	wbuf.startMsg('E')
+	wbuf.WriteByte(0)
+	wbuf.WriteInt32(0)
 
 	// sync
-	err = c.txMsg('S', c.getBuf(), true)
-	if err != nil {
-		return err
-	}
+	wbuf.startMsg('S')
+	wbuf.closeMsg()
 
-	return
+	_, err = c.conn.Write(wbuf.buf)
 
+	return err
 }
 
 // Execute executes sql. sql can be either a prepared statement name or an SQL string.
@@ -1126,16 +1113,12 @@ func (c *Conn) startTLS() (err error) {
 	return nil
 }
 
-func (c *Conn) txStartupMessage(msg *startupMessage) (err error) {
-	_, err = c.writer.Write(msg.Bytes())
-	if err != nil {
-		return
-	}
-	err = c.writer.Flush()
-	return
+func (c *Conn) txStartupMessage(msg *startupMessage) error {
+	_, err := c.conn.Write(msg.Bytes())
+	return err
 }
 
-func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err error) {
+func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer) (err error) {
 	if !c.alive {
 		return DeadConnError
 	}
@@ -1146,23 +1129,19 @@ func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer, flush bool) (err error)
 		}
 	}()
 
-	err = binary.Write(c.writer, binary.BigEndian, identifier)
+	err = binary.Write(c.conn, binary.BigEndian, identifier)
 	if err != nil {
 		return
 	}
 
-	err = binary.Write(c.writer, binary.BigEndian, int32(buf.Len()+4))
+	err = binary.Write(c.conn, binary.BigEndian, int32(buf.Len()+4))
 	if err != nil {
 		return
 	}
 
-	_, err = buf.WriteTo(c.writer)
+	_, err = buf.WriteTo(c.conn)
 	if err != nil {
 		return
-	}
-
-	if flush {
-		err = c.writer.Flush()
 	}
 
 	return
@@ -1179,7 +1158,7 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	if err != nil {
 		return
 	}
-	err = c.txMsg('p', buf, true)
+	err = c.txMsg('p', buf)
 	return
 }
 
@@ -1198,6 +1177,5 @@ func (c *Conn) getBuf() *bytes.Buffer {
 func (c *Conn) die(err error) {
 	c.alive = false
 	c.causeOfDeath = err
-	c.writer.Flush()
 	c.conn.Close()
 }
