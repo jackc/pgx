@@ -109,8 +109,9 @@ func init() {
 
 	// date
 	ValueTranscoders[Oid(1082)] = &ValueTranscoder{
-		DecodeText: decodeDateFromText,
-		EncodeTo:   encodeDate}
+		DecodeText:   decodeDateFromText,
+		DecodeBinary: decodeDateFromBinary,
+		EncodeTo:     encodeDate}
 
 	// timestamptz
 	ValueTranscoders[Oid(1184)] = &ValueTranscoder{
@@ -475,6 +476,11 @@ func decodeDateFromText(mr *MessageReader, size int32) interface{} {
 		return ProtocolError(fmt.Sprintf("Can't decode date: %v", s))
 	}
 	return t
+}
+
+func decodeDateFromBinary(mr *MessageReader, size int32) interface{} {
+	dayOffset := mr.ReadInt32()
+	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 }
 
 func encodeDate(w *WriteBuf, value interface{}) error {

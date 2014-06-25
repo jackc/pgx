@@ -62,17 +62,6 @@ func TestDateTranscode(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	actualDate := time.Date(2013, 1, 2, 0, 0, 0, 0, time.Local)
-
-	var v interface{}
-	var d time.Time
-
-	v = mustSelectValue(t, conn, "select $1::date", actualDate)
-	d = v.(time.Time)
-	if !actualDate.Equal(d) {
-		t.Errorf("Did not transcode date successfully: %v is not %v", v, actualDate)
-	}
-
 	mustPrepare(t, conn, "testTranscode", "select $1::date")
 	defer func() {
 		if err := conn.Deallocate("testTranscode"); err != nil {
@@ -80,10 +69,33 @@ func TestDateTranscode(t *testing.T) {
 		}
 	}()
 
-	v = mustSelectValue(t, conn, "testTranscode", actualDate)
-	d = v.(time.Time)
-	if !actualDate.Equal(d) {
-		t.Errorf("Did not transcode date successfully: %v is not %v", v, actualDate)
+	dates := []time.Time{
+		time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local),
+		time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local),
+		time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local),
+		time.Date(2001, 1, 2, 0, 0, 0, 0, time.Local),
+		time.Date(2004, 2, 29, 0, 0, 0, 0, time.Local),
+		time.Date(2013, 7, 4, 0, 0, 0, 0, time.Local),
+		time.Date(2013, 12, 25, 0, 0, 0, 0, time.Local),
+	}
+
+	for _, actualDate := range dates {
+		var v interface{}
+		var d time.Time
+
+		// Test text format
+		v = mustSelectValue(t, conn, "select $1::date", actualDate)
+		d = v.(time.Time)
+		if !actualDate.Equal(d) {
+			t.Errorf("Did not transcode date successfully: %v is not %v", v, actualDate)
+		}
+
+		// Test binary format
+		v = mustSelectValue(t, conn, "testTranscode", actualDate)
+		d = v.(time.Time)
+		if !actualDate.Equal(d) {
+			t.Errorf("Did not transcode date successfully: %v is not %v", v, actualDate)
+		}
 	}
 }
 
