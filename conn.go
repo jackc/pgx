@@ -959,19 +959,20 @@ func (c *Conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 		return 0, 0, DeadConnError
 	}
 
-	defer func() {
-		if err != nil {
-			c.die(err)
-		}
-	}()
-
 	t, err = c.reader.ReadByte()
 	if err != nil {
-		return
+		c.die(err)
+		return 0, 0, err
 	}
+
 	err = binary.Read(c.reader, binary.BigEndian, &bodySize)
+	if err != nil {
+		c.die(err)
+		return 0, 0, err
+	}
+
 	bodySize -= 4 // remove self from size
-	return
+	return t, bodySize, err
 }
 
 func (c *Conn) rxMsgBody(bodySize int32) (*bytes.Buffer, error) {
