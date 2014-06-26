@@ -497,7 +497,7 @@ func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) 
 				return err
 			}
 
-			r := newMessageReader(body)
+			r := (*MessageReader)(body)
 			switch t {
 			case readyForQuery:
 				c.rxReadyForQuery(r)
@@ -950,7 +950,7 @@ func (c *Conn) rxMsg() (t byte, r *MessageReader, err error) {
 		return
 	}
 
-	r = newMessageReader(body)
+	r = (*MessageReader)(body)
 	return
 }
 
