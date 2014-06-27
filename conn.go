@@ -64,6 +64,7 @@ type Conn struct {
 	alive              bool
 	causeOfDeath       error
 	logger             log.Logger
+	drr                DataRowReader
 }
 
 type PreparedStatement struct {
@@ -328,10 +329,16 @@ func (c *Conn) selectFunc(sql string, onDataRow func(*DataRowReader) error, argu
 			fields = c.rxRowDescription(r)
 		case dataRow:
 			if softErr == nil {
-				var drr *DataRowReader
-				drr, softErr = newDataRowReader(r, fields)
+				c.drr.mr = r
+				c.drr.FieldDescriptions = fields
+				c.drr.currentFieldIdx = 0
+
+				fieldCount := int(r.ReadInt16())
+				if fieldCount != len(fields) {
+					softErr = ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(fields), fieldCount))
+				}
 				if softErr == nil {
-					softErr = onDataRow(drr)
+					softErr = onDataRow(&c.drr)
 				}
 			}
 		case commandComplete:

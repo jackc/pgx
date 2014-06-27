@@ -11,19 +11,6 @@ type DataRowReader struct {
 	currentFieldIdx   int
 }
 
-func newDataRowReader(mr *MessageReader, fields []FieldDescription) (r *DataRowReader, err error) {
-	r = new(DataRowReader)
-	r.mr = mr
-	r.FieldDescriptions = fields
-
-	fieldCount := int(mr.ReadInt16())
-	if fieldCount != len(fields) {
-		return nil, ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(fields), fieldCount))
-	}
-
-	return
-}
-
 // ReadValue returns the next value from the current row.
 func (r *DataRowReader) ReadValue() interface{} {
 	fieldDescription := r.FieldDescriptions[r.currentFieldIdx]
