@@ -63,7 +63,7 @@ func putUrlHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if _, err := pool.Execute("putUrl", id, url); err == nil {
+	if _, err := pool.Exec("putUrl", id, url); err == nil {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -71,7 +71,7 @@ func putUrlHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func deleteUrlHandler(w http.ResponseWriter, req *http.Request) {
-	if _, err := pool.Execute("deleteUrl", req.URL.Path); err == nil {
+	if _, err := pool.Exec("deleteUrl", req.URL.Path); err == nil {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

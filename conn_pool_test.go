@@ -104,8 +104,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	allConnections := acquireAll()
 
 	for _, c := range allConnections {
-		mustExecute(t, c, "create temporary table t(counter integer not null)")
-		mustExecute(t, c, "insert into t(counter) values(0);")
+		mustExec(t, c, "create temporary table t(counter integer not null)")
+		mustExec(t, c, "insert into t(counter) values(0);")
 	}
 
 	for _, c := range allConnections {
@@ -120,7 +120,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 		defer pool.Release(conn)
 
 		// Increment counter...
-		mustExecute(t, conn, "update t set counter = counter + 1")
+		mustExec(t, conn, "update t set counter = counter + 1")
 		completeSync <- 0
 	}
 
@@ -167,8 +167,8 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
-	mustExecute(t, conn, "begin")
-	if _, err = conn.Execute("select"); err == nil {
+	mustExec(t, conn, "begin")
+	if _, err = conn.Exec("select"); err == nil {
 		t.Fatal("Did not receive expected error")
 	}
 	if conn.TxStatus != 'E' {
@@ -185,7 +185,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
-	mustExecute(t, conn, "begin")
+	mustExec(t, conn, "begin")
 	if conn.TxStatus != 'T' {
 		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)
 	}
@@ -267,7 +267,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 		}
 	}()
 
-	if _, err = c2.Execute("select pg_terminate_backend($1)", c1.Pid); err != nil {
+	if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Pid); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -307,7 +307,7 @@ func TestPoolTransaction(t *testing.T) {
 	defer pool.Close()
 
 	committed, err := pool.Transaction(func(conn *pgx.Conn) bool {
-		mustExecute(t, conn, "create temporary table foo(id serial primary key)")
+		mustExec(t, conn, "create temporary table foo(id serial primary key)")
 		return true
 	})
 	if err != nil {
@@ -323,7 +323,7 @@ func TestPoolTransaction(t *testing.T) {
 			t.Fatalf("Did not receive expected value: %v", n)
 		}
 
-		mustExecute(t, conn, "insert into foo(id) values(default)")
+		mustExec(t, conn, "insert into foo(id) values(default)")
 
 		n = mustSelectValue(t, conn, "select count(*) from foo")
 		if n.(int64) != 1 {

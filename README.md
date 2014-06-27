@@ -34,7 +34,7 @@ if widgets, err := conn.SelectRows("select name, weight from widgets where type=
 
 Prepared statements are easy to use in pgx. Just call Prepare with the name of
 the statement and the SQL. To execute a prepared statement just pass the name
-of the statement into a Select* or Execute command as the SQL text. It will
+of the statement into a Select* or Exec command as the SQL text. It will
 automatically detect that it is the name of a prepared statement and execute
 it.
 
@@ -61,7 +61,7 @@ being made available in the connection pool. This is especially useful to
 ensure all connections have the same prepared statements available or to
 change any other connection settings.
 
-It also delegates Select* and Execute functions to an automatically checked
+It also delegates Select* and Exec functions to an automatically checked
 out and released connection so you can avoid manually acquiring and releasing
 connections when you do not need that level of control.
 

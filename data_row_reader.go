@@ -11,6 +11,10 @@ type DataRowReader struct {
 	currentFieldIdx   int
 }
 
+func (r *DataRowReader) MessageReader() *MessageReader {
+	return r.mr
+}
+
 // ReadValue returns the next value from the current row.
 func (r *DataRowReader) ReadValue() interface{} {
 	fieldDescription := r.FieldDescriptions[r.currentFieldIdx]

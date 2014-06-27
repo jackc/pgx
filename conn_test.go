@@ -233,48 +233,48 @@ func TestParseURI(t *testing.T) {
 	}
 }
 
-func TestExecute(t *testing.T) {
+func TestExec(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	if results := mustExecute(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
-		t.Error("Unexpected results from Execute")
+	if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
+		t.Error("Unexpected results from Exec")
 	}
 
 	// Accept parameters
-	if results := mustExecute(t, conn, "insert into foo(id) values($1)", 1); results != "INSERT 0 1" {
-		t.Errorf("Unexpected results from Execute: %v", results)
+	if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); results != "INSERT 0 1" {
+		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
-	if results := mustExecute(t, conn, "drop table foo;"); results != "DROP TABLE" {
-		t.Error("Unexpected results from Execute")
+	if results := mustExec(t, conn, "drop table foo;"); results != "DROP TABLE" {
+		t.Error("Unexpected results from Exec")
 	}
 
 	// Multiple statements can be executed -- last command tag is returned
-	if results := mustExecute(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); results != "DROP TABLE" {
-		t.Error("Unexpected results from Execute")
+	if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); results != "DROP TABLE" {
+		t.Error("Unexpected results from Exec")
 	}
 
 	// Can execute longer SQL strings than sharedBufferSize
-	if results := mustExecute(t, conn, strings.Repeat("select 42; ", 1000)); results != "SELECT 1" {
-		t.Errorf("Unexpected results from Execute: %v", results)
+	if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); results != "SELECT 1" {
+		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }
 
-func TestExecuteFailure(t *testing.T) {
+func TestExecFailure(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	if _, err := conn.Execute("select;"); err == nil {
+	if _, err := conn.Exec("select;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 
 	if _, err := conn.SelectValue("select 1"); err != nil {
-		t.Fatalf("Execute failure appears to have broken connection: %v", err)
+		t.Fatalf("Exec failure appears to have broken connection: %v", err)
 	}
 }
 
@@ -623,7 +623,7 @@ func TestPrepare(t *testing.T) {
 		}
 	}
 
-	mustExecute(t, conn, "create temporary table foo(id serial)")
+	mustExec(t, conn, "create temporary table foo(id serial)")
 	if _, err = conn.Prepare("deleteFoo", "delete from foo"); err != nil {
 		t.Fatalf("Unable to prepare delete: %v", err)
 	}
@@ -657,13 +657,13 @@ func TestTransaction(t *testing.T) {
 		);
 	`
 
-	if _, err := conn.Execute(createSql); err != nil {
+	if _, err := conn.Exec(createSql); err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
 	// Transaction happy path -- it executes function and commits
 	committed, err := conn.Transaction(func() bool {
-		mustExecute(t, conn, "insert into foo(id) values (1)")
+		mustExec(t, conn, "insert into foo(id) values (1)")
 		return true
 	})
 	if err != nil {
@@ -679,11 +679,11 @@ func TestTransaction(t *testing.T) {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
-	mustExecute(t, conn, "truncate foo")
+	mustExec(t, conn, "truncate foo")
 
 	// It rolls back when passed function returns false
 	committed, err = conn.Transaction(func() bool {
-		mustExecute(t, conn, "insert into foo(id) values (1)")
+		mustExec(t, conn, "insert into foo(id) values (1)")
 		return false
 	})
 	if err != nil {
@@ -699,9 +699,9 @@ func TestTransaction(t *testing.T) {
 
 	// it rolls back changes when connection is in error state
 	committed, err = conn.Transaction(func() bool {
-		mustExecute(t, conn, "insert into foo(id) values (1)")
-		if _, err := conn.Execute("invalid"); err == nil {
-			t.Fatal("Execute was supposed to error but didn't")
+		mustExec(t, conn, "insert into foo(id) values (1)")
+		if _, err := conn.Exec("invalid"); err == nil {
+			t.Fatal("Exec was supposed to error but didn't")
 		}
 		return true
 	})
@@ -718,8 +718,8 @@ func TestTransaction(t *testing.T) {
 
 	// when commit fails
 	committed, err = conn.Transaction(func() bool {
-		mustExecute(t, conn, "insert into foo(id) values (1)")
-		mustExecute(t, conn, "insert into foo(id) values (1)")
+		mustExec(t, conn, "insert into foo(id) values (1)")
+		mustExec(t, conn, "insert into foo(id) values (1)")
 		return true
 	})
 	if err == nil {
@@ -741,7 +741,7 @@ func TestTransaction(t *testing.T) {
 		}()
 
 		committed, err = conn.Transaction(func() bool {
-			mustExecute(t, conn, "insert into foo(id) values (1)")
+			mustExec(t, conn, "insert into foo(id) values (1)")
 			panic("stop!")
 		})
 
@@ -785,7 +785,7 @@ func TestListenNotify(t *testing.T) {
 	notifier := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, notifier)
 
-	mustExecute(t, notifier, "notify chat")
+	mustExec(t, notifier, "notify chat")
 
 	// when notification is waiting on the socket to be read
 	notification, err := listener.WaitForNotification(time.Second)
@@ -797,7 +797,7 @@ func TestListenNotify(t *testing.T) {
 	}
 
 	// when notification has already been read during previous query
-	mustExecute(t, notifier, "notify chat")
+	mustExec(t, notifier, "notify chat")
 	mustSelectValue(t, listener, "select 1")
 	notification, err = listener.WaitForNotification(0)
 	if err != nil {
@@ -817,7 +817,7 @@ func TestListenNotify(t *testing.T) {
 	}
 
 	// listener can listen again after a timeout
-	mustExecute(t, notifier, "notify chat")
+	mustExec(t, notifier, "notify chat")
 	notification, err = listener.WaitForNotification(time.Second)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
@@ -849,7 +849,7 @@ func TestFatalRxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Execute("select pg_terminate_backend($1)", conn.Pid); err != nil {
+	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Pid); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -872,7 +872,7 @@ func TestFatalTxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Execute("select pg_terminate_backend($1)", conn.Pid); err != nil {
+	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Pid); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 

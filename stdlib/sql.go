@@ -108,7 +108,7 @@ func (c *Conn) Begin() (driver.Tx, error) {
 		return nil, driver.ErrBadConn
 	}
 
-	_, err := c.conn.Execute("begin")
+	_, err := c.conn.Exec("begin")
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 	}
 
 	args := valueToInterface(argsV)
-	commandTag, err := c.conn.Execute(query, args...)
+	commandTag, err := c.conn.Exec(query, args...)
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
@@ -233,11 +233,11 @@ type Tx struct {
 }
 
 func (t *Tx) Commit() error {
-	_, err := t.conn.Execute("commit")
+	_, err := t.conn.Exec("commit")
 	return err
 }
 
 func (t *Tx) Rollback() error {
-	_, err := t.conn.Execute("rollback")
+	_, err := t.conn.Exec("rollback")
 	return err
 }

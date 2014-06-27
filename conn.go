@@ -667,13 +667,13 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // Deallocate released a prepared statement
 func (c *Conn) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
-	_, err = c.Execute("deallocate " + c.QuoteIdentifier(name))
+	_, err = c.Exec("deallocate " + c.QuoteIdentifier(name))
 	return
 }
 
 // Listen establishes a PostgreSQL listen/notify to channel
 func (c *Conn) Listen(channel string) (err error) {
-	_, err = c.Execute("listen " + channel)
+	_, err = c.Exec("listen " + channel)
 	return
 }
 
@@ -833,18 +833,18 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	return err
 }
 
-// Execute executes sql. sql can be either a prepared statement name or an SQL string.
+// Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Conn) Execute(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	startTime := time.Now()
 
 	defer func() {
 		if err == nil {
 			endTime := time.Now()
-			c.logger.Info("Execute", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
+			c.logger.Info("Exec", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
 		} else {
-			c.logger.Error("Execute", "sql", sql, "args", arguments, "error", err)
+			c.logger.Error("Exec", "sql", sql, "args", arguments, "error", err)
 		}
 	}()
 
@@ -909,17 +909,17 @@ func (c *Conn) transaction(isoLevel string, f func() bool) (committed bool, err 
 		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
 	}
 
-	if _, err = c.Execute(beginSql); err != nil {
+	if _, err = c.Exec(beginSql); err != nil {
 		return
 	}
 	defer func() {
 		if committed && c.TxStatus == 'T' {
-			_, err = c.Execute("commit")
+			_, err = c.Exec("commit")
 			if err != nil {
 				committed = false
 			}
 		} else {
-			_, err = c.Execute("rollback")
+			_, err = c.Exec("rollback")
 			committed = false
 		}
 	}()

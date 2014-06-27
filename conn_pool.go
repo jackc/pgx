@@ -105,7 +105,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 // Release gives up use of a connection.
 func (p *ConnPool) Release(conn *Conn) {
 	if conn.TxStatus != 'I' {
-		conn.Execute("rollback")
+		conn.Exec("rollback")
 	}
 
 	p.cond.L.Lock()
@@ -232,15 +232,15 @@ func (p *ConnPool) SelectValues(sql string, arguments ...interface{}) (values []
 	return c.SelectValues(sql, arguments...)
 }
 
-// Execute acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) Execute(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+// Exec acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
 	}
 	defer p.Release(c)
 
-	return c.Execute(sql, arguments...)
+	return c.Exec(sql, arguments...)
 }
 
 // Transaction acquires a connection, delegates the call to that connection,

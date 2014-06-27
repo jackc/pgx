@@ -8,7 +8,7 @@ import (
 )
 
 func createNarrowTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists narrow;
 
 		create table narrow(
@@ -149,7 +149,7 @@ func BenchmarkSelectValueToPreparedNarrow(b *testing.B) {
 }
 
 func createJoinsTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists product_component;
 		drop table if exists component;
 		drop table if exists product;
@@ -246,7 +246,7 @@ func BenchmarkSelectRowsPreparedJoins(b *testing.B) {
 }
 
 func createInt2TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -294,7 +294,7 @@ func BenchmarkInt2Binary(b *testing.B) {
 }
 
 func createInt4TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -342,7 +342,7 @@ func BenchmarkInt4Binary(b *testing.B) {
 }
 
 func createInt8TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -389,7 +389,7 @@ func BenchmarkInt8Binary(b *testing.B) {
 }
 
 func createFloat4TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -436,7 +436,7 @@ func BenchmarkFloat4Binary(b *testing.B) {
 }
 
 func createFloat8TextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -483,7 +483,7 @@ func BenchmarkFloat8Binary(b *testing.B) {
 }
 
 func createBoolTextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
@@ -530,7 +530,7 @@ func BenchmarkBoolBinary(b *testing.B) {
 }
 
 func createTimestampTzTextVsBinaryTestData(b *testing.B, conn *pgx.Conn) {
-	mustExecute(b, conn, `
+	mustExec(b, conn, `
 		drop table if exists t;
 
 		create temporary table t(
