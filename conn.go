@@ -522,12 +522,13 @@ func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) 
 }
 
 func (c *Conn) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
-	var columnCount int16
-	err = binary.Read(c.reader, binary.BigEndian, &columnCount)
+	b := make([]byte, 2)
+	_, err = io.ReadFull(c.reader, b)
 	if err != nil {
 		c.die(err)
 		return
 	}
+	columnCount := int16(binary.BigEndian.Uint16(b))
 
 	if columnCount != 1 {
 		// Read the rest of the data row so it can be discarded
@@ -539,12 +540,13 @@ func (c *Conn) rxDataRowValueTo(w io.Writer, bodySize int32) (err error) {
 		return
 	}
 
-	var valueSize int32
-	err = binary.Read(c.reader, binary.BigEndian, &valueSize)
+	b = make([]byte, 4)
+	_, err = io.ReadFull(c.reader, b)
 	if err != nil {
 		c.die(err)
 		return
 	}
+	valueSize := int32(binary.BigEndian.Uint32(b))
 
 	if valueSize == -1 {
 		err = errors.New("SelectValueTo cannot handle null")
@@ -972,11 +974,14 @@ func (c *Conn) rxMsgHeader() (t byte, bodySize int32, err error) {
 		return 0, 0, err
 	}
 
-	err = binary.Read(c.reader, binary.BigEndian, &bodySize)
+	b := make([]byte, 4)
+	_, err = io.ReadFull(c.reader, b)
 	if err != nil {
 		c.die(err)
 		return 0, 0, err
 	}
+
+	bodySize = int32(binary.BigEndian.Uint32(b))
 
 	bodySize -= 4 // remove self from size
 	return t, bodySize, err
