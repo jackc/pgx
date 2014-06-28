@@ -374,3 +374,44 @@ func TestPoolTransactionIso(t *testing.T) {
 		t.Fatal("Transaction was not committed when it should have been")
 	}
 }
+
+func TestConnPoolQuery(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	var sum, rowCount int32
+
+	qr, err := pool.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("pool.Query failed: %v", err)
+	}
+
+	stats := pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 0 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		sum += rr.ReadInt32(qr)
+		rowCount++
+	}
+
+	if qr.Err() != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	if rowCount != 10 {
+		t.Error("Select called onDataRow wrong number of times")
+	}
+	if sum != 55 {
+		t.Error("Wrong values returned")
+	}
+
+	stats = pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+}

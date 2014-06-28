@@ -30,9 +30,8 @@ func TestConnect(t *testing.T) {
 		t.Error("Backend secret key not stored")
 	}
 
-	var rows []map[string]interface{}
-	rows, err = conn.SelectRows("select current_database()")
-	if err != nil || rows[0]["current_database"] != defaultConnConfig.Database {
+	currentDB, err := conn.SelectValue("select current_database()")
+	if err != nil || currentDB != defaultConnConfig.Database {
 		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
 	}
 
@@ -278,146 +277,35 @@ func TestExecFailure(t *testing.T) {
 	}
 }
 
-func TestSelectFunc(t *testing.T) {
+func TestConnQuery(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
 	var sum, rowCount int32
-	onDataRow := func(r *pgx.DataRowReader) error {
+
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+	defer rows.Close()
+
+	for rows.NextRow() {
+		var rr pgx.RowReader
+		sum += rr.ReadInt32(rows)
 		rowCount++
-		sum += r.ReadValue().(int32)
-		return nil
 	}
 
-	err := conn.SelectFunc("select generate_series(1,$1)", onDataRow, 10)
-	if err != nil {
-		t.Fatal("Select failed: " + err.Error())
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: ", err)
 	}
+
 	if rowCount != 10 {
 		t.Error("Select called onDataRow wrong number of times")
 	}
 	if sum != 55 {
 		t.Error("Wrong values returned")
-	}
-}
-
-func TestSelectFuncFailure(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	// using SelectValue as it delegates to SelectFunc and is easier to work with
-	if _, err := conn.SelectValue("select;"); err == nil {
-		t.Fatal("Expected SQL syntax error")
-	}
-
-	if _, err := conn.SelectValue("select 1"); err != nil {
-		t.Fatalf("SelectFunc failure appears to have broken connection: %v", err)
-	}
-}
-
-func Example_connectionSelectFunc() {
-	conn, err := pgx.Connect(*defaultConnConfig)
-	if err != nil {
-		fmt.Printf("Unable to establish connection: %v", err)
-		return
-	}
-
-	onDataRow := func(r *pgx.DataRowReader) error {
-		fmt.Println(r.ReadValue())
-		return nil
-	}
-
-	err = conn.SelectFunc("select generate_series(1,$1)", onDataRow, 5)
-	if err != nil {
-		fmt.Println(err)
-	}
-	// Output:
-	// 1
-	// 2
-	// 3
-	// 4
-	// 5
-}
-
-func TestSelectRows(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows := mustSelectRows(t, conn, "select $1 as name, null as position", "Jack")
-
-	if len(rows) != 1 {
-		t.Fatal("Received wrong number of rows")
-	}
-
-	if rows[0]["name"] != "Jack" {
-		t.Error("Received incorrect name")
-	}
-
-	if value, presence := rows[0]["position"]; presence {
-		if value != nil {
-			t.Error("Should have received nil for null")
-		}
-	} else {
-		t.Error("Null value should have been present in map as nil")
-	}
-}
-
-func Example_connectionSelectRows() {
-	conn, err := pgx.Connect(*defaultConnConfig)
-	if err != nil {
-		fmt.Printf("Unable to establish connection: %v", err)
-		return
-	}
-
-	var rows []map[string]interface{}
-	if rows, err = conn.SelectRows("select generate_series(1,$1) as number", 5); err != nil {
-		fmt.Printf("Error selecting rows: %v", err)
-		return
-	}
-	for _, r := range rows {
-		fmt.Println(r["number"])
-	}
-	// Output:
-	// 1
-	// 2
-	// 3
-	// 4
-	// 5
-}
-
-func TestSelectRow(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	row := mustSelectRow(t, conn, "select $1 as name, null as position", "Jack")
-	if row["name"] != "Jack" {
-		t.Error("Received incorrect name")
-	}
-
-	if value, presence := row["position"]; presence {
-		if value != nil {
-			t.Error("Should have received nil for null")
-		}
-	} else {
-		t.Error("Null value should have been present in map as nil")
-	}
-
-	_, err := conn.SelectRow("select 'Jack' as name where 1=2")
-	if _, ok := err.(pgx.NotSingleRowError); !ok {
-		t.Error("No matching row should have returned NotSingleRowError")
-	}
-
-	_, err = conn.SelectRow("select * from (values ('Matthew'), ('Mark')) t")
-	if _, ok := err.(pgx.NotSingleRowError); !ok {
-		t.Error("Multiple matching rows should have returned NotSingleRowError")
 	}
 }
 
@@ -438,6 +326,7 @@ func TestConnectionSelectValue(t *testing.T) {
 		}
 	}
 
+	fmt.Println("Starting test")
 	test("select $1", "foo", "foo")
 	test("select 'foo'", "foo")
 	test("select true", true)
@@ -513,41 +402,6 @@ func TestConnectionSelectValueTo(t *testing.T) {
 		t.Fatal("SelectValueTo null error should not have killed connection")
 	}
 
-}
-
-func TestSelectValues(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	test := func(sql string, expected []interface{}, arguments ...interface{}) {
-		values, err := conn.SelectValues(sql, arguments...)
-		if err != nil {
-			t.Errorf("%v while running %v", err, sql)
-			return
-		}
-		if len(values) != len(expected) {
-			t.Errorf("Expected: %#v Received: %#v", expected, values)
-			return
-		}
-		for i := 0; i < len(values); i++ {
-			if values[i] != expected[i] {
-				t.Errorf("Expected: %#v Received: %#v", expected, values)
-				return
-			}
-		}
-	}
-
-	test("select * from (values ($1)) t", []interface{}{"Matthew"}, "Matthew")
-	test("select * from (values ('Matthew'), ('Mark'), ('Luke'), ('John')) t", []interface{}{"Matthew", "Mark", "Luke", "John"})
-	test("select * from (values ('Matthew'), (null)) t", []interface{}{"Matthew", nil})
-	test("select * from (values (1::int4), (2::int4), (null), (3::int4)) t", []interface{}{int32(1), int32(2), nil, int32(3)})
-
-	_, err := conn.SelectValues("select 'Matthew', 'Mark'")
-	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
-		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
-	}
 }
 
 func TestPrepare(t *testing.T) {
@@ -872,11 +726,13 @@ func TestFatalTxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Pid); err != nil {
+	_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Pid)
+	if err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
-	if _, err := conn.SelectValue("select 1"); err == nil {
+	_, err = conn.SelectValue("select 1")
+	if err == nil {
 		t.Fatal("Expected error but none occurred")
 	}
 

@@ -7,6 +7,10 @@ import (
 	"strconv"
 )
 
+const (
+	pointOid = 600
+)
+
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 
 type Point struct {
@@ -19,9 +23,11 @@ func (p Point) String() string {
 }
 
 func Example_customValueTranscoder() {
-	pgx.ValueTranscoders[pgx.Oid(600)] = &pgx.ValueTranscoder{
-		DecodeText: decodePointFromText,
-		EncodeTo:   encodePoint}
+	pgx.ValueTranscoders[pointOid] = &pgx.ValueTranscoder{
+		Decode: func(qr *pgx.QueryResult, fd *pgx.FieldDescription, size int32) interface{} {
+			return decodePoint(qr, fd, size)
+		},
+		EncodeTo: encodePoint}
 
 	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
@@ -35,24 +41,39 @@ func Example_customValueTranscoder() {
 	// 1.5, 2.5
 }
 
-func decodePointFromText(mr *pgx.MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	match := pointRegexp.FindStringSubmatch(s)
-	if match == nil {
-		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
+func decodePoint(qr *pgx.QueryResult, fd *pgx.FieldDescription, size int32) Point {
+	var p Point
+
+	if fd.DataType != pointOid {
+		qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Tried to read point but received: %v", fd.DataType)))
+		return p
 	}
 
-	var err error
-	var p Point
-	p.x, err = strconv.ParseFloat(match[1], 64)
-	if err != nil {
-		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
+	switch fd.FormatCode {
+	case pgx.TextFormatCode:
+		s := qr.MessageReader().ReadString(size)
+		match := pointRegexp.FindStringSubmatch(s)
+		if match == nil {
+			qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s)))
+			return p
+		}
+
+		var err error
+		p.x, err = strconv.ParseFloat(match[1], 64)
+		if err != nil {
+			qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s)))
+			return p
+		}
+		p.y, err = strconv.ParseFloat(match[2], 64)
+		if err != nil {
+			qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s)))
+			return p
+		}
+		return p
+	default:
+		qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return p
 	}
-	p.y, err = strconv.ParseFloat(match[2], 64)
-	if err != nil {
-		return pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s))
-	}
-	return p
 }
 
 func encodePoint(w *pgx.WriteBuf, value interface{}) error {

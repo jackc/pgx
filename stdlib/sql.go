@@ -133,44 +133,12 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 
 	args := valueToInterface(argsV)
 
-	rowCount := 0
-	columnsChan := make(chan []string)
-	errChan := make(chan error)
-	rowChan := make(chan []driver.Value, 8)
-
-	go func() {
-		err := c.conn.SelectFunc(query, func(r *pgx.DataRowReader) error {
-			if rowCount == 0 {
-				fieldNames := make([]string, len(r.FieldDescriptions))
-				for i, fd := range r.FieldDescriptions {
-					fieldNames[i] = fd.Name
-				}
-				columnsChan <- fieldNames
-			}
-			rowCount++
-
-			values := make([]driver.Value, len(r.FieldDescriptions))
-			for i, _ := range r.FieldDescriptions {
-				values[i] = r.ReadValue()
-			}
-			rowChan <- values
-
-			return nil
-		}, args...)
-		close(rowChan)
-		if err != nil {
-			errChan <- err
-		}
-	}()
-
-	rows := Rows{rowChan: rowChan}
-
-	select {
-	case rows.columnNames = <-columnsChan:
-		return &rows, nil
-	case err := <-errChan:
+	qr, err := c.conn.Query(query, args...)
+	if err != nil {
 		return nil, err
 	}
+
+	return &Rows{qr: qr}, nil
 }
 
 type Stmt struct {
@@ -194,29 +162,40 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	return s.conn.Query(s.ps.Name, argsV)
 }
 
+// TODO - rename to avoid alloc
 type Rows struct {
-	columnNames []string
-	rowChan     chan []driver.Value
+	qr *pgx.QueryResult
 }
 
 func (r *Rows) Columns() []string {
-	return r.columnNames
+	fieldDescriptions := r.qr.FieldDescriptions()
+	names := make([]string, 0, len(fieldDescriptions))
+	for _, fd := range fieldDescriptions {
+		names = append(names, fd.Name)
+	}
+	return names
 }
 
 func (r *Rows) Close() error {
-	for _ = range r.rowChan {
-		// Ensure all rows are read
-	}
+	r.qr.Close()
 	return nil
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
-	row, ok := <-r.rowChan
-	if !ok {
-		return io.EOF
+	more := r.qr.NextRow()
+	if !more {
+		if r.qr.Err() == nil {
+			return io.EOF
+		} else {
+			return r.qr.Err()
+		}
 	}
 
-	copy(dest, row)
+	var rr pgx.RowReader
+	for i, _ := range r.qr.FieldDescriptions() {
+		dest[i] = driver.Value(rr.ReadValue(r.qr))
+	}
+
 	return nil
 }
 

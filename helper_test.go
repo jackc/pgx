@@ -35,22 +35,6 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}
 	return
 }
 
-func mustSelectRow(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (row map[string]interface{}) {
-	var err error
-	if row, err = conn.SelectRow(sql, arguments...); err != nil {
-		t.Fatalf("SelectRow unexpectedly failed with %v: %v", sql, err)
-	}
-	return
-}
-
-func mustSelectRows(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (rows []map[string]interface{}) {
-	var err error
-	if rows, err = conn.SelectRows(sql, arguments...); err != nil {
-		t.Fatalf("SelectRows unexpected failed with %v: %v", sql, err)
-	}
-	return
-}
-
 func mustSelectValue(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (value interface{}) {
 	var err error
 	if value, err = conn.SelectValue(sql, arguments...); err != nil {

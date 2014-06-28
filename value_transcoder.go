@@ -28,18 +28,23 @@ const (
 	TimestampTzOid = 1184
 )
 
+const (
+	TextFormatCode   = 0
+	BinaryFormatCode = 1
+)
+
 // ValueTranscoder stores all the data necessary to encode and decode values from
 // a PostgreSQL server
 type ValueTranscoder struct {
-	// DecodeText decodes values returned from the server in text format
-	DecodeText func(*MessageReader, int32) interface{}
-	// DecodeBinary decodes values returned from the server in binary format
-	DecodeBinary func(*MessageReader, int32) interface{}
+	// Decode decodes values returned from the server
+	Decode func(qr *QueryResult, fd *FieldDescription, size int32) interface{}
+	// DecodeFormat is the preferred response format.
+	// Allowed values: TextFormatCode, BinaryFormatCode
+	DecodeFormat int16
 	// EncodeTo encodes values to send to the server
 	EncodeTo func(*WriteBuf, interface{}) error
 	// EncodeFormat is the format values are encoded for transmission.
-	// 0 = text
-	// 1 = binary
+	// Allowed values: TextFormatCode, BinaryFormatCode
 	EncodeFormat int16
 }
 
@@ -55,86 +60,104 @@ func init() {
 
 	// bool
 	ValueTranscoders[BoolOid] = &ValueTranscoder{
-		DecodeText:   decodeBoolFromText,
-		DecodeBinary: decodeBoolFromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeBool(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
 		EncodeTo:     encodeBool,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// bytea
 	ValueTranscoders[ByteaOid] = &ValueTranscoder{
-		DecodeText:   decodeByteaFromText,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeBytea(qr, fd, size) },
+		DecodeFormat: TextFormatCode,
 		EncodeTo:     encodeBytea,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// int8
 	ValueTranscoders[Int8Oid] = &ValueTranscoder{
-		DecodeText:   decodeInt8FromText,
-		DecodeBinary: decodeInt8FromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt8(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
 		EncodeTo:     encodeInt8,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// int2
 	ValueTranscoders[Int2Oid] = &ValueTranscoder{
-		DecodeText:   decodeInt2FromText,
-		DecodeBinary: decodeInt2FromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt2(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
 		EncodeTo:     encodeInt2,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// int4
 	ValueTranscoders[Int4Oid] = &ValueTranscoder{
-		DecodeText:   decodeInt4FromText,
-		DecodeBinary: decodeInt4FromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt4(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
 		EncodeTo:     encodeInt4,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// text
 	ValueTranscoders[TextOid] = &ValueTranscoder{
-		DecodeText: decodeTextFromText,
-		EncodeTo:   encodeText}
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeText(qr, fd, size) },
+		DecodeFormat: TextFormatCode,
+		EncodeTo:     encodeText,
+		EncodeFormat: TextFormatCode}
 
 	// float4
 	ValueTranscoders[Float4Oid] = &ValueTranscoder{
-		DecodeText:   decodeFloat4FromText,
-		DecodeBinary: decodeFloat4FromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeFloat4(qr, fd, size) },
 		EncodeTo:     encodeFloat4,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// float8
 	ValueTranscoders[Float8Oid] = &ValueTranscoder{
-		DecodeText:   decodeFloat8FromText,
-		DecodeBinary: decodeFloat8FromBinary,
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeFloat8(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
 		EncodeTo:     encodeFloat8,
-		EncodeFormat: 1}
+		EncodeFormat: BinaryFormatCode}
 
 	// int2[]
 	ValueTranscoders[Int2ArrayOid] = &ValueTranscoder{
-		DecodeText: decodeInt2ArrayFromText,
-		EncodeTo:   encodeInt2Array}
+		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
+			return decodeInt2Array(qr, fd, size)
+		},
+		DecodeFormat: TextFormatCode,
+		EncodeTo:     encodeInt2Array,
+		EncodeFormat: TextFormatCode}
 
 	// int4[]
 	ValueTranscoders[Int4ArrayOid] = &ValueTranscoder{
-		DecodeText: decodeInt4ArrayFromText,
-		EncodeTo:   encodeInt4Array}
+		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
+			return decodeInt4Array(qr, fd, size)
+		},
+		DecodeFormat: TextFormatCode,
+		EncodeTo:     encodeInt4Array,
+		EncodeFormat: TextFormatCode}
 
 	// int8[]
 	ValueTranscoders[Int8ArrayOid] = &ValueTranscoder{
-		DecodeText: decodeInt8ArrayFromText,
-		EncodeTo:   encodeInt8Array}
+		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
+			return decodeInt8Array(qr, fd, size)
+		},
+		DecodeFormat: TextFormatCode,
+		EncodeTo:     encodeInt8Array,
+		EncodeFormat: TextFormatCode}
 
 	// varchar -- same as text
 	ValueTranscoders[VarcharOid] = ValueTranscoders[Oid(25)]
 
 	// date
 	ValueTranscoders[DateOid] = &ValueTranscoder{
-		DecodeText:   decodeDateFromText,
-		DecodeBinary: decodeDateFromBinary,
-		EncodeTo:     encodeDate}
+		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeDate(qr, fd, size) },
+		DecodeFormat: BinaryFormatCode,
+		EncodeTo:     encodeDate,
+		EncodeFormat: TextFormatCode}
 
 	// timestamptz
 	ValueTranscoders[TimestampTzOid] = &ValueTranscoder{
-		DecodeText:   decodeTimestampTzFromText,
-		DecodeBinary: decodeTimestampTzFromBinary,
-		EncodeTo:     encodeTimestampTz}
+		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
+			return decodeTimestampTz(qr, fd, size)
+		},
+		DecodeFormat: BinaryFormatCode,
+		EncodeTo:     encodeTimestampTz,
+		EncodeFormat: TextFormatCode}
 
 	// use text transcoder for anything we don't understand
 	defaultTranscoder = ValueTranscoders[TextOid]
@@ -158,24 +181,30 @@ func SplitArrayText(text string) (elements []string) {
 	return
 }
 
-func decodeBoolFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	switch s {
-	case "t":
-		return true
-	case "f":
-		return false
+func decodeBool(qr *QueryResult, fd *FieldDescription, size int32) bool {
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		switch s {
+		case "t":
+			return true
+		case "f":
+			return false
+		default:
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid bool: %v", s)))
+			return false
+		}
+	case BinaryFormatCode:
+		if size != 1 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size)))
+			return false
+		}
+		b := qr.mr.ReadByte()
+		return b != 0
 	default:
-		return ProtocolError(fmt.Sprintf("Received invalid bool: %v", s))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return false
 	}
-}
-
-func decodeBoolFromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 1 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size))
-	}
-	b := mr.ReadByte()
-	return b != 0
 }
 
 func encodeBool(w *WriteBuf, value interface{}) error {
@@ -196,20 +225,31 @@ func encodeBool(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt8FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Received invalid int8: %v", s))
+func decodeInt8(qr *QueryResult, fd *FieldDescription, size int32) int64 {
+	if fd.DataType != Int8Oid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int8Oid, fd.DataType)))
+		return 0
 	}
-	return n
-}
 
-func decodeInt8FromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 8 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size))
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		n, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8: %v", s)))
+			return 0
+		}
+		return n
+	case BinaryFormatCode:
+		if size != 8 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size)))
+			return 0
+		}
+		return qr.mr.ReadInt64()
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return 0
 	}
-	return mr.ReadInt64()
 }
 
 func encodeInt8(w *WriteBuf, value interface{}) error {
@@ -246,20 +286,31 @@ func encodeInt8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt2FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	n, err := strconv.ParseInt(s, 10, 16)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Received invalid int2: %v", s))
+func decodeInt2(qr *QueryResult, fd *FieldDescription, size int32) int16 {
+	if fd.DataType != Int2Oid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int2Oid, fd.DataType)))
+		return 0
 	}
-	return int16(n)
-}
 
-func decodeInt2FromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 2 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size))
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		n, err := strconv.ParseInt(s, 10, 16)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2: %v", s)))
+			return 0
+		}
+		return int16(n)
+	case BinaryFormatCode:
+		if size != 2 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size)))
+			return 0
+		}
+		return qr.mr.ReadInt16()
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return 0
 	}
-	return mr.ReadInt16()
 }
 
 func encodeInt2(w *WriteBuf, value interface{}) error {
@@ -311,20 +362,30 @@ func encodeInt2(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt4FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	n, err := strconv.ParseInt(s, 10, 32)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Received invalid int4: %v", s))
+func decodeInt4(qr *QueryResult, fd *FieldDescription, size int32) int32 {
+	if fd.DataType != Int4Oid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int4Oid, fd.DataType)))
+		return 0
 	}
-	return int32(n)
-}
 
-func decodeInt4FromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 4 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size))
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4: %v", s)))
+		}
+		return int32(n)
+	case BinaryFormatCode:
+		if size != 4 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size)))
+			return 0
+		}
+		return qr.mr.ReadInt32()
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return 0
 	}
-	return mr.ReadInt32()
 }
 
 func encodeInt4(w *WriteBuf, value interface{}) error {
@@ -370,23 +431,29 @@ func encodeInt4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat4FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	n, err := strconv.ParseFloat(s, 32)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Received invalid float4: %v", s))
-	}
-	return float32(n)
-}
+func decodeFloat4(qr *QueryResult, fd *FieldDescription, size int32) float32 {
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		n, err := strconv.ParseFloat(s, 32)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float4: %v", s)))
+			return 0
+		}
+		return float32(n)
+	case BinaryFormatCode:
+		if size != 4 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size)))
+			return 0
+		}
 
-func decodeFloat4FromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 4 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size))
+		i := qr.mr.ReadInt32()
+		p := unsafe.Pointer(&i)
+		return *(*float32)(p)
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return 0
 	}
-
-	i := mr.ReadInt32()
-	p := unsafe.Pointer(&i)
-	return *(*float32)(p)
 }
 
 func encodeFloat4(w *WriteBuf, value interface{}) error {
@@ -411,23 +478,29 @@ func encodeFloat4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat8FromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Received invalid float8: %v", s))
-	}
-	return v
-}
+func decodeFloat8(qr *QueryResult, fd *FieldDescription, size int32) float64 {
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float8: %v", s)))
+			return 0
+		}
+		return v
+	case BinaryFormatCode:
+		if size != 8 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size)))
+			return 0
+		}
 
-func decodeFloat8FromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 8 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size))
+		i := qr.mr.ReadInt64()
+		p := unsafe.Pointer(&i)
+		return *(*float64)(p)
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return 0
 	}
-
-	i := mr.ReadInt64()
-	p := unsafe.Pointer(&i)
-	return *(*float64)(p)
 }
 
 func encodeFloat8(w *WriteBuf, value interface{}) error {
@@ -449,8 +522,8 @@ func encodeFloat8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeTextFromText(mr *MessageReader, size int32) interface{} {
-	return mr.ReadString(size)
+func decodeText(qr *QueryResult, fd *FieldDescription, size int32) string {
+	return qr.mr.ReadString(size)
 }
 
 func encodeText(w *WriteBuf, value interface{}) error {
@@ -465,13 +538,20 @@ func encodeText(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeByteaFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	b, err := hex.DecodeString(s[2:])
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s))
+func decodeBytea(qr *QueryResult, fd *FieldDescription, size int32) []byte {
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		b, err := hex.DecodeString(s[2:])
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s)))
+			return nil
+		}
+		return b
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return nil
 	}
-	return b
 }
 
 func encodeBytea(w *WriteBuf, value interface{}) error {
@@ -486,18 +566,33 @@ func encodeBytea(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeDateFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Can't decode date: %v", s))
-	}
-	return t
-}
+func decodeDate(qr *QueryResult, fd *FieldDescription, size int32) time.Time {
+	var zeroTime time.Time
 
-func decodeDateFromBinary(mr *MessageReader, size int32) interface{} {
-	dayOffset := mr.ReadInt32()
-	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
+	if fd.DataType != DateOid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read date but received: %v", fd.DataType)))
+		return zeroTime
+	}
+
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode date: %v", s)))
+			return zeroTime
+		}
+		return t
+	case BinaryFormatCode:
+		if size != 4 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", size)))
+		}
+		dayOffset := qr.mr.ReadInt32()
+		return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return zeroTime
+	}
 }
 
 func encodeDate(w *WriteBuf, value interface{}) error {
@@ -510,27 +605,35 @@ func encodeDate(w *WriteBuf, value interface{}) error {
 	return encodeText(w, s)
 }
 
-func decodeTimestampTzFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-	t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
-	if err != nil {
-		return ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s))
+func decodeTimestampTz(qr *QueryResult, fd *FieldDescription, size int32) time.Time {
+	var zeroTime time.Time
+
+	if fd.DataType != TimestampTzOid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read timestamptz but received: %v", fd.DataType)))
+		return zeroTime
 	}
-	return t
-}
 
-func decodeTimestampTzFromBinary(mr *MessageReader, size int32) interface{} {
-	if size != 8 {
-		return ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size))
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+		t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
+		if err != nil {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s)))
+			return zeroTime
+		}
+		return t
+	case BinaryFormatCode:
+		if size != 8 {
+			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", size)))
+		}
+		microsecFromUnixEpochToY2K := int64(946684800 * 1000000)
+		microsecSinceY2K := qr.mr.ReadInt64()
+		microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
+		return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return zeroTime
 	}
-	microsecFromUnixEpochToY2K := int64(946684800 * 1000000)
-	microsecSinceY2K := mr.ReadInt64()
-	microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
-	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
-
-	// 2000-01-01 00:00:00 in 946684800
-	// 946684800 * 1000000
-
 }
 
 func encodeTimestampTz(w *WriteBuf, value interface{}) error {
@@ -543,22 +646,34 @@ func encodeTimestampTz(w *WriteBuf, value interface{}) error {
 	return encodeText(w, s)
 }
 
-func decodeInt2ArrayFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-
-	elements := SplitArrayText(s)
-
-	numbers := make([]int16, 0, len(elements))
-
-	for _, e := range elements {
-		n, err := strconv.ParseInt(e, 10, 16)
-		if err != nil {
-			return ProtocolError(fmt.Sprintf("Received invalid int2[]: %v", s))
-		}
-		numbers = append(numbers, int16(n))
+func decodeInt2Array(qr *QueryResult, fd *FieldDescription, size int32) []int16 {
+	if fd.DataType != Int2ArrayOid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int2[] but received: %v", fd.DataType)))
+		return nil
 	}
 
-	return numbers
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+
+		elements := SplitArrayText(s)
+
+		numbers := make([]int16, 0, len(elements))
+
+		for _, e := range elements {
+			n, err := strconv.ParseInt(e, 10, 16)
+			if err != nil {
+				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2[]: %v", s)))
+				return nil
+			}
+			numbers = append(numbers, int16(n))
+		}
+
+		return numbers
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return nil
+	}
 }
 
 func int16SliceToArrayString(nums []int16) (string, error) {
@@ -604,22 +719,34 @@ func encodeInt2Array(w *WriteBuf, value interface{}) error {
 	return encodeText(w, s)
 }
 
-func decodeInt4ArrayFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-
-	elements := SplitArrayText(s)
-
-	numbers := make([]int32, 0, len(elements))
-
-	for _, e := range elements {
-		n, err := strconv.ParseInt(e, 10, 16)
-		if err != nil {
-			return ProtocolError(fmt.Sprintf("Received invalid int4[]: %v", s))
-		}
-		numbers = append(numbers, int32(n))
+func decodeInt4Array(qr *QueryResult, fd *FieldDescription, size int32) []int32 {
+	if fd.DataType != Int4ArrayOid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int4[] but received: %v", fd.DataType)))
+		return nil
 	}
 
-	return numbers
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+
+		elements := SplitArrayText(s)
+
+		numbers := make([]int32, 0, len(elements))
+
+		for _, e := range elements {
+			n, err := strconv.ParseInt(e, 10, 32)
+			if err != nil {
+				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4[]: %v", s)))
+				return nil
+			}
+			numbers = append(numbers, int32(n))
+		}
+
+		return numbers
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return nil
+	}
 }
 
 func int32SliceToArrayString(nums []int32) (string, error) {
@@ -666,22 +793,34 @@ func encodeInt4Array(w *WriteBuf, value interface{}) error {
 	return encodeText(w, s)
 }
 
-func decodeInt8ArrayFromText(mr *MessageReader, size int32) interface{} {
-	s := mr.ReadString(size)
-
-	elements := SplitArrayText(s)
-
-	numbers := make([]int64, 0, len(elements))
-
-	for _, e := range elements {
-		n, err := strconv.ParseInt(e, 10, 16)
-		if err != nil {
-			return ProtocolError(fmt.Sprintf("Received invalid int8[]: %v", s))
-		}
-		numbers = append(numbers, int64(n))
+func decodeInt8Array(qr *QueryResult, fd *FieldDescription, size int32) []int64 {
+	if fd.DataType != Int8ArrayOid {
+		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int8[] but received: %v", fd.DataType)))
+		return nil
 	}
 
-	return numbers
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := qr.mr.ReadString(size)
+
+		elements := SplitArrayText(s)
+
+		numbers := make([]int64, 0, len(elements))
+
+		for _, e := range elements {
+			n, err := strconv.ParseInt(e, 10, 64)
+			if err != nil {
+				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8[]: %v", s)))
+				return nil
+			}
+			numbers = append(numbers, int64(n))
+		}
+
+		return numbers
+	default:
+		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return nil
+	}
 }
 
 func int64SliceToArrayString(nums []int64) (string, error) {
