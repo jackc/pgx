@@ -11,6 +11,23 @@ import (
 	"unsafe"
 )
 
+const (
+	BoolOid        = 16
+	ByteaOid       = 17
+	Int8Oid        = 20
+	Int2Oid        = 21
+	Int4Oid        = 23
+	TextOid        = 25
+	Float4Oid      = 700
+	Float8Oid      = 701
+	Int2ArrayOid   = 1005
+	Int4ArrayOid   = 1007
+	Int8ArrayOid   = 1016
+	VarcharOid     = 1043
+	DateOid        = 1082
+	TimestampTzOid = 1184
+)
+
 // ValueTranscoder stores all the data necessary to encode and decode values from
 // a PostgreSQL server
 type ValueTranscoder struct {
@@ -37,90 +54,90 @@ func init() {
 	ValueTranscoders = make(map[Oid]*ValueTranscoder)
 
 	// bool
-	ValueTranscoders[Oid(16)] = &ValueTranscoder{
+	ValueTranscoders[BoolOid] = &ValueTranscoder{
 		DecodeText:   decodeBoolFromText,
 		DecodeBinary: decodeBoolFromBinary,
 		EncodeTo:     encodeBool,
 		EncodeFormat: 1}
 
 	// bytea
-	ValueTranscoders[Oid(17)] = &ValueTranscoder{
+	ValueTranscoders[ByteaOid] = &ValueTranscoder{
 		DecodeText:   decodeByteaFromText,
 		EncodeTo:     encodeBytea,
 		EncodeFormat: 1}
 
 	// int8
-	ValueTranscoders[Oid(20)] = &ValueTranscoder{
+	ValueTranscoders[Int8Oid] = &ValueTranscoder{
 		DecodeText:   decodeInt8FromText,
 		DecodeBinary: decodeInt8FromBinary,
 		EncodeTo:     encodeInt8,
 		EncodeFormat: 1}
 
 	// int2
-	ValueTranscoders[Oid(21)] = &ValueTranscoder{
+	ValueTranscoders[Int2Oid] = &ValueTranscoder{
 		DecodeText:   decodeInt2FromText,
 		DecodeBinary: decodeInt2FromBinary,
 		EncodeTo:     encodeInt2,
 		EncodeFormat: 1}
 
 	// int4
-	ValueTranscoders[Oid(23)] = &ValueTranscoder{
+	ValueTranscoders[Int4Oid] = &ValueTranscoder{
 		DecodeText:   decodeInt4FromText,
 		DecodeBinary: decodeInt4FromBinary,
 		EncodeTo:     encodeInt4,
 		EncodeFormat: 1}
 
 	// text
-	ValueTranscoders[Oid(25)] = &ValueTranscoder{
+	ValueTranscoders[TextOid] = &ValueTranscoder{
 		DecodeText: decodeTextFromText,
 		EncodeTo:   encodeText}
 
 	// float4
-	ValueTranscoders[Oid(700)] = &ValueTranscoder{
+	ValueTranscoders[Float4Oid] = &ValueTranscoder{
 		DecodeText:   decodeFloat4FromText,
 		DecodeBinary: decodeFloat4FromBinary,
 		EncodeTo:     encodeFloat4,
 		EncodeFormat: 1}
 
 	// float8
-	ValueTranscoders[Oid(701)] = &ValueTranscoder{
+	ValueTranscoders[Float8Oid] = &ValueTranscoder{
 		DecodeText:   decodeFloat8FromText,
 		DecodeBinary: decodeFloat8FromBinary,
 		EncodeTo:     encodeFloat8,
 		EncodeFormat: 1}
 
 	// int2[]
-	ValueTranscoders[Oid(1005)] = &ValueTranscoder{
+	ValueTranscoders[Int2ArrayOid] = &ValueTranscoder{
 		DecodeText: decodeInt2ArrayFromText,
 		EncodeTo:   encodeInt2Array}
 
 	// int4[]
-	ValueTranscoders[Oid(1007)] = &ValueTranscoder{
+	ValueTranscoders[Int4ArrayOid] = &ValueTranscoder{
 		DecodeText: decodeInt4ArrayFromText,
 		EncodeTo:   encodeInt4Array}
 
 	// int8[]
-	ValueTranscoders[Oid(1016)] = &ValueTranscoder{
+	ValueTranscoders[Int8ArrayOid] = &ValueTranscoder{
 		DecodeText: decodeInt8ArrayFromText,
 		EncodeTo:   encodeInt8Array}
 
 	// varchar -- same as text
-	ValueTranscoders[Oid(1043)] = ValueTranscoders[Oid(25)]
+	ValueTranscoders[VarcharOid] = ValueTranscoders[Oid(25)]
 
 	// date
-	ValueTranscoders[Oid(1082)] = &ValueTranscoder{
+	ValueTranscoders[DateOid] = &ValueTranscoder{
 		DecodeText:   decodeDateFromText,
 		DecodeBinary: decodeDateFromBinary,
 		EncodeTo:     encodeDate}
 
 	// timestamptz
-	ValueTranscoders[Oid(1184)] = &ValueTranscoder{
+	ValueTranscoders[TimestampTzOid] = &ValueTranscoder{
 		DecodeText:   decodeTimestampTzFromText,
 		DecodeBinary: decodeTimestampTzFromBinary,
 		EncodeTo:     encodeTimestampTz}
 
 	// use text transcoder for anything we don't understand
-	defaultTranscoder = ValueTranscoders[Oid(25)]
+	defaultTranscoder = ValueTranscoders[TextOid]
 }
 
 var arrayEl *regexp.Regexp = regexp.MustCompile(`[{,](?:"((?:[^"\\]|\\.)*)"|(NULL)|([^,}]+))`)
