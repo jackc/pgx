@@ -588,7 +588,7 @@ func TestTransaction(t *testing.T) {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
-	// when something in transaction panicks
+	// when something in transaction panics
 	func() {
 		defer func() {
 			recover()
