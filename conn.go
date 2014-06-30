@@ -603,6 +603,17 @@ func (rr *RowReader) ReadInt32(qr *QueryResult) int32 {
 	return decodeInt4(qr, fd, size)
 }
 
+func (rr *RowReader) ReadInt64(qr *QueryResult) int64 {
+	fd, size := qr.NextColumn()
+
+	// TODO - do something about nulls
+	if size == -1 {
+		panic("Can't handle nulls")
+	}
+
+	return decodeInt8(qr, fd, size)
+}
+
 func (rr *RowReader) ReadTime(qr *QueryResult) time.Time {
 	fd, size := qr.NextColumn()
 
