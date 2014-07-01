@@ -593,7 +593,10 @@ type RowReader struct{}
 // TODO - Read*...
 
 func (rr *RowReader) ReadInt32(qr *QueryResult) int32 {
-	fd, size := qr.NextColumn()
+	fd, size, ok := qr.NextColumn()
+	if !ok {
+		return 0
+	}
 
 	// TODO - do something about nulls
 	if size == -1 {
@@ -604,7 +607,10 @@ func (rr *RowReader) ReadInt32(qr *QueryResult) int32 {
 }
 
 func (rr *RowReader) ReadInt64(qr *QueryResult) int64 {
-	fd, size := qr.NextColumn()
+	fd, size, ok := qr.NextColumn()
+	if !ok {
+		return 0
+	}
 
 	// TODO - do something about nulls
 	if size == -1 {
@@ -615,7 +621,12 @@ func (rr *RowReader) ReadInt64(qr *QueryResult) int64 {
 }
 
 func (rr *RowReader) ReadTime(qr *QueryResult) time.Time {
-	fd, size := qr.NextColumn()
+	var zeroTime time.Time
+
+	fd, size, ok := qr.NextColumn()
+	if !ok {
+		return zeroTime
+	}
 
 	// TODO - do something about nulls
 	if size == -1 {
@@ -626,7 +637,12 @@ func (rr *RowReader) ReadTime(qr *QueryResult) time.Time {
 }
 
 func (rr *RowReader) ReadDate(qr *QueryResult) time.Time {
-	fd, size := qr.NextColumn()
+	var zeroTime time.Time
+
+	fd, size, ok := qr.NextColumn()
+	if !ok {
+		return zeroTime
+	}
 
 	// TODO - do something about nulls
 	if size == -1 {
@@ -637,12 +653,19 @@ func (rr *RowReader) ReadDate(qr *QueryResult) time.Time {
 }
 
 func (rr *RowReader) ReadString(qr *QueryResult) string {
-	_, size := qr.NextColumn()
+	_, size, ok := qr.NextColumn()
+	if !ok {
+		return ""
+	}
+
 	return qr.mr.ReadString(size)
 }
 
 func (rr *RowReader) ReadValue(qr *QueryResult) interface{} {
-	fd, size := qr.NextColumn()
+	fd, size, ok := qr.NextColumn()
+	if !ok {
+		return nil
+	}
 
 	if size > -1 {
 		if vt, present := ValueTranscoders[fd.DataType]; present && vt.Decode != nil {
@@ -768,12 +791,20 @@ func (qr *QueryResult) NextRow() bool {
 	}
 }
 
-func (qr *QueryResult) NextColumn() (*FieldDescription, int32) {
+func (qr *QueryResult) NextColumn() (*FieldDescription, int32, bool) {
+	if qr.closed {
+		return nil, 0, false
+	}
+	if len(qr.fields) <= qr.columnIdx {
+		qr.Fatal(ProtocolError("No next column available"))
+		return nil, 0, false
+	}
+
 	fd := &qr.fields[qr.columnIdx]
 	qr.columnIdx++
 	size := qr.mr.ReadInt32()
 
-	return fd, size
+	return fd, size, true
 }
 
 // TODO - document

@@ -309,6 +309,159 @@ func TestConnQuery(t *testing.T) {
 	}
 }
 
+// Do a simple query to ensure the connection is still usable
+func ensureConnValid(t *testing.T, conn *pgx.Conn) {
+	var sum, rowCount int32
+
+	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+	defer qr.Close()
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		sum += rr.ReadInt32(qr)
+		rowCount++
+	}
+
+	if qr.Err() != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	if rowCount != 10 {
+		t.Error("Select called onDataRow wrong number of times")
+	}
+	if sum != 55 {
+		t.Error("Wrong values returned")
+	}
+}
+
+// Test that a connection stays valid when query results are closed early
+func TestConnQueryCloseEarly(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// Immediately close query without reading any rows
+	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+	qr.Close()
+
+	ensureConnValid(t, conn)
+
+	// Read partial response then close
+	qr, err = conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	ok := qr.NextRow()
+	if !ok {
+		t.Fatal("qr.NextRow terminated early")
+	}
+
+	var rr pgx.RowReader
+	if n := rr.ReadInt32(qr); n != 1 {
+		t.Fatalf("Expected 1 from first row, but got %v", n)
+	}
+
+	qr.Close()
+
+	ensureConnValid(t, conn)
+}
+
+// Test that a connection stays valid when query results read incorrectly
+func TestConnQueryReadWrongTypeError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// Read a single value incorrectly
+	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	rowsRead := 0
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		rr.ReadDate(qr)
+		rowsRead++
+	}
+
+	if rowsRead != 1 {
+		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
+	}
+
+	if qr.Err() == nil {
+		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
+	}
+
+	// Read too many values
+	qr, err = conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	rowsRead = 0
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		rr.ReadInt32(qr)
+		rr.ReadInt32(qr)
+		rowsRead++
+	}
+
+	if rowsRead != 1 {
+		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
+	}
+
+	if qr.Err() == nil {
+		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
+	}
+
+	ensureConnValid(t, conn)
+}
+
+// Test that a connection stays valid when query results read incorrectly
+func TestConnQueryReadTooManyValues(t *testing.T) {
+	// t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// Read too many values
+	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	rowsRead := 0
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		rr.ReadInt32(qr)
+		rr.ReadInt32(qr)
+		rowsRead++
+	}
+
+	if rowsRead != 1 {
+		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
+	}
+
+	if qr.Err() == nil {
+		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnectionSelectValue(t *testing.T) {
 	t.Parallel()
 
