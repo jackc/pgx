@@ -416,29 +416,21 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	}()
 
 	// parse
-	buf := c.getBuf()
-	buf.WriteString(name)
-	buf.WriteByte(0)
-	buf.WriteString(sql)
-	buf.WriteByte(0)
-	binary.Write(buf, binary.BigEndian, int16(0))
-	err = c.txMsg('P', buf)
-	if err != nil {
-		return nil, err
-	}
+	wbuf := newWriteBuf(c.wbuf[0:0], 'P')
+	wbuf.WriteCString(name)
+	wbuf.WriteCString(sql)
+	wbuf.WriteInt16(0)
 
 	// describe
-	buf = c.getBuf()
-	buf.WriteByte('S')
-	buf.WriteString(name)
-	buf.WriteByte(0)
-	err = c.txMsg('D', buf)
-	if err != nil {
-		return nil, err
-	}
+	wbuf.startMsg('D')
+	wbuf.WriteByte('S')
+	wbuf.WriteCString(name)
 
 	// sync
-	err = c.txMsg('S', c.getBuf())
+	wbuf.startMsg('S')
+	wbuf.closeMsg()
+
+	_, err = c.conn.Write(wbuf.buf)
 	if err != nil {
 		return nil, err
 	}
