@@ -51,7 +51,7 @@ func decodePoint(qr *pgx.QueryResult, fd *pgx.FieldDescription, size int32) Poin
 
 	switch fd.FormatCode {
 	case pgx.TextFormatCode:
-		s := qr.MessageReader().ReadString(size)
+		s := qr.MsgReader().ReadString(size)
 		match := pointRegexp.FindStringSubmatch(s)
 		if match == nil {
 			qr.Fatal(pgx.ProtocolError(fmt.Sprintf("Received invalid point: %v", s)))
