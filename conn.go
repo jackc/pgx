@@ -243,7 +243,11 @@ func (c *Conn) Close() (err error) {
 		return nil
 	}
 
-	err = c.txMsg('X', c.getBuf())
+	wbuf := newWriteBuf(c.wbuf[0:0], 'X')
+	wbuf.closeMsg()
+
+	_, err = c.conn.Write(wbuf.buf)
+
 	c.die(errors.New("Closed"))
 	c.logger.Info("Closed connection")
 	return err
@@ -1190,18 +1194,13 @@ func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer) (err error) {
 }
 
 func (c *Conn) txPasswordMessage(password string) (err error) {
-	buf := c.getBuf()
+	wbuf := newWriteBuf(c.wbuf[0:0], 'p')
+	wbuf.WriteCString(password)
+	wbuf.closeMsg()
 
-	_, err = buf.WriteString(password)
-	if err != nil {
-		return
-	}
-	buf.WriteByte(0)
-	if err != nil {
-		return
-	}
-	err = c.txMsg('p', buf)
-	return
+	_, err = c.conn.Write(wbuf.buf)
+
+	return err
 }
 
 // Gets the shared connection buffer. Since bytes.Buffer never releases memory from
