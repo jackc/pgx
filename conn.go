@@ -5,7 +5,6 @@ package pgx
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -34,14 +33,13 @@ const (
 
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
-	Host       string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port       uint16 // default: 5432
-	Database   string
-	User       string // default: OS user name
-	Password   string
-	MsgBufSize int         // Size of work buffer used for transcoding messages. For optimal performance, it should be large enough to store a single row from any result set. Default: 1024
-	TLSConfig  *tls.Config // config for TLS connection -- nil disables TLS
-	Logger     log.Logger
+	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	Port      uint16 // default: 5432
+	Database  string
+	User      string // default: OS user name
+	Password  string
+	TLSConfig *tls.Config // config for TLS connection -- nil disables TLS
+	Logger    log.Logger
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -51,8 +49,6 @@ type Conn struct {
 	conn               net.Conn      // the underlying TCP or unix domain socket connection
 	reader             *bufio.Reader // buffered reader to improve read performance
 	wbuf               [1024]byte
-	buf                *bytes.Buffer
-	bufSize            int
 	Pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
@@ -146,10 +142,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		c.config.Port = 5432
 		c.logger.Debug("Using default connection config", "Port", c.config.Port)
 	}
-	if c.config.MsgBufSize == 0 {
-		c.config.MsgBufSize = 1024
-		c.logger.Debug("Using default connection config", "MsgBufSize", c.config.MsgBufSize)
-	}
 
 	// See if host is a valid path, if yes connect with a socket
 	_, err = os.Stat(c.config.Host)
@@ -182,8 +174,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		}
 	}()
 
-	c.bufSize = c.config.MsgBufSize
-	c.buf = bytes.NewBuffer(make([]byte, 0, c.bufSize))
 	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.alive = true
@@ -834,18 +824,13 @@ func (c *Conn) sendSimpleQuery(sql string, arguments ...interface{}) (err error)
 		}
 	}
 
-	buf := c.getBuf()
+	wbuf := newWriteBuf(c.wbuf[0:0], 'Q')
+	wbuf.WriteCString(sql)
+	wbuf.closeMsg()
 
-	_, err = buf.WriteString(sql)
-	if err != nil {
-		return
-	}
-	err = buf.WriteByte(0)
-	if err != nil {
-		return
-	}
+	_, err = c.conn.Write(wbuf.buf)
 
-	return c.txMsg('Q', buf)
+	return err
 }
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
@@ -1156,35 +1141,6 @@ func (c *Conn) txStartupMessage(msg *startupMessage) error {
 	return err
 }
 
-func (c *Conn) txMsg(identifier byte, buf *bytes.Buffer) (err error) {
-	if !c.alive {
-		return DeadConnError
-	}
-
-	defer func() {
-		if err != nil {
-			c.die(err)
-		}
-	}()
-
-	err = binary.Write(c.conn, binary.BigEndian, identifier)
-	if err != nil {
-		return
-	}
-
-	err = binary.Write(c.conn, binary.BigEndian, int32(buf.Len()+4))
-	if err != nil {
-		return
-	}
-
-	_, err = buf.WriteTo(c.conn)
-	if err != nil {
-		return
-	}
-
-	return
-}
-
 func (c *Conn) txPasswordMessage(password string) (err error) {
 	wbuf := newWriteBuf(c.wbuf[0:0], 'p')
 	wbuf.WriteCString(password)
@@ -1193,13 +1149,6 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	_, err = c.conn.Write(wbuf.buf)
 
 	return err
-}
-
-// Gets the shared connection buffer. Since bytes.Buffer never releases memory from
-// its internal byte array, check on the size and create a new bytes.Buffer so the
-// old one can get GC'ed
-func (c *Conn) getBuf() *bytes.Buffer {
-	return &bytes.Buffer{}
 }
 
 func (c *Conn) die(err error) {
