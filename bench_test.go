@@ -2,7 +2,6 @@ package pgx_test
 
 import (
 	"github.com/jackc/pgx"
-	"io/ioutil"
 	"math/rand"
 	"testing"
 )
@@ -45,23 +44,6 @@ func BenchmarkSelectValuePreparedNarrow(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		mustSelectValue(b, conn, "getMultipleNarrowByIdAsJSON", ids[i], ids[i]+10)
-	}
-}
-
-func BenchmarkSelectValueToPreparedNarrow(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
-	defer closeConn(b, conn)
-	createNarrowTestData(b, conn)
-
-	// Get random ids outside of timing
-	ids := make([]int32, b.N)
-	for i := 0; i < b.N; i++ {
-		ids[i] = 1 + rand.Int31n(9999)
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		mustSelectValueTo(b, conn, ioutil.Discard, "getMultipleNarrowByIdAsJSON", ids[i], ids[i]+10)
 	}
 }
 

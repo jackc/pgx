@@ -178,20 +178,3 @@ func (r *MsgReader) ReadString(count int32) string {
 
 	return string(b)
 }
-
-func (r *MsgReader) CopyN(w io.Writer, count int32) {
-	if r.err != nil {
-		return
-	}
-
-	r.msgBytesRemaining -= count
-	if r.msgBytesRemaining < 0 {
-		r.Fatal(errors.New("read past end of message"))
-		return
-	}
-
-	_, err := io.CopyN(w, r.reader, int64(count))
-	if err != nil {
-		r.Fatal(err)
-	}
-}

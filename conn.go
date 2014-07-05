@@ -311,50 +311,6 @@ func (c *Conn) SelectValue(sql string, arguments ...interface{}) (interface{}, e
 	return v, nil
 }
 
-// SelectValueTo executes sql that returns a single value and writes that value to w.
-// No type conversions will be performed. The raw bytes will be written directly to w.
-// This is ideal for returning JSON, files, or large text values directly over HTTP.
-
-// sql can be either a prepared statement name or an SQL string. arguments will be
-// sanitized before being interpolated into sql strings. arguments should be
-// referenced positionally from the sql string as $1, $2, etc.
-//
-// Returns a UnexpectedColumnCountError if exactly one column is not found
-// Returns a NotSingleRowError if exactly one row is not found
-func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
-	startTime := time.Now()
-
-	defer func() {
-		if err == nil {
-			endTime := time.Now()
-			c.logger.Info("SelectValueTo", "sql", sql, "args", arguments, "time", endTime.Sub(startTime))
-		} else {
-			c.logger.Error(fmt.Sprintf("SelectValueTo `%s` with %v failed: %v", sql, arguments, err))
-		}
-	}()
-
-	var numRowsFound int64
-
-	qr, _ := c.Query(sql, arguments...)
-
-	for qr.NextRow() {
-		if len(qr.fields) != 1 {
-			qr.Close()
-			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(qr.fields))}
-		}
-
-		numRowsFound++
-		if numRowsFound != 1 {
-			qr.Close()
-			return NotSingleRowError{RowCount: numRowsFound}
-		}
-
-		var rr RowReader
-		rr.CopyBytes(qr, w)
-	}
-	return qr.Err()
-}
-
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
@@ -596,20 +552,6 @@ func (rr *RowReader) ReadValue(qr *QueryResult) interface{} {
 	} else {
 		return nil
 	}
-}
-
-func (rr *RowReader) CopyBytes(qr *QueryResult, w io.Writer) {
-	_, size, ok := qr.NextColumn()
-	if !ok {
-		return
-	}
-
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return
-	}
-
-	qr.MsgReader().CopyN(w, size)
 }
 
 type QueryResult struct {

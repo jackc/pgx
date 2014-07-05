@@ -3,7 +3,6 @@ package pgx
 import (
 	"errors"
 	log "gopkg.in/inconshreveable/log15.v2"
-	"io"
 	"sync"
 )
 
@@ -175,17 +174,6 @@ func (p *ConnPool) SelectValue(sql string, arguments ...interface{}) (v interfac
 	defer p.Release(c)
 
 	return c.SelectValue(sql, arguments...)
-}
-
-// SelectValueTo acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) (err error) {
-	var c *Conn
-	if c, err = p.Acquire(); err != nil {
-		return
-	}
-	defer p.Release(c)
-
-	return c.SelectValueTo(w, sql, arguments...)
 }
 
 // Exec acquires a connection, delegates the call to that connection, and releases the connection

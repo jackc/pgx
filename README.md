@@ -114,14 +114,6 @@ data type is to set that OID's transcoder. See
 example_value_transcoder_test.go for an example of a custom transcoder for the
 PostgreSQL point type.
 
-### SelectValueTo
-
-There are some cases where Go is used as an HTTP server that is directly
-relaying single values from PostgreSQL (such as JSON or binary blobs).
-SelectValueTo copies the single returned value directly from PostgreSQL to a
-io.Writer. This can be faster than SelectValue then write especially when the
-values are at least many KB in size.
-
 ### Null Mapping
 
 As pgx uses interface{} for all values SQL nulls are mapped to nil. This

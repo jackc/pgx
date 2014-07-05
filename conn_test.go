@@ -462,42 +462,6 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestQueryResultCopyBytes(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var mimeType string
-	var buf bytes.Buffer
-
-	qr, err := conn.Query("select 'application/json', '[1,2,3,4,5]'::json")
-	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
-	}
-
-	for qr.NextRow() {
-		var rr pgx.RowReader
-		mimeType = rr.ReadString(qr)
-		rr.CopyBytes(qr, &buf)
-	}
-	qr.Close()
-
-	if qr.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
-	}
-
-	if mimeType != "application/json" {
-		t.Errorf(`Expected mimeType to be "application/json", but it was "%v"`, mimeType)
-	}
-
-	if bytes.Compare(buf.Bytes(), []byte("[1,2,3,4,5]")) != 0 {
-		t.Fatalf("CopyBytes did not write expected data: %v", string(buf.Bytes()))
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestConnectionSelectValue(t *testing.T) {
 	t.Parallel()
 
@@ -540,53 +504,6 @@ func TestConnectionSelectValue(t *testing.T) {
 	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
 		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
 	}
-}
-
-func TestConnectionSelectValueTo(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var err error
-
-	var buf bytes.Buffer
-	if err := conn.SelectValueTo(&buf, "select '[1,2,3,4,5]'::json"); err != nil {
-		t.Fatalf("SelectValueTo failed: %v", err)
-	}
-	if bytes.Compare(buf.Bytes(), []byte("[1,2,3,4,5]")) != 0 {
-		t.Fatalf("SelectValueTo did not write expected data: %v", string(buf.Bytes()))
-	}
-
-	// NotSingleRowError
-	err = conn.SelectValueTo(&buf, "select * from (values ('Matthew'), ('Mark'), ('Luke')) t")
-	if _, ok := err.(pgx.NotSingleRowError); !ok {
-		t.Fatalf("Multiple matching rows should have returned NotSingleRowError: %#v", err)
-	}
-	if conn.IsAlive() {
-		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
-	} else {
-		t.Fatal("SelectValueTo NotSingleRowError should not have killed connection")
-	}
-
-	// UnexpectedColumnCountError
-	err = conn.SelectValueTo(&buf, "select * from (values ('Matthew', 'Mark', 'Luke')) t")
-	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
-		t.Fatalf("Multiple matching rows should have returned UnexpectedColumnCountError: %#v", err)
-	}
-	if conn.IsAlive() {
-		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
-	} else {
-		t.Fatal("SelectValueTo UnexpectedColumnCountError should not have killed connection")
-	}
-
-	// Null
-	err = conn.SelectValueTo(&buf, "select null")
-	if err == nil || err.Error() != "Unexpected null" {
-		t.Fatalf("Expected null error: %#v", err)
-	}
-
-	ensureConnValid(t, conn)
 }
 
 func TestPrepare(t *testing.T) {
