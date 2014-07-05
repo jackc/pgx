@@ -554,7 +554,6 @@ func TestConnectionSelectValueTo(t *testing.T) {
 	} else {
 		t.Fatal("SelectValueTo null error should not have killed connection")
 	}
-
 }
 
 func TestPrepare(t *testing.T) {
