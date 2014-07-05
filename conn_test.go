@@ -462,6 +462,42 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestQueryResultCopyBytes(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var mimeType string
+	var buf bytes.Buffer
+
+	qr, err := conn.Query("select 'application/json', '[1,2,3,4,5]'::json")
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	for qr.NextRow() {
+		var rr pgx.RowReader
+		mimeType = rr.ReadString(qr)
+		rr.CopyBytes(qr, &buf)
+	}
+	qr.Close()
+
+	if qr.Err() != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	if mimeType != "application/json" {
+		t.Errorf(`Expected mimeType to be "application/json", but it was "%v"`, mimeType)
+	}
+
+	if bytes.Compare(buf.Bytes(), []byte("[1,2,3,4,5]")) != 0 {
+		t.Fatalf("CopyBytes did not write expected data: %v", string(buf.Bytes()))
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnectionSelectValue(t *testing.T) {
 	t.Parallel()
 
@@ -546,14 +582,11 @@ func TestConnectionSelectValueTo(t *testing.T) {
 
 	// Null
 	err = conn.SelectValueTo(&buf, "select null")
-	if err == nil || err.Error() != "SelectValueTo cannot handle null" {
+	if err == nil || err.Error() != "Unexpected null" {
 		t.Fatalf("Expected null error: %#v", err)
 	}
-	if conn.IsAlive() {
-		mustSelectValue(t, conn, "select 1") // ensure it really is alive and usable
-	} else {
-		t.Fatal("SelectValueTo null error should not have killed connection")
-	}
+
+	ensureConnValid(t, conn)
 }
 
 func TestPrepare(t *testing.T) {

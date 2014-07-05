@@ -333,67 +333,26 @@ func (c *Conn) SelectValueTo(w io.Writer, sql string, arguments ...interface{}) 
 		}
 	}()
 
-	err = c.sendQuery(sql, arguments...)
-	if err != nil {
-		return err
-	}
-
 	var numRowsFound int64
-	var softErr error
 
-	for {
-		var t byte
-		var r *MsgReader
+	qr, _ := c.Query(sql, arguments...)
 
-		t, r, err = c.rxMsg()
-		if err != nil {
-			return err
+	for qr.NextRow() {
+		if len(qr.fields) != 1 {
+			qr.Close()
+			return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(qr.fields))}
 		}
 
-		if t == dataRow {
-			numRowsFound++
-
-			if numRowsFound > 1 {
-				softErr = NotSingleRowError{RowCount: numRowsFound}
-			}
-
-			if softErr != nil {
-				// Read and discard rest of message
-				continue
-			}
-
-			softErr = c.rxDataRowValueTo(w, r)
-		} else {
-			switch t {
-			case readyForQuery:
-				c.rxReadyForQuery(r)
-				return softErr
-			case rowDescription:
-			case commandComplete:
-			case bindComplete:
-			default:
-				if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
-					softErr = e
-				}
-			}
+		numRowsFound++
+		if numRowsFound != 1 {
+			qr.Close()
+			return NotSingleRowError{RowCount: numRowsFound}
 		}
+
+		var rr RowReader
+		rr.CopyBytes(qr, w)
 	}
-}
-
-func (c *Conn) rxDataRowValueTo(w io.Writer, r *MsgReader) error {
-	columnCount := r.ReadInt16()
-	if columnCount != 1 {
-		return UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: columnCount}
-	}
-
-	valueSize := r.ReadInt32()
-	if valueSize == -1 {
-		return errors.New("SelectValueTo cannot handle null")
-	}
-
-	r.CopyN(w, valueSize)
-
-	return r.Err()
+	return qr.Err()
 }
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
@@ -554,9 +513,9 @@ func (rr *RowReader) ReadInt32(qr *QueryResult) int32 {
 		return 0
 	}
 
-	// TODO - do something about nulls
 	if size == -1 {
-		panic("Can't handle nulls")
+		qr.Fatal(errors.New("Unexpected null"))
+		return 0
 	}
 
 	return decodeInt4(qr, fd, size)
@@ -568,9 +527,9 @@ func (rr *RowReader) ReadInt64(qr *QueryResult) int64 {
 		return 0
 	}
 
-	// TODO - do something about nulls
 	if size == -1 {
-		panic("Can't handle nulls")
+		qr.Fatal(errors.New("Unexpected null"))
+		return 0
 	}
 
 	return decodeInt8(qr, fd, size)
@@ -584,9 +543,9 @@ func (rr *RowReader) ReadTime(qr *QueryResult) time.Time {
 		return zeroTime
 	}
 
-	// TODO - do something about nulls
 	if size == -1 {
-		panic("Can't handle nulls")
+		qr.Fatal(errors.New("Unexpected null"))
+		return zeroTime
 	}
 
 	return decodeTimestampTz(qr, fd, size)
@@ -600,9 +559,9 @@ func (rr *RowReader) ReadDate(qr *QueryResult) time.Time {
 		return zeroTime
 	}
 
-	// TODO - do something about nulls
 	if size == -1 {
-		panic("Can't handle nulls")
+		qr.Fatal(errors.New("Unexpected null"))
+		return zeroTime
 	}
 
 	return decodeDate(qr, fd, size)
@@ -611,6 +570,11 @@ func (rr *RowReader) ReadDate(qr *QueryResult) time.Time {
 func (rr *RowReader) ReadString(qr *QueryResult) string {
 	fd, size, ok := qr.NextColumn()
 	if !ok {
+		return ""
+	}
+
+	if size == -1 {
+		qr.Fatal(errors.New("Unexpected null"))
 		return ""
 	}
 
@@ -632,6 +596,20 @@ func (rr *RowReader) ReadValue(qr *QueryResult) interface{} {
 	} else {
 		return nil
 	}
+}
+
+func (rr *RowReader) CopyBytes(qr *QueryResult, w io.Writer) {
+	_, size, ok := qr.NextColumn()
+	if !ok {
+		return
+	}
+
+	if size == -1 {
+		qr.Fatal(errors.New("Unexpected null"))
+		return
+	}
+
+	qr.MsgReader().CopyN(w, size)
 }
 
 type QueryResult struct {
