@@ -138,8 +138,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	allConnections = acquireAll()
 
 	for _, c := range allConnections {
-		v := mustSelectValue(t, c, "select counter from t")
-		n := v.(int32)
+		var n int32
+		c.QueryRow("select counter from t").Scan(&n)
 		if n == 0 {
 			t.Error("A connection was never used")
 		}
@@ -209,7 +209,8 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to Acquire: %v", err)
 		}
-		c.SelectValue("select 1")
+		qr, _ := c.Query("select 1")
+		qr.Close()
 		pool.Release(c)
 	}
 
@@ -272,7 +273,9 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	}
 
 	// do something with the connection so it knows it's dead
-	if _, err = c1.SelectValue("select 1"); err == nil {
+	qr, _ := c1.Query("select 1")
+	qr.Close()
+	if qr.Err() == nil {
 		t.Fatal("Expected error but none occurred")
 	}
 
@@ -318,15 +321,22 @@ func TestPoolTransaction(t *testing.T) {
 	}
 
 	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
-		n := mustSelectValue(t, conn, "select count(*) from foo")
-		if n.(int64) != 0 {
+		var n int64
+		err := conn.QueryRow("select count(*) from foo").Scan(&n)
+		if err != nil {
+			t.Fatalf("QueryRow.Scan failed: %v", err)
+		}
+		if n != 0 {
 			t.Fatalf("Did not receive expected value: %v", n)
 		}
 
 		mustExec(t, conn, "insert into foo(id) values(default)")
 
-		n = mustSelectValue(t, conn, "select count(*) from foo")
-		if n.(int64) != 1 {
+		err = conn.QueryRow("select count(*) from foo").Scan(&n)
+		if err != nil {
+			t.Fatalf("QueryRow.Scan failed: %v", err)
+		}
+		if n != 1 {
 			t.Fatalf("Did not receive expected value: %v", n)
 		}
 
@@ -340,8 +350,12 @@ func TestPoolTransaction(t *testing.T) {
 	}
 
 	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
-		n := mustSelectValue(t, conn, "select count(*) from foo")
-		if n.(int64) != 0 {
+		var n int64
+		err := conn.QueryRow("select count(*) from foo").Scan(&n)
+		if err != nil {
+			t.Fatalf("QueryRow.Scan failed: %v", err)
+		}
+		if n != 0 {
 			t.Fatalf("Did not receive expected value: %v", n)
 		}
 		return true
@@ -362,7 +376,10 @@ func TestPoolTransactionIso(t *testing.T) {
 	defer pool.Close()
 
 	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Conn) bool {
-		if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != "serializable" {
+		var level string
+		conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
+
+		if level != "serializable" {
 			t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
 		}
 		return true
@@ -394,8 +411,9 @@ func TestConnPoolQuery(t *testing.T) {
 	}
 
 	for qr.NextRow() {
-		var rr pgx.RowReader
-		sum += rr.ReadInt32(qr)
+		var n int32
+		qr.Scan(&n)
+		sum += n
 		rowCount++
 	}
 

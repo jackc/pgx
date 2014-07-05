@@ -1,8 +1,6 @@
 package pgx_test
 
 import (
-	"bytes"
-	"fmt"
 	"github.com/jackc/pgx"
 	"strings"
 	"sync"
@@ -30,12 +28,21 @@ func TestConnect(t *testing.T) {
 		t.Error("Backend secret key not stored")
 	}
 
-	currentDB, err := conn.SelectValue("select current_database()")
-	if err != nil || currentDB != defaultConnConfig.Database {
+	var currentDB string
+	err = conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
 		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
 	}
 
-	if user := mustSelectValue(t, conn, "select current_user"); user != defaultConnConfig.User {
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
 		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
 	}
 
@@ -272,8 +279,10 @@ func TestExecFailure(t *testing.T) {
 		t.Fatal("Expected SQL syntax error")
 	}
 
-	if _, err := conn.SelectValue("select 1"); err != nil {
-		t.Fatalf("Exec failure appears to have broken connection: %v", err)
+	qr, _ := conn.Query("select 1")
+	qr.Close()
+	if qr.Err() != nil {
+		t.Fatalf("Exec failure appears to have broken connection: %v", qr.Err())
 	}
 }
 
@@ -292,8 +301,9 @@ func TestConnQuery(t *testing.T) {
 	defer rows.Close()
 
 	for rows.NextRow() {
-		var rr pgx.RowReader
-		sum += rr.ReadInt32(rows)
+		var n int32
+		rows.Scan(&n)
+		sum += n
 		rowCount++
 	}
 
@@ -320,8 +330,9 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	defer qr.Close()
 
 	for qr.NextRow() {
-		var rr pgx.RowReader
-		sum += rr.ReadInt32(qr)
+		var n int32
+		qr.Scan(&n)
+		sum += n
 		rowCount++
 	}
 
@@ -364,8 +375,9 @@ func TestConnQueryCloseEarly(t *testing.T) {
 		t.Fatal("qr.NextRow terminated early")
 	}
 
-	var rr pgx.RowReader
-	if n := rr.ReadInt32(qr); n != 1 {
+	var n int32
+	qr.Scan(&n)
+	if n != 1 {
 		t.Fatalf("Expected 1 from first row, but got %v", n)
 	}
 
@@ -390,31 +402,8 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 	rowsRead := 0
 
 	for qr.NextRow() {
-		var rr pgx.RowReader
-		rr.ReadDate(qr)
-		rowsRead++
-	}
-
-	if rowsRead != 1 {
-		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
-	}
-
-	if qr.Err() == nil {
-		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
-	}
-
-	// Read too many values
-	qr, err = conn.Query("select generate_series(1,$1)", 10)
-	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
-	}
-
-	rowsRead = 0
-
-	for qr.NextRow() {
-		var rr pgx.RowReader
-		rr.ReadInt32(qr)
-		rr.ReadInt32(qr)
+		var t time.Time
+		qr.Scan(&t)
 		rowsRead++
 	}
 
@@ -445,9 +434,8 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	rowsRead := 0
 
 	for qr.NextRow() {
-		var rr pgx.RowReader
-		rr.ReadInt32(qr)
-		rr.ReadInt32(qr)
+		var n, m int32
+		qr.Scan(&n, &m)
 		rowsRead++
 	}
 
@@ -462,126 +450,26 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnectionSelectValue(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	test := func(sql string, expected interface{}, arguments ...interface{}) {
-		v, err := conn.SelectValue(sql, arguments...)
-		if err != nil {
-			t.Errorf("%v while running %v", err, sql)
-		} else {
-			if v != expected {
-				t.Errorf("Expected: %#v Received: %#v", expected, v)
-			}
-		}
-	}
-
-	fmt.Println("Starting test")
-	test("select $1", "foo", "foo")
-	test("select 'foo'", "foo")
-	test("select true", true)
-	test("select false", false)
-	test("select 1::int2", int16(1))
-	test("select 1::int4", int32(1))
-	test("select 1::int8", int64(1))
-	test("select 1.23::float4", float32(1.23))
-	test("select 1.23::float8", float64(1.23))
-
-	_, err := conn.SelectValue("select 'Jack' as name where 1=2")
-	if _, ok := err.(pgx.NotSingleRowError); !ok {
-		t.Error("No matching row should have returned NoRowsFoundError")
-	}
-
-	_, err = conn.SelectValue("select * from (values ('Matthew'), ('Mark')) t")
-	if _, ok := err.(pgx.NotSingleRowError); !ok {
-		t.Error("Multiple matching rows should have returned NotSingleRowError")
-	}
-
-	_, err = conn.SelectValue("select 'Matthew', 'Mark'")
-	if _, ok := err.(pgx.UnexpectedColumnCountError); !ok {
-		t.Error("Multiple columns should have returned UnexpectedColumnCountError")
-	}
-}
-
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	testTranscode := func(sql string, value interface{}) {
-		if _, err := conn.Prepare("testTranscode", sql); err != nil {
-			t.Errorf("Unable to prepare statement: %v", err)
-			return
-		}
-		defer func() {
-			err := conn.Deallocate("testTranscode")
-			if err != nil {
-				t.Errorf("Deallocate failed: %v", err)
-			}
-		}()
-
-		result, err := conn.SelectValue("testTranscode", value)
-		if err != nil {
-			t.Errorf("%v while running %v", err, "testTranscode")
-		} else {
-			if result != value {
-				t.Errorf("Expected: %#v Received: %#v", value, result)
-			}
-		}
-	}
-
-	// Test parameter encoding and decoding for simple supported data types
-	testTranscode("select $1::varchar", "foo")
-	testTranscode("select $1::text", "foo")
-	testTranscode("select $1::int2", int16(1))
-	testTranscode("select $1::int4", int32(1))
-	testTranscode("select $1::int8", int64(1))
-	testTranscode("select $1::float4", float32(1.23))
-	testTranscode("select $1::float8", float64(1.23))
-	testTranscode("select $1::boolean", true)
-
-	// Ensure that unknown types are just treated as strings
-	testTranscode("select $1::point", "(0,0)")
-
-	if _, err := conn.Prepare("testByteSliceTranscode", "select $1::bytea"); err != nil {
+	_, err := conn.Prepare("test", "select $1::varchar")
+	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return
 	}
-	defer func() {
-		err := conn.Deallocate("testByteSliceTranscode")
-		if err != nil {
-			t.Errorf("Deallocate failed: %v", err)
-		}
-	}()
 
-	bytea := make([]byte, 4)
-	bytea[0] = 0   // 0x00
-	bytea[1] = 15  // 0x0F
-	bytea[2] = 255 // 0xFF
-	bytea[3] = 17  // 0x11
-
-	if sql, err := conn.SanitizeSql("select $1", bytea); err != nil {
-		t.Errorf("Error sanitizing []byte: %v", err)
-	} else if sql != `select E'\\x000fff11'` {
-		t.Error("Failed to sanitize []byte")
-	}
-
-	result, err := conn.SelectValue("testByteSliceTranscode", bytea)
+	var s string
+	err = conn.QueryRow("test", "hello").Scan(&s)
 	if err != nil {
-		t.Errorf("%v while running %v", err, "testByteSliceTranscode")
-	} else {
-		if bytes.Compare(result.([]byte), bytea) != 0 {
-			t.Errorf("Expected: %#v Received: %#v", bytea, result)
-		}
+		t.Errorf("Executing prepared statement failed: %v", err)
 	}
 
-	mustExec(t, conn, "create temporary table foo(id serial)")
-	if _, err = conn.Prepare("deleteFoo", "delete from foo"); err != nil {
-		t.Fatalf("Unable to prepare delete: %v", err)
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 }
 
@@ -595,9 +483,7 @@ func TestPrepareFailure(t *testing.T) {
 		t.Fatal("Prepare should have failed with syntax error")
 	}
 
-	if _, err := conn.SelectValue("select 1"); err != nil {
-		t.Fatalf("Prepare failure appears to have broken connection: %v", err)
-	}
+	ensureConnValid(t, conn)
 }
 
 func TestTransaction(t *testing.T) {
@@ -629,9 +515,12 @@ func TestTransaction(t *testing.T) {
 		t.Fatal("Transaction was not committed")
 	}
 
-	var n interface{}
-	n = mustSelectValue(t, conn, "select count(*) from foo")
-	if n.(int64) != 1 {
+	var n int64
+	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 1 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
@@ -648,8 +537,11 @@ func TestTransaction(t *testing.T) {
 	if committed {
 		t.Fatal("Transaction should not have been committed")
 	}
-	n = mustSelectValue(t, conn, "select count(*) from foo")
-	if n.(int64) != 0 {
+	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
@@ -667,8 +559,11 @@ func TestTransaction(t *testing.T) {
 	if committed {
 		t.Fatal("Transaction was committed when it shouldn't have been")
 	}
-	n = mustSelectValue(t, conn, "select count(*) from foo")
-	if n.(int64) != 0 {
+	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
@@ -685,8 +580,11 @@ func TestTransaction(t *testing.T) {
 		t.Fatal("Transaction was committed when it should have failed")
 	}
 
-	n = mustSelectValue(t, conn, "select count(*) from foo")
-	if n.(int64) != 0 {
+	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 
@@ -701,8 +599,11 @@ func TestTransaction(t *testing.T) {
 			panic("stop!")
 		})
 
-		n = mustSelectValue(t, conn, "select count(*) from foo")
-		if n.(int64) != 0 {
+		err = conn.QueryRow("select count(*) from foo").Scan(&n)
+		if err != nil {
+			t.Fatalf("QueryRow Scan failed: %v", err)
+		}
+		if n != 0 {
 			t.Fatalf("Did not receive correct number of rows: %v", n)
 		}
 	}()
@@ -717,7 +618,9 @@ func TestTransactionIso(t *testing.T) {
 	isoLevels := []string{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
 		_, err := conn.TransactionIso(iso, func() bool {
-			if level := mustSelectValue(t, conn, "select current_setting('transaction_isolation')"); level != iso {
+			var level string
+			conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
+			if level != iso {
 				t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
 			}
 			return true
@@ -754,7 +657,11 @@ func TestListenNotify(t *testing.T) {
 
 	// when notification has already been read during previous query
 	mustExec(t, notifier, "notify chat")
-	mustSelectValue(t, listener, "select 1")
+	qr, _ := listener.Query("select 1")
+	qr.Close()
+	if qr.Err() != nil {
+		t.Fatalf("Unexpected error on Query: %v", qr.Err())
+	}
 	notification, err = listener.WaitForNotification(0)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
@@ -793,9 +700,11 @@ func TestFatalRxError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err := conn.SelectValue("select 1, pg_sleep(10)")
-		if err == nil {
-			t.Fatal("Expected error but none occurred")
+		var n int32
+		var s string
+		err := conn.QueryRow("select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
+		if err, ok := err.(pgx.PgError); !ok || err.Severity != "FATAL" {
+			t.Fatalf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
 		}
 	}()
 
@@ -833,7 +742,7 @@ func TestFatalTxError(t *testing.T) {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
-	_, err = conn.SelectValue("select 1")
+	_, err = conn.Query("select 1")
 	if err == nil {
 		t.Fatal("Expected error but none occurred")
 	}
@@ -865,5 +774,18 @@ func TestCommandTag(t *testing.T) {
 		if tt.rowsAffected != actual {
 			t.Errorf(`%d. "%s" should have affected %d rows but it was %d`, i, tt.commandTag, tt.rowsAffected, actual)
 		}
+	}
+}
+
+func TestQueryRowError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var n int32
+	err := conn.QueryRow("SYNTAX ERROR").Scan(&n)
+	if _, ok := err.(pgx.PgError); !ok {
+		t.Fatalf("Expected to receive PgError, but instead received: %v", err)
 	}
 }

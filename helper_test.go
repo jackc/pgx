@@ -33,11 +33,3 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}
 	}
 	return
 }
-
-func mustSelectValue(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (value interface{}) {
-	var err error
-	if value, err = conn.SelectValue(sql, arguments...); err != nil {
-		t.Fatalf("SelectValue unexpectedly failed with %v: %v", sql, err)
-	}
-	return
-}

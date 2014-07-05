@@ -44,8 +44,9 @@ func afterConnect(conn *pgx.Conn) (err error) {
 }
 
 func getUrlHandler(w http.ResponseWriter, req *http.Request) {
-	if url, err := pool.SelectValue("getUrl", req.URL.Path); err == nil {
-		http.Redirect(w, req, url.(string), http.StatusSeeOther)
+	var url string
+	if err := pool.QueryRow("getUrl", req.URL.Path).Scan(&url); err == nil {
+		http.Redirect(w, req, url, http.StatusSeeOther)
 	} else if _, ok := err.(pgx.NotSingleRowError); ok {
 		http.NotFound(w, req)
 	} else {

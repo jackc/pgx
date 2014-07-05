@@ -271,46 +271,6 @@ func ParseURI(uri string) (ConnConfig, error) {
 	return cp, nil
 }
 
-// SelectValue executes sql and returns a single value. sql can be either a prepared
-// statement name or an SQL string. arguments will be sanitized before being
-// interpolated into sql strings. arguments should be referenced positionally from
-// the sql string as $1, $2, etc.
-//
-// Returns a UnexpectedColumnCountError if exactly one column is not found
-// Returns a NotSingleRowError if exactly one row is not found
-func (c *Conn) SelectValue(sql string, arguments ...interface{}) (interface{}, error) {
-	startTime := time.Now()
-
-	var numRowsFound int64
-	var v interface{}
-
-	qr, _ := c.Query(sql, arguments...)
-	defer qr.Close()
-
-	for qr.NextRow() {
-		if len(qr.fields) != 1 {
-			qr.Close()
-			return nil, UnexpectedColumnCountError{ExpectedCount: 1, ActualCount: int16(len(qr.fields))}
-		}
-
-		numRowsFound++
-		var rr RowReader
-		v = rr.ReadValue(qr)
-	}
-	if qr.Err() != nil {
-		return nil, qr.Err()
-	}
-
-	if numRowsFound != 1 {
-		return nil, NotSingleRowError{RowCount: numRowsFound}
-	}
-
-	endTime := time.Now()
-	c.logger.Info("SelectValue", "sql", sql, "args", arguments, "rowsFound", numRowsFound, "time", endTime.Sub(startTime))
-
-	return v, nil
-}
-
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
@@ -459,99 +419,26 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-type RowReader struct{}
+type Row QueryResult
 
-// TODO - Read*...
+func (r *Row) Scan(dest ...interface{}) (err error) {
+	qr := (*QueryResult)(r)
 
-func (rr *RowReader) ReadInt32(qr *QueryResult) int32 {
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return 0
+	if qr.Err() != nil {
+		return qr.Err()
 	}
 
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return 0
-	}
-
-	return decodeInt4(qr, fd, size)
-}
-
-func (rr *RowReader) ReadInt64(qr *QueryResult) int64 {
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return 0
-	}
-
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return 0
-	}
-
-	return decodeInt8(qr, fd, size)
-}
-
-func (rr *RowReader) ReadTime(qr *QueryResult) time.Time {
-	var zeroTime time.Time
-
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return zeroTime
-	}
-
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return zeroTime
-	}
-
-	return decodeTimestampTz(qr, fd, size)
-}
-
-func (rr *RowReader) ReadDate(qr *QueryResult) time.Time {
-	var zeroTime time.Time
-
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return zeroTime
-	}
-
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return zeroTime
-	}
-
-	return decodeDate(qr, fd, size)
-}
-
-func (rr *RowReader) ReadString(qr *QueryResult) string {
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return ""
-	}
-
-	if size == -1 {
-		qr.Fatal(errors.New("Unexpected null"))
-		return ""
-	}
-
-	return decodeText(qr, fd, size)
-}
-
-func (rr *RowReader) ReadValue(qr *QueryResult) interface{} {
-	fd, size, ok := qr.NextColumn()
-	if !ok {
-		return nil
-	}
-
-	if size > -1 {
-		if vt, present := ValueTranscoders[fd.DataType]; present && vt.Decode != nil {
-			return vt.Decode(qr, fd, size)
+	if !qr.NextRow() {
+		if qr.Err() == nil {
+			return errors.New("No rows")
 		} else {
-			return decodeText(qr, fd, size)
+			return qr.Err()
 		}
-	} else {
-		return nil
 	}
+
+	qr.Scan(dest...)
+	qr.Close()
+	return qr.Err()
 }
 
 type QueryResult struct {
@@ -682,6 +569,84 @@ func (qr *QueryResult) NextColumn() (*FieldDescription, int32, bool) {
 	return fd, size, true
 }
 
+func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
+	if len(qr.fields) != len(dest) {
+		err = errors.New("Scan received wrong number of arguments")
+		qr.Fatal(err)
+		return err
+	}
+
+	for _, d := range dest {
+		fd, size, _ := qr.NextColumn()
+		switch d := d.(type) {
+		case *bool:
+			*d = decodeBool(qr, fd, size)
+		case *[]byte:
+			*d = decodeBytea(qr, fd, size)
+		case *int64:
+			*d = decodeInt8(qr, fd, size)
+		case *int16:
+			*d = decodeInt2(qr, fd, size)
+		case *int32:
+			*d = decodeInt4(qr, fd, size)
+		case *string:
+			*d = decodeText(qr, fd, size)
+		case *float32:
+			*d = decodeFloat4(qr, fd, size)
+		case *float64:
+			*d = decodeFloat8(qr, fd, size)
+		case *time.Time:
+			if fd.DataType == DateOid {
+				*d = decodeDate(qr, fd, size)
+			} else {
+				*d = decodeTimestampTz(qr, fd, size)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (qr *QueryResult) ReadValue() (v interface{}, err error) {
+	fd, size, _ := qr.NextColumn()
+	if qr.Err() != nil {
+		return nil, qr.Err()
+	}
+
+	switch fd.DataType {
+	case BoolOid:
+		return decodeBool(qr, fd, size), qr.Err()
+	case ByteaOid:
+		return decodeBytea(qr, fd, size), qr.Err()
+	case Int8Oid:
+		return decodeInt8(qr, fd, size), qr.Err()
+	case Int2Oid:
+		return decodeInt2(qr, fd, size), qr.Err()
+	case Int4Oid:
+		return decodeInt4(qr, fd, size), qr.Err()
+	case VarcharOid, TextOid:
+		return decodeText(qr, fd, size), qr.Err()
+	case Float4Oid:
+		return decodeFloat4(qr, fd, size), qr.Err()
+	case Float8Oid:
+		return decodeFloat8(qr, fd, size), qr.Err()
+	case DateOid:
+		return decodeDate(qr, fd, size), qr.Err()
+	case TimestampTzOid:
+		return decodeTimestampTz(qr, fd, size), qr.Err()
+	}
+
+	// if it is not an intrinsic type then return the text
+	switch fd.FormatCode {
+	case TextFormatCode:
+		return qr.MsgReader().ReadString(size), qr.Err()
+	// TODO
+	//case BinaryFormatCode:
+	default:
+		return nil, errors.New("Unknown format code")
+	}
+}
+
 // TODO - document
 func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 	c.qr = QueryResult{conn: c}
@@ -726,6 +691,11 @@ func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 			}
 		}
 	}
+}
+
+func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
+	qr, _ := c.Query(sql, args...)
+	return (*Row)(qr)
 }
 
 func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {

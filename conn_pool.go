@@ -165,17 +165,6 @@ func (p *ConnPool) createConnection() (c *Conn, err error) {
 	return
 }
 
-// SelectValue acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) SelectValue(sql string, arguments ...interface{}) (v interface{}, err error) {
-	var c *Conn
-	if c, err = p.Acquire(); err != nil {
-		return
-	}
-	defer p.Release(c)
-
-	return c.SelectValue(sql, arguments...)
-}
-
 // Exec acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	var c *Conn
@@ -202,6 +191,11 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*QueryResult, error) 
 
 	qr.pool = p
 	return qr, nil
+}
+
+func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
+	qr, _ := p.Query(sql, args...)
+	return (*Row)(qr)
 }
 
 // Transaction acquires a connection, delegates the call to that connection,

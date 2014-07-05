@@ -191,9 +191,12 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 	}
 
-	var rr pgx.RowReader
 	for i, _ := range r.qr.FieldDescriptions() {
-		dest[i] = driver.Value(rr.ReadValue(r.qr))
+		v, err := r.qr.ReadValue()
+		if err != nil {
+			return err
+		}
+		dest[i] = driver.Value(v)
 	}
 
 	return nil
