@@ -36,7 +36,10 @@ func (e SerializationError) Error() string {
 	return string(e)
 }
 
+// Scanner is an interface used to decode values from the PostgreSQL server.
 type Scanner interface {
+	// Scan MUST check fd's DataType and FormatCode before decoding. It should
+	// not assume that it was called on the type of value.
 	Scan(qr *QueryResult, fd *FieldDescription, size int32) error
 }
 
@@ -53,8 +56,7 @@ type TextEncoder interface {
 // BinaryEncoder is an interface used to encode values in binary format for
 // transmission to the PostgreSQL server. It is used by prepared queries.
 type BinaryEncoder interface {
-	// EncodeText MUST sanitize (and quote, if necessary) the returned string.
-	// It will be interpolated directly into the SQL string.
+	// EncodeBinary writes the binary value to w
 	EncodeBinary(w *WriteBuf) error
 }
 
