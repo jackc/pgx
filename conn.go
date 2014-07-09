@@ -1021,10 +1021,6 @@ func (c *Conn) rxParameterDescription(r *MsgReader) (parameters []Oid) {
 	return
 }
 
-func (c *Conn) rxCommandComplete(r *MsgReader) string {
-	return r.ReadCString()
-}
-
 func (c *Conn) rxNotificationResponse(r *MsgReader) {
 	n := new(Notification)
 	n.Pid = r.ReadInt32()
