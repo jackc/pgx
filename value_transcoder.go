@@ -1,7 +1,6 @@
 package pgx
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
 	"math"
@@ -20,9 +19,6 @@ const (
 	TextOid        = 25
 	Float4Oid      = 700
 	Float8Oid      = 701
-	Int2ArrayOid   = 1005
-	Int4ArrayOid   = 1007
-	Int8ArrayOid   = 1016
 	VarcharOid     = 1043
 	DateOid        = 1082
 	TimestampTzOid = 1184
@@ -33,134 +29,39 @@ const (
 	BinaryFormatCode = 1
 )
 
-// ValueTranscoder stores all the data necessary to encode and decode values from
-// a PostgreSQL server
-type ValueTranscoder struct {
-	// Decode decodes values returned from the server
-	Decode func(qr *QueryResult, fd *FieldDescription, size int32) interface{}
-	// DecodeFormat is the preferred response format.
-	// Allowed values: TextFormatCode, BinaryFormatCode
-	DecodeFormat int16
-	// EncodeTo encodes values to send to the server
-	EncodeTo func(*WriteBuf, interface{}) error
-	// EncodeFormat is the format values are encoded for transmission.
-	// Allowed values: TextFormatCode, BinaryFormatCode
-	EncodeFormat int16
+type Scanner interface {
+	Scan(qr *QueryResult, fd *FieldDescription, size int32) error
 }
 
-// ValueTranscoders is used to transcode values being sent to and received from
-// the PostgreSQL server. Additional types can be transcoded by adding a
-// *ValueTranscoder for the appropriate Oid to the map.
-var ValueTranscoders map[Oid]*ValueTranscoder
+// BinaryEncoder is an interface used to encode values in binary format for
+// transmission to the PostgreSQL server. It is used by prepared queries.
+type BinaryEncoder interface {
+	// EncodeText MUST sanitize (and quote, if necessary) the returned string.
+	// It will be interpolated directly into the SQL string.
+	EncodeBinary(w *WriteBuf) error
+}
 
-var defaultTranscoder *ValueTranscoder
+type NullInt64 struct {
+	Int64 int64
+	Valid bool // Valid is true if Int64 is not NULL
+}
 
-func init() {
-	ValueTranscoders = make(map[Oid]*ValueTranscoder)
+func (n *NullInt64) Scan(qr *QueryResult, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Int64, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Int64 = decodeInt8(qr, fd, size)
+	return qr.Err()
+}
 
-	// bool
-	ValueTranscoders[BoolOid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeBool(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeBool,
-		EncodeFormat: BinaryFormatCode}
-
-	// bytea
-	ValueTranscoders[ByteaOid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeBytea(qr, fd, size) },
-		DecodeFormat: TextFormatCode,
-		EncodeTo:     encodeBytea,
-		EncodeFormat: BinaryFormatCode}
-
-	// int8
-	ValueTranscoders[Int8Oid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt8(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeInt8,
-		EncodeFormat: BinaryFormatCode}
-
-	// int2
-	ValueTranscoders[Int2Oid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt2(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeInt2,
-		EncodeFormat: BinaryFormatCode}
-
-	// int4
-	ValueTranscoders[Int4Oid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeInt4(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeInt4,
-		EncodeFormat: BinaryFormatCode}
-
-	// text
-	ValueTranscoders[TextOid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeText(qr, fd, size) },
-		DecodeFormat: TextFormatCode,
-		EncodeTo:     encodeText,
-		EncodeFormat: TextFormatCode}
-
-	// float4
-	ValueTranscoders[Float4Oid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeFloat4(qr, fd, size) },
-		EncodeTo:     encodeFloat4,
-		EncodeFormat: BinaryFormatCode}
-
-	// float8
-	ValueTranscoders[Float8Oid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeFloat8(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeFloat8,
-		EncodeFormat: BinaryFormatCode}
-
-	// int2[]
-	ValueTranscoders[Int2ArrayOid] = &ValueTranscoder{
-		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
-			return decodeInt2Array(qr, fd, size)
-		},
-		DecodeFormat: TextFormatCode,
-		EncodeTo:     encodeInt2Array,
-		EncodeFormat: TextFormatCode}
-
-	// int4[]
-	ValueTranscoders[Int4ArrayOid] = &ValueTranscoder{
-		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
-			return decodeInt4Array(qr, fd, size)
-		},
-		DecodeFormat: TextFormatCode,
-		EncodeTo:     encodeInt4Array,
-		EncodeFormat: TextFormatCode}
-
-	// int8[]
-	ValueTranscoders[Int8ArrayOid] = &ValueTranscoder{
-		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
-			return decodeInt8Array(qr, fd, size)
-		},
-		DecodeFormat: TextFormatCode,
-		EncodeTo:     encodeInt8Array,
-		EncodeFormat: TextFormatCode}
-
-	// varchar -- same as text
-	ValueTranscoders[VarcharOid] = ValueTranscoders[Oid(25)]
-
-	// date
-	ValueTranscoders[DateOid] = &ValueTranscoder{
-		Decode:       func(qr *QueryResult, fd *FieldDescription, size int32) interface{} { return decodeDate(qr, fd, size) },
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeDate,
-		EncodeFormat: TextFormatCode}
-
-	// timestamptz
-	ValueTranscoders[TimestampTzOid] = &ValueTranscoder{
-		Decode: func(qr *QueryResult, fd *FieldDescription, size int32) interface{} {
-			return decodeTimestampTz(qr, fd, size)
-		},
-		DecodeFormat: BinaryFormatCode,
-		EncodeTo:     encodeTimestampTz,
-		EncodeFormat: TextFormatCode}
-
-	// use text transcoder for anything we don't understand
-	defaultTranscoder = ValueTranscoders[TextOid]
+func (n *NullInt64) EncodeText() (string, error) {
+	if n.Valid {
+		return strconv.FormatInt(int64(n.Int64), 10), nil
+	} else {
+		return "null", nil
+	}
 }
 
 var arrayEl *regexp.Regexp = regexp.MustCompile(`[{,](?:"((?:[^"\\]|\\.)*)"|(NULL)|([^,}]+))`)
@@ -643,226 +544,5 @@ func encodeTimestampTz(w *WriteBuf, value interface{}) error {
 	}
 
 	s := t.Format("2006-01-02 15:04:05.999999 -0700")
-	return encodeText(w, s)
-}
-
-func decodeInt2Array(qr *QueryResult, fd *FieldDescription, size int32) []int16 {
-	if fd.DataType != Int2ArrayOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int2[] but received: %v", fd.DataType)))
-		return nil
-	}
-
-	switch fd.FormatCode {
-	case TextFormatCode:
-		s := qr.mr.ReadString(size)
-
-		elements := SplitArrayText(s)
-
-		numbers := make([]int16, 0, len(elements))
-
-		for _, e := range elements {
-			n, err := strconv.ParseInt(e, 10, 16)
-			if err != nil {
-				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2[]: %v", s)))
-				return nil
-			}
-			numbers = append(numbers, int16(n))
-		}
-
-		return numbers
-	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
-		return nil
-	}
-}
-
-func int16SliceToArrayString(nums []int16) (string, error) {
-	w := &bytes.Buffer{}
-	_, err := w.WriteString("{")
-	if err != nil {
-		return "", err
-	}
-
-	for i, n := range nums {
-		if i > 0 {
-			_, err = w.WriteString(",")
-			if err != nil {
-				return "", err
-			}
-		}
-
-		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	_, err = w.WriteString("}")
-	if err != nil {
-		return "", err
-	}
-
-	return w.String(), nil
-}
-
-func encodeInt2Array(w *WriteBuf, value interface{}) error {
-	v, ok := value.([]int16)
-	if !ok {
-		return fmt.Errorf("Expected []int16, received %T", value)
-	}
-
-	s, err := int16SliceToArrayString(v)
-	if err != nil {
-		return fmt.Errorf("Failed to encode []int16: %v", err)
-	}
-
-	return encodeText(w, s)
-}
-
-func decodeInt4Array(qr *QueryResult, fd *FieldDescription, size int32) []int32 {
-	if fd.DataType != Int4ArrayOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int4[] but received: %v", fd.DataType)))
-		return nil
-	}
-
-	switch fd.FormatCode {
-	case TextFormatCode:
-		s := qr.mr.ReadString(size)
-
-		elements := SplitArrayText(s)
-
-		numbers := make([]int32, 0, len(elements))
-
-		for _, e := range elements {
-			n, err := strconv.ParseInt(e, 10, 32)
-			if err != nil {
-				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4[]: %v", s)))
-				return nil
-			}
-			numbers = append(numbers, int32(n))
-		}
-
-		return numbers
-	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
-		return nil
-	}
-}
-
-func int32SliceToArrayString(nums []int32) (string, error) {
-	w := &bytes.Buffer{}
-
-	_, err := w.WriteString("{")
-	if err != nil {
-		return "", err
-	}
-
-	for i, n := range nums {
-		if i > 0 {
-			_, err = w.WriteString(",")
-			if err != nil {
-				return "", err
-			}
-		}
-
-		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	_, err = w.WriteString("}")
-	if err != nil {
-		return "", err
-	}
-
-	return w.String(), nil
-}
-
-func encodeInt4Array(w *WriteBuf, value interface{}) error {
-	v, ok := value.([]int32)
-	if !ok {
-		return fmt.Errorf("Expected []int32, received %T", value)
-	}
-
-	s, err := int32SliceToArrayString(v)
-	if err != nil {
-		return fmt.Errorf("Failed to encode []int32: %v", err)
-	}
-
-	return encodeText(w, s)
-}
-
-func decodeInt8Array(qr *QueryResult, fd *FieldDescription, size int32) []int64 {
-	if fd.DataType != Int8ArrayOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read int8[] but received: %v", fd.DataType)))
-		return nil
-	}
-
-	switch fd.FormatCode {
-	case TextFormatCode:
-		s := qr.mr.ReadString(size)
-
-		elements := SplitArrayText(s)
-
-		numbers := make([]int64, 0, len(elements))
-
-		for _, e := range elements {
-			n, err := strconv.ParseInt(e, 10, 64)
-			if err != nil {
-				qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8[]: %v", s)))
-				return nil
-			}
-			numbers = append(numbers, int64(n))
-		}
-
-		return numbers
-	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
-		return nil
-	}
-}
-
-func int64SliceToArrayString(nums []int64) (string, error) {
-	w := &bytes.Buffer{}
-
-	_, err := w.WriteString("{")
-	if err != nil {
-		return "", err
-	}
-
-	for i, n := range nums {
-		if i > 0 {
-			_, err = w.WriteString(",")
-			if err != nil {
-				return "", err
-			}
-		}
-
-		_, err = w.WriteString(strconv.FormatInt(int64(n), 10))
-		if err != nil {
-			return "", err
-		}
-	}
-
-	_, err = w.WriteString("}")
-	if err != nil {
-		return "", err
-	}
-
-	return w.String(), nil
-}
-
-func encodeInt8Array(w *WriteBuf, value interface{}) error {
-	v, ok := value.([]int64)
-	if !ok {
-		return fmt.Errorf("Expected []int64, received %T", value)
-	}
-
-	s, err := int64SliceToArrayString(v)
-	if err != nil {
-		return fmt.Errorf("Failed to encode []int64: %v", err)
-	}
-
 	return encodeText(w, s)
 }

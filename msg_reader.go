@@ -178,3 +178,26 @@ func (r *MsgReader) ReadString(count int32) string {
 
 	return string(b)
 }
+
+// ReadBytes reads count bytes and returns as []byte
+func (r *MsgReader) ReadBytes(count int32) []byte {
+	if r.err != nil {
+		return nil
+	}
+
+	r.msgBytesRemaining -= count
+	if r.msgBytesRemaining < 0 {
+		r.Fatal(errors.New("read past end of message"))
+		return nil
+	}
+
+	b := make([]byte, int(count))
+
+	_, err := io.ReadFull(r.reader, b)
+	if err != nil {
+		r.Fatal(err)
+		return nil
+	}
+
+	return b
+}

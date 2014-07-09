@@ -319,11 +319,9 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
 			for i := range ps.FieldDescriptions {
-				oid := ps.FieldDescriptions[i].DataType
-				vt := ValueTranscoders[oid]
-
-				if vt != nil {
-					ps.FieldDescriptions[i].FormatCode = vt.DecodeFormat
+				switch ps.FieldDescriptions[i].DataType {
+				case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, DateOid, TimestampTzOid:
+					ps.FieldDescriptions[i].FormatCode = BinaryFormatCode
 				}
 			}
 		case noData:
@@ -342,7 +340,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // Deallocate released a prepared statement
 func (c *Conn) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
-	_, err = c.Exec("deallocate " + c.QuoteIdentifier(name))
+	_, err = c.Exec("deallocate " + QuoteIdentifier(name))
 	return
 }
 
@@ -601,6 +599,14 @@ func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
 			} else {
 				*d = decodeTimestampTz(qr, fd, size)
 			}
+
+		case Scanner:
+			err = d.Scan(qr, fd, size)
+			if err != nil {
+				return err
+			}
+		default:
+			return errors.New("Unknown type")
 		}
 	}
 
@@ -708,7 +714,7 @@ func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 
 func (c *Conn) sendSimpleQuery(sql string, arguments ...interface{}) (err error) {
 	if len(arguments) > 0 {
-		sql, err = c.SanitizeSql(sql, arguments...)
+		sql, err = SanitizeSql(sql, arguments...)
 		if err != nil {
 			return
 		}
@@ -734,38 +740,71 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	wbuf.WriteCString(ps.Name)
 
 	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
-	for _, oid := range ps.ParameterOids {
-		transcoder := ValueTranscoders[oid]
-		if transcoder == nil {
-			transcoder = defaultTranscoder
+	for i, oid := range ps.ParameterOids {
+		switch oid {
+		case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid:
+			wbuf.WriteInt16(BinaryFormatCode)
+		case TextOid, VarcharOid, DateOid, TimestampTzOid:
+			wbuf.WriteInt16(TextFormatCode)
+		default:
+			if _, ok := arguments[i].(BinaryEncoder); ok {
+				wbuf.WriteInt16(BinaryFormatCode)
+			} else {
+				wbuf.WriteInt16(TextFormatCode)
+			}
 		}
-		wbuf.WriteInt16(transcoder.EncodeFormat)
 	}
 
 	wbuf.WriteInt16(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		if arguments[i] != nil {
-			transcoder := ValueTranscoders[oid]
-			if transcoder == nil {
-				transcoder = defaultTranscoder
+		if arguments[i] == nil {
+			wbuf.WriteInt32(-1)
+			continue
+		}
+
+		switch oid {
+		case BoolOid:
+			err = encodeBool(wbuf, arguments[i])
+		case ByteaOid:
+			err = encodeBytea(wbuf, arguments[i])
+		case Int2Oid:
+			err = encodeInt2(wbuf, arguments[i])
+		case Int4Oid:
+			err = encodeInt4(wbuf, arguments[i])
+		case Int8Oid:
+			err = encodeInt8(wbuf, arguments[i])
+		case Float4Oid:
+			err = encodeFloat4(wbuf, arguments[i])
+		case Float8Oid:
+			err = encodeFloat8(wbuf, arguments[i])
+		case TextOid, VarcharOid:
+			err = encodeText(wbuf, arguments[i])
+		case DateOid:
+			err = encodeDate(wbuf, arguments[i])
+		case TimestampTzOid:
+			err = encodeTimestampTz(wbuf, arguments[i])
+		default:
+			switch arg := arguments[i].(type) {
+			case BinaryEncoder:
+				err = arg.EncodeBinary(wbuf)
+			case TextEncoder:
+				var s string
+				s, err = arg.EncodeText()
+				wbuf.WriteInt32(int32(len(s)))
+				wbuf.WriteBytes([]byte(s))
+			default:
+				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement TextEncoder or BinaryEncoder", arg))
 			}
-			err = transcoder.EncodeTo(wbuf, arguments[i])
-			if err != nil {
-				return err
-			}
-		} else {
-			wbuf.WriteInt32(int32(-1))
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
 	wbuf.WriteInt16(int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
-		transcoder := ValueTranscoders[fd.DataType]
-		if transcoder != nil {
-			wbuf.WriteInt16(transcoder.DecodeFormat)
-		} else {
-			wbuf.WriteInt16(0)
-		}
+		wbuf.WriteInt16(fd.FormatCode)
 	}
 
 	// execute

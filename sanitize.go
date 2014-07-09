@@ -9,18 +9,34 @@ import (
 	"time"
 )
 
+type SerializationError string
+
+func (e SerializationError) Error() string {
+	return string(e)
+}
+
+// TextEncoder is an interface used to encode values in text format for
+// transmission to the PostgreSQL server. It is used by unprepared
+// queries and for prepared queries when the type does not implement
+// BinaryEncoder
+type TextEncoder interface {
+	// EncodeText MUST sanitize (and quote, if necessary) the returned string.
+	// It will be interpolated directly into the SQL string.
+	EncodeText() (string, error)
+}
+
 var literalPattern *regexp.Regexp = regexp.MustCompile(`\$\d+`)
 
 // QuoteString escapes and quotes a string making it safe for interpolation
 // into an SQL string.
-func (c *Conn) QuoteString(input string) (output string) {
+func QuoteString(input string) (output string) {
 	output = "'" + strings.Replace(input, "'", "''", -1) + "'"
 	return
 }
 
 // QuoteIdentifier escapes and quotes an identifier making it safe for
 // interpolation into an SQL string
-func (c *Conn) QuoteIdentifier(input string) (output string) {
+func QuoteIdentifier(input string) (output string) {
 	output = `"` + strings.Replace(input, `"`, `""`, -1) + `"`
 	return
 }
@@ -28,12 +44,21 @@ func (c *Conn) QuoteIdentifier(input string) (output string) {
 // SanitizeSql substitutely args positionaly into sql. Placeholder values are
 // $ prefixed integers like $1, $2, $3, etc. args are sanitized and quoted as
 // appropriate.
-func (c *Conn) SanitizeSql(sql string, args ...interface{}) (output string, err error) {
+func SanitizeSql(sql string, args ...interface{}) (output string, err error) {
 	replacer := func(match string) (replacement string) {
+		if err != nil {
+			return ""
+		}
+
 		n, _ := strconv.ParseInt(match[1:], 10, 0)
+		if int(n-1) >= len(args) {
+			err = fmt.Errorf("Cannot interpolate %v, only %d arguments provided", match, len(args))
+			return
+		}
+
 		switch arg := args[n-1].(type) {
 		case string:
-			return c.QuoteString(arg)
+			return QuoteString(arg)
 		case int:
 			return strconv.FormatInt(int64(arg), 10)
 		case int8:
@@ -45,7 +70,7 @@ func (c *Conn) SanitizeSql(sql string, args ...interface{}) (output string, err 
 		case int64:
 			return strconv.FormatInt(int64(arg), 10)
 		case time.Time:
-			return c.QuoteString(arg.Format("2006-01-02 15:04:05.999999 -0700"))
+			return QuoteString(arg.Format("2006-01-02 15:04:05.999999 -0700"))
 		case uint:
 			return strconv.FormatUint(uint64(arg), 10)
 		case uint8:
@@ -64,22 +89,14 @@ func (c *Conn) SanitizeSql(sql string, args ...interface{}) (output string, err 
 			return strconv.FormatBool(arg)
 		case []byte:
 			return `E'\\x` + hex.EncodeToString(arg) + `'`
-		case []int16:
-			var s string
-			s, err = int16SliceToArrayString(arg)
-			return c.QuoteString(s)
-		case []int32:
-			var s string
-			s, err = int32SliceToArrayString(arg)
-			return c.QuoteString(s)
-		case []int64:
-			var s string
-			s, err = int64SliceToArrayString(arg)
-			return c.QuoteString(s)
 		case nil:
 			return "null"
+		case TextEncoder:
+			var s string
+			s, err = arg.EncodeText()
+			return s
 		default:
-			err = fmt.Errorf("Unable to sanitize type: %T", arg)
+			err = SerializationError(fmt.Sprintf("%T is not a core type and it does not implement TextEncoder", arg))
 			return ""
 		}
 	}

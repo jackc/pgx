@@ -450,6 +450,120 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryUnpreparedScanner(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	qr, err := conn.Query("select null::int8, 1::int8")
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	ok := qr.NextRow()
+	if !ok {
+		t.Fatal("qr.NextRow terminated early")
+	}
+
+	var n, m pgx.NullInt64
+	err = qr.Scan(&n, &m)
+	if err != nil {
+		t.Fatalf("qr.Scan failed: ", err)
+	}
+	qr.Close()
+
+	if n.Valid {
+		t.Error("Null should not be valid, but it was")
+	}
+
+	if !m.Valid {
+		t.Error("1 should be valid, but it wasn't")
+	}
+
+	if m.Int64 != 1 {
+		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnQueryPreparedScanner(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustPrepare(t, conn, "scannerTest", "select null::int8, 1::int8")
+
+	qr, err := conn.Query("scannerTest")
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	ok := qr.NextRow()
+	if !ok {
+		t.Fatal("qr.NextRow terminated early")
+	}
+
+	var n, m pgx.NullInt64
+	err = qr.Scan(&n, &m)
+	if err != nil {
+		t.Fatalf("qr.Scan failed: ", err)
+	}
+	qr.Close()
+
+	if n.Valid {
+		t.Error("Null should not be valid, but it was")
+	}
+
+	if !m.Valid {
+		t.Error("1 should be valid, but it wasn't")
+	}
+
+	if m.Int64 != 1 {
+		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnQueryUnpreparedEncoder(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	n := pgx.NullInt64{Int64: 1, Valid: true}
+
+	qr, err := conn.Query("select $1::int8", &n)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	ok := qr.NextRow()
+	if !ok {
+		t.Fatal("qr.NextRow terminated early")
+	}
+
+	var m pgx.NullInt64
+	err = qr.Scan(&m)
+	if err != nil {
+		t.Fatalf("qr.Scan failed: ", err)
+	}
+	qr.Close()
+
+	if !m.Valid {
+		t.Error("m should be valid, but it wasn't")
+	}
+
+	if m.Int64 != 1 {
+		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
