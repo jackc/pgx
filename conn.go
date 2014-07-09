@@ -95,17 +95,6 @@ func (e NotSingleRowError) Error() string {
 	return fmt.Sprintf("Expected to find 1 row exactly, instead found %d", e.RowCount)
 }
 
-// UnexpectedColumnCountError is returned when an unexpected number of columns is
-// returned from a Select.
-type UnexpectedColumnCountError struct {
-	ExpectedCount int16
-	ActualCount   int16
-}
-
-func (e UnexpectedColumnCountError) Error() string {
-	return fmt.Sprintf("Expected result to have %d column(s), instead it has %d", e.ExpectedCount, e.ActualCount)
-}
-
 type ProtocolError string
 
 func (e ProtocolError) Error() string {
