@@ -161,24 +161,6 @@ func (n *NullInt64) EncodeText() (string, error) {
 	}
 }
 
-var arrayEl *regexp.Regexp = regexp.MustCompile(`[{,](?:"((?:[^"\\]|\\.)*)"|(NULL)|([^,}]+))`)
-
-// SplitArrayText is used by array transcoders to split array text into elements
-func SplitArrayText(text string) (elements []string) {
-	matches := arrayEl.FindAllStringSubmatch(text, -1)
-	elements = make([]string, 0, len(matches))
-	for _, match := range matches {
-		if match[1] != "" {
-			elements = append(elements, match[1])
-		} else if match[2] != "" {
-			elements = append(elements, match[2])
-		} else if match[3] != "" {
-			elements = append(elements, match[3])
-		}
-	}
-	return
-}
-
 func decodeBool(qr *QueryResult, fd *FieldDescription, size int32) bool {
 	switch fd.FormatCode {
 	case TextFormatCode:
