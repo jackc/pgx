@@ -541,7 +541,7 @@ func (qr *QueryResult) NextRow() bool {
 	}
 }
 
-func (qr *QueryResult) NextColumn() (*FieldDescription, int32, bool) {
+func (qr *QueryResult) nextColumn() (*FieldDescription, int32, bool) {
 	if qr.closed {
 		return nil, 0, false
 	}
@@ -564,7 +564,7 @@ func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
 	}
 
 	for _, d := range dest {
-		fd, size, _ := qr.NextColumn()
+		fd, size, _ := qr.nextColumn()
 		switch d := d.(type) {
 		case *bool:
 			*d = decodeBool(qr, fd, size)
@@ -603,7 +603,7 @@ func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
 }
 
 func (qr *QueryResult) ReadValue() (v interface{}, err error) {
-	fd, size, _ := qr.NextColumn()
+	fd, size, _ := qr.nextColumn()
 	if qr.Err() != nil {
 		return nil, qr.Err()
 	}
