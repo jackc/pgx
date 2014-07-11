@@ -286,6 +286,44 @@ func (n NullInt64) EncodeBinary(w *WriteBuf) error {
 	return encodeInt8(w, n.Int64)
 }
 
+// NullBool represents an bigint that may be null.
+// NullBool implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullBool struct {
+	Bool  bool
+	Valid bool // Valid is true if Bool is not NULL
+}
+
+func (n *NullBool) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Bool, n.Valid = false, false
+		return nil
+	}
+	n.Valid = true
+	n.Bool = decodeBool(rows, fd, size)
+	return rows.Err()
+}
+
+func (n NullBool) EncodeText() (string, byte, error) {
+	if n.Valid {
+		return strconv.FormatBool(n.Bool), SafeText, nil
+	} else {
+		return "", NullText, nil
+	}
+}
+
+func (n NullBool) EncodeBinary(w *WriteBuf) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeBool(w, n.Bool)
+}
+
 var literalPattern *regexp.Regexp = regexp.MustCompile(`\$\d+`)
 
 // QuoteString escapes and quotes a string making it safe for interpolation
