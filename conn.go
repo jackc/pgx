@@ -763,7 +763,12 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = arg.EncodeBinary(wbuf)
 		case TextEncoder:
 			var s string
-			s, err = arg.EncodeText()
+			var status byte
+			s, status, err = arg.EncodeText()
+			if status == NullText {
+				wbuf.WriteInt32(-1)
+				continue
+			}
 			wbuf.WriteInt32(int32(len(s)))
 			wbuf.WriteBytes([]byte(s))
 		default:

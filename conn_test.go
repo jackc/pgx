@@ -608,8 +608,8 @@ func TestQueryPreparedEncodeError(t *testing.T) {
 // works when the parameter type is a core type.
 type coreTextEncoder struct{}
 
-func (n *coreTextEncoder) EncodeText() (string, error) {
-	return "42", nil
+func (n *coreTextEncoder) EncodeText() (string, byte, error) {
+	return "42", pgx.SafeText, nil
 }
 
 func TestQueryPreparedEncodeCoreTextFormatError(t *testing.T) {

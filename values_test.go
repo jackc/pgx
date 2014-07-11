@@ -194,6 +194,7 @@ func TestNullX(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type allTypes struct {
+		s   pgx.NullString
 		i16 pgx.NullInt16
 		i32 pgx.NullInt32
 		i64 pgx.NullInt64
@@ -209,6 +210,8 @@ func TestNullX(t *testing.T) {
 		scanArgs  []interface{}
 		expected  allTypes
 	}{
+		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "foo", Valid: true}}},
+		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: false}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "", Valid: false}}},
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 1, Valid: true}}},
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
