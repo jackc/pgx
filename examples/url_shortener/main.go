@@ -45,11 +45,13 @@ func afterConnect(conn *pgx.Conn) (err error) {
 
 func getUrlHandler(w http.ResponseWriter, req *http.Request) {
 	var url string
-	if err := pool.QueryRow("getUrl", req.URL.Path).Scan(&url); err == nil {
+	err := pool.QueryRow("getUrl", req.URL.Path).Scan(&url)
+	switch err {
+	case nil:
 		http.Redirect(w, req, url, http.StatusSeeOther)
-	} else if _, ok := err.(pgx.NotSingleRowError); ok {
+	case pgx.ErrNoRows:
 		http.NotFound(w, req)
-	} else {
+	default:
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

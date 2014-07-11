@@ -182,6 +182,20 @@ func TestConnectWithMD5Password(t *testing.T) {
 	}
 }
 
+func TestConnectWithConnectionRefused(t *testing.T) {
+	t.Parallel()
+
+	// Presumably nothing is listening on 127.0.0.1:1
+	bad := *defaultConnConfig
+	bad.Host = "127.0.0.1"
+	bad.Port = 1
+
+	_, err := pgx.Connect(bad)
+	if !strings.Contains(err.Error(), "connection refused") {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+}
+
 func TestParseURI(t *testing.T) {
 	t.Parallel()
 
@@ -788,7 +802,7 @@ func TestListenNotify(t *testing.T) {
 
 	// when timeout occurs
 	notification, err = listener.WaitForNotification(time.Millisecond)
-	if err != pgx.NotificationTimeoutError {
+	if err != pgx.ErrNotificationTimeout {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 	if notification != nil {
@@ -1060,6 +1074,27 @@ func TestQueryRowPreparedErrors(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), tt.err) {
 			t.Errorf("%d. Expected error to contain %s, but got %v (sql -> %v, queryArgs -> %v)", i, tt.err, err, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestQueryRowNoResults(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := "select 1 where 1=0"
+	psName := "selectNothing"
+	mustPrepare(t, conn, psName, sql)
+
+	for _, sql := range []string{sql, psName} {
+		var n int32
+		err := conn.QueryRow(sql).Scan(&n)
+		if err != pgx.ErrNoRows {
+			t.Errorf("Expected pgx.ErrNoRows, got %v", err)
 		}
 
 		ensureConnValid(t, conn)

@@ -85,24 +85,15 @@ func (ct CommandTag) RowsAffected() int64 {
 	return n
 }
 
-// NotSingleRowError is returned when exactly 1 row is expected, but 0 or more than
-// 1 row is returned
-type NotSingleRowError struct {
-	RowCount int64
-}
-
-func (e NotSingleRowError) Error() string {
-	return fmt.Sprintf("Expected to find 1 row exactly, instead found %d", e.RowCount)
-}
+var ErrNoRows = errors.New("no rows in result set")
+var ErrNotificationTimeout = errors.New("notification timeout")
+var ErrDeadConn = errors.New("conn is dead")
 
 type ProtocolError string
 
 func (e ProtocolError) Error() string {
 	return string(e)
 }
-
-var NotificationTimeoutError = errors.New("Notification Timeout")
-var DeadConnError = errors.New("Connection is dead")
 
 // Connect establishes a connection with a PostgreSQL server using config.
 // config.Host must be specified. config.User will default to the OS user name.
@@ -340,7 +331,7 @@ func (c *Conn) Listen(channel string) (err error) {
 }
 
 // WaitForNotification waits for a PostgreSQL notification for up to timeout.
-// If the timeout occurs it returns pgx.NotificationTimeoutError
+// If the timeout occurs it returns pgx.ErrNotificationTimeout
 func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
@@ -370,7 +361,7 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		if err != nil {
 			c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
 			if err, ok := err.(*net.OpError); ok && err.Timeout() {
-				return nil, NotificationTimeoutError
+				return nil, ErrNotificationTimeout
 			}
 			return nil, err
 		}
@@ -417,7 +408,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 
 	if !qr.NextRow() {
 		if qr.Err() == nil {
-			return errors.New("No rows")
+			return ErrNoRows
 		} else {
 			return qr.Err()
 		}
@@ -940,7 +931,7 @@ func (c *Conn) processContextFreeMsg(t byte, r *MsgReader) (err error) {
 
 func (c *Conn) rxMsg() (t byte, r *MsgReader, err error) {
 	if !c.alive {
-		return 0, nil, DeadConnError
+		return 0, nil, ErrDeadConn
 	}
 
 	t, err = c.mr.rxMsg()
