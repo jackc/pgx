@@ -67,7 +67,7 @@ type BinaryEncoder interface {
 	EncodeBinary(w *WriteBuf) error
 }
 
-// NullFloat32 represents an smallint that may be null.
+// NullFloat32 represents an float4 that may be null.
 // NullFloat32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
 // so it may be used both as an argument to Query[Row] and a destination for
 // Scan for prepared and unprepared queries.
@@ -105,7 +105,7 @@ func (n NullFloat32) EncodeBinary(w *WriteBuf) error {
 	return encodeFloat4(w, n.Float32)
 }
 
-// NullFloat64 represents an smallint that may be null.
+// NullFloat64 represents an float8 that may be null.
 // NullFloat64 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
 // so it may be used both as an argument to Query[Row] and a destination for
 // Scan for prepared and unprepared queries.
@@ -143,7 +143,7 @@ func (n NullFloat64) EncodeBinary(w *WriteBuf) error {
 	return encodeFloat8(w, n.Float64)
 }
 
-// NullString represents an integer that may be null. NullString implements
+// NullString represents an string that may be null. NullString implements
 // the Scanner and TextEncoder interfaces so it may be used both as an
 // argument to Query[Row] and a destination for Scan for prepared and
 // unprepared queries.
@@ -210,7 +210,7 @@ func (n NullInt16) EncodeBinary(w *WriteBuf) error {
 	return encodeInt2(w, n.Int16)
 }
 
-// NullInt32 represents an smallint that may be null.
+// NullInt32 represents an integer that may be null.
 // NullInt32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
 // so it may be used both as an argument to Query[Row] and a destination for
 // Scan for prepared and unprepared queries.
@@ -286,7 +286,7 @@ func (n NullInt64) EncodeBinary(w *WriteBuf) error {
 	return encodeInt8(w, n.Int64)
 }
 
-// NullBool represents an bigint that may be null.
+// NullBool represents an bool that may be null.
 // NullBool implements the Scanner, TextEncoder, and BinaryEncoder interfaces
 // so it may be used both as an argument to Query[Row] and a destination for
 // Scan for prepared and unprepared queries.
