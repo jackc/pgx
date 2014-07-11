@@ -81,7 +81,7 @@ func (n *NullFloat32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	return rows.Err()
 }
 
-func (n *NullFloat32) EncodeText() (string, error) {
+func (n NullFloat32) EncodeText() (string, error) {
 	if n.Valid {
 		return strconv.FormatFloat(float64(n.Float32), 'f', -1, 32), nil
 	} else {
@@ -89,7 +89,7 @@ func (n *NullFloat32) EncodeText() (string, error) {
 	}
 }
 
-func (n *NullFloat32) EncodeBinary(w *WriteBuf) error {
+func (n NullFloat32) EncodeBinary(w *WriteBuf) error {
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -119,7 +119,7 @@ func (n *NullFloat64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	return rows.Err()
 }
 
-func (n *NullFloat64) EncodeText() (string, error) {
+func (n NullFloat64) EncodeText() (string, error) {
 	if n.Valid {
 		return strconv.FormatFloat(n.Float64, 'f', -1, 64), nil
 	} else {
@@ -127,7 +127,7 @@ func (n *NullFloat64) EncodeText() (string, error) {
 	}
 }
 
-func (n *NullFloat64) EncodeBinary(w *WriteBuf) error {
+func (n NullFloat64) EncodeBinary(w *WriteBuf) error {
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -157,7 +157,7 @@ func (n *NullInt16) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	return rows.Err()
 }
 
-func (n *NullInt16) EncodeText() (string, error) {
+func (n NullInt16) EncodeText() (string, error) {
 	if n.Valid {
 		return strconv.FormatInt(int64(n.Int16), 10), nil
 	} else {
@@ -165,7 +165,7 @@ func (n *NullInt16) EncodeText() (string, error) {
 	}
 }
 
-func (n *NullInt16) EncodeBinary(w *WriteBuf) error {
+func (n NullInt16) EncodeBinary(w *WriteBuf) error {
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -195,7 +195,7 @@ func (n *NullInt32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	return rows.Err()
 }
 
-func (n *NullInt32) EncodeText() (string, error) {
+func (n NullInt32) EncodeText() (string, error) {
 	if n.Valid {
 		return strconv.FormatInt(int64(n.Int32), 10), nil
 	} else {
@@ -203,7 +203,7 @@ func (n *NullInt32) EncodeText() (string, error) {
 	}
 }
 
-func (n *NullInt32) EncodeBinary(w *WriteBuf) error {
+func (n NullInt32) EncodeBinary(w *WriteBuf) error {
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -233,7 +233,7 @@ func (n *NullInt64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	return rows.Err()
 }
 
-func (n *NullInt64) EncodeText() (string, error) {
+func (n NullInt64) EncodeText() (string, error) {
 	if n.Valid {
 		return strconv.FormatInt(int64(n.Int64), 10), nil
 	} else {
@@ -241,7 +241,7 @@ func (n *NullInt64) EncodeText() (string, error) {
 	}
 }
 
-func (n *NullInt64) EncodeBinary(w *WriteBuf) error {
+func (n NullInt64) EncodeBinary(w *WriteBuf) error {
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
