@@ -1049,13 +1049,7 @@ func TestQueryRowUnpreparedErrors(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type allTypes struct {
-		s   string
 		i16 int16
-		i32 int32
-		i64 int64
-		f32 float32
-		f64 float64
-		b   bool
 	}
 
 	var actual, zero allTypes
@@ -1093,13 +1087,7 @@ func TestQueryRowPreparedErrors(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type allTypes struct {
-		s   string
 		i16 int16
-		i32 int32
-		i64 int64
-		f32 float32
-		f64 float64
-		b   bool
 	}
 
 	var actual, zero allTypes
