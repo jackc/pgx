@@ -406,7 +406,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 		return rows.Err()
 	}
 
-	if !rows.NextRow() {
+	if !rows.Next() {
 		if rows.Err() == nil {
 			return ErrNoRows
 		} else {
@@ -507,7 +507,7 @@ func (rows *Rows) Fatal(err error) {
 	rows.Close()
 }
 
-func (rows *Rows) NextRow() bool {
+func (rows *Rows) Next() bool {
 	if rows.closed {
 		return false
 	}

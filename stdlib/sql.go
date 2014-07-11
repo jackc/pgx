@@ -182,7 +182,7 @@ func (r *Rows) Close() error {
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
-	more := r.rows.NextRow()
+	more := r.rows.Next()
 	if !more {
 		if r.rows.Err() == nil {
 			return io.EOF

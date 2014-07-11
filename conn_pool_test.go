@@ -410,7 +410,7 @@ func TestConnPoolQuery(t *testing.T) {
 		t.Fatalf("Unexpected connection pool stats: %v", stats)
 	}
 
-	for rows.NextRow() {
+	for rows.Next() {
 		var n int32
 		rows.Scan(&n)
 		sum += n

@@ -316,7 +316,7 @@ func TestConnQuery(t *testing.T) {
 	}
 	defer rows.Close()
 
-	for rows.NextRow() {
+	for rows.Next() {
 		var n int32
 		rows.Scan(&n)
 		sum += n
@@ -345,7 +345,7 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	}
 	defer rows.Close()
 
-	for rows.NextRow() {
+	for rows.Next() {
 		var n int32
 		rows.Scan(&n)
 		sum += n
@@ -386,9 +386,9 @@ func TestConnQueryCloseEarly(t *testing.T) {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := rows.NextRow()
+	ok := rows.Next()
 	if !ok {
-		t.Fatal("rows.NextRow terminated early")
+		t.Fatal("rows.Next terminated early")
 	}
 
 	var n int32
@@ -417,7 +417,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 
 	rowsRead := 0
 
-	for rows.NextRow() {
+	for rows.Next() {
 		var t time.Time
 		rows.Scan(&t)
 		rowsRead++
@@ -449,7 +449,7 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 
 	rowsRead := 0
 
-	for rows.NextRow() {
+	for rows.Next() {
 		var n, m int32
 		rows.Scan(&n, &m)
 		rowsRead++
@@ -477,9 +477,9 @@ func TestConnQueryUnpreparedScanner(t *testing.T) {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := rows.NextRow()
+	ok := rows.Next()
 	if !ok {
-		t.Fatal("rows.NextRow terminated early")
+		t.Fatal("rows.Next terminated early")
 	}
 
 	var n, m pgx.NullInt64
@@ -517,9 +517,9 @@ func TestConnQueryPreparedScanner(t *testing.T) {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := rows.NextRow()
+	ok := rows.Next()
 	if !ok {
-		t.Fatal("rows.NextRow terminated early")
+		t.Fatal("rows.Next terminated early")
 	}
 
 	var n, m pgx.NullInt64
@@ -557,9 +557,9 @@ func TestConnQueryUnpreparedEncoder(t *testing.T) {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := rows.NextRow()
+	ok := rows.Next()
 	if !ok {
-		t.Fatal("rows.NextRow terminated early")
+		t.Fatal("rows.Next terminated early")
 	}
 
 	var m pgx.NullInt64
