@@ -201,6 +201,7 @@ func TestNullX(t *testing.T) {
 		f32 pgx.NullFloat32
 		f64 pgx.NullFloat64
 		b   pgx.NullBool
+		t   pgx.NullTime
 	}
 
 	var actual, zero allTypes
@@ -225,6 +226,8 @@ func TestNullX(t *testing.T) {
 		{"select $1::float8", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: false}}, []interface{}{&actual.f64}, allTypes{f64: pgx.NullFloat64{Float64: 0, Valid: false}}},
 		{"select $1::bool", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, allTypes{b: pgx.NullBool{Bool: true, Valid: true}}},
 		{"select $1::bool", []interface{}{pgx.NullBool{Bool: true, Valid: false}}, []interface{}{&actual.b}, allTypes{b: pgx.NullBool{Bool: false, Valid: false}}},
+		{"select $1::timestamptz", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}},
+		{"select $1::timestamptz", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: false}}, []interface{}{&actual.b}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
 	}
 
 	for i, tt := range tests {

@@ -741,9 +741,9 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid:
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid:
 				wbuf.WriteInt16(BinaryFormatCode)
-			case TextOid, VarcharOid, DateOid, TimestampTzOid:
+			case TextOid, VarcharOid, DateOid:
 				wbuf.WriteInt16(TextFormatCode)
 			default:
 				return SerializationError(fmt.Sprintf("Parameter %d oid %d is not a core type and argument type %T does not implement TextEncoder or BinaryEncoder", i, oid, arg))
