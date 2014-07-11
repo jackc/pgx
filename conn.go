@@ -609,44 +609,56 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	return nil
 }
 
-func (rows *Rows) ReadValue() (v interface{}, err error) {
-	fd, size, _ := rows.nextColumn()
-	if rows.Err() != nil {
-		return nil, rows.Err()
+// Values returns an array of the row values
+func (rows *Rows) Values() ([]interface{}, error) {
+	if rows.closed {
+		return nil, errors.New("rows is closed")
 	}
 
-	switch fd.DataType {
-	case BoolOid:
-		return decodeBool(rows, fd, size), rows.Err()
-	case ByteaOid:
-		return decodeBytea(rows, fd, size), rows.Err()
-	case Int8Oid:
-		return decodeInt8(rows, fd, size), rows.Err()
-	case Int2Oid:
-		return decodeInt2(rows, fd, size), rows.Err()
-	case Int4Oid:
-		return decodeInt4(rows, fd, size), rows.Err()
-	case VarcharOid, TextOid:
-		return decodeText(rows, fd, size), rows.Err()
-	case Float4Oid:
-		return decodeFloat4(rows, fd, size), rows.Err()
-	case Float8Oid:
-		return decodeFloat8(rows, fd, size), rows.Err()
-	case DateOid:
-		return decodeDate(rows, fd, size), rows.Err()
-	case TimestampTzOid:
-		return decodeTimestampTz(rows, fd, size), rows.Err()
+	values := make([]interface{}, 0, len(rows.fields))
+
+	for _, _ = range rows.fields {
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+
+		fd, size, _ := rows.nextColumn()
+
+		switch fd.DataType {
+		case BoolOid:
+			values = append(values, decodeBool(rows, fd, size))
+		case ByteaOid:
+			values = append(values, decodeBytea(rows, fd, size))
+		case Int8Oid:
+			values = append(values, decodeInt8(rows, fd, size))
+		case Int2Oid:
+			values = append(values, decodeInt2(rows, fd, size))
+		case Int4Oid:
+			values = append(values, decodeInt4(rows, fd, size))
+		case VarcharOid, TextOid:
+			values = append(values, decodeText(rows, fd, size))
+		case Float4Oid:
+			values = append(values, decodeFloat4(rows, fd, size))
+		case Float8Oid:
+			values = append(values, decodeFloat8(rows, fd, size))
+		case DateOid:
+			values = append(values, decodeDate(rows, fd, size))
+		case TimestampTzOid:
+			values = append(values, decodeTimestampTz(rows, fd, size))
+		default:
+			// if it is not an intrinsic type then return the text
+			switch fd.FormatCode {
+			case TextFormatCode:
+				values = append(values, rows.MsgReader().ReadString(size))
+			case BinaryFormatCode:
+				return nil, errors.New("Values cannot handle binary format non-intrinsic types")
+			default:
+				return nil, errors.New("Unknown format code")
+			}
+		}
 	}
 
-	// if it is not an intrinsic type then return the text
-	switch fd.FormatCode {
-	case TextFormatCode:
-		return rows.MsgReader().ReadString(size), rows.Err()
-	// TODO
-	//case BinaryFormatCode:
-	default:
-		return nil, errors.New("Unknown format code")
-	}
+	return values, rows.Err()
 }
 
 // TODO - document

@@ -3,6 +3,7 @@ package stdlib
 import (
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"github.com/jackc/pgx"
 	"io"
@@ -191,11 +192,18 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 	}
 
-	for i, _ := range r.rows.FieldDescriptions() {
-		v, err := r.rows.ReadValue()
-		if err != nil {
-			return err
-		}
+	values, err := r.rows.Values()
+	if err != nil {
+		return err
+	}
+
+	if len(dest) < len(values) {
+		fmt.Printf("%d: %#v\n", len(dest), dest)
+		fmt.Printf("%d: %#v\n", len(values), values)
+		return errors.New("expected more values than were received")
+	}
+
+	for i, v := range values {
 		dest[i] = driver.Value(v)
 	}
 
