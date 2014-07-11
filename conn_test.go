@@ -436,7 +436,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 
 // Test that a connection stays valid when query results read incorrectly
 func TestConnQueryReadTooManyValues(t *testing.T) {
-	// t.Parallel()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
