@@ -60,6 +60,164 @@ type BinaryEncoder interface {
 	EncodeBinary(w *WriteBuf) error
 }
 
+// NullFloat32 represents an smallint that may be null.
+// NullFloat32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullFloat32 struct {
+	Float32 float32
+	Valid   bool // Valid is true if Float32 is not NULL
+}
+
+func (n *NullFloat32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Float32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Float32 = decodeFloat4(rows, fd, size)
+	return rows.Err()
+}
+
+func (n *NullFloat32) EncodeText() (string, error) {
+	if n.Valid {
+		return strconv.FormatFloat(float64(n.Float32), 'f', -1, 32), nil
+	} else {
+		return "null", nil
+	}
+}
+
+func (n *NullFloat32) EncodeBinary(w *WriteBuf) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeFloat4(w, n.Float32)
+}
+
+// NullFloat64 represents an smallint that may be null.
+// NullFloat64 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullFloat64 struct {
+	Float64 float64
+	Valid   bool // Valid is true if Float64 is not NULL
+}
+
+func (n *NullFloat64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Float64, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Float64 = decodeFloat8(rows, fd, size)
+	return rows.Err()
+}
+
+func (n *NullFloat64) EncodeText() (string, error) {
+	if n.Valid {
+		return strconv.FormatFloat(n.Float64, 'f', -1, 64), nil
+	} else {
+		return "null", nil
+	}
+}
+
+func (n *NullFloat64) EncodeBinary(w *WriteBuf) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeFloat8(w, n.Float64)
+}
+
+// NullInt16 represents an smallint that may be null.
+// NullInt16 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullInt16 struct {
+	Int16 int16
+	Valid bool // Valid is true if Int16 is not NULL
+}
+
+func (n *NullInt16) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Int16, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Int16 = decodeInt2(rows, fd, size)
+	return rows.Err()
+}
+
+func (n *NullInt16) EncodeText() (string, error) {
+	if n.Valid {
+		return strconv.FormatInt(int64(n.Int16), 10), nil
+	} else {
+		return "null", nil
+	}
+}
+
+func (n *NullInt16) EncodeBinary(w *WriteBuf) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeInt2(w, n.Int16)
+}
+
+// NullInt32 represents an integer that may be null.
+// NullInt32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullInt32 struct {
+	Int32 int32
+	Valid bool // Valid is true if Int64 is not NULL
+}
+
+func (n *NullInt32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if size == -1 {
+		n.Int32, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Int32 = decodeInt4(rows, fd, size)
+	return rows.Err()
+}
+
+func (n *NullInt32) EncodeText() (string, error) {
+	if n.Valid {
+		return strconv.FormatInt(int64(n.Int32), 10), nil
+	} else {
+		return "null", nil
+	}
+}
+
+func (n *NullInt32) EncodeBinary(w *WriteBuf) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeInt4(w, n.Int32)
+}
+
+// NullInt64 represents an bigint that may be null.
+// NullInt64 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
+// so it may be used both as an argument to Query[Row] and a destination for
+// Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
 type NullInt64 struct {
 	Int64 int64
 	Valid bool // Valid is true if Int64 is not NULL
