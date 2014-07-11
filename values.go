@@ -40,7 +40,7 @@ func (e SerializationError) Error() string {
 type Scanner interface {
 	// Scan MUST check fd's DataType and FormatCode before decoding. It should
 	// not assume that it was called on the type of value.
-	Scan(qr *QueryResult, fd *FieldDescription, size int32) error
+	Scan(rows *Rows, fd *FieldDescription, size int32) error
 }
 
 // TextEncoder is an interface used to encode values in text format for
@@ -145,14 +145,14 @@ func SanitizeSql(sql string, args ...interface{}) (output string, err error) {
 	return
 }
 
-func (n *NullInt64) Scan(qr *QueryResult, fd *FieldDescription, size int32) error {
+func (n *NullInt64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
 	if size == -1 {
 		n.Int64, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Int64 = decodeInt8(qr, fd, size)
-	return qr.Err()
+	n.Int64 = decodeInt8(rows, fd, size)
+	return rows.Err()
 }
 
 func (n *NullInt64) EncodeText() (string, error) {
@@ -163,28 +163,28 @@ func (n *NullInt64) EncodeText() (string, error) {
 	}
 }
 
-func decodeBool(qr *QueryResult, fd *FieldDescription, size int32) bool {
+func decodeBool(rows *Rows, fd *FieldDescription, size int32) bool {
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		switch s {
 		case "t":
 			return true
 		case "f":
 			return false
 		default:
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid bool: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid bool: %v", s)))
 			return false
 		}
 	case BinaryFormatCode:
 		if size != 1 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size)))
 			return false
 		}
-		b := qr.mr.ReadByte()
+		b := rows.mr.ReadByte()
 		return b != 0
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return false
 	}
 }
@@ -207,29 +207,29 @@ func encodeBool(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt8(qr *QueryResult, fd *FieldDescription, size int32) int64 {
+func decodeInt8(rows *Rows, fd *FieldDescription, size int32) int64 {
 	if fd.DataType != Int8Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8Oid, fd.DataType)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8Oid, fd.DataType)))
 		return 0
 	}
 
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8: %v", s)))
 			return 0
 		}
 		return n
 	case BinaryFormatCode:
 		if size != 8 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size)))
 			return 0
 		}
-		return qr.mr.ReadInt64()
+		return rows.mr.ReadInt64()
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return 0
 	}
 }
@@ -268,29 +268,29 @@ func encodeInt8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt2(qr *QueryResult, fd *FieldDescription, size int32) int16 {
+func decodeInt2(rows *Rows, fd *FieldDescription, size int32) int16 {
 	if fd.DataType != Int2Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2Oid, fd.DataType)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2Oid, fd.DataType)))
 		return 0
 	}
 
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		n, err := strconv.ParseInt(s, 10, 16)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2: %v", s)))
 			return 0
 		}
 		return int16(n)
 	case BinaryFormatCode:
 		if size != 2 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size)))
 			return 0
 		}
-		return qr.mr.ReadInt16()
+		return rows.mr.ReadInt16()
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return 0
 	}
 }
@@ -344,28 +344,28 @@ func encodeInt2(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt4(qr *QueryResult, fd *FieldDescription, size int32) int32 {
+func decodeInt4(rows *Rows, fd *FieldDescription, size int32) int32 {
 	if fd.DataType != Int4Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4Oid, fd.DataType)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4Oid, fd.DataType)))
 		return 0
 	}
 
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4: %v", s)))
 		}
 		return int32(n)
 	case BinaryFormatCode:
 		if size != 4 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size)))
 			return 0
 		}
-		return qr.mr.ReadInt32()
+		return rows.mr.ReadInt32()
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return 0
 	}
 }
@@ -413,27 +413,27 @@ func encodeInt4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat4(qr *QueryResult, fd *FieldDescription, size int32) float32 {
+func decodeFloat4(rows *Rows, fd *FieldDescription, size int32) float32 {
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		n, err := strconv.ParseFloat(s, 32)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float4: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid float4: %v", s)))
 			return 0
 		}
 		return float32(n)
 	case BinaryFormatCode:
 		if size != 4 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size)))
 			return 0
 		}
 
-		i := qr.mr.ReadInt32()
+		i := rows.mr.ReadInt32()
 		p := unsafe.Pointer(&i)
 		return *(*float32)(p)
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return 0
 	}
 }
@@ -460,27 +460,27 @@ func encodeFloat4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat8(qr *QueryResult, fd *FieldDescription, size int32) float64 {
+func decodeFloat8(rows *Rows, fd *FieldDescription, size int32) float64 {
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		v, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float8: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid float8: %v", s)))
 			return 0
 		}
 		return v
 	case BinaryFormatCode:
 		if size != 8 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size)))
 			return 0
 		}
 
-		i := qr.mr.ReadInt64()
+		i := rows.mr.ReadInt64()
 		p := unsafe.Pointer(&i)
 		return *(*float64)(p)
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return 0
 	}
 }
@@ -504,8 +504,8 @@ func encodeFloat8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeText(qr *QueryResult, fd *FieldDescription, size int32) string {
-	return qr.mr.ReadString(size)
+func decodeText(rows *Rows, fd *FieldDescription, size int32) string {
+	return rows.mr.ReadString(size)
 }
 
 func encodeText(w *WriteBuf, value interface{}) error {
@@ -520,20 +520,20 @@ func encodeText(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeBytea(qr *QueryResult, fd *FieldDescription, size int32) []byte {
+func decodeBytea(rows *Rows, fd *FieldDescription, size int32) []byte {
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		b, err := hex.DecodeString(s[2:])
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s)))
 			return nil
 		}
 		return b
 	case BinaryFormatCode:
-		return qr.mr.ReadBytes(size)
+		return rows.mr.ReadBytes(size)
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return nil
 	}
 }
@@ -550,31 +550,31 @@ func encodeBytea(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeDate(qr *QueryResult, fd *FieldDescription, size int32) time.Time {
+func decodeDate(rows *Rows, fd *FieldDescription, size int32) time.Time {
 	var zeroTime time.Time
 
 	if fd.DataType != DateOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", DateOid, fd.DataType)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", DateOid, fd.DataType)))
 		return zeroTime
 	}
 
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		t, err := time.ParseInLocation("2006-01-02", s, time.Local)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode date: %v", s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode date: %v", s)))
 			return zeroTime
 		}
 		return t
 	case BinaryFormatCode:
 		if size != 4 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", size)))
 		}
-		dayOffset := qr.mr.ReadInt32()
+		dayOffset := rows.mr.ReadInt32()
 		return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return zeroTime
 	}
 }
@@ -589,33 +589,33 @@ func encodeDate(w *WriteBuf, value interface{}) error {
 	return encodeText(w, s)
 }
 
-func decodeTimestampTz(qr *QueryResult, fd *FieldDescription, size int32) time.Time {
+func decodeTimestampTz(rows *Rows, fd *FieldDescription, size int32) time.Time {
 	var zeroTime time.Time
 
 	if fd.DataType != TimestampTzOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampTzOid, fd.DataType)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampTzOid, fd.DataType)))
 		return zeroTime
 	}
 
 	switch fd.FormatCode {
 	case TextFormatCode:
-		s := qr.mr.ReadString(size)
+		s := rows.mr.ReadString(size)
 		t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
 		if err != nil {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s)))
 			return zeroTime
 		}
 		return t
 	case BinaryFormatCode:
 		if size != 8 {
-			qr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", size)))
+			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", size)))
 		}
 		microsecFromUnixEpochToY2K := int64(946684800 * 1000000)
-		microsecSinceY2K := qr.mr.ReadInt64()
+		microsecSinceY2K := rows.mr.ReadInt64()
 		microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
 		return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 	default:
-		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return zeroTime
 	}
 }

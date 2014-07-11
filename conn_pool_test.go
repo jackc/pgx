@@ -209,8 +209,8 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to Acquire: %v", err)
 		}
-		qr, _ := c.Query("select 1")
-		qr.Close()
+		rows, _ := c.Query("select 1")
+		rows.Close()
 		pool.Release(c)
 	}
 
@@ -273,9 +273,9 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	}
 
 	// do something with the connection so it knows it's dead
-	qr, _ := c1.Query("select 1")
-	qr.Close()
-	if qr.Err() == nil {
+	rows, _ := c1.Query("select 1")
+	rows.Close()
+	if rows.Err() == nil {
 		t.Fatal("Expected error but none occurred")
 	}
 
@@ -400,7 +400,7 @@ func TestConnPoolQuery(t *testing.T) {
 
 	var sum, rowCount int32
 
-	qr, err := pool.Query("select generate_series(1,$1)", 10)
+	rows, err := pool.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("pool.Query failed: %v", err)
 	}
@@ -410,14 +410,14 @@ func TestConnPoolQuery(t *testing.T) {
 		t.Fatalf("Unexpected connection pool stats: %v", stats)
 	}
 
-	for qr.NextRow() {
+	for rows.NextRow() {
 		var n int32
-		qr.Scan(&n)
+		rows.Scan(&n)
 		sum += n
 		rowCount++
 	}
 
-	if qr.Err() != nil {
+	if rows.Err() != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 

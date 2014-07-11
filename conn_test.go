@@ -295,10 +295,10 @@ func TestExecFailure(t *testing.T) {
 		t.Fatal("Expected SQL syntax error")
 	}
 
-	qr, _ := conn.Query("select 1")
-	qr.Close()
-	if qr.Err() != nil {
-		t.Fatalf("Exec failure appears to have broken connection: %v", qr.Err())
+	rows, _ := conn.Query("select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
 	}
 }
 
@@ -339,20 +339,20 @@ func TestConnQuery(t *testing.T) {
 func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	var sum, rowCount int32
 
-	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
-	defer qr.Close()
+	defer rows.Close()
 
-	for qr.NextRow() {
+	for rows.NextRow() {
 		var n int32
-		qr.Scan(&n)
+		rows.Scan(&n)
 		sum += n
 		rowCount++
 	}
 
-	if qr.Err() != nil {
+	if rows.Err() != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
@@ -372,32 +372,32 @@ func TestConnQueryCloseEarly(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Immediately close query without reading any rows
-	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
-	qr.Close()
+	rows.Close()
 
 	ensureConnValid(t, conn)
 
 	// Read partial response then close
-	qr, err = conn.Query("select generate_series(1,$1)", 10)
+	rows, err = conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := qr.NextRow()
+	ok := rows.NextRow()
 	if !ok {
-		t.Fatal("qr.NextRow terminated early")
+		t.Fatal("rows.NextRow terminated early")
 	}
 
 	var n int32
-	qr.Scan(&n)
+	rows.Scan(&n)
 	if n != 1 {
 		t.Fatalf("Expected 1 from first row, but got %v", n)
 	}
 
-	qr.Close()
+	rows.Close()
 
 	ensureConnValid(t, conn)
 }
@@ -410,16 +410,16 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Read a single value incorrectly
-	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
 	rowsRead := 0
 
-	for qr.NextRow() {
+	for rows.NextRow() {
 		var t time.Time
-		qr.Scan(&t)
+		rows.Scan(&t)
 		rowsRead++
 	}
 
@@ -427,8 +427,8 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
 	}
 
-	if qr.Err() == nil {
-		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
+	if rows.Err() == nil {
+		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
 	ensureConnValid(t, conn)
@@ -442,16 +442,16 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Read too many values
-	qr, err := conn.Query("select generate_series(1,$1)", 10)
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
 	rowsRead := 0
 
-	for qr.NextRow() {
+	for rows.NextRow() {
 		var n, m int32
-		qr.Scan(&n, &m)
+		rows.Scan(&n, &m)
 		rowsRead++
 	}
 
@@ -459,8 +459,8 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 		t.Fatalf("Expected error to cause only 1 row to be read, but %d were read", rowsRead)
 	}
 
-	if qr.Err() == nil {
-		t.Fatal("Expected QueryResult to have an error after an improper read but it didn't")
+	if rows.Err() == nil {
+		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
 	ensureConnValid(t, conn)
@@ -472,22 +472,22 @@ func TestConnQueryUnpreparedScanner(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	qr, err := conn.Query("select null::int8, 1::int8")
+	rows, err := conn.Query("select null::int8, 1::int8")
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := qr.NextRow()
+	ok := rows.NextRow()
 	if !ok {
-		t.Fatal("qr.NextRow terminated early")
+		t.Fatal("rows.NextRow terminated early")
 	}
 
 	var n, m pgx.NullInt64
-	err = qr.Scan(&n, &m)
+	err = rows.Scan(&n, &m)
 	if err != nil {
-		t.Fatalf("qr.Scan failed: ", err)
+		t.Fatalf("rows.Scan failed: ", err)
 	}
-	qr.Close()
+	rows.Close()
 
 	if n.Valid {
 		t.Error("Null should not be valid, but it was")
@@ -512,22 +512,22 @@ func TestConnQueryPreparedScanner(t *testing.T) {
 
 	mustPrepare(t, conn, "scannerTest", "select null::int8, 1::int8")
 
-	qr, err := conn.Query("scannerTest")
+	rows, err := conn.Query("scannerTest")
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := qr.NextRow()
+	ok := rows.NextRow()
 	if !ok {
-		t.Fatal("qr.NextRow terminated early")
+		t.Fatal("rows.NextRow terminated early")
 	}
 
 	var n, m pgx.NullInt64
-	err = qr.Scan(&n, &m)
+	err = rows.Scan(&n, &m)
 	if err != nil {
-		t.Fatalf("qr.Scan failed: ", err)
+		t.Fatalf("rows.Scan failed: ", err)
 	}
-	qr.Close()
+	rows.Close()
 
 	if n.Valid {
 		t.Error("Null should not be valid, but it was")
@@ -552,22 +552,22 @@ func TestConnQueryUnpreparedEncoder(t *testing.T) {
 
 	n := pgx.NullInt64{Int64: 1, Valid: true}
 
-	qr, err := conn.Query("select $1::int8", &n)
+	rows, err := conn.Query("select $1::int8", &n)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
 
-	ok := qr.NextRow()
+	ok := rows.NextRow()
 	if !ok {
-		t.Fatal("qr.NextRow terminated early")
+		t.Fatal("rows.NextRow terminated early")
 	}
 
 	var m pgx.NullInt64
-	err = qr.Scan(&m)
+	err = rows.Scan(&m)
 	if err != nil {
-		t.Fatalf("qr.Scan failed: ", err)
+		t.Fatalf("rows.Scan failed: ", err)
 	}
-	qr.Close()
+	rows.Close()
 
 	if !m.Valid {
 		t.Error("m should be valid, but it wasn't")
@@ -787,10 +787,10 @@ func TestListenNotify(t *testing.T) {
 
 	// when notification has already been read during previous query
 	mustExec(t, notifier, "notify chat")
-	qr, _ := listener.Query("select 1")
-	qr.Close()
-	if qr.Err() != nil {
-		t.Fatalf("Unexpected error on Query: %v", qr.Err())
+	rows, _ := listener.Query("select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
 	notification, err = listener.WaitForNotification(0)
 	if err != nil {

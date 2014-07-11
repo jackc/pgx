@@ -59,7 +59,7 @@ type Conn struct {
 	alive              bool
 	causeOfDeath       error
 	logger             log.Logger
-	qr                 QueryResult
+	rows               Rows
 	mr                 MsgReader
 }
 
@@ -397,29 +397,29 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-type Row QueryResult
+type Row Rows
 
 func (r *Row) Scan(dest ...interface{}) (err error) {
-	qr := (*QueryResult)(r)
+	rows := (*Rows)(r)
 
-	if qr.Err() != nil {
-		return qr.Err()
+	if rows.Err() != nil {
+		return rows.Err()
 	}
 
-	if !qr.NextRow() {
-		if qr.Err() == nil {
+	if !rows.NextRow() {
+		if rows.Err() == nil {
 			return ErrNoRows
 		} else {
-			return qr.Err()
+			return rows.Err()
 		}
 	}
 
-	qr.Scan(dest...)
-	qr.Close()
-	return qr.Err()
+	rows.Scan(dest...)
+	rows.Close()
+	return rows.Err()
 }
 
-type QueryResult struct {
+type Rows struct {
 	pool      *ConnPool
 	conn      *Conn
 	mr        *MsgReader
@@ -430,174 +430,174 @@ type QueryResult struct {
 	closed    bool
 }
 
-func (qr *QueryResult) FieldDescriptions() []FieldDescription {
-	return qr.fields
+func (rows *Rows) FieldDescriptions() []FieldDescription {
+	return rows.fields
 }
 
-func (qr *QueryResult) MsgReader() *MsgReader {
-	return qr.mr
+func (rows *Rows) MsgReader() *MsgReader {
+	return rows.mr
 }
 
-func (qr *QueryResult) close() {
-	if qr.pool != nil {
-		qr.pool.Release(qr.conn)
-		qr.pool = nil
+func (rows *Rows) close() {
+	if rows.pool != nil {
+		rows.pool.Release(rows.conn)
+		rows.pool = nil
 	}
 
-	qr.closed = true
+	rows.closed = true
 }
 
-func (qr *QueryResult) readUntilReadyForQuery() {
+func (rows *Rows) readUntilReadyForQuery() {
 	for {
-		t, r, err := qr.conn.rxMsg()
+		t, r, err := rows.conn.rxMsg()
 		if err != nil {
-			qr.close()
+			rows.close()
 			return
 		}
 
 		switch t {
 		case readyForQuery:
-			qr.conn.rxReadyForQuery(r)
-			qr.close()
+			rows.conn.rxReadyForQuery(r)
+			rows.close()
 			return
 		case rowDescription:
 		case dataRow:
 		case commandComplete:
 		case bindComplete:
 		default:
-			err = qr.conn.processContextFreeMsg(t, r)
+			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {
-				qr.close()
+				rows.close()
 				return
 			}
 		}
 	}
 }
 
-func (qr *QueryResult) Close() {
-	if qr.closed {
+func (rows *Rows) Close() {
+	if rows.closed {
 		return
 	}
-	qr.readUntilReadyForQuery()
-	qr.close()
+	rows.readUntilReadyForQuery()
+	rows.close()
 }
 
-func (qr *QueryResult) Err() error {
-	return qr.err
+func (rows *Rows) Err() error {
+	return rows.err
 }
 
 // abort signals that the query was not successfully sent to the server.
 // This differs from Fatal in that it is not necessary to readUntilReadyForQuery
-func (qr *QueryResult) abort(err error) {
-	if qr.err != nil {
+func (rows *Rows) abort(err error) {
+	if rows.err != nil {
 		return
 	}
 
-	qr.err = err
-	qr.close()
+	rows.err = err
+	rows.close()
 }
 
 // Fatal signals an error occurred after the query was sent to the server
-func (qr *QueryResult) Fatal(err error) {
-	if qr.err != nil {
+func (rows *Rows) Fatal(err error) {
+	if rows.err != nil {
 		return
 	}
 
-	qr.err = err
-	qr.Close()
+	rows.err = err
+	rows.Close()
 }
 
-func (qr *QueryResult) NextRow() bool {
-	if qr.closed {
+func (rows *Rows) NextRow() bool {
+	if rows.closed {
 		return false
 	}
 
-	qr.rowCount++
-	qr.columnIdx = 0
+	rows.rowCount++
+	rows.columnIdx = 0
 
 	for {
-		t, r, err := qr.conn.rxMsg()
+		t, r, err := rows.conn.rxMsg()
 		if err != nil {
-			qr.Fatal(err)
+			rows.Fatal(err)
 			return false
 		}
 
 		switch t {
 		case readyForQuery:
-			qr.conn.rxReadyForQuery(r)
-			qr.close()
+			rows.conn.rxReadyForQuery(r)
+			rows.close()
 			return false
 		case dataRow:
 			fieldCount := r.ReadInt16()
-			if int(fieldCount) != len(qr.fields) {
-				qr.Fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(qr.fields), fieldCount)))
+			if int(fieldCount) != len(rows.fields) {
+				rows.Fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(rows.fields), fieldCount)))
 				return false
 			}
 
-			qr.mr = r
+			rows.mr = r
 			return true
 		case commandComplete:
 		case bindComplete:
 		default:
-			err = qr.conn.processContextFreeMsg(t, r)
+			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {
-				qr.Fatal(err)
+				rows.Fatal(err)
 				return false
 			}
 		}
 	}
 }
 
-func (qr *QueryResult) nextColumn() (*FieldDescription, int32, bool) {
-	if qr.closed {
+func (rows *Rows) nextColumn() (*FieldDescription, int32, bool) {
+	if rows.closed {
 		return nil, 0, false
 	}
-	if len(qr.fields) <= qr.columnIdx {
-		qr.Fatal(ProtocolError("No next column available"))
+	if len(rows.fields) <= rows.columnIdx {
+		rows.Fatal(ProtocolError("No next column available"))
 		return nil, 0, false
 	}
 
-	fd := &qr.fields[qr.columnIdx]
-	qr.columnIdx++
-	size := qr.mr.ReadInt32()
+	fd := &rows.fields[rows.columnIdx]
+	rows.columnIdx++
+	size := rows.mr.ReadInt32()
 	return fd, size, true
 }
 
-func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
-	if len(qr.fields) != len(dest) {
+func (rows *Rows) Scan(dest ...interface{}) (err error) {
+	if len(rows.fields) != len(dest) {
 		err = errors.New("Scan received wrong number of arguments")
-		qr.Fatal(err)
+		rows.Fatal(err)
 		return err
 	}
 
 	for _, d := range dest {
-		fd, size, _ := qr.nextColumn()
+		fd, size, _ := rows.nextColumn()
 		switch d := d.(type) {
 		case *bool:
-			*d = decodeBool(qr, fd, size)
+			*d = decodeBool(rows, fd, size)
 		case *[]byte:
-			*d = decodeBytea(qr, fd, size)
+			*d = decodeBytea(rows, fd, size)
 		case *int64:
-			*d = decodeInt8(qr, fd, size)
+			*d = decodeInt8(rows, fd, size)
 		case *int16:
-			*d = decodeInt2(qr, fd, size)
+			*d = decodeInt2(rows, fd, size)
 		case *int32:
-			*d = decodeInt4(qr, fd, size)
+			*d = decodeInt4(rows, fd, size)
 		case *string:
-			*d = decodeText(qr, fd, size)
+			*d = decodeText(rows, fd, size)
 		case *float32:
-			*d = decodeFloat4(qr, fd, size)
+			*d = decodeFloat4(rows, fd, size)
 		case *float64:
-			*d = decodeFloat8(qr, fd, size)
+			*d = decodeFloat8(rows, fd, size)
 		case *time.Time:
 			if fd.DataType == DateOid {
-				*d = decodeDate(qr, fd, size)
+				*d = decodeDate(rows, fd, size)
 			} else {
-				*d = decodeTimestampTz(qr, fd, size)
+				*d = decodeTimestampTz(rows, fd, size)
 			}
 
 		case Scanner:
-			err = d.Scan(qr, fd, size)
+			err = d.Scan(rows, fd, size)
 			if err != nil {
 				return err
 			}
@@ -609,39 +609,39 @@ func (qr *QueryResult) Scan(dest ...interface{}) (err error) {
 	return nil
 }
 
-func (qr *QueryResult) ReadValue() (v interface{}, err error) {
-	fd, size, _ := qr.nextColumn()
-	if qr.Err() != nil {
-		return nil, qr.Err()
+func (rows *Rows) ReadValue() (v interface{}, err error) {
+	fd, size, _ := rows.nextColumn()
+	if rows.Err() != nil {
+		return nil, rows.Err()
 	}
 
 	switch fd.DataType {
 	case BoolOid:
-		return decodeBool(qr, fd, size), qr.Err()
+		return decodeBool(rows, fd, size), rows.Err()
 	case ByteaOid:
-		return decodeBytea(qr, fd, size), qr.Err()
+		return decodeBytea(rows, fd, size), rows.Err()
 	case Int8Oid:
-		return decodeInt8(qr, fd, size), qr.Err()
+		return decodeInt8(rows, fd, size), rows.Err()
 	case Int2Oid:
-		return decodeInt2(qr, fd, size), qr.Err()
+		return decodeInt2(rows, fd, size), rows.Err()
 	case Int4Oid:
-		return decodeInt4(qr, fd, size), qr.Err()
+		return decodeInt4(rows, fd, size), rows.Err()
 	case VarcharOid, TextOid:
-		return decodeText(qr, fd, size), qr.Err()
+		return decodeText(rows, fd, size), rows.Err()
 	case Float4Oid:
-		return decodeFloat4(qr, fd, size), qr.Err()
+		return decodeFloat4(rows, fd, size), rows.Err()
 	case Float8Oid:
-		return decodeFloat8(qr, fd, size), qr.Err()
+		return decodeFloat8(rows, fd, size), rows.Err()
 	case DateOid:
-		return decodeDate(qr, fd, size), qr.Err()
+		return decodeDate(rows, fd, size), rows.Err()
 	case TimestampTzOid:
-		return decodeTimestampTz(qr, fd, size), qr.Err()
+		return decodeTimestampTz(rows, fd, size), rows.Err()
 	}
 
 	// if it is not an intrinsic type then return the text
 	switch fd.FormatCode {
 	case TextFormatCode:
-		return qr.MsgReader().ReadString(size), qr.Err()
+		return rows.MsgReader().ReadString(size), rows.Err()
 	// TODO
 	//case BinaryFormatCode:
 	default:
@@ -650,23 +650,23 @@ func (qr *QueryResult) ReadValue() (v interface{}, err error) {
 }
 
 // TODO - document
-func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
-	c.qr = QueryResult{conn: c}
-	qr := &c.qr
+func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
+	c.rows = Rows{conn: c}
+	rows := &c.rows
 
 	if ps, present := c.preparedStatements[sql]; present {
-		qr.fields = ps.FieldDescriptions
+		rows.fields = ps.FieldDescriptions
 		err := c.sendPreparedQuery(ps, args...)
 		if err != nil {
-			qr.abort(err)
+			rows.abort(err)
 		}
-		return qr, qr.err
+		return rows, rows.err
 	}
 
 	err := c.sendSimpleQuery(sql, args...)
 	if err != nil {
-		qr.abort(err)
-		return qr, qr.err
+		rows.abort(err)
+		return rows, rows.err
 	}
 
 	// Simple queries don't know the field descriptions of the result.
@@ -674,27 +674,27 @@ func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 	for {
 		t, r, err := c.rxMsg()
 		if err != nil {
-			qr.Fatal(err)
-			return qr, qr.err
+			rows.Fatal(err)
+			return rows, rows.err
 		}
 
 		switch t {
 		case rowDescription:
-			qr.fields = qr.conn.rxRowDescription(r)
-			return qr, nil
+			rows.fields = rows.conn.rxRowDescription(r)
+			return rows, nil
 		default:
-			err = qr.conn.processContextFreeMsg(t, r)
+			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {
-				qr.Fatal(err)
-				return qr, qr.err
+				rows.Fatal(err)
+				return rows, rows.err
 			}
 		}
 	}
 }
 
 func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
-	qr, _ := c.Query(sql, args...)
-	return (*Row)(qr)
+	rows, _ := c.Query(sql, args...)
+	return (*Row)(rows)
 }
 
 func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {

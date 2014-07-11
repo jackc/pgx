@@ -133,12 +133,12 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 
 	args := valueToInterface(argsV)
 
-	qr, err := c.conn.Query(query, args...)
+	rows, err := c.conn.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Rows{qr: qr}, nil
+	return &Rows{rows: rows}, nil
 }
 
 type Stmt struct {
@@ -164,11 +164,11 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 
 // TODO - rename to avoid alloc
 type Rows struct {
-	qr *pgx.QueryResult
+	rows *pgx.Rows
 }
 
 func (r *Rows) Columns() []string {
-	fieldDescriptions := r.qr.FieldDescriptions()
+	fieldDescriptions := r.rows.FieldDescriptions()
 	names := make([]string, 0, len(fieldDescriptions))
 	for _, fd := range fieldDescriptions {
 		names = append(names, fd.Name)
@@ -177,22 +177,22 @@ func (r *Rows) Columns() []string {
 }
 
 func (r *Rows) Close() error {
-	r.qr.Close()
+	r.rows.Close()
 	return nil
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
-	more := r.qr.NextRow()
+	more := r.rows.NextRow()
 	if !more {
-		if r.qr.Err() == nil {
+		if r.rows.Err() == nil {
 			return io.EOF
 		} else {
-			return r.qr.Err()
+			return r.rows.Err()
 		}
 	}
 
-	for i, _ := range r.qr.FieldDescriptions() {
-		v, err := r.qr.ReadValue()
+	for i, _ := range r.rows.FieldDescriptions() {
+		v, err := r.rows.ReadValue()
 		if err != nil {
 			return err
 		}

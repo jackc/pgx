@@ -176,26 +176,26 @@ func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag Comman
 	return c.Exec(sql, arguments...)
 }
 
-func (p *ConnPool) Query(sql string, args ...interface{}) (*QueryResult, error) {
+func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	c, err := p.Acquire()
 	if err != nil {
-		// Because checking for errors can be deferred to the *QueryResult, build one with the error
-		return &QueryResult{closed: true, err: err}, err
+		// Because checking for errors can be deferred to the *Rows, build one with the error
+		return &Rows{closed: true, err: err}, err
 	}
 
-	qr, err := c.Query(sql, args...)
+	rows, err := c.Query(sql, args...)
 	if err != nil {
 		p.Release(c)
-		return qr, err
+		return rows, err
 	}
 
-	qr.pool = p
-	return qr, nil
+	rows.pool = p
+	return rows, nil
 }
 
 func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
-	qr, _ := p.Query(sql, args...)
-	return (*Row)(qr)
+	rows, _ := p.Query(sql, args...)
+	return (*Row)(rows)
 }
 
 // Transaction acquires a connection, delegates the call to that connection,
