@@ -734,16 +734,19 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
 	for i, oid := range ps.ParameterOids {
-		switch oid {
-		case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid:
+		switch arg := arguments[i].(type) {
+		case BinaryEncoder:
 			wbuf.WriteInt16(BinaryFormatCode)
-		case TextOid, VarcharOid, DateOid, TimestampTzOid:
+		case TextEncoder:
 			wbuf.WriteInt16(TextFormatCode)
 		default:
-			if _, ok := arguments[i].(BinaryEncoder); ok {
+			switch oid {
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid:
 				wbuf.WriteInt16(BinaryFormatCode)
-			} else {
+			case TextOid, VarcharOid, DateOid, TimestampTzOid:
 				wbuf.WriteInt16(TextFormatCode)
+			default:
+				return SerializationError(fmt.Sprintf("Parameter %d oid %d is not a core type and argument type %T does not implement TextEncoder or BinaryEncoder", i, oid, arg))
 			}
 		}
 	}
@@ -755,41 +758,40 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			continue
 		}
 
-		switch oid {
-		case BoolOid:
-			err = encodeBool(wbuf, arguments[i])
-		case ByteaOid:
-			err = encodeBytea(wbuf, arguments[i])
-		case Int2Oid:
-			err = encodeInt2(wbuf, arguments[i])
-		case Int4Oid:
-			err = encodeInt4(wbuf, arguments[i])
-		case Int8Oid:
-			err = encodeInt8(wbuf, arguments[i])
-		case Float4Oid:
-			err = encodeFloat4(wbuf, arguments[i])
-		case Float8Oid:
-			err = encodeFloat8(wbuf, arguments[i])
-		case TextOid, VarcharOid:
-			err = encodeText(wbuf, arguments[i])
-		case DateOid:
-			err = encodeDate(wbuf, arguments[i])
-		case TimestampTzOid:
-			err = encodeTimestampTz(wbuf, arguments[i])
+		switch arg := arguments[i].(type) {
+		case BinaryEncoder:
+			err = arg.EncodeBinary(wbuf)
+		case TextEncoder:
+			var s string
+			s, err = arg.EncodeText()
+			wbuf.WriteInt32(int32(len(s)))
+			wbuf.WriteBytes([]byte(s))
 		default:
-			switch arg := arguments[i].(type) {
-			case BinaryEncoder:
-				err = arg.EncodeBinary(wbuf)
-			case TextEncoder:
-				var s string
-				s, err = arg.EncodeText()
-				wbuf.WriteInt32(int32(len(s)))
-				wbuf.WriteBytes([]byte(s))
+			switch oid {
+			case BoolOid:
+				err = encodeBool(wbuf, arguments[i])
+			case ByteaOid:
+				err = encodeBytea(wbuf, arguments[i])
+			case Int2Oid:
+				err = encodeInt2(wbuf, arguments[i])
+			case Int4Oid:
+				err = encodeInt4(wbuf, arguments[i])
+			case Int8Oid:
+				err = encodeInt8(wbuf, arguments[i])
+			case Float4Oid:
+				err = encodeFloat4(wbuf, arguments[i])
+			case Float8Oid:
+				err = encodeFloat8(wbuf, arguments[i])
+			case TextOid, VarcharOid:
+				err = encodeText(wbuf, arguments[i])
+			case DateOid:
+				err = encodeDate(wbuf, arguments[i])
+			case TimestampTzOid:
+				err = encodeTimestampTz(wbuf, arguments[i])
 			default:
 				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement TextEncoder or BinaryEncoder", arg))
 			}
 		}
-
 		if err != nil {
 			return err
 		}

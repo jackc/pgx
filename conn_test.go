@@ -604,6 +604,33 @@ func TestQueryPreparedEncodeError(t *testing.T) {
 	}
 }
 
+// Ensure that an argument that implements TextEncoder, but not BinaryEncoder
+// works when the parameter type is a core type.
+type coreTextEncoder struct{}
+
+func (n *coreTextEncoder) EncodeText() (string, error) {
+	return "42", nil
+}
+
+func TestQueryPreparedEncodeCoreTextFormatError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustPrepare(t, conn, "testTranscode", "select $1::integer")
+
+	var n int32
+	err := conn.QueryRow("testTranscode", &coreTextEncoder{}).Scan(&n)
+	if err != nil {
+		t.Fatalf("Unexpected conn.QueryRow error: %v", err)
+	}
+
+	if n != 42 {
+		t.Errorf("Expected 42, got %v", n)
+	}
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 

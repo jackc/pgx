@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"fmt"
 	"github.com/jackc/pgx"
 	"strings"
 	"testing"
@@ -183,5 +184,48 @@ func TestTimestampTzTranscode(t *testing.T) {
 	}
 	if !inputTime.Equal(outputTime) {
 		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
+	}
+}
+
+func TestNullX(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		i64 pgx.NullInt64
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		expected  allTypes
+	}{
+		{"select $1::int8", []interface{}{&pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 1, Valid: true}}},
+		{"select $1::int8", []interface{}{&pgx.NullInt64{Int64: 1, Valid: false}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 0, Valid: false}}},
+	}
+
+	for i, tt := range tests {
+		psName := fmt.Sprintf("success%d", i)
+		mustPrepare(t, conn, psName, tt.sql)
+
+		for _, sql := range []string{tt.sql, psName} {
+			actual = zero
+
+			err := conn.QueryRow(sql, tt.queryArgs...).Scan(tt.scanArgs...)
+			if err != nil {
+				t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, sql, tt.queryArgs)
+			}
+
+			if actual != tt.expected {
+				t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, sql, tt.queryArgs)
+			}
+
+			ensureConnValid(t, conn)
+		}
 	}
 }
