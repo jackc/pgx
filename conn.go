@@ -760,7 +760,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 		switch arg := arguments[i].(type) {
 		case BinaryEncoder:
-			err = arg.EncodeBinary(wbuf)
+			err = arg.EncodeBinary(wbuf, &ps.FieldDescriptions[i])
 		case TextEncoder:
 			var s string
 			var status byte

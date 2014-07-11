@@ -250,3 +250,53 @@ func TestNullX(t *testing.T) {
 		}
 	}
 }
+
+func TestNullXMismatch(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		s   pgx.NullString
+		i16 pgx.NullInt16
+		i32 pgx.NullInt32
+		i64 pgx.NullInt64
+		f32 pgx.NullFloat32
+		f64 pgx.NullFloat64
+		b   pgx.NullBool
+		t   pgx.NullTime
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		err       string
+	}{
+		{"select $1::date", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, "invalid input syntax for type date"},
+		{"select $1::date", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.f64}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, "cannot encode into OID 1082"},
+		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, "cannot encode into OID 1082"},
+	}
+
+	for i, tt := range tests {
+		psName := fmt.Sprintf("ps%d", i)
+		mustPrepare(t, conn, psName, tt.sql)
+
+		actual = zero
+
+		err := conn.QueryRow(psName, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err == nil || !strings.Contains(err.Error(), tt.err) {
+			t.Errorf(`%d. Expected error to contain "%s", but it didn't: %v`, i, tt.err, err)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}

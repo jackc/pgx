@@ -63,8 +63,14 @@ type TextEncoder interface {
 // BinaryEncoder is an interface used to encode values in binary format for
 // transmission to the PostgreSQL server. It is used by prepared queries.
 type BinaryEncoder interface {
-	// EncodeBinary writes the binary value to w
-	EncodeBinary(w *WriteBuf) error
+	// EncodeBinary writes the binary value to w.
+	//
+	// EncodeBinary MUST check fd.DataType to see if the parameter data type is
+	// compatible. If this is not done, the PostgreSQL server may detect the
+	// error if the expected data size or format of the encoded data does not
+	// match. But if the encoded data is a valid representation of the data type
+	// PostgreSQL expects such as date and int4, incorrect data may be stored.
+	EncodeBinary(w *WriteBuf, fd *FieldDescription) error
 }
 
 // NullFloat32 represents an float4 that may be null.
@@ -96,7 +102,11 @@ func (n NullFloat32) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullFloat32) EncodeBinary(w *WriteBuf) error {
+func (n NullFloat32) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != Float4Oid {
+		return SerializationError(fmt.Sprintf("NullFloat32.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -134,7 +144,11 @@ func (n NullFloat64) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullFloat64) EncodeBinary(w *WriteBuf) error {
+func (n NullFloat64) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != Float8Oid {
+		return SerializationError(fmt.Sprintf("NullFloat64.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -201,7 +215,11 @@ func (n NullInt16) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullInt16) EncodeBinary(w *WriteBuf) error {
+func (n NullInt16) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != Int2Oid {
+		return SerializationError(fmt.Sprintf("NullInt16.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -239,7 +257,11 @@ func (n NullInt32) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullInt32) EncodeBinary(w *WriteBuf) error {
+func (n NullInt32) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != Int4Oid {
+		return SerializationError(fmt.Sprintf("NullInt32.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -277,7 +299,11 @@ func (n NullInt64) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullInt64) EncodeBinary(w *WriteBuf) error {
+func (n NullInt64) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != Int8Oid {
+		return SerializationError(fmt.Sprintf("NullInt64.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -315,7 +341,11 @@ func (n NullBool) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullBool) EncodeBinary(w *WriteBuf) error {
+func (n NullBool) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != BoolOid {
+		return SerializationError(fmt.Sprintf("NullBool.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
@@ -354,7 +384,11 @@ func (n NullTime) EncodeText() (string, byte, error) {
 	}
 }
 
-func (n NullTime) EncodeBinary(w *WriteBuf) error {
+func (n NullTime) EncodeBinary(w *WriteBuf, fd *FieldDescription) error {
+	if fd.DataType != TimestampTzOid {
+		return SerializationError(fmt.Sprintf("NullTime.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
