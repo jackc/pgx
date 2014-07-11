@@ -972,6 +972,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f32 float32
 		f64 float64
 		b   bool
+		t   time.Time
 	}
 
 	var actual, zero allTypes
@@ -989,6 +990,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::float4", []interface{}{float32(1.23)}, []interface{}{&actual.f32}, allTypes{f32: 1.23}},
 		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
 		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
+		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
 	}
 
 	for i, tt := range tests {
