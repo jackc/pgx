@@ -495,7 +495,23 @@ func (qr *QueryResult) Err() error {
 	return qr.err
 }
 
+// abort signals that the query was not successfully sent to the server.
+// This differs from Fatal in that it is not necessary to readUntilReadyForQuery
+func (qr *QueryResult) abort(err error) {
+	if qr.err != nil {
+		return
+	}
+
+	qr.err = err
+	qr.close()
+}
+
+// Fatal signals an error occurred after the query was sent to the server
 func (qr *QueryResult) Fatal(err error) {
+	if qr.err != nil {
+		return
+	}
+
 	qr.err = err
 	qr.Close()
 }
@@ -647,19 +663,18 @@ func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 	c.qr = QueryResult{conn: c}
 	qr := &c.qr
 
-	// TODO - shouldn't be messing with qr.err and qr.closed directly
 	if ps, present := c.preparedStatements[sql]; present {
 		qr.fields = ps.FieldDescriptions
-		qr.err = c.sendPreparedQuery(ps, args...)
-		if qr.err != nil {
-			qr.closed = true
+		err := c.sendPreparedQuery(ps, args...)
+		if err != nil {
+			qr.abort(err)
 		}
 		return qr, qr.err
 	}
 
-	qr.err = c.sendSimpleQuery(sql, args...)
-	if qr.err != nil {
-		qr.closed = true
+	err := c.sendSimpleQuery(sql, args...)
+	if err != nil {
+		qr.abort(err)
 		return qr, qr.err
 	}
 
@@ -668,8 +683,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 	for {
 		t, r, err := c.rxMsg()
 		if err != nil {
-			qr.err = err
-			qr.closed = true
+			qr.Fatal(err)
 			return qr, qr.err
 		}
 
@@ -680,8 +694,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*QueryResult, error) {
 		default:
 			err = qr.conn.processContextFreeMsg(t, r)
 			if err != nil {
-				qr.closed = true
-				qr.err = err
+				qr.Fatal(err)
 				return qr, qr.err
 			}
 		}

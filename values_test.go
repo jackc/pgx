@@ -78,30 +78,6 @@ func TestSanitizeSql(t *testing.T) {
 	}
 }
 
-func TestEncodeError(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	mustPrepare(t, conn, "testTranscode", "select $1::integer")
-	defer func() {
-		if err := conn.Deallocate("testTranscode"); err != nil {
-			t.Fatalf("Unable to deallocate prepared statement: %v", err)
-		}
-	}()
-
-	_, err := conn.Query("testTranscode", "wrong")
-	switch {
-	case err == nil:
-		t.Error("Expected transcode error to return error, but it didn't")
-	case err.Error() == "Expected integer representable in int32, received string wrong":
-		// Correct behavior
-	default:
-		t.Errorf("Expected transcode error, received %v", err)
-	}
-}
-
 // TODO
 func TestNilTranscode(t *testing.T) {
 	// t.Parallel()

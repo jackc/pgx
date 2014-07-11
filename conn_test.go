@@ -1,6 +1,8 @@
 package pgx_test
 
 import (
+	"bytes"
+	"fmt"
 	"github.com/jackc/pgx"
 	"strings"
 	"sync"
@@ -891,15 +893,199 @@ func TestCommandTag(t *testing.T) {
 	}
 }
 
-func TestQueryRowError(t *testing.T) {
+func TestQueryRowCoreTypes(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	var n int32
-	err := conn.QueryRow("SYNTAX ERROR").Scan(&n)
-	if _, ok := err.(pgx.PgError); !ok {
-		t.Fatalf("Expected to receive PgError, but instead received: %v", err)
+	type allTypes struct {
+		s   string
+		i16 int16
+		i32 int32
+		i64 int64
+		f32 float32
+		f64 float64
+		b   bool
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		expected  allTypes
+	}{
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.s}, allTypes{s: "Jack"}},
+		{"select $1::int2", []interface{}{int16(42)}, []interface{}{&actual.i16}, allTypes{i16: 42}},
+		{"select $1::int4", []interface{}{int32(42)}, []interface{}{&actual.i32}, allTypes{i32: 42}},
+		{"select $1::int8", []interface{}{int64(42)}, []interface{}{&actual.i64}, allTypes{i64: 42}},
+		{"select $1::float4", []interface{}{float32(1.23)}, []interface{}{&actual.f32}, allTypes{f32: 1.23}},
+		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
+		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
+	}
+
+	for i, tt := range tests {
+		psName := fmt.Sprintf("success%d", i)
+		mustPrepare(t, conn, psName, tt.sql)
+
+		for _, sql := range []string{tt.sql, psName} {
+			actual = zero
+
+			err := conn.QueryRow(sql, tt.queryArgs...).Scan(tt.scanArgs...)
+			if err != nil {
+				t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, sql, tt.queryArgs)
+			}
+
+			if actual != tt.expected {
+				t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, sql, tt.queryArgs)
+			}
+
+			ensureConnValid(t, conn)
+		}
+	}
+}
+
+func TestQueryRowCoreBytea(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var actual []byte
+	sql := "select $1::bytea"
+	queryArg := []byte{0, 15, 255, 17}
+	expected := []byte{0, 15, 255, 17}
+
+	psName := "selectBytea"
+	mustPrepare(t, conn, psName, sql)
+
+	for _, sql := range []string{sql, psName} {
+		actual = nil
+
+		err := conn.QueryRow(sql, queryArg).Scan(&actual)
+		if err != nil {
+			t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+		}
+
+		if bytes.Compare(actual, expected) != 0 {
+			t.Errorf("Expected %v, got %v (sql -> %v)", expected, actual, sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestQueryRowUnpreparedErrors(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		s   string
+		i16 int16
+		i32 int32
+		i64 int64
+		f32 float32
+		f64 float64
+		b   bool
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		err       string
+	}{
+		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Expected type oid 21 but received type oid 705"},
+		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
+		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
+	}
+
+	for i, tt := range tests {
+		actual = zero
+
+		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err == nil {
+			t.Errorf("%d. Unexpected success (sql -> %v, queryArgs -> %v)", i, tt.sql, tt.queryArgs)
+		}
+		if !strings.Contains(err.Error(), tt.err) {
+			t.Errorf("%d. Expected error to contain %s, but got %v (sql -> %v, queryArgs -> %v)", i, tt.err, err, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestQueryRowPreparedErrors(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		s   string
+		i16 int16
+		i32 int32
+		i64 int64
+		f32 float32
+		f64 float64
+		b   bool
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		err       string
+	}{
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Expected type oid 21 but received type oid 25"},
+	}
+
+	for i, tt := range tests {
+		psName := fmt.Sprintf("ps%d", i)
+		mustPrepare(t, conn, psName, tt.sql)
+
+		actual = zero
+
+		err := conn.QueryRow(psName, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err == nil {
+			t.Errorf("%d. Unexpected success (sql -> %v, queryArgs -> %v)", i, tt.sql, tt.queryArgs)
+		}
+		if !strings.Contains(err.Error(), tt.err) {
+			t.Errorf("%d. Expected error to contain %s, but got %v (sql -> %v, queryArgs -> %v)", i, tt.err, err, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestQueryPreparedEncodeError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustPrepare(t, conn, "testTranscode", "select $1::integer")
+	defer func() {
+		if err := conn.Deallocate("testTranscode"); err != nil {
+			t.Fatalf("Unable to deallocate prepared statement: %v", err)
+		}
+	}()
+
+	_, err := conn.Query("testTranscode", "wrong")
+	switch {
+	case err == nil:
+		t.Error("Expected transcode error to return error, but it didn't")
+	case err.Error() == "Expected integer representable in int32, received string wrong":
+		// Correct behavior
+	default:
+		t.Errorf("Expected transcode error, received %v", err)
 	}
 }

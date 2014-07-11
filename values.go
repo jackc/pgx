@@ -209,7 +209,7 @@ func encodeBool(w *WriteBuf, value interface{}) error {
 
 func decodeInt8(qr *QueryResult, fd *FieldDescription, size int32) int64 {
 	if fd.DataType != Int8Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int8Oid, fd.DataType)))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8Oid, fd.DataType)))
 		return 0
 	}
 
@@ -270,7 +270,7 @@ func encodeInt8(w *WriteBuf, value interface{}) error {
 
 func decodeInt2(qr *QueryResult, fd *FieldDescription, size int32) int16 {
 	if fd.DataType != Int2Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int2Oid, fd.DataType)))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2Oid, fd.DataType)))
 		return 0
 	}
 
@@ -346,7 +346,7 @@ func encodeInt2(w *WriteBuf, value interface{}) error {
 
 func decodeInt4(qr *QueryResult, fd *FieldDescription, size int32) int32 {
 	if fd.DataType != Int4Oid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read %v but received: %v", Int4Oid, fd.DataType)))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4Oid, fd.DataType)))
 		return 0
 	}
 
@@ -530,6 +530,8 @@ func decodeBytea(qr *QueryResult, fd *FieldDescription, size int32) []byte {
 			return nil
 		}
 		return b
+	case BinaryFormatCode:
+		return qr.mr.ReadBytes(size)
 	default:
 		qr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
 		return nil
@@ -552,7 +554,7 @@ func decodeDate(qr *QueryResult, fd *FieldDescription, size int32) time.Time {
 	var zeroTime time.Time
 
 	if fd.DataType != DateOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read date but received: %v", fd.DataType)))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", DateOid, fd.DataType)))
 		return zeroTime
 	}
 
@@ -591,7 +593,7 @@ func decodeTimestampTz(qr *QueryResult, fd *FieldDescription, size int32) time.T
 	var zeroTime time.Time
 
 	if fd.DataType != TimestampTzOid {
-		qr.Fatal(ProtocolError(fmt.Sprintf("Tried to read timestamptz but received: %v", fd.DataType)))
+		qr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampTzOid, fd.DataType)))
 		return zeroTime
 	}
 
