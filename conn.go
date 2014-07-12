@@ -879,55 +879,6 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	}
 }
 
-// Transaction runs f in a transaction. f should return true if the transaction
-// should be committed or false if it should be rolled back. Return value committed
-// is if the transaction was committed or not. committed should be checked separately
-// from err as an explicit rollback is not an error. Transaction will use the default
-// isolation level for the current connection. To use a specific isolation level see
-// TransactionIso
-func (c *Conn) Transaction(f func() bool) (committed bool, err error) {
-	return c.transaction("", f)
-}
-
-// TransactionIso is the same as Transaction except it takes an isoLevel argument that
-// it uses as the transaction isolation level.
-//
-// Valid isolation levels (and their constants) are:
-//   serializable (pgx.Serializable)
-//   repeatable read (pgx.RepeatableRead)
-//   read committed (pgx.ReadCommitted)
-//   read uncommitted (pgx.ReadUncommitted)
-func (c *Conn) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
-	return c.transaction(isoLevel, f)
-}
-
-func (c *Conn) transaction(isoLevel string, f func() bool) (committed bool, err error) {
-	var beginSql string
-	if isoLevel == "" {
-		beginSql = "begin"
-	} else {
-		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
-	}
-
-	if _, err = c.Exec(beginSql); err != nil {
-		return
-	}
-	defer func() {
-		if committed && c.TxStatus == 'T' {
-			_, err = c.Exec("commit")
-			if err != nil {
-				committed = false
-			}
-		} else {
-			_, err = c.Exec("rollback")
-			committed = false
-		}
-	}()
-
-	committed = f()
-	return
-}
-
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.

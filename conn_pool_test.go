@@ -303,6 +303,33 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	}
 }
 
+func TestConnPoolTransaction(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	tx, err := pool.Begin()
+	if err != nil {
+		t.Fatalf("pool.Begin failed: %v", err)
+	}
+
+	var n int32
+	err := pool.QueryRow("select 40+$1", 2).Scan(&n)
+	if err != nil {
+		t.Fatalf("pool.QueryRow Scan failed: %v", err)
+	}
+
+	if n != 42 {
+		t.Errorf("Expected 42, got %d", n)
+	}
+
+	stats := pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+}
+
 func TestPoolTransaction(t *testing.T) {
 	t.Parallel()
 

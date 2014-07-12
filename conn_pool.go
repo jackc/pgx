@@ -198,6 +198,41 @@ func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
+// Begin acquires a connection and begins a transaction on it. When the
+// transaction is closed the connection will be automatically released.
+func (p *ConnPool) Begin() (*Tx, error) {
+	c, err := p.Acquire()
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := c.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	tx.pool = p
+	return tx, nil
+}
+
+// BeginIso acquires a connection and begins a transaction in isolation mode iso
+// on it. When the transaction is closed the connection will be automatically
+// released.
+func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
+	c, err := p.Acquire()
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := c.BeginIso(iso)
+	if err != nil {
+		return nil, err
+	}
+
+	tx.pool = p
+	return tx, nil
+}
+
 // Transaction acquires a connection, delegates the call to that connection,
 // and releases the connection. The call signature differs slightly from the
 // underlying Transaction in that the callback function accepts a *Conn
