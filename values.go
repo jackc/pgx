@@ -86,6 +86,10 @@ type NullFloat32 struct {
 }
 
 func (n *NullFloat32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != Float4Oid {
+		return SerializationError(fmt.Sprintf("NullFloat32.EncodeBinary cannot decode OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Float32, n.Valid = 0, false
 		return nil
@@ -128,6 +132,10 @@ type NullFloat64 struct {
 }
 
 func (n *NullFloat64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != Float8Oid {
+		return SerializationError(fmt.Sprintf("NullFloat64.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Float64, n.Valid = 0, false
 		return nil
@@ -170,10 +178,13 @@ type NullString struct {
 }
 
 func (s *NullString) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	// Not checking oid as so we can scan anything into into a NullString - may revisit this decision later
+
 	if size == -1 {
 		s.String, s.Valid = "", false
 		return nil
 	}
+
 	s.Valid = true
 	s.String = decodeText(rows, fd, size)
 	return rows.Err()
@@ -199,6 +210,10 @@ type NullInt16 struct {
 }
 
 func (n *NullInt16) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != Int2Oid {
+		return SerializationError(fmt.Sprintf("NullInt16.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Int16, n.Valid = 0, false
 		return nil
@@ -241,6 +256,10 @@ type NullInt32 struct {
 }
 
 func (n *NullInt32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != Int4Oid {
+		return SerializationError(fmt.Sprintf("NullInt32.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Int32, n.Valid = 0, false
 		return nil
@@ -283,6 +302,10 @@ type NullInt64 struct {
 }
 
 func (n *NullInt64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != Int8Oid {
+		return SerializationError(fmt.Sprintf("NullInt64.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Int64, n.Valid = 0, false
 		return nil
@@ -325,6 +348,10 @@ type NullBool struct {
 }
 
 func (n *NullBool) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != BoolOid {
+		return SerializationError(fmt.Sprintf("NullBool.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Bool, n.Valid = false, false
 		return nil
