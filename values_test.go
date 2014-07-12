@@ -79,34 +79,6 @@ func TestSanitizeSql(t *testing.T) {
 	}
 }
 
-// TODO
-func TestNilTranscode(t *testing.T) {
-	// t.Parallel()
-
-	// conn := mustConnect(t, *defaultConnConfig)
-	// defer closeConn(t, conn)
-
-	// var inputNil interface{}
-	// inputNil = nil
-
-	// result := mustSelectValue(t, conn, "select $1::integer", inputNil)
-	// if result != nil {
-	// 	t.Errorf("Did not transcode nil successfully for normal query: %v", result)
-	// }
-
-	// mustPrepare(t, conn, "testTranscode", "select $1::integer")
-	// defer func() {
-	// 	if err := conn.Deallocate("testTranscode"); err != nil {
-	// 		t.Fatalf("Unable to deallocate prepared statement: %v", err)
-	// 	}
-	// }()
-
-	// result = mustSelectValue(t, conn, "testTranscode", inputNil)
-	// if result != nil {
-	// 	t.Errorf("Did not transcode nil successfully for prepared query: %v", result)
-	// }
-}
-
 func TestDateTranscode(t *testing.T) {
 	t.Parallel()
 
