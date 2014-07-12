@@ -722,6 +722,9 @@ func (c *Conn) sendSimpleQuery(sql string, arguments ...interface{}) (err error)
 	wbuf.closeMsg()
 
 	_, err = c.conn.Write(wbuf.buf)
+	if err != nil {
+		c.die(err)
+	}
 
 	return err
 }
@@ -821,6 +824,9 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	wbuf.closeMsg()
 
 	_, err = c.conn.Write(wbuf.buf)
+	if err != nil {
+		c.die(err)
+	}
 
 	return err
 }
