@@ -309,113 +309,62 @@ func TestConnPoolTransaction(t *testing.T) {
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
+	stats := pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+
 	tx, err := pool.Begin()
 	if err != nil {
 		t.Fatalf("pool.Begin failed: %v", err)
 	}
+	defer tx.Rollback()
 
 	var n int32
-	err := pool.QueryRow("select 40+$1", 2).Scan(&n)
+	err = tx.QueryRow("select 40+$1", 2).Scan(&n)
 	if err != nil {
-		t.Fatalf("pool.QueryRow Scan failed: %v", err)
+		t.Fatalf("tx.QueryRow Scan failed: %v", err)
 	}
-
 	if n != 42 {
 		t.Errorf("Expected 42, got %d", n)
 	}
 
-	stats := pool.Stat()
+	stats = pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 0 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+
+	err = tx.Rollback()
+	if err != nil {
+		t.Fatalf("tx.Rollback failed: %v", err)
+	}
+
+	stats = pool.Stat()
 	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
 		t.Fatalf("Unexpected connection pool stats: %v", stats)
 	}
 }
 
-func TestPoolTransaction(t *testing.T) {
+func TestConnPoolTransactionIso(t *testing.T) {
 	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
-	committed, err := pool.Transaction(func(conn *pgx.Conn) bool {
-		mustExec(t, conn, "create temporary table foo(id serial primary key)")
-		return true
-	})
+	tx, err := pool.BeginIso(pgx.Serializable)
 	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: %v", err)
+		t.Fatalf("pool.Begin failed: %v", err)
 	}
-	if !committed {
-		t.Fatal("Transaction was not committed when it should have been")
-	}
+	defer tx.Rollback()
 
-	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
-		var n int64
-		err := conn.QueryRow("select count(*) from foo").Scan(&n)
-		if err != nil {
-			t.Fatalf("QueryRow.Scan failed: %v", err)
-		}
-		if n != 0 {
-			t.Fatalf("Did not receive expected value: %v", n)
-		}
-
-		mustExec(t, conn, "insert into foo(id) values(default)")
-
-		err = conn.QueryRow("select count(*) from foo").Scan(&n)
-		if err != nil {
-			t.Fatalf("QueryRow.Scan failed: %v", err)
-		}
-		if n != 1 {
-			t.Fatalf("Did not receive expected value: %v", n)
-		}
-
-		return false
-	})
+	var level string
+	err = tx.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
 	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: %v", err)
-	}
-	if committed {
-		t.Fatal("Transaction was committed when it shouldn't have been")
+		t.Fatalf("tx.QueryRow failed: %v", level)
 	}
 
-	committed, err = pool.Transaction(func(conn *pgx.Conn) bool {
-		var n int64
-		err := conn.QueryRow("select count(*) from foo").Scan(&n)
-		if err != nil {
-			t.Fatalf("QueryRow.Scan failed: %v", err)
-		}
-		if n != 0 {
-			t.Fatalf("Did not receive expected value: %v", n)
-		}
-		return true
-	})
-	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: %v", err)
-	}
-	if !committed {
-		t.Fatal("Transaction was not committed when it should have been")
-	}
-
-}
-
-func TestPoolTransactionIso(t *testing.T) {
-	t.Parallel()
-
-	pool := createConnPool(t, 2)
-	defer pool.Close()
-
-	committed, err := pool.TransactionIso("serializable", func(conn *pgx.Conn) bool {
-		var level string
-		conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
-
-		if level != "serializable" {
-			t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
-		}
-		return true
-	})
-	if err != nil {
-		t.Fatalf("Transaction unexpectedly failed: %v", err)
-	}
-	if !committed {
-		t.Fatal("Transaction was not committed when it should have been")
+	if level != "serializable" {
+		t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
 	}
 }
 

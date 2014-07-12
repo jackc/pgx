@@ -5,10 +5,30 @@ import (
 	"fmt"
 )
 
+// Transaction isolation levels
+const (
+	Serializable    = "serializable"
+	RepeatableRead  = "repeatable read"
+	ReadCommitted   = "read committed"
+	ReadUncommitted = "read uncommitted"
+)
+
+var ErrTxClosed = errors.New("tx is closed")
+
+// Begin starts a transaction with the default isolation level for the current
+// connection. To use a specific isolation level see BeginIso.
 func (c *Conn) Begin() (*Tx, error) {
 	return c.begin("")
 }
 
+// BeginIso starts a transaction with isoLevel as the transaction isolation
+// level.
+//
+// Valid isolation levels (and their constants) are:
+//   serializable (pgx.Serializable)
+//   repeatable read (pgx.RepeatableRead)
+//   read committed (pgx.ReadCommitted)
+//   read uncommitted (pgx.ReadUncommitted)
 func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
 	return c.begin(isoLevel)
 }
@@ -29,6 +49,10 @@ func (c *Conn) begin(isoLevel string) (*Tx, error) {
 	return &Tx{conn: c}, nil
 }
 
+// Tx represents a database transaction.
+//
+// All Tx methods return ErrTxClosed if Commit or Rollback has already been
+// called on the Tx.
 type Tx struct {
 	pool   *ConnPool
 	conn   *Conn
@@ -38,7 +62,7 @@ type Tx struct {
 // Commit commits the transaction
 func (tx *Tx) Commit() error {
 	if tx.closed {
-		return errors.New("tx is closed")
+		return ErrTxClosed
 	}
 
 	_, err := tx.conn.Exec("commit")
@@ -46,10 +70,13 @@ func (tx *Tx) Commit() error {
 	return err
 }
 
-// Rollback rolls back the transaction
+// Rollback rolls back the transaction. Rollback will return ErrTxClosed if the
+// Tx is already closed, but is otherwise safe to call multiple times. Hence, a
+// defer tx.Rollback() is safe even if tx.Commit() will be called first in a
+// non-error condition.
 func (tx *Tx) Rollback() error {
 	if tx.closed {
-		return errors.New("tx is closed")
+		return ErrTxClosed
 	}
 
 	_, err := tx.conn.Exec("rollback")
@@ -68,7 +95,7 @@ func (tx *Tx) close() {
 // Exec delegates to the underlying *Conn
 func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	if tx.closed {
-		return CommandTag(""), errors.New("tx is closed")
+		return CommandTag(""), ErrTxClosed
 	}
 
 	return tx.conn.Exec(sql, arguments...)
@@ -78,7 +105,7 @@ func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag,
 func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 	if tx.closed {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
-		err := errors.New("tx is closed")
+		err := ErrTxClosed
 		return &Rows{closed: true, err: err}, err
 	}
 
@@ -89,53 +116,4 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := tx.conn.Query(sql, args...)
 	return (*Row)(rows)
-}
-
-// Transaction runs f in a transaction. f should return true if the transaction
-// should be committed or false if it should be rolled back. Return value committed
-// is if the transaction was committed or not. committed should be checked separately
-// from err as an explicit rollback is not an error. Transaction will use the default
-// isolation level for the current connection. To use a specific isolation level see
-// TransactionIso
-func (c *Conn) Transaction(f func() bool) (committed bool, err error) {
-	return c.transaction("", f)
-}
-
-// TransactionIso is the same as Transaction except it takes an isoLevel argument that
-// it uses as the transaction isolation level.
-//
-// Valid isolation levels (and their constants) are:
-//   serializable (pgx.Serializable)
-//   repeatable read (pgx.RepeatableRead)
-//   read committed (pgx.ReadCommitted)
-//   read uncommitted (pgx.ReadUncommitted)
-func (c *Conn) TransactionIso(isoLevel string, f func() bool) (committed bool, err error) {
-	return c.transaction(isoLevel, f)
-}
-
-func (c *Conn) transaction(isoLevel string, f func() bool) (committed bool, err error) {
-	var beginSql string
-	if isoLevel == "" {
-		beginSql = "begin"
-	} else {
-		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
-	}
-
-	if _, err = c.Exec(beginSql); err != nil {
-		return
-	}
-	defer func() {
-		if committed && c.TxStatus == 'T' {
-			_, err = c.Exec("commit")
-			if err != nil {
-				committed = false
-			}
-		} else {
-			_, err = c.Exec("rollback")
-			committed = false
-		}
-	}()
-
-	committed = f()
-	return
 }

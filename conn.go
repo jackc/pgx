@@ -23,14 +23,6 @@ import (
 	"time"
 )
 
-// Transaction isolation levels
-const (
-	Serializable    = "serializable"
-	RepeatableRead  = "repeatable read"
-	ReadCommitted   = "read committed"
-	ReadUncommitted = "read uncommitted"
-)
-
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	Host      string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)

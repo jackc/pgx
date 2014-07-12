@@ -232,33 +232,3 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 	tx.pool = p
 	return tx, nil
 }
-
-// Transaction acquires a connection, delegates the call to that connection,
-// and releases the connection. The call signature differs slightly from the
-// underlying Transaction in that the callback function accepts a *Conn
-func (p *ConnPool) Transaction(f func(conn *Conn) bool) (committed bool, err error) {
-	var c *Conn
-	if c, err = p.Acquire(); err != nil {
-		return
-	}
-	defer p.Release(c)
-
-	return c.Transaction(func() bool {
-		return f(c)
-	})
-}
-
-// TransactionIso acquires a connection, delegates the call to that connection,
-// and releases the connection. The call signature differs slightly from the
-// underlying TransactionIso in that the callback function accepts a *Conn
-func (p *ConnPool) TransactionIso(isoLevel string, f func(conn *Conn) bool) (committed bool, err error) {
-	var c *Conn
-	if c, err = p.Acquire(); err != nil {
-		return
-	}
-	defer p.Release(c)
-
-	return c.TransactionIso(isoLevel, func() bool {
-		return f(c)
-	})
-}
