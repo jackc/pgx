@@ -43,10 +43,6 @@ func (rows *Rows) FieldDescriptions() []FieldDescription {
 	return rows.fields
 }
 
-func (rows *Rows) MsgReader() *MsgReader {
-	return rows.mr
-}
-
 func (rows *Rows) close() {
 	if rows.pool != nil {
 		rows.pool.Release(rows.conn)
@@ -267,7 +263,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			// if it is not an intrinsic type then return the text
 			switch fd.FormatCode {
 			case TextFormatCode:
-				values = append(values, rows.MsgReader().ReadString(size))
+				values = append(values, rows.mr.ReadString(size))
 			case BinaryFormatCode:
 				return nil, errors.New("Values cannot handle binary format non-intrinsic types")
 			default:
