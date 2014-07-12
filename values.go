@@ -22,6 +22,7 @@ const (
 	Float8Oid      = 701
 	VarcharOid     = 1043
 	DateOid        = 1082
+	TimestampOid   = 1114
 	TimestampTzOid = 1184
 )
 
@@ -366,10 +367,15 @@ type NullTime struct {
 }
 
 func (n *NullTime) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+	if fd.DataType != TimestampTzOid {
+		return SerializationError(fmt.Sprintf("NullTime.EncodeBinary cannot encode into OID %d", fd.DataType))
+	}
+
 	if size == -1 {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
+
 	n.Valid = true
 	n.Time = decodeTimestampTz(rows, fd, size)
 
@@ -959,6 +965,44 @@ func encodeTimestampTz(w *WriteBuf, value interface{}) error {
 
 	w.WriteInt32(8)
 	w.WriteInt64(microsecSinceY2K)
+
+	return nil
+}
+
+func decodeTimestamp(rows *Rows, fd *FieldDescription, size int32) time.Time {
+	var zeroTime time.Time
+
+	if fd.DataType != TimestampOid {
+		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampOid, fd.DataType)))
+		return zeroTime
+	}
+
+	switch fd.FormatCode {
+	case TextFormatCode:
+		s := rows.mr.ReadString(size)
+		t, err := time.ParseInLocation("2006-01-02 15:04:05.999999", s, time.Local)
+		if err != nil {
+			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamp: %v - %v", err, s)))
+			return zeroTime
+		}
+		return t
+	case BinaryFormatCode:
+		rows.Fatal(ProtocolError("Can't decode binary timestamp"))
+		return zeroTime
+	default:
+		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		return zeroTime
+	}
+}
+
+func encodeTimestamp(w *WriteBuf, value interface{}) error {
+	t, ok := value.(time.Time)
+	if !ok {
+		return fmt.Errorf("Expected time.Time, received %T", value)
+	}
+
+	s := t.Format("2006-01-02 15:04:05.999999")
+	return encodeText(w, s)
 
 	return nil
 }

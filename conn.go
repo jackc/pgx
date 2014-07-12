@@ -438,7 +438,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			switch oid {
 			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid:
 				wbuf.WriteInt16(BinaryFormatCode)
-			case TextOid, VarcharOid, DateOid:
+			case TextOid, VarcharOid, DateOid, TimestampOid:
 				wbuf.WriteInt16(TextFormatCode)
 			default:
 				return SerializationError(fmt.Sprintf("Parameter %d oid %d is not a core type and argument type %T does not implement TextEncoder or BinaryEncoder", i, oid, arg))
@@ -488,6 +488,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeDate(wbuf, arguments[i])
 			case TimestampTzOid:
 				err = encodeTimestampTz(wbuf, arguments[i])
+			case TimestampOid:
+				err = encodeTimestamp(wbuf, arguments[i])
 			default:
 				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement TextEncoder or BinaryEncoder", arg))
 			}

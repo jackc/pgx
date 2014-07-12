@@ -199,10 +199,17 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		case *float64:
 			*d = decodeFloat8(rows, fd, size)
 		case *time.Time:
-			if fd.DataType == DateOid {
+			switch fd.DataType {
+			case DateOid:
 				*d = decodeDate(rows, fd, size)
-			} else {
+			case TimestampTzOid:
 				*d = decodeTimestampTz(rows, fd, size)
+			case TimestampOid:
+				*d = decodeTimestamp(rows, fd, size)
+			default:
+				err = fmt.Errorf("Can't convert OID %v to time.Time", fd.DataType)
+				rows.Fatal(err)
+				return err
 			}
 
 		case Scanner:
@@ -254,6 +261,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, decodeDate(rows, fd, size))
 		case TimestampTzOid:
 			values = append(values, decodeTimestampTz(rows, fd, size))
+		case TimestampOid:
+			values = append(values, decodeTimestamp(rows, fd, size))
 		default:
 			// if it is not an intrinsic type then return the text
 			switch fd.FormatCode {
