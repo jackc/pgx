@@ -258,6 +258,11 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	for _, _ = range rows.fields {
 		vr, _ := rows.nextColumn()
 
+		if vr.Len() == -1 {
+			values = append(values, nil)
+			continue
+		}
+
 		switch vr.Type().DataType {
 		case BoolOid:
 			values = append(values, decodeBool(vr))
