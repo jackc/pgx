@@ -143,14 +143,6 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 	return
 }
 
-func (p *ConnPool) MaxConnectionCount() int {
-	return p.maxConnections
-}
-
-func (p *ConnPool) CurrentConnectionCount() int {
-	return p.maxConnections
-}
-
 func (p *ConnPool) createConnection() (c *Conn, err error) {
 	c, err = Connect(p.config)
 	if err != nil {
