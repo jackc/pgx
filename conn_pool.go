@@ -8,8 +8,8 @@ import (
 
 type ConnPoolConfig struct {
 	ConnConfig
-	MaxConnections int // max simultaneous connections to use, default 5, must be at least 2
-	AfterConnect   func(*Conn) error
+	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
+	AfterConnect   func(*Conn) error // function to call on every new connection
 }
 
 type ConnPool struct {
@@ -124,7 +124,7 @@ func (p *ConnPool) Release(conn *Conn) {
 	p.cond.Signal()
 }
 
-// Close ends the use of a connection by closing all underlying connections.
+// Close ends the use of a connection pool by closing all underlying connections.
 func (p *ConnPool) Close() {
 	for i := 0; i < p.maxConnections; i++ {
 		if c, err := p.Acquire(); err != nil {
@@ -133,6 +133,7 @@ func (p *ConnPool) Close() {
 	}
 }
 
+// Stat returns connection pool statistics
 func (p *ConnPool) Stat() (s ConnPoolStat) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
@@ -168,6 +169,8 @@ func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag Comman
 	return c.Exec(sql, arguments...)
 }
 
+// Query acquires a connection and delegates the call to that connection. When
+// *Rows are closed, the connection is released automatically.
 func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	c, err := p.Acquire()
 	if err != nil {
@@ -185,6 +188,9 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	return rows, nil
 }
 
+// QueryRow acquires a connection and delegates the call to that connection. The
+// connection is released automatically after Scan is called on the returned
+// *Row.
 func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := p.Query(sql, args...)
 	return (*Row)(rows)

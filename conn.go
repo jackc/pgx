@@ -1,6 +1,9 @@
 // Package pgx is a PostgreSQL database driver.
 //
-// It does not implement the standard database/sql interface.
+// pgx provides lower level access to PostgreSQL than the standard database/sql
+// It remains as similar to the database/sql interface as possible while
+// providing better speed and access to PostgreSQL specific features. Import
+// github.com/jack/pgx/stdlib to use pgx as a database/sql compatible driver.
 package pgx
 
 import (

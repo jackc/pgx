@@ -4,52 +4,74 @@ PostgreSQL client library for Go
 
 ## Description
 
-Pgx is a database connection library designed specifically for PostgreSQL.
-There are features of PostgreSQL that are difficult or impossible to use with
-the standard Go library SQL interface. This library trades conformity with the
-standard interface for ease of use and the power that is available when
-working directly with PostgreSQL.
+pgx is a database connection library designed specifically for PostgreSQL. pgx offers an interface similar to database/sql that offers more performance and features than are available the database/sql interface. It also can run as a database/sql compatible driver by importing github.com/jackc/pgx/stdlib.
 
 ## Features
 
 Below are some of the standout features of pgx.
 
-### Simple Query Interface
+### Familiar Query Interface
 
-Pgx has easy to use functions for common query operations like SelectValue,
-SelectValues, SelectRow, and SelectRows. These can be easier to use than the
-standard Scan interface. These directly return interface{}, []interface{},
-map[string]interface{}, and []map[string]interface{} respectively. SelectFunc
-offers custom row by row processing.
+pgx implements Query, QueryRow, and Scan in the familiar database/sql style.
 
 ```go
-if widgets, err := conn.SelectRows("select name, weight from widgets where type=$1", type); err != nil {
-    for w := range widgets {
-        fmt.Printf("%v has a weight of %v.", widgets["name"], widgets["weight"])
-    }
+var name string
+var weight int64
+err := conn.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+if err != nil {
+    return err
 }
+```
+
+pgx adds convenience to Query in that it is only necessary to call Close if you
+want to ignore the rest of the rows. When Next has read all rows or an error
+occurs, the rows are closed automatically.
+
+```go
+var sum int32
+
+rows, err := conn.Query("select generate_series(1,$1)", 10)
+if err != nil {
+    t.Fatalf("conn.Query failed: ", err)
+}
+
+for rows.Next() {
+    var n int32
+    rows.Scan(&n)
+    sum += n
+}
+
+// rows.Close implicitly called when rows.Next is finished
+
+if rows.Err() != nil {
+    t.Fatalf("conn.Query failed: ", err)
+}
+
+// ...
 ```
 
 ### Prepared Statements
 
 Prepared statements are easy to use in pgx. Just call Prepare with the name of
 the statement and the SQL. To execute a prepared statement just pass the name
-of the statement into a Select* or Exec command as the SQL text. It will
+of the statement into a Query, QueryRow, or Exec as the SQL text. It will
 automatically detect that it is the name of a prepared statement and execute
 it.
 
 ```go
-if err := conn.Prepare("getTime", "select now()"); err == nil {
+if _, err := conn.Prepare("getTime", "select now()"); err == nil {
     // handle err
 }
-if time, err := conn.SelectValue("getTime"); err != nil {
-    // do something with time
+
+var t time.Time
+err := conn.QueryRow("getTime").Scan(&t)
+if err != nil {
+    return err
 }
 ```
 
-Prepared statements will use the binary transmission format for types that
-have a binary transcoder available (this can substantially reduce overhead
-when using the bytea type).
+Prepared statements will use the binary transmission when possible. This can
+substantially increase performance.
 
 ### Explicit Connection Pool
 
@@ -61,27 +83,39 @@ being made available in the connection pool. This is especially useful to
 ensure all connections have the same prepared statements available or to
 change any other connection settings.
 
-It also delegates Select* and Exec functions to an automatically checked
-out and released connection so you can avoid manually acquiring and releasing
-connections when you do not need that level of control.
+It delegates Query, QueryRow, Exec, and Begin functions to an automatically
+checked out and released connection so you can avoid manually acquiring and
+releasing connections when you do not need that level of control.
 
 ```go
-if widgets, err := pool.SelectRows("select * from widgets where type=$1", type); err != nil {
-    // do something with widgets
+var name string
+var weight int64
+err := pool.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+if err != nil {
+    return err
 }
 ```
 
 ### Transactions
 
-Transactions are are used by passing a function to the Transaction function.
-This function ensures that the transaction is committed or rolled back
-automatically. The TransactionIso variant creates a transaction with a
-specified isolation level.
+Transactions are started by calling Begin or BeginIso. The BeginIso variant
+creates a transaction with a specified isolation level.
 
 ```go
-committed, err := conn.TransactionIso("serializable", func() bool {
-    // do something with transaction
-    return true // return true to commit / false to rollback
+    tx, err := conn.Begin()
+    if err != nil {
+        t.Fatalf("conn.Begin failed: %v", err)
+    }
+
+    _, err = tx.Exec("insert into foo(id) values (1)")
+    if err != nil {
+        t.Fatalf("tx.Exec failed: %v", err)
+    }
+
+    err = tx.Commit()
+    if err != nil {
+        t.Fatalf("tx.Commit failed: %v", err)
+    }
 })
 ```
 
@@ -103,36 +137,25 @@ The pgx ConnConfig struct has a TLSConfig field. If this field is
 nil, then TLS will be disabled. If it is present, then it will be used to
 configure the TLS connection.
 
-### Custom Transcoder Support
+### Custom Type Support
 
-Pgx includes transcoders for the common data types like integers, floats,
-strings, dates, and times that have direct mappings between Go and SQL.
-Transcoders can be added for additional types like point, hstore, numeric,
-etc. that do not have direct mappings in Go. pgx.ValueTranscoders is a map of
-PostgreSQL OID's to transcoders. All that is needed to add or change how a
-data type is to set that OID's transcoder. See
-example_value_transcoder_test.go for an example of a custom transcoder for the
-PostgreSQL point type.
+pgx includes support for the common data types like integers, floats, strings,
+dates, and times that have direct mappings between Go and SQL. Support can be
+added for additional types like point, hstore, numeric, etc. that do not have
+direct mappings in Go by the types implementing Scanner, TextEncoder, and
+optionally BinaryEncoder. To enable binary format for custom types, a prepared
+statement must be used and the field description of the returned field must have
+FormatCode set to BinaryFormatCode. See example_value_transcoder_test.go for an
+example of a custom type for the PostgreSQL point type.
 
 ### Null Mapping
 
-As pgx uses interface{} for all values SQL nulls are mapped to nil. This
-eliminates the need for wrapping values in structs that include a boolean for
-the null possibility. On the other hand, returned values usually must be type
-asserted before use. It also presents difficulties dealing with complex types
-such as arrays. pgx directly maps a Go []int32 to a PostgreSQL int4[]. The
-problem is the PostgreSQL array can include nulls, but the Go slice cannot.
-Array transcoding should be considered experimental. On the plus side, because
-of the pluggable transcoder support, an application that wished to handle
-arrays (or any types) differently can easily override the default transcoding
-(so even using a strict with value and null fields would simply be a matter of
-changing transcoders).
+pgx includes Null* types in a similar fashion to database/sql that implement the
+necessary interfaces to be encoded and scanned.
 
 ### Logging
 
-Pgx defines the pgx.Logger interface. A value that satisfies this interface
-used as part of ConnectionOptions or ConnPoolConfig to enable logging
-of pgx activities.
+pgx connections optionally accept a logger from the [log15 package](http://gopkg.in/inconshreveable/log15.v2).
 
 ## Testing
 

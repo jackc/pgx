@@ -4,7 +4,7 @@ import (
 	"errors"
 )
 
-// ValueReader the mechanism for implementing the BinaryDecoder interface.
+// ValueReader is used by the Scanner interface to decode values.
 type ValueReader struct {
 	mr                  *msgReader
 	fd                  *FieldDescription

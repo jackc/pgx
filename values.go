@@ -11,6 +11,7 @@ import (
 	"unsafe"
 )
 
+// PostgreSQL oids for common types
 const (
 	BoolOid        = 16
 	ByteaOid       = 17
@@ -26,11 +27,13 @@ const (
 	TimestampTzOid = 1184
 )
 
+// PostgreSQL format codes
 const (
 	TextFormatCode   = 0
 	BinaryFormatCode = 1
 )
 
+// EncodeText statuses
 const (
 	NullText   = iota
 	SafeText   = iota
@@ -45,8 +48,8 @@ func (e SerializationError) Error() string {
 
 // Scanner is an interface used to decode values from the PostgreSQL server.
 type Scanner interface {
-	// Scan MUST check fd's DataType and FormatCode before decoding. It should
-	// not assume that it was called on the type of value.
+	// Scan MUST check r.Type().DataType and r.Type().FormatCode before decoding.
+	// It should not assume that it was called on the type of value.
 	Scan(r *ValueReader) error
 }
 
