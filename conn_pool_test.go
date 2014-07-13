@@ -62,7 +62,7 @@ func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	}
 	defer pool.Close()
 
-	if n := pool.MaxConnectionCount(); n != 5 {
+	if n := pool.Stat().MaxConnections; n != 5 {
 		t.Fatalf("Expected pool to default to 5 max connections, but it was %d", n)
 	}
 }
