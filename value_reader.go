@@ -6,7 +6,7 @@ import (
 
 // ValueReader the mechanism for implementing the BinaryDecoder interface.
 type ValueReader struct {
-	mr                  *MsgReader
+	mr                  *msgReader
 	fd                  *FieldDescription
 	valueBytesRemaining int32
 	err                 error
@@ -43,7 +43,7 @@ func (r *ValueReader) ReadByte() byte {
 		return 0
 	}
 
-	return r.mr.ReadByte()
+	return r.mr.readByte()
 }
 
 func (r *ValueReader) ReadInt16() int16 {
@@ -57,7 +57,7 @@ func (r *ValueReader) ReadInt16() int16 {
 		return 0
 	}
 
-	return r.mr.ReadInt16()
+	return r.mr.readInt16()
 }
 
 func (r *ValueReader) ReadInt32() int32 {
@@ -71,7 +71,7 @@ func (r *ValueReader) ReadInt32() int32 {
 		return 0
 	}
 
-	return r.mr.ReadInt32()
+	return r.mr.readInt32()
 }
 
 func (r *ValueReader) ReadInt64() int64 {
@@ -85,7 +85,7 @@ func (r *ValueReader) ReadInt64() int64 {
 		return 0
 	}
 
-	return r.mr.ReadInt64()
+	return r.mr.readInt64()
 }
 
 func (r *ValueReader) ReadOid() Oid {
@@ -104,7 +104,7 @@ func (r *ValueReader) ReadString(count int32) string {
 		return ""
 	}
 
-	return r.mr.ReadString(count)
+	return r.mr.readString(count)
 }
 
 // ReadBytes reads count bytes and returns as []byte
@@ -119,5 +119,5 @@ func (r *ValueReader) ReadBytes(count int32) []byte {
 		return nil
 	}
 
-	return r.mr.ReadBytes(count)
+	return r.mr.readBytes(count)
 }

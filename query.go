@@ -31,7 +31,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 type Rows struct {
 	pool      *ConnPool
 	conn      *Conn
-	mr        *MsgReader
+	mr        *msgReader
 	fields    []FieldDescription
 	vr        ValueReader
 	rowCount  int
@@ -134,7 +134,7 @@ func (rows *Rows) Next() bool {
 			rows.close()
 			return false
 		case dataRow:
-			fieldCount := r.ReadInt16()
+			fieldCount := r.readInt16()
 			if int(fieldCount) != len(rows.fields) {
 				rows.Fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(rows.fields), fieldCount)))
 				return false
@@ -165,7 +165,7 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
-	size := rows.mr.ReadInt32()
+	size := rows.mr.readInt32()
 	rows.vr = ValueReader{mr: rows.mr, fd: fd, valueBytesRemaining: size}
 	return &rows.vr, true
 }

@@ -52,7 +52,7 @@ type Conn struct {
 	causeOfDeath       error
 	logger             log.Logger
 	rows               Rows
-	mr                 MsgReader
+	mr                 msgReader
 }
 
 type PreparedStatement struct {
@@ -172,7 +172,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 
 	for {
 		var t byte
-		var r *MsgReader
+		var r *msgReader
 		t, r, err = c.rxMsg()
 		if err != nil {
 			return nil, err
@@ -278,7 +278,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 
 	for {
 		var t byte
-		var r *MsgReader
+		var r *msgReader
 		t, r, err := c.rxMsg()
 		if err != nil {
 			return nil, err
@@ -364,7 +364,7 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		}
 
 		var t byte
-		var r *MsgReader
+		var r *msgReader
 		if t, r, err = c.rxMsg(); err == nil {
 			if err = c.processContextFreeMsg(t, r); err != nil {
 				return nil, err
@@ -544,7 +544,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 
 	for {
 		var t byte
-		var r *MsgReader
+		var r *msgReader
 		t, r, err = c.rxMsg()
 		if err != nil {
 			return commandTag, err
@@ -558,7 +558,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 		case dataRow:
 		case bindComplete:
 		case commandComplete:
-			commandTag = CommandTag(r.ReadCString())
+			commandTag = CommandTag(r.readCString())
 		default:
 			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
 				softErr = e
@@ -570,7 +570,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
-func (c *Conn) processContextFreeMsg(t byte, r *MsgReader) (err error) {
+func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	switch t {
 	case 'S':
 		c.rxParameterStatus(r)
@@ -587,7 +587,7 @@ func (c *Conn) processContextFreeMsg(t byte, r *MsgReader) (err error) {
 	}
 }
 
-func (c *Conn) rxMsg() (t byte, r *MsgReader, err error) {
+func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	if !c.alive {
 		return 0, nil, ErrDeadConn
 	}
@@ -600,13 +600,13 @@ func (c *Conn) rxMsg() (t byte, r *MsgReader, err error) {
 	return t, &c.mr, err
 }
 
-func (c *Conn) rxAuthenticationX(r *MsgReader) (err error) {
-	switch r.ReadInt32() {
+func (c *Conn) rxAuthenticationX(r *msgReader) (err error) {
+	switch r.readInt32() {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
 		err = c.txPasswordMessage(c.config.Password)
 	case 5: // AuthenticationMD5Password
-		salt := r.ReadString(4)
+		salt := r.readString(4)
 		digestedPassword := "md5" + hexMD5(hexMD5(c.config.Password+c.config.User)+salt)
 		err = c.txPasswordMessage(digestedPassword)
 	default:
@@ -622,72 +622,72 @@ func hexMD5(s string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (c *Conn) rxParameterStatus(r *MsgReader) {
-	key := r.ReadCString()
-	value := r.ReadCString()
+func (c *Conn) rxParameterStatus(r *msgReader) {
+	key := r.readCString()
+	value := r.readCString()
 	c.RuntimeParams[key] = value
 }
 
-func (c *Conn) rxErrorResponse(r *MsgReader) (err PgError) {
+func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 	for {
-		switch r.ReadByte() {
+		switch r.readByte() {
 		case 'S':
-			err.Severity = r.ReadCString()
+			err.Severity = r.readCString()
 		case 'C':
-			err.Code = r.ReadCString()
+			err.Code = r.readCString()
 		case 'M':
-			err.Message = r.ReadCString()
+			err.Message = r.readCString()
 		case 0: // End of error message
 			if err.Severity == "FATAL" {
 				c.die(err)
 			}
 			return
 		default: // Ignore other error fields
-			r.ReadCString()
+			r.readCString()
 		}
 	}
 }
 
-func (c *Conn) rxBackendKeyData(r *MsgReader) {
-	c.Pid = r.ReadInt32()
-	c.SecretKey = r.ReadInt32()
+func (c *Conn) rxBackendKeyData(r *msgReader) {
+	c.Pid = r.readInt32()
+	c.SecretKey = r.readInt32()
 }
 
-func (c *Conn) rxReadyForQuery(r *MsgReader) {
-	c.TxStatus = r.ReadByte()
+func (c *Conn) rxReadyForQuery(r *msgReader) {
+	c.TxStatus = r.readByte()
 }
 
-func (c *Conn) rxRowDescription(r *MsgReader) (fields []FieldDescription) {
-	fieldCount := r.ReadInt16()
+func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
+	fieldCount := r.readInt16()
 	fields = make([]FieldDescription, fieldCount)
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
-		f.Name = r.ReadCString()
-		f.Table = r.ReadOid()
-		f.AttributeNumber = r.ReadInt16()
-		f.DataType = r.ReadOid()
-		f.DataTypeSize = r.ReadInt16()
-		f.Modifier = r.ReadInt32()
-		f.FormatCode = r.ReadInt16()
+		f.Name = r.readCString()
+		f.Table = r.readOid()
+		f.AttributeNumber = r.readInt16()
+		f.DataType = r.readOid()
+		f.DataTypeSize = r.readInt16()
+		f.Modifier = r.readInt32()
+		f.FormatCode = r.readInt16()
 	}
 	return
 }
 
-func (c *Conn) rxParameterDescription(r *MsgReader) (parameters []Oid) {
-	parameterCount := r.ReadInt16()
+func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
+	parameterCount := r.readInt16()
 	parameters = make([]Oid, 0, parameterCount)
 
 	for i := int16(0); i < parameterCount; i++ {
-		parameters = append(parameters, r.ReadOid())
+		parameters = append(parameters, r.readOid())
 	}
 	return
 }
 
-func (c *Conn) rxNotificationResponse(r *MsgReader) {
+func (c *Conn) rxNotificationResponse(r *msgReader) {
 	n := new(Notification)
-	n.Pid = r.ReadInt32()
-	n.Channel = r.ReadCString()
-	n.Payload = r.ReadCString()
+	n.Pid = r.readInt32()
+	n.Channel = r.readCString()
+	n.Payload = r.readCString()
 	c.notifications = append(c.notifications, n)
 }
 
