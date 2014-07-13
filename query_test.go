@@ -408,6 +408,15 @@ func TestQueryRowCoreTypes(t *testing.T) {
 			}
 
 			ensureConnValid(t, conn)
+
+			// Check that Scan errors when a core type is null
+			err = conn.QueryRow(sql, nil).Scan(tt.scanArgs...)
+			if err == nil {
+				t.Errorf("%d. Expected null to cause error, but it didn't (sql -> %v)", i, sql)
+			}
+			if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
+				t.Errorf(`%d. Expected null to cause error "Cannot decode null..." but it was %v (sql -> %v)`, i, err, sql)
+			}
 		}
 	}
 }
