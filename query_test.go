@@ -472,7 +472,7 @@ func TestQueryRowUnpreparedErrors(t *testing.T) {
 		if err == nil {
 			t.Errorf("%d. Unexpected success (sql -> %v, queryArgs -> %v)", i, tt.sql, tt.queryArgs)
 		}
-		if !strings.Contains(err.Error(), tt.err) {
+		if err != nil && !strings.Contains(err.Error(), tt.err) {
 			t.Errorf("%d. Expected error to contain %s, but got %v (sql -> %v, queryArgs -> %v)", i, tt.err, err, tt.sql, tt.queryArgs)
 		}
 
@@ -511,7 +511,7 @@ func TestQueryRowPreparedErrors(t *testing.T) {
 		if err == nil {
 			t.Errorf("%d. Unexpected success (sql -> %v, queryArgs -> %v)", i, tt.sql, tt.queryArgs)
 		}
-		if !strings.Contains(err.Error(), tt.err) {
+		if err != nil && !strings.Contains(err.Error(), tt.err) {
 			t.Errorf("%d. Expected error to contain %s, but got %v (sql -> %v, queryArgs -> %v)", i, tt.err, err, tt.sql, tt.queryArgs)
 		}
 

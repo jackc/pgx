@@ -47,7 +47,7 @@ func (e SerializationError) Error() string {
 type Scanner interface {
 	// Scan MUST check fd's DataType and FormatCode before decoding. It should
 	// not assume that it was called on the type of value.
-	Scan(rows *Rows, fd *FieldDescription, size int32) error
+	Scan(r *ValueReader) error
 }
 
 // TextEncoder is an interface used to encode values in text format for
@@ -85,18 +85,18 @@ type NullFloat32 struct {
 	Valid   bool // Valid is true if Float32 is not NULL
 }
 
-func (n *NullFloat32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != Float4Oid {
-		return SerializationError(fmt.Sprintf("NullFloat32.EncodeBinary cannot decode OID %d", fd.DataType))
+func (n *NullFloat32) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != Float4Oid {
+		return SerializationError(fmt.Sprintf("NullFloat32.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Float32, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Float32 = decodeFloat4(rows, fd, size)
-	return rows.Err()
+	n.Float32 = decodeFloat4(vr)
+	return vr.Err()
 }
 
 func (n NullFloat32) EncodeText() (string, byte, error) {
@@ -131,18 +131,18 @@ type NullFloat64 struct {
 	Valid   bool // Valid is true if Float64 is not NULL
 }
 
-func (n *NullFloat64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != Float8Oid {
-		return SerializationError(fmt.Sprintf("NullFloat64.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullFloat64) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != Float8Oid {
+		return SerializationError(fmt.Sprintf("NullFloat64.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Float64, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Float64 = decodeFloat8(rows, fd, size)
-	return rows.Err()
+	n.Float64 = decodeFloat8(vr)
+	return vr.Err()
 }
 
 func (n NullFloat64) EncodeText() (string, byte, error) {
@@ -177,17 +177,17 @@ type NullString struct {
 	Valid  bool // Valid is true if Int64 is not NULL
 }
 
-func (s *NullString) Scan(rows *Rows, fd *FieldDescription, size int32) error {
+func (s *NullString) Scan(vr *ValueReader) error {
 	// Not checking oid as so we can scan anything into into a NullString - may revisit this decision later
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		s.String, s.Valid = "", false
 		return nil
 	}
 
 	s.Valid = true
-	s.String = decodeText(rows, fd, size)
-	return rows.Err()
+	s.String = decodeText(vr)
+	return vr.Err()
 }
 
 func (s NullString) EncodeText() (string, byte, error) {
@@ -209,18 +209,18 @@ type NullInt16 struct {
 	Valid bool // Valid is true if Int16 is not NULL
 }
 
-func (n *NullInt16) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != Int2Oid {
-		return SerializationError(fmt.Sprintf("NullInt16.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullInt16) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != Int2Oid {
+		return SerializationError(fmt.Sprintf("NullInt16.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Int16, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Int16 = decodeInt2(rows, fd, size)
-	return rows.Err()
+	n.Int16 = decodeInt2(vr)
+	return vr.Err()
 }
 
 func (n NullInt16) EncodeText() (string, byte, error) {
@@ -255,18 +255,18 @@ type NullInt32 struct {
 	Valid bool // Valid is true if Int64 is not NULL
 }
 
-func (n *NullInt32) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != Int4Oid {
-		return SerializationError(fmt.Sprintf("NullInt32.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullInt32) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != Int4Oid {
+		return SerializationError(fmt.Sprintf("NullInt32.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Int32, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Int32 = decodeInt4(rows, fd, size)
-	return rows.Err()
+	n.Int32 = decodeInt4(vr)
+	return vr.Err()
 }
 
 func (n NullInt32) EncodeText() (string, byte, error) {
@@ -301,18 +301,18 @@ type NullInt64 struct {
 	Valid bool // Valid is true if Int64 is not NULL
 }
 
-func (n *NullInt64) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != Int8Oid {
-		return SerializationError(fmt.Sprintf("NullInt64.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullInt64) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != Int8Oid {
+		return SerializationError(fmt.Sprintf("NullInt64.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Int64, n.Valid = 0, false
 		return nil
 	}
 	n.Valid = true
-	n.Int64 = decodeInt8(rows, fd, size)
-	return rows.Err()
+	n.Int64 = decodeInt8(vr)
+	return vr.Err()
 }
 
 func (n NullInt64) EncodeText() (string, byte, error) {
@@ -347,18 +347,18 @@ type NullBool struct {
 	Valid bool // Valid is true if Bool is not NULL
 }
 
-func (n *NullBool) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != BoolOid {
-		return SerializationError(fmt.Sprintf("NullBool.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullBool) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != BoolOid {
+		return SerializationError(fmt.Sprintf("NullBool.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Bool, n.Valid = false, false
 		return nil
 	}
 	n.Valid = true
-	n.Bool = decodeBool(rows, fd, size)
-	return rows.Err()
+	n.Bool = decodeBool(vr)
+	return vr.Err()
 }
 
 func (n NullBool) EncodeText() (string, byte, error) {
@@ -393,20 +393,20 @@ type NullTime struct {
 	Valid bool // Valid is true if Time is not NULL
 }
 
-func (n *NullTime) Scan(rows *Rows, fd *FieldDescription, size int32) error {
-	if fd.DataType != TimestampTzOid {
-		return SerializationError(fmt.Sprintf("NullTime.EncodeBinary cannot encode into OID %d", fd.DataType))
+func (n *NullTime) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != TimestampTzOid {
+		return SerializationError(fmt.Sprintf("NullTime.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
-	if size == -1 {
+	if vr.Len() == -1 {
 		n.Time, n.Valid = time.Time{}, false
 		return nil
 	}
 
 	n.Valid = true
-	n.Time = decodeTimestampTz(rows, fd, size)
+	n.Time = decodeTimestampTz(vr)
 
-	return rows.Err()
+	return vr.Err()
 }
 
 func (n NullTime) EncodeText() (string, byte, error) {
@@ -523,28 +523,28 @@ func sanitizeArg(arg interface{}) (string, error) {
 	}
 }
 
-func decodeBool(rows *Rows, fd *FieldDescription, size int32) bool {
-	switch fd.FormatCode {
+func decodeBool(vr *ValueReader) bool {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		switch s {
 		case "t":
 			return true
 		case "f":
 			return false
 		default:
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid bool: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid bool: %v", s)))
 			return false
 		}
 	case BinaryFormatCode:
-		if size != 1 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", size)))
+		if vr.Len() != 1 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", vr.Len())))
 			return false
 		}
-		b := rows.mr.ReadByte()
+		b := vr.ReadByte()
 		return b != 0
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return false
 	}
 }
@@ -567,29 +567,29 @@ func encodeBool(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt8(rows *Rows, fd *FieldDescription, size int32) int64 {
-	if fd.DataType != Int8Oid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8Oid, fd.DataType)))
+func decodeInt8(vr *ValueReader) int64 {
+	if vr.Type().DataType != Int8Oid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8Oid, vr.Type().DataType)))
 		return 0
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int8: %v", s)))
 			return 0
 		}
 		return n
 	case BinaryFormatCode:
-		if size != 8 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", size)))
+		if vr.Len() != 8 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", vr.Len())))
 			return 0
 		}
-		return rows.mr.ReadInt64()
+		return vr.ReadInt64()
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 }
@@ -628,29 +628,29 @@ func encodeInt8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt2(rows *Rows, fd *FieldDescription, size int32) int16 {
-	if fd.DataType != Int2Oid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2Oid, fd.DataType)))
+func decodeInt2(vr *ValueReader) int16 {
+	if vr.Type().DataType != Int2Oid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2Oid, vr.Type().DataType)))
 		return 0
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		n, err := strconv.ParseInt(s, 10, 16)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int2: %v", s)))
 			return 0
 		}
 		return int16(n)
 	case BinaryFormatCode:
-		if size != 2 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", size)))
+		if vr.Len() != 2 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", vr.Len())))
 			return 0
 		}
-		return rows.mr.ReadInt16()
+		return vr.ReadInt16()
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 }
@@ -704,28 +704,28 @@ func encodeInt2(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt4(rows *Rows, fd *FieldDescription, size int32) int32 {
-	if fd.DataType != Int4Oid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4Oid, fd.DataType)))
+func decodeInt4(vr *ValueReader) int32 {
+	if vr.Type().DataType != Int4Oid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4Oid, vr.Type().DataType)))
 		return 0
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid int4: %v", s)))
 		}
 		return int32(n)
 	case BinaryFormatCode:
-		if size != 4 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", size)))
+		if vr.Len() != 4 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", vr.Len())))
 			return 0
 		}
-		return rows.mr.ReadInt32()
+		return vr.ReadInt32()
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 }
@@ -773,27 +773,27 @@ func encodeInt4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat4(rows *Rows, fd *FieldDescription, size int32) float32 {
-	switch fd.FormatCode {
+func decodeFloat4(vr *ValueReader) float32 {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		n, err := strconv.ParseFloat(s, 32)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid float4: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float4: %v", s)))
 			return 0
 		}
 		return float32(n)
 	case BinaryFormatCode:
-		if size != 4 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", size)))
+		if vr.Len() != 4 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", vr.Len())))
 			return 0
 		}
 
-		i := rows.mr.ReadInt32()
+		i := vr.ReadInt32()
 		p := unsafe.Pointer(&i)
 		return *(*float32)(p)
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 }
@@ -820,27 +820,27 @@ func encodeFloat4(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat8(rows *Rows, fd *FieldDescription, size int32) float64 {
-	switch fd.FormatCode {
+func decodeFloat8(vr *ValueReader) float64 {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		v, err := strconv.ParseFloat(s, 64)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received invalid float8: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid float8: %v", s)))
 			return 0
 		}
 		return v
 	case BinaryFormatCode:
-		if size != 8 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", size)))
+		if vr.Len() != 8 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float8: %d", vr.Len())))
 			return 0
 		}
 
-		i := rows.mr.ReadInt64()
+		i := vr.ReadInt64()
 		p := unsafe.Pointer(&i)
 		return *(*float64)(p)
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 }
@@ -864,8 +864,8 @@ func encodeFloat8(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeText(rows *Rows, fd *FieldDescription, size int32) string {
-	return rows.mr.ReadString(size)
+func decodeText(vr *ValueReader) string {
+	return vr.ReadString(vr.Len())
 }
 
 func encodeText(w *WriteBuf, value interface{}) error {
@@ -880,20 +880,20 @@ func encodeText(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeBytea(rows *Rows, fd *FieldDescription, size int32) []byte {
-	switch fd.FormatCode {
+func decodeBytea(vr *ValueReader) []byte {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		b, err := hex.DecodeString(s[2:])
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Can't decode byte array: %v - %v", err, s)))
 			return nil
 		}
 		return b
 	case BinaryFormatCode:
-		return rows.mr.ReadBytes(size)
+		return vr.ReadBytes(vr.Len())
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return nil
 	}
 }
@@ -910,31 +910,31 @@ func encodeBytea(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeDate(rows *Rows, fd *FieldDescription, size int32) time.Time {
+func decodeDate(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
-	if fd.DataType != DateOid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", DateOid, fd.DataType)))
+	if vr.Type().DataType != DateOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", DateOid, vr.Type().DataType)))
 		return zeroTime
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		t, err := time.ParseInLocation("2006-01-02", s, time.Local)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode date: %v", s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Can't decode date: %v", s)))
 			return zeroTime
 		}
 		return t
 	case BinaryFormatCode:
-		if size != 4 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", size)))
+		if vr.Len() != 4 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", vr.Len())))
 		}
-		dayOffset := rows.mr.ReadInt32()
+		dayOffset := vr.ReadInt32()
 		return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return zeroTime
 	}
 }
@@ -951,32 +951,32 @@ func encodeDate(w *WriteBuf, value interface{}) error {
 
 const microsecFromUnixEpochToY2K = 946684800 * 1000000
 
-func decodeTimestampTz(rows *Rows, fd *FieldDescription, size int32) time.Time {
+func decodeTimestampTz(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
-	if fd.DataType != TimestampTzOid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampTzOid, fd.DataType)))
+	if vr.Type().DataType != TimestampTzOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampTzOid, vr.Type().DataType)))
 		return zeroTime
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		t, err := time.Parse("2006-01-02 15:04:05.999999-07", s)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamptz: %v - %v", err, s)))
 			return zeroTime
 		}
 		return t
 	case BinaryFormatCode:
-		if size != 8 {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", size)))
+		if vr.Len() != 8 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", vr.Len())))
 		}
-		microsecSinceY2K := rows.mr.ReadInt64()
+		microsecSinceY2K := vr.ReadInt64()
 		microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
 		return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return zeroTime
 	}
 }
@@ -996,28 +996,28 @@ func encodeTimestampTz(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeTimestamp(rows *Rows, fd *FieldDescription, size int32) time.Time {
+func decodeTimestamp(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
-	if fd.DataType != TimestampOid {
-		rows.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampOid, fd.DataType)))
+	if vr.Type().DataType != TimestampOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TimestampOid, vr.Type().DataType)))
 		return zeroTime
 	}
 
-	switch fd.FormatCode {
+	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		s := rows.mr.ReadString(size)
+		s := vr.ReadString(vr.Len())
 		t, err := time.ParseInLocation("2006-01-02 15:04:05.999999", s, time.Local)
 		if err != nil {
-			rows.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamp: %v - %v", err, s)))
+			vr.Fatal(ProtocolError(fmt.Sprintf("Can't decode timestamp: %v - %v", err, s)))
 			return zeroTime
 		}
 		return t
 	case BinaryFormatCode:
-		rows.Fatal(ProtocolError("Can't decode binary timestamp"))
+		vr.Fatal(ProtocolError("Can't decode binary timestamp"))
 		return zeroTime
 	default:
-		rows.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", fd.FormatCode)))
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return zeroTime
 	}
 }

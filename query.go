@@ -33,6 +33,7 @@ type Rows struct {
 	conn      *Conn
 	mr        *MsgReader
 	fields    []FieldDescription
+	vr        ValueReader
 	rowCount  int
 	columnIdx int
 	err       error
@@ -153,19 +154,20 @@ func (rows *Rows) Next() bool {
 	}
 }
 
-func (rows *Rows) nextColumn() (*FieldDescription, int32, bool) {
+func (rows *Rows) nextColumn() (*ValueReader, bool) {
 	if rows.closed {
-		return nil, 0, false
+		return nil, false
 	}
 	if len(rows.fields) <= rows.columnIdx {
 		rows.Fatal(ProtocolError("No next column available"))
-		return nil, 0, false
+		return nil, false
 	}
 
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
 	size := rows.mr.ReadInt32()
-	return fd, size, true
+	rows.vr = ValueReader{mr: rows.mr, fd: fd, valueBytesRemaining: size}
+	return &rows.vr, true
 }
 
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
@@ -175,46 +177,53 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		return err
 	}
 
+	// TODO - decodeX should return err and Scan should Fatal the rows
 	for _, d := range dest {
-		fd, size, _ := rows.nextColumn()
+		vr, _ := rows.nextColumn()
 		switch d := d.(type) {
 		case *bool:
-			*d = decodeBool(rows, fd, size)
+			*d = decodeBool(vr)
 		case *[]byte:
-			*d = decodeBytea(rows, fd, size)
+			*d = decodeBytea(vr)
 		case *int64:
-			*d = decodeInt8(rows, fd, size)
+			*d = decodeInt8(vr)
 		case *int16:
-			*d = decodeInt2(rows, fd, size)
+			*d = decodeInt2(vr)
 		case *int32:
-			*d = decodeInt4(rows, fd, size)
+			*d = decodeInt4(vr)
 		case *string:
-			*d = decodeText(rows, fd, size)
+			*d = decodeText(vr)
 		case *float32:
-			*d = decodeFloat4(rows, fd, size)
+			*d = decodeFloat4(vr)
 		case *float64:
-			*d = decodeFloat8(rows, fd, size)
+			*d = decodeFloat8(vr)
 		case *time.Time:
-			switch fd.DataType {
+			switch vr.Type().DataType {
 			case DateOid:
-				*d = decodeDate(rows, fd, size)
+				*d = decodeDate(vr)
 			case TimestampTzOid:
-				*d = decodeTimestampTz(rows, fd, size)
+				*d = decodeTimestampTz(vr)
 			case TimestampOid:
-				*d = decodeTimestamp(rows, fd, size)
+				*d = decodeTimestamp(vr)
 			default:
-				err = fmt.Errorf("Can't convert OID %v to time.Time", fd.DataType)
-				rows.Fatal(err)
-				return err
+				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
 			}
 
 		case Scanner:
-			err = d.Scan(rows, fd, size)
+			err = d.Scan(vr)
 			if err != nil {
-				return err
+				rows.Fatal(err)
 			}
 		default:
-			return errors.New("Unknown type")
+			rows.Fatal(errors.New("Unknown type"))
+		}
+
+		if vr.Err() != nil {
+			rows.Fatal(vr.Err())
+		}
+
+		if rows.Err() != nil {
+			return rows.Err()
 		}
 	}
 
@@ -230,45 +239,49 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	values := make([]interface{}, 0, len(rows.fields))
 
 	for _, _ = range rows.fields {
-		if rows.Err() != nil {
-			return nil, rows.Err()
-		}
+		vr, _ := rows.nextColumn()
 
-		fd, size, _ := rows.nextColumn()
-
-		switch fd.DataType {
+		switch vr.Type().DataType {
 		case BoolOid:
-			values = append(values, decodeBool(rows, fd, size))
+			values = append(values, decodeBool(vr))
 		case ByteaOid:
-			values = append(values, decodeBytea(rows, fd, size))
+			values = append(values, decodeBytea(vr))
 		case Int8Oid:
-			values = append(values, decodeInt8(rows, fd, size))
+			values = append(values, decodeInt8(vr))
 		case Int2Oid:
-			values = append(values, decodeInt2(rows, fd, size))
+			values = append(values, decodeInt2(vr))
 		case Int4Oid:
-			values = append(values, decodeInt4(rows, fd, size))
+			values = append(values, decodeInt4(vr))
 		case VarcharOid, TextOid:
-			values = append(values, decodeText(rows, fd, size))
+			values = append(values, decodeText(vr))
 		case Float4Oid:
-			values = append(values, decodeFloat4(rows, fd, size))
+			values = append(values, decodeFloat4(vr))
 		case Float8Oid:
-			values = append(values, decodeFloat8(rows, fd, size))
+			values = append(values, decodeFloat8(vr))
 		case DateOid:
-			values = append(values, decodeDate(rows, fd, size))
+			values = append(values, decodeDate(vr))
 		case TimestampTzOid:
-			values = append(values, decodeTimestampTz(rows, fd, size))
+			values = append(values, decodeTimestampTz(vr))
 		case TimestampOid:
-			values = append(values, decodeTimestamp(rows, fd, size))
+			values = append(values, decodeTimestamp(vr))
 		default:
 			// if it is not an intrinsic type then return the text
-			switch fd.FormatCode {
+			switch vr.Type().FormatCode {
 			case TextFormatCode:
-				values = append(values, rows.mr.ReadString(size))
+				values = append(values, vr.ReadString(vr.Len()))
 			case BinaryFormatCode:
-				return nil, errors.New("Values cannot handle binary format non-intrinsic types")
+				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			default:
-				return nil, errors.New("Unknown format code")
+				rows.Fatal(errors.New("Unknown format code"))
 			}
+		}
+
+		if vr.Err() != nil {
+			rows.Fatal(vr.Err())
+		}
+
+		if rows.Err() != nil {
+			return nil, rows.Err()
 		}
 	}
 
