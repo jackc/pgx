@@ -114,6 +114,6 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 
 // QueryRow delegates to the underlying *Conn
 func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
-	rows, _ := tx.conn.Query(sql, args...)
+	rows, _ := tx.Query(sql, args...)
 	return (*Row)(rows)
 }
