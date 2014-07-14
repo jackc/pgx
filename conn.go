@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"io"
 	"net"
 	"net/url"
@@ -34,7 +33,7 @@ type ConnConfig struct {
 	User      string // default: OS user name
 	Password  string
 	TLSConfig *tls.Config // config for TLS connection -- nil disables TLS
-	Logger    log.Logger
+	Logger    Logger
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -53,7 +52,7 @@ type Conn struct {
 	notifications      []*Notification
 	alive              bool
 	causeOfDeath       error
-	logger             log.Logger
+	logger             Logger
 	rows               Rows
 	mr                 msgReader
 }
@@ -100,8 +99,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.config.Logger != nil {
 		c.logger = c.config.Logger
 	} else {
-		c.logger = log.New()
-		c.logger.SetHandler(log.DiscardHandler())
+		c.logger = &DiscardLogger{}
 	}
 
 	if c.config.User == "" {

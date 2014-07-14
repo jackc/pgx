@@ -2,7 +2,6 @@ package pgx
 
 import (
 	"errors"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"sync"
 )
 
@@ -19,7 +18,7 @@ type ConnPool struct {
 	config               ConnConfig // config used when establishing connection
 	maxConnections       int
 	afterConnect         func(*Conn) error
-	logger               log.Logger
+	logger               Logger
 }
 
 type ConnPoolStat struct {
@@ -45,8 +44,7 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	if config.Logger != nil {
 		p.logger = config.Logger
 	} else {
-		p.logger = log.New()
-		p.logger.SetHandler(log.DiscardHandler())
+		p.logger = &DiscardLogger{}
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
