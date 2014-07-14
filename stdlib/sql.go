@@ -67,8 +67,9 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	// Don't have database/sql immediately release all idle connections because
 	// that would mean that prepared statements would be lost (which kills
 	// performance if the prepared statements constantly have to be reprepared)
-	db.SetMaxIdleConns(pool.MaxConnectionCount() - 2)
-	db.SetMaxOpenConns(pool.MaxConnectionCount())
+	stat := pool.Stat()
+	db.SetMaxIdleConns(stat.MaxConnections - 2)
+	db.SetMaxOpenConns(stat.MaxConnections)
 
 	return db, nil
 }
