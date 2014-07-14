@@ -1,3 +1,46 @@
+// Package stdlib is the compatibility layer from pgx to database/sql.
+//
+// A database/sql connection can be established through sql.Open.
+//
+//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
+//	if err != nil {
+//		return err
+//	}
+//
+// Or a normal pgx connection pool can be established and the database/sql
+// connection can be created through stdlib.OpenFromConnPool(). This allows
+// more control over the connection process (such as TLS), more control
+// over the connection pool, setting an AfterConnect hook, and using both
+// database/sql and pgx interfaces as needed.
+//
+//	connConfig := pgx.ConnConfig{
+//		Host:     "localhost",
+//		User:     "pgx_md5",
+// 		Password: "secret",
+// 		Database: "pgx_test",
+// 	}
+//
+//	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
+//	pool, err := pgx.NewConnPool(config)
+// 	if err != nil {
+// 		return err
+// 	}
+//
+//	db, err := stdlib.OpenFromConnPool(pool)
+//	if err != nil {
+//		t.Fatalf("Unable to create connection pool: %v", err)
+//	}
+//
+// If the database/sql connection is established through
+// stdlib.OpenFromConnPool then access to a pgx *ConnPool can be regained
+// through db.Driver(). This allows writing a fast path for pgx while
+// preserving compatibility with other drivers and database
+//
+//	if driver, ok := db.Driver().(*stdlib.Driver); ok && driver.Pool != nil {
+//		// fast path with pgx
+//	} else {
+//		// normal path for other drivers and databases
+//	}
 package stdlib
 
 import (
