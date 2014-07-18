@@ -317,42 +317,22 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.rows = Rows{conn: c}
 	rows := &c.rows
 
-	if ps, present := c.preparedStatements[sql]; present {
-		rows.fields = ps.FieldDescriptions
-		err := c.sendPreparedQuery(ps, args...)
+	ps, ok := c.preparedStatements[sql]
+	if !ok {
+		var err error
+		ps, err = c.Prepare("", sql)
 		if err != nil {
 			rows.abort(err)
-		}
-		return rows, rows.err
-	}
-
-	err := c.sendSimpleQuery(sql, args...)
-	if err != nil {
-		rows.abort(err)
-		return rows, rows.err
-	}
-
-	// Simple queries don't know the field descriptions of the result.
-	// Read until that is known before returning
-	for {
-		t, r, err := c.rxMsg()
-		if err != nil {
-			rows.Fatal(err)
 			return rows, rows.err
 		}
-
-		switch t {
-		case rowDescription:
-			rows.fields = rows.conn.rxRowDescription(r)
-			return rows, nil
-		default:
-			err = rows.conn.processContextFreeMsg(t, r)
-			if err != nil {
-				rows.Fatal(err)
-				return rows, rows.err
-			}
-		}
 	}
+
+	rows.fields = ps.FieldDescriptions
+	err := c.sendPreparedQuery(ps, args...)
+	if err != nil {
+		rows.abort(err)
+	}
+	return rows, rows.err
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while

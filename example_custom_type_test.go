@@ -57,12 +57,19 @@ func (p *NullPoint) Scan(vr *pgx.ValueReader) error {
 	return vr.Err()
 }
 
-func (p NullPoint) EncodeText() (string, byte, error) {
-	if p.Valid {
-		return fmt.Sprintf("point(%v,%v)", p.X, p.Y), pgx.SafeText, nil
-	} else {
-		return "", pgx.NullText, nil
+func (p NullPoint) FormatCode() int16 { return pgx.BinaryFormatCode }
+
+func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
+	if !p.Valid {
+		w.WriteInt32(-1)
+		return nil
 	}
+
+	s := fmt.Sprintf("point(%v,%v)", p.X, p.Y)
+	w.WriteInt32(int32(len(s)))
+	w.WriteBytes([]byte(s))
+
+	return nil
 }
 
 func (p NullPoint) String() string {

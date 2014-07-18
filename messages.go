@@ -22,6 +22,8 @@ const (
 	bindComplete         = '2'
 	notificationResponse = 'A'
 	noData               = 'n'
+	closeComplete        = '3'
+	flush                = 'H'
 )
 
 type startupMessage struct {

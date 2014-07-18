@@ -321,6 +321,35 @@ func TestPrepare(t *testing.T) {
 	if s != "hello" {
 		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
+
+	err = conn.Deallocate("test")
+	if err != nil {
+		t.Errorf("conn.Deallocate failed: %v", err)
+	}
+
+	// Create another prepared statement to ensure Deallocate left the connection
+	// in a working state and that we can reuse the prepared statement name.
+
+	_, err = conn.Prepare("test", "select $1::integer")
+	if err != nil {
+		t.Errorf("Unable to prepare statement: %v", err)
+		return
+	}
+
+	var n int32
+	err = conn.QueryRow("test", int32(1)).Scan(&n)
+	if err != nil {
+		t.Errorf("Executing prepared statement failed: %v", err)
+	}
+
+	if n != 1 {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+
+	err = conn.Deallocate("test")
+	if err != nil {
+		t.Errorf("conn.Deallocate failed: %v", err)
+	}
 }
 
 func TestPrepareFailure(t *testing.T) {

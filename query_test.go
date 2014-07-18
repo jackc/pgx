@@ -331,12 +331,16 @@ func TestQueryPreparedEncodeError(t *testing.T) {
 	}
 }
 
-// Ensure that an argument that implements TextEncoder, but not BinaryEncoder
-// works when the parameter type is a core type.
-type coreTextEncoder struct{}
+// Ensure that an argument that implements Encoder works when the parameter type
+// is a core type.
+type coreEncoder struct{}
 
-func (n *coreTextEncoder) EncodeText() (string, byte, error) {
-	return "42", pgx.SafeText, nil
+func (n coreEncoder) FormatCode() int16 { return pgx.TextFormatCode }
+
+func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
+	w.WriteInt32(int32(2))
+	w.WriteBytes([]byte("42"))
+	return nil
 }
 
 func TestQueryPreparedEncodeCoreTextFormatError(t *testing.T) {
@@ -348,7 +352,7 @@ func TestQueryPreparedEncodeCoreTextFormatError(t *testing.T) {
 	mustPrepare(t, conn, "testTranscode", "select $1::integer")
 
 	var n int32
-	err := conn.QueryRow("testTranscode", &coreTextEncoder{}).Scan(&n)
+	err := conn.QueryRow("testTranscode", &coreEncoder{}).Scan(&n)
 	if err != nil {
 		t.Fatalf("Unexpected conn.QueryRow error: %v", err)
 	}
@@ -473,7 +477,7 @@ func TestQueryRowUnpreparedErrors(t *testing.T) {
 		scanArgs  []interface{}
 		err       string
 	}{
-		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Expected type oid 21 but received type oid 705"},
+		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "could not determine data type of parameter $1 (SQLSTATE 42P18)"},
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
 	}

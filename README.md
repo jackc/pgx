@@ -142,11 +142,9 @@ configure the TLS connection.
 pgx includes support for the common data types like integers, floats, strings,
 dates, and times that have direct mappings between Go and SQL. Support can be
 added for additional types like point, hstore, numeric, etc. that do not have
-direct mappings in Go by the types implementing Scanner, TextEncoder, and
-optionally BinaryEncoder. To enable binary format for custom types, a prepared
-statement must be used and the field description of the returned field must have
-FormatCode set to BinaryFormatCode. See example_custom_type_test.go for an
-example of a custom type for the PostgreSQL point type.
+direct mappings in Go by the types implementing Scanner and Encoder. See
+example_custom_type_test.go for an example of a custom type for the PostgreSQL
+point type.
 
 ### Null Mapping
 
