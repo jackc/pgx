@@ -470,14 +470,14 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
+		case string:
+			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
 			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid:
 				wbuf.WriteInt16(BinaryFormatCode)
-			case TextOid, VarcharOid, DateOid, TimestampOid:
-				wbuf.WriteInt16(TextFormatCode)
 			default:
-				return SerializationError(fmt.Sprintf("Parameter %d oid %d is not a core type and argument type %T does not implement TextEncoder or BinaryEncoder", i, oid, arg))
+				wbuf.WriteInt16(TextFormatCode)
 			}
 		}
 	}
@@ -492,6 +492,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			err = arg.Encode(wbuf, oid)
+		case string:
+			err = encodeText(wbuf, arguments[i])
 		default:
 			switch oid {
 			case BoolOid:
@@ -517,7 +519,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case TimestampOid:
 				err = encodeTimestamp(wbuf, arguments[i])
 			default:
-				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement TextEncoder or BinaryEncoder", arg))
+				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement Encoder", arg))
 			}
 		}
 		if err != nil {

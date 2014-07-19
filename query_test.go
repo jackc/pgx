@@ -272,14 +272,19 @@ func TestQueryEncodeError(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.Query("select $1::integer", "wrong")
-	switch {
-	case err == nil:
-		t.Error("Expected transcode error to return error, but it didn't")
-	case err.Error() == "Expected integer representable in int32, received string wrong":
-		// Correct behavior
-	default:
-		t.Errorf("Expected transcode error, received %v", err)
+	rows, err := conn.Query("select $1::integer", "wrong")
+	if err != nil {
+		t.Errorf("conn.Query failure: %v", err)
+	}
+	defer rows.Close()
+
+	rows.Next()
+
+	if rows.Err() == nil {
+		t.Error("Expected rows.Err() to return error, but it didn't")
+	}
+	if rows.Err().Error() != `ERROR: invalid input syntax for integer: "wrong" (SQLSTATE 22P02)` {
+		t.Error("Expected rows.Err() to return different error:", rows.Err())
 	}
 }
 
@@ -394,6 +399,29 @@ func TestQueryRowCoreBytea(t *testing.T) {
 
 	if bytes.Compare(actual, expected) != 0 {
 		t.Errorf("Expected %v, got %v (sql -> %v)", expected, actual, sql)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryRowUnknownType(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := "select $1::inet"
+	expected := "127.0.0.1"
+	var actual string
+
+	err := conn.QueryRow(sql, expected).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if actual != expected {
+		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
+
 	}
 
 	ensureConnValid(t, conn)

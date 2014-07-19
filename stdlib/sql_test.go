@@ -295,6 +295,24 @@ func TestConnQueryFailure(t *testing.T) {
 	}
 }
 
+func TestConnQueryRowUnknownType(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	sql := "select $1::inet"
+	expected := "127.0.0.1"
+	var actual string
+
+	err := db.QueryRow(sql, expected).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if actual != expected {
+		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
+	}
+}
+
 func TestTransactionLifeCycle(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
