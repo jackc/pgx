@@ -336,6 +336,28 @@ func TestConnQueryFailure(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
+// Test type that pgx would handle natively in binary, but since it is not a
+// database/sql native type should be passed through as a string
+func TestConnQueryRowPgxBinary(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	sql := "select $1::int4[]"
+	expected := "{1,2,3}"
+	var actual string
+
+	err := db.QueryRow(sql, expected).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if actual != expected {
+		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
+	}
+
+	ensureConnValid(t, db)
+}
+
 func TestConnQueryRowUnknownType(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)

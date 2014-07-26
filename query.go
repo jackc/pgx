@@ -214,6 +214,18 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			*d = decodeFloat4(vr)
 		case *float64:
 			*d = decodeFloat8(vr)
+		case *[]int16:
+			*d = decodeInt2Array(vr)
+		case *[]int32:
+			*d = decodeInt4Array(vr)
+		case *[]int64:
+			*d = decodeInt8Array(vr)
+		case *[]float32:
+			*d = decodeFloat4Array(vr)
+		case *[]float64:
+			*d = decodeFloat8Array(vr)
+		case *[]string:
+			*d = decodeTextArray(vr)
 		case *time.Time:
 			switch vr.Type().DataType {
 			case DateOid:
@@ -263,39 +275,50 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		switch vr.Type().DataType {
-		case BoolOid:
-			values = append(values, decodeBool(vr))
-		case ByteaOid:
-			values = append(values, decodeBytea(vr))
-		case Int8Oid:
-			values = append(values, decodeInt8(vr))
-		case Int2Oid:
-			values = append(values, decodeInt2(vr))
-		case Int4Oid:
-			values = append(values, decodeInt4(vr))
-		case VarcharOid, TextOid:
-			values = append(values, decodeText(vr))
-		case Float4Oid:
-			values = append(values, decodeFloat4(vr))
-		case Float8Oid:
-			values = append(values, decodeFloat8(vr))
-		case DateOid:
-			values = append(values, decodeDate(vr))
-		case TimestampTzOid:
-			values = append(values, decodeTimestampTz(vr))
-		case TimestampOid:
-			values = append(values, decodeTimestamp(vr))
-		default:
-			// if it is not an intrinsic type then return the text
-			switch vr.Type().FormatCode {
-			case TextFormatCode:
-				values = append(values, vr.ReadString(vr.Len()))
-			case BinaryFormatCode:
-				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
+		switch vr.Type().FormatCode {
+		// All intrinsic types (except string) are encoded with binary
+		// encoding so anything else should be treated as a string
+		case TextFormatCode:
+			values = append(values, vr.ReadString(vr.Len()))
+		case BinaryFormatCode:
+			switch vr.Type().DataType {
+			case BoolOid:
+				values = append(values, decodeBool(vr))
+			case ByteaOid:
+				values = append(values, decodeBytea(vr))
+			case Int8Oid:
+				values = append(values, decodeInt8(vr))
+			case Int2Oid:
+				values = append(values, decodeInt2(vr))
+			case Int4Oid:
+				values = append(values, decodeInt4(vr))
+			case Float4Oid:
+				values = append(values, decodeFloat4(vr))
+			case Float8Oid:
+				values = append(values, decodeFloat8(vr))
+			case Int2ArrayOid:
+				values = append(values, decodeInt2Array(vr))
+			case Int4ArrayOid:
+				values = append(values, decodeInt4Array(vr))
+			case Int8ArrayOid:
+				values = append(values, decodeInt8Array(vr))
+			case Float4ArrayOid:
+				values = append(values, decodeFloat4Array(vr))
+			case Float8ArrayOid:
+				values = append(values, decodeFloat8Array(vr))
+			case TextArrayOid:
+				values = append(values, decodeTextArray(vr))
+			case DateOid:
+				values = append(values, decodeDate(vr))
+			case TimestampTzOid:
+				values = append(values, decodeTimestampTz(vr))
+			case TimestampOid:
+				values = append(values, decodeTimestamp(vr))
 			default:
-				rows.Fatal(errors.New("Unknown format code"))
+				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			}
+		default:
+			rows.Fatal(errors.New("Unknown format code"))
 		}
 
 		if vr.Err() != nil {

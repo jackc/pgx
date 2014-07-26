@@ -54,9 +54,24 @@ import (
 
 var openFromConnPoolCount int
 
+// oids that map to intrinsic database/sql types. These will be allowed to be
+// binary, anything else will be forced to text format
+var databaseSqlOids map[pgx.Oid]bool
+
 func init() {
 	d := &Driver{}
 	sql.Register("pgx", d)
+
+	databaseSqlOids = make(map[pgx.Oid]bool)
+	databaseSqlOids[pgx.BoolOid] = true
+	databaseSqlOids[pgx.ByteaOid] = true
+	databaseSqlOids[pgx.Int2Oid] = true
+	databaseSqlOids[pgx.Int4Oid] = true
+	databaseSqlOids[pgx.Int8Oid] = true
+	databaseSqlOids[pgx.Float4Oid] = true
+	databaseSqlOids[pgx.Float8Oid] = true
+	databaseSqlOids[pgx.DateOid] = true
+	databaseSqlOids[pgx.TimestampTzOid] = true
 }
 
 type Driver struct {
@@ -136,6 +151,8 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 		return nil, err
 	}
 
+	restrictBinaryToDatabaseSqlTypes(ps)
+
 	return &Stmt{ps: ps, conn: c}, nil
 }
 
@@ -176,14 +193,41 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 		return nil, driver.ErrBadConn
 	}
 
+	ps, err := c.conn.Prepare("", query)
+	if err != nil {
+		return nil, err
+	}
+
+	restrictBinaryToDatabaseSqlTypes(ps)
+
+	return c.queryPrepared("", argsV)
+}
+
+func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
 	args := valueToInterface(argsV)
 
-	rows, err := c.conn.Query(query, args...)
+	rows, err := c.conn.Query(name, args...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Rows{rows: rows}, nil
+}
+
+// Anything that isn't a database/sql compatible type needs to be forced to
+// text format so that pgx.Rows.Values doesn't decode it into a native type
+// (e.g. []int32)
+func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
+	for i, _ := range ps.FieldDescriptions {
+		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
+		if !intrinsic {
+			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
+		}
+	}
 }
 
 type Stmt struct {
@@ -204,7 +248,7 @@ func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
 }
 
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
-	return s.conn.Query(s.ps.Name, argsV)
+	return s.conn.queryPrepared(s.ps.Name, argsV)
 }
 
 // TODO - rename to avoid alloc

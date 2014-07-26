@@ -294,10 +294,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
 			for i := range ps.FieldDescriptions {
-				switch ps.FieldDescriptions[i].DataType {
-				case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, DateOid, TimestampTzOid:
-					ps.FieldDescriptions[i].FormatCode = BinaryFormatCode
-				}
+				ps.FieldDescriptions[i].FormatCode, _ = DefaultOidFormats[ps.FieldDescriptions[i].DataType]
 			}
 		case noData:
 		case readyForQuery:
@@ -474,7 +471,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid:
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid:
 				wbuf.WriteInt16(BinaryFormatCode)
 			default:
 				wbuf.WriteInt16(TextFormatCode)
@@ -518,6 +515,18 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeTimestampTz(wbuf, arguments[i])
 			case TimestampOid:
 				err = encodeTimestamp(wbuf, arguments[i])
+			case Int2ArrayOid:
+				err = encodeInt2Array(wbuf, arguments[i])
+			case Int4ArrayOid:
+				err = encodeInt4Array(wbuf, arguments[i])
+			case Int8ArrayOid:
+				err = encodeInt8Array(wbuf, arguments[i])
+			case Float4ArrayOid:
+				err = encodeFloat4Array(wbuf, arguments[i])
+			case Float8ArrayOid:
+				err = encodeFloat8Array(wbuf, arguments[i])
+			case TextArrayOid:
+				err = encodeTextArray(wbuf, arguments[i])
 			default:
 				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement Encoder", arg))
 			}

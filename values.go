@@ -19,6 +19,12 @@ const (
 	TextOid        = 25
 	Float4Oid      = 700
 	Float8Oid      = 701
+	Int2ArrayOid   = 1005
+	Int4ArrayOid   = 1007
+	TextArrayOid   = 1009
+	Int8ArrayOid   = 1016
+	Float4ArrayOid = 1021
+	Float8ArrayOid = 1022
 	VarcharOid     = 1043
 	DateOid        = 1082
 	TimestampOid   = 1114
@@ -30,6 +36,27 @@ const (
 	TextFormatCode   = 0
 	BinaryFormatCode = 1
 )
+
+var DefaultOidFormats map[Oid]int16
+
+func init() {
+	DefaultOidFormats = make(map[Oid]int16)
+	DefaultOidFormats[BoolOid] = BinaryFormatCode
+	DefaultOidFormats[ByteaOid] = BinaryFormatCode
+	DefaultOidFormats[Int2Oid] = BinaryFormatCode
+	DefaultOidFormats[Int4Oid] = BinaryFormatCode
+	DefaultOidFormats[Int8Oid] = BinaryFormatCode
+	DefaultOidFormats[Float4Oid] = BinaryFormatCode
+	DefaultOidFormats[Float8Oid] = BinaryFormatCode
+	DefaultOidFormats[DateOid] = BinaryFormatCode
+	DefaultOidFormats[TimestampTzOid] = BinaryFormatCode
+	DefaultOidFormats[Int2ArrayOid] = BinaryFormatCode
+	DefaultOidFormats[Int4ArrayOid] = BinaryFormatCode
+	DefaultOidFormats[Int8ArrayOid] = BinaryFormatCode
+	DefaultOidFormats[Float4ArrayOid] = BinaryFormatCode
+	DefaultOidFormats[Float8ArrayOid] = BinaryFormatCode
+	DefaultOidFormats[TextArrayOid] = BinaryFormatCode
+}
 
 type SerializationError string
 
@@ -942,6 +969,409 @@ func encodeTimestamp(w *WriteBuf, value interface{}) error {
 
 	s := t.Format("2006-01-02 15:04:05.999999")
 	return encodeText(w, s)
+
+	return nil
+}
+
+func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
+	numDims := vr.ReadInt32()
+	if numDims == 0 {
+		return 0, nil
+	}
+	if numDims != 1 {
+		return 0, ProtocolError(fmt.Sprintf("Expected array to have 0 or 1 dimension, but it had %v", numDims))
+	}
+
+	vr.ReadInt32() // 0 if no nulls / 1 if there is one or more nulls -- but we don't care
+	vr.ReadInt32() // element oid
+
+	length = vr.ReadInt32()
+
+	idxFirstElem := vr.ReadInt32()
+	if idxFirstElem != 1 {
+		return 0, ProtocolError(fmt.Sprintf("Expected array's first element to start a index 1, but it is %d", idxFirstElem))
+	}
+
+	return length, nil
+}
+
+func decodeInt2Array(vr *ValueReader) []int16 {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != Int2ArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int2ArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]int16, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 2:
+			a[i] = vr.ReadInt16()
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2 element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeInt2Array(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]int16)
+	if !ok {
+		return fmt.Errorf("Expected []int16, received %T", value)
+	}
+
+	size := 20 + len(slice)*6
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(Int2Oid)           // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(2)
+		w.WriteInt16(v)
+	}
+
+	return nil
+}
+
+func decodeInt4Array(vr *ValueReader) []int32 {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != Int4ArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int4ArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]int32, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 4:
+			a[i] = vr.ReadInt32()
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4 element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeInt4Array(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]int32)
+	if !ok {
+		return fmt.Errorf("Expected []int32, received %T", value)
+	}
+
+	size := 20 + len(slice)*8
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(Int4Oid)           // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(4)
+		w.WriteInt32(v)
+	}
+
+	return nil
+}
+
+func decodeInt8Array(vr *ValueReader) []int64 {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != Int8ArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Int8ArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]int64, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 8:
+			a[i] = vr.ReadInt64()
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8 element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeInt8Array(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]int64)
+	if !ok {
+		return fmt.Errorf("Expected []int64, received %T", value)
+	}
+
+	size := 20 + len(slice)*12
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(Int8Oid)           // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(8)
+		w.WriteInt64(v)
+	}
+
+	return nil
+}
+
+func decodeFloat4Array(vr *ValueReader) []float32 {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != Float4ArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Float4ArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]float32, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 4:
+			n := vr.ReadInt32()
+			p := unsafe.Pointer(&n)
+			a[i] = *(*float32)(p)
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4 element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeFloat4Array(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]float32)
+	if !ok {
+		return fmt.Errorf("Expected []float32, received %T", value)
+	}
+
+	size := 20 + len(slice)*8
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(Float4Oid)         // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(4)
+
+		p := unsafe.Pointer(&v)
+		w.WriteInt32(*(*int32)(p))
+	}
+
+	return nil
+}
+
+func decodeFloat8Array(vr *ValueReader) []float64 {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != Float8ArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", Float8ArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]float64, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 8:
+			n := vr.ReadInt64()
+			p := unsafe.Pointer(&n)
+			a[i] = *(*float64)(p)
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4 element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeFloat8Array(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]float64)
+	if !ok {
+		return fmt.Errorf("Expected []float64, received %T", value)
+	}
+
+	size := 20 + len(slice)*12
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(Float8Oid)         // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(8)
+
+		p := unsafe.Pointer(&v)
+		w.WriteInt64(*(*int64)(p))
+	}
+
+	return nil
+}
+
+func decodeTextArray(vr *ValueReader) []string {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != TextArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TextArrayOid, vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]string, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		if elSize == -1 {
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		}
+
+		a[i] = vr.ReadString(elSize)
+	}
+
+	return a
+}
+
+func encodeTextArray(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]string)
+	if !ok {
+		return fmt.Errorf("Expected []string, received %T", value)
+	}
+
+	var totalStringSize int
+	for _, v := range slice {
+		totalStringSize += len(v)
+	}
+
+	size := 20 + len(slice)*4 + totalStringSize
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(TextOid)           // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(int32(len(v)))
+		w.WriteBytes([]byte(v))
+	}
 
 	return nil
 }
