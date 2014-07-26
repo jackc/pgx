@@ -189,8 +189,8 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	bad.Port = 1
 
 	_, err := pgx.Connect(bad)
-	if !strings.Contains(err.Error(), "connection refused") {
-		t.Fatal("Unable to establish connection: " + err.Error())
+	if err == nil {
+		t.Fatal("Expected error establishing connection to bad port")
 	}
 }
 
