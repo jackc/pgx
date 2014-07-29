@@ -3,6 +3,7 @@ package pgx
 import (
 	"errors"
 	"fmt"
+	"io"
 	"time"
 )
 
@@ -237,6 +238,9 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			default:
 				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
 			}
+
+		case io.Writer:
+			vr.copyBytes(d)
 
 		case Scanner:
 			err = d.Scan(vr)

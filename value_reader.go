@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"errors"
+	"io"
 )
 
 // ValueReader is used by the Scanner interface to decode values.
@@ -120,4 +121,16 @@ func (r *ValueReader) ReadBytes(count int32) []byte {
 	}
 
 	return r.mr.readBytes(count)
+}
+
+// copyBytes copies the value's bytes to w
+func (r *ValueReader) copyBytes(w io.Writer) error {
+	if r.err != nil {
+		return nil
+	}
+
+	count := r.Len()
+	r.valueBytesRemaining = 0
+
+	return r.mr.copyBytes(w, count)
 }

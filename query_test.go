@@ -406,6 +406,29 @@ func TestQueryRowCoreBytea(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestQueryRowWriter(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var buf bytes.Buffer
+	sql := "select $1::bytea"
+	queryArg := []byte{0, 15, 255, 17}
+	expected := []byte{0, 15, 255, 17}
+
+	err := conn.QueryRow(sql, queryArg).Scan(&buf)
+	if err != nil {
+		t.Fatalf("Unexpected failure: %v", err)
+	}
+
+	if bytes.Compare(buf.Bytes(), expected) != 0 {
+		t.Errorf("Expected %v, got %v", expected, buf.Bytes())
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestQueryRowUnknownType(t *testing.T) {
 	t.Parallel()
 

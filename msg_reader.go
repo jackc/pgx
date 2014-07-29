@@ -201,3 +201,23 @@ func (r *msgReader) readBytes(count int32) []byte {
 
 	return b
 }
+
+// copyBytes copies count bytes to w
+func (r *msgReader) copyBytes(w io.Writer, count int32) error {
+	if r.err != nil {
+		return nil
+	}
+
+	r.msgBytesRemaining -= count
+	if r.msgBytesRemaining < 0 {
+		r.fatal(errors.New("read past end of message"))
+		return nil
+	}
+
+	_, err := io.CopyN(w, r.reader, int64(count))
+	if err != nil {
+		r.fatal(err)
+	}
+
+	return err
+}
