@@ -431,3 +431,34 @@ func TestConnPoolQueryRow(t *testing.T) {
 		t.Fatalf("Unexpected connection pool stats: %v", stats)
 	}
 }
+
+func TestConnPoolExec(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	results, err := pool.Exec("create temporary table foo(id integer primary key);")
+	if err != nil {
+		t.Fatalf("Unexpected error from pool.Exec: %v", err)
+	}
+	if results != "CREATE TABLE" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+
+	results, err = pool.Exec("insert into foo(id) values($1)", 1)
+	if err != nil {
+		t.Fatalf("Unexpected error from pool.Exec: %v", err)
+	}
+	if results != "INSERT 0 1" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+
+	results, err = pool.Exec("drop table foo;")
+	if err != nil {
+		t.Fatalf("Unexpected error from pool.Exec: %v", err)
+	}
+	if results != "DROP TABLE" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+}
