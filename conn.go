@@ -471,7 +471,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid:
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid:
 				wbuf.WriteInt16(BinaryFormatCode)
 			default:
 				wbuf.WriteInt16(TextFormatCode)
@@ -526,7 +526,9 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case Float8ArrayOid:
 				err = encodeFloat8Array(wbuf, arguments[i])
 			case TextArrayOid:
-				err = encodeTextArray(wbuf, arguments[i])
+				err = encodeTextArray(wbuf, arguments[i], TextOid)
+			case VarcharArrayOid:
+				err = encodeTextArray(wbuf, arguments[i], VarcharOid)
 			default:
 				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement Encoder", arg))
 			}

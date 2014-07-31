@@ -738,6 +738,8 @@ func TestQueryRowCoreStringSlice(t *testing.T) {
 	}{
 		{"select $1::text[]", []string{"Adam", "Eve", "UTF-8 Characters Å Æ Ë Ͽ"}},
 		{"select $1::text[]", []string{}},
+		{"select $1::varchar[]", []string{"Adam", "Eve", "UTF-8 Characters Å Æ Ë Ͽ"}},
+		{"select $1::varchar[]", []string{}},
 	}
 
 	for i, tt := range tests {

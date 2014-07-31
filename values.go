@@ -11,24 +11,25 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOid        = 16
-	ByteaOid       = 17
-	Int8Oid        = 20
-	Int2Oid        = 21
-	Int4Oid        = 23
-	TextOid        = 25
-	Float4Oid      = 700
-	Float8Oid      = 701
-	Int2ArrayOid   = 1005
-	Int4ArrayOid   = 1007
-	TextArrayOid   = 1009
-	Int8ArrayOid   = 1016
-	Float4ArrayOid = 1021
-	Float8ArrayOid = 1022
-	VarcharOid     = 1043
-	DateOid        = 1082
-	TimestampOid   = 1114
-	TimestampTzOid = 1184
+	BoolOid         = 16
+	ByteaOid        = 17
+	Int8Oid         = 20
+	Int2Oid         = 21
+	Int4Oid         = 23
+	TextOid         = 25
+	Float4Oid       = 700
+	Float8Oid       = 701
+	Int2ArrayOid    = 1005
+	Int4ArrayOid    = 1007
+	TextArrayOid    = 1009
+	VarcharArrayOid = 1015
+	Int8ArrayOid    = 1016
+	Float4ArrayOid  = 1021
+	Float8ArrayOid  = 1022
+	VarcharOid      = 1043
+	DateOid         = 1082
+	TimestampOid    = 1114
+	TimestampTzOid  = 1184
 )
 
 // PostgreSQL format codes
@@ -56,6 +57,7 @@ func init() {
 	DefaultOidFormats[Float4ArrayOid] = BinaryFormatCode
 	DefaultOidFormats[Float8ArrayOid] = BinaryFormatCode
 	DefaultOidFormats[TextArrayOid] = BinaryFormatCode
+	DefaultOidFormats[VarcharArrayOid] = BinaryFormatCode
 }
 
 type SerializationError string
@@ -1318,8 +1320,8 @@ func decodeTextArray(vr *ValueReader) []string {
 		return nil
 	}
 
-	if vr.Type().DataType != TextArrayOid {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", TextArrayOid, vr.Type().DataType)))
+	if vr.Type().DataType != TextArrayOid && vr.Type().DataType != VarcharArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v or %v but received type oid %v", TextArrayOid, VarcharArrayOid, vr.Type().DataType)))
 		return nil
 	}
 
@@ -1348,7 +1350,7 @@ func decodeTextArray(vr *ValueReader) []string {
 	return a
 }
 
-func encodeTextArray(w *WriteBuf, value interface{}) error {
+func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	slice, ok := value.([]string)
 	if !ok {
 		return fmt.Errorf("Expected []string, received %T", value)
@@ -1364,7 +1366,7 @@ func encodeTextArray(w *WriteBuf, value interface{}) error {
 
 	w.WriteInt32(1)                 // number of dimensions
 	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(TextOid)           // type of elements
+	w.WriteInt32(int32(elOid))      // type of elements
 	w.WriteInt32(int32(len(slice))) // number of elements
 	w.WriteInt32(1)                 // index of first element
 

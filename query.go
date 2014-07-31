@@ -306,7 +306,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeFloat4Array(vr))
 			case Float8ArrayOid:
 				values = append(values, decodeFloat8Array(vr))
-			case TextArrayOid:
+			case TextArrayOid, VarcharArrayOid:
 				values = append(values, decodeTextArray(vr))
 			case DateOid:
 				values = append(values, decodeDate(vr))
