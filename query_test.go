@@ -453,7 +453,7 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "could not determine data type of parameter $1 (SQLSTATE 42P18)"},
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Expected type oid 21 but received type oid 25"},
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Cannot decode oid 25 into int16"},
 		{"select $1::int8range", []interface{}{int(705)}, []interface{}{&actual.s}, "Cannot encode int into oid 3926 - int must implement Encoder or be converted to a string"},
 	}
 
