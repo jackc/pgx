@@ -652,22 +652,22 @@ func encodeInt4(w *WriteBuf, value interface{}) error {
 		v = int32(value)
 	case uint32:
 		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
 		}
 		v = int32(value)
 	case int64:
 		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
 		}
 		v = int32(value)
 	case uint64:
 		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
 		}
 		v = int32(value)
 	case int:
 		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int64 %d", value, value, math.MaxInt32)
+			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
 		}
 		v = int32(value)
 	default:
