@@ -17,6 +17,7 @@ const (
 	Int2Oid         = 21
 	Int4Oid         = 23
 	TextOid         = 25
+	OidOid          = 26
 	Float4Oid       = 700
 	Float8Oid       = 701
 	Int2ArrayOid    = 1005
@@ -58,6 +59,7 @@ func init() {
 	DefaultOidFormats[Float8ArrayOid] = BinaryFormatCode
 	DefaultOidFormats[TextArrayOid] = BinaryFormatCode
 	DefaultOidFormats[VarcharArrayOid] = BinaryFormatCode
+	DefaultOidFormats[OidOid] = BinaryFormatCode
 }
 
 type SerializationError string
@@ -676,6 +678,49 @@ func encodeInt4(w *WriteBuf, value interface{}) error {
 
 	w.WriteInt32(4)
 	w.WriteInt32(v)
+
+	return nil
+}
+
+func decodeOid(vr *ValueReader) Oid {
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into Oid"))
+		return 0
+	}
+
+	if vr.Type().DataType != OidOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Expected type oid %v but received type oid %v", OidOid, vr.Type().DataType)))
+		return 0
+	}
+
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		s := vr.ReadString(vr.Len())
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid Oid: %v", s)))
+		}
+		return Oid(n)
+	case BinaryFormatCode:
+		if vr.Len() != 4 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an Oid: %d", vr.Len())))
+			return 0
+		}
+		return Oid(vr.ReadInt32())
+	default:
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return Oid(0)
+	}
+}
+
+func encodeOid(w *WriteBuf, value interface{}) error {
+	v, ok := value.(Oid)
+	if !ok {
+		return fmt.Errorf("Expected Oid, received %T", value)
+	}
+
+	w.WriteInt32(4)
+	w.WriteInt32(int32(v))
 
 	return nil
 }

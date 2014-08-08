@@ -208,6 +208,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			*d = decodeInt2(vr)
 		case *int32:
 			*d = decodeInt4(vr)
+		case *Oid:
+			*d = decodeOid(vr)
 		case *string:
 			*d = decodeText(vr)
 		case *float32:
