@@ -437,6 +437,7 @@ func TestQueryRowErrors(t *testing.T) {
 
 	type allTypes struct {
 		i16 int16
+		s   string
 	}
 
 	var actual, zero allTypes
@@ -451,6 +452,7 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
 		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Expected type oid 21 but received type oid 25"},
+		{"select $1::int8range", []interface{}{int(705)}, []interface{}{&actual.s}, "Cannot encode int into oid 3926 - int must implement Encoder or be converted to a string"},
 	}
 
 	for i, tt := range tests {

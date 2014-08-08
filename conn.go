@@ -530,7 +530,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case VarcharArrayOid:
 				err = encodeTextArray(wbuf, arguments[i], VarcharOid)
 			default:
-				return SerializationError(fmt.Sprintf("%T is not a core type and it does not implement Encoder", arg))
+				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 			}
 		}
 		if err != nil {
