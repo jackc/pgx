@@ -517,7 +517,7 @@ func encodeInt8(w *WriteBuf, value interface{}) error {
 		v = int64(value)
 	case uint64:
 		if value > math.MaxInt64 {
-			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, math.MaxInt64)
+			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, int64(math.MaxInt64))
 		}
 		v = int64(value)
 	case int:
