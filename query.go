@@ -246,7 +246,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(err)
 			}
 		default:
-			rows.Fatal(errors.New("Unknown type"))
+			rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
 		}
 
 		if vr.Err() != nil {
