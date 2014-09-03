@@ -71,7 +71,7 @@ func (rows *Rows) close() {
 
 	if rows.err == nil {
 		endTime := time.Now()
-		rows.logger.Info("Query", "sql", rows.sql, "args", rows.args, "time", endTime.Sub(rows.startTime))
+		rows.logger.Info("Query", "sql", rows.sql, "args", rows.args, "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
 	} else {
 		rows.logger.Error("Query", "sql", rows.sql, "args", rows.args)
 	}
