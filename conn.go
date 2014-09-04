@@ -188,7 +188,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			c.logger = c.logger.New("pid", c.Pid)
+			c.logger = &connLogger{logger: c.logger, pid: c.Pid}
 			c.logger.Info("Connection established")
 			return c, nil
 		default:

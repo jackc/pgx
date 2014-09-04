@@ -3,7 +3,6 @@ package pgx
 import (
 	"errors"
 	"fmt"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"time"
 )
 
@@ -50,7 +49,7 @@ type Rows struct {
 	startTime time.Time
 	sql       string
 	args      []interface{}
-	logger    log.Logger
+	logger    Logger
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
