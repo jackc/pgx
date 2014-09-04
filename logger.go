@@ -12,12 +12,12 @@ type Logger interface {
 	Error(msg string, ctx ...interface{})
 }
 
-type DiscardLogger struct{}
+type discardLogger struct{}
 
-func (l *DiscardLogger) Debug(msg string, ctx ...interface{}) {}
-func (l *DiscardLogger) Info(msg string, ctx ...interface{})  {}
-func (l *DiscardLogger) Warn(msg string, ctx ...interface{})  {}
-func (l *DiscardLogger) Error(msg string, ctx ...interface{}) {}
+func (l *discardLogger) Debug(msg string, ctx ...interface{}) {}
+func (l *discardLogger) Info(msg string, ctx ...interface{})  {}
+func (l *discardLogger) Warn(msg string, ctx ...interface{})  {}
+func (l *discardLogger) Error(msg string, ctx ...interface{}) {}
 
 type connLogger struct {
 	logger Logger

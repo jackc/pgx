@@ -99,7 +99,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.config.Logger != nil {
 		c.logger = c.config.Logger
 	} else {
-		c.logger = &DiscardLogger{}
+		c.logger = &discardLogger{}
 	}
 
 	if c.config.User == "" {

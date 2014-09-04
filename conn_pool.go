@@ -44,7 +44,7 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	if config.Logger != nil {
 		p.logger = config.Logger
 	} else {
-		p.logger = &DiscardLogger{}
+		p.logger = &discardLogger{}
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
