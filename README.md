@@ -157,8 +157,10 @@ native Go slice an error will occur.
 
 ### Logging
 
-pgx connections optionally accept a logger from the [log15
-package](http://gopkg.in/inconshreveable/log15.v2).
+pgx defines a simple logger interface. Connections optionally accept a logger
+that satisfies this interface. The [log15
+package](http://gopkg.in/inconshreveable/log15.v2) satisfies this interface
+and it is simple to define adapters for other loggers.
 
 ## Testing
 
