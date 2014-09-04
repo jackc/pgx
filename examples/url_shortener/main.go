@@ -106,7 +106,6 @@ func main() {
 			User:     "jack",
 			Password: "jack",
 			Database: "url_shortener",
-			Logger:   log.New("module", "pgx"),
 		},
 		MaxConnections: 5,
 		AfterConnect:   afterConnect,

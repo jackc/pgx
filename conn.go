@@ -14,7 +14,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"io"
 	"net"
 	"net/url"
@@ -34,7 +33,6 @@ type ConnConfig struct {
 	User      string // default: OS user name
 	Password  string
 	TLSConfig *tls.Config // config for TLS connection -- nil disables TLS
-	Logger    log.Logger
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -53,7 +51,6 @@ type Conn struct {
 	notifications      []*Notification
 	alive              bool
 	causeOfDeath       error
-	logger             log.Logger
 	rows               Rows
 	mr                 msgReader
 }
@@ -97,12 +94,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
-	if c.config.Logger != nil {
-		c.logger = c.config.Logger
-	} else {
-		c.logger = log.New()
-		c.logger.SetHandler(log.DiscardHandler())
-	}
 
 	if c.config.User == "" {
 		user, err := user.Current()
@@ -110,12 +101,10 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			return nil, err
 		}
 		c.config.User = user.Username
-		c.logger.Debug("Using default connection config", "User", c.config.User)
 	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
-		c.logger.Debug("Using default connection config", "Port", c.config.Port)
 	}
 
 	// See if host is a valid path, if yes connect with a socket
@@ -127,17 +116,13 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			socket = filepath.Join(socket, ".s.PGSQL.") + strconv.FormatInt(int64(c.config.Port), 10)
 		}
 
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at socket: %s", socket))
 		c.conn, err = net.Dial("unix", socket)
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
 		}
 	} else {
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at host: %s:%d", c.config.Host, c.config.Port))
 		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.config.Host, c.config.Port))
 		if err != nil {
-			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
 		}
 	}
@@ -145,7 +130,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		if c != nil && err != nil {
 			c.conn.Close()
 			c.alive = false
-			c.logger.Error(err.Error())
 		}
 	}()
 
@@ -154,9 +138,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	c.alive = true
 
 	if config.TLSConfig != nil {
-		c.logger.Debug("Starting TLS handshake")
 		if err = c.startTLS(); err != nil {
-			c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
 			return
 		}
 	}
@@ -190,8 +172,6 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			c.logger = c.logger.New("pid", c.Pid)
-			c.logger.Info("Connection established")
 			return c, nil
 		default:
 			if err = c.processContextFreeMsg(t, r); err != nil {
@@ -214,7 +194,6 @@ func (c *Conn) Close() (err error) {
 	_, err = c.conn.Write(wbuf.buf)
 
 	c.die(errors.New("Closed"))
-	c.logger.Info("Closed connection")
 	return err
 }
 
@@ -249,12 +228,6 @@ func ParseURI(uri string) (ConnConfig, error) {
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
-	defer func() {
-		if err != nil {
-			c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
-		}
-	}()
-
 	// parse
 	wbuf := newWriteBuf(c.wbuf[0:0], 'P')
 	wbuf.WriteCString(name)
@@ -566,17 +539,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 // arguments will be sanitized before being interpolated into sql strings. arguments
 // should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	startTime := time.Now()
-
-	defer func() {
-		if err == nil {
-			endTime := time.Now()
-			c.logger.Info("Exec", "sql", sql, "args", arguments, "time", endTime.Sub(startTime), "commandTag", commandTag)
-		} else {
-			c.logger.Error("Exec", "sql", sql, "args", arguments, "error", err)
-		}
-	}()
-
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
 	}

@@ -155,11 +155,6 @@ and the equivalent PostgreSQL array type. Go slices of native types do not
 support nulls, so if a PostgreSQL array that contains a slice is read into a
 native Go slice an error will occur.
 
-### Logging
-
-pgx connections optionally accept a logger from the [log15
-package](http://gopkg.in/inconshreveable/log15.v2).
-
 ## Testing
 
 Pgx supports multiple connection and authentication types. Setting up a test
