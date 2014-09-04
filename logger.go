@@ -10,7 +10,6 @@ type Logger interface {
 	Info(msg string, ctx ...interface{})
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
-	Crit(msg string, ctx ...interface{})
 }
 
 type DiscardLogger struct{}
@@ -19,7 +18,6 @@ func (l *DiscardLogger) Debug(msg string, ctx ...interface{}) {}
 func (l *DiscardLogger) Info(msg string, ctx ...interface{})  {}
 func (l *DiscardLogger) Warn(msg string, ctx ...interface{})  {}
 func (l *DiscardLogger) Error(msg string, ctx ...interface{}) {}
-func (l *DiscardLogger) Crit(msg string, ctx ...interface{})  {}
 
 type connLogger struct {
 	logger Logger
@@ -44,9 +42,4 @@ func (l *connLogger) Warn(msg string, ctx ...interface{}) {
 func (l *connLogger) Error(msg string, ctx ...interface{}) {
 	ctx = append(ctx, "pid", l.pid)
 	l.logger.Error(msg, ctx...)
-}
-
-func (l *connLogger) Crit(msg string, ctx ...interface{}) {
-	ctx = append(ctx, "pid", l.pid)
-	l.logger.Crit(msg, ctx...)
 }
