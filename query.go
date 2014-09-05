@@ -205,7 +205,7 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 // dest can include pointers to core types and the Scanner interface.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
-		err = errors.New("Scan received wrong number of arguments")
+		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
 		rows.Fatal(err)
 		return err
 	}
