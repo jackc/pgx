@@ -1,9 +1,3 @@
-// Package pgx is a PostgreSQL database driver.
-//
-// pgx provides lower level access to PostgreSQL than the standard database/sql
-// It remains as similar to the database/sql interface as possible while
-// providing better speed and access to PostgreSQL specific features. Import
-// github.com/jack/pgx/stdlib to use pgx as a database/sql compatible driver.
 package pgx
 
 import (
@@ -46,6 +40,7 @@ type Conn struct {
 	Pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
+	PgTypes            map[Oid]PgType    // oids to PgTypes
 	config             ConnConfig        // config used when establishing this connection
 	TxStatus           byte
 	preparedStatements map[string]*PreparedStatement
@@ -66,6 +61,11 @@ type Notification struct {
 	Pid     int32  // backend pid that sent the notification
 	Channel string // channel from which notification was received
 	Payload string
+}
+
+type PgType struct {
+	Name          string // name of type e.g. int4, text, date
+	DefaultFormat int16  // default format (text or binary) this type will be requested in
 }
 
 type CommandTag string
@@ -189,6 +189,12 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			c.rxReadyForQuery(r)
 			c.logger = &connLogger{logger: c.logger, pid: c.Pid}
 			c.logger.Info("Connection established")
+
+			err = c.loadPgTypes()
+			if err != nil {
+				return nil, err
+			}
+
 			return c, nil
 		default:
 			if err = c.processContextFreeMsg(t, r); err != nil {
@@ -196,6 +202,29 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			}
 		}
 	}
+}
+
+func (c *Conn) loadPgTypes() error {
+	rows, err := c.Query("select t.oid, t.typname from pg_type t where t.typtype='b'")
+	if err != nil {
+		return err
+	}
+
+	c.PgTypes = make(map[Oid]PgType, 128)
+
+	for rows.Next() {
+		var oid Oid
+		var t PgType
+
+		rows.Scan(&oid, &t.Name)
+
+		// The zero value is text format so we ignore any types without a default type format
+		t.DefaultFormat, _ = DefaultTypeFormats[t.Name]
+
+		c.PgTypes[oid] = t
+	}
+
+	return rows.Err()
 }
 
 // Close closes a connection. It is safe to call Close on a already closed
@@ -291,7 +320,9 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
 			for i := range ps.FieldDescriptions {
-				ps.FieldDescriptions[i].FormatCode, _ = DefaultOidFormats[ps.FieldDescriptions[i].DataType]
+				t, _ := c.PgTypes[ps.FieldDescriptions[i].DataType]
+				ps.FieldDescriptions[i].DataTypeName = t.Name
+				ps.FieldDescriptions[i].FormatCode = t.DefaultFormat
 			}
 		case noData:
 		case readyForQuery:

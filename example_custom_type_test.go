@@ -18,11 +18,9 @@ type NullPoint struct {
 	Valid bool    // Valid is true if not NULL
 }
 
-const pointOid = 600
-
 func (p *NullPoint) Scan(vr *pgx.ValueReader) error {
-	if vr.Type().DataType != pointOid {
-		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode OID %d", vr.Type().DataType))
+	if vr.Type().DataTypeName != "point" {
+		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode %s (OID %d)", vr.Type().DataTypeName, vr.Type().DataType))
 	}
 
 	if vr.Len() == -1 {
