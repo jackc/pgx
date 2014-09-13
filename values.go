@@ -39,27 +39,32 @@ const (
 	BinaryFormatCode = 1
 )
 
-var DefaultOidFormats map[Oid]int16
+// DefaultTypeFormats maps type names to their default requested format (text
+// or binary). In theory the Scanner interface should be the one to determine
+// the format of the returned values. However, the query has already been
+// executed by the time Scan is called so it has no chance to set the format.
+// So for types that should be returned in binary th
+var DefaultTypeFormats map[string]int16
 
 func init() {
-	DefaultOidFormats = make(map[Oid]int16)
-	DefaultOidFormats[BoolOid] = BinaryFormatCode
-	DefaultOidFormats[ByteaOid] = BinaryFormatCode
-	DefaultOidFormats[Int2Oid] = BinaryFormatCode
-	DefaultOidFormats[Int4Oid] = BinaryFormatCode
-	DefaultOidFormats[Int8Oid] = BinaryFormatCode
-	DefaultOidFormats[Float4Oid] = BinaryFormatCode
-	DefaultOidFormats[Float8Oid] = BinaryFormatCode
-	DefaultOidFormats[DateOid] = BinaryFormatCode
-	DefaultOidFormats[TimestampTzOid] = BinaryFormatCode
-	DefaultOidFormats[Int2ArrayOid] = BinaryFormatCode
-	DefaultOidFormats[Int4ArrayOid] = BinaryFormatCode
-	DefaultOidFormats[Int8ArrayOid] = BinaryFormatCode
-	DefaultOidFormats[Float4ArrayOid] = BinaryFormatCode
-	DefaultOidFormats[Float8ArrayOid] = BinaryFormatCode
-	DefaultOidFormats[TextArrayOid] = BinaryFormatCode
-	DefaultOidFormats[VarcharArrayOid] = BinaryFormatCode
-	DefaultOidFormats[OidOid] = BinaryFormatCode
+	DefaultTypeFormats = make(map[string]int16)
+	DefaultTypeFormats["_float4"] = BinaryFormatCode
+	DefaultTypeFormats["_float8"] = BinaryFormatCode
+	DefaultTypeFormats["_int2"] = BinaryFormatCode
+	DefaultTypeFormats["_int4"] = BinaryFormatCode
+	DefaultTypeFormats["_int8"] = BinaryFormatCode
+	DefaultTypeFormats["_text"] = BinaryFormatCode
+	DefaultTypeFormats["_varchar"] = BinaryFormatCode
+	DefaultTypeFormats["bool"] = BinaryFormatCode
+	DefaultTypeFormats["bytea"] = BinaryFormatCode
+	DefaultTypeFormats["date"] = BinaryFormatCode
+	DefaultTypeFormats["float4"] = BinaryFormatCode
+	DefaultTypeFormats["float8"] = BinaryFormatCode
+	DefaultTypeFormats["int2"] = BinaryFormatCode
+	DefaultTypeFormats["int4"] = BinaryFormatCode
+	DefaultTypeFormats["int8"] = BinaryFormatCode
+	DefaultTypeFormats["oid"] = BinaryFormatCode
+	DefaultTypeFormats["timestamptz"] = BinaryFormatCode
 }
 
 type SerializationError string
@@ -70,9 +75,11 @@ func (e SerializationError) Error() string {
 
 // Scanner is an interface used to decode values from the PostgreSQL server.
 type Scanner interface {
-	// Scan MUST check r.Type().DataType and r.Type().FormatCode before decoding.
-	// It should not assume that it was called on a data type or format that it
-	// understands.
+	// Scan MUST check r.Type().DataType (to check by OID) or
+	// r.Type().DataTypeName (to check by name) to ensure that it is scanning an
+	// expected column type. It also MUST check r.Type().FormatCode before
+	// decoding. It should not assume that it was called on a data type or format
+	// that it understands.
 	Scan(r *ValueReader) error
 }
 

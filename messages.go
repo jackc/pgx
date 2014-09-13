@@ -56,6 +56,7 @@ type FieldDescription struct {
 	AttributeNumber int16
 	DataType        Oid
 	DataTypeSize    int16
+	DataTypeName    string
 	Modifier        int32
 	FormatCode      int16
 }
