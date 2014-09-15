@@ -1,5 +1,10 @@
 package pgx
 
+import (
+	"encoding/hex"
+	"fmt"
+)
+
 // Logger is the interface used to get logging from pgx internals.
 // https://github.com/inconshreveable/log15 is the recommended logging package.
 // This logging interface was extracted from there. However, it should be simple
@@ -42,4 +47,26 @@ func (l *connLogger) Warn(msg string, ctx ...interface{}) {
 func (l *connLogger) Error(msg string, ctx ...interface{}) {
 	ctx = append(ctx, "pid", l.pid)
 	l.logger.Error(msg, ctx...)
+}
+
+func logQueryArgs(args ...interface{}) []interface{} {
+	logArgs := make([]interface{}, 0, len(args))
+
+	for _, a := range args {
+		switch v := a.(type) {
+		case []byte:
+			if len(v) < 64 {
+				a = hex.EncodeToString(v)
+			} else {
+				a = fmt.Sprintf("%x (truncated %d bytes)", v[:64], len(v)-64)
+			}
+		case string:
+			if len(v) > 64 {
+				a = fmt.Sprintf("%s (truncated %d bytes)", v[:64], len(v)-64)
+			}
+		}
+		logArgs = append(logArgs, a)
+	}
+
+	return logArgs
 }

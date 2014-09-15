@@ -569,9 +569,9 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	defer func() {
 		if err == nil {
 			endTime := time.Now()
-			c.logger.Info("Exec", "sql", sql, "args", arguments, "time", endTime.Sub(startTime), "commandTag", commandTag)
+			c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
 		} else {
-			c.logger.Error("Exec", "sql", sql, "args", arguments, "error", err)
+			c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
 		}
 	}()
 
