@@ -676,6 +676,20 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 			err.Code = r.readCString()
 		case 'M':
 			err.Message = r.readCString()
+		case 'D':
+			err.Detail = r.readCString()
+		case 'H':
+			err.Hint = r.readCString()
+		case 's':
+			err.SchemaName = r.readCString()
+		case 't':
+			err.TableName = r.readCString()
+		case 'c':
+			err.ColumnName = r.readCString()
+		case 'd':
+			err.DataTypeName = r.readCString()
+		case 'n':
+			err.ConstraintName = r.readCString()
 		case 0: // End of error message
 			if err.Severity == "FATAL" {
 				c.die(err)
