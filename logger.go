@@ -49,7 +49,7 @@ func (l *connLogger) Error(msg string, ctx ...interface{}) {
 	l.logger.Error(msg, ctx...)
 }
 
-func logQueryArgs(args ...interface{}) []interface{} {
+func logQueryArgs(args []interface{}) []interface{} {
 	logArgs := make([]interface{}, 0, len(args))
 
 	for _, a := range args {
