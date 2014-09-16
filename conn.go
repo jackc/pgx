@@ -53,7 +53,6 @@ type Conn struct {
 	alive              bool
 	causeOfDeath       error
 	logger             Logger
-	rows               Rows
 	mr                 msgReader
 }
 

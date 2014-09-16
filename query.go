@@ -354,8 +354,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
-	c.rows = Rows{conn: c, startTime: time.Now(), sql: sql, args: args, logger: c.logger}
-	rows := &c.rows
+	rows := &Rows{conn: c, startTime: time.Now(), sql: sql, args: args, logger: c.logger}
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {

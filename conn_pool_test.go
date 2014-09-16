@@ -410,6 +410,50 @@ func TestConnPoolQuery(t *testing.T) {
 	}
 }
 
+func TestConnPoolQueryConcurrentLoad(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 10)
+	defer pool.Close()
+
+	for i := 0; i < 100; i++ {
+		go func(i int) {
+			var rowCount int32
+
+			rows, err := pool.Query("select generate_series(1,$1)", 1000)
+			if err != nil {
+				fmt.Println(i, err)
+				t.Fatalf("pool.Query failed: %v", err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var n int32
+				err = rows.Scan(&n)
+				if err != nil {
+					fmt.Println(i, err)
+					t.Fatalf("rows.Scan failed: %v", err)
+				}
+				if n != rowCount+1 {
+					fmt.Println(i, err)
+					t.Fatalf("Expected n to be %d, but it was %d", rowCount+1, n)
+				}
+				rowCount++
+			}
+
+			if rows.Err() != nil {
+				fmt.Println(i, err)
+				t.Fatalf("conn.Query failed: ", err)
+			}
+
+			if rowCount != 1000 {
+				fmt.Println(i, err)
+				t.Error("Select called onDataRow wrong number of times")
+			}
+		}(i)
+	}
+}
+
 func TestConnPoolQueryRow(t *testing.T) {
 	t.Parallel()
 
