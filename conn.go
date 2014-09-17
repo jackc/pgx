@@ -591,8 +591,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
-// arguments will be sanitized before being interpolated into sql strings. arguments
-// should be referenced positionally from the sql string as $1, $2, etc.
+// arguments should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	startTime := time.Now()
 

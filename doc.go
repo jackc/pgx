@@ -5,6 +5,132 @@ It remains as similar to the database/sql interface as possible while
 providing better speed and access to PostgreSQL specific features. Import
 github.com/jack/pgx/stdlib to use pgx as a database/sql compatible driver.
 
+Query Interface
+
+pgx implements Query and Scan in the familiar database/sql style.
+
+    var sum int32
+
+    // Send the query to the server. The returned rows MUST be closed
+    // before conn can be used again.
+    rows, err := conn.Query("select generate_series(1,$1)", 10)
+    if err != nil {
+        return err
+    }
+
+    // rows.Close is called by rows.Next when all rows are read
+    // or an error occurs in Next or Scan. So it may optionally be
+    // omitted if nothing in the rows.Next loop can panic. It is
+    // safe to close rows multiple times.
+    defer rows.Close()
+
+    // Iterate through the result set
+    for rows.Next() {
+        var n int32
+        err = rows.Scan(&n)
+        if err != nil {
+            return err
+        }
+        sum += n
+    }
+
+    // Any errors encountered by rows.Next or rows.Scan will be returned here
+    if rows.Err() != nil {
+        return err
+    }
+
+    // No errors found - do something with sum
+
+pgx also implements QueryRow in the same style as database/sql.
+
+    var name string
+    var weight int64
+    err := conn.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+    if err != nil {
+        return err
+    }
+
+Use exec to execute a query that does not return a result set.
+
+    commandTag, err := conn.Exec("delete from widgets where id=$1", 42)
+    if err != nil {
+        return err
+    }
+    if commandTag.RowsAffected() != 1 {
+        return errors.New("No row found to delete")
+    }
+
+Connection Pool
+
+Connection pool usage is explicit and configurable. In pgx, a connection can
+be created and managed directly, or a connection pool with a configurable
+maximum connections can be used. Also, the connection pool offers an after
+connect hook that allows every connection to be automatically setup before
+being made available in the connection pool. This is especially useful to
+ensure all connections have the same prepared statements available or to
+change any other connection settings.
+
+It delegates Query, QueryRow, Exec, and Begin functions to an automatically
+checked out and released connection so you can avoid manually acquiring and
+releasing connections when you do not need that level of control.
+
+    var name string
+    var weight int64
+    err := pool.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+    if err != nil {
+        return err
+    }
+
+Transactions
+
+Transactions are started by calling Begin or BeginIso. The BeginIso variant
+creates a transaction with a specified isolation level.
+
+    tx, err := conn.Begin()
+    if err != nil {
+        return err
+    }
+    // Rollback is safe to call even if the tx is already closed, so if
+    // the tx commits successfully, this is a no-op
+    defer tx.Rollback()
+
+    _, err = tx.Exec("insert into foo(id) values (1)")
+    if err != nil {
+        return err
+    }
+
+    err = tx.Commit()
+    if err != nil {
+        return err
+    }
+
+Listen and Notify
+
+pgx can listen to the PostgreSQL notification system with the
+WaitForNotification function. It takes a maximum time to wait for a
+notification.
+
+    err := conn.Listen("channelname")
+    if err != nil {
+        return nil
+    }
+
+    if notification, err := conn.WaitForNotification(time.Second); err != nil {
+        // do something with notification
+    }
+
+Null Mapping
+
+pgx includes Null* types in a similar fashion to database/sql that implement the
+necessary interfaces to be encoded and scanned.
+
+Array Mapping
+
+pgx maps between int16, int32, int64, float32, float64, and string Go slices
+and the equivalent PostgreSQL array type. Go slices of native types do not
+support nulls, so if a PostgreSQL array that contains a slice is read into a
+native Go slice an error will occur.
+
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings,
@@ -19,7 +145,7 @@ However, that is impossible as the query has already been sent by the time the
 Scanner is invoked. The solution to this is the global DefaultTypeFormats. If a
 custom type prefers binary format it should register it there.
 
-    pgx.DefaultTypeFormats["point"] = pgx.BinaryFormatCode
+        pgx.DefaultTypeFormats["point"] = pgx.BinaryFormatCode
 
 Note that the type is referred to by name, not by OID. This is because custom
 PostgreSQL types like hstore will have different OIDs on different servers. When
@@ -29,5 +155,19 @@ Conn.PgTypes.
 
 See example_custom_type_test.go for an example of a custom type for the
 PostgreSQL point type.
+
+TLS
+
+The pgx ConnConfig struct has a TLSConfig field. If this field is
+nil, then TLS will be disabled. If it is present, then it will be used to
+configure the TLS connection. This allows total configuration of the TLS
+connection.
+
+Logging
+
+pgx defines a simple logger interface. Connections optionally accept a logger
+that satisfies this interface. The log15 package
+(http://gopkg.in/inconshreveable/log15.v2) satisfies this interface
+and it is simple to define adapters for other loggers.
 */
 package pgx

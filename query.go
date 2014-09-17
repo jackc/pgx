@@ -103,10 +103,8 @@ func (rows *Rows) readUntilReadyForQuery() {
 	}
 }
 
-// Close closes the rows, making the connection ready for use again. It is not
-// usually necessary to call Close explicitly because reading all returned rows
-// with Next automatically closes Rows. It is safe to call Close after rows is
-// already closed.
+// Close closes the rows, making the connection ready for use again. It is safe
+// to call Close after rows is already closed.
 func (rows *Rows) Close() {
 	if rows.closed {
 		return
