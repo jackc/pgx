@@ -254,7 +254,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			default:
 				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
 			}
-
+		case *map[string]string:
+			*d = decodeHstore(vr)
 		case Scanner:
 			err = d.Scan(vr)
 			if err != nil {
