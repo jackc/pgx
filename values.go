@@ -1043,8 +1043,6 @@ func encodeTimestamp(w *WriteBuf, value interface{}) error {
 
 	s := t.Format("2006-01-02 15:04:05.999999")
 	return encodeText(w, s)
-
-	return nil
 }
 
 func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
