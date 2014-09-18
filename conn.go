@@ -519,8 +519,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = arg.Encode(wbuf, oid)
 		case string:
 			err = encodeText(wbuf, arguments[i])
-		case map[string]string:
-			err = encodeHstore(wbuf, arguments[i])
 		default:
 			switch oid {
 			case BoolOid:
