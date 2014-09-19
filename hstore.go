@@ -81,6 +81,9 @@ func parseHstoreToNullHstore(s string) (store map[string]NullString, err error) 
 }
 
 func ParseHstore(s string) (k []string, v []NullString, err error) {
+	if s == "" {
+		return
+	}
 
 	buf := bytes.Buffer{}
 	keys := []string{}
