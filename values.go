@@ -104,10 +104,9 @@ type Encoder interface {
 	FormatCode() int16
 }
 
-// NullFloat32 represents an float4 that may be null.
-// NullFloat32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullFloat32 represents an float4 that may be null. NullFloat32 implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullFloat32 struct {
@@ -144,10 +143,9 @@ func (n NullFloat32) Encode(w *WriteBuf, oid Oid) error {
 	return encodeFloat4(w, n.Float32)
 }
 
-// NullFloat64 represents an float8 that may be null.
-// NullFloat64 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullFloat64 represents an float8 that may be null. NullFloat64 implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullFloat64 struct {
@@ -184,10 +182,9 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 	return encodeFloat8(w, n.Float64)
 }
 
-// NullString represents an string that may be null. NullString implements
-// the Scanner and TextEncoder interfaces so it may be used both as an
-// argument to Query[Row] and a destination for Scan for prepared and
-// unprepared queries.
+// NullString represents an string that may be null. NullString implements the
+// Scanner Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullString struct {
@@ -219,10 +216,9 @@ func (s NullString) Encode(w *WriteBuf, oid Oid) error {
 	return encodeText(w, s.String)
 }
 
-// NullInt16 represents an smallint that may be null.
-// NullInt16 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullInt16 represents an smallint that may be null. NullInt16 implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
 //
 // If Valid is false then the value is NULL.
 type NullInt16 struct {
@@ -259,10 +255,9 @@ func (n NullInt16) Encode(w *WriteBuf, oid Oid) error {
 	return encodeInt2(w, n.Int16)
 }
 
-// NullInt32 represents an integer that may be null.
-// NullInt32 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullInt32 represents an integer that may be null. NullInt32 implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullInt32 struct {
@@ -299,10 +294,9 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 	return encodeInt4(w, n.Int32)
 }
 
-// NullInt64 represents an bigint that may be null.
-// NullInt64 implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullInt64 represents an bigint that may be null. NullInt64 implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullInt64 struct {
@@ -339,10 +333,9 @@ func (n NullInt64) Encode(w *WriteBuf, oid Oid) error {
 	return encodeInt8(w, n.Int64)
 }
 
-// NullBool represents an bool that may be null.
-// NullBool implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullBool represents an bool that may be null. NullBool implements the Scanner
+// and Encoder interfaces so it may be used both as an argument to Query[Row]
+// and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullBool struct {
@@ -379,10 +372,9 @@ func (n NullBool) Encode(w *WriteBuf, oid Oid) error {
 	return encodeBool(w, n.Bool)
 }
 
-// NullTime represents an bigint that may be null.
-// NullTime implements the Scanner, TextEncoder, and BinaryEncoder interfaces
-// so it may be used both as an argument to Query[Row] and a destination for
-// Scan for prepared and unprepared queries.
+// NullTime represents an bigint that may be null. NullTime implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
 //
 // If Valid is false then the value is NULL.
 type NullTime struct {
@@ -421,10 +413,10 @@ func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
 	return encodeTimestampTz(w, n.Time)
 }
 
-//Hstore represents an hstore column. It does not support a null column or null
+// Hstore represents an hstore column. It does not support a null column or null
 // key values (use NullHstore for this). Hstore implements the Scanner and
-// TextEncoder interfaces so it may be used both as an argument to Query[Row]
-// and a destination for Scan for prepared and unprepared queries.
+// Encoder interfaces so it may be used both as an argument to Query[Row] and a
+// destination for Scan.
 type Hstore map[string]string
 
 func (h *Hstore) Scan(vr *ValueReader) error {
@@ -481,13 +473,13 @@ func (h Hstore) Encode(w *WriteBuf, oid Oid) error {
 }
 
 // NullHstore represents an hstore column that can be null or have null values
-// associated with its keys.  NullHstore implements the Scanner and TextEncoder
+// associated with its keys.  NullHstore implements the Scanner and Encoder
 // interfaces so it may be used both as an argument to Query[Row] and a
-// destination for Scan for prepared and unprepared queries.
+// destination for Scan.
 //
 // If Valid is false, then the value of the entire hstore column is NULL
 // If any of the NullString values in Store has Valid set to false, the key
-// appears in the hstore column, but its value is explicitly set to NULL
+// appears in the hstore column, but its value is explicitly set to NULL.
 type NullHstore struct {
 	Hstore map[string]NullString
 	Valid  bool

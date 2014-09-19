@@ -87,7 +87,7 @@ func newWriteBuf(buf []byte, t byte) *WriteBuf {
 }
 
 // WrifeBuf is used build messages to send to the PostgreSQL server. It is used
-// by the BinaryEncoder interface when implementing custom encoders.
+// by the Encoder interface when implementing custom encoders.
 type WriteBuf struct {
 	buf     []byte
 	sizeIdx int
