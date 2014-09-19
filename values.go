@@ -489,8 +489,8 @@ func (h Hstore) Encode(w *WriteBuf, oid Oid) error {
 // If any of the NullString values in Store has Valid set to false, the key
 // appears in the hstore column, but its value is explicitly set to NULL
 type NullHstore struct {
-	Store map[string]NullString
-	Valid bool
+	Hstore map[string]NullString
+	Valid  bool
 }
 
 func (h *NullHstore) Scan(vr *ValueReader) error {
@@ -513,7 +513,7 @@ func (h *NullHstore) Scan(vr *ValueReader) error {
 			return nil
 		}
 		h.Valid = true
-		h.Store = store
+		h.Hstore = store
 		return nil
 	case BinaryFormatCode:
 		vr.Fatal(ProtocolError("Can't decode binary hstore"))
@@ -535,7 +535,7 @@ func (h NullHstore) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	i := 0
-	for k, v := range h.Store {
+	for k, v := range h.Hstore {
 		i++
 		ks := strings.Replace(k, `\`, `\\`, -1)
 		ks = strings.Replace(ks, `"`, `\"`, -1)
@@ -546,7 +546,7 @@ func (h NullHstore) Encode(w *WriteBuf, oid Oid) error {
 		} else {
 			buf.WriteString(fmt.Sprintf(`"%s"=>NULL`, ks))
 		}
-		if i < len(h.Store) {
+		if i < len(h.Hstore) {
 			buf.WriteString(", ")
 		}
 	}
