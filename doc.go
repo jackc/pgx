@@ -131,6 +131,12 @@ and the equivalent PostgreSQL array type. Go slices of native types do not
 support nulls, so if a PostgreSQL array that contains a slice is read into a
 native Go slice an error will occur.
 
+Hstore Mapping
+
+pgx includes an Hstore type and a NullHstore type. Hstore is simply a
+map[string]string and is preferred when the hstore contains no nulls. NullHstore
+follows the Null* pattern and supports null values.
+
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings,
