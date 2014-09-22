@@ -80,6 +80,11 @@ func parseHstoreToNullHstore(s string) (store map[string]NullString, err error) 
 	return
 }
 
+// ParseHstore parses the string representation of an hstore column (the same
+// you would get from an ordinary SELECT) into two slices of keys and values. it
+// is used internally in the default parsing of hstores, but is exported for use
+// in handling custom data structures backed by an hstore column without the
+// overhead of creating a map[string]string
 func ParseHstore(s string) (k []string, v []NullString, err error) {
 	if s == "" {
 		return
