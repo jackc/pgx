@@ -28,7 +28,7 @@ type ConnConfig struct {
 	Password  string
 	TLSConfig *tls.Config // config for TLS connection -- nil disables TLS
 	Logger    Logger
-	KeepAlive uint16 // keep-alive period for the connetion (0 disables KeepAlive)
+	KeepAlive uint16 // keep-alive period for the connetion (0 disables keep-alive)
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
