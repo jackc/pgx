@@ -28,6 +28,7 @@ type ConnConfig struct {
 	Password  string
 	TLSConfig *tls.Config // config for TLS connection -- nil disables TLS
 	Logger    Logger
+	KeepAlive uint16 // keep-alive period for the connetion (0 disables KeepAlive)
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -132,7 +133,11 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		}
 	} else {
 		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at host: %s:%d", c.config.Host, c.config.Port))
-		c.conn, err = net.Dial("tcp", fmt.Sprintf("%s:%d", c.config.Host, c.config.Port))
+		var d net.Dialer
+		if c.config.KeepAlive != 0 {
+			d.KeepAlive = time.Duration(c.config.KeepAlive) * time.Second
+		}
+		c.conn, err = d.Dial("tcp", fmt.Sprintf("%s:%d", c.config.Host, c.config.Port))
 		if err != nil {
 			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
 			return nil, err
