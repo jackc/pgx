@@ -652,6 +652,8 @@ func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 		return c.rxErrorResponse(r)
 	case noticeResponse:
 		return nil
+	case emptyQueryResponse:
+		return nil
 	case notificationResponse:
 		c.rxNotificationResponse(r)
 		return nil

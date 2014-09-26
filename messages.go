@@ -21,6 +21,7 @@ const (
 	parameterDescription = 't'
 	bindComplete         = '2'
 	notificationResponse = 'A'
+	emptyQueryResponse   = 'I'
 	noData               = 'n'
 	closeComplete        = '3'
 	flush                = 'H'
