@@ -281,6 +281,11 @@ func TestExec(t *testing.T) {
 	if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); results != "SELECT 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
+
+	// Exec no-op which does not return a command tag
+	if results := mustExec(t, conn, "--;"); results != "" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
 }
 
 func TestExecFailure(t *testing.T) {
