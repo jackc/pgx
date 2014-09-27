@@ -214,7 +214,13 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		case *bool:
 			*d = decodeBool(vr)
 		case *[]byte:
-			*d = decodeBytea(vr)
+			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
+			// Otherwise read the bytes directly regardless of what the actual type is.
+			if vr.Type().DataType == ByteaOid {
+				*d = decodeBytea(vr)
+			} else {
+				*d = vr.ReadBytes(vr.Len())
+			}
 		case *int64:
 			*d = decodeInt8(vr)
 		case *int16:
