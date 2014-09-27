@@ -350,7 +350,6 @@ func (c *Conn) Deallocate(name string) (err error) {
 	// flush
 	wbuf.startMsg('H')
 	wbuf.closeMsg()
-	wbuf.closeMsg()
 
 	_, err = c.conn.Write(wbuf.buf)
 	if err != nil {
