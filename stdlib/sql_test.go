@@ -1,6 +1,7 @@
 package stdlib_test
 
 import (
+	"bytes"
 	"database/sql"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/stdlib"
@@ -319,6 +320,25 @@ func TestConnQuery(t *testing.T) {
 	err = rows.Close()
 	if err != nil {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnQueryRowByteSlice(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	expected := []byte{222, 173, 190, 239}
+	var actual []byte
+
+	err := db.QueryRow(`select E'\\xdeadbeef'::bytea`).Scan(&actual)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+
+	if bytes.Compare(actual, expected) != 0 {
+		t.Fatalf("Expected %v, but got %v", expected, actual)
 	}
 
 	ensureConnValid(t, db)
