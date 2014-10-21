@@ -986,13 +986,16 @@ func decodeText(vr *ValueReader) string {
 }
 
 func encodeText(w *WriteBuf, value interface{}) error {
-	s, ok := value.(string)
-	if !ok {
+	switch t := value.(type) {
+	case string:
+		w.WriteInt32(int32(len(t)))
+		w.WriteBytes([]byte(t))
+	case []byte:
+		w.WriteInt32(int32(len(t)))
+		w.WriteBytes(t)
+	default:
 		return fmt.Errorf("Expected string, received %T", value)
 	}
-
-	w.WriteInt32(int32(len(s)))
-	w.WriteBytes([]byte(s))
 
 	return nil
 }
