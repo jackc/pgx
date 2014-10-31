@@ -1,3 +1,7 @@
+# Unreleased
+
+* Allow writing []byte into text and varchar columns without type conversion (Hari Bhaskaran)
+
 # 2.4.0 (October 3, 2014)
 
 * Add per connection oid to name map
