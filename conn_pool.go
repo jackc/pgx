@@ -125,7 +125,7 @@ func (p *ConnPool) Release(conn *Conn) {
 // Close ends the use of a connection pool by closing all underlying connections.
 func (p *ConnPool) Close() {
 	for i := 0; i < p.maxConnections; i++ {
-		if c, err := p.Acquire(); err != nil {
+		if c, err := p.Acquire(); err == nil {
 			_ = c.Close()
 		}
 	}
