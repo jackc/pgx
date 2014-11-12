@@ -416,8 +416,12 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	pool := createConnPool(t, 10)
 	defer pool.Close()
 
-	for i := 0; i < 100; i++ {
+	n := 100
+	done := make(chan bool)
+
+	for i := 0; i < n; i++ {
 		go func() {
+			defer func() { done <- true }()
 			var rowCount int32
 
 			rows, err := pool.Query("select generate_series(1,$1)", 1000)
@@ -446,6 +450,10 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 				t.Error("Select called onDataRow wrong number of times")
 			}
 		}()
+	}
+
+	for i := 0; i < n; i++ {
+		<-done
 	}
 }
 

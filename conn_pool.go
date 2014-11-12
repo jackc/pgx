@@ -19,6 +19,7 @@ type ConnPool struct {
 	maxConnections       int
 	afterConnect         func(*Conn) error
 	logger               Logger
+	closed               bool
 }
 
 type ConnPoolStat struct {
@@ -67,6 +68,10 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 func (p *ConnPool) Acquire() (c *Conn, err error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
+
+	if p.closed {
+		return nil, errors.New("cannot acquire from closed pool")
+	}
 
 	// A connection is available
 	if len(p.availableConnections) > 0 {
@@ -122,12 +127,24 @@ func (p *ConnPool) Release(conn *Conn) {
 	p.cond.Signal()
 }
 
-// Close ends the use of a connection pool by closing all underlying connections.
+// Close ends the use of a connection pool. It prevents any new connections
+// from being acquired, waits until all acquired connections are released,
+// then closes all underlying connections.
 func (p *ConnPool) Close() {
-	for i := 0; i < p.maxConnections; i++ {
-		if c, err := p.Acquire(); err == nil {
-			_ = c.Close()
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	p.closed = true
+
+	// Wait until all connections are released
+	if len(p.availableConnections) != len(p.allConnections) {
+		for len(p.availableConnections) != len(p.allConnections) {
+			p.cond.Wait()
 		}
+	}
+
+	for _, c := range p.allConnections {
+		_ = c.Close()
 	}
 }
 
