@@ -1,6 +1,8 @@
 # Unreleased
 
 * Allow writing []byte into text and varchar columns without type conversion (Hari Bhaskaran)
+* Fix ConnPool Close panic
+* Add Listen / notify example
 
 # 2.4.0 (October 3, 2014)
 
