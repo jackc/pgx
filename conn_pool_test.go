@@ -168,9 +168,10 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
 	mustExec(t, conn, "begin")
-	if _, err = conn.Exec("select"); err == nil {
+	if _, err = conn.Exec("selct"); err == nil {
 		t.Fatal("Did not receive expected error")
 	}
+
 	if conn.TxStatus != 'E' {
 		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus)
 	}

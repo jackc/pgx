@@ -294,7 +294,7 @@ func TestExecFailure(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	if _, err := conn.Exec("select;"); err == nil {
+	if _, err := conn.Exec("selct;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 
