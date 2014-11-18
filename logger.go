@@ -19,6 +19,9 @@ type Logger interface {
 
 type discardLogger struct{}
 
+// default discardLogger instance
+var dlogger = &discardLogger{}
+
 func (l *discardLogger) Debug(msg string, ctx ...interface{}) {}
 func (l *discardLogger) Info(msg string, ctx ...interface{})  {}
 func (l *discardLogger) Warn(msg string, ctx ...interface{})  {}
