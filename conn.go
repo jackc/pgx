@@ -74,8 +74,12 @@ type CommandTag string
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (such as "CREATE TABLE") then it returns 0
 func (ct CommandTag) RowsAffected() int64 {
-	words := strings.Split(string(ct), " ")
-	n, _ := strconv.ParseInt(words[len(words)-1], 10, 64)
+	s := string(ct)
+	index := strings.LastIndex(s, " ")
+	if index == -1 {
+		return 0
+	}
+	n, _ := strconv.ParseInt(s[index+1:], 10, 64)
 	return n
 }
 
