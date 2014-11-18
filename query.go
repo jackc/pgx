@@ -68,6 +68,10 @@ func (rows *Rows) close() {
 
 	rows.closed = true
 
+	if rows.logger == dlogger {
+		return
+	}
+
 	if rows.err == nil {
 		endTime := time.Now()
 		rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)

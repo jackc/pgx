@@ -103,7 +103,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.config.Logger != nil {
 		c.logger = c.config.Logger
 	} else {
-		c.logger = &discardLogger{}
+		c.logger = dlogger
 	}
 
 	if c.config.User == "" {
@@ -194,8 +194,10 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			c.logger = &connLogger{logger: c.logger, pid: c.Pid}
-			c.logger.Info("Connection established")
+			if c.logger != dlogger {
+				c.logger = &connLogger{logger: c.logger, pid: c.Pid}
+				c.logger.Info("Connection established")
+			}
 
 			err = c.loadPgTypes()
 			if err != nil {
@@ -644,14 +646,16 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	startTime := time.Now()
 	c.lastActivityTime = startTime
 
-	defer func() {
-		if err == nil {
-			endTime := time.Now()
-			c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
-		} else {
-			c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
-		}
-	}()
+	if c.logger != dlogger {
+		defer func() {
+			if err == nil {
+				endTime := time.Now()
+				c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+			} else {
+				c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+			}
+		}()
+	}
 
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
