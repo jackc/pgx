@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 // PostgreSQL oids for common types
@@ -892,8 +891,7 @@ func decodeFloat4(vr *ValueReader) float32 {
 		}
 
 		i := vr.ReadInt32()
-		p := unsafe.Pointer(&i)
-		return *(*float32)(p)
+		return math.Float32frombits(uint32(i))
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
@@ -916,8 +914,7 @@ func encodeFloat4(w *WriteBuf, value interface{}) error {
 
 	w.WriteInt32(4)
 
-	p := unsafe.Pointer(&v)
-	w.WriteInt32(*(*int32)(p))
+	w.WriteInt32(int32(math.Float32bits(v)))
 
 	return nil
 }
@@ -949,8 +946,7 @@ func decodeFloat8(vr *ValueReader) float64 {
 		}
 
 		i := vr.ReadInt64()
-		p := unsafe.Pointer(&i)
-		return *(*float64)(p)
+		return math.Float64frombits(uint64(i))
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
@@ -970,8 +966,7 @@ func encodeFloat8(w *WriteBuf, value interface{}) error {
 
 	w.WriteInt32(8)
 
-	p := unsafe.Pointer(&v)
-	w.WriteInt64(*(*int64)(p))
+	w.WriteInt64(int64(math.Float64bits(v)))
 
 	return nil
 }
@@ -1411,8 +1406,7 @@ func decodeFloat4Array(vr *ValueReader) []float32 {
 		switch elSize {
 		case 4:
 			n := vr.ReadInt32()
-			p := unsafe.Pointer(&n)
-			a[i] = *(*float32)(p)
+			a[i] = math.Float32frombits(uint32(n))
 		case -1:
 			vr.Fatal(ProtocolError("Cannot decode null element"))
 			return nil
@@ -1443,8 +1437,7 @@ func encodeFloat4Array(w *WriteBuf, value interface{}) error {
 	for _, v := range slice {
 		w.WriteInt32(4)
 
-		p := unsafe.Pointer(&v)
-		w.WriteInt32(*(*int32)(p))
+		w.WriteInt32(int32(math.Float32bits(v)))
 	}
 
 	return nil
@@ -1477,8 +1470,7 @@ func decodeFloat8Array(vr *ValueReader) []float64 {
 		switch elSize {
 		case 8:
 			n := vr.ReadInt64()
-			p := unsafe.Pointer(&n)
-			a[i] = *(*float64)(p)
+			a[i] = math.Float64frombits(uint64(n))
 		case -1:
 			vr.Fatal(ProtocolError("Cannot decode null element"))
 			return nil
@@ -1509,8 +1501,7 @@ func encodeFloat8Array(w *WriteBuf, value interface{}) error {
 	for _, v := range slice {
 		w.WriteInt32(8)
 
-		p := unsafe.Pointer(&v)
-		w.WriteInt64(*(*int64)(p))
+		w.WriteInt64(int64(math.Float64bits(v)))
 	}
 
 	return nil
