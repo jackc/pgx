@@ -196,6 +196,10 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 		return nil, false
 	}
 
+	if rows.vr.Len() > 0 {
+		rows.mr.readBytes(rows.vr.Len())
+	}
+
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
 	size := rows.mr.readInt32()

@@ -786,3 +786,23 @@ func TestQueryRowCoreStringSlice(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestReadingValueAfterEmptyArray(t *testing.T) {
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var a []string
+	var b int32
+	err := conn.QueryRow("select '{}'::text[], 42::integer").Scan(&a, &b)
+	if err != nil {
+		t.Fatalf("conn.QueryRow failed: ", err)
+	}
+
+	if len(a) != 0 {
+		t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+	}
+
+	if b != 42 {
+		t.Errorf("Expected 'b' to 42, but it was: ", b)
+	}
+}
