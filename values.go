@@ -1240,15 +1240,7 @@ func encodeBoolArray(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []bool, received %T", value)
 	}
 
-	size := 20 + len(slice)*5
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(BoolOid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, BoolOid, len(slice), 5)
 	for _, v := range slice {
 		w.WriteInt32(1)
 		var b byte
@@ -1267,15 +1259,7 @@ func encodeInt2Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int16, received %T", value)
 	}
 
-	size := 20 + len(slice)*6
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int2Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int2Oid, len(slice), 6)
 	for _, v := range slice {
 		w.WriteInt32(2)
 		w.WriteInt16(v)
@@ -1329,15 +1313,7 @@ func encodeInt4Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int32, received %T", value)
 	}
 
-	size := 20 + len(slice)*8
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int4Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
 		w.WriteInt32(v)
@@ -1391,15 +1367,7 @@ func encodeInt8Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int64, received %T", value)
 	}
 
-	size := 20 + len(slice)*12
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int8Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int8Oid, len(slice), 12)
 	for _, v := range slice {
 		w.WriteInt32(8)
 		w.WriteInt64(v)
@@ -1453,19 +1421,9 @@ func encodeFloat4Array(w *WriteBuf, value interface{}) error {
 	if !ok {
 		return fmt.Errorf("Expected []float32, received %T", value)
 	}
-
-	size := 20 + len(slice)*8
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Float4Oid)         // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Float4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
-
 		w.WriteInt32(int32(math.Float32bits(v)))
 	}
 
@@ -1518,18 +1476,9 @@ func encodeFloat8Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []float64, received %T", value)
 	}
 
-	size := 20 + len(slice)*12
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Float8Oid)         // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Float8Oid, len(slice), 12)
 	for _, v := range slice {
 		w.WriteInt32(8)
-
 		w.WriteInt64(int64(math.Float64bits(v)))
 	}
 
@@ -1605,15 +1554,7 @@ func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
 		return fmt.Errorf("Expected []time.Time, received %T", value)
 	}
 
-	size := 20 + len(slice)*12
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                   // number of dimensions
-	w.WriteInt32(0)                   // no nulls
-	w.WriteInt32(int32(TimestampOid)) // type of elements
-	w.WriteInt32(int32(len(slice)))   // number of elements
-	w.WriteInt32(1)                   // index of first element
-
+	encodeArrayHeader(w, TimestampOid, len(slice), 12)
 	for _, t := range slice {
 		w.WriteInt32(8)
 		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
@@ -1622,4 +1563,13 @@ func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	}
 
 	return nil
+}
+
+func encodeArrayHeader(w *WriteBuf, oid, length, sizePerItem int) {
+	w.WriteInt32(int32(20 + length*sizePerItem))
+	w.WriteInt32(1)             // number of dimensions
+	w.WriteInt32(0)             // no nulls
+	w.WriteInt32(int32(oid))    // type of elements
+	w.WriteInt32(int32(length)) // number of elements
+	w.WriteInt32(1)             // index of first element
 }
