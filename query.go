@@ -243,6 +243,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			*d = decodeFloat4(vr)
 		case *float64:
 			*d = decodeFloat8(vr)
+		case *[]bool:
+			*d = decodeBoolArray(vr)
 		case *[]int16:
 			*d = decodeInt2Array(vr)
 		case *[]int32:
@@ -255,6 +257,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			*d = decodeFloat8Array(vr)
 		case *[]string:
 			*d = decodeTextArray(vr)
+		case *[]time.Time:
+			*d = decodeTimestampArray(vr)
 		case *time.Time:
 			switch vr.Type().DataType {
 			case DateOid:
@@ -324,6 +328,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeFloat4(vr))
 			case Float8Oid:
 				values = append(values, decodeFloat8(vr))
+			case BoolArrayOid:
+				values = append(values, decodeBoolArray(vr))
 			case Int2ArrayOid:
 				values = append(values, decodeInt2Array(vr))
 			case Int4ArrayOid:

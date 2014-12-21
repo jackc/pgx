@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"fmt"
 	"github.com/jackc/pgx"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -154,6 +155,65 @@ func TestNullX(t *testing.T) {
 }
 
 func TestNullXMismatch(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql    string
+		query  interface{}
+		scan   interface{}
+		assert func(*testing.T, interface{}, interface{})
+	}{
+		{
+			"select $1::bool[]", []bool{true, false, true}, &[]bool{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]bool))) == false {
+					t.Errorf("failed to encode bool[]")
+				}
+			},
+		},
+		{
+			"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]int32))) == false {
+					t.Errorf("failed to encode int[]")
+				}
+			},
+		},
+		{
+			"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]string))) == false {
+					t.Errorf("failed to encode text[]")
+				}
+			},
+		},
+		{
+			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+					t.Errorf("failed to encode time.Time[]")
+				}
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		psName := fmt.Sprintf("ps%d", i)
+		mustPrepare(t, conn, psName, tt.sql)
+
+		err := conn.QueryRow(psName, tt.query).Scan(tt.scan)
+		if err != nil {
+			t.Errorf(`error reading array: %v`, err)
+		}
+		tt.assert(t, tt.query, tt.scan)
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)

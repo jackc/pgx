@@ -53,11 +53,13 @@ func init() {
 	DefaultTypeFormats = make(map[string]int16)
 	DefaultTypeFormats["_float4"] = BinaryFormatCode
 	DefaultTypeFormats["_float8"] = BinaryFormatCode
+	DefaultTypeFormats["_bool"] = BinaryFormatCode
 	DefaultTypeFormats["_int2"] = BinaryFormatCode
 	DefaultTypeFormats["_int4"] = BinaryFormatCode
 	DefaultTypeFormats["_int8"] = BinaryFormatCode
 	DefaultTypeFormats["_text"] = BinaryFormatCode
 	DefaultTypeFormats["_varchar"] = BinaryFormatCode
+	DefaultTypeFormats["_timestamp"] = BinaryFormatCode
 	DefaultTypeFormats["bool"] = BinaryFormatCode
 	DefaultTypeFormats["bytea"] = BinaryFormatCode
 	DefaultTypeFormats["date"] = BinaryFormatCode
@@ -1195,6 +1197,66 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	return length, nil
 }
 
+func decodeBoolArray(vr *ValueReader) []bool {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != BoolArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []bool", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]bool, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 1:
+			if vr.ReadByte() == 1 {
+				a[i] = true
+			}
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeBoolArray(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]bool)
+	if !ok {
+		return fmt.Errorf("Expected []bool, received %T", value)
+	}
+
+	encodeArrayHeader(w, BoolOid, len(slice), 5)
+	for _, v := range slice {
+		w.WriteInt32(1)
+		var b byte
+		if v {
+			b = 1
+		}
+		w.WriteByte(b)
+	}
+
+	return nil
+}
+
 func decodeInt2Array(vr *ValueReader) []int16 {
 	if vr.Len() == -1 {
 		return nil
@@ -1232,25 +1294,6 @@ func decodeInt2Array(vr *ValueReader) []int16 {
 	}
 
 	return a
-}
-
-func encodeBoolArray(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]bool)
-	if !ok {
-		return fmt.Errorf("Expected []bool, received %T", value)
-	}
-
-	encodeArrayHeader(w, BoolOid, len(slice), 5)
-	for _, v := range slice {
-		w.WriteInt32(1)
-		var b byte
-		if v {
-			b = 1
-		}
-		w.WriteByte(b)
-	}
-
-	return nil
 }
 
 func encodeInt2Array(w *WriteBuf, value interface{}) error {
@@ -1546,6 +1589,47 @@ func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	}
 
 	return nil
+}
+
+func decodeTimestampArray(vr *ValueReader) []time.Time {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != TimestampArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []time.Time", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]time.Time, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 8:
+			microsecSinceY2K := vr.ReadInt64()
+			microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
+			a[i] = time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an time.Time element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
 }
 
 func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
