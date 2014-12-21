@@ -21,6 +21,7 @@ const (
 	OidOid          = 26
 	Float4Oid       = 700
 	Float8Oid       = 701
+	BoolArrayOid    = 1000
 	Int2ArrayOid    = 1005
 	Int4ArrayOid    = 1007
 	TextArrayOid    = 1009
@@ -1230,6 +1231,33 @@ func decodeInt2Array(vr *ValueReader) []int16 {
 	}
 
 	return a
+}
+
+func encodeBoolArray(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]bool)
+	if !ok {
+		return fmt.Errorf("Expected []bool, received %T", value)
+	}
+
+	size := 20 + len(slice)*5
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(BoolOid)           // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, v := range slice {
+		w.WriteInt32(1)
+		var b byte
+		if v {
+			b = 1
+		}
+		w.WriteByte(b)
+	}
+
+	return nil
 }
 
 func encodeInt2Array(w *WriteBuf, value interface{}) error {
