@@ -12,27 +12,28 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOid         = 16
-	ByteaOid        = 17
-	Int8Oid         = 20
-	Int2Oid         = 21
-	Int4Oid         = 23
-	TextOid         = 25
-	OidOid          = 26
-	Float4Oid       = 700
-	Float8Oid       = 701
-	BoolArrayOid    = 1000
-	Int2ArrayOid    = 1005
-	Int4ArrayOid    = 1007
-	TextArrayOid    = 1009
-	VarcharArrayOid = 1015
-	Int8ArrayOid    = 1016
-	Float4ArrayOid  = 1021
-	Float8ArrayOid  = 1022
-	VarcharOid      = 1043
-	DateOid         = 1082
-	TimestampOid    = 1114
-	TimestampTzOid  = 1184
+	BoolOid           = 16
+	ByteaOid          = 17
+	Int8Oid           = 20
+	Int2Oid           = 21
+	Int4Oid           = 23
+	TextOid           = 25
+	OidOid            = 26
+	Float4Oid         = 700
+	Float8Oid         = 701
+	BoolArrayOid      = 1000
+	Int2ArrayOid      = 1005
+	Int4ArrayOid      = 1007
+	TextArrayOid      = 1009
+	VarcharArrayOid   = 1015
+	Int8ArrayOid      = 1016
+	Float4ArrayOid    = 1021
+	Float8ArrayOid    = 1022
+	VarcharOid        = 1043
+	DateOid           = 1082
+	TimestampOid      = 1114
+	TimestampArrayOid = 1115
+	TimestampTzOid    = 1184
 )
 
 // PostgreSQL format codes
@@ -1593,6 +1594,31 @@ func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	for _, v := range slice {
 		w.WriteInt32(int32(len(v)))
 		w.WriteBytes([]byte(v))
+	}
+
+	return nil
+}
+
+func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
+	slice, ok := value.([]time.Time)
+	if !ok {
+		return fmt.Errorf("Expected []time.Time, received %T", value)
+	}
+
+	size := 20 + len(slice)*12
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                   // number of dimensions
+	w.WriteInt32(0)                   // no nulls
+	w.WriteInt32(int32(TimestampOid)) // type of elements
+	w.WriteInt32(int32(len(slice)))   // number of elements
+	w.WriteInt32(1)                   // index of first element
+
+	for _, t := range slice {
+		w.WriteInt32(8)
+		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
+		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
+		w.WriteInt64(microsecSinceY2K)
 	}
 
 	return nil
