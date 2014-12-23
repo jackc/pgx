@@ -515,3 +515,35 @@ func TestCommandTag(t *testing.T) {
 		}
 	}
 }
+
+func TestInsertBoolArray(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); results != "CREATE TABLE" {
+		t.Error("Unexpected results from Exec")
+	}
+
+	// Accept parameters
+	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); results != "INSERT 0 1" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+}
+
+func TestInsertTimestampArray(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); results != "CREATE TABLE" {
+		t.Error("Unexpected results from Exec")
+	}
+
+	// Accept parameters
+	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); results != "INSERT 0 1" {
+		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+}

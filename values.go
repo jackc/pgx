@@ -12,26 +12,28 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOid         = 16
-	ByteaOid        = 17
-	Int8Oid         = 20
-	Int2Oid         = 21
-	Int4Oid         = 23
-	TextOid         = 25
-	OidOid          = 26
-	Float4Oid       = 700
-	Float8Oid       = 701
-	Int2ArrayOid    = 1005
-	Int4ArrayOid    = 1007
-	TextArrayOid    = 1009
-	VarcharArrayOid = 1015
-	Int8ArrayOid    = 1016
-	Float4ArrayOid  = 1021
-	Float8ArrayOid  = 1022
-	VarcharOid      = 1043
-	DateOid         = 1082
-	TimestampOid    = 1114
-	TimestampTzOid  = 1184
+	BoolOid           = 16
+	ByteaOid          = 17
+	Int8Oid           = 20
+	Int2Oid           = 21
+	Int4Oid           = 23
+	TextOid           = 25
+	OidOid            = 26
+	Float4Oid         = 700
+	Float8Oid         = 701
+	BoolArrayOid      = 1000
+	Int2ArrayOid      = 1005
+	Int4ArrayOid      = 1007
+	TextArrayOid      = 1009
+	VarcharArrayOid   = 1015
+	Int8ArrayOid      = 1016
+	Float4ArrayOid    = 1021
+	Float8ArrayOid    = 1022
+	VarcharOid        = 1043
+	DateOid           = 1082
+	TimestampOid      = 1114
+	TimestampArrayOid = 1115
+	TimestampTzOid    = 1184
 )
 
 // PostgreSQL format codes
@@ -51,11 +53,13 @@ func init() {
 	DefaultTypeFormats = make(map[string]int16)
 	DefaultTypeFormats["_float4"] = BinaryFormatCode
 	DefaultTypeFormats["_float8"] = BinaryFormatCode
+	DefaultTypeFormats["_bool"] = BinaryFormatCode
 	DefaultTypeFormats["_int2"] = BinaryFormatCode
 	DefaultTypeFormats["_int4"] = BinaryFormatCode
 	DefaultTypeFormats["_int8"] = BinaryFormatCode
 	DefaultTypeFormats["_text"] = BinaryFormatCode
 	DefaultTypeFormats["_varchar"] = BinaryFormatCode
+	DefaultTypeFormats["_timestamp"] = BinaryFormatCode
 	DefaultTypeFormats["bool"] = BinaryFormatCode
 	DefaultTypeFormats["bytea"] = BinaryFormatCode
 	DefaultTypeFormats["date"] = BinaryFormatCode
@@ -1193,6 +1197,66 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	return length, nil
 }
 
+func decodeBoolArray(vr *ValueReader) []bool {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != BoolArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []bool", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]bool, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 1:
+			if vr.ReadByte() == 1 {
+				a[i] = true
+			}
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeBoolArray(w *WriteBuf, value interface{}) error {
+	slice, ok := value.([]bool)
+	if !ok {
+		return fmt.Errorf("Expected []bool, received %T", value)
+	}
+
+	encodeArrayHeader(w, BoolOid, len(slice), 5)
+	for _, v := range slice {
+		w.WriteInt32(1)
+		var b byte
+		if v {
+			b = 1
+		}
+		w.WriteByte(b)
+	}
+
+	return nil
+}
+
 func decodeInt2Array(vr *ValueReader) []int16 {
 	if vr.Len() == -1 {
 		return nil
@@ -1238,15 +1302,7 @@ func encodeInt2Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int16, received %T", value)
 	}
 
-	size := 20 + len(slice)*6
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int2Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int2Oid, len(slice), 6)
 	for _, v := range slice {
 		w.WriteInt32(2)
 		w.WriteInt16(v)
@@ -1300,15 +1356,7 @@ func encodeInt4Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int32, received %T", value)
 	}
 
-	size := 20 + len(slice)*8
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int4Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
 		w.WriteInt32(v)
@@ -1362,15 +1410,7 @@ func encodeInt8Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []int64, received %T", value)
 	}
 
-	size := 20 + len(slice)*12
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Int8Oid)           // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Int8Oid, len(slice), 12)
 	for _, v := range slice {
 		w.WriteInt32(8)
 		w.WriteInt64(v)
@@ -1424,19 +1464,9 @@ func encodeFloat4Array(w *WriteBuf, value interface{}) error {
 	if !ok {
 		return fmt.Errorf("Expected []float32, received %T", value)
 	}
-
-	size := 20 + len(slice)*8
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Float4Oid)         // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Float4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
-
 		w.WriteInt32(int32(math.Float32bits(v)))
 	}
 
@@ -1489,18 +1519,9 @@ func encodeFloat8Array(w *WriteBuf, value interface{}) error {
 		return fmt.Errorf("Expected []float64, received %T", value)
 	}
 
-	size := 20 + len(slice)*12
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(Float8Oid)         // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
+	encodeArrayHeader(w, Float8Oid, len(slice), 12)
 	for _, v := range slice {
 		w.WriteInt32(8)
-
 		w.WriteInt64(int64(math.Float64bits(v)))
 	}
 
@@ -1568,4 +1589,71 @@ func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	}
 
 	return nil
+}
+
+func decodeTimestampArray(vr *ValueReader) []time.Time {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != TimestampArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []time.Time", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]time.Time, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case 8:
+			microsecSinceY2K := vr.ReadInt64()
+			microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
+			a[i] = time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an time.Time element: %d", elSize)))
+			return nil
+		}
+	}
+
+	return a
+}
+
+func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
+	slice, ok := value.([]time.Time)
+	if !ok {
+		return fmt.Errorf("Expected []time.Time, received %T", value)
+	}
+
+	encodeArrayHeader(w, TimestampOid, len(slice), 12)
+	for _, t := range slice {
+		w.WriteInt32(8)
+		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
+		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
+		w.WriteInt64(microsecSinceY2K)
+	}
+
+	return nil
+}
+
+func encodeArrayHeader(w *WriteBuf, oid, length, sizePerItem int) {
+	w.WriteInt32(int32(20 + length*sizePerItem))
+	w.WriteInt32(1)             // number of dimensions
+	w.WriteInt32(0)             // no nulls
+	w.WriteInt32(int32(oid))    // type of elements
+	w.WriteInt32(int32(length)) // number of elements
+	w.WriteInt32(1)             // index of first element
 }
