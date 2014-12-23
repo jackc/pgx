@@ -191,6 +191,10 @@ func (r *msgReader) readBytes(count int32) []byte {
 		return nil
 	}
 
+	if count < 1 {
+		return nil
+	}
+
 	b := make([]byte, int(count))
 
 	_, err := io.ReadFull(r.reader, b)

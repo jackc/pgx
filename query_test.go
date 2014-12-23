@@ -806,3 +806,18 @@ func TestReadingValueAfterEmptyArray(t *testing.T) {
 		t.Errorf("Expected 'b' to 42, but it was: ", b)
 	}
 }
+
+func TestReadingNullByteArray(t *testing.T) {
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var a []byte
+	err := conn.QueryRow("select null::text").Scan(&a)
+	if err != nil {
+		t.Fatalf("conn.QueryRow failed: ", err)
+	}
+
+	if len(a) != 0 {
+		t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+	}
+}
