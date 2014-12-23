@@ -342,6 +342,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeFloat8Array(vr))
 			case TextArrayOid, VarcharArrayOid:
 				values = append(values, decodeTextArray(vr))
+			case TimestampArrayOid:
+				values = append(values, decodeTimestampArray(vr))
 			case DateOid:
 				values = append(values, decodeDate(vr))
 			case TimestampTzOid:
