@@ -154,7 +154,7 @@ func TestNullX(t *testing.T) {
 	}
 }
 
-func TestNullXMismatch(t *testing.T) {
+func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -213,7 +213,7 @@ func TestNullXMismatch(t *testing.T) {
 	}
 }
 
-func TestArrayDecoding(t *testing.T) {
+func TestNullXMismatch(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
