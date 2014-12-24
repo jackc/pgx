@@ -1,5 +1,8 @@
 # Unreleased
 
+* Add timestamptz[] support
+* Add timestamp[] support (Karl Seguin)
+* Add bool[] support (Karl Seguin)
 * Allow writing []byte into text and varchar columns without type conversion (Hari Bhaskaran)
 * Fix ConnPool Close panic
 * Add Listen / notify example
