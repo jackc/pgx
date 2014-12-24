@@ -194,7 +194,15 @@ func TestArrayDecoding(t *testing.T) {
 			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
 				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
-					t.Errorf("failed to encode time.Time[]")
+					t.Errorf("failed to encode time.Time[] to timestamp[]")
+				}
+			},
+		},
+		{
+			"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+					t.Errorf("failed to encode time.Time[] to timestamptz[]")
 				}
 			},
 		},

@@ -12,28 +12,29 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOid           = 16
-	ByteaOid          = 17
-	Int8Oid           = 20
-	Int2Oid           = 21
-	Int4Oid           = 23
-	TextOid           = 25
-	OidOid            = 26
-	Float4Oid         = 700
-	Float8Oid         = 701
-	BoolArrayOid      = 1000
-	Int2ArrayOid      = 1005
-	Int4ArrayOid      = 1007
-	TextArrayOid      = 1009
-	VarcharArrayOid   = 1015
-	Int8ArrayOid      = 1016
-	Float4ArrayOid    = 1021
-	Float8ArrayOid    = 1022
-	VarcharOid        = 1043
-	DateOid           = 1082
-	TimestampOid      = 1114
-	TimestampArrayOid = 1115
-	TimestampTzOid    = 1184
+	BoolOid             = 16
+	ByteaOid            = 17
+	Int8Oid             = 20
+	Int2Oid             = 21
+	Int4Oid             = 23
+	TextOid             = 25
+	OidOid              = 26
+	Float4Oid           = 700
+	Float8Oid           = 701
+	BoolArrayOid        = 1000
+	Int2ArrayOid        = 1005
+	Int4ArrayOid        = 1007
+	TextArrayOid        = 1009
+	VarcharArrayOid     = 1015
+	Int8ArrayOid        = 1016
+	Float4ArrayOid      = 1021
+	Float8ArrayOid      = 1022
+	VarcharOid          = 1043
+	DateOid             = 1082
+	TimestampOid        = 1114
+	TimestampArrayOid   = 1115
+	TimestampTzOid      = 1184
+	TimestampTzArrayOid = 1185
 )
 
 // PostgreSQL format codes
@@ -60,6 +61,7 @@ func init() {
 	DefaultTypeFormats["_text"] = BinaryFormatCode
 	DefaultTypeFormats["_varchar"] = BinaryFormatCode
 	DefaultTypeFormats["_timestamp"] = BinaryFormatCode
+	DefaultTypeFormats["_timestamptz"] = BinaryFormatCode
 	DefaultTypeFormats["bool"] = BinaryFormatCode
 	DefaultTypeFormats["bytea"] = BinaryFormatCode
 	DefaultTypeFormats["date"] = BinaryFormatCode
@@ -1596,7 +1598,7 @@ func decodeTimestampArray(vr *ValueReader) []time.Time {
 		return nil
 	}
 
-	if vr.Type().DataType != TimestampArrayOid {
+	if vr.Type().DataType != TimestampArrayOid && vr.Type().DataType != TimestampTzArrayOid {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []time.Time", vr.Type().DataType)))
 		return nil
 	}
@@ -1638,7 +1640,7 @@ func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
 		return fmt.Errorf("Expected []time.Time, received %T", value)
 	}
 
-	encodeArrayHeader(w, TimestampOid, len(slice), 12)
+	encodeArrayHeader(w, int(elOid), len(slice), 12)
 	for _, t := range slice {
 		w.WriteInt32(8)
 		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
