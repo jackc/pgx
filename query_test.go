@@ -822,11 +822,9 @@ func TestReadingNullByteArray(t *testing.T) {
 	}
 }
 
-
 func TestReadingNullByteArrays(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
-
 
 	rows, err := conn.Query("select null::text union all select null::text")
 	if err != nil {
