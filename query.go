@@ -227,7 +227,11 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if vr.Type().DataType == ByteaOid {
 				*d = decodeBytea(vr)
 			} else {
-				*d = vr.ReadBytes(vr.Len())
+				if vr.Len() != -1 {
+					*d = vr.ReadBytes(vr.Len())
+				} else {
+					*d = nil
+				}
 			}
 		case *int64:
 			*d = decodeInt8(vr)

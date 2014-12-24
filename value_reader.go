@@ -113,7 +113,8 @@ func (r *ValueReader) ReadBytes(count int32) []byte {
 		return nil
 	}
 
-	if count == -1 {
+	if count < 0 {
+		r.Fatal(errors.New("count must not be negative"))
 		return nil
 	}
 

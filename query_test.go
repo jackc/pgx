@@ -817,8 +817,8 @@ func TestReadingNullByteArray(t *testing.T) {
 		t.Fatalf("conn.QueryRow failed: ", err)
 	}
 
-	if len(a) != 0 {
-		t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+	if a != nil {
+		t.Errorf("Expected 'a' to be nil, but it was: %v", a)
 	}
 }
 
@@ -838,8 +838,8 @@ func TestReadingNullByteArrays(t *testing.T) {
 		if err := rows.Scan(&a); err != nil {
 			t.Fatalf("failed to scan row", err)
 		}
-		if len(a) != 0 {
-			t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+		if a != nil {
+			t.Errorf("Expected 'a' to be nil, but it was: %v", a)
 		}
 	}
 	if count != 2 {
