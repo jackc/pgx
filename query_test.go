@@ -821,3 +821,30 @@ func TestReadingNullByteArray(t *testing.T) {
 		t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
 	}
 }
+
+
+func TestReadingNullByteArrays(t *testing.T) {
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+
+	rows, err := conn.Query("select null::text union all select null::text")
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+
+	count := 0
+	for rows.Next() {
+		count++
+		var a []byte
+		if err := rows.Scan(&a); err != nil {
+			t.Fatalf("failed to scan row", err)
+		}
+		if len(a) != 0 {
+			t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+		}
+	}
+	if count != 2 {
+		t.Errorf("Expected to read 2 rows, read: ", count)
+	}
+}
