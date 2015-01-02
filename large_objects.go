@@ -78,18 +78,19 @@ func (o *LargeObjects) Unlink(oid Oid) error {
 }
 
 // A LargeObject is a large object stored on the server. It is only valid within
-// the transaction that it was initialized in. It implements the these interfaces:
+// the transaction that it was initialized in. It implements these interfaces:
 //
-// - io.Writer
-// - io.Reader
-// - io.Seeker
-// - io.Closer
+//    io.Writer
+//    io.Reader
+//    io.Seeker
+//    io.Closer
 type LargeObject struct {
 	fd int32
 	lo *LargeObjects
 }
 
-// Write writes
+// Write writes p to the large object and returns the number of bytes written
+// and an error if not all of p was written.
 func (o *LargeObject) Write(p []byte) (int, error) {
 	n, err := fpInt32(o.lo.fp.CallFn("lowrite", []fpArg{fpIntArg(o.fd), p}))
 	return int(n), err
