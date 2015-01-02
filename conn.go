@@ -50,6 +50,7 @@ type Conn struct {
 	causeOfDeath       error
 	logger             Logger
 	mr                 msgReader
+	fp                 *fastpath
 }
 
 type PreparedStatement struct {
