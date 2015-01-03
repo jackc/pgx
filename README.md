@@ -25,6 +25,7 @@ The pgx native interface supports the following extra features:
 * Configurable connection pool with after connect hooks to do arbitrary connection setup
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
 * Hstore support
+* Large object support
 
 ## database/sql
 
