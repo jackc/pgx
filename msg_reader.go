@@ -36,11 +36,10 @@ func (r *msgReader) rxMsg() (t byte, err error) {
 		io.CopyN(ioutil.Discard, r.reader, int64(r.msgBytesRemaining))
 	}
 
-	t, err = r.reader.ReadByte()
-	b := r.buf[0:4]
+	b := r.buf[0:5]
 	_, err = io.ReadFull(r.reader, b)
-	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b)) - 4
-	return t, err
+	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b[1:])) - 4
+	return b[0], err
 }
 
 func (r *msgReader) readByte() byte {
