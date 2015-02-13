@@ -43,6 +43,3 @@ script:
 matrix:
   allow_failures:
     - go: tip
-    # Remove after issue #63 is fixed
-    - env: PGVERSION=9.0
-    - env: PGVERSION=9.1
