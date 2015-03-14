@@ -1,7 +1,9 @@
 package pgx_test
 
 import (
+	"fmt"
 	"github.com/jackc/pgx"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -357,7 +359,7 @@ func TestPrepare(t *testing.T) {
 	}
 }
 
-func TestPrepareFailure(t *testing.T) {
+func TestPrepareBadSQLFailure(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -365,6 +367,76 @@ func TestPrepareFailure(t *testing.T) {
 
 	if _, err := conn.Prepare("badSQL", "select foo"); err == nil {
 		t.Fatal("Prepare should have failed with syntax error")
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestPrepareQueryManyParameters(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		count   int
+		succeed bool
+	}{
+		{
+			count:   65534,
+			succeed: true,
+		},
+		{
+			count:   65535,
+			succeed: true,
+		},
+		{
+			count:   65536,
+			succeed: false,
+		},
+		{
+			count:   65537,
+			succeed: false,
+		},
+	}
+
+	for i, tt := range tests {
+		params := make([]string, 0, tt.count)
+		args := make([]interface{}, 0, tt.count)
+		for j := 0; j < tt.count; j++ {
+			params = append(params, fmt.Sprintf("($%d::text)", j+1))
+			args = append(args, strconv.FormatInt(int64(j), 10))
+		}
+
+		sql := "values" + strings.Join(params, ", ")
+
+		psName := fmt.Sprintf("manyParams%d", i)
+		_, err := conn.Prepare(psName, sql)
+		if err != nil {
+			if tt.succeed {
+				t.Errorf("%d. %v", i, err)
+			}
+			continue
+		}
+		if !tt.succeed {
+			t.Errorf("%d. Expected error but succeeded", i)
+			continue
+		}
+
+		rows, err := conn.Query(psName, args...)
+		if err != nil {
+			t.Errorf("conn.Query failed: %v", err)
+			continue
+		}
+
+		for rows.Next() {
+			var s string
+			rows.Scan(&s)
+		}
+
+		if rows.Err() != nil {
+			t.Errorf("Reading query result failed: %v", err)
+		}
 	}
 
 	ensureConnValid(t, conn)
