@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -640,28 +641,14 @@ func decodeInt8(vr *ValueReader) int64 {
 
 func encodeInt8(w *WriteBuf, value interface{}) error {
 	var v int64
-	switch value := value.(type) {
-	case int8:
-		v = int64(value)
-	case uint8:
-		v = int64(value)
-	case int16:
-		v = int64(value)
-	case uint16:
-		v = int64(value)
-	case int32:
-		v = int64(value)
-	case uint32:
-		v = int64(value)
-	case int64:
-		v = int64(value)
-	case uint64:
-		if value > math.MaxInt64 {
+	switch reflect.ValueOf(value).Kind() {
+	case reflect.Int, reflect.Int8, reflect.Uint8, reflect.Int16, reflect.Uint16, reflect.Int32, reflect.Uint32, reflect.Int64:
+		v = reflect.ValueOf(value).Int()
+	case reflect.Uint64:
+		v = reflect.ValueOf(value).Int()
+		if v > math.MaxInt64 {
 			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, int64(math.MaxInt64))
 		}
-		v = int64(value)
-	case int:
-		v = int64(value)
 	default:
 		return fmt.Errorf("Expected integer representable in int64, received %T %v", value, value)
 	}
