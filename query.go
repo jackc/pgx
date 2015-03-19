@@ -3,6 +3,7 @@ package pgx
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -218,66 +219,81 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	for _, d := range dest {
 		vr, _ := rows.nextColumn()
-		switch d := d.(type) {
-		case *bool:
-			*d = decodeBool(vr)
-		case *[]byte:
-			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
-			// Otherwise read the bytes directly regardless of what the actual type is.
-			if vr.Type().DataType == ByteaOid {
-				*d = decodeBytea(vr)
-			} else {
-				if vr.Len() != -1 {
-					*d = vr.ReadBytes(vr.Len())
+		switch reflect.TypeOf(d).Elem().Kind() {
+		case reflect.Bool:
+			reflect.ValueOf(d).Elem().SetBool(decodeBool(vr))
+		case reflect.Int64:
+			reflect.ValueOf(d).Elem().SetInt(decodeInt8(vr))
+		case reflect.Int16:
+			reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeInt2(vr)))
+		case reflect.Int32: // covers type Oid as well
+			switch reflect.ValueOf(d).Type().Elem() {
+			case reflect.TypeOf(Oid(0)):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeOid(vr)))
+			case reflect.TypeOf(int32(0)):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeInt4(vr)))
+			}
+		case reflect.String:
+			s := decodeText(vr)
+
+			reflect.ValueOf(d).Elem().Set(reflect.ValueOf(s))
+		case reflect.Float32:
+			reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeFloat4(vr)))
+		case reflect.Float64:
+			reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeFloat8(vr)))
+		case reflect.Slice:
+			switch reflect.ValueOf(d).Type().Elem() {
+			case reflect.TypeOf([]byte(nil)):
+				// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
+				// Otherwise read the bytes directly regardless of what the actual type is.
+				if vr.Type().DataType == ByteaOid {
+					reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeBytea(vr)))
 				} else {
-					*d = nil
+					if vr.Len() != -1 {
+						reflect.ValueOf(d).Elem().Set(reflect.ValueOf(vr.ReadBytes(vr.Len())))
+					} else {
+						reflect.ValueOf(d).Elem().Set(reflect.ValueOf(([]byte)(nil)))
+					}
 				}
+			case reflect.TypeOf([]int64{0}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeInt8Array(vr)))
+			case reflect.TypeOf([]bool{true}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeBoolArray(vr)))
+			case reflect.TypeOf([]int16{0}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeInt2Array(vr)))
+			case reflect.TypeOf([]int32{0}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeInt4Array(vr)))
+			case reflect.TypeOf([]float32{0}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeFloat4Array(vr)))
+			case reflect.TypeOf([]float64{0}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeFloat8Array(vr)))
+			case reflect.TypeOf([]string{""}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeTextArray(vr)))
+			case reflect.TypeOf([]time.Time{}):
+				reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeTimestampArray(vr)))
 			}
-		case *int64:
-			*d = decodeInt8(vr)
-		case *int16:
-			*d = decodeInt2(vr)
-		case *int32:
-			*d = decodeInt4(vr)
-		case *Oid:
-			*d = decodeOid(vr)
-		case *string:
-			*d = decodeText(vr)
-		case *float32:
-			*d = decodeFloat4(vr)
-		case *float64:
-			*d = decodeFloat8(vr)
-		case *[]bool:
-			*d = decodeBoolArray(vr)
-		case *[]int16:
-			*d = decodeInt2Array(vr)
-		case *[]int32:
-			*d = decodeInt4Array(vr)
-		case *[]int64:
-			*d = decodeInt8Array(vr)
-		case *[]float32:
-			*d = decodeFloat4Array(vr)
-		case *[]float64:
-			*d = decodeFloat8Array(vr)
-		case *[]string:
-			*d = decodeTextArray(vr)
-		case *[]time.Time:
-			*d = decodeTimestampArray(vr)
-		case *time.Time:
-			switch vr.Type().DataType {
-			case DateOid:
-				*d = decodeDate(vr)
-			case TimestampTzOid:
-				*d = decodeTimestampTz(vr)
-			case TimestampOid:
-				*d = decodeTimestamp(vr)
+		case reflect.Struct:
+			switch reflect.ValueOf(d).Type().Elem() {
+			case reflect.TypeOf(time.Now()): // check if struct is time.Time
+				switch vr.Type().DataType {
+				case DateOid:
+					reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeDate(vr)))
+				case TimestampTzOid:
+					reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeTimestampTz(vr)))
+				case TimestampOid:
+					reflect.ValueOf(d).Elem().Set(reflect.ValueOf(decodeTimestamp(vr)))
+				default:
+					rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
+				}
 			default:
-				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
-			}
-		case Scanner:
-			err = d.Scan(vr)
-			if err != nil {
-				rows.Fatal(err)
+				// if not, try if struct is a scanner
+				switch d := d.(type) {
+				case Scanner:
+					err = d.Scan(vr)
+					if err != nil {
+						rows.Fatal(err)
+					}
+				}
 			}
 		default:
 			rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
