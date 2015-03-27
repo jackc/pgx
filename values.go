@@ -119,6 +119,8 @@ type NullFloat32 struct {
 	Valid   bool // Valid is true if Float32 is not NULL
 }
 
+func (n *NullFloat32) GetValue() float32 { return n.Float32 }
+
 func (n *NullFloat32) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != Float4Oid {
 		return SerializationError(fmt.Sprintf("NullFloat32.Scan cannot decode OID %d", vr.Type().DataType))
@@ -157,6 +159,8 @@ type NullFloat64 struct {
 	Float64 float64
 	Valid   bool // Valid is true if Float64 is not NULL
 }
+
+func (n *NullFloat64) GetValue() float64 { return n.Float64 }
 
 func (n *NullFloat64) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != Float8Oid {
@@ -197,6 +201,8 @@ type NullString struct {
 	Valid  bool // Valid is true if Int64 is not NULL
 }
 
+func (n *NullString) GetValue() string { return n.String }
+
 func (s *NullString) Scan(vr *ValueReader) error {
 	// Not checking oid as so we can scan anything into into a NullString - may revisit this decision later
 
@@ -230,6 +236,8 @@ type NullInt16 struct {
 	Int16 int16
 	Valid bool // Valid is true if Int16 is not NULL
 }
+
+func (n *NullInt16) GetValue() int16 { return n.Int16 }
 
 func (n *NullInt16) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != Int2Oid {
@@ -270,6 +278,8 @@ type NullInt32 struct {
 	Valid bool // Valid is true if Int64 is not NULL
 }
 
+func (n *NullInt32) GetValue() int32 { return n.Int32 }
+
 func (n *NullInt32) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != Int4Oid {
 		return SerializationError(fmt.Sprintf("NullInt32.Scan cannot decode OID %d", vr.Type().DataType))
@@ -308,6 +318,8 @@ type NullInt64 struct {
 	Int64 int64
 	Valid bool // Valid is true if Int64 is not NULL
 }
+
+func (n *NullInt64) GetValue() int64 { return n.Int64 }
 
 func (n *NullInt64) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != Int8Oid {
@@ -348,6 +360,8 @@ type NullBool struct {
 	Valid bool // Valid is true if Bool is not NULL
 }
 
+func (n *NullBool) GetValue() bool { return n.Bool }
+
 func (n *NullBool) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != BoolOid {
 		return SerializationError(fmt.Sprintf("NullBool.Scan cannot decode OID %d", vr.Type().DataType))
@@ -386,6 +400,8 @@ type NullTime struct {
 	Time  time.Time
 	Valid bool // Valid is true if Time is not NULL
 }
+
+func (n *NullTime) GetValue() time.Time { return n.Time }
 
 func (n *NullTime) Scan(vr *ValueReader) error {
 	if vr.Type().DataType != TimestampTzOid {
@@ -489,6 +505,8 @@ type NullHstore struct {
 	Hstore map[string]NullString
 	Valid  bool
 }
+
+func (n *NullHstore) GetValue() map[string]NullString { return n.Hstore }
 
 func (h *NullHstore) Scan(vr *ValueReader) error {
 	//oid for hstore not standardized, so we check its type name
