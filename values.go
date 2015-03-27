@@ -71,6 +71,7 @@ func init() {
 	DefaultTypeFormats["int4"] = BinaryFormatCode
 	DefaultTypeFormats["int8"] = BinaryFormatCode
 	DefaultTypeFormats["oid"] = BinaryFormatCode
+	DefaultTypeFormats["timestamp"] = BinaryFormatCode
 	DefaultTypeFormats["timestamptz"] = BinaryFormatCode
 }
 
@@ -404,7 +405,8 @@ type NullTime struct {
 func (n *NullTime) GetValue() time.Time { return n.Time }
 
 func (n *NullTime) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != TimestampTzOid {
+	oid := vr.Type().DataType
+	if oid != TimestampTzOid && oid != TimestampOid {
 		return SerializationError(fmt.Sprintf("NullTime.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
@@ -414,7 +416,11 @@ func (n *NullTime) Scan(vr *ValueReader) error {
 	}
 
 	n.Valid = true
-	n.Time = decodeTimestampTz(vr)
+	if oid == TimestampTzOid {
+		n.Time = decodeTimestampTz(vr)
+	} else {
+		n.Time = decodeTimestamp(vr)
+	}
 
 	return vr.Err()
 }
@@ -422,7 +428,7 @@ func (n *NullTime) Scan(vr *ValueReader) error {
 func (n NullTime) FormatCode() int16 { return BinaryFormatCode }
 
 func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
-	if oid != TimestampTzOid {
+	if oid != TimestampTzOid && oid != TimestampOid {
 		return SerializationError(fmt.Sprintf("NullTime.Encode cannot encode into OID %d", oid))
 	}
 
@@ -431,7 +437,11 @@ func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeTimestampTz(w, n.Time)
+	if oid == TimestampTzOid {
+		return encodeTimestampTz(w, n.Time)
+	} else {
+		return encodeTimestamp(w, n.Time)
+	}
 }
 
 // Hstore represents an hstore column. It does not support a null column or null
@@ -1177,8 +1187,12 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 		}
 		return t
 	case BinaryFormatCode:
-		vr.Fatal(ProtocolError("Can't decode binary timestamp"))
-		return zeroTime
+		if vr.Len() != 8 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamp: %d", vr.Len())))
+		}
+		microsecSinceY2K := vr.ReadInt64()
+		microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
+		return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return zeroTime
@@ -1186,13 +1200,7 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 }
 
 func encodeTimestamp(w *WriteBuf, value interface{}) error {
-	t, ok := value.(time.Time)
-	if !ok {
-		return fmt.Errorf("Expected time.Time, received %T", value)
-	}
-
-	s := t.Format("2006-01-02 15:04:05.999999")
-	return encodeText(w, s)
+	return encodeTimestampTz(w, value)
 }
 
 func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {

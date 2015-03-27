@@ -327,6 +327,9 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case parseComplete:
 		case parameterDescription:
 			ps.ParameterOids = c.rxParameterDescription(r)
+			if len(ps.ParameterOids) > 65535 && softErr == nil {
+				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOids))
+			}
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
 			for i := range ps.FieldDescriptions {
@@ -337,7 +340,11 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case noData:
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			c.preparedStatements[name] = ps
+
+			if softErr == nil {
+				c.preparedStatements[name] = ps
+			}
+
 			return ps, softErr
 		default:
 			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
@@ -550,7 +557,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, TimestampTzArrayOid, TimestampArrayOid, BoolArrayOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid, OidOid:
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, TimestampTzArrayOid, TimestampOid, TimestampArrayOid, BoolArrayOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid, OidOid:
 				wbuf.WriteInt16(BinaryFormatCode)
 			default:
 				wbuf.WriteInt16(TextFormatCode)
@@ -820,10 +827,17 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 }
 
 func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
-	parameterCount := r.readInt16()
+	// Internally, PostgreSQL supports greater than 64k parameters to a prepared
+	// statement. But the parameter description uses a 16-bit integer for the
+	// count of parameters. If there are more than 64K parameters, this count is
+	// wrong. So read the count, ignore it, and compute the proper value from
+	// the size of the message.
+	r.readInt16()
+	parameterCount := r.msgBytesRemaining / 4
+
 	parameters = make([]Oid, 0, parameterCount)
 
-	for i := int16(0); i < parameterCount; i++ {
+	for i := int32(0); i < parameterCount; i++ {
 		parameters = append(parameters, r.readOid())
 	}
 	return
