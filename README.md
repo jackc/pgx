@@ -1,21 +1,15 @@
-# pgx
+# Pgx
 
-PostgreSQL client library for Go
+Pgx is a a pure Go database connection library designed specifically for
+PostgreSQL. Pgx is different from other drivers such as
+[pq](http://godoc.org/github.com/lib/pq) because, while it can operate as a
+database/sql compatible driver, pgx is primarily intended to be used directly.
+It offers a native interface similar to database/sql that offers better
+performance and more features.
 
-## Description
+## Features
 
-pgx is a database connection library designed specifically for PostgreSQL. pgx
-offers an interface similar to database/sql that offers more performance and
-features than are available with the database/sql interface. It also can run as
-a database/sql compatible driver.
-
-## Native Interface
-
-The pgx native interface is faster than using pgx as a driver for database/sql.
-The performance improvement ranges from as little as 3% for returning a single
-value to 30% for returning many rows with multiple columns.
-
-The pgx native interface supports the following extra features:
+Pgx supports many additional features beyond what is available through database/sql.
 
 * Listen / notify
 * Transaction isolation level control
@@ -26,6 +20,17 @@ The pgx native interface supports the following extra features:
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
 * Hstore support
 * Large object support
+
+## Performance
+
+Pgx performs roughly equivalent to [pq](http://godoc.org/github.com/lib/pq) and
+[go-pg](https://github.com/go-pg/pg) for selecting a single column from a single
+row, but it is substantially faster when selecting multiple entire rows (6893
+queries/sec for pgx vs. 3968 queries/sec for pq -- 73% faster).
+
+See this [gist](https://gist.github.com/jackc/d282f39e088b495fba3e) for the
+underlying benchmark results or checkout
+[go_db_bench](https://github.com/jackc/go_db_bench) to run tests for yourself.
 
 ## database/sql
 
