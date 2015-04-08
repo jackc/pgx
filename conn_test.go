@@ -255,6 +255,55 @@ func TestParseURI(t *testing.T) {
 	}
 }
 
+func TestParseDSN(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		url        string
+		connParams pgx.ConnConfig
+	}{
+		{
+			url: "user=jack password=secret host=localhost port=5432 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+			},
+		},
+		{
+			url: "user=jack host=localhost port=5432 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+			},
+		},
+		{
+			url: "user=jack host=localhost dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		connParams, err := pgx.ParseDSN(tt.url)
+		if err != nil {
+			t.Errorf("%d. Unexpected error from pgx.ParseDSN(%q) => %v", i, tt.url, err)
+			continue
+		}
+
+		if connParams != tt.connParams {
+			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
+		}
+	}
+}
+
 func TestExec(t *testing.T) {
 	t.Parallel()
 
