@@ -239,6 +239,21 @@ func TestEmptyArrayDecoding(t *testing.T) {
 		t.Errorf("Expected 0 values, got %d", len(val))
 	}
 
+	var n, m int32
+
+	err = conn.QueryRow("select 1::integer, array[]::text[], 42::integer").Scan(&n, &val, &m)
+	if err != nil {
+		t.Errorf(`error reading array: %v`, err)
+	}
+	if len(val) != 0 {
+		t.Errorf("Expected 0 values, got %d", len(val))
+	}
+	if n != 1 {
+		t.Errorf("Expected n to be 1, but it was %d", n)
+	}
+	if m != 42 {
+		t.Errorf("Expected n to be 42, but it was %d", n)
+	}
 	ensureConnValid(t, conn)
 }
 
