@@ -254,6 +254,20 @@ func TestEmptyArrayDecoding(t *testing.T) {
 	if m != 42 {
 		t.Errorf("Expected n to be 42, but it was %d", n)
 	}
+
+	rows, err := conn.Query("select 1::integer, array['test']::text[] union select 2::integer, array[]::text[] union select 3::integer, array['test']::text[]")
+	if err != nil {
+		t.Errorf(`error retrieving rows with array: %v`, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&n, &val)
+		if err != nil {
+			t.Errorf(`error reading array: %v`, err)
+		}
+	}
+
 	ensureConnValid(t, conn)
 }
 
