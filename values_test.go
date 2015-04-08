@@ -223,6 +223,25 @@ func TestArrayDecoding(t *testing.T) {
 	}
 }
 
+func TestEmptyArrayDecoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var val []string
+
+	err := conn.QueryRow("select array[]::text[]").Scan(&val)
+	if err != nil {
+		t.Errorf(`error reading array: %v`, err)
+	}
+	if len(val) != 0 {
+		t.Errorf("Expected 0 values, got %d", len(val))
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestNullXMismatch(t *testing.T) {
 	t.Parallel()
 
