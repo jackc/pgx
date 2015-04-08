@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -278,6 +279,38 @@ func ParseURI(uri string) (ConnConfig, error) {
 		cp.Port = uint16(p)
 	}
 	cp.Database = strings.TrimLeft(url.Path, "/")
+
+	return cp, nil
+}
+
+var dsn_regexp = regexp.MustCompile(`([a-z]+)=((?:"[^"]+")|(?:[^ ]+))`)
+
+// ParseDSN parses a database DSN (data source name) into a ConnConfig
+//
+// e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb")
+func ParseDSN(s string) (ConnConfig, error) {
+	var cp ConnConfig
+
+	m := dsn_regexp.FindAllStringSubmatch(s, -1)
+
+	for _, b := range m {
+		switch b[1] {
+		case "user":
+			cp.User = b[2]
+		case "password":
+			cp.Password = b[2]
+		case "host":
+			cp.Host = b[2]
+		case "port":
+			if p, err := strconv.ParseUint(b[2], 10, 16); err != nil {
+				return cp, err
+			} else {
+				cp.Port = uint16(p)
+			}
+		case "dbname":
+			cp.Database = b[2]
+		}
+	}
 
 	return cp, nil
 }
