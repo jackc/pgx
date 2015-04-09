@@ -223,31 +223,30 @@ func TestArrayDecoding(t *testing.T) {
 	}
 }
 
-type buggyScanner struct {}
+type shortScanner struct{}
 
-func (*buggyScanner) Scan(r *pgx.ValueReader) error {
-	r.ReadInt32()
+func (*shortScanner) Scan(r *pgx.ValueReader) error {
+	r.ReadByte()
 	return nil
 }
 
-func TestBuggyScanner(t *testing.T) {
+func TestShortScanner(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	rows, err := conn.Query("select 'tevvvvvzvzst', array[]::text[] union select 'ko', array[]::text[]")
+	rows, err := conn.Query("select 'ab', 'cd' union select 'cd', 'ef'")
 	if err != nil {
-		t.Errorf(`error retrieving rows with array: %v`, err)
+		t.Error(err)
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var s string
-		var b buggyScanner
-		err = rows.Scan(&s, &b)
+		var s1, s2 shortScanner
+		err = rows.Scan(&s1, &s2)
 		if err != nil {
-			t.Errorf(`error reading array: %v`, err)
+			t.Error(err)
 		}
 	}
 

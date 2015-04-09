@@ -153,6 +153,7 @@ func (rows *Rows) Next() bool {
 
 	rows.rowCount++
 	rows.columnIdx = 0
+	rows.vr = ValueReader{}
 
 	for {
 		t, r, err := rows.conn.rxMsg()
