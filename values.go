@@ -90,6 +90,16 @@ type Scanner interface {
 	Scan(r *ValueReader) error
 }
 
+// Decoder is an interface used to decode values from the PostgreSQL server.
+type Decoder interface {
+	// Decode MUST check r.Type().DataType (to check by OID) or
+	// r.Type().DataTypeName (to check by name) to ensure that it is scanning an
+	// expected column type. It also MUST check r.Type().FormatCode before
+	// decoding. It should not assume that it was called on a data type or format
+	// that it understands.
+	Decode(r *ValueReader) error
+}
+
 // Encoder is an interface used to encode values for transmission to the
 // PostgreSQL server.
 type Encoder interface {

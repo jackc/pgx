@@ -280,6 +280,11 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(err)
 			}
+		case Decoder:
+			err = d.Decode(vr)
+			if err != nil {
+				rows.Fatal(err)
+			}
 		default:
 			rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
 		}
