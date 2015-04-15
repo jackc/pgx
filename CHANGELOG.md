@@ -1,5 +1,15 @@
-# Unreleased
+# 2.5.0 (April 15, 2015)
 
+* Fix stdlib nil support (Blaž Hrastnik)
+* Support custom Scanner not reading entire value
+* Fix empty array scanning (Laurent Debacker)
+* Add ParseDSN (deoxxa)
+* Add timestamp support to NullTime
+* Remove unused text format scanners
+* Return error when too many parameters on Prepare
+* Add Travis CI integration (Jonathan Rudenberg)
+* Large object support (Blake Gentry)
+* Fix reading null byte arrays (Karl Seguin)
 * Add timestamptz[] support
 * Add timestamp[] support (Karl Seguin)
 * Add bool[] support (Karl Seguin)
