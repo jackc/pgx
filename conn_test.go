@@ -3,6 +3,8 @@ package pgx_test
 import (
 	"fmt"
 	"github.com/jackc/pgx"
+	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -196,6 +198,34 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestConnectCustomDialer(t *testing.T) {
+	t.Parallel()
+
+	if customDialerConnConfig == nil {
+		return
+	}
+
+	dialled := false
+	conf := *customDialerConnConfig
+	conf.Dial = func(network, address string) (net.Conn, error) {
+		dialled = true
+		return net.Dial(network, address)
+	}
+
+	conn, err := pgx.Connect(conf)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %s", err)
+	}
+	if !dialled {
+		t.Fatal("Connect did not use custom dialer")
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestParseURI(t *testing.T) {
 	t.Parallel()
 
@@ -249,7 +279,7 @@ func TestParseURI(t *testing.T) {
 			continue
 		}
 
-		if connParams != tt.connParams {
+		if !reflect.DeepEqual(connParams, tt.connParams) {
 			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
 		}
 	}
@@ -298,7 +328,7 @@ func TestParseDSN(t *testing.T) {
 			continue
 		}
 
-		if connParams != tt.connParams {
+		if !reflect.DeepEqual(connParams, tt.connParams) {
 			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
 		}
 	}
