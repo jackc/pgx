@@ -223,6 +223,84 @@ func TestArrayDecoding(t *testing.T) {
 	}
 }
 
+type shortScanner struct{}
+
+func (*shortScanner) Scan(r *pgx.ValueReader) error {
+	r.ReadByte()
+	return nil
+}
+
+func TestShortScanner(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query("select 'ab', 'cd' union select 'cd', 'ef'")
+	if err != nil {
+		t.Error(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s1, s2 shortScanner
+		err = rows.Scan(&s1, &s2)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestEmptyArrayDecoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var val []string
+
+	err := conn.QueryRow("select array[]::text[]").Scan(&val)
+	if err != nil {
+		t.Errorf(`error reading array: %v`, err)
+	}
+	if len(val) != 0 {
+		t.Errorf("Expected 0 values, got %d", len(val))
+	}
+
+	var n, m int32
+
+	err = conn.QueryRow("select 1::integer, array[]::text[], 42::integer").Scan(&n, &val, &m)
+	if err != nil {
+		t.Errorf(`error reading array: %v`, err)
+	}
+	if len(val) != 0 {
+		t.Errorf("Expected 0 values, got %d", len(val))
+	}
+	if n != 1 {
+		t.Errorf("Expected n to be 1, but it was %d", n)
+	}
+	if m != 42 {
+		t.Errorf("Expected n to be 42, but it was %d", n)
+	}
+
+	rows, err := conn.Query("select 1::integer, array['test']::text[] union select 2::integer, array[]::text[] union select 3::integer, array['test']::text[]")
+	if err != nil {
+		t.Errorf(`error retrieving rows with array: %v`, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(&n, &val)
+		if err != nil {
+			t.Errorf(`error reading array: %v`, err)
+		}
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestNullXMismatch(t *testing.T) {
 	t.Parallel()
 

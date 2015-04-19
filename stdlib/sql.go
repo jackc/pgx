@@ -301,7 +301,11 @@ func (r *Rows) Next(dest []driver.Value) error {
 func valueToInterface(argsV []driver.Value) []interface{} {
 	args := make([]interface{}, 0, len(argsV))
 	for _, v := range argsV {
-		args = append(args, v.(interface{}))
+		if v != nil {
+			args = append(args, v.(interface{}))
+		} else {
+			args = append(args, nil)
+		}
 	}
 	return args
 }
