@@ -812,6 +812,18 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 			err.Detail = r.readCString()
 		case 'H':
 			err.Hint = r.readCString()
+		case 'P':
+			s := r.readCString()
+			n, _ := strconv.ParseInt(s, 10, 32)
+			err.Position = int32(n)
+		case 'p':
+			s := r.readCString()
+			n, _ := strconv.ParseInt(s, 10, 32)
+			err.InternalPosition = int32(n)
+		case 'q':
+			err.InternalQuery = r.readCString()
+		case 'W':
+			err.Where = r.readCString()
 		case 's':
 			err.SchemaName = r.readCString()
 		case 't':
@@ -822,6 +834,15 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 			err.DataTypeName = r.readCString()
 		case 'n':
 			err.ConstraintName = r.readCString()
+		case 'F':
+			err.File = r.readCString()
+		case 'L':
+			s := r.readCString()
+			n, _ := strconv.ParseInt(s, 10, 32)
+			err.Line = int32(n)
+		case 'R':
+			err.Routine = r.readCString()
+
 		case 0: // End of error message
 			if err.Severity == "FATAL" {
 				c.die(err)

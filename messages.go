@@ -66,16 +66,23 @@ type FieldDescription struct {
 // http://www.postgresql.org/docs/9.3/static/protocol-error-fields.html for
 // detailed field description.
 type PgError struct {
-	Severity       string
-	Code           string
-	Message        string
-	Detail         string
-	Hint           string
-	SchemaName     string
-	TableName      string
-	ColumnName     string
-	DataTypeName   string
-	ConstraintName string
+	Severity         string
+	Code             string
+	Message          string
+	Detail           string
+	Hint             string
+	Position         int32
+	InternalPosition int32
+	InternalQuery    string
+	Where            string
+	SchemaName       string
+	TableName        string
+	ColumnName       string
+	DataTypeName     string
+	ConstraintName   string
+	File             string
+	Line             int32
+	Routine          string
 }
 
 func (self PgError) Error() string {
