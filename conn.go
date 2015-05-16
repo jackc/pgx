@@ -91,6 +91,7 @@ func (ct CommandTag) RowsAffected() int64 {
 var ErrNoRows = errors.New("no rows in result set")
 var ErrNotificationTimeout = errors.New("notification timeout")
 var ErrDeadConn = errors.New("conn is dead")
+var ErrTLSRefused = errors.New("server refused TLS connection")
 
 type ProtocolError string
 
@@ -916,8 +917,7 @@ func (c *Conn) startTLS() (err error) {
 	}
 
 	if response[0] != 'S' {
-		err = errors.New("Could not use TLS")
-		return
+		return ErrTLSRefused
 	}
 
 	c.conn = tls.Client(c.conn, c.config.TLSConfig)
