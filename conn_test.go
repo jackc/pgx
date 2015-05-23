@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/jackc/pgx"
 	"net"
@@ -174,6 +175,35 @@ func TestConnectWithMD5Password(t *testing.T) {
 	}
 
 	conn, err := pgx.Connect(*md5ConnConfig)
+	if err != nil {
+		t.Fatal("Unable to establish connection: " + err.Error())
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithTLSFallback(t *testing.T) {
+	t.Parallel()
+
+	if tlsConnConfig == nil {
+		return
+	}
+
+	connConfig := *tlsConnConfig
+	connConfig.TLSConfig = &tls.Config{ServerName: "bogus.local"} // bogus ServerName should ensure certificate validation failure
+
+	conn, err := pgx.Connect(connConfig)
+	if err == nil {
+		t.Fatal("Expected failed connection, but succeeded")
+	}
+
+	connConfig.UseFallbackTLS = true
+	connConfig.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
+
+	conn, err = pgx.Connect(connConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
