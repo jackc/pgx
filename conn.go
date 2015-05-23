@@ -342,6 +342,25 @@ func ParseDSN(s string) (ConnConfig, error) {
 // PGDATABASE
 // PGUSER
 // PGPASSWORD
+// PGSSLMODE
+//
+// Important TLS Security Notes:
+// ParseEnvLibpq tries to match libpq behavior with regard to PGSSLMODE. This
+// includes defaulting to "prefer" behavior if no environment variable is set.
+//
+// See http://www.postgresql.org/docs/9.4/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION
+// for details on what level of security each sslmode provides.
+//
+// "require" and "verify-ca" modes currently are treated as "verify-full". e.g.
+// "They have stronger security guarantees than they would with libpq. Do not
+// "rely on this behavior as it may be possible to match libpq in the match. If
+// "you need full security use "verify-full".
+//
+// Several of the PGSSLMODE options (including the default behavior of "prefer")
+// will set UseFallbackTLS to true and FallbackTLSConfig to a disabled or
+// weakened TLS mode. This means that if ParseEnvLibpq is used, but TLSConfig is
+// later set from a different source that UseFallbackTLS MUST be set false to
+// avoid the possibility of falling back to weaker or disabled security.
 func ParseEnvLibpq() (ConnConfig, error) {
 	var cc ConnConfig
 
@@ -358,6 +377,30 @@ func ParseEnvLibpq() (ConnConfig, error) {
 	cc.Database = os.Getenv("PGDATABASE")
 	cc.User = os.Getenv("PGUSER")
 	cc.Password = os.Getenv("PGPASSWORD")
+
+	sslmode := os.Getenv("PGSSLMODE")
+
+	// Match libpq default behavior
+	if sslmode == "" {
+		sslmode = "prefer"
+	}
+
+	switch sslmode {
+	case "disable":
+	case "allow":
+		cc.UseFallbackTLS = true
+		cc.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
+	case "prefer":
+		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+		cc.UseFallbackTLS = true
+		cc.FallbackTLSConfig = nil
+	case "require", "verify-ca", "verify-full":
+		cc.TLSConfig = &tls.Config{
+			ServerName: cc.Host,
+		}
+	default:
+		return cc, errors.New("sslmode is invalid")
+	}
 
 	return cc, nil
 }
