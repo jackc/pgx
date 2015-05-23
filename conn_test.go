@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/jackc/pgx"
 	"net"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -360,6 +361,75 @@ func TestParseDSN(t *testing.T) {
 
 		if !reflect.DeepEqual(connParams, tt.connParams) {
 			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
+		}
+	}
+}
+
+func TestParseEnvLibpq(t *testing.T) {
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"}
+
+	savedEnv := make(map[string]string)
+	for _, n := range pgEnvvars {
+		savedEnv[n] = os.Getenv(n)
+	}
+	defer func() {
+		for k, v := range savedEnv {
+			err := os.Setenv(k, v)
+			if err != nil {
+				t.Fatalf("Unable to restore environment:", err)
+			}
+		}
+	}()
+
+	tests := []struct {
+		envvars map[string]string
+		config  pgx.ConnConfig
+	}{
+		{
+			envvars: map[string]string{},
+			config:  pgx.ConnConfig{},
+		},
+		{
+			envvars: map[string]string{
+				"PGHOST":     "123.123.123.123",
+				"PGPORT":     "7777",
+				"PGDATABASE": "foo",
+				"PGUSER":     "bar",
+				"PGPASSWORD": "baz",
+			},
+			config: pgx.ConnConfig{
+				Host:     "123.123.123.123",
+				Port:     7777,
+				Database: "foo",
+				User:     "bar",
+				Password: "baz",
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		for _, n := range pgEnvvars {
+			err := os.Unsetenv(n)
+			if err != nil {
+				t.Fatalf("%d. Unable to clear environment:", i, err)
+			}
+		}
+
+		for k, v := range tt.envvars {
+			err := os.Setenv(k, v)
+			if err != nil {
+				t.Fatalf("%d. Unable to set environment:", i, err)
+			}
+		}
+
+		config, err := pgx.ParseEnvLibpq()
+		if err != nil {
+			t.Errorf("%d. Unexpected error from pgx.ParseLibpq() => %v", i, err)
+			continue
+		}
+
+		if !reflect.DeepEqual(config, tt.config) {
+			t.Errorf("%d. expected %#v got %#v", i, tt.config, config)
 		}
 	}
 }

@@ -331,6 +331,37 @@ func ParseDSN(s string) (ConnConfig, error) {
 	return cp, nil
 }
 
+// ParseEnvLibpq parses the environment like libpq does into a ConnConfig
+//
+// See http://www.postgresql.org/docs/9.4/static/libpq-envars.html for details
+// on the meaning of environment variables.
+//
+// ParseEnvLibpq currently recognizes the following environment variables:
+// PGHOST
+// PGPORT
+// PGDATABASE
+// PGUSER
+// PGPASSWORD
+func ParseEnvLibpq() (ConnConfig, error) {
+	var cc ConnConfig
+
+	cc.Host = os.Getenv("PGHOST")
+
+	if pgport := os.Getenv("PGPORT"); pgport != "" {
+		if port, err := strconv.ParseUint(pgport, 10, 16); err == nil {
+			cc.Port = uint16(port)
+		} else {
+			return cc, err
+		}
+	}
+
+	cc.Database = os.Getenv("PGDATABASE")
+	cc.User = os.Getenv("PGUSER")
+	cc.Password = os.Getenv("PGPASSWORD")
+
+	return cc, nil
+}
+
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
