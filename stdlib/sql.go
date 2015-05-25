@@ -109,6 +109,8 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 // *sql.DB and typecasting to *stdlib.Driver a reference to the pgx.ConnPool can
 // be reaquired later. This allows fast paths targeting pgx to be used while
 // still maintaining compatibility with other databases and drivers.
+//
+// pool connection size must be at least 2.
 func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	d := &Driver{Pool: pool}
 	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
@@ -126,6 +128,10 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	// that would mean that prepared statements would be lost (which kills
 	// performance if the prepared statements constantly have to be reprepared)
 	stat := pool.Stat()
+
+	if stat.MaxConnections <= 2 {
+		return nil, errors.New("pool connection size must be at least 2")
+	}
 	db.SetMaxIdleConns(stat.MaxConnections - 2)
 	db.SetMaxOpenConns(stat.MaxConnections)
 

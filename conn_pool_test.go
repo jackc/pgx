@@ -67,20 +67,6 @@ func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	}
 }
 
-func TestNewConnPoolMaxConnectionsCannotBeLessThan2(t *testing.T) {
-	t.Parallel()
-
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 1}
-	pool, err := pgx.NewConnPool(config)
-	if err == nil {
-		pool.Close()
-		t.Fatal(`Expected NewConnPool to fail with "MaxConnections must be at least 2" error, but it succeeded`)
-	}
-	if err.Error() != "MaxConnections must be at least 2" {
-		t.Fatalf(`Expected NewConnPool to fail with "MaxConnections must be at least 2" error, but it failed with %v`, err)
-	}
-}
-
 func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	t.Parallel()
 

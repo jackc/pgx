@@ -37,8 +37,8 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	if p.maxConnections == 0 {
 		p.maxConnections = 5
 	}
-	if p.maxConnections < 2 {
-		return nil, errors.New("MaxConnections must be at least 2")
+	if p.maxConnections < 1 {
+		return nil, errors.New("MaxConnections must be at least 1")
 	}
 
 	p.afterConnect = config.AfterConnect
