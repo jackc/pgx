@@ -71,6 +71,7 @@ func init() {
 	databaseSqlOids[pgx.Float4Oid] = true
 	databaseSqlOids[pgx.Float8Oid] = true
 	databaseSqlOids[pgx.DateOid] = true
+	databaseSqlOids[pgx.TimeOid] = true
 	databaseSqlOids[pgx.TimestampTzOid] = true
 }
 
@@ -232,6 +233,8 @@ func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
 		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
+		} else {
+			ps.FieldDescriptions[i].FormatCode = pgx.BinaryFormatCode
 		}
 	}
 }

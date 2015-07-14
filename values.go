@@ -18,6 +18,7 @@ const (
 	Int4Oid             = 23
 	TextOid             = 25
 	OidOid              = 26
+	JsonOid             = 114
 	Float4Oid           = 700
 	Float8Oid           = 701
 	BoolArrayOid        = 1000
@@ -30,6 +31,7 @@ const (
 	Float8ArrayOid      = 1022
 	VarcharOid          = 1043
 	DateOid             = 1082
+	TimeOid             = 1083
 	TimestampOid        = 1114
 	TimestampArrayOid   = 1115
 	TimestampTzOid      = 1184
@@ -987,6 +989,58 @@ func encodeBytea(w *WriteBuf, value interface{}) error {
 	w.WriteBytes(b)
 
 	return nil
+}
+
+func decodeJson(vr *ValueReader, d interface{}) error {
+
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != JsonOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
+	}
+
+	str := vr.ReadString(vr.Len())
+	return json.Unmarshal([]byte(str), d)
+
+}
+
+func encodeTime(w *WriteBuf, value interface{}) error {
+	t, ok := value.(time.Time)
+	if !ok {
+		return fmt.Errorf("Expected time.Time, received %T", value)
+	}
+
+	s := t.Format("15:04:05")
+	return encodeText(w, s)
+}
+
+func decodeTime(vr *ValueReader) time.Time {
+	var zeroTime time.Time
+
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into time.Time"))
+		return zeroTime
+	}
+
+	if vr.Type().DataType != TimeOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into time.Time", vr.Type().DataType)))
+		return zeroTime
+	}
+
+	str := vr.ReadString(vr.Len())
+	format := "15:04:05"
+	if (vr.Type().DataType == TimestampTzOid) && str[len(str)-3] == ':' {
+		format += ":00"
+	}
+
+	timeTime, err := time.Parse(format, str)
+	if err != nil {
+		return zeroTime
+	}
+
+	return timeTime
 }
 
 func decodeDate(vr *ValueReader) time.Time {

@@ -720,6 +720,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeText(wbuf, arguments[i])
 			case DateOid:
 				err = encodeDate(wbuf, arguments[i])
+			case TimeOid:
+				err = encodeTime(wbuf, arguments[i])
 			case TimestampTzOid:
 				err = encodeTimestampTz(wbuf, arguments[i])
 			case TimestampOid:

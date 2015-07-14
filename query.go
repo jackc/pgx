@@ -234,14 +234,90 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					*d = nil
 				}
 			}
+		case *int:
+			switch vr.Type().DataType {
+			case Int8Oid:
+				*d = int(decodeInt8(vr))
+			case Int4Oid:
+				*d = int(decodeInt4(vr))
+			case Int2Oid:
+				*d = int(decodeInt2(vr))
+			}
 		case *int64:
-			*d = decodeInt8(vr)
+
+			switch vr.Type().DataType {
+			case Int8Oid:
+				*d = decodeInt8(vr)
+			case Int4Oid:
+				*d = int64(decodeInt4(vr))
+			case Int2Oid:
+				*d = int64(decodeInt2(vr))
+			}
 		case *int16:
 			*d = decodeInt2(vr)
 		case *int32:
 			*d = decodeInt4(vr)
 		case *Oid:
 			*d = decodeOid(vr)
+		case *interface{}:
+			switch vr.Type().DataType {
+			case BoolOid:
+				*d = decodeBool(vr)
+			case ByteaOid:
+				if vr.Type().DataType == ByteaOid {
+					*d = decodeBytea(vr)
+				} else {
+					if vr.Len() != -1 {
+						*d = vr.ReadBytes(vr.Len())
+					} else {
+						*d = nil
+					}
+				}
+			case Int8Oid:
+				*d = decodeInt8(vr)
+			case Int4Oid:
+				*d = decodeInt4(vr)
+			case Int2Oid:
+				*d = decodeInt2(vr)
+			case OidOid:
+				*d = decodeOid(vr)
+			case JsonOid:
+				decodeText(vr, d)
+			case Float4Oid:
+				*d = decodeFloat4(vr)
+			case Float8Oid:
+				*d = decodeFloat8(vr)
+			case BoolArrayOid:
+				*d = decodeBoolArray(vr)
+			case Int2ArrayOid:
+				*d = decodeInt2Array(vr)
+			case Int4ArrayOid:
+				*d = decodeInt4Array(vr)
+			case TextArrayOid:
+				*d = decodeTextArray(vr)
+			case VarcharArrayOid:
+				*d = decodeTextArray(vr)
+			case Int8ArrayOid:
+				*d = decodeInt8Array(vr)
+			case Float4ArrayOid:
+				*d = decodeFloat4Array(vr)
+			case Float8ArrayOid:
+				*d = decodeFloat8Array(vr)
+			case VarcharOid:
+				*d = decodeText(vr)
+			case DateOid:
+				*d = decodeDate(vr)
+			case TimeOid:
+				*d = decodeTime(vr)
+			case TimestampOid:
+				*d = decodeTimestamp(vr)
+			case TimestampArrayOid:
+				*d = decodeTimestampArray(vr)
+			case TimestampTzOid:
+				*d = decodeTimestampTz(vr)
+			case TimestampTzArrayOid:
+				*d = decodeTimestampArray(vr)
+			}
 		case *string:
 			*d = decodeText(vr)
 		case *float32:
@@ -268,6 +344,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			switch vr.Type().DataType {
 			case DateOid:
 				*d = decodeDate(vr)
+			case TimeOid:
+				*d = decodeTime(vr)
 			case TimestampTzOid:
 				*d = decodeTimestampTz(vr)
 			case TimestampOid:
@@ -351,6 +429,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampArray(vr))
 			case DateOid:
 				values = append(values, decodeDate(vr))
+			case TimeOid:
+				values = append(values, decodeTime(vr))
 			case TimestampTzOid:
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOid:
