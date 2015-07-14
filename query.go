@@ -282,7 +282,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			case OidOid:
 				*d = decodeOid(vr)
 			case JsonOid:
-				decodeText(vr, d)
+				decodeJson(vr, d)
 			case Float4Oid:
 				*d = decodeFloat4(vr)
 			case Float8Oid:
@@ -435,6 +435,10 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOid:
 				values = append(values, decodeTimestamp(vr))
+			case JsonOid:
+				var d interface{}
+				decodeJson(vr, &d)
+				values = append(values, d)
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			}

@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -1001,8 +1002,8 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
 	}
 
-	str := vr.ReadString(vr.Len())
-	return json.Unmarshal([]byte(str), d)
+	bytes := vr.ReadBytes(vr.Len())
+	return json.Unmarshal(bytes, d)
 
 }
 

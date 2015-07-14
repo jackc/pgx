@@ -73,6 +73,7 @@ func init() {
 	databaseSqlOids[pgx.DateOid] = true
 	databaseSqlOids[pgx.TimeOid] = true
 	databaseSqlOids[pgx.TimestampTzOid] = true
+	databaseSqlOids[pgx.JsonOid] = true
 }
 
 type Driver struct {
