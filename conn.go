@@ -751,7 +751,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case JsonOid:
 				err = encodeText(wbuf, arguments[i])
 			case NumericOid:
-				err = encodeText(wbuf, fmt.Println("%f", arguments[i]))
+				err = encodeText(wbuf, fmt.Sprintf("%f", arguments[i]))
 			default:
 				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 			}
