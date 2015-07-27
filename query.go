@@ -283,6 +283,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				*d = decodeOid(vr)
 			case JsonOid:
 				decodeJson(vr, d)
+			case NumericOid:
+				*d = decodeFloat8(vr)
 			case Float4Oid:
 				*d = decodeFloat4(vr)
 			case Float8Oid:

@@ -37,6 +37,7 @@ const (
 	TimestampArrayOid   = 1115
 	TimestampTzOid      = 1184
 	TimestampTzArrayOid = 1185
+	NumericOid          = 1700
 )
 
 // PostgreSQL format codes
