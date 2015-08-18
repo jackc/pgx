@@ -296,6 +296,11 @@ func ParseURI(uri string) (ConnConfig, error) {
 	}
 	cp.Database = strings.TrimLeft(url.Path, "/")
 
+	err = configSSL(url.Query().Get("sslmode"), &cp)
+	if err != nil {
+		return cp, err
+	}
+
 	return cp, nil
 }
 
@@ -303,11 +308,13 @@ var dsn_regexp = regexp.MustCompile(`([a-z]+)=((?:"[^"]+")|(?:[^ ]+))`)
 
 // ParseDSN parses a database DSN (data source name) into a ConnConfig
 //
-// e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb")
+// e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb sslmode=disable")
 func ParseDSN(s string) (ConnConfig, error) {
 	var cp ConnConfig
 
 	m := dsn_regexp.FindAllStringSubmatch(s, -1)
+
+	var sslmode string
 
 	for _, b := range m {
 		switch b[1] {
@@ -325,7 +332,14 @@ func ParseDSN(s string) (ConnConfig, error) {
 			}
 		case "dbname":
 			cp.Database = b[2]
+		case "sslmode":
+			sslmode = b[2]
 		}
+	}
+
+	err := configSSL(sslmode, &cp)
+	if err != nil {
+		return cp, err
 	}
 
 	return cp, nil
@@ -380,6 +394,15 @@ func ParseEnvLibpq() (ConnConfig, error) {
 
 	sslmode := os.Getenv("PGSSLMODE")
 
+	err := configSSL(sslmode, &cc)
+	if err != nil {
+		return cc, err
+	}
+
+	return cc, nil
+}
+
+func configSSL(sslmode string, cc *ConnConfig) error {
 	// Match libpq default behavior
 	if sslmode == "" {
 		sslmode = "prefer"
@@ -399,10 +422,10 @@ func ParseEnvLibpq() (ConnConfig, error) {
 			ServerName: cc.Host,
 		}
 	default:
-		return cc, errors.New("sslmode is invalid")
+		return errors.New("sslmode is invalid")
 	}
 
-	return cc, nil
+	return nil
 }
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders

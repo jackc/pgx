@@ -2,7 +2,7 @@
 //
 // A database/sql connection can be established through sql.Open.
 //
-//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
+//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
 //	if err != nil {
 //		return err
 //	}
@@ -48,8 +48,9 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
 	"io"
+
+	"github.com/jackc/pgx"
 )
 
 var openFromConnPoolCount int

@@ -3,7 +3,6 @@ package pgx_test
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/jackc/pgx"
 	"net"
 	"os"
 	"reflect"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 )
 
 func TestConnect(t *testing.T) {
@@ -265,6 +266,34 @@ func TestParseURI(t *testing.T) {
 		connParams pgx.ConnConfig
 	}{
 		{
+			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=prefer",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+			},
+		},
+		{
+			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable",
+			connParams: pgx.ConnConfig{
+				User:              "jack",
+				Password:          "secret",
+				Host:              "localhost",
+				Port:              5432,
+				Database:          "mydb",
+				TLSConfig:         nil,
+				UseFallbackTLS:    false,
+				FallbackTLSConfig: nil,
+			},
+		},
+		{
 			url: "postgres://jack:secret@localhost:5432/mydb",
 			connParams: pgx.ConnConfig{
 				User:     "jack",
@@ -272,6 +301,11 @@ func TestParseURI(t *testing.T) {
 				Host:     "localhost",
 				Port:     5432,
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 		{
@@ -282,6 +316,11 @@ func TestParseURI(t *testing.T) {
 				Host:     "localhost",
 				Port:     5432,
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 		{
@@ -291,6 +330,11 @@ func TestParseURI(t *testing.T) {
 				Host:     "localhost",
 				Port:     5432,
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 		{
@@ -299,6 +343,11 @@ func TestParseURI(t *testing.T) {
 				User:     "jack",
 				Host:     "localhost",
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 	}
@@ -324,7 +373,7 @@ func TestParseDSN(t *testing.T) {
 		connParams pgx.ConnConfig
 	}{
 		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb",
+			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
 			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Password: "secret",
@@ -334,12 +383,47 @@ func TestParseDSN(t *testing.T) {
 			},
 		},
 		{
+			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=prefer",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+			},
+		},
+		{
+			url: "user=jack password=secret host=localhost port=5432 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+			},
+		},
+		{
 			url: "user=jack host=localhost port=5432 dbname=mydb",
 			connParams: pgx.ConnConfig{
 				User:     "jack",
 				Host:     "localhost",
 				Port:     5432,
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 		{
@@ -348,6 +432,11 @@ func TestParseDSN(t *testing.T) {
 				User:     "jack",
 				Host:     "localhost",
 				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
 			},
 		},
 	}
