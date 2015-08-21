@@ -309,6 +309,10 @@ var dsn_regexp = regexp.MustCompile(`([a-z]+)=((?:"[^"]+")|(?:[^ ]+))`)
 // ParseDSN parses a database DSN (data source name) into a ConnConfig
 //
 // e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb sslmode=disable")
+//
+// ParseDSN tries to match libpq behavior with regard to sslmode. See comments
+// for ParseEnvLibpq for more information on the security implications of
+// sslmode options.
 func ParseDSN(s string) (ConnConfig, error) {
 	var cp ConnConfig
 
