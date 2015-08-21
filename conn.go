@@ -370,9 +370,9 @@ func ParseDSN(s string) (ConnConfig, error) {
 // for details on what level of security each sslmode provides.
 //
 // "require" and "verify-ca" modes currently are treated as "verify-full". e.g.
-// "They have stronger security guarantees than they would with libpq. Do not
-// "rely on this behavior as it may be possible to match libpq in the match. If
-// "you need full security use "verify-full".
+// They have stronger security guarantees than they would with libpq. Do not
+// rely on this behavior as it may be possible to match libpq in the future. If
+// you need full security use "verify-full".
 //
 // Several of the PGSSLMODE options (including the default behavior of "prefer")
 // will set UseFallbackTLS to true and FallbackTLSConfig to a disabled or
