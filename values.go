@@ -1089,6 +1089,7 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 
 	if vr.Len() != 8 {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamp: %d", vr.Len())))
+		return zeroTime
 	}
 
 	microsecSinceY2K := vr.ReadInt64()

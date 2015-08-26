@@ -73,6 +73,7 @@ func init() {
 	databaseSqlOids[pgx.Float8Oid] = true
 	databaseSqlOids[pgx.DateOid] = true
 	databaseSqlOids[pgx.TimestampTzOid] = true
+	databaseSqlOids[pgx.TimestampOid] = true
 }
 
 type Driver struct {
