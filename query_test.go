@@ -488,19 +488,13 @@ func TestQueryRowNoResults(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	sql := "select 1 where 1=0"
-	psName := "selectNothing"
-	mustPrepare(t, conn, psName, sql)
-
-	for _, sql := range []string{sql, psName} {
-		var n int32
-		err := conn.QueryRow(sql).Scan(&n)
-		if err != pgx.ErrNoRows {
-			t.Errorf("Expected pgx.ErrNoRows, got %v", err)
-		}
-
-		ensureConnValid(t, conn)
+	var n int32
+	err := conn.QueryRow("select 1 where 1=0").Scan(&n)
+	if err != pgx.ErrNoRows {
+		t.Errorf("Expected pgx.ErrNoRows, got %v", err)
 	}
+
+	ensureConnValid(t, conn)
 }
 
 func TestQueryRowCoreInt16Slice(t *testing.T) {

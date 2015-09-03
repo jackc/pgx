@@ -1,7 +1,6 @@
 package pgx_test
 
 import (
-	"fmt"
 	"github.com/jackc/pgx"
 	"net"
 	"reflect"
@@ -16,13 +15,6 @@ func TestDateTranscode(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	mustPrepare(t, conn, "testTranscode", "select $1::date")
-	defer func() {
-		if err := conn.Deallocate("testTranscode"); err != nil {
-			t.Fatalf("Unable to deallocate prepared statement: %v", err)
-		}
-	}()
-
 	dates := []time.Time{
 		time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local),
 		time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local),
@@ -36,17 +28,7 @@ func TestDateTranscode(t *testing.T) {
 	for _, actualDate := range dates {
 		var d time.Time
 
-		// Test text format
 		err := conn.QueryRow("select $1::date", actualDate).Scan(&d)
-		if err != nil {
-			t.Fatalf("Unexpected failure on QueryRow Scan: %v", err)
-		}
-		if !actualDate.Equal(d) {
-			t.Errorf("Did not transcode date successfully: %v is not %v", d, actualDate)
-		}
-
-		// Test binary format
-		err = conn.QueryRow("testTranscode", actualDate).Scan(&d)
 		if err != nil {
 			t.Fatalf("Unexpected failure on QueryRow Scan: %v", err)
 		}
@@ -74,14 +56,7 @@ func TestTimestampTzTranscode(t *testing.T) {
 		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
 	}
 
-	mustPrepare(t, conn, "testTranscode", "select $1::timestamptz")
-	defer func() {
-		if err := conn.Deallocate("testTranscode"); err != nil {
-			t.Fatalf("Unable to deallocate prepared statement: %v", err)
-		}
-	}()
-
-	err = conn.QueryRow("testTranscode", inputTime).Scan(&outputTime)
+	err = conn.QueryRow("select $1::timestamptz", inputTime).Scan(&outputTime)
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
@@ -195,23 +170,18 @@ func TestNullX(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		psName := fmt.Sprintf("success%d", i)
-		mustPrepare(t, conn, psName, tt.sql)
+		actual = zero
 
-		for _, sql := range []string{tt.sql, psName} {
-			actual = zero
-
-			err := conn.QueryRow(sql, tt.queryArgs...).Scan(tt.scanArgs...)
-			if err != nil {
-				t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, sql, tt.queryArgs)
-			}
-
-			if actual != tt.expected {
-				t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, sql, tt.queryArgs)
-			}
-
-			ensureConnValid(t, conn)
+		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
 		}
+
+		if actual != tt.expected {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
 	}
 }
 
@@ -270,12 +240,9 @@ func TestArrayDecoding(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		psName := fmt.Sprintf("ps%d", i)
-		mustPrepare(t, conn, psName, tt.sql)
-
-		err := conn.QueryRow(psName, tt.query).Scan(tt.scan)
+		err := conn.QueryRow(tt.sql, tt.query).Scan(tt.scan)
 		if err != nil {
-			t.Errorf(`error reading array: %v`, err)
+			t.Errorf(`%d. error reading array: %v`, i, err)
 		}
 		tt.assert(t, tt.query, tt.scan)
 		ensureConnValid(t, conn)
@@ -396,12 +363,9 @@ func TestNullXMismatch(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		psName := fmt.Sprintf("ps%d", i)
-		mustPrepare(t, conn, psName, tt.sql)
-
 		actual = zero
 
-		err := conn.QueryRow(psName, tt.queryArgs...).Scan(tt.scanArgs...)
+		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
 		if err == nil || !strings.Contains(err.Error(), tt.err) {
 			t.Errorf(`%d. Expected error to contain "%s", but it didn't: %v`, i, tt.err, err)
 		}

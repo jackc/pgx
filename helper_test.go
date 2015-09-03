@@ -20,15 +20,6 @@ func closeConn(t testing.TB, conn *pgx.Conn) {
 	}
 }
 
-func mustPrepare(t testing.TB, conn *pgx.Conn, name, sql string) *pgx.PreparedStatement {
-	ps, err := conn.Prepare(name, sql)
-	if err != nil {
-		t.Fatalf("Could not prepare %v: %v", name, err)
-	}
-
-	return ps
-}
-
 func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgx.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(sql, arguments...); err != nil {
