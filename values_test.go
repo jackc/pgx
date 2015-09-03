@@ -65,6 +65,46 @@ func TestTimestampTzTranscode(t *testing.T) {
 	}
 }
 
+func TestJsonTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	m := map[string]string{
+		"key": "value",
+	}
+	var outputJson map[string]string
+
+	err := conn.QueryRow("select $1::json", m).Scan(&outputJson)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if m["key"] != outputJson["key"] {
+		t.Errorf("Did not transcode json successfully: %v is not %v", outputJson["key"], m["key"])
+	}
+}
+
+func TestJsonbTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	m := map[string]string{
+		"key": "value",
+	}
+	var outputJson map[string]string
+
+	err := conn.QueryRow("select $1::jsonb", m).Scan(&outputJson)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if m["key"] != outputJson["key"] {
+		t.Errorf("Did not transcode jsonb successfully: %v is not %v", outputJson["key"], m["key"])
+	}
+}
+
 func mustParseCIDR(t *testing.T, s string) net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {

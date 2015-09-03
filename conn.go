@@ -799,6 +799,10 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeTimestampArray(wbuf, arguments[i], TimestampTzOid)
 			case OidOid:
 				err = encodeOid(wbuf, arguments[i])
+			case JsonOid:
+				err = encodeJson(wbuf, arguments[i])
+			case JsonbOid:
+				err = encodeJson(wbuf, arguments[i])
 			default:
 				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 			}

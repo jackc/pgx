@@ -284,7 +284,14 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(err)
 			}
 		default:
-			rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
+			switch vr.Type().DataType {
+			case JsonOid:
+				decodeJson(vr, &d)
+			case JsonbOid:
+				decodeJson(vr, &d)
+			default:
+				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
+			}
 		}
 
 		if vr.Err() != nil {
@@ -360,6 +367,14 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestamp(vr))
 			case InetOid, CidrOid:
 				values = append(values, decodeInet(vr))
+			case JsonOid:
+				var d interface{}
+				decodeJson(vr, &d)
+				values = append(values, d)
+			case JsonbOid:
+				var d interface{}
+				decodeJson(vr, &d)
+				values = append(values, d)
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			}

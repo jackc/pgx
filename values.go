@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
@@ -19,6 +20,7 @@ const (
 	Int4Oid             = 23
 	TextOid             = 25
 	OidOid              = 26
+	JsonOid             = 114
 	CidrOid             = 650
 	Float4Oid           = 700
 	Float8Oid           = 701
@@ -37,6 +39,7 @@ const (
 	TimestampArrayOid   = 1115
 	TimestampTzOid      = 1184
 	TimestampTzArrayOid = 1185
+	JsonbOid            = 3802
 )
 
 // PostgreSQL format codes
@@ -993,6 +996,28 @@ func encodeBytea(w *WriteBuf, value interface{}) error {
 	w.WriteBytes(b)
 
 	return nil
+}
+
+func decodeJson(vr *ValueReader, d interface{}) error {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != JsonOid && vr.Type().DataType != JsonbOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
+	}
+
+	bytes := vr.ReadBytes(vr.Len())
+	return json.Unmarshal(bytes, d)
+}
+
+func encodeJson(w *WriteBuf, value interface{}) error {
+	s, err := json.Marshal(value)
+	if err != nil {
+		fmt.Errorf("Failed to encode json from type: %T", value)
+	}
+
+	return encodeText(w, s)
 }
 
 func decodeDate(vr *ValueReader) time.Time {
