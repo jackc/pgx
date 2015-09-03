@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ const (
 	OidOid              = 26
 	Float4Oid           = 700
 	Float8Oid           = 701
+	InetOid             = 869
 	BoolArrayOid        = 1000
 	Int2ArrayOid        = 1005
 	Int4ArrayOid        = 1007
@@ -1099,6 +1101,68 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 
 func encodeTimestamp(w *WriteBuf, value interface{}) error {
 	return encodeTimestampTz(w, value)
+}
+
+func decodeInet(vr *ValueReader) net.IPNet {
+	var zero net.IPNet
+
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into net.IPNet"))
+		return zero
+	}
+
+	if vr.Type().DataType != InetOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into inet", vr.Type().DataType)))
+		return zero
+	}
+
+	s := vr.ReadString(vr.Len())
+	hasNetmask := strings.ContainsRune(s, '/')
+	if !hasNetmask {
+		isIpv6 := strings.ContainsRune(s, ':')
+		if isIpv6 {
+			s += "/128"
+		} else {
+			s += "/32"
+		}
+	}
+
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		vr.Fatal(err)
+		return zero
+	}
+
+	// if vr.Type().FormatCode != BinaryFormatCode {
+	// 	vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+	// 	return zero
+	// }
+
+	// if vr.Len() != 4 {
+	// 	vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an float4: %d", vr.Len())))
+	// 	return zero
+	// }
+
+	return *ipnet
+
+}
+
+func encodeInet(w *WriteBuf, value interface{}) error {
+	var ipnet net.IPNet
+
+	switch value := value.(type) {
+	case net.IPNet:
+		ipnet = value
+	default:
+		return fmt.Errorf("Expected net.IPNet, received %T %v", value, value)
+	}
+
+	s := ipnet.String()
+
+	w.WriteInt32(int32(len(s)))
+	w.WriteBytes([]byte(s))
+
+	return nil
 }
 
 func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {

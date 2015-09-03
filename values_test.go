@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"fmt"
 	"github.com/jackc/pgx"
+	"net"
 	"reflect"
 	"strings"
 	"testing"
@@ -86,6 +87,53 @@ func TestTimestampTzTranscode(t *testing.T) {
 	}
 	if !inputTime.Equal(outputTime) {
 		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
+	}
+}
+
+func mustParseCIDR(t *testing.T, s string) net.IPNet {
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return *ipnet
+}
+
+func TestInetTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value net.IPNet
+	}{
+		{"select $1::inet", mustParseCIDR(t, "0.0.0.0/32")},
+		{"select $1::inet", mustParseCIDR(t, "127.0.0.1/32")},
+		{"select $1::inet", mustParseCIDR(t, "12.34.56.0/32")},
+		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::inet", mustParseCIDR(t, "255.0.0.0/8")},
+		{"select $1::inet", mustParseCIDR(t, "255.255.255.255/32")},
+		{"select $1::inet", mustParseCIDR(t, "::/128")},
+		{"select $1::inet", mustParseCIDR(t, "::/0")},
+		{"select $1::inet", mustParseCIDR(t, "::1/128")},
+		{"select $1::inet", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
+	}
+
+	for i, tt := range tests {
+		var actual net.IPNet
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+		}
+
+		if actual.String() != tt.value.String() {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
 	}
 }
 

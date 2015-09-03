@@ -3,6 +3,7 @@ package pgx
 import (
 	"errors"
 	"fmt"
+	"net"
 	"time"
 )
 
@@ -275,6 +276,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			default:
 				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
 			}
+		case *net.IPNet:
+			*d = decodeInet(vr)
 		case Scanner:
 			err = d.Scan(vr)
 			if err != nil {
@@ -355,6 +358,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOid:
 				values = append(values, decodeTimestamp(vr))
+			case InetOid:
+				values = append(values, decodeInet(vr))
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			}
