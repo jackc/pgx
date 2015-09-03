@@ -1,3 +1,15 @@
+# 2.6.0 (September 3, 2015)
+
+* Add inet and cidr type support
+* Add binary decoding to TimestampOid in stdlib driver (Samuel Stauffer)
+* Add support for specifying sslmode in connection strings (Rick Snyder)
+* Allow ConnPool to have MaxConnections of 1
+* Add basic PGSSLMODE to support to ParseEnvLibpq
+* Add fallback TLS config
+* Expose specific error for TSL refused
+* More error details exposed in PgError
+* Support custom dialer (Lewis Marshall)
+
 # 2.5.0 (April 15, 2015)
 
 * Fix stdlib nil support (Blaž Hrastnik)
