@@ -53,30 +53,31 @@ const (
 var DefaultTypeFormats map[string]int16
 
 func init() {
-	DefaultTypeFormats = make(map[string]int16)
-	DefaultTypeFormats["_bool"] = BinaryFormatCode
-	DefaultTypeFormats["_float4"] = BinaryFormatCode
-	DefaultTypeFormats["_float8"] = BinaryFormatCode
-	DefaultTypeFormats["_int2"] = BinaryFormatCode
-	DefaultTypeFormats["_int4"] = BinaryFormatCode
-	DefaultTypeFormats["_int8"] = BinaryFormatCode
-	DefaultTypeFormats["_text"] = BinaryFormatCode
-	DefaultTypeFormats["_timestamp"] = BinaryFormatCode
-	DefaultTypeFormats["_timestamptz"] = BinaryFormatCode
-	DefaultTypeFormats["_varchar"] = BinaryFormatCode
-	DefaultTypeFormats["bool"] = BinaryFormatCode
-	DefaultTypeFormats["bytea"] = BinaryFormatCode
-	DefaultTypeFormats["cidr"] = BinaryFormatCode
-	DefaultTypeFormats["date"] = BinaryFormatCode
-	DefaultTypeFormats["float4"] = BinaryFormatCode
-	DefaultTypeFormats["float8"] = BinaryFormatCode
-	DefaultTypeFormats["inet"] = BinaryFormatCode
-	DefaultTypeFormats["int2"] = BinaryFormatCode
-	DefaultTypeFormats["int4"] = BinaryFormatCode
-	DefaultTypeFormats["int8"] = BinaryFormatCode
-	DefaultTypeFormats["oid"] = BinaryFormatCode
-	DefaultTypeFormats["timestamp"] = BinaryFormatCode
-	DefaultTypeFormats["timestamptz"] = BinaryFormatCode
+	DefaultTypeFormats = map[string]int16{
+		"_bool":        BinaryFormatCode,
+		"_float4":      BinaryFormatCode,
+		"_float8":      BinaryFormatCode,
+		"_int2":        BinaryFormatCode,
+		"_int4":        BinaryFormatCode,
+		"_int8":        BinaryFormatCode,
+		"_text":        BinaryFormatCode,
+		"_timestamp":   BinaryFormatCode,
+		"_timestamptz": BinaryFormatCode,
+		"_varchar":     BinaryFormatCode,
+		"bool":         BinaryFormatCode,
+		"bytea":        BinaryFormatCode,
+		"cidr":         BinaryFormatCode,
+		"date":         BinaryFormatCode,
+		"float4":       BinaryFormatCode,
+		"float8":       BinaryFormatCode,
+		"inet":         BinaryFormatCode,
+		"int2":         BinaryFormatCode,
+		"int4":         BinaryFormatCode,
+		"int8":         BinaryFormatCode,
+		"oid":          BinaryFormatCode,
+		"timestamp":    BinaryFormatCode,
+		"timestamptz":  BinaryFormatCode,
+	}
 }
 
 type SerializationError string
