@@ -57,6 +57,8 @@ type Conn struct {
 	logger             Logger
 	mr                 msgReader
 	fp                 *fastpath
+	pgsql_af_inet      byte
+	pgsql_af_inet6     byte
 }
 
 type PreparedStatement struct {
@@ -222,6 +224,11 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				return err
 			}
 
+			err = c.loadInetConstants()
+			if err != nil {
+				return err
+			}
+
 			return nil
 		default:
 			if err = c.processContextFreeMsg(t, r); err != nil {
@@ -254,6 +261,23 @@ func (c *Conn) loadPgTypes() error {
 	return rows.Err()
 }
 
+// Family is needed for binary encoding of inet/cidr. The constant is based on
+// the server's definition of AF_INET. In theory, this could differ between
+// platforms, so request an IPv4 and an IPv6 inet and get the family from that.
+func (c *Conn) loadInetConstants() error {
+	var ipv4, ipv6 []byte
+
+	err := c.QueryRow("select '127.0.0.1'::inet, '1::'::inet").Scan(&ipv4, &ipv6)
+	if err != nil {
+		return err
+	}
+
+	c.pgsql_af_inet = ipv4[0]
+	c.pgsql_af_inet6 = ipv6[0]
+
+	return nil
+}
+
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close() (err error) {
@@ -261,7 +285,7 @@ func (c *Conn) Close() (err error) {
 		return nil
 	}
 
-	wbuf := newWriteBuf(c.wbuf[0:0], 'X')
+	wbuf := newWriteBuf(c, 'X')
 	wbuf.closeMsg()
 
 	_, err = c.conn.Write(wbuf.buf)
@@ -442,7 +466,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	}()
 
 	// parse
-	wbuf := newWriteBuf(c.wbuf[0:0], 'P')
+	wbuf := newWriteBuf(c, 'P')
 	wbuf.WriteCString(name)
 	wbuf.WriteCString(sql)
 	wbuf.WriteInt16(0)
@@ -509,7 +533,7 @@ func (c *Conn) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
 
 	// close
-	wbuf := newWriteBuf(c.wbuf[0:0], 'C')
+	wbuf := newWriteBuf(c, 'C')
 	wbuf.WriteByte('S')
 	wbuf.WriteCString(name)
 
@@ -667,7 +691,7 @@ func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 
 func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if len(args) == 0 {
-		wbuf := newWriteBuf(c.wbuf[0:0], 'Q')
+		wbuf := newWriteBuf(c, 'Q')
 		wbuf.WriteCString(sql)
 		wbuf.closeMsg()
 
@@ -694,7 +718,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	}
 
 	// bind
-	wbuf := newWriteBuf(c.wbuf[0:0], 'B')
+	wbuf := newWriteBuf(c, 'B')
 	wbuf.WriteByte(0)
 	wbuf.WriteCString(ps.Name)
 
@@ -707,7 +731,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, TimestampTzArrayOid, TimestampOid, TimestampArrayOid, BoolArrayOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid, OidOid:
+			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, TimestampTzArrayOid, TimestampOid, TimestampArrayOid, BoolArrayOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid, OidOid, InetOid, CidrOid:
 				wbuf.WriteInt16(BinaryFormatCode)
 			default:
 				wbuf.WriteInt16(TextFormatCode)
@@ -1050,7 +1074,7 @@ func (c *Conn) txStartupMessage(msg *startupMessage) error {
 }
 
 func (c *Conn) txPasswordMessage(password string) (err error) {
-	wbuf := newWriteBuf(c.wbuf[0:0], 'p')
+	wbuf := newWriteBuf(c, 'p')
 	wbuf.WriteCString(password)
 	wbuf.closeMsg()
 

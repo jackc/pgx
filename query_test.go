@@ -422,8 +422,8 @@ func TestQueryRowUnknownType(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	sql := "select $1::inet"
-	expected := "127.0.0.1"
+	sql := "select $1::point"
+	expected := "(1,0)"
 	var actual string
 
 	err := conn.QueryRow(sql, expected).Scan(&actual)

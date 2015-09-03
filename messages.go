@@ -89,9 +89,9 @@ func (self PgError) Error() string {
 	return self.Severity + ": " + self.Message + " (SQLSTATE " + self.Code + ")"
 }
 
-func newWriteBuf(buf []byte, t byte) *WriteBuf {
-	buf = append(buf, t, 0, 0, 0, 0)
-	return &WriteBuf{buf: buf, sizeIdx: 1}
+func newWriteBuf(c *Conn, t byte) *WriteBuf {
+	buf := append(c.wbuf[0:0], t, 0, 0, 0, 0)
+	return &WriteBuf{buf: buf, sizeIdx: 1, conn: c}
 }
 
 // WrifeBuf is used build messages to send to the PostgreSQL server. It is used
@@ -99,6 +99,7 @@ func newWriteBuf(buf []byte, t byte) *WriteBuf {
 type WriteBuf struct {
 	buf     []byte
 	sizeIdx int
+	conn    *Conn
 }
 
 func (wb *WriteBuf) startMsg(t byte) {

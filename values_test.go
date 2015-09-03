@@ -137,6 +137,7 @@ func TestInetCidrTranscode(t *testing.T) {
 		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
 		}
 
 		if actual.String() != tt.value.String() {

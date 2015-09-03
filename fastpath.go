@@ -50,11 +50,11 @@ func fpInt64Arg(n int64) fpArg {
 }
 
 func (f *fastpath) Call(oid Oid, args []fpArg) (res []byte, err error) {
-	wbuf := newWriteBuf(f.cn.wbuf[:0], 'F') // function call
-	wbuf.WriteInt32(int32(oid))             // function object id
-	wbuf.WriteInt16(1)                      // # of argument format codes
-	wbuf.WriteInt16(1)                      // format code: binary
-	wbuf.WriteInt16(int16(len(args)))       // # of arguments
+	wbuf := newWriteBuf(f.cn, 'F')    // function call
+	wbuf.WriteInt32(int32(oid))       // function object id
+	wbuf.WriteInt16(1)                // # of argument format codes
+	wbuf.WriteInt16(1)                // format code: binary
+	wbuf.WriteInt16(int16(len(args))) // # of arguments
 	for _, arg := range args {
 		wbuf.WriteInt32(int32(len(arg))) // length of argument
 		wbuf.WriteBytes(arg)             // argument value
