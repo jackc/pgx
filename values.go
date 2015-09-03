@@ -19,6 +19,7 @@ const (
 	Int4Oid             = 23
 	TextOid             = 25
 	OidOid              = 26
+	CidrOid             = 650
 	Float4Oid           = 700
 	Float8Oid           = 701
 	InetOid             = 869
@@ -1111,8 +1112,9 @@ func decodeInet(vr *ValueReader) net.IPNet {
 		return zero
 	}
 
-	if vr.Type().DataType != InetOid {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into inet", vr.Type().DataType)))
+	pgType := vr.Type()
+	if pgType.DataType != InetOid && pgType.DataType != CidrOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into %s", pgType.DataType, vr.Type().Name)))
 		return zero
 	}
 

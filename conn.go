@@ -751,7 +751,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeTimestampTz(wbuf, arguments[i])
 			case TimestampOid:
 				err = encodeTimestamp(wbuf, arguments[i])
-			case InetOid:
+			case InetOid, CidrOid:
 				err = encodeInet(wbuf, arguments[i])
 			case BoolArrayOid:
 				err = encodeBoolArray(wbuf, arguments[i])

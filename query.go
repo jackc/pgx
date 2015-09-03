@@ -358,7 +358,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOid:
 				values = append(values, decodeTimestamp(vr))
-			case InetOid:
+			case InetOid, CidrOid:
 				values = append(values, decodeInet(vr))
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))

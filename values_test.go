@@ -99,7 +99,7 @@ func mustParseCIDR(t *testing.T, s string) net.IPNet {
 	return *ipnet
 }
 
-func TestInetTranscode(t *testing.T) {
+func TestInetCidrTranscode(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -119,6 +119,16 @@ func TestInetTranscode(t *testing.T) {
 		{"select $1::inet", mustParseCIDR(t, "::/0")},
 		{"select $1::inet", mustParseCIDR(t, "::1/128")},
 		{"select $1::inet", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
+		{"select $1::cidr", mustParseCIDR(t, "0.0.0.0/32")},
+		{"select $1::cidr", mustParseCIDR(t, "127.0.0.1/32")},
+		{"select $1::cidr", mustParseCIDR(t, "12.34.56.0/32")},
+		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCIDR(t, "255.0.0.0/8")},
+		{"select $1::cidr", mustParseCIDR(t, "255.255.255.255/32")},
+		{"select $1::cidr", mustParseCIDR(t, "::/128")},
+		{"select $1::cidr", mustParseCIDR(t, "::/0")},
+		{"select $1::cidr", mustParseCIDR(t, "::1/128")},
+		{"select $1::cidr", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
 	}
 
 	for i, tt := range tests {
