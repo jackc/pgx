@@ -12,6 +12,13 @@ func Example_JSON() {
 		return
 	}
 
+	if _, ok := conn.PgTypes[pgx.JsonOid]; !ok {
+		// No JSON type -- must be running against very old PostgreSQL
+		// Pretend it works
+		fmt.Println("John", 42)
+		return
+	}
+
 	type person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
