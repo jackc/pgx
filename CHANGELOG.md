@@ -1,3 +1,7 @@
+# Master
+
+* Add JSON and JSONB type support (Joseph Glanville)
+
 # 2.6.0 (September 3, 2015)
 
 * Add inet and cidr type support

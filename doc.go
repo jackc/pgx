@@ -137,6 +137,11 @@ pgx includes an Hstore type and a NullHstore type. Hstore is simply a
 map[string]string and is preferred when the hstore contains no nulls. NullHstore
 follows the Null* pattern and supports null values.
 
+JSON and JSONB Mapping
+
+pgx includes built-in support to marshal and unmarshal between Go types and
+the PostgreSQL JSON and JSONB.
+
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings,
