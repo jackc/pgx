@@ -220,78 +220,79 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	for _, d := range dest {
 		vr, _ := rows.nextColumn()
-		switch d := d.(type) {
-		case *bool:
-			*d = decodeBool(vr)
-		case *[]byte:
+
+		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
+		if b, ok := d.(*[]byte); ok {
 			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
 			// Otherwise read the bytes directly regardless of what the actual type is.
 			if vr.Type().DataType == ByteaOid {
-				*d = decodeBytea(vr)
+				*b = decodeBytea(vr)
 			} else {
 				if vr.Len() != -1 {
-					*d = vr.ReadBytes(vr.Len())
+					*b = vr.ReadBytes(vr.Len())
 				} else {
-					*d = nil
+					*b = nil
 				}
 			}
-		case *int64:
-			*d = decodeInt8(vr)
-		case *int16:
-			*d = decodeInt2(vr)
-		case *int32:
-			*d = decodeInt4(vr)
-		case *Oid:
-			*d = decodeOid(vr)
-		case *string:
-			*d = decodeText(vr)
-		case *float32:
-			*d = decodeFloat4(vr)
-		case *float64:
-			*d = decodeFloat8(vr)
-		case *[]bool:
-			*d = decodeBoolArray(vr)
-		case *[]int16:
-			*d = decodeInt2Array(vr)
-		case *[]int32:
-			*d = decodeInt4Array(vr)
-		case *[]int64:
-			*d = decodeInt8Array(vr)
-		case *[]float32:
-			*d = decodeFloat4Array(vr)
-		case *[]float64:
-			*d = decodeFloat8Array(vr)
-		case *[]string:
-			*d = decodeTextArray(vr)
-		case *[]time.Time:
-			*d = decodeTimestampArray(vr)
-		case *time.Time:
-			switch vr.Type().DataType {
-			case DateOid:
-				*d = decodeDate(vr)
-			case TimestampTzOid:
-				*d = decodeTimestampTz(vr)
-			case TimestampOid:
-				*d = decodeTimestamp(vr)
-			default:
-				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
-			}
-		case *net.IPNet:
-			*d = decodeInet(vr)
-		case Scanner:
-			err = d.Scan(vr)
+		} else if s, ok := d.(Scanner); ok {
+			err = s.Scan(vr)
 			if err != nil {
 				rows.Fatal(err)
 			}
-		default:
-			switch vr.Type().DataType {
-			case JsonOid, JsonbOid:
-				decodeJson(vr, &d)
+		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
+			decodeJson(vr, &d)
+		} else {
+			switch d := d.(type) {
+			case *bool:
+				*d = decodeBool(vr)
+			case *int64:
+				*d = decodeInt8(vr)
+			case *int16:
+				*d = decodeInt2(vr)
+			case *int32:
+				*d = decodeInt4(vr)
+			case *Oid:
+				*d = decodeOid(vr)
+			case *string:
+				*d = decodeText(vr)
+			case *float32:
+				*d = decodeFloat4(vr)
+			case *float64:
+				*d = decodeFloat8(vr)
+			case *[]bool:
+				*d = decodeBoolArray(vr)
+			case *[]int16:
+				*d = decodeInt2Array(vr)
+			case *[]int32:
+				*d = decodeInt4Array(vr)
+			case *[]int64:
+				*d = decodeInt8Array(vr)
+			case *[]float32:
+				*d = decodeFloat4Array(vr)
+			case *[]float64:
+				*d = decodeFloat8Array(vr)
+			case *[]string:
+				*d = decodeTextArray(vr)
+			case *[]time.Time:
+				*d = decodeTimestampArray(vr)
+			case *time.Time:
+				switch vr.Type().DataType {
+				case DateOid:
+					*d = decodeDate(vr)
+				case TimestampTzOid:
+					*d = decodeTimestampTz(vr)
+				case TimestampOid:
+					*d = decodeTimestamp(vr)
+				default:
+					rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
+				}
+			case *net.IPNet:
+				*d = decodeInet(vr)
 			default:
 				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
 			}
-		}
 
+		}
 		if vr.Err() != nil {
 			rows.Fatal(vr.Err())
 		}

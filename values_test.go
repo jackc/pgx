@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"encoding/json"
 	"github.com/jackc/pgx"
 	"net"
 	"reflect"
@@ -77,33 +78,104 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 		}
 		typename := conn.PgTypes[oid].Name
 
-		// Test single level objects with map[string]string
-		inStringMap := map[string]string{"key": "value"}
-		var outStringMap map[string]string
-		err := conn.QueryRow("select $1::"+typename, inStringMap).Scan(&outStringMap)
-		if err != nil {
-			t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
-		}
+		testJsonSingleLevelStringMap(t, conn, typename)
+		testJsonNestedMap(t, conn, typename)
+		testJsonStringArray(t, conn, typename)
+		testJsonInt64Array(t, conn, typename)
+		testJsonInt16ArrayFailureDueToOverflow(t, conn, typename)
+		testJsonStruct(t, conn, typename)
+	}
+}
 
-		if !reflect.DeepEqual(inStringMap, outStringMap) {
-			t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, inStringMap, outStringMap)
-		}
+func testJsonSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
+	input := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
 
-		// Test nested objects with map[string]interface{}
-		inNestedMap := map[string]interface{}{
-			"name":      "Uncanny",
-			"stats":     map[string]interface{}{"hp": 107, "maxhp": 150},
-			"inventory": []string{"phone", "key"},
-		}
-		var outNestedMap map[string]interface{}
-		err = conn.QueryRow("select $1::"+typename, inNestedMap).Scan(&outNestedMap)
-		if err != nil {
-			t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
-		}
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, input, output)
+		return
+	}
+}
 
-		if !reflect.DeepEqual(inStringMap, outStringMap) {
-			t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, inStringMap, outStringMap)
-		}
+func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
+	input := map[string]interface{}{
+		"name":      "Uncanny",
+		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
+		"inventory": []interface{}{"phone", "key"},
+	}
+	var output map[string]interface{}
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
+
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, input, output)
+		return
+	}
+}
+
+func testJsonStringArray(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []string{"foo", "bar", "baz"}
+	var output []string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
+
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode []string successfully: %v is not %v", typename, input, output)
+	}
+}
+
+func testJsonInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []int64{1, 2, 234432}
+	var output []int64
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
+
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode []int64 successfully: %v is not %v", typename, input, output)
+	}
+}
+
+func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []int{1, 2, 234432}
+	var output []int16
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if _, ok := err.(*json.UnmarshalTypeError); !ok {
+		t.Errorf("%s: Expected *json.UnmarkalTypeError, but got %v", typename, err)
+	}
+}
+
+func testJsonStruct(t *testing.T, conn *pgx.Conn, typename string) {
+	type person struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
+
+	input := person{
+		Name: "John",
+		Age:  42,
+	}
+
+	var output person
+
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
+
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode struct successfully: %v is not %v", typename, input, output)
 	}
 }
 

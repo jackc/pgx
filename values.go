@@ -1008,7 +1008,11 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 	}
 
 	bytes := vr.ReadBytes(vr.Len())
-	return json.Unmarshal(bytes, d)
+	err := json.Unmarshal(bytes, d)
+	if err != nil {
+		vr.Fatal(err)
+	}
+	return err
 }
 
 func encodeJson(w *WriteBuf, value interface{}) error {
