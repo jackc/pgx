@@ -65,51 +65,45 @@ func TestTimestampTzTranscode(t *testing.T) {
 	}
 }
 
-func TestJsonTranscode(t *testing.T) {
+func TestJsonAndJsonbTranscode(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	if _, ok := conn.PgTypes[pgx.JsonOid]; !ok {
-		return // No JSON type -- must be running against old PostgreSQL
-	}
+	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
+		if _, ok := conn.PgTypes[oid]; !ok {
+			return // No JSON/JSONB type -- must be running against old PostgreSQL
+		}
+		typename := conn.PgTypes[oid].Name
 
-	m := map[string]string{
-		"key": "value",
-	}
-	var outputJson map[string]string
+		// Test single level objects with map[string]string
+		inStringMap := map[string]string{"key": "value"}
+		var outStringMap map[string]string
+		err := conn.QueryRow("select $1::"+typename, inStringMap).Scan(&outStringMap)
+		if err != nil {
+			t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		}
 
-	err := conn.QueryRow("select $1::json", m).Scan(&outputJson)
-	if err != nil {
-		t.Fatalf("QueryRow Scan failed: %v", err)
-	}
-	if m["key"] != outputJson["key"] {
-		t.Errorf("Did not transcode json successfully: %v is not %v", outputJson["key"], m["key"])
-	}
-}
+		if !reflect.DeepEqual(inStringMap, outStringMap) {
+			t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, inStringMap, outStringMap)
+		}
 
-func TestJsonbTranscode(t *testing.T) {
-	t.Parallel()
+		// Test nested objects with map[string]interface{}
+		inNestedMap := map[string]interface{}{
+			"name":      "Uncanny",
+			"stats":     map[string]interface{}{"hp": 107, "maxhp": 150},
+			"inventory": []string{"phone", "key"},
+		}
+		var outNestedMap map[string]interface{}
+		err = conn.QueryRow("select $1::"+typename, inNestedMap).Scan(&outNestedMap)
+		if err != nil {
+			t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		}
 
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	if _, ok := conn.PgTypes[pgx.JsonbOid]; !ok {
-		return // No JSONB type -- must be running against old PostgreSQL
-	}
-
-	m := map[string]string{
-		"key": "value",
-	}
-	var outputJson map[string]string
-
-	err := conn.QueryRow("select $1::jsonb", m).Scan(&outputJson)
-	if err != nil {
-		t.Fatalf("QueryRow Scan failed: %v", err)
-	}
-	if m["key"] != outputJson["key"] {
-		t.Errorf("Did not transcode jsonb successfully: %v is not %v", outputJson["key"], m["key"])
+		if !reflect.DeepEqual(inStringMap, outStringMap) {
+			t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, inStringMap, outStringMap)
+		}
 	}
 }
 

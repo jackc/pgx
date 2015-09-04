@@ -285,9 +285,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			}
 		default:
 			switch vr.Type().DataType {
-			case JsonOid:
-				decodeJson(vr, &d)
-			case JsonbOid:
+			case JsonOid, JsonbOid:
 				decodeJson(vr, &d)
 			default:
 				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
