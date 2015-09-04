@@ -71,6 +71,10 @@ func TestJsonTranscode(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
+	if _, ok := conn.PgTypes[pgx.JsonOid]; !ok {
+		return // No JSON type -- must be running against old PostgreSQL
+	}
+
 	m := map[string]string{
 		"key": "value",
 	}
@@ -90,6 +94,10 @@ func TestJsonbTranscode(t *testing.T) {
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
+
+	if _, ok := conn.PgTypes[pgx.JsonbOid]; !ok {
+		return // No JSONB type -- must be running against old PostgreSQL
+	}
 
 	m := map[string]string{
 		"key": "value",
