@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 )
 
@@ -242,53 +243,74 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
 			decodeJson(vr, &d)
 		} else {
-			switch d := d.(type) {
+		decode:
+			switch v := d.(type) {
 			case *bool:
-				*d = decodeBool(vr)
+				*v = decodeBool(vr)
 			case *int64:
-				*d = decodeInt8(vr)
+				*v = decodeInt8(vr)
 			case *int16:
-				*d = decodeInt2(vr)
+				*v = decodeInt2(vr)
 			case *int32:
-				*d = decodeInt4(vr)
+				*v = decodeInt4(vr)
 			case *Oid:
-				*d = decodeOid(vr)
+				*v = decodeOid(vr)
 			case *string:
-				*d = decodeText(vr)
+				*v = decodeText(vr)
 			case *float32:
-				*d = decodeFloat4(vr)
+				*v = decodeFloat4(vr)
 			case *float64:
-				*d = decodeFloat8(vr)
+				*v = decodeFloat8(vr)
 			case *[]bool:
-				*d = decodeBoolArray(vr)
+				*v = decodeBoolArray(vr)
 			case *[]int16:
-				*d = decodeInt2Array(vr)
+				*v = decodeInt2Array(vr)
 			case *[]int32:
-				*d = decodeInt4Array(vr)
+				*v = decodeInt4Array(vr)
 			case *[]int64:
-				*d = decodeInt8Array(vr)
+				*v = decodeInt8Array(vr)
 			case *[]float32:
-				*d = decodeFloat4Array(vr)
+				*v = decodeFloat4Array(vr)
 			case *[]float64:
-				*d = decodeFloat8Array(vr)
+				*v = decodeFloat8Array(vr)
 			case *[]string:
-				*d = decodeTextArray(vr)
+				*v = decodeTextArray(vr)
 			case *[]time.Time:
-				*d = decodeTimestampArray(vr)
+				*v = decodeTimestampArray(vr)
 			case *time.Time:
 				switch vr.Type().DataType {
 				case DateOid:
-					*d = decodeDate(vr)
+					*v = decodeDate(vr)
 				case TimestampTzOid:
-					*d = decodeTimestampTz(vr)
+					*v = decodeTimestampTz(vr)
 				case TimestampOid:
-					*d = decodeTimestamp(vr)
+					*v = decodeTimestamp(vr)
 				default:
 					rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
 				}
 			case *net.IPNet:
-				*d = decodeInet(vr)
+				*v = decodeInet(vr)
 			default:
+				// if d is a pointer to pointer, strip the pointer and try again
+				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
+					if el := v.Elem(); el.Kind() == reflect.Ptr {
+						// -1 is a null value
+						if vr.Len() == -1 {
+							if !el.IsNil() {
+								// if the destination pointer is not nil, nil it out
+								el.Set(reflect.Zero(el.Type()))
+							}
+							continue
+						} else {
+							if el.IsNil() {
+								// allocate destination
+								el.Set(reflect.New(el.Type().Elem()))
+							}
+							d = el.Interface()
+							goto decode
+						}
+					}
+				}
 				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
 			}
 
