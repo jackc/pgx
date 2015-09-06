@@ -500,3 +500,101 @@ func TestNullXMismatch(t *testing.T) {
 		ensureConnValid(t, conn)
 	}
 }
+
+func TestPointerPointer(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		s   *string
+		i16 *int16
+		i32 *int32
+		i64 *int64
+		f32 *float32
+		f64 *float64
+		b   *bool
+		t   *time.Time
+	}
+
+	var actual, zero, expected allTypes
+
+	{
+		s := "foo"
+		expected.s = &s
+		i16 := int16(1)
+		expected.i16 = &i16
+		i32 := int32(1)
+		expected.i32 = &i32
+		i64 := int64(1)
+		expected.i64 = &i64
+		f32 := float32(1.23)
+		expected.f32 = &f32
+		f64 := float64(1.23)
+		expected.f64 = &f64
+		b := true
+		expected.b = &b
+		t := time.Unix(123, 5000)
+		expected.t = &t
+	}
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		expected  allTypes
+	}{
+		{"select $1::text", []interface{}{expected.s}, []interface{}{&actual.s}, allTypes{s: expected.s}},
+		{"select $1::text", []interface{}{zero.s}, []interface{}{&actual.s}, allTypes{}},
+		{"select $1::int2", []interface{}{expected.i16}, []interface{}{&actual.i16}, allTypes{i16: expected.i16}},
+		{"select $1::int2", []interface{}{zero.i16}, []interface{}{&actual.i16}, allTypes{}},
+		{"select $1::int4", []interface{}{expected.i32}, []interface{}{&actual.i32}, allTypes{i32: expected.i32}},
+		{"select $1::int4", []interface{}{zero.i32}, []interface{}{&actual.i32}, allTypes{}},
+		{"select $1::int8", []interface{}{expected.i64}, []interface{}{&actual.i64}, allTypes{i64: expected.i64}},
+		{"select $1::int8", []interface{}{zero.i64}, []interface{}{&actual.i64}, allTypes{}},
+		{"select $1::float4", []interface{}{expected.f32}, []interface{}{&actual.f32}, allTypes{f32: expected.f32}},
+		{"select $1::float4", []interface{}{zero.f32}, []interface{}{&actual.f32}, allTypes{}},
+		{"select $1::float8", []interface{}{expected.f64}, []interface{}{&actual.f64}, allTypes{f64: expected.f64}},
+		{"select $1::float8", []interface{}{zero.f64}, []interface{}{&actual.f64}, allTypes{}},
+		{"select $1::bool", []interface{}{expected.b}, []interface{}{&actual.b}, allTypes{b: expected.b}},
+		{"select $1::bool", []interface{}{zero.b}, []interface{}{&actual.b}, allTypes{}},
+		{"select $1::timestamptz", []interface{}{expected.t}, []interface{}{&actual.t}, allTypes{t: expected.t}},
+		{"select $1::timestamptz", []interface{}{zero.t}, []interface{}{&actual.t}, allTypes{}},
+		{"select $1::timestamp", []interface{}{expected.t}, []interface{}{&actual.t}, allTypes{t: expected.t}},
+		{"select $1::timestamp", []interface{}{zero.t}, []interface{}{&actual.t}, allTypes{}},
+	}
+
+	for i, tt := range tests {
+		actual = zero
+
+		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
+		}
+
+		if !reflect.DeepEqual(actual, tt.expected) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestPointerPointerNonZero(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	f := "foo"
+	dest := &f
+
+	err := conn.QueryRow("select $1::text", nil).Scan(&dest)
+	if err != nil {
+		t.Errorf("Unexpected failure scanning: %v", err)
+	}
+	if dest != nil {
+		t.Errorf("Expected dest to be nil, got %#v", dest)
+	}
+}

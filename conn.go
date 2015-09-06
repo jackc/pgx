@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -752,6 +753,14 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case string:
 			err = encodeText(wbuf, arguments[i])
 		default:
+			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
+				if v.IsNil() {
+					wbuf.WriteInt32(-1)
+					continue
+				} else {
+					arguments[i] = v.Elem().Interface()
+				}
+			}
 			switch oid {
 			case BoolOid:
 				err = encodeBool(wbuf, arguments[i])
