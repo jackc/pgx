@@ -39,6 +39,7 @@ const (
 	TimestampArrayOid   = 1115
 	TimestampTzOid      = 1184
 	TimestampTzArrayOid = 1185
+	UuidOid             = 2950
 	JsonbOid            = 3802
 )
 

@@ -199,6 +199,23 @@ func mustParseCIDR(t *testing.T, s string) net.IPNet {
 	return *ipnet
 }
 
+func TestUuidTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	input := "01086ee0-4963-4e35-9116-30c173a8d0bd"
+	var output string
+	err := conn.QueryRow("select $1::uuid", &input).Scan(&output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if input != output {
+		t.Errorf("uuid: Did not transcode successfully: %s is not %s", input, output)
+	}
+}
+
 func TestInetCidrTranscode(t *testing.T) {
 	t.Parallel()
 

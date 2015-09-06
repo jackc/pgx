@@ -776,7 +776,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeFloat4(wbuf, arguments[i])
 			case Float8Oid:
 				err = encodeFloat8(wbuf, arguments[i])
-			case TextOid, VarcharOid:
+			case TextOid, VarcharOid, UuidOid:
 				err = encodeText(wbuf, arguments[i])
 			case DateOid:
 				err = encodeDate(wbuf, arguments[i])
