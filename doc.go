@@ -121,8 +121,16 @@ notification.
 
 Null Mapping
 
-pgx includes Null* types in a similar fashion to database/sql that implement the
-necessary interfaces to be encoded and scanned.
+pgx can map nulls in two ways. The first is Null* types that have a data field
+and a valid field. They work in a similar fashion to database/sql. The second
+is to use a pointer to a pointer.
+
+    var foo pgx.NullString
+    var bar *string
+    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&a, &b)
+    if err != nil {
+        return err
+    }
 
 Array Mapping
 

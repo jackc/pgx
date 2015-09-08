@@ -1,5 +1,6 @@
 # Master
 
+* Add null mapping to pointer to pointer (Jonathan Rudenberg)
 * Add JSON and JSONB type support (Joseph Glanville)
 
 # 2.6.0 (September 3, 2015)
