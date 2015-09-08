@@ -25,7 +25,7 @@
 * Remove unused text format scanners
 * Return error when too many parameters on Prepare
 * Add Travis CI integration (Jonathan Rudenberg)
-* Large object support (Blake Gentry)
+* Large object support (Jonathan Rudenberg)
 * Fix reading null byte arrays (Karl Seguin)
 * Add timestamptz[] support
 * Add timestamp[] support (Karl Seguin)
