@@ -150,6 +150,12 @@ JSON and JSONB Mapping
 pgx includes built-in support to marshal and unmarshal between Go types and
 the PostgreSQL JSON and JSONB.
 
+Inet and Cidr Mapping
+
+pgx encodes from net.IPNet to and from inet and cidr PostgreSQL types. In
+addition, as a convenience pgx will encode from a net.IP; it will assume a /32
+netmask for IPv4 and a /128 for IPv6.
+
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings,

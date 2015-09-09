@@ -1196,6 +1196,10 @@ func encodeInet(w *WriteBuf, value interface{}) error {
 	switch value := value.(type) {
 	case net.IPNet:
 		ipnet = value
+	case net.IP:
+		ipnet.IP = value
+		bitCount := len(value) * 8
+		ipnet.Mask = net.CIDRMask(bitCount, bitCount)
 	default:
 		return fmt.Errorf("Expected net.IPNet, received %T %v", value, value)
 	}

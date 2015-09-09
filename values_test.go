@@ -274,6 +274,48 @@ func TestInetCidrTranscode(t *testing.T) {
 	}
 }
 
+func TestInetCidrTranscodeWithJustIP(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value string
+	}{
+		{"select $1::inet", "0.0.0.0/32"},
+		{"select $1::inet", "127.0.0.1/32"},
+		{"select $1::inet", "12.34.56.0/32"},
+		{"select $1::inet", "255.255.255.255/32"},
+		{"select $1::inet", "::/128"},
+		{"select $1::inet", "2607:f8b0:4009:80b::200e/128"},
+		{"select $1::cidr", "0.0.0.0/32"},
+		{"select $1::cidr", "127.0.0.1/32"},
+		{"select $1::cidr", "12.34.56.0/32"},
+		{"select $1::cidr", "255.255.255.255/32"},
+		{"select $1::cidr", "::/128"},
+		{"select $1::cidr", "2607:f8b0:4009:80b::200e/128"},
+	}
+
+	for i, tt := range tests {
+		expected := mustParseCIDR(t, tt.value)
+		var actual net.IPNet
+
+		err := conn.QueryRow(tt.sql, expected.IP).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
+		}
+
+		if actual.String() != expected.String() {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestNullX(t *testing.T) {
 	t.Parallel()
 

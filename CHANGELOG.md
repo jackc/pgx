@@ -1,5 +1,6 @@
 # Master
 
+* Encode from net.IP to inet and cidr
 * Generalize encoding pointer to string to any PostgreSQL type
 * Add UUID encoding from pointer to string (Joseph Glanville)
 * Add null mapping to pointer to pointer (Jonathan Rudenberg)
