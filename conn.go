@@ -728,7 +728,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
-		case string:
+		case string, *string:
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
@@ -776,7 +776,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = encodeFloat4(wbuf, arguments[i])
 			case Float8Oid:
 				err = encodeFloat8(wbuf, arguments[i])
-			case TextOid, VarcharOid, UuidOid:
+			case TextOid, VarcharOid:
 				err = encodeText(wbuf, arguments[i])
 			case DateOid:
 				err = encodeDate(wbuf, arguments[i])
@@ -811,7 +811,11 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case JsonOid, JsonbOid:
 				err = encodeJson(wbuf, arguments[i])
 			default:
-				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+				if s, ok := arguments[i].(string); ok {
+					err = encodeText(wbuf, s)
+				} else {
+					return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+				}
 			}
 		}
 		if err != nil {
