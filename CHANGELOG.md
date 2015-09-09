@@ -1,5 +1,7 @@
 # Master
 
+* Generalize encoding pointer to string to any PostgreSQL type
+* Add UUID encoding from pointer to string (Joseph Glanville)
 * Add null mapping to pointer to pointer (Jonathan Rudenberg)
 * Add JSON and JSONB type support (Joseph Glanville)
 
