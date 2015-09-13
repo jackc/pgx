@@ -945,27 +945,32 @@ func TestFatalRxError(t *testing.T) {
 func TestFatalTxError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
+	// Run timing sensitive test many times
+	for i := 0; i < 50; i++ {
+		func() {
+			conn := mustConnect(t, *defaultConnConfig)
+			defer closeConn(t, conn)
 
-	otherConn, err := pgx.Connect(*defaultConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-	defer otherConn.Close()
+			otherConn, err := pgx.Connect(*defaultConnConfig)
+			if err != nil {
+				t.Fatalf("Unable to establish connection: %v", err)
+			}
+			defer otherConn.Close()
 
-	_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Pid)
-	if err != nil {
-		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
-	}
+			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Pid)
+			if err != nil {
+				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+			}
 
-	_, err = conn.Query("select 1")
-	if err == nil {
-		t.Fatal("Expected error but none occurred")
-	}
+			_, err = conn.Query("select 1")
+			if err == nil {
+				t.Fatal("Expected error but none occurred")
+			}
 
-	if conn.IsAlive() {
-		t.Fatal("Connection should not be live but was")
+			if conn.IsAlive() {
+				t.Fatalf("Connection should not be live but was. Previous Query err: %v", err)
+			}
+		}()
 	}
 }
 

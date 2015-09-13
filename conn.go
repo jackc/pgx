@@ -483,6 +483,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 
 	_, err = c.conn.Write(wbuf.buf)
 	if err != nil {
+		c.die(err)
 		return nil, err
 	}
 
@@ -544,6 +545,7 @@ func (c *Conn) Deallocate(name string) (err error) {
 
 	_, err = c.conn.Write(wbuf.buf)
 	if err != nil {
+		c.die(err)
 		return err
 	}
 
