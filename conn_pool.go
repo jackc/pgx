@@ -228,13 +228,19 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 		}
 
 		tx, err := c.BeginIso(iso)
-		if err == ErrDeadConn {
-			p.Release(c)
-			continue
-		}
 		if err != nil {
+			alive := c.IsAlive()
 			p.Release(c)
-			return nil, err
+
+			// If connection is still alive then the error is not something trying
+			// again on a new connection would fix, so just return the error. But
+			// if the connection is dead try to acquire a new connection and try
+			// again.
+			if alive {
+				return nil, err
+			} else {
+				continue
+			}
 		}
 
 		tx.pool = p
