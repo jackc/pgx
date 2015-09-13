@@ -1,5 +1,6 @@
 # Master
 
+* Retry automatically on ConnPool.Begin (Joseph Glanville)
 * Encode from net.IP to inet and cidr
 * Generalize encoding pointer to string to any PostgreSQL type
 * Add UUID encoding from pointer to string (Joseph Glanville)
