@@ -355,6 +355,47 @@ func TestConnPoolTransactionIso(t *testing.T) {
 	}
 }
 
+func TestConnPoolBeginRetry(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	killerConn, err := pool.Acquire()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Release(killerConn)
+
+	victimConn, err := pool.Acquire()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pool.Release(victimConn)
+
+	// Terminate connection that was released to pool
+	if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.Pid); err != nil {
+		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+	}
+
+	// Since victimConn is the only available connection in the pool, pool.Begin should
+	// try to use it, fail, and allocate another connection
+	tx, err := pool.Begin()
+	if err != nil {
+		t.Fatalf("pool.Begin failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	var txPid int32
+	err = tx.QueryRow("select pg_backend_pid()").Scan(&txPid)
+	if err != nil {
+		t.Fatalf("tx.QueryRow Scan failed: %v", err)
+	}
+	if txPid == victimConn.Pid {
+		t.Error("Expected txPid to defer from killed conn pid, but it didn't")
+	}
+}
+
 func TestConnPoolQuery(t *testing.T) {
 	t.Parallel()
 

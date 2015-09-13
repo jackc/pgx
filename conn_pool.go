@@ -226,6 +226,7 @@ func (p *ConnPool) Begin() (*Tx, error) {
 			continue
 		}
 		if err != nil {
+			p.Release(c)
 			return nil, err
 		}
 
@@ -250,6 +251,7 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 			continue
 		}
 		if err != nil {
+			p.Release(c)
 			return nil, err
 		}
 
