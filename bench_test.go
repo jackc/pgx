@@ -1,9 +1,11 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func BenchmarkConnPool(b *testing.B) {
@@ -259,6 +261,118 @@ func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
 			b.Fatalf("bad value for birthDate: %v", record.birthDate)
 		}
 		if record.lastLoginTime == nil || *record.lastLoginTime != time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local) {
+			b.Fatalf("bad value for lastLoginTime: %v", record.lastLoginTime)
+		}
+	}
+}
+
+func BenchmarkSelectWithoutLogging(b *testing.B) {
+	conn := mustConnect(b, *defaultConnConfig)
+	defer closeConn(b, conn)
+
+	benchmarkSelectWithLog(b, conn)
+}
+
+func BenchmarkSelectWithLoggingDebugWithLog15(b *testing.B) {
+	connConfig := *defaultConnConfig
+
+	logger := log.New()
+	lvl, err := log.LvlFromString("debug")
+	if err != nil {
+		b.Fatal(err)
+	}
+	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
+	connConfig.Logger = logger
+	conn := mustConnect(b, connConfig)
+	defer closeConn(b, conn)
+
+	benchmarkSelectWithLog(b, conn)
+}
+
+func BenchmarkSelectWithLoggingInfoWithLog15(b *testing.B) {
+	connConfig := *defaultConnConfig
+
+	logger := log.New()
+	lvl, err := log.LvlFromString("info")
+	if err != nil {
+		b.Fatal(err)
+	}
+	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
+	connConfig.Logger = logger
+	conn := mustConnect(b, connConfig)
+	defer closeConn(b, conn)
+
+	benchmarkSelectWithLog(b, conn)
+}
+
+func BenchmarkSelectWithLoggingErrorWithLog15(b *testing.B) {
+	connConfig := *defaultConnConfig
+
+	logger := log.New()
+	lvl, err := log.LvlFromString("error")
+	if err != nil {
+		b.Fatal(err)
+	}
+	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
+	connConfig.Logger = logger
+	conn := mustConnect(b, connConfig)
+	defer closeConn(b, conn)
+
+	benchmarkSelectWithLog(b, conn)
+}
+
+func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
+	_, err := conn.Prepare("test", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var record struct {
+			id            int32
+			userName      string
+			email         string
+			name          string
+			sex           string
+			birthDate     time.Time
+			lastLoginTime time.Time
+		}
+
+		err = conn.QueryRow("test").Scan(
+			&record.id,
+			&record.userName,
+			&record.email,
+			&record.name,
+			&record.sex,
+			&record.birthDate,
+			&record.lastLoginTime,
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		// These checks both ensure that the correct data was returned
+		// and provide a benchmark of accessing the returned values.
+		if record.id != 1 {
+			b.Fatalf("bad value for id: %v", record.id)
+		}
+		if record.userName != "johnsmith" {
+			b.Fatalf("bad value for userName: %v", record.userName)
+		}
+		if record.email != "johnsmith@example.com" {
+			b.Fatalf("bad value for email: %v", record.email)
+		}
+		if record.name != "John Smith" {
+			b.Fatalf("bad value for name: %v", record.name)
+		}
+		if record.sex != "male" {
+			b.Fatalf("bad value for sex: %v", record.sex)
+		}
+		if record.birthDate != time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local) {
+			b.Fatalf("bad value for birthDate: %v", record.birthDate)
+		}
+		if record.lastLoginTime != time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local) {
 			b.Fatalf("bad value for lastLoginTime: %v", record.lastLoginTime)
 		}
 	}
