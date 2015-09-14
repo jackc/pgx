@@ -377,3 +377,17 @@ func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
 		}
 	}
 }
+
+func BenchmarkLog15Discard(b *testing.B) {
+	logger := log.New()
+	lvl, err := log.LvlFromString("error")
+	if err != nil {
+		b.Fatal(err)
+	}
+	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Debug("benchmark", "i", i, "b.N", b.N)
+	}
+}

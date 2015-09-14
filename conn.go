@@ -929,6 +929,10 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 
 	c.lastActivityTime = time.Now()
 
+	if c.logger != dlogger {
+		c.logger.Debug("rxMsg", "Type", string(t), "Size", c.mr.msgBytesRemaining)
+	}
+
 	return t, &c.mr, err
 }
 
