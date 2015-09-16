@@ -273,6 +273,23 @@ func BenchmarkSelectWithoutLogging(b *testing.B) {
 	benchmarkSelectWithLog(b, conn)
 }
 
+func BenchmarkSelectWithLoggingTraceWithLog15(b *testing.B) {
+	connConfig := *defaultConnConfig
+
+	logger := log.New()
+	lvl, err := log.LvlFromString("debug")
+	if err != nil {
+		b.Fatal(err)
+	}
+	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
+	connConfig.Logger = logger
+	connConfig.LogLevel = pgx.LogLevelTrace
+	conn := mustConnect(b, connConfig)
+	defer closeConn(b, conn)
+
+	benchmarkSelectWithLog(b, conn)
+}
+
 func BenchmarkSelectWithLoggingDebugWithLog15(b *testing.B) {
 	connConfig := *defaultConnConfig
 
@@ -283,6 +300,7 @@ func BenchmarkSelectWithLoggingDebugWithLog15(b *testing.B) {
 	}
 	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
 	connConfig.Logger = logger
+	connConfig.LogLevel = pgx.LogLevelDebug
 	conn := mustConnect(b, connConfig)
 	defer closeConn(b, conn)
 
@@ -299,6 +317,7 @@ func BenchmarkSelectWithLoggingInfoWithLog15(b *testing.B) {
 	}
 	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
 	connConfig.Logger = logger
+	connConfig.LogLevel = pgx.LogLevelInfo
 	conn := mustConnect(b, connConfig)
 	defer closeConn(b, conn)
 
@@ -315,6 +334,7 @@ func BenchmarkSelectWithLoggingErrorWithLog15(b *testing.B) {
 	}
 	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
 	connConfig.Logger = logger
+	connConfig.LogLevel = pgx.LogLevelError
 	conn := mustConnect(b, connConfig)
 	defer closeConn(b, conn)
 

@@ -124,6 +124,8 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.logger == nil {
 		c.logLevel = LogLevelNone
 	}
+	c.mr.logger = c.logger
+	c.mr.logLevel = c.logLevel
 
 	if c.config.User == "" {
 		user, err := user.Current()
@@ -956,7 +958,7 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	c.lastActivityTime = time.Now()
 
 	if c.logLevel >= LogLevelTrace {
-		c.logger.Debug("rxMsg", "Type", string(t), "Size", c.mr.msgBytesRemaining)
+		c.logger.Debug("rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
 	}
 
 	return t, &c.mr, err
