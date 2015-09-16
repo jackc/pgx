@@ -39,20 +39,21 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
-	pool      *ConnPool
-	conn      *Conn
-	mr        *msgReader
-	fields    []FieldDescription
-	vr        ValueReader
-	rowCount  int
-	columnIdx int
-	err       error
-	closed    bool
-	startTime time.Time
-	sql       string
-	args      []interface{}
-	logger    Logger
-	logLevel  int
+	pool       *ConnPool
+	conn       *Conn
+	mr         *msgReader
+	fields     []FieldDescription
+	vr         ValueReader
+	rowCount   int
+	columnIdx  int
+	err        error
+	closed     bool
+	startTime  time.Time
+	sql        string
+	args       []interface{}
+	logger     Logger
+	logLevel   int
+	unlockConn bool
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -62,6 +63,11 @@ func (rows *Rows) FieldDescriptions() []FieldDescription {
 func (rows *Rows) close() {
 	if rows.closed {
 		return
+	}
+
+	if rows.unlockConn {
+		rows.conn.unlock()
+		rows.unlockConn = false
 	}
 
 	if rows.pool != nil {
@@ -420,6 +426,12 @@ func (rows *Rows) Values() ([]interface{}, error) {
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
 	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
+
+	if err := c.lock(); err != nil {
+		rows.abort(err)
+		return rows, err
+	}
+	rows.unlockConn = true
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {

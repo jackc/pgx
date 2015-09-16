@@ -487,6 +487,11 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 			if rowCount != 1000 {
 				t.Error("Select called onDataRow wrong number of times")
 			}
+
+			_, err = pool.Exec("--;")
+			if err != nil {
+				t.Fatalf("pool.Exec failed: %v", err)
+			}
 		}()
 	}
 

@@ -1030,3 +1030,39 @@ func TestInsertTimestampArray(t *testing.T) {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }
+
+func TestCatchSimultaneousConnectionQueries(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	rows1, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+	defer rows1.Close()
+
+	_, err = conn.Query("select generate_series(1,$1)", 10)
+	if err != pgx.ErrConnBusy {
+		t.Fatalf("conn.Query should have failed with pgx.ErrConnBusy, but it was %v", err)
+	}
+}
+
+func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query("select generate_series(1,$1)", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: ", err)
+	}
+	defer rows.Close()
+
+	_, err = conn.Exec("create temporary table foo(spice timestamp[])")
+	if err != pgx.ErrConnBusy {
+		t.Fatalf("conn.Exec should have failed with pgx.ErrConnBusy, but it was %v", err)
+	}
+}

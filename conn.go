@@ -62,6 +62,7 @@ type Conn struct {
 	fp                 *fastpath
 	pgsql_af_inet      byte
 	pgsql_af_inet6     byte
+	busy               bool
 }
 
 type PreparedStatement struct {
@@ -99,6 +100,7 @@ var ErrNoRows = errors.New("no rows in result set")
 var ErrNotificationTimeout = errors.New("notification timeout")
 var ErrDeadConn = errors.New("conn is dead")
 var ErrTLSRefused = errors.New("server refused TLS connection")
+var ErrConnBusy = errors.New("conn is busy")
 
 type ProtocolError string
 
@@ -878,19 +880,29 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+	if err = c.lock(); err != nil {
+		return commandTag, err
+	}
+
 	startTime := time.Now()
 	c.lastActivityTime = startTime
 
-	if c.logLevel >= LogLevelError {
-		defer func() {
-			if err == nil {
+	defer func() {
+		if err == nil {
+			if c.logLevel >= LogLevelInfo {
 				endTime := time.Now()
 				c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
-			} else {
+			}
+		} else {
+			if c.logLevel >= LogLevelError {
 				c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
 			}
-		}()
-	}
+		}
+
+		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
+			err = unlockErr
+		}
+	}()
 
 	if err = c.sendQuery(sql, arguments...); err != nil {
 		return
@@ -1136,4 +1148,20 @@ func (c *Conn) die(err error) {
 	c.alive = false
 	c.causeOfDeath = err
 	c.conn.Close()
+}
+
+func (c *Conn) lock() error {
+	if c.busy {
+		return ErrConnBusy
+	}
+	c.busy = true
+	return nil
+}
+
+func (c *Conn) unlock() error {
+	if !c.busy {
+		return errors.New("unlock conn that is not busy")
+	}
+	c.busy = false
+	return nil
 }
