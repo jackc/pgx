@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 )
 
@@ -52,6 +53,34 @@ func (l *connLogger) Warn(msg string, ctx ...interface{}) {
 func (l *connLogger) Error(msg string, ctx ...interface{}) {
 	ctx = append(ctx, "pid", l.pid)
 	l.logger.Error(msg, ctx...)
+}
+
+// Converts log level string to constant
+//
+// Valid levels:
+//   trace
+//	 debug
+//	 info
+//	 warn
+//   error
+//	 none
+func LogLevelFromString(s string) (int, error) {
+	switch s {
+	case "trace":
+		return LogLevelTrace, nil
+	case "debug":
+		return LogLevelDebug, nil
+	case "info":
+		return LogLevelInfo, nil
+	case "warn":
+		return LogLevelWarn, nil
+	case "error":
+		return LogLevelError, nil
+	case "none":
+		return LogLevelNone, nil
+	default:
+		return 0, errors.New("invalid log level")
+	}
 }
 
 func logQueryArgs(args []interface{}) []interface{} {
