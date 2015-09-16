@@ -19,6 +19,7 @@ type ConnPool struct {
 	maxConnections       int
 	afterConnect         func(*Conn) error
 	logger               Logger
+	logLevel             int
 	closed               bool
 }
 
@@ -42,10 +43,16 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	}
 
 	p.afterConnect = config.AfterConnect
-	if config.Logger != nil {
-		p.logger = config.Logger
+
+	if config.LogLevel != 0 {
+		p.logLevel = config.LogLevel
 	} else {
-		p.logger = &discardLogger{}
+		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
+		p.logLevel = LogLevelDebug
+	}
+	p.logger = config.Logger
+	if p.logger == nil {
+		p.logLevel = LogLevelNone
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
@@ -92,7 +99,9 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 
 	// All connections are in use and we cannot create more
 	if len(p.availableConnections) == 0 {
-		p.logger.Warn("All connections in pool are busy - waiting...")
+		if p.logLevel >= LogLevelWarn {
+			p.logger.Warn("All connections in pool are busy - waiting...")
+		}
 		for len(p.availableConnections) == 0 {
 			p.cond.Wait()
 		}

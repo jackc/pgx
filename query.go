@@ -52,6 +52,7 @@ type Rows struct {
 	sql       string
 	args      []interface{}
 	logger    Logger
+	logLevel  int
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -70,14 +71,12 @@ func (rows *Rows) close() {
 
 	rows.closed = true
 
-	if rows.logger == dlogger {
-		return
-	}
-
 	if rows.err == nil {
-		endTime := time.Now()
-		rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
-	} else {
+		if rows.logLevel >= LogLevelInfo {
+			endTime := time.Now()
+			rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+		}
+	} else if rows.logLevel >= LogLevelError {
 		rows.logger.Error("Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
 	}
 }
@@ -420,7 +419,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger}
+	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {

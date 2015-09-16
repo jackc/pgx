@@ -5,6 +5,18 @@ import (
 	"fmt"
 )
 
+// The values for log levels are chosen such that the zero value means that no
+// log level was specified and we can default to LogLevelDebug to preserve
+// the behavior that existed prior to log level introduction.
+const (
+	LogLevelTrace = 6
+	LogLevelDebug = 5
+	LogLevelInfo  = 4
+	LogLevelWarn  = 3
+	LogLevelError = 2
+	LogLevelNone  = 1
+)
+
 // Logger is the interface used to get logging from pgx internals.
 // https://github.com/inconshreveable/log15 is the recommended logging package.
 // This logging interface was extracted from there. However, it should be simple
@@ -16,16 +28,6 @@ type Logger interface {
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
 }
-
-type discardLogger struct{}
-
-// default discardLogger instance
-var dlogger = &discardLogger{}
-
-func (l *discardLogger) Debug(msg string, ctx ...interface{}) {}
-func (l *discardLogger) Info(msg string, ctx ...interface{})  {}
-func (l *discardLogger) Warn(msg string, ctx ...interface{})  {}
-func (l *discardLogger) Error(msg string, ctx ...interface{}) {}
 
 type connLogger struct {
 	logger Logger

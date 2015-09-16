@@ -34,6 +34,7 @@ type ConnConfig struct {
 	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
 	FallbackTLSConfig *tls.Config // config for fallback TLS connection (only used if UseFallBackTLS is true)-- nil disables TLS
 	Logger            Logger
+	LogLevel          int
 	Dial              DialFunc
 }
 
@@ -56,6 +57,7 @@ type Conn struct {
 	alive              bool
 	causeOfDeath       error
 	logger             Logger
+	logLevel           int
 	mr                 msgReader
 	fp                 *fastpath
 	pgsql_af_inet      byte
@@ -111,10 +113,16 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
-	if c.config.Logger != nil {
-		c.logger = c.config.Logger
+
+	if c.config.LogLevel != 0 {
+		c.logLevel = c.config.LogLevel
 	} else {
-		c.logger = dlogger
+		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
+		c.logLevel = LogLevelDebug
+	}
+	c.logger = c.config.Logger
+	if c.logger == nil {
+		c.logLevel = LogLevelNone
 	}
 
 	if c.config.User == "" {
@@ -123,12 +131,16 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			return nil, err
 		}
 		c.config.User = user.Username
-		c.logger.Debug("Using default connection config", "User", c.config.User)
+		if c.logLevel >= LogLevelDebug {
+			c.logger.Debug("Using default connection config", "User", c.config.User)
+		}
 	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
-		c.logger.Debug("Using default connection config", "Port", c.config.Port)
+		if c.logLevel >= LogLevelDebug {
+			c.logger.Debug("Using default connection config", "Port", c.config.Port)
+		}
 	}
 
 	network := "tcp"
@@ -159,17 +171,23 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+	if c.logLevel >= LogLevelInfo {
+		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+	}
 	c.conn, err = c.config.Dial(network, address)
 	if err != nil {
-		c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
+		if c.logLevel >= LogLevelError {
+			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
+		}
 		return err
 	}
 	defer func() {
 		if c != nil && err != nil {
 			c.conn.Close()
 			c.alive = false
-			c.logger.Error(err.Error())
+			if c.logLevel >= LogLevelError {
+				c.logger.Error(err.Error())
+			}
 		}
 	}()
 
@@ -179,9 +197,13 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.lastActivityTime = time.Now()
 
 	if tlsConfig != nil {
-		c.logger.Debug("Starting TLS handshake")
+		if c.logLevel >= LogLevelDebug {
+			c.logger.Debug("Starting TLS handshake")
+		}
 		if err := c.startTLS(tlsConfig); err != nil {
-			c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
+			if c.logLevel >= LogLevelError {
+				c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
+			}
 			return err
 		}
 	}
@@ -215,7 +237,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			if c.logger != dlogger {
+			if c.logLevel >= LogLevelInfo {
 				c.logger = &connLogger{logger: c.logger, pid: c.Pid}
 				c.logger.Info("Connection established")
 			}
@@ -292,7 +314,9 @@ func (c *Conn) Close() (err error) {
 	_, err = c.conn.Write(wbuf.buf)
 
 	c.die(errors.New("Closed"))
-	c.logger.Info("Closed connection")
+	if c.logLevel >= LogLevelInfo {
+		c.logger.Info("Closed connection")
+	}
 	return err
 }
 
@@ -460,11 +484,13 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
-	defer func() {
-		if err != nil {
-			c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
-		}
-	}()
+	if c.logLevel >= LogLevelError {
+		defer func() {
+			if err != nil {
+				c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
+			}
+		}()
+	}
 
 	// parse
 	wbuf := newWriteBuf(c, 'P')
@@ -853,7 +879,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	startTime := time.Now()
 	c.lastActivityTime = startTime
 
-	if c.logger != dlogger {
+	if c.logLevel >= LogLevelError {
 		defer func() {
 			if err == nil {
 				endTime := time.Now()
@@ -929,7 +955,7 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 
 	c.lastActivityTime = time.Now()
 
-	if c.logger != dlogger {
+	if c.logLevel >= LogLevelTrace {
 		c.logger.Debug("rxMsg", "Type", string(t), "Size", c.mr.msgBytesRemaining)
 	}
 
