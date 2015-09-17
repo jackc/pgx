@@ -118,6 +118,7 @@ func (p *ConnPool) Release(conn *Conn) {
 	if conn.TxStatus != 'I' {
 		conn.Exec("rollback")
 	}
+	conn.Unlisten("")
 
 	p.cond.L.Lock()
 	if conn.IsAlive() {
