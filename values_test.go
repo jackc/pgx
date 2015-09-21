@@ -89,12 +89,46 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 		}
 		typename := conn.PgTypes[oid].Name
 
+		testJsonString(t, conn, typename)
+		testJsonStringPointer(t, conn, typename)
 		testJsonSingleLevelStringMap(t, conn, typename)
 		testJsonNestedMap(t, conn, typename)
 		testJsonStringArray(t, conn, typename)
 		testJsonInt64Array(t, conn, typename)
 		testJsonInt16ArrayFailureDueToOverflow(t, conn, typename)
 		testJsonStruct(t, conn, typename)
+	}
+}
+
+func testJsonString(t *testing.T, conn *pgx.Conn, typename string) {
+	input := `{"key": "value"}`
+	expectedOutput := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
+
+	if !reflect.DeepEqual(expectedOutput, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		return
+	}
+}
+
+func testJsonStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+	input := `{"key": "value"}`
+	expectedOutput := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, &input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
+
+	if !reflect.DeepEqual(expectedOutput, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		return
 	}
 }
 

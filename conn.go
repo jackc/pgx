@@ -798,6 +798,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			continue
 		}
 
+	encode:
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			err = arg.Encode(wbuf, oid)
@@ -810,6 +811,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 					continue
 				} else {
 					arguments[i] = v.Elem().Interface()
+					goto encode
 				}
 			}
 			switch oid {
