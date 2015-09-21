@@ -907,6 +907,48 @@ func TestListenNotify(t *testing.T) {
 	}
 }
 
+func TestUnlistenSpecificChannel(t *testing.T) {
+	t.Parallel()
+
+	listener := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, listener)
+
+	if err := listener.Listen("unlisten_test"); err != nil {
+		t.Fatalf("Unable to start listening: %v", err)
+	}
+
+	notifier := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, notifier)
+
+	mustExec(t, notifier, "notify unlisten_test")
+
+	// when notification is waiting on the socket to be read
+	notification, err := listener.WaitForNotification(time.Second)
+	if err != nil {
+		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
+	}
+	if notification.Channel != "unlisten_test" {
+		t.Errorf("Did not receive notification on expected channel: %v", notification.Channel)
+	}
+
+	err = listener.Unlisten("unlisten_test")
+	if err != nil {
+		t.Fatalf("Unexpected error on Unlisten: %v", err)
+	}
+
+	// when notification has already been read during previous query
+	mustExec(t, notifier, "notify unlisten_test")
+	rows, _ := listener.Query("select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("Unexpected error on Query: %v", rows.Err())
+	}
+	notification, err = listener.WaitForNotification(100 * time.Millisecond)
+	if err != pgx.ErrNotificationTimeout {
+		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
+	}
+}
+
 func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	t.Parallel()
 
