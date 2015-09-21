@@ -1,5 +1,7 @@
 # Master
 
+* Add trace log level
+* Add more efficient log leveling
 * Retry automatically on ConnPool.Begin (Joseph Glanville)
 * Encode from net.IP to inet and cidr
 * Generalize encoding pointer to string to any PostgreSQL type
