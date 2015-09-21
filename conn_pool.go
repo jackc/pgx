@@ -118,7 +118,13 @@ func (p *ConnPool) Release(conn *Conn) {
 	if conn.TxStatus != 'I' {
 		conn.Exec("rollback")
 	}
-	conn.Unlisten("")
+
+	if len(conn.channels) > 0 {
+		if err := conn.Unlisten("*"); err != nil {
+			conn.die(err)
+		}
+		conn.channels = make(map[string]struct{})
+	}
 
 	p.cond.L.Lock()
 	if conn.IsAlive() {

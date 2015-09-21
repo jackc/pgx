@@ -602,39 +602,26 @@ func (c *Conn) Deallocate(name string) (err error) {
 }
 
 // Listen establishes a PostgreSQL listen/notify to channel
-func (c *Conn) Listen(channel string) (err error) {
-	_, err = c.Exec("listen " + channel)
+func (c *Conn) Listen(channel string) error {
+	_, err := c.Exec("listen " + channel)
 	if err != nil {
-		return
+		return err
 	}
-	var s struct{}
-	c.channels[channel] = s
-	return
+
+	c.channels[channel] = struct{}{}
+
+	return nil
 }
 
 // Unlisten unsubscribes from a listen channel
-// If channel is empty then unsubscribe from all channels
-func (c *Conn) Unlisten(channel string) (err error) {
-	if channel != "" {
-		err = c.unlisten(channel)
-	} else {
-		for s, _ := range c.channels {
-			err = c.unlisten(s)
-			if err != nil {
-				return
-			}
-		}
-	}
-	return
-}
-
-func (c *Conn) unlisten(channel string) (err error) {
-	_, err = c.Exec("unlisten " + channel)
+func (c *Conn) Unlisten(channel string) error {
+	_, err := c.Exec("unlisten " + channel)
 	if err != nil {
-		return
+		return err
 	}
+
 	delete(c.channels, channel)
-	return
+	return nil
 }
 
 // WaitForNotification waits for a PostgreSQL notification for up to timeout.
