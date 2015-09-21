@@ -1,5 +1,6 @@
 # Master
 
+* ConnPool.Release automatically unlistens connections (Joseph Glanville)
 * Add trace log level
 * Add more efficient log leveling
 * Retry automatically on ConnPool.Begin (Joseph Glanville)
