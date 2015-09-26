@@ -64,7 +64,7 @@ func TestConnectWithUnixSocketDirectory(t *testing.T) {
 
 	// /.s.PGSQL.5432
 	if unixSocketConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined unixSocketConnConfig")
 	}
 
 	conn, err := pgx.Connect(*unixSocketConnConfig)
@@ -82,7 +82,7 @@ func TestConnectWithUnixSocketFile(t *testing.T) {
 	t.Parallel()
 
 	if unixSocketConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined unixSocketConnConfig")
 	}
 
 	connParams := *unixSocketConnConfig
@@ -102,7 +102,7 @@ func TestConnectWithTcp(t *testing.T) {
 	t.Parallel()
 
 	if tcpConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined tcpConnConfig")
 	}
 
 	conn, err := pgx.Connect(*tcpConnConfig)
@@ -120,7 +120,7 @@ func TestConnectWithTLS(t *testing.T) {
 	t.Parallel()
 
 	if tlsConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined tlsConnConfig")
 	}
 
 	conn, err := pgx.Connect(*tlsConnConfig)
@@ -138,7 +138,7 @@ func TestConnectWithInvalidUser(t *testing.T) {
 	t.Parallel()
 
 	if invalidUserConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined invalidUserConnConfig")
 	}
 
 	_, err := pgx.Connect(*invalidUserConnConfig)
@@ -155,7 +155,7 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 	t.Parallel()
 
 	if plainPasswordConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined plainPasswordConnConfig")
 	}
 
 	conn, err := pgx.Connect(*plainPasswordConnConfig)
@@ -173,7 +173,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 	t.Parallel()
 
 	if md5ConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined md5ConnConfig")
 	}
 
 	conn, err := pgx.Connect(*md5ConnConfig)
@@ -191,7 +191,7 @@ func TestConnectWithTLSFallback(t *testing.T) {
 	t.Parallel()
 
 	if tlsConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined tlsConnConfig")
 	}
 
 	connConfig := *tlsConnConfig
@@ -234,7 +234,7 @@ func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
 	if customDialerConnConfig == nil {
-		return
+		t.Skip("Skipping due to undefined customDialerConnConfig")
 	}
 
 	dialled := false
