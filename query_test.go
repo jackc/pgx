@@ -230,6 +230,37 @@ func TestConnQueryScanner(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryErrorWhileReturningRows(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	for i := 0; i < 100; i++ {
+		func() {
+			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
+
+			rows, err := conn.Query(sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var n int32
+				rows.Scan(&n)
+			}
+
+			if err, ok := rows.Err().(pgx.PgError); !ok {
+				t.Fatalf("Expected pgx.PgError, got %v", err)
+			}
+
+			ensureConnValid(t, conn)
+		}()
+	}
+
+}
+
 func TestConnQueryEncoder(t *testing.T) {
 	t.Parallel()
 
