@@ -125,6 +125,7 @@ func (p *ConnPool) Release(conn *Conn) {
 		}
 		conn.channels = make(map[string]struct{})
 	}
+	conn.notifications = nil
 
 	p.cond.L.Lock()
 	if conn.IsAlive() {
