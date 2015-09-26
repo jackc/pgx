@@ -33,7 +33,8 @@ func TestStressConnPool(t *testing.T) {
 	}{
 		{"insertUnprepared", func(p *pgx.ConnPool, n int) error { return insertUnprepared(p, n) }},
 		{"queryRowWithoutParams", func(p *pgx.ConnPool, n int) error { return queryRowWithoutParams(p, n) }},
-		{"query", func(p *pgx.ConnPool, n int) error { return query(p, n) }},
+		{"query", func(p *pgx.ConnPool, n int) error { return queryCloseEarly(p, n) }},
+		{"queryCloseEarly", func(p *pgx.ConnPool, n int) error { return query(p, n) }},
 		{"queryErrorWhileReturningRows", func(p *pgx.ConnPool, n int) error { return queryErrorWhileReturningRows(p, n) }},
 		{"txInsertRollback", txInsertRollback},
 		{"txInsertCommit", txInsertCommit},
@@ -140,6 +141,24 @@ func query(q queryer, actionNum int) error {
 	return rows.Err()
 }
 
+func queryCloseEarly(q queryer, actionNum int) error {
+	sql := `select * from generate_series(1,$1)`
+
+	rows, err := q.Query(sql, 100)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for i := 0; i < 10 && rows.Next(); i++ {
+		var n int32
+		rows.Scan(&n)
+	}
+	rows.Close()
+
+	return rows.Err()
+}
+
 func queryErrorWhileReturningRows(q queryer, actionNum int) error {
 	// This query should divide by 0 within the first number of rows
 	sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
@@ -238,6 +257,7 @@ func txMultipleQueries(pool *pgx.ConnPool, actionNum int) error {
 		{"insertUnprepared", func() error { return insertUnprepared(tx, actionNum) }},
 		{"queryRowWithoutParams", func() error { return queryRowWithoutParams(tx, actionNum) }},
 		{"query", func() error { return query(tx, actionNum) }},
+		{"queryCloseEarly", func() error { return queryCloseEarly(tx, actionNum) }},
 		{"queryErrorWhileReturningRows", func() error {
 			err := queryErrorWhileReturningRows(tx, actionNum)
 			if err != nil {
