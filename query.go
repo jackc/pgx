@@ -295,6 +295,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				}
 			case *net.IPNet:
 				*v = decodeInet(vr)
+			case *[]net.IPNet:
+				*v = decodeInetArray(vr)
 			default:
 				// if d is a pointer to pointer, strip the pointer and try again
 				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {

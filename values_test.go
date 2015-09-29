@@ -308,6 +308,65 @@ func TestInetCidrTranscode(t *testing.T) {
 	}
 }
 
+func TestInetCidrArrayTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value []net.IPNet
+	}{
+		{
+			"select $1::inet[]",
+			[]net.IPNet{
+				mustParseCIDR(t, "0.0.0.0/32"),
+				mustParseCIDR(t, "127.0.0.1/32"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "255.0.0.0/8"),
+				mustParseCIDR(t, "255.255.255.255/32"),
+				mustParseCIDR(t, "::/128"),
+				mustParseCIDR(t, "::/0"),
+				mustParseCIDR(t, "::1/128"),
+				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
+			},
+		},
+		{
+			"select $1::cidr[]",
+			[]net.IPNet{
+				mustParseCIDR(t, "0.0.0.0/32"),
+				mustParseCIDR(t, "127.0.0.1/32"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "255.0.0.0/8"),
+				mustParseCIDR(t, "255.255.255.255/32"),
+				mustParseCIDR(t, "::/128"),
+				mustParseCIDR(t, "::/0"),
+				mustParseCIDR(t, "::1/128"),
+				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		var actual []net.IPNet
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
+		}
+
+		if !reflect.DeepEqual(actual, tt.value) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	t.Parallel()
 

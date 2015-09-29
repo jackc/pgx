@@ -22,6 +22,7 @@ const (
 	OidOid              = 26
 	JsonOid             = 114
 	CidrOid             = 650
+	CidrArrayOid        = 651
 	Float4Oid           = 700
 	Float8Oid           = 701
 	InetOid             = 869
@@ -33,6 +34,7 @@ const (
 	Int8ArrayOid        = 1016
 	Float4ArrayOid      = 1021
 	Float8ArrayOid      = 1022
+	InetArrayOid        = 1041
 	VarcharOid          = 1043
 	DateOid             = 1082
 	TimestampOid        = 1114
@@ -59,8 +61,10 @@ var DefaultTypeFormats map[string]int16
 func init() {
 	DefaultTypeFormats = map[string]int16{
 		"_bool":        BinaryFormatCode,
+		"_cidr":        BinaryFormatCode,
 		"_float4":      BinaryFormatCode,
 		"_float8":      BinaryFormatCode,
+		"_inet":        BinaryFormatCode,
 		"_int2":        BinaryFormatCode,
 		"_int4":        BinaryFormatCode,
 		"_int8":        BinaryFormatCode,
@@ -1698,6 +1702,75 @@ func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
 		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
 		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
 		w.WriteInt64(microsecSinceY2K)
+	}
+
+	return nil
+}
+
+func decodeInetArray(vr *ValueReader) []net.IPNet {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != InetArrayOid && vr.Type().DataType != CidrArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []net.IP", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]net.IPNet, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		if elSize == -1 {
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		}
+
+		vr.ReadByte() // ignore family
+		bits := vr.ReadByte()
+		vr.ReadByte() // ignore is_cidr
+		addressLength := vr.ReadByte()
+
+		var ipnet net.IPNet
+		ipnet.IP = vr.ReadBytes(int32(addressLength))
+		ipnet.Mask = net.CIDRMask(int(bits), int(addressLength)*8)
+
+		a[i] = ipnet
+	}
+
+	return a
+}
+
+func encodeInetArray(w *WriteBuf, value interface{}, elOid Oid) error {
+	slice, ok := value.([]net.IPNet)
+	if !ok {
+		return fmt.Errorf("Expected []net.IPNet, received %T", value)
+	}
+
+	size := int32(20) // array header size
+	for _, ipnet := range slice {
+		size += 4 + 4 + int32(len(ipnet.IP)) // size of element + inet/cidr metadata + IP bytes
+	}
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(int32(elOid))      // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, ipnet := range slice {
+		encodeInet(w, ipnet)
 	}
 
 	return nil
