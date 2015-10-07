@@ -367,6 +367,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeInt2(vr))
 			case Int4Oid:
 				values = append(values, decodeInt4(vr))
+			case OidOid:
+				values = append(values, decodeOid(vr))
 			case Float4Oid:
 				values = append(values, decodeFloat4(vr))
 			case Float8Oid:

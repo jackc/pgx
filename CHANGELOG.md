@@ -1,5 +1,6 @@
 # Master
 
+* Rows.Values now supports oid type
 * ConnPool.Release automatically unlistens connections (Joseph Glanville)
 * Add trace log level
 * Add more efficient log leveling

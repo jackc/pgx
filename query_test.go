@@ -49,7 +49,7 @@ func TestConnQueryValues(t *testing.T) {
 
 	var rowCount int32
 
-	rows, err := conn.Query("select 'foo', n, null from generate_series(1,$1) n", 10)
+	rows, err := conn.Query("select 'foo', n, null, n::oid from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
@@ -62,8 +62,8 @@ func TestConnQueryValues(t *testing.T) {
 		if err != nil {
 			t.Fatalf("rows.Values failed: %v", err)
 		}
-		if len(values) != 3 {
-			t.Errorf("Expected rows.Values to return 3 values, but it returned %d", len(values))
+		if len(values) != 4 {
+			t.Errorf("Expected rows.Values to return 4 values, but it returned %d", len(values))
 		}
 		if values[0] != "foo" {
 			t.Errorf(`Expected values[0] to be "foo", but it was %v`, values[0])
@@ -78,6 +78,10 @@ func TestConnQueryValues(t *testing.T) {
 
 		if values[2] != nil {
 			t.Errorf(`Expected values[2] to be %d, but it was %d`, nil, values[2])
+		}
+
+		if values[3] != pgx.Oid(rowCount) {
+			t.Errorf(`Expected values[3] to be %d, but it was %d`, rowCount, values[3])
 		}
 	}
 
