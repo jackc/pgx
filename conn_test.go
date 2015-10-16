@@ -848,6 +848,36 @@ func TestPrepareQueryManyParameters(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestPrepareIdempotency(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	for i := 0; i < 2; i++ {
+		_, err := conn.Prepare("test", "select 42::integer")
+		if err != nil {
+			t.Fatalf("%d. Unable to prepare statement: %v", i, err)
+		}
+
+		var n int32
+		err = conn.QueryRow("test").Scan(&n)
+		if err != nil {
+			t.Errorf("%d. Executing prepared statement failed: %v", i, err)
+		}
+
+		if n != int32(42) {
+			t.Errorf("%d. Prepared statement did not return expected value: %v", i, n)
+		}
+	}
+
+	_, err := conn.Prepare("test", "select 'fail'::varchar")
+	if err == nil {
+		t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
+		return
+	}
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 

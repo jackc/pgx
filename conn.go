@@ -68,6 +68,7 @@ type Conn struct {
 
 type PreparedStatement struct {
 	Name              string
+	SQL               string
 	FieldDescriptions []FieldDescription
 	ParameterOids     []Oid
 }
@@ -489,7 +490,15 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
+//
+// Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
+// name and sql arguments. This allows a code path to Prepare and Query/Exec without
+// concern for if the statement has already been prepared.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
+	if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
+		return ps, nil
+	}
+
 	if c.logLevel >= LogLevelError {
 		defer func() {
 			if err != nil {
@@ -519,7 +528,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		return nil, err
 	}
 
-	ps = &PreparedStatement{Name: name}
+	ps = &PreparedStatement{Name: name, SQL: sql}
 
 	var softErr error
 
@@ -549,7 +558,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 
-			if softErr == nil {
+			if softErr == nil && name != "" {
 				c.preparedStatements[name] = ps
 			}
 
