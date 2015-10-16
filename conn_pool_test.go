@@ -481,7 +481,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: ", rows.Err())
 			}
 
 			if rowCount != 1000 {
