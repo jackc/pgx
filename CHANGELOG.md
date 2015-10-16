@@ -1,5 +1,6 @@
 # Master
 
+* Prepare is now idempotent
 * Rows.Values now supports oid type
 * ConnPool.Release automatically unlistens connections (Joseph Glanville)
 * Add trace log level
