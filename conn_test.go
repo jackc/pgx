@@ -311,6 +311,7 @@ func TestParseURI(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -324,6 +325,7 @@ func TestParseURI(t *testing.T) {
 				TLSConfig:         nil,
 				UseFallbackTLS:    false,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -339,6 +341,7 @@ func TestParseURI(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -354,6 +357,7 @@ func TestParseURI(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -368,6 +372,7 @@ func TestParseURI(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -381,6 +386,24 @@ func TestParseURI(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "postgres://jack@localhost/mydb?application_name=pgxtest&search_path=myschema",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams: map[string]string{
+					"application_name": "pgxtest",
+					"search_path":      "myschema",
+				},
 			},
 		},
 	}

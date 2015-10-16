@@ -364,6 +364,20 @@ func ParseURI(uri string) (ConnConfig, error) {
 		return cp, err
 	}
 
+	ignoreKeys := map[string]struct{}{
+		"sslmode": struct{}{},
+	}
+
+	cp.RuntimeParams = make(map[string]string)
+
+	for k, v := range url.Query() {
+		if _, ok := ignoreKeys[k]; ok {
+			continue
+		}
+
+		cp.RuntimeParams[k] = v[0]
+	}
+
 	return cp, nil
 }
 
