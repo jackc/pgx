@@ -1,5 +1,9 @@
 # Master
 
+* Add RuntimeParams to ConnConfig
+* ParseURI extracts RuntimeParams
+* ParseDSN extracts RuntimeParams
+* ParseEnvLibpq extracts PGAPPNAME
 * Prepare is now idempotent
 * Rows.Values now supports oid type
 * ConnPool.Release automatically unlistens connections (Joseph Glanville)
