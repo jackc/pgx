@@ -258,6 +258,39 @@ func TestConnectCustomDialer(t *testing.T) {
 	}
 }
 
+func TestConnectWithRuntimeParams(t *testing.T) {
+	t.Parallel()
+
+	connConfig := *defaultConnConfig
+	connConfig.RuntimeParams = map[string]string{
+		"application_name": "pgxtest",
+		"search_path":      "myschema",
+	}
+
+	conn, err := pgx.Connect(connConfig)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	defer conn.Close()
+
+	var s string
+	err = conn.QueryRow("show application_name").Scan(&s)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if s != "pgxtest" {
+		t.Errorf("Expected application_name to be %s, but it was %s", "pgxtest", s)
+	}
+
+	err = conn.QueryRow("show search_path").Scan(&s)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if s != "myschema" {
+		t.Errorf("Expected search_path to be %s, but it was %s", "myschema", s)
+	}
+}
+
 func TestParseURI(t *testing.T) {
 	t.Parallel()
 

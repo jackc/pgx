@@ -36,6 +36,7 @@ type ConnConfig struct {
 	Logger            Logger
 	LogLevel          int
 	Dial              DialFunc
+	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -219,6 +220,12 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.mr.reader = c.reader
 
 	msg := newStartupMessage()
+
+	// Copy default run-time params
+	for k, v := range config.RuntimeParams {
+		msg.options[k] = v
+	}
+
 	msg.options["user"] = c.config.User
 	if c.config.Database != "" {
 		msg.options["database"] = c.config.Database
