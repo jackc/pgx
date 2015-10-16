@@ -533,7 +533,7 @@ func TestParseDSN(t *testing.T) {
 }
 
 func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
@@ -560,6 +560,7 @@ func TestParseEnvLibpq(t *testing.T) {
 				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -580,6 +581,19 @@ func TestParseEnvLibpq(t *testing.T) {
 				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			name: "application_name",
+			envvars: map[string]string{
+				"PGAPPNAME": "pgxtest",
+			},
+			config: pgx.ConnConfig{
+				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{"application_name": "pgxtest"},
 			},
 		},
 		{
@@ -590,6 +604,7 @@ func TestParseEnvLibpq(t *testing.T) {
 			config: pgx.ConnConfig{
 				TLSConfig:      nil,
 				UseFallbackTLS: false,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 		{
@@ -601,6 +616,7 @@ func TestParseEnvLibpq(t *testing.T) {
 				TLSConfig:         nil,
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: &tls.Config{InsecureSkipVerify: true},
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -612,6 +628,7 @@ func TestParseEnvLibpq(t *testing.T) {
 				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -622,6 +639,7 @@ func TestParseEnvLibpq(t *testing.T) {
 			config: pgx.ConnConfig{
 				TLSConfig:      &tls.Config{},
 				UseFallbackTLS: false,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 		{
@@ -632,6 +650,7 @@ func TestParseEnvLibpq(t *testing.T) {
 			config: pgx.ConnConfig{
 				TLSConfig:      &tls.Config{},
 				UseFallbackTLS: false,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 		{
@@ -642,6 +661,7 @@ func TestParseEnvLibpq(t *testing.T) {
 			config: pgx.ConnConfig{
 				TLSConfig:      &tls.Config{},
 				UseFallbackTLS: false,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 		{
@@ -656,6 +676,7 @@ func TestParseEnvLibpq(t *testing.T) {
 					ServerName: "pgx.example",
 				},
 				UseFallbackTLS: false,
+				RuntimeParams:  map[string]string{},
 			},
 		},
 	}
@@ -695,6 +716,10 @@ func TestParseEnvLibpq(t *testing.T) {
 		}
 		if config.Password != tt.config.Password {
 			t.Errorf("%s: expected Password to be %v got %v", tt.name, tt.config.Password, config.Password)
+		}
+
+		if !reflect.DeepEqual(config.RuntimeParams, tt.config.RuntimeParams) {
+			t.Errorf("%s: expected RuntimeParams to be %#v got %#v", tt.name, tt.config.RuntimeParams, config.RuntimeParams)
 		}
 
 		tlsTests := []struct {

@@ -442,6 +442,7 @@ func ParseDSN(s string) (ConnConfig, error) {
 // PGUSER
 // PGPASSWORD
 // PGSSLMODE
+// PGAPPNAME
 //
 // Important TLS Security Notes:
 // ParseEnvLibpq tries to match libpq behavior with regard to PGSSLMODE. This
@@ -482,6 +483,11 @@ func ParseEnvLibpq() (ConnConfig, error) {
 	err := configSSL(sslmode, &cc)
 	if err != nil {
 		return cc, err
+	}
+
+	cc.RuntimeParams = make(map[string]string)
+	if appname := os.Getenv("PGAPPNAME"); appname != "" {
+		cc.RuntimeParams["application_name"] = appname
 	}
 
 	return cc, nil
