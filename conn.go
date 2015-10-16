@@ -335,6 +335,8 @@ func (c *Conn) Close() (err error) {
 }
 
 // ParseURI parses a database URI into ConnConfig
+//
+// Query parameters not used by the connection process are parsed into ConnConfig.RuntimeParams.
 func ParseURI(uri string) (ConnConfig, error) {
 	var cp ConnConfig
 
@@ -386,6 +388,10 @@ var dsn_regexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
 // ParseDSN parses a database DSN (data source name) into a ConnConfig
 //
 // e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb sslmode=disable")
+//
+// Any options not used by the connection process are parsed into ConnConfig.RuntimeParams.
+//
+// e.g. ParseDSN("application_name=pgxtest search_path=admin user=username password=password host=1.2.3.4 dbname=mydb")
 //
 // ParseDSN tries to match libpq behavior with regard to sslmode. See comments
 // for ParseEnvLibpq for more information on the security implications of
