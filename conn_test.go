@@ -431,11 +431,12 @@ func TestParseDSN(t *testing.T) {
 		{
 			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
 			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
+				User:          "jack",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				RuntimeParams: map[string]string{},
 			},
 		},
 		{
@@ -451,6 +452,7 @@ func TestParseDSN(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -466,6 +468,7 @@ func TestParseDSN(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -480,6 +483,7 @@ func TestParseDSN(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 		{
@@ -493,6 +497,24 @@ func TestParseDSN(t *testing.T) {
 				},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=localhost dbname=mydb application_name=pgxtest search_path=myschema",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams: map[string]string{
+					"application_name": "pgxtest",
+					"search_path":      "myschema",
+				},
 			},
 		},
 	}

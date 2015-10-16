@@ -381,7 +381,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 	return cp, nil
 }
 
-var dsn_regexp = regexp.MustCompile(`([a-z]+)=((?:"[^"]+")|(?:[^ ]+))`)
+var dsn_regexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
 
 // ParseDSN parses a database DSN (data source name) into a ConnConfig
 //
@@ -396,6 +396,8 @@ func ParseDSN(s string) (ConnConfig, error) {
 	m := dsn_regexp.FindAllStringSubmatch(s, -1)
 
 	var sslmode string
+
+	cp.RuntimeParams = make(map[string]string)
 
 	for _, b := range m {
 		switch b[1] {
@@ -415,6 +417,8 @@ func ParseDSN(s string) (ConnConfig, error) {
 			cp.Database = b[2]
 		case "sslmode":
 			sslmode = b[2]
+		default:
+			cp.RuntimeParams[b[1]] = b[2]
 		}
 	}
 
