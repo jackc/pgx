@@ -495,8 +495,10 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
-	if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
-		return ps, nil
+	if name != "" {
+		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
+			return ps, nil
+		}
 	}
 
 	if c.logLevel >= LogLevelError {
@@ -558,7 +560,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 
-			if softErr == nil && name != "" {
+			if softErr == nil {
 				c.preparedStatements[name] = ps
 			}
 
