@@ -1,4 +1,4 @@
-# Master
+# 2.7.0 (October 16, 2015)
 
 * Add RuntimeParams to ConnConfig
 * ParseURI extracts RuntimeParams
