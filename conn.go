@@ -221,6 +221,14 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 	msg := newStartupMessage()
 
+	// Default to disabling TLS renegotiation.
+	//
+	// Go does not support (https://github.com/golang/go/issues/5742)
+	// PostgreSQL recommends disabling (http://www.postgresql.org/docs/9.4/static/runtime-config-connection.html#GUC-SSL-RENEGOTIATION-LIMIT)
+	if tlsConfig != nil {
+		msg.options["ssl_renegotiation_limit"] = "0"
+	}
+
 	// Copy default run-time params
 	for k, v := range config.RuntimeParams {
 		msg.options[k] = v
@@ -230,6 +238,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	if c.config.Database != "" {
 		msg.options["database"] = c.config.Database
 	}
+
 	if err = c.txStartupMessage(msg); err != nil {
 		return err
 	}
