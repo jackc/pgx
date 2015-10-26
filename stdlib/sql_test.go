@@ -9,7 +9,7 @@ import (
 )
 
 func openDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
+	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
