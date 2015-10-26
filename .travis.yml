@@ -38,7 +38,7 @@ before_script:
   - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
 
 script:
-  - go test -v -race -cover ./...
+  - go test -v -race -cover -short ./...
 
 matrix:
   allow_failures:
