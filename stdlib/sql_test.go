@@ -130,7 +130,7 @@ func TestSqlOpenDoesNotHavePool(t *testing.T) {
 
 func TestOpenFromConnPool(t *testing.T) {
 	connConfig := pgx.ConnConfig{
-		Host:     "localhost",
+		Host:     "127.0.0.1",
 		User:     "pgx_md5",
 		Password: "secret",
 		Database: "pgx_test",
