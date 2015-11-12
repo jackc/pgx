@@ -440,6 +440,10 @@ func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
+	if !serverHasJSON(t, db) {
+		t.Skip("Skipping due to server's lack of JSON type")
+	}
+
 	_, err := db.Exec(`
 		create temporary table docs(
 			body json not null
@@ -476,6 +480,10 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
+	if !serverHasJSON(t, db) {
+		t.Skip("Skipping due to server's lack of JSON type")
+	}
+
 	_, err := db.Exec(`
 		create temporary table docs(
 			body json not null
@@ -508,6 +516,15 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
+}
+
+func serverHasJSON(t *testing.T, db *sql.DB) bool {
+	var hasJSON bool
+	err := db.QueryRow(`select true from pg_type where typname='json'`).Scan(&hasJSON)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+	return hasJSON
 }
 
 func TestTransactionLifeCycle(t *testing.T) {
