@@ -520,7 +520,7 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 
 func serverHasJSON(t *testing.T, db *sql.DB) bool {
 	var hasJSON bool
-	err := db.QueryRow(`select true from pg_type where typname='json'`).Scan(&hasJSON)
+	err := db.QueryRow(`select exists(select 1 from pg_type where typname='json')`).Scan(&hasJSON)
 	if err != nil {
 		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
 	}
