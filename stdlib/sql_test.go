@@ -420,8 +420,8 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
-	sql := "select $1::inet"
-	expected := "127.0.0.1"
+	sql := "select $1::point"
+	expected := "(1,2)"
 	var actual string
 
 	err := db.QueryRow(sql, expected).Scan(&actual)
