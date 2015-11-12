@@ -861,6 +861,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = arg.Encode(wbuf, oid)
 		case string:
 			err = encodeText(wbuf, arguments[i])
+		case []byte:
+			err = encodeBytea(wbuf, arguments[i])
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {

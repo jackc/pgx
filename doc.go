@@ -181,6 +181,14 @@ Conn.PgTypes.
 See example_custom_type_test.go for an example of a custom type for the
 PostgreSQL point type.
 
+[]byte Mapping
+
+[]byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
+to PostgreSQL. In like manner, a *[]byte passed to Scan will be filled with
+the raw bytes returned by PostgreSQL. This can be especially useful for reading
+varchar, text, json, and jsonb values directly into a []byte and avoiding the
+type conversion from string.
+
 TLS
 
 The pgx ConnConfig struct has a TLSConfig field. If this field is

@@ -436,6 +436,80 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
+func TestConnQueryJSONIntoByteSlice(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Exec(`
+		create temporary table docs(
+			body json not null
+		);
+
+		insert into docs(body) values('{"foo":"bar"}');
+`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	sql := `select * from docs`
+	expected := []byte(`{"foo":"bar"}`)
+	var actual []byte
+
+	err = db.QueryRow(sql).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if bytes.Compare(actual, expected) != 0 {
+		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, string(expected), string(actual), sql)
+	}
+
+	_, err = db.Exec(`drop table docs`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Exec(`
+		create temporary table docs(
+			body json not null
+		);
+`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	expected := []byte(`{"foo":"bar"}`)
+
+	_, err = db.Exec(`insert into docs(body) values($1)`, expected)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	var actual []byte
+	err = db.QueryRow(`select body from docs`).Scan(&actual)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+
+	if bytes.Compare(actual, expected) != 0 {
+		t.Errorf(`Expected "%v", got "%v"`, string(expected), string(actual))
+	}
+
+	_, err = db.Exec(`drop table docs`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
 func TestTransactionLifeCycle(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)

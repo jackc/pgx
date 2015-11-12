@@ -11,10 +11,9 @@ import (
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
 type Row Rows
 
-// Scan reads the values from the row into dest values positionally. dest can
-// include pointers to core types and the Scanner interface. If no rows were
-// found it returns ErrNoRows. If multiple rows are returned it ignores all but
-// the first.
+// Scan works the same as (*Rows Scan) with the following exceptions. If no
+// rows were found it returns ErrNoRows. If multiple rows are returned it
+// ignores all but the first.
 func (r *Row) Scan(dest ...interface{}) (err error) {
 	rows := (*Rows)(r)
 
@@ -216,7 +215,9 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 }
 
 // Scan reads the values from the current row into dest values positionally.
-// dest can include pointers to core types and the Scanner interface.
+// dest can include pointers to core types, values implementing the Scanner
+// interface, and []byte. []byte will skip the decoding process and directly
+// copy the raw bytes received from PostgreSQL.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
 		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
