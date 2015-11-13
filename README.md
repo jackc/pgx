@@ -19,7 +19,10 @@ Pgx supports many additional features beyond what is available through database/
 * Configurable connection pool with after connect hooks to do arbitrary connection setup
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
 * Hstore support
+* JSON and JSONB support
+* Maps inet and cidr PostgreSQL types to net.IPNet
 * Large object support
+* Null mapping to Null* struct or pointer to pointer.
 
 ## Performance
 

@@ -14,6 +14,7 @@ var plainPasswordConnConfig *pgx.ConnConfig = nil
 var noPasswordConnConfig *pgx.ConnConfig = nil
 var invalidUserConnConfig *pgx.ConnConfig = nil
 var tlsConnConfig *pgx.ConnConfig = nil
+var customDialerConnConfig *pgx.ConnConfig = nil
 
 // var tcpConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 // var unixSocketConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "/private/tmp", User: "pgx_none", Database: "pgx_test"}
@@ -22,3 +23,4 @@ var tlsConnConfig *pgx.ConnConfig = nil
 // var noPasswordConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_none", Database: "pgx_test"}
 // var invalidUserConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}
 // var tlsConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test", TLSConfig: &tls.Config{InsecureSkipVerify: true}}
+// var customDialerConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}

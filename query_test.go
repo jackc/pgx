@@ -49,7 +49,7 @@ func TestConnQueryValues(t *testing.T) {
 
 	var rowCount int32
 
-	rows, err := conn.Query("select 'foo', n, null from generate_series(1,$1) n", 10)
+	rows, err := conn.Query("select 'foo', n, null, n::oid from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: ", err)
 	}
@@ -62,8 +62,8 @@ func TestConnQueryValues(t *testing.T) {
 		if err != nil {
 			t.Fatalf("rows.Values failed: %v", err)
 		}
-		if len(values) != 3 {
-			t.Errorf("Expected rows.Values to return 3 values, but it returned %d", len(values))
+		if len(values) != 4 {
+			t.Errorf("Expected rows.Values to return 4 values, but it returned %d", len(values))
 		}
 		if values[0] != "foo" {
 			t.Errorf(`Expected values[0] to be "foo", but it was %v`, values[0])
@@ -78,6 +78,10 @@ func TestConnQueryValues(t *testing.T) {
 
 		if values[2] != nil {
 			t.Errorf(`Expected values[2] to be %d, but it was %d`, nil, values[2])
+		}
+
+		if values[3] != pgx.Oid(rowCount) {
+			t.Errorf(`Expected values[3] to be %d, but it was %d`, rowCount, values[3])
 		}
 	}
 
@@ -228,6 +232,37 @@ func TestConnQueryScanner(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnQueryErrorWhileReturningRows(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	for i := 0; i < 100; i++ {
+		func() {
+			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
+
+			rows, err := conn.Query(sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer rows.Close()
+
+			for rows.Next() {
+				var n int32
+				rows.Scan(&n)
+			}
+
+			if err, ok := rows.Err().(pgx.PgError); !ok {
+				t.Fatalf("Expected pgx.PgError, got %v", err)
+			}
+
+			ensureConnValid(t, conn)
+		}()
+	}
+
 }
 
 func TestConnQueryEncoder(t *testing.T) {
@@ -396,6 +431,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}{
 		{"select $1::text", "Jack", []byte("Jack")},
 		{"select $1::text", []byte("Jack"), []byte("Jack")},
+		{"select $1::int4", int32(239023409), []byte{14, 63, 53, 49}},
 		{"select $1::varchar", []byte("Jack"), []byte("Jack")},
 		{"select $1::bytea", []byte{0, 15, 255, 17}, []byte{0, 15, 255, 17}},
 	}
@@ -416,14 +452,38 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}
 }
 
+func TestQueryRowByteSliceArgument(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := "select $1::int4"
+	queryArg := []byte{14, 63, 53, 49}
+	expected := int32(239023409)
+
+	var actual int32
+
+	err := conn.QueryRow(sql, queryArg).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if expected != actual {
+		t.Errorf("Expected %v, got %v (sql -> %v)", expected, actual, sql)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestQueryRowUnknownType(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	sql := "select $1::inet"
-	expected := "127.0.0.1"
+	sql := "select $1::point"
+	expected := "(1,0)"
 	var actual string
 
 	err := conn.QueryRow(sql, expected).Scan(&actual)
@@ -488,19 +548,13 @@ func TestQueryRowNoResults(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	sql := "select 1 where 1=0"
-	psName := "selectNothing"
-	mustPrepare(t, conn, psName, sql)
-
-	for _, sql := range []string{sql, psName} {
-		var n int32
-		err := conn.QueryRow(sql).Scan(&n)
-		if err != pgx.ErrNoRows {
-			t.Errorf("Expected pgx.ErrNoRows, got %v", err)
-		}
-
-		ensureConnValid(t, conn)
+	var n int32
+	err := conn.QueryRow("select 1 where 1=0").Scan(&n)
+	if err != pgx.ErrNoRows {
+		t.Errorf("Expected pgx.ErrNoRows, got %v", err)
 	}
+
+	ensureConnValid(t, conn)
 }
 
 func TestQueryRowCoreInt16Slice(t *testing.T) {

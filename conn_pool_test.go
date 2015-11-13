@@ -67,20 +67,6 @@ func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	}
 }
 
-func TestNewConnPoolMaxConnectionsCannotBeLessThan2(t *testing.T) {
-	t.Parallel()
-
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 1}
-	pool, err := pgx.NewConnPool(config)
-	if err == nil {
-		pool.Close()
-		t.Fatal(`Expected NewConnPool to fail with "MaxConnections must be at least 2" error, but it succeeded`)
-	}
-	if err.Error() != "MaxConnections must be at least 2" {
-		t.Fatalf(`Expected NewConnPool to fail with "MaxConnections must be at least 2" error, but it failed with %v`, err)
-	}
-}
-
 func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	t.Parallel()
 
@@ -243,64 +229,69 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	t.Parallel()
 
-	maxConnections := 3
-	pool := createConnPool(t, maxConnections)
-	defer pool.Close()
+	// Run timing sensitive test many times
+	for i := 0; i < 50; i++ {
+		func() {
+			maxConnections := 3
+			pool := createConnPool(t, maxConnections)
+			defer pool.Close()
 
-	var c1, c2 *pgx.Conn
-	var err error
-	var stat pgx.ConnPoolStat
+			var c1, c2 *pgx.Conn
+			var err error
+			var stat pgx.ConnPoolStat
 
-	if c1, err = pool.Acquire(); err != nil {
-		t.Fatalf("Unexpected error acquiring connection: %v", err)
-	}
-	defer func() {
-		if c1 != nil {
+			if c1, err = pool.Acquire(); err != nil {
+				t.Fatalf("Unexpected error acquiring connection: %v", err)
+			}
+			defer func() {
+				if c1 != nil {
+					pool.Release(c1)
+				}
+			}()
+
+			if c2, err = pool.Acquire(); err != nil {
+				t.Fatalf("Unexpected error acquiring connection: %v", err)
+			}
+			defer func() {
+				if c2 != nil {
+					pool.Release(c2)
+				}
+			}()
+
+			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Pid); err != nil {
+				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+			}
+
+			// do something with the connection so it knows it's dead
+			rows, _ := c1.Query("select 1")
+			rows.Close()
+			if rows.Err() == nil {
+				t.Fatal("Expected error but none occurred")
+			}
+
+			if c1.IsAlive() {
+				t.Fatal("Expected connection to be dead but it wasn't")
+			}
+
+			stat = pool.Stat()
+			if stat.CurrentConnections != 2 {
+				t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
+			}
+			if stat.AvailableConnections != 0 {
+				t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
+			}
+
 			pool.Release(c1)
-		}
-	}()
+			c1 = nil // so it doesn't get released again by the defer
 
-	if c2, err = pool.Acquire(); err != nil {
-		t.Fatalf("Unexpected error acquiring connection: %v", err)
-	}
-	defer func() {
-		if c2 != nil {
-			pool.Release(c2)
-		}
-	}()
-
-	if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Pid); err != nil {
-		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
-	}
-
-	// do something with the connection so it knows it's dead
-	rows, _ := c1.Query("select 1")
-	rows.Close()
-	if rows.Err() == nil {
-		t.Fatal("Expected error but none occurred")
-	}
-
-	if c1.IsAlive() {
-		t.Fatal("Expected connection to be dead but it wasn't")
-	}
-
-	stat = pool.Stat()
-	if stat.CurrentConnections != 2 {
-		t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
-	}
-	if stat.AvailableConnections != 0 {
-		t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
-	}
-
-	pool.Release(c1)
-	c1 = nil // so it doesn't get released again by the defer
-
-	stat = pool.Stat()
-	if stat.CurrentConnections != 1 {
-		t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
-	}
-	if stat.AvailableConnections != 0 {
-		t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
+			stat = pool.Stat()
+			if stat.CurrentConnections != 1 {
+				t.Fatalf("Unexpected CurrentConnections: %v", stat.CurrentConnections)
+			}
+			if stat.AvailableConnections != 0 {
+				t.Fatalf("Unexpected AvailableConnections: %v", stat.CurrentConnections)
+			}
+		}()
 	}
 }
 
@@ -366,6 +357,52 @@ func TestConnPoolTransactionIso(t *testing.T) {
 
 	if level != "serializable" {
 		t.Errorf("Expected to be in isolation level %v but was %v", "serializable", level)
+	}
+}
+
+func TestConnPoolBeginRetry(t *testing.T) {
+	t.Parallel()
+
+	// Run timing sensitive test many times
+	for i := 0; i < 50; i++ {
+		func() {
+			pool := createConnPool(t, 2)
+			defer pool.Close()
+
+			killerConn, err := pool.Acquire()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer pool.Release(killerConn)
+
+			victimConn, err := pool.Acquire()
+			if err != nil {
+				t.Fatal(err)
+			}
+			pool.Release(victimConn)
+
+			// Terminate connection that was released to pool
+			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.Pid); err != nil {
+				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
+			}
+
+			// Since victimConn is the only available connection in the pool, pool.Begin should
+			// try to use it, fail, and allocate another connection
+			tx, err := pool.Begin()
+			if err != nil {
+				t.Fatalf("pool.Begin failed: %v", err)
+			}
+			defer tx.Rollback()
+
+			var txPid int32
+			err = tx.QueryRow("select pg_backend_pid()").Scan(&txPid)
+			if err != nil {
+				t.Fatalf("tx.QueryRow Scan failed: %v", err)
+			}
+			if txPid == victimConn.Pid {
+				t.Error("Expected txPid to defer from killed conn pid, but it didn't")
+			}
+		}()
 	}
 }
 
@@ -444,11 +481,16 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: ", rows.Err())
 			}
 
 			if rowCount != 1000 {
 				t.Error("Select called onDataRow wrong number of times")
+			}
+
+			_, err = pool.Exec("--;")
+			if err != nil {
+				t.Fatalf("pool.Exec failed: %v", err)
 			}
 		}()
 	}

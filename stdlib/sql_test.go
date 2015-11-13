@@ -9,7 +9,7 @@ import (
 )
 
 func openDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
+	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestSqlOpenDoesNotHavePool(t *testing.T) {
 
 func TestOpenFromConnPool(t *testing.T) {
 	connConfig := pgx.ConnConfig{
-		Host:     "localhost",
+		Host:     "127.0.0.1",
 		User:     "pgx_md5",
 		Password: "secret",
 		Database: "pgx_test",
@@ -420,8 +420,8 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
-	sql := "select $1::inet"
-	expected := "127.0.0.1"
+	sql := "select $1::point"
+	expected := "(1,2)"
 	var actual string
 
 	err := db.QueryRow(sql, expected).Scan(&actual)
@@ -434,6 +434,97 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
+}
+
+func TestConnQueryJSONIntoByteSlice(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	if !serverHasJSON(t, db) {
+		t.Skip("Skipping due to server's lack of JSON type")
+	}
+
+	_, err := db.Exec(`
+		create temporary table docs(
+			body json not null
+		);
+
+		insert into docs(body) values('{"foo":"bar"}');
+`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	sql := `select * from docs`
+	expected := []byte(`{"foo":"bar"}`)
+	var actual []byte
+
+	err = db.QueryRow(sql).Scan(&actual)
+	if err != nil {
+		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
+	}
+
+	if bytes.Compare(actual, expected) != 0 {
+		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, string(expected), string(actual), sql)
+	}
+
+	_, err = db.Exec(`drop table docs`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	if !serverHasJSON(t, db) {
+		t.Skip("Skipping due to server's lack of JSON type")
+	}
+
+	_, err := db.Exec(`
+		create temporary table docs(
+			body json not null
+		);
+`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	expected := []byte(`{"foo":"bar"}`)
+
+	_, err = db.Exec(`insert into docs(body) values($1)`, expected)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	var actual []byte
+	err = db.QueryRow(`select body from docs`).Scan(&actual)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+
+	if bytes.Compare(actual, expected) != 0 {
+		t.Errorf(`Expected "%v", got "%v"`, string(expected), string(actual))
+	}
+
+	_, err = db.Exec(`drop table docs`)
+	if err != nil {
+		t.Fatalf("db.Exec unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func serverHasJSON(t *testing.T, db *sql.DB) bool {
+	var hasJSON bool
+	err := db.QueryRow(`select exists(select 1 from pg_type where typname='json')`).Scan(&hasJSON)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+	return hasJSON
 }
 
 func TestTransactionLifeCycle(t *testing.T) {

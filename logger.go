@@ -2,7 +2,20 @@ package pgx
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
+)
+
+// The values for log levels are chosen such that the zero value means that no
+// log level was specified and we can default to LogLevelDebug to preserve
+// the behavior that existed prior to log level introduction.
+const (
+	LogLevelTrace = 6
+	LogLevelDebug = 5
+	LogLevelInfo  = 4
+	LogLevelWarn  = 3
+	LogLevelError = 2
+	LogLevelNone  = 1
 )
 
 // Logger is the interface used to get logging from pgx internals.
@@ -16,16 +29,6 @@ type Logger interface {
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
 }
-
-type discardLogger struct{}
-
-// default discardLogger instance
-var dlogger = &discardLogger{}
-
-func (l *discardLogger) Debug(msg string, ctx ...interface{}) {}
-func (l *discardLogger) Info(msg string, ctx ...interface{})  {}
-func (l *discardLogger) Warn(msg string, ctx ...interface{})  {}
-func (l *discardLogger) Error(msg string, ctx ...interface{}) {}
 
 type connLogger struct {
 	logger Logger
@@ -50,6 +53,34 @@ func (l *connLogger) Warn(msg string, ctx ...interface{}) {
 func (l *connLogger) Error(msg string, ctx ...interface{}) {
 	ctx = append(ctx, "pid", l.pid)
 	l.logger.Error(msg, ctx...)
+}
+
+// Converts log level string to constant
+//
+// Valid levels:
+//   trace
+//	 debug
+//	 info
+//	 warn
+//   error
+//	 none
+func LogLevelFromString(s string) (int, error) {
+	switch s {
+	case "trace":
+		return LogLevelTrace, nil
+	case "debug":
+		return LogLevelDebug, nil
+	case "info":
+		return LogLevelInfo, nil
+	case "warn":
+		return LogLevelWarn, nil
+	case "error":
+		return LogLevelError, nil
+	case "none":
+		return LogLevelNone, nil
+	default:
+		return 0, errors.New("invalid log level")
+	}
 }
 
 func logQueryArgs(args []interface{}) []interface{} {

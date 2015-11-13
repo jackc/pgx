@@ -3,16 +3,17 @@ package pgx
 import (
 	"errors"
 	"fmt"
+	"net"
+	"reflect"
 	"time"
 )
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
 type Row Rows
 
-// Scan reads the values from the row into dest values positionally. dest can
-// include pointers to core types and the Scanner interface. If no rows were
-// found it returns ErrNoRows. If multiple rows are returned it ignores all but
-// the first.
+// Scan works the same as (*Rows Scan) with the following exceptions. If no
+// rows were found it returns ErrNoRows. If multiple rows are returned it
+// ignores all but the first.
 func (r *Row) Scan(dest ...interface{}) (err error) {
 	rows := (*Rows)(r)
 
@@ -37,19 +38,21 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
-	pool      *ConnPool
-	conn      *Conn
-	mr        *msgReader
-	fields    []FieldDescription
-	vr        ValueReader
-	rowCount  int
-	columnIdx int
-	err       error
-	closed    bool
-	startTime time.Time
-	sql       string
-	args      []interface{}
-	logger    Logger
+	pool       *ConnPool
+	conn       *Conn
+	mr         *msgReader
+	fields     []FieldDescription
+	vr         ValueReader
+	rowCount   int
+	columnIdx  int
+	err        error
+	closed     bool
+	startTime  time.Time
+	sql        string
+	args       []interface{}
+	logger     Logger
+	logLevel   int
+	unlockConn bool
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -61,6 +64,11 @@ func (rows *Rows) close() {
 		return
 	}
 
+	if rows.unlockConn {
+		rows.conn.unlock()
+		rows.unlockConn = false
+	}
+
 	if rows.pool != nil {
 		rows.pool.Release(rows.conn)
 		rows.pool = nil
@@ -68,14 +76,12 @@ func (rows *Rows) close() {
 
 	rows.closed = true
 
-	if rows.logger == dlogger {
-		return
-	}
-
 	if rows.err == nil {
-		endTime := time.Now()
-		rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
-	} else {
+		if rows.logLevel >= LogLevelInfo {
+			endTime := time.Now()
+			rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+		}
+	} else if rows.logLevel >= LogLevelError {
 		rows.logger.Error("Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
 	}
 }
@@ -209,7 +215,9 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 }
 
 // Scan reads the values from the current row into dest values positionally.
-// dest can include pointers to core types and the Scanner interface.
+// dest can include pointers to core types, values implementing the Scanner
+// interface, and []byte. []byte will skip the decoding process and directly
+// copy the raw bytes received from PostgreSQL.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
 		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
@@ -219,71 +227,102 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	for _, d := range dest {
 		vr, _ := rows.nextColumn()
-		switch d := d.(type) {
-		case *bool:
-			*d = decodeBool(vr)
-		case *[]byte:
+
+		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
+		if b, ok := d.(*[]byte); ok {
 			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
 			// Otherwise read the bytes directly regardless of what the actual type is.
 			if vr.Type().DataType == ByteaOid {
-				*d = decodeBytea(vr)
+				*b = decodeBytea(vr)
 			} else {
 				if vr.Len() != -1 {
-					*d = vr.ReadBytes(vr.Len())
+					*b = vr.ReadBytes(vr.Len())
 				} else {
-					*d = nil
+					*b = nil
 				}
 			}
-		case *int64:
-			*d = decodeInt8(vr)
-		case *int16:
-			*d = decodeInt2(vr)
-		case *int32:
-			*d = decodeInt4(vr)
-		case *Oid:
-			*d = decodeOid(vr)
-		case *string:
-			*d = decodeText(vr)
-		case *float32:
-			*d = decodeFloat4(vr)
-		case *float64:
-			*d = decodeFloat8(vr)
-		case *[]bool:
-			*d = decodeBoolArray(vr)
-		case *[]int16:
-			*d = decodeInt2Array(vr)
-		case *[]int32:
-			*d = decodeInt4Array(vr)
-		case *[]int64:
-			*d = decodeInt8Array(vr)
-		case *[]float32:
-			*d = decodeFloat4Array(vr)
-		case *[]float64:
-			*d = decodeFloat8Array(vr)
-		case *[]string:
-			*d = decodeTextArray(vr)
-		case *[]time.Time:
-			*d = decodeTimestampArray(vr)
-		case *time.Time:
-			switch vr.Type().DataType {
-			case DateOid:
-				*d = decodeDate(vr)
-			case TimestampTzOid:
-				*d = decodeTimestampTz(vr)
-			case TimestampOid:
-				*d = decodeTimestamp(vr)
-			default:
-				rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
-			}
-		case Scanner:
-			err = d.Scan(vr)
+		} else if s, ok := d.(Scanner); ok {
+			err = s.Scan(vr)
 			if err != nil {
 				rows.Fatal(err)
 			}
-		default:
-			rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
-		}
+		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
+			decodeJson(vr, &d)
+		} else {
+		decode:
+			switch v := d.(type) {
+			case *bool:
+				*v = decodeBool(vr)
+			case *int64:
+				*v = decodeInt8(vr)
+			case *int16:
+				*v = decodeInt2(vr)
+			case *int32:
+				*v = decodeInt4(vr)
+			case *Oid:
+				*v = decodeOid(vr)
+			case *string:
+				*v = decodeText(vr)
+			case *float32:
+				*v = decodeFloat4(vr)
+			case *float64:
+				*v = decodeFloat8(vr)
+			case *[]bool:
+				*v = decodeBoolArray(vr)
+			case *[]int16:
+				*v = decodeInt2Array(vr)
+			case *[]int32:
+				*v = decodeInt4Array(vr)
+			case *[]int64:
+				*v = decodeInt8Array(vr)
+			case *[]float32:
+				*v = decodeFloat4Array(vr)
+			case *[]float64:
+				*v = decodeFloat8Array(vr)
+			case *[]string:
+				*v = decodeTextArray(vr)
+			case *[]time.Time:
+				*v = decodeTimestampArray(vr)
+			case *time.Time:
+				switch vr.Type().DataType {
+				case DateOid:
+					*v = decodeDate(vr)
+				case TimestampTzOid:
+					*v = decodeTimestampTz(vr)
+				case TimestampOid:
+					*v = decodeTimestamp(vr)
+				default:
+					rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
+				}
+			case *net.IPNet:
+				*v = decodeInet(vr)
+			case *[]net.IPNet:
+				*v = decodeInetArray(vr)
+			default:
+				// if d is a pointer to pointer, strip the pointer and try again
+				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
+					if el := v.Elem(); el.Kind() == reflect.Ptr {
+						// -1 is a null value
+						if vr.Len() == -1 {
+							if !el.IsNil() {
+								// if the destination pointer is not nil, nil it out
+								el.Set(reflect.Zero(el.Type()))
+							}
+							continue
+						} else {
+							if el.IsNil() {
+								// allocate destination
+								el.Set(reflect.New(el.Type().Elem()))
+							}
+							d = el.Interface()
+							goto decode
+						}
+					}
+				}
+				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
+			}
 
+		}
 		if vr.Err() != nil {
 			rows.Fatal(vr.Err())
 		}
@@ -329,6 +368,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeInt2(vr))
 			case Int4Oid:
 				values = append(values, decodeInt4(vr))
+			case OidOid:
+				values = append(values, decodeOid(vr))
 			case Float4Oid:
 				values = append(values, decodeFloat4(vr))
 			case Float8Oid:
@@ -355,6 +396,16 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOid:
 				values = append(values, decodeTimestamp(vr))
+			case InetOid, CidrOid:
+				values = append(values, decodeInet(vr))
+			case JsonOid:
+				var d interface{}
+				decodeJson(vr, &d)
+				values = append(values, d)
+			case JsonbOid:
+				var d interface{}
+				decodeJson(vr, &d)
+				values = append(values, d)
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
 			}
@@ -379,7 +430,13 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger}
+	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
+
+	if err := c.lock(); err != nil {
+		rows.abort(err)
+		return rows, err
+	}
+	rows.unlockConn = true
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {

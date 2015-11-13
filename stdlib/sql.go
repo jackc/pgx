@@ -2,7 +2,7 @@
 //
 // A database/sql connection can be established through sql.Open.
 //
-//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test")
+//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
 //	if err != nil {
 //		return err
 //	}
@@ -48,8 +48,9 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
 	"io"
+
+	"github.com/jackc/pgx"
 )
 
 var openFromConnPoolCount int
@@ -72,6 +73,7 @@ func init() {
 	databaseSqlOids[pgx.Float8Oid] = true
 	databaseSqlOids[pgx.DateOid] = true
 	databaseSqlOids[pgx.TimestampTzOid] = true
+	databaseSqlOids[pgx.TimestampOid] = true
 }
 
 type Driver struct {
@@ -109,6 +111,8 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 // *sql.DB and typecasting to *stdlib.Driver a reference to the pgx.ConnPool can
 // be reaquired later. This allows fast paths targeting pgx to be used while
 // still maintaining compatibility with other databases and drivers.
+//
+// pool connection size must be at least 2.
 func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	d := &Driver{Pool: pool}
 	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
@@ -126,6 +130,10 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	// that would mean that prepared statements would be lost (which kills
 	// performance if the prepared statements constantly have to be reprepared)
 	stat := pool.Stat()
+
+	if stat.MaxConnections <= 2 {
+		return nil, errors.New("pool connection size must be at least 2")
+	}
 	db.SetMaxIdleConns(stat.MaxConnections - 2)
 	db.SetMaxOpenConns(stat.MaxConnections)
 

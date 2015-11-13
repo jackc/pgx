@@ -121,8 +121,16 @@ notification.
 
 Null Mapping
 
-pgx includes Null* types in a similar fashion to database/sql that implement the
-necessary interfaces to be encoded and scanned.
+pgx can map nulls in two ways. The first is Null* types that have a data field
+and a valid field. They work in a similar fashion to database/sql. The second
+is to use a pointer to a pointer.
+
+    var foo pgx.NullString
+    var bar *string
+    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&a, &b)
+    if err != nil {
+        return err
+    }
 
 Array Mapping
 
@@ -136,6 +144,17 @@ Hstore Mapping
 pgx includes an Hstore type and a NullHstore type. Hstore is simply a
 map[string]string and is preferred when the hstore contains no nulls. NullHstore
 follows the Null* pattern and supports null values.
+
+JSON and JSONB Mapping
+
+pgx includes built-in support to marshal and unmarshal between Go types and
+the PostgreSQL JSON and JSONB.
+
+Inet and Cidr Mapping
+
+pgx encodes from net.IPNet to and from inet and cidr PostgreSQL types. In
+addition, as a convenience pgx will encode from a net.IP; it will assume a /32
+netmask for IPv4 and a /128 for IPv6.
 
 Custom Type Support
 
@@ -162,6 +181,14 @@ Conn.PgTypes.
 See example_custom_type_test.go for an example of a custom type for the
 PostgreSQL point type.
 
+[]byte Mapping
+
+[]byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
+to PostgreSQL. In like manner, a *[]byte passed to Scan will be filled with
+the raw bytes returned by PostgreSQL. This can be especially useful for reading
+varchar, text, json, and jsonb values directly into a []byte and avoiding the
+type conversion from string.
+
 TLS
 
 The pgx ConnConfig struct has a TLSConfig field. If this field is
@@ -173,7 +200,8 @@ Logging
 
 pgx defines a simple logger interface. Connections optionally accept a logger
 that satisfies this interface. The log15 package
-(http://gopkg.in/inconshreveable/log15.v2) satisfies this interface
-and it is simple to define adapters for other loggers.
+(http://gopkg.in/inconshreveable/log15.v2) satisfies this interface and it is
+simple to define adapters for other loggers. Set LogLevel to control logging
+verbosity.
 */
 package pgx
