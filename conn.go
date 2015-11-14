@@ -927,11 +927,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case JsonOid, JsonbOid:
 				err = encodeJson(wbuf, arguments[i])
 			default:
-				if s, ok := arguments[i].(string); ok {
-					err = encodeText(wbuf, s)
-				} else {
-					return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
-				}
+				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 			}
 		}
 		if err != nil {
