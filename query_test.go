@@ -161,6 +161,10 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
+	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" {
+		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
+	}
+
 	ensureConnValid(t, conn)
 }
 

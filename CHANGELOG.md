@@ -1,3 +1,7 @@
+# Tip
+
+* Rows.Scan errors now include which argument caused error
+
 # 2.7.1 (October 26, 2015)
 
 * Disable SSL renegotiation
