@@ -208,7 +208,7 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 // If Valid is false then the value is NULL.
 type NullString struct {
 	String string
-	Valid  bool // Valid is true if Int64 is not NULL
+	Valid  bool // Valid is true if String is not NULL
 }
 
 func (s *NullString) Scan(vr *ValueReader) error {
@@ -281,7 +281,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid Oid) error {
 // If Valid is false then the value is NULL.
 type NullInt32 struct {
 	Int32 int32
-	Valid bool // Valid is true if Int64 is not NULL
+	Valid bool // Valid is true if Int32 is not NULL
 }
 
 func (n *NullInt32) Scan(vr *ValueReader) error {
