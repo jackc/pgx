@@ -1,5 +1,7 @@
 # Tip
 
+* Add ConnPool.Reset method
+* []byte skips encoding/decoding
 * Rows.Scan errors now include which argument caused error
 
 # 2.7.1 (October 26, 2015)
