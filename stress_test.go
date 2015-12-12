@@ -102,12 +102,7 @@ func TestStressTLSConnection(t *testing.T) {
 	}
 	defer conn.Close()
 
-	queryCount := 50
-	if testing.Short() {
-		queryCount /= 10
-	}
-
-	for i := 0; i < queryCount; i++ {
+	for i := 0; i < 50; i++ {
 		sql := `select * from generate_series(1, $1)`
 
 		rows, err := conn.Query(sql, 2000000)
