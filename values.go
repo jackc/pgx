@@ -159,7 +159,7 @@ func (n NullFloat32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeFloat4(w, n.Float32)
+	return w.EncodeFloat4(n.Float32)
 }
 
 // NullFloat64 represents an float8 that may be null. NullFloat64 implements the
@@ -198,7 +198,7 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeFloat8(w, n.Float64)
+	return w.EncodeFloat8(n.Float64)
 }
 
 // NullString represents an string that may be null. NullString implements the
@@ -232,7 +232,7 @@ func (s NullString) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeText(w, s.String)
+	return w.EncodeText(s.String)
 }
 
 // NullInt16 represents an smallint that may be null. NullInt16 implements the
@@ -271,7 +271,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt2(w, n.Int16)
+	return w.EncodeInt2(n.Int16)
 }
 
 // NullInt32 represents an integer that may be null. NullInt32 implements the
@@ -310,7 +310,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt4(w, n.Int32)
+	return w.EncodeInt4(n.Int32)
 }
 
 // NullInt64 represents an bigint that may be null. NullInt64 implements the
@@ -349,7 +349,7 @@ func (n NullInt64) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt8(w, n.Int64)
+	return w.EncodeInt8(n.Int64)
 }
 
 // NullBool represents an bool that may be null. NullBool implements the Scanner
@@ -388,7 +388,7 @@ func (n NullBool) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeBool(w, n.Bool)
+	return w.EncodeBool(n.Bool)
 }
 
 // NullTime represents an time.Time that may be null. NullTime implements the
@@ -440,11 +440,11 @@ func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
 
 	switch oid {
 	case TimestampTzOid:
-		return encodeTimestampTz(w, n.Time)
+		return w.EncodeTimestampTz(n.Time)
 	case TimestampOid:
-		return encodeTimestamp(w, n.Time)
+		return w.EncodeTimestamp(n.Time)
 	case DateOid:
-		return encodeDate(w, n.Time)
+		return w.EncodeDate(n.Time)
 	default:
 		panic("unreachable")
 	}
@@ -609,7 +609,7 @@ func decodeBool(vr *ValueReader) bool {
 	return b != 0
 }
 
-func encodeBool(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeBool(value interface{}) error {
 	v, ok := value.(bool)
 	if !ok {
 		return fmt.Errorf("Expected bool, received %T", value)
@@ -651,7 +651,7 @@ func decodeInt8(vr *ValueReader) int64 {
 	return vr.ReadInt64()
 }
 
-func encodeInt8(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt8(value interface{}) error {
 	var v int64
 	switch value := value.(type) {
 	case int8:
@@ -709,7 +709,7 @@ func decodeInt2(vr *ValueReader) int16 {
 	return vr.ReadInt16()
 }
 
-func encodeInt2(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt2(value interface{}) error {
 	var v int16
 	switch value := value.(type) {
 	case int8:
@@ -782,7 +782,7 @@ func decodeInt4(vr *ValueReader) int32 {
 	return vr.ReadInt32()
 }
 
-func encodeInt4(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt4(value interface{}) error {
 	var v int32
 	switch value := value.(type) {
 	case int8:
@@ -857,7 +857,7 @@ func decodeOid(vr *ValueReader) Oid {
 	}
 }
 
-func encodeOid(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeOid(value interface{}) error {
 	v, ok := value.(Oid)
 	if !ok {
 		return fmt.Errorf("Expected Oid, received %T", value)
@@ -894,7 +894,7 @@ func decodeFloat4(vr *ValueReader) float32 {
 	return math.Float32frombits(uint32(i))
 }
 
-func encodeFloat4(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeFloat4(value interface{}) error {
 	v, ok := value.(float32)
 	if !ok {
 		return fmt.Errorf("Expected float32, received %T", value)
@@ -932,7 +932,7 @@ func decodeFloat8(vr *ValueReader) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-func encodeFloat8(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeFloat8(value interface{}) error {
 	var v float64
 	switch value := value.(type) {
 	case float32:
@@ -959,7 +959,7 @@ func decodeText(vr *ValueReader) string {
 	return vr.ReadString(vr.Len())
 }
 
-func encodeText(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeText(value interface{}) error {
 	switch t := value.(type) {
 	case string:
 		w.WriteInt32(int32(len(t)))
@@ -992,7 +992,7 @@ func decodeBytea(vr *ValueReader) []byte {
 	return vr.ReadBytes(vr.Len())
 }
 
-func encodeBytea(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeBytea(value interface{}) error {
 	b, ok := value.([]byte)
 	if !ok {
 		return fmt.Errorf("Expected []byte, received %T", value)
@@ -1021,13 +1021,13 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func encodeJson(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeJson(value interface{}) error {
 	s, err := json.Marshal(value)
 	if err != nil {
 		fmt.Errorf("Failed to encode json from type: %T", value)
 	}
 
-	return encodeText(w, s)
+	return w.EncodeText(s)
 }
 
 func decodeDate(vr *ValueReader) time.Time {
@@ -1055,7 +1055,7 @@ func decodeDate(vr *ValueReader) time.Time {
 	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 }
 
-func encodeDate(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeDate(value interface{}) error {
 	t, ok := value.(time.Time)
 	if !ok {
 		return fmt.Errorf("Expected time.Time, received %T", value)
@@ -1103,7 +1103,7 @@ func decodeTimestampTz(vr *ValueReader) time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func encodeTimestampTz(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeTimestampTz(value interface{}) error {
 	t, ok := value.(time.Time)
 	if !ok {
 		return fmt.Errorf("Expected time.Time, received %T", value)
@@ -1146,8 +1146,8 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func encodeTimestamp(w *WriteBuf, value interface{}) error {
-	return encodeTimestampTz(w, value)
+func (w *WriteBuf) EncodeTimestamp(value interface{}) error {
+	return w.EncodeTimestampTz(value)
 }
 
 func decodeInet(vr *ValueReader) net.IPNet {
@@ -1186,7 +1186,7 @@ func decodeInet(vr *ValueReader) net.IPNet {
 	return ipnet
 }
 
-func encodeInet(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInet(value interface{}) error {
 	var ipnet net.IPNet
 
 	switch value := value.(type) {
@@ -1288,7 +1288,7 @@ func decodeBoolArray(vr *ValueReader) []bool {
 	return a
 }
 
-func encodeBoolArray(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeBoolArray(value interface{}) error {
 	slice, ok := value.([]bool)
 	if !ok {
 		return fmt.Errorf("Expected []bool, received %T", value)
@@ -1346,7 +1346,7 @@ func decodeInt2Array(vr *ValueReader) []int16 {
 	return a
 }
 
-func encodeInt2Array(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt2Array(value interface{}) error {
 	slice, ok := value.([]int16)
 	if !ok {
 		return fmt.Errorf("Expected []int16, received %T", value)
@@ -1400,7 +1400,7 @@ func decodeInt4Array(vr *ValueReader) []int32 {
 	return a
 }
 
-func encodeInt4Array(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt4Array(value interface{}) error {
 	slice, ok := value.([]int32)
 	if !ok {
 		return fmt.Errorf("Expected []int32, received %T", value)
@@ -1454,7 +1454,7 @@ func decodeInt8Array(vr *ValueReader) []int64 {
 	return a
 }
 
-func encodeInt8Array(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeInt8Array(value interface{}) error {
 	slice, ok := value.([]int64)
 	if !ok {
 		return fmt.Errorf("Expected []int64, received %T", value)
@@ -1509,7 +1509,7 @@ func decodeFloat4Array(vr *ValueReader) []float32 {
 	return a
 }
 
-func encodeFloat4Array(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeFloat4Array(value interface{}) error {
 	slice, ok := value.([]float32)
 	if !ok {
 		return fmt.Errorf("Expected []float32, received %T", value)
@@ -1563,7 +1563,7 @@ func decodeFloat8Array(vr *ValueReader) []float64 {
 	return a
 }
 
-func encodeFloat8Array(w *WriteBuf, value interface{}) error {
+func (w *WriteBuf) EncodeFloat8Array(value interface{}) error {
 	slice, ok := value.([]float64)
 	if !ok {
 		return fmt.Errorf("Expected []float64, received %T", value)
@@ -1613,7 +1613,7 @@ func decodeTextArray(vr *ValueReader) []string {
 	return a
 }
 
-func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
+func (w *WriteBuf) EncodeTextArray(value interface{}, elOid Oid) error {
 	slice, ok := value.([]string)
 	if !ok {
 		return fmt.Errorf("Expected []string, received %T", value)
@@ -1682,7 +1682,7 @@ func decodeTimestampArray(vr *ValueReader) []time.Time {
 	return a
 }
 
-func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
+func (w *WriteBuf) EncodeTimestampArray(value interface{}, elOid Oid) error {
 	slice, ok := value.([]time.Time)
 	if !ok {
 		return fmt.Errorf("Expected []time.Time, received %T", value)
@@ -1743,7 +1743,7 @@ func decodeInetArray(vr *ValueReader) []net.IPNet {
 	return a
 }
 
-func encodeInetArray(w *WriteBuf, value interface{}, elOid Oid) error {
+func (w *WriteBuf) EncodeInetArray(value interface{}, elOid Oid) error {
 	slice, ok := value.([]net.IPNet)
 	if !ok {
 		return fmt.Errorf("Expected []net.IPNet, received %T", value)
@@ -1762,7 +1762,7 @@ func encodeInetArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	w.WriteInt32(1)                 // index of first element
 
 	for _, ipnet := range slice {
-		encodeInet(w, ipnet)
+		w.EncodeInet(ipnet)
 	}
 
 	return nil
