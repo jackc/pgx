@@ -17,6 +17,7 @@ type ConnPool struct {
 	cond                 *sync.Cond
 	config               ConnConfig // config used when establishing connection
 	maxConnections       int
+	resetCount           int
 	afterConnect         func(*Conn) error
 	logger               Logger
 	logLevel             int
@@ -83,6 +84,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 	// A connection is available
 	if len(p.availableConnections) > 0 {
 		c = p.availableConnections[len(p.availableConnections)-1]
+		c.poolResetCount = p.resetCount
 		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
 		return
 	}
@@ -93,6 +95,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 		if err != nil {
 			return
 		}
+		c.poolResetCount = p.resetCount
 		p.allConnections = append(p.allConnections, c)
 		return
 	}
@@ -108,6 +111,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 	}
 
 	c = p.availableConnections[len(p.availableConnections)-1]
+	c.poolResetCount = p.resetCount
 	p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
 
 	return
@@ -128,6 +132,14 @@ func (p *ConnPool) Release(conn *Conn) {
 	conn.notifications = nil
 
 	p.cond.L.Lock()
+
+	if conn.poolResetCount != p.resetCount {
+		conn.Close()
+		p.cond.L.Unlock()
+		p.cond.Signal()
+		return
+	}
+
 	if conn.IsAlive() {
 		p.availableConnections = append(p.availableConnections, conn)
 	} else {
@@ -163,6 +175,21 @@ func (p *ConnPool) Close() {
 	for _, c := range p.allConnections {
 		_ = c.Close()
 	}
+}
+
+// Reset closes all open connections, but leaves the pool open. It is intended
+// for use when an error is detected that would disrupt all connections (such as
+// a network interruption or a server state change).
+//
+// It is safe to reset a pool while connections are checked out. Those
+// connections will be closed when they are returned to the pool.
+func (p *ConnPool) Reset() {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	p.resetCount++
+	p.allConnections = make([]*Conn, 0, p.maxConnections)
+	p.availableConnections = make([]*Conn, 0, p.maxConnections)
 }
 
 // Stat returns connection pool statistics

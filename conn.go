@@ -65,6 +65,7 @@ type Conn struct {
 	pgsql_af_inet      byte
 	pgsql_af_inet6     byte
 	busy               bool
+	poolResetCount     int
 }
 
 type PreparedStatement struct {

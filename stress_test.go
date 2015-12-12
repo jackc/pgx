@@ -41,6 +41,7 @@ func TestStressConnPool(t *testing.T) {
 		{"txMultipleQueries", txMultipleQueries},
 		{"notify", notify},
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
+		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
 	}
 
 	actionCount := 5000
