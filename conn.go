@@ -882,7 +882,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			case Int2Oid:
 				err = encodeInt2(wbuf, arguments[i])
 			case Int4Oid:
-				err = encodeInt4(wbuf, arguments[i])
+				err = (*CoreEncoder)(wbuf).EncodeInt4(arguments[i])
 			case Int8Oid:
 				err = encodeInt8(wbuf, arguments[i])
 			case Float4Oid:

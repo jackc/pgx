@@ -310,7 +310,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt4(w, n.Int32)
+	return (*CoreEncoder)(w).EncodeInt4(n.Int32)
 }
 
 // NullInt64 represents an bigint that may be null. NullInt64 implements the
@@ -782,7 +782,9 @@ func decodeInt4(vr *ValueReader) int32 {
 	return vr.ReadInt32()
 }
 
-func encodeInt4(w *WriteBuf, value interface{}) error {
+func (e *CoreEncoder) EncodeInt4(value interface{}) error {
+	w := (*WriteBuf)(e)
+
 	var v int32
 	switch value := value.(type) {
 	case int8:

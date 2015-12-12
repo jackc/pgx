@@ -142,3 +142,5 @@ func (wb *WriteBuf) WriteInt64(n int64) {
 func (wb *WriteBuf) WriteBytes(b []byte) {
 	wb.buf = append(wb.buf, b...)
 }
+
+type CoreEncoder WriteBuf
