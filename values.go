@@ -895,17 +895,9 @@ func decodeFloat4(vr *ValueReader) float32 {
 }
 
 func encodeFloat4(w *WriteBuf, value interface{}) error {
-	var v float32
-	switch value := value.(type) {
-	case float32:
-		v = float32(value)
-	case float64:
-		if value > math.MaxFloat32 {
-			return fmt.Errorf("%T %f is larger than max float32 %f", value, math.MaxFloat32)
-		}
-		v = float32(value)
-	default:
-		return fmt.Errorf("Expected float representable in float32, received %T %v", value, value)
+	v, ok := value.(float32)
+	if !ok {
+		return fmt.Errorf("Expected float32, received %T", value)
 	}
 
 	w.WriteInt32(4)

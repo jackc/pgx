@@ -1,5 +1,6 @@
 # Tip
 
+* Go float64 can no longer be encoded to a PostgreSQL float4
 * Add ConnPool.Reset method
 * []byte skips encoding/decoding
 * Rows.Scan errors now include which argument caused error
