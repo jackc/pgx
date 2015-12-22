@@ -19,7 +19,6 @@ before_install:
   - echo "host      all         pgx_pw      127.0.0.1/32          password" >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
   - echo "hostssl   all         pgx_ssl     127.0.0.1/32          md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
   - sudo /etc/init.d/postgresql restart
-  - go get golang.org/x/tools/cmd/cover
 
 env:
   matrix:
@@ -38,7 +37,7 @@ before_script:
   - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
 
 script:
-  - go test -v -race -cover -short ./...
+  - go test -v -race -short ./...
 
 matrix:
   allow_failures:
