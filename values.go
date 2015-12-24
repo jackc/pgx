@@ -609,16 +609,11 @@ func (vr *ValueReader) DecodeBool() bool {
 	return b != 0
 }
 
-func (w *WriteBuf) EncodeBool(value interface{}) error {
-	v, ok := value.(bool)
-	if !ok {
-		return fmt.Errorf("Expected bool, received %T", value)
-	}
-
+func (w *WriteBuf) EncodeBool(value bool) error {
 	w.WriteInt32(1)
 
 	var n byte
-	if v {
+	if value {
 		n = 1
 	}
 

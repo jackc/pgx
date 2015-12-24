@@ -870,6 +870,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = wbuf.EncodeText(arg)
 		case []byte:
 			err = wbuf.EncodeBytea(arg)
+		case bool:
+			err = wbuf.EncodeBool(arg)
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -881,8 +883,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				}
 			}
 			switch oid {
-			case BoolOid:
-				err = wbuf.EncodeBool(arguments[i])
 			case Int2Oid:
 				err = wbuf.EncodeInt2(arguments[i])
 			case Int4Oid:
