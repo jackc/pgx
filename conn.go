@@ -872,6 +872,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = wbuf.EncodeBytea(arg)
 		case bool:
 			err = wbuf.EncodeBool(arg)
+		case []bool:
+			err = wbuf.EncodeBoolArray(arg)
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -905,8 +907,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = wbuf.EncodeInetArray(arguments[i], InetOid)
 			case CidrArrayOid:
 				err = wbuf.EncodeInetArray(arguments[i], CidrOid)
-			case BoolArrayOid:
-				err = wbuf.EncodeBoolArray(arguments[i])
 			case Int2ArrayOid:
 				err = wbuf.EncodeInt2Array(arguments[i])
 			case Int4ArrayOid:

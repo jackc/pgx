@@ -1269,12 +1269,7 @@ func (vr *ValueReader) DecodeBoolArray() []bool {
 	return a
 }
 
-func (w *WriteBuf) EncodeBoolArray(value interface{}) error {
-	slice, ok := value.([]bool)
-	if !ok {
-		return fmt.Errorf("Expected []bool, received %T", value)
-	}
-
+func (w *WriteBuf) EncodeBoolArray(slice []bool) error {
 	encodeArrayHeader(w, BoolOid, len(slice), 5)
 	for _, v := range slice {
 		w.WriteInt32(1)
