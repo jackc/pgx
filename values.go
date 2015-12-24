@@ -959,18 +959,9 @@ func (vr *ValueReader) DecodeText() string {
 	return vr.ReadString(vr.Len())
 }
 
-func (w *WriteBuf) EncodeText(value interface{}) error {
-	switch t := value.(type) {
-	case string:
-		w.WriteInt32(int32(len(t)))
-		w.WriteBytes([]byte(t))
-	case []byte:
-		w.WriteInt32(int32(len(t)))
-		w.WriteBytes(t)
-	default:
-		return fmt.Errorf("Expected string, received %T", value)
-	}
-
+func (w *WriteBuf) EncodeText(value string) error {
+	w.WriteInt32(int32(len(value)))
+	w.WriteBytes([]byte(value))
 	return nil
 }
 
@@ -992,14 +983,9 @@ func (vr *ValueReader) DecodeBytea() []byte {
 	return vr.ReadBytes(vr.Len())
 }
 
-func (w *WriteBuf) EncodeBytea(value interface{}) error {
-	b, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("Expected []byte, received %T", value)
-	}
-
-	w.WriteInt32(int32(len(b)))
-	w.WriteBytes(b)
+func (w *WriteBuf) EncodeBytea(value []byte) error {
+	w.WriteInt32(int32(len(value)))
+	w.WriteBytes(value)
 
 	return nil
 }
@@ -1027,7 +1013,7 @@ func (w *WriteBuf) EncodeJson(value interface{}) error {
 		return fmt.Errorf("Failed to encode json from type: %T", value)
 	}
 
-	return w.EncodeText(s)
+	return w.EncodeBytea(s)
 }
 
 func (vr *ValueReader) DecodeDate() time.Time {

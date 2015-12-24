@@ -867,9 +867,9 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				goto encode
 			}
 		case string:
-			err = wbuf.EncodeText(arguments[i])
+			err = wbuf.EncodeText(arg)
 		case []byte:
-			err = wbuf.EncodeBytea(arguments[i])
+			err = wbuf.EncodeBytea(arg)
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -883,8 +883,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			switch oid {
 			case BoolOid:
 				err = wbuf.EncodeBool(arguments[i])
-			case ByteaOid:
-				err = wbuf.EncodeBytea(arguments[i])
 			case Int2Oid:
 				err = wbuf.EncodeInt2(arguments[i])
 			case Int4Oid:
@@ -895,8 +893,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = wbuf.EncodeFloat4(arguments[i])
 			case Float8Oid:
 				err = wbuf.EncodeFloat8(arguments[i])
-			case TextOid, VarcharOid:
-				err = wbuf.EncodeText(arguments[i])
 			case DateOid:
 				err = wbuf.EncodeDate(arguments[i])
 			case TimestampTzOid:
