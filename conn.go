@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -874,6 +875,147 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = wbuf.EncodeBool(arg)
 		case []bool:
 			err = wbuf.EncodeBoolArray(arg)
+		case int8:
+			switch oid {
+			case Int2Oid:
+				err = wbuf.EncodeInt2(int16(arg))
+			case Int4Oid:
+				err = wbuf.EncodeInt4(int32(arg))
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case uint8:
+			switch oid {
+			case Int2Oid:
+				err = wbuf.EncodeInt2(int16(arg))
+			case Int4Oid:
+				err = wbuf.EncodeInt4(int32(arg))
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case int16:
+			switch oid {
+			case Int2Oid:
+				err = wbuf.EncodeInt2(arg)
+			case Int4Oid:
+				err = wbuf.EncodeInt4(int32(arg))
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case uint16:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				err = wbuf.EncodeInt4(int32(arg))
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case int32:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				err = wbuf.EncodeInt4(arg)
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case uint32:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				if arg <= math.MaxInt32 {
+					err = wbuf.EncodeInt4(int32(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int32 %d", arg, arg, math.MaxInt16)
+				}
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case int64:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				if arg <= math.MaxInt32 {
+					err = wbuf.EncodeInt4(int32(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int32 %d", arg, arg, math.MaxInt16)
+				}
+			case Int8Oid:
+				err = wbuf.EncodeInt8(arg)
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
+		case uint64:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				if arg <= math.MaxInt32 {
+					err = wbuf.EncodeInt4(int32(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int32 %d", arg, arg, math.MaxInt16)
+				}
+			case Int8Oid:
+				if arg <= math.MaxInt64 {
+					err = wbuf.EncodeInt8(int64(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int64 %d", arg, arg, math.MaxInt16)
+				}
+			}
+		case int:
+			switch oid {
+			case Int2Oid:
+				if arg <= math.MaxInt16 {
+					err = wbuf.EncodeInt2(int16(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int16 %d", arg, arg, math.MaxInt16)
+				}
+			case Int4Oid:
+				if arg <= math.MaxInt32 {
+					err = wbuf.EncodeInt4(int32(arg))
+				} else {
+					err = fmt.Errorf("%T %d is larger than max int32 %d", arg, arg, math.MaxInt16)
+				}
+			case Int8Oid:
+				err = wbuf.EncodeInt8(int64(arg))
+			default:
+				err = SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+			}
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -885,12 +1027,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				}
 			}
 			switch oid {
-			case Int2Oid:
-				err = wbuf.EncodeInt2(arguments[i])
-			case Int4Oid:
-				err = wbuf.EncodeInt4(arguments[i])
-			case Int8Oid:
-				err = wbuf.EncodeInt8(arguments[i])
 			case Float4Oid:
 				err = wbuf.EncodeFloat4(arguments[i])
 			case Float8Oid:

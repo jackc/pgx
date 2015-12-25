@@ -646,37 +646,9 @@ func (vr *ValueReader) DecodeInt8() int64 {
 	return vr.ReadInt64()
 }
 
-func (w *WriteBuf) EncodeInt8(value interface{}) error {
-	var v int64
-	switch value := value.(type) {
-	case int8:
-		v = int64(value)
-	case uint8:
-		v = int64(value)
-	case int16:
-		v = int64(value)
-	case uint16:
-		v = int64(value)
-	case int32:
-		v = int64(value)
-	case uint32:
-		v = int64(value)
-	case int64:
-		v = int64(value)
-	case uint64:
-		if value > math.MaxInt64 {
-			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, int64(math.MaxInt64))
-		}
-		v = int64(value)
-	case int:
-		v = int64(value)
-	default:
-		return fmt.Errorf("Expected integer representable in int64, received %T %v", value, value)
-	}
-
+func (w *WriteBuf) EncodeInt8(value int64) error {
 	w.WriteInt32(8)
-	w.WriteInt64(v)
-
+	w.WriteInt64(value)
 	return nil
 }
 
@@ -704,52 +676,9 @@ func (vr *ValueReader) DecodeInt2() int16 {
 	return vr.ReadInt16()
 }
 
-func (w *WriteBuf) EncodeInt2(value interface{}) error {
-	var v int16
-	switch value := value.(type) {
-	case int8:
-		v = int16(value)
-	case uint8:
-		v = int16(value)
-	case int16:
-		v = int16(value)
-	case uint16:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int32:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case uint32:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int64:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case uint64:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	default:
-		return fmt.Errorf("Expected integer representable in int16, received %T %v", value, value)
-	}
-
+func (w *WriteBuf) EncodeInt2(value int16) error {
 	w.WriteInt32(2)
-	w.WriteInt16(v)
-
+	w.WriteInt16(value)
 	return nil
 }
 
@@ -777,46 +706,9 @@ func (vr *ValueReader) DecodeInt4() int32 {
 	return vr.ReadInt32()
 }
 
-func (w *WriteBuf) EncodeInt4(value interface{}) error {
-	var v int32
-	switch value := value.(type) {
-	case int8:
-		v = int32(value)
-	case uint8:
-		v = int32(value)
-	case int16:
-		v = int32(value)
-	case uint16:
-		v = int32(value)
-	case int32:
-		v = int32(value)
-	case uint32:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case int64:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case uint64:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case int:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	default:
-		return fmt.Errorf("Expected integer representable in int32, received %T %v", value, value)
-	}
-
+func (w *WriteBuf) EncodeInt4(value int32) error {
 	w.WriteInt32(4)
-	w.WriteInt32(v)
-
+	w.WriteInt32(value)
 	return nil
 }
 
