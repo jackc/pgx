@@ -1555,11 +1555,11 @@ func (vr *ValueReader) DecodeFloat4Array() []float32 {
 	return a
 }
 
-func (w *WriteBuf) EncodeFloat4Array(value interface{}) error {
-	slice, ok := value.([]float32)
-	if !ok {
-		return fmt.Errorf("Expected []float32, received %T", value)
+func EncodeFloat32Slice(w *WriteBuf, oid Oid, slice []float32) error {
+	if oid != Float4ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]float32", oid)
 	}
+
 	encodeArrayHeader(w, Float4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
@@ -1609,10 +1609,9 @@ func (vr *ValueReader) DecodeFloat8Array() []float64 {
 	return a
 }
 
-func (w *WriteBuf) EncodeFloat8Array(value interface{}) error {
-	slice, ok := value.([]float64)
-	if !ok {
-		return fmt.Errorf("Expected []float64, received %T", value)
+func EncodeFloat64Slice(w *WriteBuf, oid Oid, slice []float64) error {
+	if oid != Float8ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]float64", oid)
 	}
 
 	encodeArrayHeader(w, Float8Oid, len(slice), 12)

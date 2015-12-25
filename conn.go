@@ -933,8 +933,12 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = encodeInt(wbuf, oid, arg)
 		case float32:
 			err = EncodeFloat32(wbuf, oid, arg)
+		case []float32:
+			err = EncodeFloat32Slice(wbuf, oid, arg)
 		case float64:
 			err = EncodeFloat64(wbuf, oid, arg)
+		case []float64:
+			err = EncodeFloat64Slice(wbuf, oid, arg)
 		case time.Time:
 			err = EncodeTime(wbuf, oid, arg)
 		case net.IP:
@@ -949,10 +953,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeOid(wbuf, oid, arg)
 		default:
 			switch oid {
-			case Float4ArrayOid:
-				err = wbuf.EncodeFloat4Array(arguments[i])
-			case Float8ArrayOid:
-				err = wbuf.EncodeFloat8Array(arguments[i])
 			case TextArrayOid:
 				err = wbuf.EncodeTextArray(arguments[i], TextOid)
 			case VarcharArrayOid:
