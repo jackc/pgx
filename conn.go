@@ -900,8 +900,12 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeTime(wbuf, oid, arg)
 		case net.IP:
 			err = EncodeIP(wbuf, oid, arg)
+		case []net.IP:
+			err = EncodeIPSlice(wbuf, oid, arg)
 		case net.IPNet:
 			err = EncodeIPNet(wbuf, oid, arg)
+		case []net.IPNet:
+			err = EncodeIPNetSlice(wbuf, oid, arg)
 		case Oid:
 			err = EncodeOid(wbuf, oid, arg)
 		default:
@@ -915,10 +919,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				}
 			}
 			switch oid {
-			case InetArrayOid:
-				err = wbuf.EncodeInetArray(arguments[i], InetOid)
-			case CidrArrayOid:
-				err = wbuf.EncodeInetArray(arguments[i], CidrOid)
 			case Int2ArrayOid:
 				err = wbuf.EncodeInt2Array(arguments[i])
 			case Int4ArrayOid:

@@ -1792,10 +1792,15 @@ func (vr *ValueReader) DecodeInetArray() []net.IPNet {
 	return a
 }
 
-func (w *WriteBuf) EncodeInetArray(value interface{}, elOid Oid) error {
-	slice, ok := value.([]net.IPNet)
-	if !ok {
-		return fmt.Errorf("Expected []net.IPNet, received %T", value)
+func EncodeIPNetSlice(w *WriteBuf, oid Oid, slice []net.IPNet) error {
+	var elOid Oid
+	switch oid {
+	case InetArrayOid:
+		elOid = InetOid
+	case CidrArrayOid:
+		elOid = CidrOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
 	}
 
 	size := int32(20) // array header size
@@ -1812,6 +1817,36 @@ func (w *WriteBuf) EncodeInetArray(value interface{}, elOid Oid) error {
 
 	for _, ipnet := range slice {
 		EncodeIPNet(w, elOid, ipnet)
+	}
+
+	return nil
+}
+
+func EncodeIPSlice(w *WriteBuf, oid Oid, slice []net.IP) error {
+	var elOid Oid
+	switch oid {
+	case InetArrayOid:
+		elOid = InetOid
+	case CidrArrayOid:
+		elOid = CidrOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
+	}
+
+	size := int32(20) // array header size
+	for _, ip := range slice {
+		size += 4 + 4 + int32(len(ip)) // size of element + inet/cidr metadata + IP bytes
+	}
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(int32(elOid))      // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, ip := range slice {
+		EncodeIP(w, elOid, ip)
 	}
 
 	return nil
