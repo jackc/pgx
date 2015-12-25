@@ -903,6 +903,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		}
 
 		switch arg := arguments[i].(type) {
+		case []string:
+			err = EncodeStringSlice(wbuf, oid, arg)
 		case bool:
 			err = EncodeBool(wbuf, oid, arg)
 		case []bool:
@@ -953,10 +955,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeOid(wbuf, oid, arg)
 		default:
 			switch oid {
-			case TextArrayOid:
-				err = wbuf.EncodeTextArray(arguments[i], TextOid)
-			case VarcharArrayOid:
-				err = wbuf.EncodeTextArray(arguments[i], VarcharOid)
 			case TimestampArrayOid:
 				err = wbuf.EncodeTimestampArray(arguments[i], TimestampOid)
 			case TimestampTzArrayOid:

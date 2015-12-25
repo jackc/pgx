@@ -1658,10 +1658,15 @@ func (vr *ValueReader) DecodeTextArray() []string {
 	return a
 }
 
-func (w *WriteBuf) EncodeTextArray(value interface{}, elOid Oid) error {
-	slice, ok := value.([]string)
-	if !ok {
-		return fmt.Errorf("Expected []string, received %T", value)
+func EncodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
+	var elOid Oid
+	switch oid {
+	case VarcharArrayOid:
+		elOid = VarcharOid
+	case TextArrayOid:
+		elOid = TextOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
 	}
 
 	var totalStringSize int
