@@ -861,6 +861,10 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			err = arg.Encode(wbuf, oid)
+			if err != nil {
+				return err
+			}
+			continue
 		case driver.Valuer:
 			arguments[i], err = arg.Value()
 			if err == nil {
@@ -868,8 +872,37 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			}
 		case string:
 			err = EncodeString(wbuf, oid, arg)
+			if err != nil {
+				return err
+			}
+			continue
 		case []byte:
 			err = EncodeByteSlice(wbuf, oid, arg)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				wbuf.WriteInt32(-1)
+				continue
+			} else {
+				arguments[i] = v.Elem().Interface()
+				goto encode
+			}
+		}
+
+		if oid == JsonOid || oid == JsonbOid {
+			err = wbuf.EncodeJson(arguments[i])
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		switch arg := arguments[i].(type) {
 		case bool:
 			err = EncodeBool(wbuf, oid, arg)
 		case []bool:
@@ -880,14 +913,20 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = encodeUInt8(wbuf, oid, arg)
 		case int16:
 			err = EncodeInt16(wbuf, oid, arg)
+		case []int16:
+			err = EncodeInt16Slice(wbuf, oid, arg)
 		case uint16:
 			err = encodeUInt16(wbuf, oid, arg)
 		case int32:
 			err = EncodeInt32(wbuf, oid, arg)
+		case []int32:
+			err = EncodeInt32Slice(wbuf, oid, arg)
 		case uint32:
 			err = encodeUInt32(wbuf, oid, arg)
 		case int64:
 			err = EncodeInt64(wbuf, oid, arg)
+		case []int64:
+			err = EncodeInt64Slice(wbuf, oid, arg)
 		case uint64:
 			err = encodeUInt64(wbuf, oid, arg)
 		case int:
@@ -909,22 +948,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case Oid:
 			err = EncodeOid(wbuf, oid, arg)
 		default:
-			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
-				if v.IsNil() {
-					wbuf.WriteInt32(-1)
-					continue
-				} else {
-					arguments[i] = v.Elem().Interface()
-					goto encode
-				}
-			}
 			switch oid {
-			case Int2ArrayOid:
-				err = wbuf.EncodeInt2Array(arguments[i])
-			case Int4ArrayOid:
-				err = wbuf.EncodeInt4Array(arguments[i])
-			case Int8ArrayOid:
-				err = wbuf.EncodeInt8Array(arguments[i])
 			case Float4ArrayOid:
 				err = wbuf.EncodeFloat4Array(arguments[i])
 			case Float8ArrayOid:
@@ -937,8 +961,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = wbuf.EncodeTimestampArray(arguments[i], TimestampOid)
 			case TimestampTzArrayOid:
 				err = wbuf.EncodeTimestampArray(arguments[i], TimestampTzOid)
-			case JsonOid, JsonbOid:
-				err = wbuf.EncodeJson(arguments[i])
 			default:
 				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 			}

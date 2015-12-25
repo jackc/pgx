@@ -1395,10 +1395,9 @@ func (vr *ValueReader) DecodeInt2Array() []int16 {
 	return a
 }
 
-func (w *WriteBuf) EncodeInt2Array(value interface{}) error {
-	slice, ok := value.([]int16)
-	if !ok {
-		return fmt.Errorf("Expected []int16, received %T", value)
+func EncodeInt16Slice(w *WriteBuf, oid Oid, slice []int16) error {
+	if oid != Int2ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int16", oid)
 	}
 
 	encodeArrayHeader(w, Int2Oid, len(slice), 6)
@@ -1449,10 +1448,9 @@ func (vr *ValueReader) DecodeInt4Array() []int32 {
 	return a
 }
 
-func (w *WriteBuf) EncodeInt4Array(value interface{}) error {
-	slice, ok := value.([]int32)
-	if !ok {
-		return fmt.Errorf("Expected []int32, received %T", value)
+func EncodeInt32Slice(w *WriteBuf, oid Oid, slice []int32) error {
+	if oid != Int4ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int32", oid)
 	}
 
 	encodeArrayHeader(w, Int4Oid, len(slice), 8)
@@ -1503,10 +1501,9 @@ func (vr *ValueReader) DecodeInt8Array() []int64 {
 	return a
 }
 
-func (w *WriteBuf) EncodeInt8Array(value interface{}) error {
-	slice, ok := value.([]int64)
-	if !ok {
-		return fmt.Errorf("Expected []int64, received %T", value)
+func EncodeInt64Slice(w *WriteBuf, oid Oid, slice []int64) error {
+	if oid != Int8ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int64", oid)
 	}
 
 	encodeArrayHeader(w, Int8Oid, len(slice), 12)
