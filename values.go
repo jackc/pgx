@@ -1732,10 +1732,15 @@ func (vr *ValueReader) DecodeTimestampArray() []time.Time {
 	return a
 }
 
-func (w *WriteBuf) EncodeTimestampArray(value interface{}, elOid Oid) error {
-	slice, ok := value.([]time.Time)
-	if !ok {
-		return fmt.Errorf("Expected []time.Time, received %T", value)
+func EncodeTimeSlice(w *WriteBuf, oid Oid, slice []time.Time) error {
+	var elOid Oid
+	switch oid {
+	case TimestampArrayOid:
+		elOid = TimestampOid
+	case TimestampTzArrayOid:
+		elOid = TimestampTzOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]time.Time", oid)
 	}
 
 	encodeArrayHeader(w, int(elOid), len(slice), 12)

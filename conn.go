@@ -943,6 +943,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeFloat64Slice(wbuf, oid, arg)
 		case time.Time:
 			err = EncodeTime(wbuf, oid, arg)
+		case []time.Time:
+			err = EncodeTimeSlice(wbuf, oid, arg)
 		case net.IP:
 			err = EncodeIP(wbuf, oid, arg)
 		case []net.IP:
@@ -954,14 +956,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case Oid:
 			err = EncodeOid(wbuf, oid, arg)
 		default:
-			switch oid {
-			case TimestampArrayOid:
-				err = wbuf.EncodeTimestampArray(arguments[i], TimestampOid)
-			case TimestampTzArrayOid:
-				err = wbuf.EncodeTimestampArray(arguments[i], TimestampTzOid)
-			default:
-				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
-			}
+			return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 		}
 		if err != nil {
 			return err
