@@ -159,7 +159,7 @@ func (n NullFloat32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return w.EncodeFloat4(n.Float32)
+	return EncodeFloat32(w, oid, n.Float32)
 }
 
 // NullFloat64 represents an float8 that may be null. NullFloat64 implements the
@@ -198,7 +198,7 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return w.EncodeFloat8(n.Float64)
+	return EncodeFloat64(w, oid, n.Float64)
 }
 
 // NullString represents an string that may be null. NullString implements the
@@ -977,15 +977,17 @@ func (vr *ValueReader) DecodeFloat4() float32 {
 	return math.Float32frombits(uint32(i))
 }
 
-func (w *WriteBuf) EncodeFloat4(value interface{}) error {
-	v, ok := value.(float32)
-	if !ok {
-		return fmt.Errorf("Expected float32, received %T", value)
+func EncodeFloat32(w *WriteBuf, oid Oid, value float32) error {
+	switch oid {
+	case Float4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(math.Float32bits(value)))
+	case Float8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(math.Float64bits(float64(value))))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "float32", oid)
 	}
-
-	w.WriteInt32(4)
-
-	w.WriteInt32(int32(math.Float32bits(v)))
 
 	return nil
 }
@@ -1015,20 +1017,14 @@ func (vr *ValueReader) DecodeFloat8() float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-func (w *WriteBuf) EncodeFloat8(value interface{}) error {
-	var v float64
-	switch value := value.(type) {
-	case float32:
-		v = float64(value)
-	case float64:
-		v = float64(value)
+func EncodeFloat64(w *WriteBuf, oid Oid, value float64) error {
+	switch oid {
+	case Float8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(math.Float64bits(value)))
 	default:
-		return fmt.Errorf("Expected float representable in float64, received %T %v", value, value)
+		return fmt.Errorf("cannot encode %s into oid %v", "float64", oid)
 	}
-
-	w.WriteInt32(8)
-
-	w.WriteInt64(int64(math.Float64bits(v)))
 
 	return nil
 }
