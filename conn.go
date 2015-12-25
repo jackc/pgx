@@ -902,6 +902,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeIP(wbuf, oid, arg)
 		case net.IPNet:
 			err = EncodeIPNet(wbuf, oid, arg)
+		case Oid:
+			err = EncodeOid(wbuf, oid, arg)
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -935,8 +937,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				err = wbuf.EncodeTimestampArray(arguments[i], TimestampOid)
 			case TimestampTzArrayOid:
 				err = wbuf.EncodeTimestampArray(arguments[i], TimestampTzOid)
-			case OidOid:
-				err = wbuf.EncodeOid(arguments[i])
 			case JsonOid, JsonbOid:
 				err = wbuf.EncodeJson(arguments[i])
 			default:

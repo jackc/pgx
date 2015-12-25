@@ -931,14 +931,13 @@ func (vr *ValueReader) DecodeOid() Oid {
 	}
 }
 
-func (w *WriteBuf) EncodeOid(value interface{}) error {
-	v, ok := value.(Oid)
-	if !ok {
-		return fmt.Errorf("Expected Oid, received %T", value)
+func EncodeOid(w *WriteBuf, oid Oid, value Oid) error {
+	if oid != OidOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Oid", oid)
 	}
 
 	w.WriteInt32(4)
-	w.WriteInt32(int32(v))
+	w.WriteInt32(int32(value))
 
 	return nil
 }
