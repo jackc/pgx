@@ -1234,23 +1234,14 @@ func (vr *ValueReader) DecodeInet() net.IPNet {
 	return ipnet
 }
 
-func (w *WriteBuf) EncodeInet(value interface{}) error {
-	var ipnet net.IPNet
-
-	switch value := value.(type) {
-	case net.IPNet:
-		ipnet = value
-	case net.IP:
-		ipnet.IP = value
-		bitCount := len(value) * 8
-		ipnet.Mask = net.CIDRMask(bitCount, bitCount)
-	default:
-		return fmt.Errorf("Expected net.IPNet, received %T %v", value, value)
+func EncodeIPNet(w *WriteBuf, oid Oid, value net.IPNet) error {
+	if oid != InetOid && oid != CidrOid {
+		return fmt.Errorf("cannot encode %s into oid %v", "net.IPNet", oid)
 	}
 
 	var size int32
 	var family byte
-	switch len(ipnet.IP) {
+	switch len(value.IP) {
 	case net.IPv4len:
 		size = 8
 		family = w.conn.pgsql_af_inet
@@ -1258,18 +1249,30 @@ func (w *WriteBuf) EncodeInet(value interface{}) error {
 		size = 20
 		family = w.conn.pgsql_af_inet6
 	default:
-		return fmt.Errorf("Unexpected IP length: %v", len(ipnet.IP))
+		return fmt.Errorf("Unexpected IP length: %v", len(value.IP))
 	}
 
 	w.WriteInt32(size)
 	w.WriteByte(family)
-	ones, _ := ipnet.Mask.Size()
+	ones, _ := value.Mask.Size()
 	w.WriteByte(byte(ones))
 	w.WriteByte(0) // is_cidr is ignored on server
-	w.WriteByte(byte(len(ipnet.IP)))
-	w.WriteBytes(ipnet.IP)
+	w.WriteByte(byte(len(value.IP)))
+	w.WriteBytes(value.IP)
 
 	return nil
+}
+
+func EncodeIP(w *WriteBuf, oid Oid, value net.IP) error {
+	if oid != InetOid && oid != CidrOid {
+		return fmt.Errorf("cannot encode %s into oid %v", "net.IP", oid)
+	}
+
+	var ipnet net.IPNet
+	ipnet.IP = value
+	bitCount := len(value) * 8
+	ipnet.Mask = net.CIDRMask(bitCount, bitCount)
+	return EncodeIPNet(w, oid, ipnet)
 }
 
 func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
@@ -1809,7 +1812,7 @@ func (w *WriteBuf) EncodeInetArray(value interface{}, elOid Oid) error {
 	w.WriteInt32(1)                 // index of first element
 
 	for _, ipnet := range slice {
-		w.EncodeInet(ipnet)
+		EncodeIPNet(w, elOid, ipnet)
 	}
 
 	return nil
