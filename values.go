@@ -1066,7 +1066,7 @@ func (vr *ValueReader) DecodeBytea() []byte {
 	return vr.ReadBytes(vr.Len())
 }
 
-func (w *WriteBuf) EncodeBytea(value []byte) error {
+func EncodeByteSlice(w *WriteBuf, oid Oid, value []byte) error {
 	w.WriteInt32(int32(len(value)))
 	w.WriteBytes(value)
 
@@ -1096,7 +1096,10 @@ func (w *WriteBuf) EncodeJson(value interface{}) error {
 		return fmt.Errorf("Failed to encode json from type: %T", value)
 	}
 
-	return w.EncodeBytea(s)
+	w.WriteInt32(int32(len(s)))
+	w.WriteBytes(s)
+
+	return nil
 }
 
 func (vr *ValueReader) DecodeDate() time.Time {

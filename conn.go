@@ -869,7 +869,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case string:
 			err = EncodeString(wbuf, oid, arg)
 		case []byte:
-			err = wbuf.EncodeBytea(arg)
+			err = EncodeByteSlice(wbuf, oid, arg)
 		case bool:
 			err = EncodeBool(wbuf, oid, arg)
 		case []bool:
