@@ -895,7 +895,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		}
 
 		if oid == JsonOid || oid == JsonbOid {
-			err = wbuf.EncodeJson(arguments[i])
+			err = EncodeJson(wbuf, oid, arguments[i])
 			if err != nil {
 				return err
 			}

@@ -1076,7 +1076,11 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func (w *WriteBuf) EncodeJson(value interface{}) error {
+func EncodeJson(w *WriteBuf, oid Oid, value interface{}) error {
+	if oid != JsonOid && oid != JsonbOid {
+		return fmt.Errorf("cannot encode JSON into oid %v", oid)
+	}
+
 	s, err := json.Marshal(value)
 	if err != nil {
 		return fmt.Errorf("Failed to encode json from type: %T", value)
