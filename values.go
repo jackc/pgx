@@ -143,7 +143,7 @@ func (n *NullFloat32) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Float32 = vr.DecodeFloat4()
+	n.Float32 = DecodeFloat4(vr)
 	return vr.Err()
 }
 
@@ -182,7 +182,7 @@ func (n *NullFloat64) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Float64 = vr.DecodeFloat8()
+	n.Float64 = DecodeFloat8(vr)
 	return vr.Err()
 }
 
@@ -220,7 +220,7 @@ func (s *NullString) Scan(vr *ValueReader) error {
 	}
 
 	s.Valid = true
-	s.String = vr.DecodeText()
+	s.String = DecodeText(vr)
 	return vr.Err()
 }
 
@@ -255,7 +255,7 @@ func (n *NullInt16) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int16 = vr.DecodeInt2()
+	n.Int16 = DecodeInt2(vr)
 	return vr.Err()
 }
 
@@ -294,7 +294,7 @@ func (n *NullInt32) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int32 = vr.DecodeInt4()
+	n.Int32 = DecodeInt4(vr)
 	return vr.Err()
 }
 
@@ -333,7 +333,7 @@ func (n *NullInt64) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int64 = vr.DecodeInt8()
+	n.Int64 = DecodeInt8(vr)
 	return vr.Err()
 }
 
@@ -372,7 +372,7 @@ func (n *NullBool) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Bool = vr.DecodeBool()
+	n.Bool = DecodeBool(vr)
 	return vr.Err()
 }
 
@@ -416,11 +416,11 @@ func (n *NullTime) Scan(vr *ValueReader) error {
 	n.Valid = true
 	switch oid {
 	case TimestampTzOid:
-		n.Time = vr.DecodeTimestampTz()
+		n.Time = DecodeTimestampTz(vr)
 	case TimestampOid:
-		n.Time = vr.DecodeTimestamp()
+		n.Time = DecodeTimestamp(vr)
 	case DateOid:
-		n.Time = vr.DecodeDate()
+		n.Time = DecodeDate(vr)
 	}
 
 	return vr.Err()
@@ -575,7 +575,7 @@ func (h NullHstore) Encode(w *WriteBuf, oid Oid) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeBool() bool {
+func DecodeBool(vr *ValueReader) bool {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into bool"))
 		return false
@@ -617,7 +617,7 @@ func EncodeBool(w *WriteBuf, oid Oid, value bool) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInt8() int64 {
+func DecodeInt8(vr *ValueReader) int64 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int64"))
 		return 0
@@ -641,7 +641,7 @@ func (vr *ValueReader) DecodeInt8() int64 {
 	return vr.ReadInt64()
 }
 
-func (vr *ValueReader) DecodeInt2() int16 {
+func DecodeInt2(vr *ValueReader) int16 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int16"))
 		return 0
@@ -875,7 +875,7 @@ func encodeInt(w *WriteBuf, oid Oid, value int) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInt4() int32 {
+func DecodeInt4(vr *ValueReader) int32 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int32"))
 		return 0
@@ -899,7 +899,7 @@ func (vr *ValueReader) DecodeInt4() int32 {
 	return vr.ReadInt32()
 }
 
-func (vr *ValueReader) DecodeOid() Oid {
+func DecodeOid(vr *ValueReader) Oid {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into Oid"))
 		return 0
@@ -942,7 +942,7 @@ func EncodeOid(w *WriteBuf, oid Oid, value Oid) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeFloat4() float32 {
+func DecodeFloat4(vr *ValueReader) float32 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into float32"))
 		return 0
@@ -982,7 +982,7 @@ func EncodeFloat32(w *WriteBuf, oid Oid, value float32) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeFloat8() float64 {
+func DecodeFloat8(vr *ValueReader) float64 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into float64"))
 		return 0
@@ -1019,7 +1019,7 @@ func EncodeFloat64(w *WriteBuf, oid Oid, value float64) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeText() string {
+func DecodeText(vr *ValueReader) string {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into string"))
 		return ""
@@ -1034,7 +1034,7 @@ func EncodeString(w *WriteBuf, oid Oid, value string) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeBytea() []byte {
+func DecodeBytea(vr *ValueReader) []byte {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1092,7 +1092,7 @@ func EncodeJson(w *WriteBuf, oid Oid, value interface{}) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeDate() time.Time {
+func DecodeDate(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1145,7 +1145,7 @@ func EncodeTime(w *WriteBuf, oid Oid, value time.Time) error {
 
 const microsecFromUnixEpochToY2K = 946684800 * 1000000
 
-func (vr *ValueReader) DecodeTimestampTz() time.Time {
+func DecodeTimestampTz(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1173,7 +1173,7 @@ func (vr *ValueReader) DecodeTimestampTz() time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func (vr *ValueReader) DecodeTimestamp() time.Time {
+func DecodeTimestamp(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1201,7 +1201,7 @@ func (vr *ValueReader) DecodeTimestamp() time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func (vr *ValueReader) DecodeInet() net.IPNet {
+func DecodeInet(vr *ValueReader) net.IPNet {
 	var zero net.IPNet
 
 	if vr.Len() == -1 {
@@ -1301,7 +1301,7 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	return length, nil
 }
 
-func (vr *ValueReader) DecodeBoolArray() []bool {
+func DecodeBoolArray(vr *ValueReader) []bool {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1360,7 +1360,7 @@ func EncodeBoolSlice(w *WriteBuf, oid Oid, slice []bool) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInt2Array() []int16 {
+func DecodeInt2Array(vr *ValueReader) []int16 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1413,7 +1413,7 @@ func EncodeInt16Slice(w *WriteBuf, oid Oid, slice []int16) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInt4Array() []int32 {
+func DecodeInt4Array(vr *ValueReader) []int32 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1466,7 +1466,7 @@ func EncodeInt32Slice(w *WriteBuf, oid Oid, slice []int32) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInt8Array() []int64 {
+func DecodeInt8Array(vr *ValueReader) []int64 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1519,7 +1519,7 @@ func EncodeInt64Slice(w *WriteBuf, oid Oid, slice []int64) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeFloat4Array() []float32 {
+func DecodeFloat4Array(vr *ValueReader) []float32 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1573,7 +1573,7 @@ func EncodeFloat32Slice(w *WriteBuf, oid Oid, slice []float32) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeFloat8Array() []float64 {
+func DecodeFloat8Array(vr *ValueReader) []float64 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1627,7 +1627,7 @@ func EncodeFloat64Slice(w *WriteBuf, oid Oid, slice []float64) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeTextArray() []string {
+func DecodeTextArray(vr *ValueReader) []string {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1695,7 +1695,7 @@ func EncodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeTimestampArray() []time.Time {
+func DecodeTimestampArray(vr *ValueReader) []time.Time {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1758,7 +1758,7 @@ func EncodeTimeSlice(w *WriteBuf, oid Oid, slice []time.Time) error {
 	return nil
 }
 
-func (vr *ValueReader) DecodeInetArray() []net.IPNet {
+func DecodeInetArray(vr *ValueReader) []net.IPNet {
 	if vr.Len() == -1 {
 		return nil
 	}

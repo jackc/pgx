@@ -243,7 +243,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
 			// Otherwise read the bytes directly regardless of what the actual type is.
 			if vr.Type().DataType == ByteaOid {
-				*b = vr.DecodeBytea()
+				*b = DecodeBytea(vr)
 			} else {
 				if vr.Len() != -1 {
 					*b = vr.ReadBytes(vr.Len())
@@ -296,52 +296,52 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		decode:
 			switch v := d.(type) {
 			case *bool:
-				*v = vr.DecodeBool()
+				*v = DecodeBool(vr)
 			case *int64:
-				*v = vr.DecodeInt8()
+				*v = DecodeInt8(vr)
 			case *int16:
-				*v = vr.DecodeInt2()
+				*v = DecodeInt2(vr)
 			case *int32:
-				*v = vr.DecodeInt4()
+				*v = DecodeInt4(vr)
 			case *Oid:
-				*v = vr.DecodeOid()
+				*v = DecodeOid(vr)
 			case *string:
-				*v = vr.DecodeText()
+				*v = DecodeText(vr)
 			case *float32:
-				*v = vr.DecodeFloat4()
+				*v = DecodeFloat4(vr)
 			case *float64:
-				*v = vr.DecodeFloat8()
+				*v = DecodeFloat8(vr)
 			case *[]bool:
-				*v = vr.DecodeBoolArray()
+				*v = DecodeBoolArray(vr)
 			case *[]int16:
-				*v = vr.DecodeInt2Array()
+				*v = DecodeInt2Array(vr)
 			case *[]int32:
-				*v = vr.DecodeInt4Array()
+				*v = DecodeInt4Array(vr)
 			case *[]int64:
-				*v = vr.DecodeInt8Array()
+				*v = DecodeInt8Array(vr)
 			case *[]float32:
-				*v = vr.DecodeFloat4Array()
+				*v = DecodeFloat4Array(vr)
 			case *[]float64:
-				*v = vr.DecodeFloat8Array()
+				*v = DecodeFloat8Array(vr)
 			case *[]string:
-				*v = vr.DecodeTextArray()
+				*v = DecodeTextArray(vr)
 			case *[]time.Time:
-				*v = vr.DecodeTimestampArray()
+				*v = DecodeTimestampArray(vr)
 			case *time.Time:
 				switch vr.Type().DataType {
 				case DateOid:
-					*v = vr.DecodeDate()
+					*v = DecodeDate(vr)
 				case TimestampTzOid:
-					*v = vr.DecodeTimestampTz()
+					*v = DecodeTimestampTz(vr)
 				case TimestampOid:
-					*v = vr.DecodeTimestamp()
+					*v = DecodeTimestamp(vr)
 				default:
 					rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)})
 				}
 			case *net.IPNet:
-				*v = vr.DecodeInet()
+				*v = DecodeInet(vr)
 			case *[]net.IPNet:
-				*v = vr.DecodeInetArray()
+				*v = DecodeInetArray(vr)
 			default:
 				// if d is a pointer to pointer, strip the pointer and try again
 				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
@@ -403,45 +403,45 @@ func (rows *Rows) Values() ([]interface{}, error) {
 		case BinaryFormatCode:
 			switch vr.Type().DataType {
 			case BoolOid:
-				values = append(values, vr.DecodeBool())
+				values = append(values, DecodeBool(vr))
 			case ByteaOid:
-				values = append(values, vr.DecodeBytea())
+				values = append(values, DecodeBytea(vr))
 			case Int8Oid:
-				values = append(values, vr.DecodeInt8())
+				values = append(values, DecodeInt8(vr))
 			case Int2Oid:
-				values = append(values, vr.DecodeInt2())
+				values = append(values, DecodeInt2(vr))
 			case Int4Oid:
-				values = append(values, vr.DecodeInt4())
+				values = append(values, DecodeInt4(vr))
 			case OidOid:
-				values = append(values, vr.DecodeOid())
+				values = append(values, DecodeOid(vr))
 			case Float4Oid:
-				values = append(values, vr.DecodeFloat4())
+				values = append(values, DecodeFloat4(vr))
 			case Float8Oid:
-				values = append(values, vr.DecodeFloat8())
+				values = append(values, DecodeFloat8(vr))
 			case BoolArrayOid:
-				values = append(values, vr.DecodeBoolArray())
+				values = append(values, DecodeBoolArray(vr))
 			case Int2ArrayOid:
-				values = append(values, vr.DecodeInt2Array())
+				values = append(values, DecodeInt2Array(vr))
 			case Int4ArrayOid:
-				values = append(values, vr.DecodeInt4Array())
+				values = append(values, DecodeInt4Array(vr))
 			case Int8ArrayOid:
-				values = append(values, vr.DecodeInt8Array())
+				values = append(values, DecodeInt8Array(vr))
 			case Float4ArrayOid:
-				values = append(values, vr.DecodeFloat4Array())
+				values = append(values, DecodeFloat4Array(vr))
 			case Float8ArrayOid:
-				values = append(values, vr.DecodeFloat8Array())
+				values = append(values, DecodeFloat8Array(vr))
 			case TextArrayOid, VarcharArrayOid:
-				values = append(values, vr.DecodeTextArray())
+				values = append(values, DecodeTextArray(vr))
 			case TimestampArrayOid, TimestampTzArrayOid:
-				values = append(values, vr.DecodeTimestampArray())
+				values = append(values, DecodeTimestampArray(vr))
 			case DateOid:
-				values = append(values, vr.DecodeDate())
+				values = append(values, DecodeDate(vr))
 			case TimestampTzOid:
-				values = append(values, vr.DecodeTimestampTz())
+				values = append(values, DecodeTimestampTz(vr))
 			case TimestampOid:
-				values = append(values, vr.DecodeTimestamp())
+				values = append(values, DecodeTimestamp(vr))
 			case InetOid, CidrOid:
-				values = append(values, vr.DecodeInet())
+				values = append(values, DecodeInet(vr))
 			case JsonOid:
 				var d interface{}
 				decodeJson(vr, &d)
