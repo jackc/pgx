@@ -232,7 +232,7 @@ func (s NullString) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return w.EncodeText(s.String)
+	return EncodeString(w, oid, s.String)
 }
 
 // NullInt16 represents an smallint that may be null. NullInt16 implements the
@@ -1042,7 +1042,7 @@ func (vr *ValueReader) DecodeText() string {
 	return vr.ReadString(vr.Len())
 }
 
-func (w *WriteBuf) EncodeText(value string) error {
+func EncodeString(w *WriteBuf, oid Oid, value string) error {
 	w.WriteInt32(int32(len(value)))
 	w.WriteBytes([]byte(value))
 	return nil

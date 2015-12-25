@@ -867,7 +867,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				goto encode
 			}
 		case string:
-			err = wbuf.EncodeText(arg)
+			err = EncodeString(wbuf, oid, arg)
 		case []byte:
 			err = wbuf.EncodeBytea(arg)
 		case bool:
