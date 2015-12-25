@@ -438,16 +438,7 @@ func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	switch oid {
-	case TimestampTzOid:
-		return w.EncodeTimestampTz(n.Time)
-	case TimestampOid:
-		return w.EncodeTimestamp(n.Time)
-	case DateOid:
-		return w.EncodeDate(n.Time)
-	default:
-		panic("unreachable")
-	}
+	return EncodeTime(w, oid, n.Time)
 }
 
 // Hstore represents an hstore column. It does not support a null column or null
@@ -1123,22 +1114,30 @@ func (vr *ValueReader) DecodeDate() time.Time {
 	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 }
 
-func (w *WriteBuf) EncodeDate(value interface{}) error {
-	t, ok := value.(time.Time)
-	if !ok {
-		return fmt.Errorf("Expected time.Time, received %T", value)
+func EncodeTime(w *WriteBuf, oid Oid, value time.Time) error {
+	switch oid {
+	case DateOid:
+		tUnix := time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC).Unix()
+		dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+
+		secSinceDateEpoch := tUnix - dateEpoch
+		daysSinceDateEpoch := secSinceDateEpoch / 86400
+
+		w.WriteInt32(4)
+		w.WriteInt32(int32(daysSinceDateEpoch))
+
+		return nil
+	case TimestampTzOid, TimestampOid:
+		microsecSinceUnixEpoch := value.Unix()*1000000 + int64(value.Nanosecond())/1000
+		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
+
+		w.WriteInt32(8)
+		w.WriteInt64(microsecSinceY2K)
+
+		return nil
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "time.Time", oid)
 	}
-
-	tUnix := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix()
-	dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
-
-	secSinceDateEpoch := tUnix - dateEpoch
-	daysSinceDateEpoch := secSinceDateEpoch / 86400
-
-	w.WriteInt32(4)
-	w.WriteInt32(int32(daysSinceDateEpoch))
-
-	return nil
 }
 
 const microsecFromUnixEpochToY2K = 946684800 * 1000000
@@ -1171,21 +1170,6 @@ func (vr *ValueReader) DecodeTimestampTz() time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func (w *WriteBuf) EncodeTimestampTz(value interface{}) error {
-	t, ok := value.(time.Time)
-	if !ok {
-		return fmt.Errorf("Expected time.Time, received %T", value)
-	}
-
-	microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
-	microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
-
-	w.WriteInt32(8)
-	w.WriteInt64(microsecSinceY2K)
-
-	return nil
-}
-
 func (vr *ValueReader) DecodeTimestamp() time.Time {
 	var zeroTime time.Time
 
@@ -1212,10 +1196,6 @@ func (vr *ValueReader) DecodeTimestamp() time.Time {
 	microsecSinceY2K := vr.ReadInt64()
 	microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
-}
-
-func (w *WriteBuf) EncodeTimestamp(value interface{}) error {
-	return w.EncodeTimestampTz(value)
 }
 
 func (vr *ValueReader) DecodeInet() net.IPNet {

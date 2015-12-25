@@ -896,6 +896,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeFloat32(wbuf, oid, arg)
 		case float64:
 			err = EncodeFloat64(wbuf, oid, arg)
+		case time.Time:
+			err = EncodeTime(wbuf, oid, arg)
 		default:
 			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
 				if v.IsNil() {
@@ -907,12 +909,6 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 				}
 			}
 			switch oid {
-			case DateOid:
-				err = wbuf.EncodeDate(arguments[i])
-			case TimestampTzOid:
-				err = wbuf.EncodeTimestampTz(arguments[i])
-			case TimestampOid:
-				err = wbuf.EncodeTimestamp(arguments[i])
 			case InetOid, CidrOid:
 				err = wbuf.EncodeInet(arguments[i])
 			case InetArrayOid:
