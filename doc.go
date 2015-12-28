@@ -181,7 +181,7 @@ Conn.PgTypes.
 See example_custom_type_test.go for an example of a custom type for the
 PostgreSQL point type.
 
-[]byte Mapping
+Raw Bytes Mapping
 
 []byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
 to PostgreSQL. In like manner, a *[]byte passed to Scan will be filled with

@@ -214,6 +214,15 @@ func (rows *Rows) nextColumn() (*ValueReader, bool) {
 	return &rows.vr, true
 }
 
+type scanArgError struct {
+	col int
+	err error
+}
+
+func (e scanArgError) Error() string {
+	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
+}
+
 // Scan reads the values from the current row into dest values positionally.
 // dest can include pointers to core types, values implementing the Scanner
 // interface, and []byte. []byte will skip the decoding process and directly
@@ -225,7 +234,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		return err
 	}
 
-	for _, d := range dest {
+	for i, d := range dest {
 		vr, _ := rows.nextColumn()
 
 		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
@@ -244,7 +253,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		} else if s, ok := d.(Scanner); ok {
 			err = s.Scan(vr)
 			if err != nil {
-				rows.Fatal(err)
+				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
 			decodeJson(vr, &d)
@@ -292,7 +301,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				case TimestampOid:
 					*v = decodeTimestamp(vr)
 				default:
-					rows.Fatal(fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType))
+					rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)})
 				}
 			case *net.IPNet:
 				*v = decodeInet(vr)
@@ -319,12 +328,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 						}
 					}
 				}
-				rows.Fatal(fmt.Errorf("Scan cannot decode into %T", d))
+				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Scan cannot decode into %T", d)})
 			}
 
 		}
 		if vr.Err() != nil {
-			rows.Fatal(vr.Err())
+			rows.Fatal(scanArgError{col: i, err: vr.Err()})
 		}
 
 		if rows.Err() != nil {

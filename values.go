@@ -212,7 +212,7 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 // If Valid is false then the value is NULL.
 type NullString struct {
 	String string
-	Valid  bool // Valid is true if Int64 is not NULL
+	Valid  bool // Valid is true if String is not NULL
 }
 
 func (n *NullString) GetValue() string { return n.String }
@@ -289,7 +289,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid Oid) error {
 // If Valid is false then the value is NULL.
 type NullInt32 struct {
 	Int32 int32
-	Valid bool // Valid is true if Int64 is not NULL
+	Valid bool // Valid is true if Int32 is not NULL
 }
 
 func (n *NullInt32) GetValue() int32 { return n.Int32 }
@@ -913,17 +913,9 @@ func decodeFloat4(vr *ValueReader) float32 {
 }
 
 func encodeFloat4(w *WriteBuf, value interface{}) error {
-	var v float32
-	switch value := value.(type) {
-	case float32:
-		v = float32(value)
-	case float64:
-		if value > math.MaxFloat32 {
-			return fmt.Errorf("%T %f is larger than max float32 %f", value, math.MaxFloat32)
-		}
-		v = float32(value)
-	default:
-		return fmt.Errorf("Expected float representable in float32, received %T %v", value, value)
+	v, ok := value.(float32)
+	if !ok {
+		return fmt.Errorf("Expected float32, received %T", value)
 	}
 
 	w.WriteInt32(4)

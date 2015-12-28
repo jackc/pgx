@@ -41,11 +41,14 @@ func TestStressConnPool(t *testing.T) {
 		{"txMultipleQueries", txMultipleQueries},
 		{"notify", notify},
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
+		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
 	}
 
-	actionCount := 5000
+	var timer *time.Timer
 	if testing.Short() {
-		actionCount /= 10
+		timer = time.NewTimer(5 * time.Second)
+	} else {
+		timer = time.NewTimer(60 * time.Second)
 	}
 	workerCount := 16
 
@@ -69,8 +72,11 @@ func TestStressConnPool(t *testing.T) {
 		go work()
 	}
 
-	for i := 0; i < actionCount; i++ {
+	var stop bool
+	for i := 0; !stop; i++ {
 		select {
+		case <-timer.C:
+			stop = true
 		case workChan <- i:
 		case err := <-errChan:
 			close(workChan)
@@ -101,12 +107,7 @@ func TestStressTLSConnection(t *testing.T) {
 	}
 	defer conn.Close()
 
-	queryCount := 50
-	if testing.Short() {
-		queryCount /= 10
-	}
-
-	for i := 0; i < queryCount; i++ {
+	for i := 0; i < 50; i++ {
 		sql := `select * from generate_series(1, $1)`
 
 		rows, err := conn.Query(sql, 2000000)

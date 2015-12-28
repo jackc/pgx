@@ -295,6 +295,53 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 	}
 }
 
+func TestConnPoolReset(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 5)
+	defer pool.Close()
+
+	inProgressRows := []*pgx.Rows{}
+
+	// Start some queries and reset pool while they are in progress
+	for i := 0; i < 10; i++ {
+		rows, err := pool.Query("select generate_series(1,5)::bigint")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		inProgressRows = append(inProgressRows, rows)
+		pool.Reset()
+	}
+
+	// Check that the queries are completed
+	for _, rows := range inProgressRows {
+		var expectedN int64
+
+		for rows.Next() {
+			expectedN++
+			var n int64
+			err := rows.Scan(&n)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if expectedN != n {
+				t.Fatalf("Expected n to be %d, but it was %d", expectedN, n)
+			}
+		}
+
+		if err := rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// pool should be in fresh state due to previous reset
+	stats := pool.Stat()
+	if stats.CurrentConnections != 0 || stats.AvailableConnections != 0 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+}
+
 func TestConnPoolTransaction(t *testing.T) {
 	t.Parallel()
 
