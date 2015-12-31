@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/md5"
 	"crypto/tls"
+	"database/sql/driver"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -851,15 +852,20 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 	wbuf.WriteInt16(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
+	encode:
 		if arguments[i] == nil {
 			wbuf.WriteInt32(-1)
 			continue
 		}
 
-	encode:
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			err = arg.Encode(wbuf, oid)
+		case driver.Valuer:
+			arguments[i], err = arg.Value()
+			if err == nil {
+				goto encode
+			}
 		case string:
 			err = encodeText(wbuf, arguments[i])
 		case []byte:

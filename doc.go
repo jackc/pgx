@@ -181,6 +181,9 @@ Conn.PgTypes.
 See example_custom_type_test.go for an example of a custom type for the
 PostgreSQL point type.
 
+pgx also includes support for custom types implementing the database/sql.Scanner
+and database/sql/driver.Valuer interfaces.
+
 Raw Bytes Mapping
 
 []byte passed as arguments to Query, QueryRow, and Exec are passed unmodified

@@ -23,6 +23,7 @@ Pgx supports many additional features beyond what is available through database/
 * Maps inet and cidr PostgreSQL types to net.IPNet
 * Large object support
 * Null mapping to Null* struct or pointer to pointer.
+* Supports database/sql.Scanner and database/sql/driver/Valuer interfaces for custom types
 
 ## Performance
 

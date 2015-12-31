@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net"
@@ -252,6 +253,40 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			}
 		} else if s, ok := d.(Scanner); ok {
 			err = s.Scan(vr)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+		} else if s, ok := d.(sql.Scanner); ok {
+			var val interface{}
+			if 0 <= vr.Len() {
+				switch vr.Type().DataType {
+				case BoolOid:
+					val = decodeBool(vr)
+				case Int8Oid:
+					val = int64(decodeInt8(vr))
+				case Int2Oid:
+					val = int64(decodeInt2(vr))
+				case Int4Oid:
+					val = int64(decodeInt4(vr))
+				case TextOid, VarcharOid:
+					val = decodeText(vr)
+				case OidOid:
+					val = int64(decodeOid(vr))
+				case Float4Oid:
+					val = float64(decodeFloat4(vr))
+				case Float8Oid:
+					val = decodeFloat8(vr)
+				case DateOid:
+					val = decodeDate(vr)
+				case TimestampOid:
+					val = decodeTimestamp(vr)
+				case TimestampTzOid:
+					val = decodeTimestampTz(vr)
+				default:
+					val = vr.ReadBytes(vr.Len())
+				}
+			}
+			err = s.Scan(val)
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
