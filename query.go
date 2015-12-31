@@ -261,27 +261,27 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if 0 <= vr.Len() {
 				switch vr.Type().DataType {
 				case BoolOid:
-					val = decodeBool(vr)
+					val = DecodeBool(vr)
 				case Int8Oid:
-					val = int64(decodeInt8(vr))
+					val = int64(DecodeInt8(vr))
 				case Int2Oid:
-					val = int64(decodeInt2(vr))
+					val = int64(DecodeInt2(vr))
 				case Int4Oid:
-					val = int64(decodeInt4(vr))
+					val = int64(DecodeInt4(vr))
 				case TextOid, VarcharOid:
-					val = decodeText(vr)
+					val = DecodeText(vr)
 				case OidOid:
-					val = int64(decodeOid(vr))
+					val = int64(DecodeOid(vr))
 				case Float4Oid:
-					val = float64(decodeFloat4(vr))
+					val = float64(DecodeFloat4(vr))
 				case Float8Oid:
-					val = decodeFloat8(vr)
+					val = DecodeFloat8(vr)
 				case DateOid:
-					val = decodeDate(vr)
+					val = DecodeDate(vr)
 				case TimestampOid:
-					val = decodeTimestamp(vr)
+					val = DecodeTimestamp(vr)
 				case TimestampTzOid:
-					val = decodeTimestampTz(vr)
+					val = DecodeTimestampTz(vr)
 				default:
 					val = vr.ReadBytes(vr.Len())
 				}
