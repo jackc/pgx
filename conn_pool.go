@@ -17,7 +17,6 @@ type ConnPool struct {
 	cond                 *sync.Cond
 	config               ConnConfig // config used when establishing connection
 	maxConnections       int
-	resetCount           int
 	afterConnect         func(*Conn) error
 	logger               Logger
 	logLevel             int
@@ -84,7 +83,6 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 	// A connection is available
 	if len(p.availableConnections) > 0 {
 		c = p.availableConnections[len(p.availableConnections)-1]
-		c.poolResetCount = p.resetCount
 		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
 		return
 	}
@@ -95,7 +93,6 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 		if err != nil {
 			return
 		}
-		c.poolResetCount = p.resetCount
 		p.allConnections = append(p.allConnections, c)
 		return
 	}
@@ -111,7 +108,6 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 	}
 
 	c = p.availableConnections[len(p.availableConnections)-1]
-	c.poolResetCount = p.resetCount
 	p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
 
 	return
@@ -133,7 +129,15 @@ func (p *ConnPool) Release(conn *Conn) {
 
 	p.cond.L.Lock()
 
-	if conn.poolResetCount != p.resetCount {
+	inConnPool := false
+	for _, c := range p.allConnections {
+		if conn == c {
+			inConnPool = true
+			break
+		}
+	}
+
+	if !inConnPool {
 		conn.Close()
 		p.cond.L.Unlock()
 		p.cond.Signal()
@@ -187,7 +191,6 @@ func (p *ConnPool) Reset() {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
-	p.resetCount++
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
 	p.availableConnections = make([]*Conn, 0, p.maxConnections)
 }
