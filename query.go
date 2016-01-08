@@ -56,6 +56,10 @@ type Rows struct {
 	unlockConn bool
 }
 
+func NewRowsWithError(err error) *Rows {
+	return &Rows{closed: true, err: err}
+}
+
 func (rows *Rows) FieldDescriptions() []FieldDescription {
 	return rows.fields
 }

@@ -237,7 +237,7 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	c, err := p.Acquire()
 	if err != nil {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
-		return &Rows{closed: true, err: err}, err
+		return NewRowsWithError(err), err
 	}
 
 	rows, err := c.Query(sql, args...)
