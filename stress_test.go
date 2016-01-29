@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -101,18 +102,22 @@ func TestStressTLSConnection(t *testing.T) {
 		t.Skip("Skipping due to testing -short")
 	}
 
-	conn, err := pgx.Connect(*tlsConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
+	config := pgx.ConnPoolConfig{ConnConfig: *tlsConnConfig, MaxConnections: 5}
+	config.AfterConnect = func(c *pgx.Conn) error {
+		fmt.Println("new conn", c.Pid)
+		return nil
 	}
-	defer conn.Close()
+	pool, _ := pgx.NewConnPool(config)
+	defer pool.Close()
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 20; i++ {
 		sql := `select * from generate_series(1, $1)`
 
-		rows, err := conn.Query(sql, 2000000)
+		rows, err := pool.Query(sql, 200000)
 		if err != nil {
-			t.Fatal(err)
+			fmt.Println(pool.Stat())
+			fmt.Println("Query err:", err)
+			continue
 		}
 
 		var n int32
@@ -121,7 +126,8 @@ func TestStressTLSConnection(t *testing.T) {
 		}
 
 		if rows.Err() != nil {
-			t.Fatalf("queryCount: %d, Row number: %d. %v", i, n, rows.Err())
+			fmt.Println(pool.Stat())
+			fmt.Printf("queryCount: %d, Row number: %d. %v\n", i, n, rows.Err())
 		}
 	}
 }

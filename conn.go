@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -228,7 +229,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	// Go does not support (https://github.com/golang/go/issues/5742)
 	// PostgreSQL recommends disabling (http://www.postgresql.org/docs/9.4/static/runtime-config-connection.html#GUC-SSL-RENEGOTIATION-LIMIT)
 	if tlsConfig != nil {
-		msg.options["ssl_renegotiation_limit"] = "0"
+		msg.options["ssl_renegotiation_limit"] = "10000"
 	}
 
 	// Copy default run-time params
@@ -1040,13 +1041,31 @@ func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 		c.rxNotificationResponse(r)
 		return nil
 	default:
+		fmt.Println("About to panic")
+		fmt.Printf("t: %#v", t)
+		fmt.Println("rxMsgCount", rxMsgCount)
+		debug.PrintStack()
+		panic("wat")
+
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
 }
 
+var rxMsgCount int
+
 func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
+	rxMsgCount++
+
+	if rxMsgCount == 682658 {
+		fmt.Println("got here 1")
+	}
+
 	if !c.alive {
 		return 0, nil, ErrDeadConn
+	}
+
+	if rxMsgCount == 682658 {
+		fmt.Println("got here 2")
 	}
 
 	t, err = c.mr.rxMsg()
@@ -1054,10 +1073,18 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 		c.die(err)
 	}
 
+	if rxMsgCount == 682658 {
+		fmt.Println("got here 3")
+	}
+
 	c.lastActivityTime = time.Now()
 
 	if c.logLevel >= LogLevelTrace {
 		c.logger.Debug("rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+	}
+
+	if rxMsgCount == 682658 {
+		fmt.Println("got here 4")
 	}
 
 	return t, &c.mr, err
