@@ -1,5 +1,6 @@
 # Tip
 
+* Fix msgReader.rxMsg bug when msgReader already has error
 * Add support for database/sql.Scanner and database/sql/driver.Valuer interfaces
 * Go float64 can no longer be encoded to a PostgreSQL float4
 * Add ConnPool.Reset method

@@ -32,9 +32,9 @@ func (r *msgReader) fatal(err error) {
 }
 
 // rxMsg reads the type and size of the next message.
-func (r *msgReader) rxMsg() (t byte, err error) {
+func (r *msgReader) rxMsg() (byte, error) {
 	if r.err != nil {
-		return 0, err
+		return 0, r.err
 	}
 
 	if r.msgBytesRemaining > 0 {
@@ -46,7 +46,7 @@ func (r *msgReader) rxMsg() (t byte, err error) {
 	}
 
 	b := r.buf[0:5]
-	_, err = io.ReadFull(r.reader, b)
+	_, err := io.ReadFull(r.reader, b)
 	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b[1:])) - 4
 	return b[0], err
 }
