@@ -1,0 +1,6 @@
+TODO
+
+Should ConnPool get a Connect func, or a Connector interface?
+ConnConfigConnectFunc not a very great name
+ConnPool logger not from first Conn
+New logger interface

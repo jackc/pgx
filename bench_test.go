@@ -9,7 +9,7 @@ import (
 )
 
 func BenchmarkConnPool(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	config := pgx.ConnPoolConfig{Connect: pgx.ConnConfigConnectFunc(*defaultConnConfig), MaxConnections: 5}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)

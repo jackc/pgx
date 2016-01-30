@@ -5,20 +5,22 @@ import (
 	"sync"
 )
 
+func ConnConfigConnectFunc(cc ConnConfig) func() (*Conn, error) {
+	return func() (*Conn, error) { return Connect(cc) }
+}
+
 type ConnPoolConfig struct {
-	ConnConfig
-	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
-	AfterConnect   func(*Conn) error // function to call on every new connection
+	Connect        func() (*Conn, error)
+	MaxConnections int // max simultaneous connections to use, default 5, must be at least 2
 }
 
 type ConnPool struct {
 	allConnections       []*Conn
 	availableConnections []*Conn
 	cond                 *sync.Cond
-	config               ConnConfig // config used when establishing connection
+	connect              func() (*Conn, error)
 	maxConnections       int
 	resetCount           int
-	afterConnect         func(*Conn) error
 	logger               Logger
 	logLevel             int
 	closed               bool
@@ -34,7 +36,7 @@ type ConnPoolStat struct {
 // Connect directly.
 func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
-	p.config = config.ConnConfig
+	p.connect = config.Connect
 	p.maxConnections = config.MaxConnections
 	if p.maxConnections == 0 {
 		p.maxConnections = 5
@@ -43,31 +45,29 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 		return nil, errors.New("MaxConnections must be at least 1")
 	}
 
-	p.afterConnect = config.AfterConnect
-
-	if config.LogLevel != 0 {
-		p.logLevel = config.LogLevel
-	} else {
-		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
-		p.logLevel = LogLevelDebug
-	}
-	p.logger = config.Logger
-	if p.logger == nil {
-		p.logLevel = LogLevelNone
-	}
-
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
 	p.availableConnections = make([]*Conn, 0, p.maxConnections)
 	p.cond = sync.NewCond(new(sync.Mutex))
 
 	// Initially establish one connection
 	var c *Conn
-	c, err = p.createConnection()
+	c, err = p.connect()
 	if err != nil {
 		return
 	}
 	p.allConnections = append(p.allConnections, c)
 	p.availableConnections = append(p.availableConnections, c)
+
+	if c.logLevel != 0 {
+		p.logLevel = c.logLevel
+	} else {
+		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
+		p.logLevel = LogLevelDebug
+	}
+	p.logger = c.logger
+	if p.logger == nil {
+		p.logLevel = LogLevelNone
+	}
 
 	return
 }
@@ -91,7 +91,7 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 
 	// No connections are available, but we can create more
 	if len(p.allConnections) < p.maxConnections {
-		c, err = p.createConnection()
+		c, err = p.connect()
 		if err != nil {
 			return
 		}
@@ -200,20 +200,6 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 	s.MaxConnections = p.maxConnections
 	s.CurrentConnections = len(p.allConnections)
 	s.AvailableConnections = len(p.availableConnections)
-	return
-}
-
-func (p *ConnPool) createConnection() (c *Conn, err error) {
-	c, err = Connect(p.config)
-	if err != nil {
-		return
-	}
-	if p.afterConnect != nil {
-		err = p.afterConnect(c)
-		if err != nil {
-			return
-		}
-	}
 	return
 }
 

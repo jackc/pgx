@@ -1,7 +1,6 @@
 package pgx_test
 
 import (
-	"errors"
 	"fmt"
 	"github.com/jackc/pgx"
 	"sync"
@@ -9,7 +8,7 @@ import (
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: maxConnections}
+	config := pgx.ConnPoolConfig{Connect: pgx.ConnConfigConnectFunc(*defaultConnConfig), MaxConnections: maxConnections}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
@@ -20,13 +19,7 @@ func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
 func TestNewConnPool(t *testing.T) {
 	t.Parallel()
 
-	var numCallbacks int
-	afterConnect := func(c *pgx.Conn) error {
-		numCallbacks++
-		return nil
-	}
-
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 2, AfterConnect: afterConnect}
+	config := pgx.ConnPoolConfig{Connect: pgx.ConnConfigConnectFunc(*defaultConnConfig), MaxConnections: 2}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
@@ -36,26 +29,14 @@ func TestNewConnPool(t *testing.T) {
 	// It initially connects once
 	stat := pool.Stat()
 	if stat.CurrentConnections != 1 {
-		t.Errorf("Expected 1 connection to be established immediately, but %v were", numCallbacks)
-	}
-
-	// Pool creation returns an error if any AfterConnect callback does
-	errAfterConnect := errors.New("Some error")
-	afterConnect = func(c *pgx.Conn) error {
-		return errAfterConnect
-	}
-
-	config = pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 2, AfterConnect: afterConnect}
-	pool, err = pgx.NewConnPool(config)
-	if err != errAfterConnect {
-		t.Errorf("Expected errAfterConnect but received unexpected: %v", err)
+		t.Errorf("Expected 1 connection to be established immediately, but %v were", stat.CurrentConnections)
 	}
 }
 
 func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	t.Parallel()
 
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig}
+	config := pgx.ConnPoolConfig{Connect: pgx.ConnConfigConnectFunc(*defaultConnConfig)}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
