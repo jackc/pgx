@@ -143,7 +143,7 @@ func (n *NullFloat32) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Float32 = decodeFloat4(vr)
+	n.Float32 = DecodeFloat4(vr)
 	return vr.Err()
 }
 
@@ -159,7 +159,7 @@ func (n NullFloat32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeFloat4(w, n.Float32)
+	return EncodeFloat32(w, oid, n.Float32)
 }
 
 // NullFloat64 represents an float8 that may be null. NullFloat64 implements the
@@ -182,7 +182,7 @@ func (n *NullFloat64) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Float64 = decodeFloat8(vr)
+	n.Float64 = DecodeFloat8(vr)
 	return vr.Err()
 }
 
@@ -198,7 +198,7 @@ func (n NullFloat64) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeFloat8(w, n.Float64)
+	return EncodeFloat64(w, oid, n.Float64)
 }
 
 // NullString represents an string that may be null. NullString implements the
@@ -220,7 +220,7 @@ func (s *NullString) Scan(vr *ValueReader) error {
 	}
 
 	s.Valid = true
-	s.String = decodeText(vr)
+	s.String = DecodeText(vr)
 	return vr.Err()
 }
 
@@ -232,7 +232,7 @@ func (s NullString) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeText(w, s.String)
+	return EncodeString(w, oid, s.String)
 }
 
 // NullInt16 represents an smallint that may be null. NullInt16 implements the
@@ -255,7 +255,7 @@ func (n *NullInt16) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int16 = decodeInt2(vr)
+	n.Int16 = DecodeInt2(vr)
 	return vr.Err()
 }
 
@@ -271,7 +271,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt2(w, n.Int16)
+	return EncodeInt16(w, oid, n.Int16)
 }
 
 // NullInt32 represents an integer that may be null. NullInt32 implements the
@@ -294,7 +294,7 @@ func (n *NullInt32) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int32 = decodeInt4(vr)
+	n.Int32 = DecodeInt4(vr)
 	return vr.Err()
 }
 
@@ -310,7 +310,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt4(w, n.Int32)
+	return EncodeInt32(w, oid, n.Int32)
 }
 
 // NullInt64 represents an bigint that may be null. NullInt64 implements the
@@ -333,7 +333,7 @@ func (n *NullInt64) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Int64 = decodeInt8(vr)
+	n.Int64 = DecodeInt8(vr)
 	return vr.Err()
 }
 
@@ -349,7 +349,7 @@ func (n NullInt64) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeInt8(w, n.Int64)
+	return EncodeInt64(w, oid, n.Int64)
 }
 
 // NullBool represents an bool that may be null. NullBool implements the Scanner
@@ -372,7 +372,7 @@ func (n *NullBool) Scan(vr *ValueReader) error {
 		return nil
 	}
 	n.Valid = true
-	n.Bool = decodeBool(vr)
+	n.Bool = DecodeBool(vr)
 	return vr.Err()
 }
 
@@ -388,7 +388,7 @@ func (n NullBool) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	return encodeBool(w, n.Bool)
+	return EncodeBool(w, oid, n.Bool)
 }
 
 // NullTime represents an time.Time that may be null. NullTime implements the
@@ -416,11 +416,11 @@ func (n *NullTime) Scan(vr *ValueReader) error {
 	n.Valid = true
 	switch oid {
 	case TimestampTzOid:
-		n.Time = decodeTimestampTz(vr)
+		n.Time = DecodeTimestampTz(vr)
 	case TimestampOid:
-		n.Time = decodeTimestamp(vr)
+		n.Time = DecodeTimestamp(vr)
 	case DateOid:
-		n.Time = decodeDate(vr)
+		n.Time = DecodeDate(vr)
 	}
 
 	return vr.Err()
@@ -438,16 +438,7 @@ func (n NullTime) Encode(w *WriteBuf, oid Oid) error {
 		return nil
 	}
 
-	switch oid {
-	case TimestampTzOid:
-		return encodeTimestampTz(w, n.Time)
-	case TimestampOid:
-		return encodeTimestamp(w, n.Time)
-	case DateOid:
-		return encodeDate(w, n.Time)
-	default:
-		panic("unreachable")
-	}
+	return EncodeTime(w, oid, n.Time)
 }
 
 // Hstore represents an hstore column. It does not support a null column or null
@@ -584,7 +575,7 @@ func (h NullHstore) Encode(w *WriteBuf, oid Oid) error {
 	return nil
 }
 
-func decodeBool(vr *ValueReader) bool {
+func DecodeBool(vr *ValueReader) bool {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into bool"))
 		return false
@@ -609,16 +600,15 @@ func decodeBool(vr *ValueReader) bool {
 	return b != 0
 }
 
-func encodeBool(w *WriteBuf, value interface{}) error {
-	v, ok := value.(bool)
-	if !ok {
-		return fmt.Errorf("Expected bool, received %T", value)
+func EncodeBool(w *WriteBuf, oid Oid, value bool) error {
+	if oid != BoolOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "bool", oid)
 	}
 
 	w.WriteInt32(1)
 
 	var n byte
-	if v {
+	if value {
 		n = 1
 	}
 
@@ -627,7 +617,7 @@ func encodeBool(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt8(vr *ValueReader) int64 {
+func DecodeInt8(vr *ValueReader) int64 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int64"))
 		return 0
@@ -651,41 +641,7 @@ func decodeInt8(vr *ValueReader) int64 {
 	return vr.ReadInt64()
 }
 
-func encodeInt8(w *WriteBuf, value interface{}) error {
-	var v int64
-	switch value := value.(type) {
-	case int8:
-		v = int64(value)
-	case uint8:
-		v = int64(value)
-	case int16:
-		v = int64(value)
-	case uint16:
-		v = int64(value)
-	case int32:
-		v = int64(value)
-	case uint32:
-		v = int64(value)
-	case int64:
-		v = int64(value)
-	case uint64:
-		if value > math.MaxInt64 {
-			return fmt.Errorf("uint64 %d is larger than max int64 %d", value, int64(math.MaxInt64))
-		}
-		v = int64(value)
-	case int:
-		v = int64(value)
-	default:
-		return fmt.Errorf("Expected integer representable in int64, received %T %v", value, value)
-	}
-
-	w.WriteInt32(8)
-	w.WriteInt64(v)
-
-	return nil
-}
-
-func decodeInt2(vr *ValueReader) int16 {
+func DecodeInt2(vr *ValueReader) int16 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int16"))
 		return 0
@@ -709,56 +665,217 @@ func decodeInt2(vr *ValueReader) int16 {
 	return vr.ReadInt16()
 }
 
-func encodeInt2(w *WriteBuf, value interface{}) error {
-	var v int16
-	switch value := value.(type) {
-	case int8:
-		v = int16(value)
-	case uint8:
-		v = int16(value)
-	case int16:
-		v = int16(value)
-	case uint16:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int32:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case uint32:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int64:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case uint64:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
-	case int:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%T %d is larger than max int16 %d", value, value, math.MaxInt16)
-		}
-		v = int16(value)
+func EncodeInt8(w *WriteBuf, oid Oid, value int8) error {
+	switch oid {
+	case Int2Oid:
+		w.WriteInt32(2)
+		w.WriteInt16(int16(value))
+	case Int4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(value))
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
 	default:
-		return fmt.Errorf("Expected integer representable in int16, received %T %v", value, value)
+		return fmt.Errorf("cannot encode %s into oid %v", "int8", oid)
 	}
-
-	w.WriteInt32(2)
-	w.WriteInt16(v)
 
 	return nil
 }
 
-func decodeInt4(vr *ValueReader) int32 {
+func encodeUInt8(w *WriteBuf, oid Oid, value uint8) error {
+	switch oid {
+	case Int2Oid:
+		w.WriteInt32(2)
+		w.WriteInt16(int16(value))
+	case Int4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(value))
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "uint8", oid)
+	}
+
+	return nil
+}
+
+func EncodeInt16(w *WriteBuf, oid Oid, value int16) error {
+	switch oid {
+	case Int2Oid:
+		w.WriteInt32(2)
+		w.WriteInt16(value)
+	case Int4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(value))
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "int16", oid)
+	}
+
+	return nil
+}
+
+func encodeUInt16(w *WriteBuf, oid Oid, value uint16) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(value))
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "int16", oid)
+	}
+
+	return nil
+}
+
+func EncodeInt32(w *WriteBuf, oid Oid, value int32) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(value)
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "int32", oid)
+	}
+
+	return nil
+}
+
+func encodeUInt32(w *WriteBuf, oid Oid, value uint32) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		if value <= math.MaxInt32 {
+			w.WriteInt32(4)
+			w.WriteInt32(int32(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
+		}
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(value))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "uint32", oid)
+	}
+
+	return nil
+}
+
+func EncodeInt64(w *WriteBuf, oid Oid, value int64) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		if value <= math.MaxInt32 {
+			w.WriteInt32(4)
+			w.WriteInt32(int32(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
+		}
+	case Int8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(value)
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "int64", oid)
+	}
+
+	return nil
+}
+
+func encodeUInt64(w *WriteBuf, oid Oid, value uint64) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		if value <= math.MaxInt32 {
+			w.WriteInt32(4)
+			w.WriteInt32(int32(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
+		}
+	case Int8Oid:
+		if value <= math.MaxInt64 {
+			w.WriteInt32(8)
+			w.WriteInt64(int64(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int64 %d", value, math.MaxInt64)
+		}
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "uint64", oid)
+	}
+
+	return nil
+}
+
+func encodeInt(w *WriteBuf, oid Oid, value int) error {
+	switch oid {
+	case Int2Oid:
+		if value <= math.MaxInt16 {
+			w.WriteInt32(2)
+			w.WriteInt16(int16(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int16 %d", value, math.MaxInt16)
+		}
+	case Int4Oid:
+		if value <= math.MaxInt32 {
+			w.WriteInt32(4)
+			w.WriteInt32(int32(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
+		}
+	case Int8Oid:
+		if value <= math.MaxInt64 {
+			w.WriteInt32(8)
+			w.WriteInt64(int64(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int64 %d", value, math.MaxInt64)
+		}
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "uint64", oid)
+	}
+
+	return nil
+}
+
+func DecodeInt4(vr *ValueReader) int32 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int32"))
 		return 0
@@ -782,50 +899,7 @@ func decodeInt4(vr *ValueReader) int32 {
 	return vr.ReadInt32()
 }
 
-func encodeInt4(w *WriteBuf, value interface{}) error {
-	var v int32
-	switch value := value.(type) {
-	case int8:
-		v = int32(value)
-	case uint8:
-		v = int32(value)
-	case int16:
-		v = int32(value)
-	case uint16:
-		v = int32(value)
-	case int32:
-		v = int32(value)
-	case uint32:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case int64:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case uint64:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	case int:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%T %d is larger than max int32 %d", value, value, math.MaxInt32)
-		}
-		v = int32(value)
-	default:
-		return fmt.Errorf("Expected integer representable in int32, received %T %v", value, value)
-	}
-
-	w.WriteInt32(4)
-	w.WriteInt32(v)
-
-	return nil
-}
-
-func decodeOid(vr *ValueReader) Oid {
+func DecodeOid(vr *ValueReader) Oid {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into Oid"))
 		return 0
@@ -857,19 +931,18 @@ func decodeOid(vr *ValueReader) Oid {
 	}
 }
 
-func encodeOid(w *WriteBuf, value interface{}) error {
-	v, ok := value.(Oid)
-	if !ok {
-		return fmt.Errorf("Expected Oid, received %T", value)
+func EncodeOid(w *WriteBuf, oid Oid, value Oid) error {
+	if oid != OidOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Oid", oid)
 	}
 
 	w.WriteInt32(4)
-	w.WriteInt32(int32(v))
+	w.WriteInt32(int32(value))
 
 	return nil
 }
 
-func decodeFloat4(vr *ValueReader) float32 {
+func DecodeFloat4(vr *ValueReader) float32 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into float32"))
 		return 0
@@ -894,20 +967,22 @@ func decodeFloat4(vr *ValueReader) float32 {
 	return math.Float32frombits(uint32(i))
 }
 
-func encodeFloat4(w *WriteBuf, value interface{}) error {
-	v, ok := value.(float32)
-	if !ok {
-		return fmt.Errorf("Expected float32, received %T", value)
+func EncodeFloat32(w *WriteBuf, oid Oid, value float32) error {
+	switch oid {
+	case Float4Oid:
+		w.WriteInt32(4)
+		w.WriteInt32(int32(math.Float32bits(value)))
+	case Float8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(math.Float64bits(float64(value))))
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "float32", oid)
 	}
-
-	w.WriteInt32(4)
-
-	w.WriteInt32(int32(math.Float32bits(v)))
 
 	return nil
 }
 
-func decodeFloat8(vr *ValueReader) float64 {
+func DecodeFloat8(vr *ValueReader) float64 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into float64"))
 		return 0
@@ -932,25 +1007,19 @@ func decodeFloat8(vr *ValueReader) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-func encodeFloat8(w *WriteBuf, value interface{}) error {
-	var v float64
-	switch value := value.(type) {
-	case float32:
-		v = float64(value)
-	case float64:
-		v = float64(value)
+func EncodeFloat64(w *WriteBuf, oid Oid, value float64) error {
+	switch oid {
+	case Float8Oid:
+		w.WriteInt32(8)
+		w.WriteInt64(int64(math.Float64bits(value)))
 	default:
-		return fmt.Errorf("Expected float representable in float64, received %T %v", value, value)
+		return fmt.Errorf("cannot encode %s into oid %v", "float64", oid)
 	}
-
-	w.WriteInt32(8)
-
-	w.WriteInt64(int64(math.Float64bits(v)))
 
 	return nil
 }
 
-func decodeText(vr *ValueReader) string {
+func DecodeText(vr *ValueReader) string {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into string"))
 		return ""
@@ -959,22 +1028,13 @@ func decodeText(vr *ValueReader) string {
 	return vr.ReadString(vr.Len())
 }
 
-func encodeText(w *WriteBuf, value interface{}) error {
-	switch t := value.(type) {
-	case string:
-		w.WriteInt32(int32(len(t)))
-		w.WriteBytes([]byte(t))
-	case []byte:
-		w.WriteInt32(int32(len(t)))
-		w.WriteBytes(t)
-	default:
-		return fmt.Errorf("Expected string, received %T", value)
-	}
-
+func EncodeString(w *WriteBuf, oid Oid, value string) error {
+	w.WriteInt32(int32(len(value)))
+	w.WriteBytes([]byte(value))
 	return nil
 }
 
-func decodeBytea(vr *ValueReader) []byte {
+func DecodeBytea(vr *ValueReader) []byte {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -992,14 +1052,9 @@ func decodeBytea(vr *ValueReader) []byte {
 	return vr.ReadBytes(vr.Len())
 }
 
-func encodeBytea(w *WriteBuf, value interface{}) error {
-	b, ok := value.([]byte)
-	if !ok {
-		return fmt.Errorf("Expected []byte, received %T", value)
-	}
-
-	w.WriteInt32(int32(len(b)))
-	w.WriteBytes(b)
+func EncodeByteSlice(w *WriteBuf, oid Oid, value []byte) error {
+	w.WriteInt32(int32(len(value)))
+	w.WriteBytes(value)
 
 	return nil
 }
@@ -1021,16 +1076,23 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func encodeJson(w *WriteBuf, value interface{}) error {
-	s, err := json.Marshal(value)
-	if err != nil {
-		fmt.Errorf("Failed to encode json from type: %T", value)
+func EncodeJson(w *WriteBuf, oid Oid, value interface{}) error {
+	if oid != JsonOid && oid != JsonbOid {
+		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}
 
-	return encodeText(w, s)
+	s, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("Failed to encode json from type: %T", value)
+	}
+
+	w.WriteInt32(int32(len(s)))
+	w.WriteBytes(s)
+
+	return nil
 }
 
-func decodeDate(vr *ValueReader) time.Time {
+func DecodeDate(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1055,27 +1117,35 @@ func decodeDate(vr *ValueReader) time.Time {
 	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
 }
 
-func encodeDate(w *WriteBuf, value interface{}) error {
-	t, ok := value.(time.Time)
-	if !ok {
-		return fmt.Errorf("Expected time.Time, received %T", value)
+func EncodeTime(w *WriteBuf, oid Oid, value time.Time) error {
+	switch oid {
+	case DateOid:
+		tUnix := time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC).Unix()
+		dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+
+		secSinceDateEpoch := tUnix - dateEpoch
+		daysSinceDateEpoch := secSinceDateEpoch / 86400
+
+		w.WriteInt32(4)
+		w.WriteInt32(int32(daysSinceDateEpoch))
+
+		return nil
+	case TimestampTzOid, TimestampOid:
+		microsecSinceUnixEpoch := value.Unix()*1000000 + int64(value.Nanosecond())/1000
+		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
+
+		w.WriteInt32(8)
+		w.WriteInt64(microsecSinceY2K)
+
+		return nil
+	default:
+		return fmt.Errorf("cannot encode %s into oid %v", "time.Time", oid)
 	}
-
-	tUnix := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix()
-	dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
-
-	secSinceDateEpoch := tUnix - dateEpoch
-	daysSinceDateEpoch := secSinceDateEpoch / 86400
-
-	w.WriteInt32(4)
-	w.WriteInt32(int32(daysSinceDateEpoch))
-
-	return nil
 }
 
 const microsecFromUnixEpochToY2K = 946684800 * 1000000
 
-func decodeTimestampTz(vr *ValueReader) time.Time {
+func DecodeTimestampTz(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1103,22 +1173,7 @@ func decodeTimestampTz(vr *ValueReader) time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func encodeTimestampTz(w *WriteBuf, value interface{}) error {
-	t, ok := value.(time.Time)
-	if !ok {
-		return fmt.Errorf("Expected time.Time, received %T", value)
-	}
-
-	microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
-	microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
-
-	w.WriteInt32(8)
-	w.WriteInt64(microsecSinceY2K)
-
-	return nil
-}
-
-func decodeTimestamp(vr *ValueReader) time.Time {
+func DecodeTimestamp(vr *ValueReader) time.Time {
 	var zeroTime time.Time
 
 	if vr.Len() == -1 {
@@ -1146,11 +1201,7 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func encodeTimestamp(w *WriteBuf, value interface{}) error {
-	return encodeTimestampTz(w, value)
-}
-
-func decodeInet(vr *ValueReader) net.IPNet {
+func DecodeInet(vr *ValueReader) net.IPNet {
 	var zero net.IPNet
 
 	if vr.Len() == -1 {
@@ -1186,23 +1237,14 @@ func decodeInet(vr *ValueReader) net.IPNet {
 	return ipnet
 }
 
-func encodeInet(w *WriteBuf, value interface{}) error {
-	var ipnet net.IPNet
-
-	switch value := value.(type) {
-	case net.IPNet:
-		ipnet = value
-	case net.IP:
-		ipnet.IP = value
-		bitCount := len(value) * 8
-		ipnet.Mask = net.CIDRMask(bitCount, bitCount)
-	default:
-		return fmt.Errorf("Expected net.IPNet, received %T %v", value, value)
+func EncodeIPNet(w *WriteBuf, oid Oid, value net.IPNet) error {
+	if oid != InetOid && oid != CidrOid {
+		return fmt.Errorf("cannot encode %s into oid %v", "net.IPNet", oid)
 	}
 
 	var size int32
 	var family byte
-	switch len(ipnet.IP) {
+	switch len(value.IP) {
 	case net.IPv4len:
 		size = 8
 		family = w.conn.pgsql_af_inet
@@ -1210,18 +1252,30 @@ func encodeInet(w *WriteBuf, value interface{}) error {
 		size = 20
 		family = w.conn.pgsql_af_inet6
 	default:
-		return fmt.Errorf("Unexpected IP length: %v", len(ipnet.IP))
+		return fmt.Errorf("Unexpected IP length: %v", len(value.IP))
 	}
 
 	w.WriteInt32(size)
 	w.WriteByte(family)
-	ones, _ := ipnet.Mask.Size()
+	ones, _ := value.Mask.Size()
 	w.WriteByte(byte(ones))
 	w.WriteByte(0) // is_cidr is ignored on server
-	w.WriteByte(byte(len(ipnet.IP)))
-	w.WriteBytes(ipnet.IP)
+	w.WriteByte(byte(len(value.IP)))
+	w.WriteBytes(value.IP)
 
 	return nil
+}
+
+func EncodeIP(w *WriteBuf, oid Oid, value net.IP) error {
+	if oid != InetOid && oid != CidrOid {
+		return fmt.Errorf("cannot encode %s into oid %v", "net.IP", oid)
+	}
+
+	var ipnet net.IPNet
+	ipnet.IP = value
+	bitCount := len(value) * 8
+	ipnet.Mask = net.CIDRMask(bitCount, bitCount)
+	return EncodeIPNet(w, oid, ipnet)
 }
 
 func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
@@ -1247,7 +1301,7 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	return length, nil
 }
 
-func decodeBoolArray(vr *ValueReader) []bool {
+func DecodeBoolArray(vr *ValueReader) []bool {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1288,10 +1342,9 @@ func decodeBoolArray(vr *ValueReader) []bool {
 	return a
 }
 
-func encodeBoolArray(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]bool)
-	if !ok {
-		return fmt.Errorf("Expected []bool, received %T", value)
+func EncodeBoolSlice(w *WriteBuf, oid Oid, slice []bool) error {
+	if oid != BoolArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]bool", oid)
 	}
 
 	encodeArrayHeader(w, BoolOid, len(slice), 5)
@@ -1307,7 +1360,7 @@ func encodeBoolArray(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt2Array(vr *ValueReader) []int16 {
+func DecodeInt2Array(vr *ValueReader) []int16 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1346,10 +1399,9 @@ func decodeInt2Array(vr *ValueReader) []int16 {
 	return a
 }
 
-func encodeInt2Array(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]int16)
-	if !ok {
-		return fmt.Errorf("Expected []int16, received %T", value)
+func EncodeInt16Slice(w *WriteBuf, oid Oid, slice []int16) error {
+	if oid != Int2ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int16", oid)
 	}
 
 	encodeArrayHeader(w, Int2Oid, len(slice), 6)
@@ -1361,7 +1413,7 @@ func encodeInt2Array(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt4Array(vr *ValueReader) []int32 {
+func DecodeInt4Array(vr *ValueReader) []int32 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1400,10 +1452,9 @@ func decodeInt4Array(vr *ValueReader) []int32 {
 	return a
 }
 
-func encodeInt4Array(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]int32)
-	if !ok {
-		return fmt.Errorf("Expected []int32, received %T", value)
+func EncodeInt32Slice(w *WriteBuf, oid Oid, slice []int32) error {
+	if oid != Int4ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int32", oid)
 	}
 
 	encodeArrayHeader(w, Int4Oid, len(slice), 8)
@@ -1415,7 +1466,7 @@ func encodeInt4Array(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeInt8Array(vr *ValueReader) []int64 {
+func DecodeInt8Array(vr *ValueReader) []int64 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1454,10 +1505,9 @@ func decodeInt8Array(vr *ValueReader) []int64 {
 	return a
 }
 
-func encodeInt8Array(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]int64)
-	if !ok {
-		return fmt.Errorf("Expected []int64, received %T", value)
+func EncodeInt64Slice(w *WriteBuf, oid Oid, slice []int64) error {
+	if oid != Int8ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]int64", oid)
 	}
 
 	encodeArrayHeader(w, Int8Oid, len(slice), 12)
@@ -1469,7 +1519,7 @@ func encodeInt8Array(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat4Array(vr *ValueReader) []float32 {
+func DecodeFloat4Array(vr *ValueReader) []float32 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1509,11 +1559,11 @@ func decodeFloat4Array(vr *ValueReader) []float32 {
 	return a
 }
 
-func encodeFloat4Array(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]float32)
-	if !ok {
-		return fmt.Errorf("Expected []float32, received %T", value)
+func EncodeFloat32Slice(w *WriteBuf, oid Oid, slice []float32) error {
+	if oid != Float4ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]float32", oid)
 	}
+
 	encodeArrayHeader(w, Float4Oid, len(slice), 8)
 	for _, v := range slice {
 		w.WriteInt32(4)
@@ -1523,7 +1573,7 @@ func encodeFloat4Array(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeFloat8Array(vr *ValueReader) []float64 {
+func DecodeFloat8Array(vr *ValueReader) []float64 {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1563,10 +1613,9 @@ func decodeFloat8Array(vr *ValueReader) []float64 {
 	return a
 }
 
-func encodeFloat8Array(w *WriteBuf, value interface{}) error {
-	slice, ok := value.([]float64)
-	if !ok {
-		return fmt.Errorf("Expected []float64, received %T", value)
+func EncodeFloat64Slice(w *WriteBuf, oid Oid, slice []float64) error {
+	if oid != Float8ArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]float64", oid)
 	}
 
 	encodeArrayHeader(w, Float8Oid, len(slice), 12)
@@ -1578,7 +1627,7 @@ func encodeFloat8Array(w *WriteBuf, value interface{}) error {
 	return nil
 }
 
-func decodeTextArray(vr *ValueReader) []string {
+func DecodeTextArray(vr *ValueReader) []string {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1613,10 +1662,15 @@ func decodeTextArray(vr *ValueReader) []string {
 	return a
 }
 
-func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
-	slice, ok := value.([]string)
-	if !ok {
-		return fmt.Errorf("Expected []string, received %T", value)
+func EncodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
+	var elOid Oid
+	switch oid {
+	case VarcharArrayOid:
+		elOid = VarcharOid
+	case TextArrayOid:
+		elOid = TextOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
 	}
 
 	var totalStringSize int
@@ -1641,7 +1695,7 @@ func encodeTextArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	return nil
 }
 
-func decodeTimestampArray(vr *ValueReader) []time.Time {
+func DecodeTimestampArray(vr *ValueReader) []time.Time {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1682,10 +1736,15 @@ func decodeTimestampArray(vr *ValueReader) []time.Time {
 	return a
 }
 
-func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
-	slice, ok := value.([]time.Time)
-	if !ok {
-		return fmt.Errorf("Expected []time.Time, received %T", value)
+func EncodeTimeSlice(w *WriteBuf, oid Oid, slice []time.Time) error {
+	var elOid Oid
+	switch oid {
+	case TimestampArrayOid:
+		elOid = TimestampOid
+	case TimestampTzArrayOid:
+		elOid = TimestampTzOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]time.Time", oid)
 	}
 
 	encodeArrayHeader(w, int(elOid), len(slice), 12)
@@ -1699,7 +1758,7 @@ func encodeTimestampArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	return nil
 }
 
-func decodeInetArray(vr *ValueReader) []net.IPNet {
+func DecodeInetArray(vr *ValueReader) []net.IPNet {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1743,10 +1802,15 @@ func decodeInetArray(vr *ValueReader) []net.IPNet {
 	return a
 }
 
-func encodeInetArray(w *WriteBuf, value interface{}, elOid Oid) error {
-	slice, ok := value.([]net.IPNet)
-	if !ok {
-		return fmt.Errorf("Expected []net.IPNet, received %T", value)
+func EncodeIPNetSlice(w *WriteBuf, oid Oid, slice []net.IPNet) error {
+	var elOid Oid
+	switch oid {
+	case InetArrayOid:
+		elOid = InetOid
+	case CidrArrayOid:
+		elOid = CidrOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
 	}
 
 	size := int32(20) // array header size
@@ -1762,7 +1826,37 @@ func encodeInetArray(w *WriteBuf, value interface{}, elOid Oid) error {
 	w.WriteInt32(1)                 // index of first element
 
 	for _, ipnet := range slice {
-		encodeInet(w, ipnet)
+		EncodeIPNet(w, elOid, ipnet)
+	}
+
+	return nil
+}
+
+func EncodeIPSlice(w *WriteBuf, oid Oid, slice []net.IP) error {
+	var elOid Oid
+	switch oid {
+	case InetArrayOid:
+		elOid = InetOid
+	case CidrArrayOid:
+		elOid = CidrOid
+	default:
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
+	}
+
+	size := int32(20) // array header size
+	for _, ip := range slice {
+		size += 4 + 4 + int32(len(ip)) // size of element + inet/cidr metadata + IP bytes
+	}
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(int32(elOid))      // type of elements
+	w.WriteInt32(int32(len(slice))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, ip := range slice {
+		EncodeIP(w, elOid, ip)
 	}
 
 	return nil

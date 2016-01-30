@@ -861,81 +861,102 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			err = arg.Encode(wbuf, oid)
+			if err != nil {
+				return err
+			}
+			continue
 		case driver.Valuer:
 			arguments[i], err = arg.Value()
 			if err == nil {
 				goto encode
 			}
 		case string:
-			err = encodeText(wbuf, arguments[i])
+			err = EncodeString(wbuf, oid, arg)
+			if err != nil {
+				return err
+			}
+			continue
 		case []byte:
-			err = encodeBytea(wbuf, arguments[i])
+			err = EncodeByteSlice(wbuf, oid, arg)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
+			if v.IsNil() {
+				wbuf.WriteInt32(-1)
+				continue
+			} else {
+				arguments[i] = v.Elem().Interface()
+				goto encode
+			}
+		}
+
+		if oid == JsonOid || oid == JsonbOid {
+			err = EncodeJson(wbuf, oid, arguments[i])
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
+		switch arg := arguments[i].(type) {
+		case []string:
+			err = EncodeStringSlice(wbuf, oid, arg)
+		case bool:
+			err = EncodeBool(wbuf, oid, arg)
+		case []bool:
+			err = EncodeBoolSlice(wbuf, oid, arg)
+		case int8:
+			err = EncodeInt8(wbuf, oid, arg)
+		case uint8:
+			err = encodeUInt8(wbuf, oid, arg)
+		case int16:
+			err = EncodeInt16(wbuf, oid, arg)
+		case []int16:
+			err = EncodeInt16Slice(wbuf, oid, arg)
+		case uint16:
+			err = encodeUInt16(wbuf, oid, arg)
+		case int32:
+			err = EncodeInt32(wbuf, oid, arg)
+		case []int32:
+			err = EncodeInt32Slice(wbuf, oid, arg)
+		case uint32:
+			err = encodeUInt32(wbuf, oid, arg)
+		case int64:
+			err = EncodeInt64(wbuf, oid, arg)
+		case []int64:
+			err = EncodeInt64Slice(wbuf, oid, arg)
+		case uint64:
+			err = encodeUInt64(wbuf, oid, arg)
+		case int:
+			err = encodeInt(wbuf, oid, arg)
+		case float32:
+			err = EncodeFloat32(wbuf, oid, arg)
+		case []float32:
+			err = EncodeFloat32Slice(wbuf, oid, arg)
+		case float64:
+			err = EncodeFloat64(wbuf, oid, arg)
+		case []float64:
+			err = EncodeFloat64Slice(wbuf, oid, arg)
+		case time.Time:
+			err = EncodeTime(wbuf, oid, arg)
+		case []time.Time:
+			err = EncodeTimeSlice(wbuf, oid, arg)
+		case net.IP:
+			err = EncodeIP(wbuf, oid, arg)
+		case []net.IP:
+			err = EncodeIPSlice(wbuf, oid, arg)
+		case net.IPNet:
+			err = EncodeIPNet(wbuf, oid, arg)
+		case []net.IPNet:
+			err = EncodeIPNetSlice(wbuf, oid, arg)
+		case Oid:
+			err = EncodeOid(wbuf, oid, arg)
 		default:
-			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
-				if v.IsNil() {
-					wbuf.WriteInt32(-1)
-					continue
-				} else {
-					arguments[i] = v.Elem().Interface()
-					goto encode
-				}
-			}
-			switch oid {
-			case BoolOid:
-				err = encodeBool(wbuf, arguments[i])
-			case ByteaOid:
-				err = encodeBytea(wbuf, arguments[i])
-			case Int2Oid:
-				err = encodeInt2(wbuf, arguments[i])
-			case Int4Oid:
-				err = encodeInt4(wbuf, arguments[i])
-			case Int8Oid:
-				err = encodeInt8(wbuf, arguments[i])
-			case Float4Oid:
-				err = encodeFloat4(wbuf, arguments[i])
-			case Float8Oid:
-				err = encodeFloat8(wbuf, arguments[i])
-			case TextOid, VarcharOid:
-				err = encodeText(wbuf, arguments[i])
-			case DateOid:
-				err = encodeDate(wbuf, arguments[i])
-			case TimestampTzOid:
-				err = encodeTimestampTz(wbuf, arguments[i])
-			case TimestampOid:
-				err = encodeTimestamp(wbuf, arguments[i])
-			case InetOid, CidrOid:
-				err = encodeInet(wbuf, arguments[i])
-			case InetArrayOid:
-				err = encodeInetArray(wbuf, arguments[i], InetOid)
-			case CidrArrayOid:
-				err = encodeInetArray(wbuf, arguments[i], CidrOid)
-			case BoolArrayOid:
-				err = encodeBoolArray(wbuf, arguments[i])
-			case Int2ArrayOid:
-				err = encodeInt2Array(wbuf, arguments[i])
-			case Int4ArrayOid:
-				err = encodeInt4Array(wbuf, arguments[i])
-			case Int8ArrayOid:
-				err = encodeInt8Array(wbuf, arguments[i])
-			case Float4ArrayOid:
-				err = encodeFloat4Array(wbuf, arguments[i])
-			case Float8ArrayOid:
-				err = encodeFloat8Array(wbuf, arguments[i])
-			case TextArrayOid:
-				err = encodeTextArray(wbuf, arguments[i], TextOid)
-			case VarcharArrayOid:
-				err = encodeTextArray(wbuf, arguments[i], VarcharOid)
-			case TimestampArrayOid:
-				err = encodeTimestampArray(wbuf, arguments[i], TimestampOid)
-			case TimestampTzArrayOid:
-				err = encodeTimestampArray(wbuf, arguments[i], TimestampTzOid)
-			case OidOid:
-				err = encodeOid(wbuf, arguments[i])
-			case JsonOid, JsonbOid:
-				err = encodeJson(wbuf, arguments[i])
-			default:
-				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
-			}
+			return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 		}
 		if err != nil {
 			return err
