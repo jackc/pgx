@@ -7,26 +7,26 @@ import (
 type fastpathArg []byte
 
 func newFastpath(cn *Conn) *fastpath {
-	return &fastpath{cn: cn, fns: make(map[string]Oid)}
+	return &fastpath{cn: cn, fns: make(map[string]OID)}
 }
 
 type fastpath struct {
 	cn  *Conn
-	fns map[string]Oid
+	fns map[string]OID
 }
 
-func (f *fastpath) functionOID(name string) Oid {
+func (f *fastpath) functionOID(name string) OID {
 	return f.fns[name]
 }
 
-func (f *fastpath) addFunction(name string, oid Oid) {
+func (f *fastpath) addFunction(name string, oid OID) {
 	f.fns[name] = oid
 }
 
 func (f *fastpath) addFunctions(rows *Rows) error {
 	for rows.Next() {
 		var name string
-		var oid Oid
+		var oid OID
 		if err := rows.Scan(&name, &oid); err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func fpInt64Arg(n int64) fpArg {
 	return res
 }
 
-func (f *fastpath) Call(oid Oid, args []fpArg) (res []byte, err error) {
+func (f *fastpath) Call(oid OID, args []fpArg) (res []byte, err error) {
 	wbuf := newWriteBuf(f.cn, 'F')    // function call
 	wbuf.WriteInt32(int32(oid))       // function object id
 	wbuf.WriteInt16(1)                // # of argument format codes

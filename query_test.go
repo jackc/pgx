@@ -83,7 +83,7 @@ func TestConnQueryValues(t *testing.T) {
 			t.Errorf(`Expected values[2] to be %d, but it was %d`, nil, values[2])
 		}
 
-		if values[3] != pgx.Oid(rowCount) {
+		if values[3] != pgx.OID(rowCount) {
 			t.Errorf(`Expected values[3] to be %d, but it was %d`, rowCount, values[3])
 		}
 	}
@@ -336,7 +336,7 @@ type coreEncoder struct{}
 
 func (n coreEncoder) FormatCode() int16 { return pgx.TextFormatCode }
 
-func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
+func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.OID) error {
 	w.WriteInt32(int32(2))
 	w.WriteBytes([]byte("42"))
 	return nil
@@ -374,7 +374,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f64 float64
 		b   bool
 		t   time.Time
-		oid pgx.Oid
+		oid pgx.OID
 	}
 
 	var actual, zero allTypes
@@ -395,7 +395,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
 		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.Local)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.Local)}},
 		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.Local)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.Local)}},
-		{"select $1::oid", []interface{}{pgx.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::oid", []interface{}{pgx.OID(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {

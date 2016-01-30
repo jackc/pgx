@@ -57,7 +57,7 @@ func (p *NullPoint) Scan(vr *pgx.ValueReader) error {
 
 func (p NullPoint) FormatCode() int16 { return pgx.BinaryFormatCode }
 
-func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
+func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.OID) error {
 	if !p.Valid {
 		w.WriteInt32(-1)
 		return nil

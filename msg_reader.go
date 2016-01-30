@@ -156,8 +156,8 @@ func (r *msgReader) readInt64() int64 {
 	return n
 }
 
-func (r *msgReader) readOid() Oid {
-	return Oid(r.readInt32())
+func (r *msgReader) readOID() OID {
+	return OID(r.readInt32())
 }
 
 // readCString reads a null terminated string

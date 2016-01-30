@@ -1,3 +1,9 @@
+# Experiment
+
+## Backwards incompatible changes
+
+In accordance, with standard Go naming conventions Oid has been renamed to OID. This applies to the OID type itself as well as package variables like BoolOID.
+
 # Tip
 
 * Fix msgReader.rxMsg bug when msgReader already has error

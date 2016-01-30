@@ -51,7 +51,7 @@ type Conn struct {
 	Pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
-	PgTypes            map[Oid]PgType    // oids to PgTypes
+	PgTypes            map[OID]PgType    // oids to PgTypes
 	config             ConnConfig        // config used when establishing this connection
 	TxStatus           byte
 	preparedStatements map[string]*PreparedStatement
@@ -73,7 +73,7 @@ type PreparedStatement struct {
 	Name              string
 	SQL               string
 	FieldDescriptions []FieldDescription
-	ParameterOids     []Oid
+	ParameterOIDs     []OID
 }
 
 type Notification struct {
@@ -292,10 +292,10 @@ func (c *Conn) loadPgTypes() error {
 		return err
 	}
 
-	c.PgTypes = make(map[Oid]PgType, 128)
+	c.PgTypes = make(map[OID]PgType, 128)
 
 	for rows.Next() {
-		var oid Oid
+		var oid OID
 		var t PgType
 
 		rows.Scan(&oid, &t.Name)
@@ -593,9 +593,9 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		switch t {
 		case parseComplete:
 		case parameterDescription:
-			ps.ParameterOids = c.rxParameterDescription(r)
-			if len(ps.ParameterOids) > 65535 && softErr == nil {
-				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOids))
+			ps.ParameterOIDs = c.rxParameterDescription(r)
+			if len(ps.ParameterOIDs) > 65535 && softErr == nil {
+				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOIDs))
 			}
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
@@ -824,8 +824,8 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 }
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
-	if len(ps.ParameterOids) != len(arguments) {
-		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
+	if len(ps.ParameterOIDs) != len(arguments) {
+		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
 	}
 
 	// bind
@@ -833,8 +833,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	wbuf.WriteByte(0)
 	wbuf.WriteCString(ps.Name)
 
-	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
-	for i, oid := range ps.ParameterOids {
+	wbuf.WriteInt16(int16(len(ps.ParameterOIDs)))
+	for i, oid := range ps.ParameterOIDs {
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
@@ -842,7 +842,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			wbuf.WriteInt16(TextFormatCode)
 		default:
 			switch oid {
-			case BoolOid, ByteaOid, Int2Oid, Int4Oid, Int8Oid, Float4Oid, Float8Oid, TimestampTzOid, TimestampTzArrayOid, TimestampOid, TimestampArrayOid, DateOid, BoolArrayOid, Int2ArrayOid, Int4ArrayOid, Int8ArrayOid, Float4ArrayOid, Float8ArrayOid, TextArrayOid, VarcharArrayOid, OidOid, InetOid, CidrOid, InetArrayOid, CidrArrayOid:
+			case BoolOID, ByteaOID, Int2OID, Int4OID, Int8OID, Float4OID, Float8OID, TimestampTzOID, TimestampTzArrayOID, TimestampOID, TimestampArrayOID, DateOID, BoolArrayOID, Int2ArrayOID, Int4ArrayOID, Int8ArrayOID, Float4ArrayOID, Float8ArrayOID, TextArrayOID, VarcharArrayOID, OIDOID, InetOID, CidrOID, InetArrayOID, CidrArrayOID:
 				wbuf.WriteInt16(BinaryFormatCode)
 			default:
 				wbuf.WriteInt16(TextFormatCode)
@@ -851,7 +851,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	}
 
 	wbuf.WriteInt16(int16(len(arguments)))
-	for i, oid := range ps.ParameterOids {
+	for i, oid := range ps.ParameterOIDs {
 	encode:
 		if arguments[i] == nil {
 			wbuf.WriteInt32(-1)
@@ -894,7 +894,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			}
 		}
 
-		if oid == JsonOid || oid == JsonbOid {
+		if oid == JsonOID || oid == JsonbOID {
 			err = EncodeJson(wbuf, oid, arguments[i])
 			if err != nil {
 				return err
@@ -953,8 +953,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 			err = EncodeIPNet(wbuf, oid, arg)
 		case []net.IPNet:
 			err = EncodeIPNetSlice(wbuf, oid, arg)
-		case Oid:
-			err = EncodeOid(wbuf, oid, arg)
+		case OID:
+			err = EncodeOID(wbuf, oid, arg)
 		default:
 			return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 		}
@@ -1182,9 +1182,9 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
 		f.Name = r.readCString()
-		f.Table = r.readOid()
+		f.Table = r.readOID()
 		f.AttributeNumber = r.readInt16()
-		f.DataType = r.readOid()
+		f.DataType = r.readOID()
 		f.DataTypeSize = r.readInt16()
 		f.Modifier = r.readInt32()
 		f.FormatCode = r.readInt16()
@@ -1192,7 +1192,7 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	return
 }
 
-func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
+func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	// Internally, PostgreSQL supports greater than 64k parameters to a prepared
 	// statement. But the parameter description uses a 16-bit integer for the
 	// count of parameters. If there are more than 64K parameters, this count is
@@ -1201,10 +1201,10 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
 	r.readInt16()
 	parameterCount := r.msgBytesRemaining / 4
 
-	parameters = make([]Oid, 0, parameterCount)
+	parameters = make([]OID, 0, parameterCount)
 
 	for i := int32(0); i < parameterCount; i++ {
-		parameters = append(parameters, r.readOid())
+		parameters = append(parameters, r.readOID())
 	}
 	return
 }
