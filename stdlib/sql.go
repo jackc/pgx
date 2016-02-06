@@ -146,7 +146,7 @@ type Conn struct {
 	psCount int64 // Counter used for creating unique prepared statement names
 }
 
-func (c *Conn) Prepare(query string) (driver.Stmt, error) {
+func (c *TempNameConn) Prepare(query string) (driver.Stmt, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -164,7 +164,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 	return &Stmt{ps: ps, conn: c}, nil
 }
 
-func (c *Conn) Close() error {
+func (c *TempNameConn) Close() error {
 	if c.pool != nil {
 		c.pool.Release(c.conn)
 		return nil
@@ -173,7 +173,7 @@ func (c *Conn) Close() error {
 	return c.conn.Close()
 }
 
-func (c *Conn) Begin() (driver.Tx, error) {
+func (c *TempNameConn) Begin() (driver.Tx, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -186,7 +186,7 @@ func (c *Conn) Begin() (driver.Tx, error) {
 	return &Tx{conn: c.conn}, nil
 }
 
-func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
+func (c *TempNameConn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -196,7 +196,7 @@ func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
-func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
+func (c *TempNameConn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -211,7 +211,7 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	return c.queryPrepared("", argsV)
 }
 
-func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
+func (c *TempNameConn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}

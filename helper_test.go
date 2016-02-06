@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
+func mustConnect(t testing.TB, config pgx.ConnConfig) pgx.Conn {
 	conn, err := pgx.Connect(config)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
@@ -13,14 +13,14 @@ func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
 	return conn
 }
 
-func closeConn(t testing.TB, conn *pgx.Conn) {
+func closeConn(t testing.TB, conn pgx.Conn) {
 	err := conn.Close()
 	if err != nil {
 		t.Fatalf("conn.Close unexpectedly failed: %v", err)
 	}
 }
 
-func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgx.CommandTag) {
+func mustExec(t testing.TB, conn pgx.Conn, sql string, arguments ...interface{}) (commandTag pgx.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(sql, arguments...); err != nil {
 		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)
@@ -29,7 +29,7 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}
 }
 
 // Do a simple query to ensure the connection is still usable
-func ensureConnValid(t *testing.T, conn *pgx.Conn) {
+func ensureConnValid(t *testing.T, conn pgx.Conn) {
 	var sum, rowCount int32
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)

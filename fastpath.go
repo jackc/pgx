@@ -6,12 +6,12 @@ import (
 
 type fastpathArg []byte
 
-func newFastpath(cn *Conn) *fastpath {
+func newFastpath(cn *TempNameConn) *fastpath {
 	return &fastpath{cn: cn, fns: make(map[string]OID)}
 }
 
 type fastpath struct {
-	cn  *Conn
+	cn  *TempNameConn
 	fns map[string]OID
 }
 

@@ -1209,7 +1209,7 @@ func TestFatalRxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Pid); err != nil {
+	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Stat().Pid); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -1235,7 +1235,7 @@ func TestFatalTxError(t *testing.T) {
 			}
 			defer otherConn.Close()
 
-			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Pid)
+			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Stat().Pid)
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}

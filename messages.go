@@ -89,7 +89,7 @@ func (self PgError) Error() string {
 	return self.Severity + ": " + self.Message + " (SQLSTATE " + self.Code + ")"
 }
 
-func newWriteBuf(c *Conn, t byte) *WriteBuf {
+func newWriteBuf(c *TempNameConn, t byte) *WriteBuf {
 	buf := append(c.wbuf[0:0], t, 0, 0, 0, 0)
 	return &WriteBuf{buf: buf, sizeIdx: 1, conn: c}
 }
@@ -99,7 +99,7 @@ func newWriteBuf(c *Conn, t byte) *WriteBuf {
 type WriteBuf struct {
 	buf     []byte
 	sizeIdx int
-	conn    *Conn
+	conn    *TempNameConn
 }
 
 func (wb *WriteBuf) startMsg(t byte) {

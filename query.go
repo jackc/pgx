@@ -40,7 +40,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
 	pool       *ConnPool
-	conn       *Conn
+	conn       Conn
 	mr         *msgReader
 	fields     []FieldDescription
 	vr         ValueReader
@@ -472,7 +472,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // Query executes sql with args. If there is an error the returned *Rows will
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
-func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
+func (c *TempNameConn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
 	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
 
@@ -503,7 +503,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
 // querying is deferred until calling Scan on the returned *Row. That *Row will
 // error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
+func (c *TempNameConn) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := c.Query(sql, args...)
 	return (*Row)(rows)
 }

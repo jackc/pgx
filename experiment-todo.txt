@@ -4,3 +4,12 @@ Should ConnPool get a Connect func, or a Connector interface?
 ConnConfigConnectFunc not a very great name
 ConnPool logger not from first Conn
 New logger interface
+Conn.CauseOfDeath name -- maybe something better or remove -- along with IsAlive
+Fix ConnPool Reset
+Conn.TxStatus -- need interface function or maybe Reset func
+Rename Pid to PID
+
+
+Experiment seems to be failing
+
+Rows depends on internal knowledge of Conn. And in general Conn, ConnPool, Rows, and Tx are so tightly coupled that breaking them up by interface seems very difficult. Maybe impossible for Rows.

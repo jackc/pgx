@@ -5,20 +5,27 @@ import (
 	"sync"
 )
 
-func ConnConfigConnectFunc(cc ConnConfig) func() (*Conn, error) {
-	return func() (*Conn, error) { return Connect(cc) }
+func ConnConfigConnectFunc(cc ConnConfig) func() (Conn, error) {
+	return func() (Conn, error) { return Connect(cc) }
+}
+
+type poolConn struct {
+	Conn
+	poolResetCount int
 }
 
 type ConnPoolConfig struct {
-	Connect        func() (*Conn, error)
+	Connect        func() (Conn, error)
 	MaxConnections int // max simultaneous connections to use, default 5, must be at least 2
+	Logger         Logger
+	LogLevel       int
 }
 
 type ConnPool struct {
-	allConnections       []*Conn
-	availableConnections []*Conn
+	allConnections       []*poolConn
+	availableConnections []*poolConn
 	cond                 *sync.Cond
-	connect              func() (*Conn, error)
+	connect              func() (Conn, error)
 	maxConnections       int
 	resetCount           int
 	logger               Logger
@@ -45,35 +52,34 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 		return nil, errors.New("MaxConnections must be at least 1")
 	}
 
-	p.allConnections = make([]*Conn, 0, p.maxConnections)
-	p.availableConnections = make([]*Conn, 0, p.maxConnections)
+	p.allConnections = make([]*poolConn, 0, p.maxConnections)
+	p.availableConnections = make([]*poolConn, 0, p.maxConnections)
 	p.cond = sync.NewCond(new(sync.Mutex))
 
+	if config.LogLevel != 0 {
+		p.logLevel = config.LogLevel
+	} else {
+		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
+		p.logLevel = LogLevelDebug
+	}
+	p.logger = config.Logger
+	if p.logger == nil {
+		p.logLevel = LogLevelNone
+	}
+
 	// Initially establish one connection
-	var c *Conn
-	c, err = p.connect()
+	c, err := p.wrapConnect()
 	if err != nil {
 		return
 	}
 	p.allConnections = append(p.allConnections, c)
 	p.availableConnections = append(p.availableConnections, c)
 
-	if c.logLevel != 0 {
-		p.logLevel = c.logLevel
-	} else {
-		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
-		p.logLevel = LogLevelDebug
-	}
-	p.logger = c.logger
-	if p.logger == nil {
-		p.logLevel = LogLevelNone
-	}
-
 	return
 }
 
 // Acquire takes exclusive use of a connection until it is released.
-func (p *ConnPool) Acquire() (c *Conn, err error) {
+func (p *ConnPool) Acquire() (Conn, error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
@@ -83,21 +89,21 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 
 	// A connection is available
 	if len(p.availableConnections) > 0 {
-		c = p.availableConnections[len(p.availableConnections)-1]
+		c := p.availableConnections[len(p.availableConnections)-1]
 		c.poolResetCount = p.resetCount
 		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
-		return
+		return c, nil
 	}
 
 	// No connections are available, but we can create more
 	if len(p.allConnections) < p.maxConnections {
-		c, err = p.connect()
+		c, err := p.wrapConnect()
 		if err != nil {
-			return
+			return nil, err
 		}
 		c.poolResetCount = p.resetCount
 		p.allConnections = append(p.allConnections, c)
-		return
+		return c, nil
 	}
 
 	// All connections are in use and we cannot create more
@@ -110,26 +116,37 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 		}
 	}
 
-	c = p.availableConnections[len(p.availableConnections)-1]
+	c := p.availableConnections[len(p.availableConnections)-1]
 	c.poolResetCount = p.resetCount
 	p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
 
-	return
+	return c, nil
+}
+
+func (p *ConnPool) wrapConnect() (*poolConn, error) {
+	conn, err := p.connect()
+	if err != nil {
+		return nil, err
+	}
+
+	return &poolConn{Conn: conn, poolResetCount: p.resetCount}, nil
 }
 
 // Release gives up use of a connection.
-func (p *ConnPool) Release(conn *Conn) {
-	if conn.TxStatus != 'I' {
+func (p *ConnPool) Release(c Conn) {
+	conn := c.(*poolConn)
+	if conn.Stat().TxStatus != 'I' {
 		conn.Exec("rollback")
 	}
 
-	if len(conn.channels) > 0 {
-		if err := conn.Unlisten("*"); err != nil {
-			conn.die(err)
-		}
-		conn.channels = make(map[string]struct{})
-	}
-	conn.notifications = nil
+	// TODO - support auto-unlisten and notification clearing
+	// if len(conn.channels) > 0 {
+	// 	if err := conn.Unlisten("*"); err != nil {
+	// 		conn.Close()
+	// 	}
+	// 	conn.channels = make(map[string]struct{})
+	// }
+	// conn.notifications = nil
 
 	p.cond.L.Lock()
 
@@ -188,8 +205,8 @@ func (p *ConnPool) Reset() {
 	defer p.cond.L.Unlock()
 
 	p.resetCount++
-	p.allConnections = make([]*Conn, 0, p.maxConnections)
-	p.availableConnections = make([]*Conn, 0, p.maxConnections)
+	p.allConnections = make([]*poolConn, 0, p.maxConnections)
+	p.availableConnections = make([]*poolConn, 0, p.maxConnections)
 }
 
 // Stat returns connection pool statistics
@@ -205,7 +222,7 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 
 // Exec acquires a connection, delegates the call to that connection, and releases the connection
 func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	var c *Conn
+	var c Conn
 	if c, err = p.Acquire(); err != nil {
 		return
 	}

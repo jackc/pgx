@@ -57,8 +57,8 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
 
-	acquireAll := func() (connections []*pgx.Conn) {
-		connections = make([]*pgx.Conn, maxConnections)
+	acquireAll := func() (connections []pgx.Conn) {
+		connections = make([]pgx.Conn, maxConnections)
 		for i := 0; i < maxConnections; i++ {
 			var err error
 			if connections[i], err = pool.Acquire(); err != nil {
@@ -139,14 +139,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatal("Did not receive expected error")
 	}
 
-	if conn.TxStatus != 'E' {
-		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus)
+	if txStatus := conn.Stat().TxStatus; txStatus != 'E' {
+		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", txStatus)
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus)
+	if txStatus := conn.Stat().TxStatus; txStatus != 'I' {
+		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", txStatus)
 	}
 
 	conn, err = pool.Acquire()
@@ -154,14 +154,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
 	mustExec(t, conn, "begin")
-	if conn.TxStatus != 'T' {
-		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)
+	if txStatus := conn.Stat().TxStatus; txStatus != 'T' {
+		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", txStatus)
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus)
+	if txStatus := conn.Stat().TxStatus; txStatus != 'I' {
+		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", txStatus)
 	}
 }
 
@@ -217,7 +217,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 			pool := createConnPool(t, maxConnections)
 			defer pool.Close()
 
-			var c1, c2 *pgx.Conn
+			var c1, c2 pgx.Conn
 			var err error
 			var stat pgx.ConnPoolStat
 
@@ -239,7 +239,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 				}
 			}()
 
-			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Pid); err != nil {
+			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Stat().Pid); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -410,7 +410,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			pool.Release(victimConn)
 
 			// Terminate connection that was released to pool
-			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.Pid); err != nil {
+			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.Stat().Pid); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -427,7 +427,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tx.QueryRow Scan failed: %v", err)
 			}
-			if txPid == victimConn.Pid {
+			if txPid == victimConn.Stat().Pid {
 				t.Error("Expected txPid to defer from killed conn pid, but it didn't")
 			}
 		}()

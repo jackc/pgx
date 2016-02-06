@@ -40,20 +40,40 @@ type ConnConfig struct {
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 }
 
+type Conn interface {
+	Begin() (*Tx, error)
+	BeginIso(isoLevel string) (*Tx, error)
+	CauseOfDeath() error
+	Close() (err error)
+	Deallocate(name string) (err error)
+	Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error)
+	IsAlive() bool
+	Listen(channel string) error
+	Prepare(name, sql string) (ps *PreparedStatement, err error)
+	Query(sql string, args ...interface{}) (*Rows, error)
+	QueryRow(sql string, args ...interface{}) *Row
+	Unlisten(channel string) error
+	WaitForNotification(timeout time.Duration) (*Notification, error)
+	Stat() ConnStat
+}
+
+type ConnStat struct {
+	Pid           int32             // backend pid
+	SecretKey     int32             // key to use to send a cancel query message to the server
+	RuntimeParams map[string]string // parameters that have been reported by the server
+	PgTypes       map[OID]PgType    // oids to PgTypes
+	TxStatus      byte
+}
+
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
-type Conn struct {
+type TempNameConn struct {
 	conn               net.Conn      // the underlying TCP or unix domain socket connection
 	lastActivityTime   time.Time     // the last time the connection was used
 	reader             *bufio.Reader // buffered reader to improve read performance
 	wbuf               [1024]byte
-	Pid                int32             // backend pid
-	SecretKey          int32             // key to use to send a cancel query message to the server
-	RuntimeParams      map[string]string // parameters that have been reported by the server
-	PgTypes            map[OID]PgType    // oids to PgTypes
-	config             ConnConfig        // config used when establishing this connection
-	TxStatus           byte
+	config             ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	notifications      []*Notification
@@ -67,6 +87,7 @@ type Conn struct {
 	pgsql_af_inet6     byte
 	busy               bool
 	poolResetCount     int
+	ConnStat
 }
 
 type PreparedStatement struct {
@@ -116,8 +137,8 @@ func (e ProtocolError) Error() string {
 // Connect establishes a connection with a PostgreSQL server using config.
 // config.Host must be specified. config.User will default to the OS user name.
 // Other config fields are optional.
-func Connect(config ConnConfig) (c *Conn, err error) {
-	c = new(Conn)
+func Connect(config ConnConfig) (c *TempNameConn, err error) {
+	c = new(TempNameConn)
 
 	c.config = config
 
@@ -179,7 +200,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	return c, nil
 }
 
-func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
+func (c *TempNameConn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
 	if c.logLevel >= LogLevelInfo {
 		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
 	}
@@ -286,7 +307,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	}
 }
 
-func (c *Conn) loadPgTypes() error {
+func (c *TempNameConn) loadPgTypes() error {
 	rows, err := c.Query("select t.oid, t.typname from pg_type t where t.typtype='b'")
 	if err != nil {
 		return err
@@ -312,7 +333,7 @@ func (c *Conn) loadPgTypes() error {
 // Family is needed for binary encoding of inet/cidr. The constant is based on
 // the server's definition of AF_INET. In theory, this could differ between
 // platforms, so request an IPv4 and an IPv6 inet and get the family from that.
-func (c *Conn) loadInetConstants() error {
+func (c *TempNameConn) loadInetConstants() error {
 	var ipv4, ipv6 []byte
 
 	err := c.QueryRow("select '127.0.0.1'::inet, '1::'::inet").Scan(&ipv4, &ipv6)
@@ -328,7 +349,7 @@ func (c *Conn) loadInetConstants() error {
 
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
-func (c *Conn) Close() (err error) {
+func (c *TempNameConn) Close() (err error) {
 	if !c.IsAlive() {
 		return nil
 	}
@@ -542,7 +563,7 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
-func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
+func (c *TempNameConn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
@@ -622,7 +643,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 }
 
 // Deallocate released a prepared statement
-func (c *Conn) Deallocate(name string) (err error) {
+func (c *TempNameConn) Deallocate(name string) (err error) {
 	delete(c.preparedStatements, name)
 
 	// close
@@ -661,7 +682,7 @@ func (c *Conn) Deallocate(name string) (err error) {
 }
 
 // Listen establishes a PostgreSQL listen/notify to channel
-func (c *Conn) Listen(channel string) error {
+func (c *TempNameConn) Listen(channel string) error {
 	_, err := c.Exec("listen " + channel)
 	if err != nil {
 		return err
@@ -673,7 +694,7 @@ func (c *Conn) Listen(channel string) error {
 }
 
 // Unlisten unsubscribes from a listen channel
-func (c *Conn) Unlisten(channel string) error {
+func (c *TempNameConn) Unlisten(channel string) error {
 	_, err := c.Exec("unlisten " + channel)
 	if err != nil {
 		return err
@@ -685,7 +706,7 @@ func (c *Conn) Unlisten(channel string) error {
 
 // WaitForNotification waits for a PostgreSQL notification for up to timeout.
 // If the timeout occurs it returns pgx.ErrNotificationTimeout
-func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
+func (c *TempNameConn) WaitForNotification(timeout time.Duration) (*Notification, error) {
 	// Return already received notification immediately
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
@@ -734,7 +755,7 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 	}
 }
 
-func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
+func (c *TempNameConn) waitForNotification(deadline time.Time) (*Notification, error) {
 	var zeroTime time.Time
 
 	for {
@@ -784,15 +805,15 @@ func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
 	}
 }
 
-func (c *Conn) IsAlive() bool {
+func (c *TempNameConn) IsAlive() bool {
 	return c.alive
 }
 
-func (c *Conn) CauseOfDeath() error {
+func (c *TempNameConn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
+func (c *TempNameConn) sendQuery(sql string, arguments ...interface{}) (err error) {
 	if ps, present := c.preparedStatements[sql]; present {
 		return c.sendPreparedQuery(ps, arguments...)
 	} else {
@@ -800,7 +821,7 @@ func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 	}
 }
 
-func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
+func (c *TempNameConn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if len(args) == 0 {
 		wbuf := newWriteBuf(c, 'Q')
 		wbuf.WriteCString(sql)
@@ -823,7 +844,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	return c.sendPreparedQuery(ps, args...)
 }
 
-func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
+func (c *TempNameConn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOIDs) != len(arguments) {
 		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
 	}
@@ -987,7 +1008,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (c *TempNameConn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
 	if err = c.lock(); err != nil {
 		return commandTag, err
 	}
@@ -1046,7 +1067,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
-func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
+func (c *TempNameConn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	switch t {
 	case 'S':
 		c.rxParameterStatus(r)
@@ -1065,7 +1086,7 @@ func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	}
 }
 
-func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
+func (c *TempNameConn) rxMsg() (t byte, r *msgReader, err error) {
 	if !c.alive {
 		return 0, nil, ErrDeadConn
 	}
@@ -1084,7 +1105,7 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	return t, &c.mr, err
 }
 
-func (c *Conn) rxAuthenticationX(r *msgReader) (err error) {
+func (c *TempNameConn) rxAuthenticationX(r *msgReader) (err error) {
 	switch r.readInt32() {
 	case 0: // AuthenticationOk
 	case 3: // AuthenticationCleartextPassword
@@ -1106,13 +1127,13 @@ func hexMD5(s string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (c *Conn) rxParameterStatus(r *msgReader) {
+func (c *TempNameConn) rxParameterStatus(r *msgReader) {
 	key := r.readCString()
 	value := r.readCString()
 	c.RuntimeParams[key] = value
 }
 
-func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
+func (c *TempNameConn) rxErrorResponse(r *msgReader) (err PgError) {
 	for {
 		switch r.readByte() {
 		case 'S':
@@ -1167,16 +1188,16 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 	}
 }
 
-func (c *Conn) rxBackendKeyData(r *msgReader) {
+func (c *TempNameConn) rxBackendKeyData(r *msgReader) {
 	c.Pid = r.readInt32()
 	c.SecretKey = r.readInt32()
 }
 
-func (c *Conn) rxReadyForQuery(r *msgReader) {
+func (c *TempNameConn) rxReadyForQuery(r *msgReader) {
 	c.TxStatus = r.readByte()
 }
 
-func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
+func (c *TempNameConn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	fieldCount := r.readInt16()
 	fields = make([]FieldDescription, fieldCount)
 	for i := int16(0); i < fieldCount; i++ {
@@ -1192,7 +1213,7 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	return
 }
 
-func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
+func (c *TempNameConn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	// Internally, PostgreSQL supports greater than 64k parameters to a prepared
 	// statement. But the parameter description uses a 16-bit integer for the
 	// count of parameters. If there are more than 64K parameters, this count is
@@ -1209,7 +1230,7 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	return
 }
 
-func (c *Conn) rxNotificationResponse(r *msgReader) {
+func (c *TempNameConn) rxNotificationResponse(r *msgReader) {
 	n := new(Notification)
 	n.Pid = r.readInt32()
 	n.Channel = r.readCString()
@@ -1217,7 +1238,7 @@ func (c *Conn) rxNotificationResponse(r *msgReader) {
 	c.notifications = append(c.notifications, n)
 }
 
-func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
+func (c *TempNameConn) startTLS(tlsConfig *tls.Config) (err error) {
 	err = binary.Write(c.conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
@@ -1237,12 +1258,12 @@ func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
 	return nil
 }
 
-func (c *Conn) txStartupMessage(msg *startupMessage) error {
+func (c *TempNameConn) txStartupMessage(msg *startupMessage) error {
 	_, err := c.conn.Write(msg.Bytes())
 	return err
 }
 
-func (c *Conn) txPasswordMessage(password string) (err error) {
+func (c *TempNameConn) txPasswordMessage(password string) (err error) {
 	wbuf := newWriteBuf(c, 'p')
 	wbuf.WriteCString(password)
 	wbuf.closeMsg()
@@ -1252,13 +1273,13 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	return err
 }
 
-func (c *Conn) die(err error) {
+func (c *TempNameConn) die(err error) {
 	c.alive = false
 	c.causeOfDeath = err
 	c.conn.Close()
 }
 
-func (c *Conn) lock() error {
+func (c *TempNameConn) lock() error {
 	if c.busy {
 		return ErrConnBusy
 	}
@@ -1266,10 +1287,14 @@ func (c *Conn) lock() error {
 	return nil
 }
 
-func (c *Conn) unlock() error {
+func (c *TempNameConn) unlock() error {
 	if !c.busy {
 		return errors.New("unlock conn that is not busy")
 	}
 	c.busy = false
 	return nil
+}
+
+func (c *TempNameConn) Stat() ConnStat {
+	return c.ConnStat
 }

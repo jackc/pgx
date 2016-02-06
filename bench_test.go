@@ -18,7 +18,7 @@ func BenchmarkConnPool(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		var conn *pgx.Conn
+		var conn pgx.Conn
 		if conn, err = pool.Acquire(); err != nil {
 			b.Fatalf("Unable to acquire connection: %v", err)
 		}
@@ -341,7 +341,7 @@ func BenchmarkSelectWithLoggingErrorWithLog15(b *testing.B) {
 	benchmarkSelectWithLog(b, conn)
 }
 
-func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
+func benchmarkSelectWithLog(b *testing.B, conn pgx.Conn) {
 	_, err := conn.Prepare("test", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
 	if err != nil {
 		b.Fatal(err)

@@ -17,7 +17,7 @@ var ErrTxClosed = errors.New("tx is closed")
 
 // Begin starts a transaction with the default isolation level for the current
 // connection. To use a specific isolation level see BeginIso.
-func (c *Conn) Begin() (*Tx, error) {
+func (c *TempNameConn) Begin() (*Tx, error) {
 	return c.begin("")
 }
 
@@ -29,11 +29,11 @@ func (c *Conn) Begin() (*Tx, error) {
 //   repeatable read (pgx.RepeatableRead)
 //   read committed (pgx.ReadCommitted)
 //   read uncommitted (pgx.ReadUncommitted)
-func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
+func (c *TempNameConn) BeginIso(isoLevel string) (*Tx, error) {
 	return c.begin(isoLevel)
 }
 
-func (c *Conn) begin(isoLevel string) (*Tx, error) {
+func (c *TempNameConn) begin(isoLevel string) (*Tx, error) {
 	var beginSql string
 	if isoLevel == "" {
 		beginSql = "begin"
@@ -55,7 +55,7 @@ func (c *Conn) begin(isoLevel string) (*Tx, error) {
 // called on the Tx.
 type Tx struct {
 	pool   *ConnPool
-	conn   *Conn
+	conn   *TempNameConn
 	closed bool
 }
 

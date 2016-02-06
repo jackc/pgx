@@ -83,10 +83,10 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 	defer closeConn(t, conn)
 
 	for _, oid := range []pgx.OID{pgx.JsonOID, pgx.JsonbOID} {
-		if _, ok := conn.PgTypes[oid]; !ok {
+		if _, ok := conn.Stat().PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
-		typename := conn.PgTypes[oid].Name
+		typename := conn.Stat().PgTypes[oid].Name
 
 		testJsonString(t, conn, typename)
 		testJsonStringPointer(t, conn, typename)
@@ -99,7 +99,7 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 	}
 }
 
-func testJsonString(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonString(t *testing.T, conn pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -115,7 +115,7 @@ func testJsonString(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonStringPointer(t *testing.T, conn pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -131,7 +131,7 @@ func testJsonStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonSingleLevelStringMap(t *testing.T, conn pgx.Conn, typename string) {
 	input := map[string]string{"key": "value"}
 	var output map[string]string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -146,7 +146,7 @@ func testJsonSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string)
 	}
 }
 
-func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonNestedMap(t *testing.T, conn pgx.Conn, typename string) {
 	input := map[string]interface{}{
 		"name":      "Uncanny",
 		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
@@ -165,7 +165,7 @@ func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonStringArray(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonStringArray(t *testing.T, conn pgx.Conn, typename string) {
 	input := []string{"foo", "bar", "baz"}
 	var output []string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -178,7 +178,7 @@ func testJsonStringArray(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonInt64Array(t *testing.T, conn pgx.Conn, typename string) {
 	input := []int64{1, 2, 234432}
 	var output []int64
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -191,7 +191,7 @@ func testJsonInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn pgx.Conn, typename string) {
 	input := []int{1, 2, 234432}
 	var output []int16
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -200,7 +200,7 @@ func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typena
 	}
 }
 
-func testJsonStruct(t *testing.T, conn *pgx.Conn, typename string) {
+func testJsonStruct(t *testing.T, conn pgx.Conn, typename string) {
 	type person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
