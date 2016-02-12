@@ -51,8 +51,8 @@ type Rows struct {
 	startTime  time.Time
 	sql        string
 	args       []interface{}
-	logger     Logger
-	logLevel   int
+	log        func(lvl int, msg string, ctx ...interface{})
+	logLevel   *int
 	unlockConn bool
 }
 
@@ -78,12 +78,12 @@ func (rows *Rows) close() {
 	rows.closed = true
 
 	if rows.err == nil {
-		if rows.logLevel >= LogLevelInfo {
+		if *rows.logLevel >= LogLevelInfo {
 			endTime := time.Now()
-			rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+			rows.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
 		}
-	} else if rows.logLevel >= LogLevelError {
-		rows.logger.Error("Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
+	} else if *rows.logLevel >= LogLevelError {
+		rows.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
 	}
 }
 
@@ -474,7 +474,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
+	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, logLevel: &c.logLevel}
 
 	if err := c.lock(); err != nil {
 		rows.abort(err)

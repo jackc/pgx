@@ -131,8 +131,8 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	if c.logger == nil {
 		c.logLevel = LogLevelNone
 	}
-	c.mr.logger = c.logger
-	c.mr.logLevel = c.logLevel
+	c.mr.log = c.log
+	c.mr.logLevel = &c.logLevel
 
 	if c.config.User == "" {
 		user, err := user.Current()
@@ -141,14 +141,14 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		}
 		c.config.User = user.Username
 		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Using default connection config", "User", c.config.User)
+			c.log(LogLevelDebug, "Using default connection config", "User", c.config.User)
 		}
 	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
 		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Using default connection config", "Port", c.config.Port)
+			c.log(LogLevelDebug, "Using default connection config", "Port", c.config.Port)
 		}
 	}
 
@@ -181,12 +181,12 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
 	if c.logLevel >= LogLevelInfo {
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+		c.log(LogLevelInfo, fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
 	}
 	c.conn, err = c.config.Dial(network, address)
 	if err != nil {
 		if c.logLevel >= LogLevelError {
-			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
+			c.log(LogLevelError, fmt.Sprintf("Connection failed: %v", err))
 		}
 		return err
 	}
@@ -195,7 +195,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			c.conn.Close()
 			c.alive = false
 			if c.logLevel >= LogLevelError {
-				c.logger.Error(err.Error())
+				c.log(LogLevelError, err.Error())
 			}
 		}
 	}()
@@ -208,11 +208,11 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 	if tlsConfig != nil {
 		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Starting TLS handshake")
+			c.log(LogLevelDebug, "Starting TLS handshake")
 		}
 		if err := c.startTLS(tlsConfig); err != nil {
 			if c.logLevel >= LogLevelError {
-				c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
+				c.log(LogLevelError, fmt.Sprintf("TLS failed: %v", err))
 			}
 			return err
 		}
@@ -263,8 +263,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 			if c.logLevel >= LogLevelInfo {
-				c.logger = &connLogger{logger: c.logger, pid: c.Pid}
-				c.logger.Info("Connection established")
+				c.log(LogLevelInfo, "Connection established")
 			}
 
 			err = c.loadPgTypes()
@@ -340,7 +339,7 @@ func (c *Conn) Close() (err error) {
 
 	c.die(errors.New("Closed"))
 	if c.logLevel >= LogLevelInfo {
-		c.logger.Info("Closed connection")
+		c.log(LogLevelInfo, "Closed connection")
 	}
 	return err
 }
@@ -552,7 +551,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	if c.logLevel >= LogLevelError {
 		defer func() {
 			if err != nil {
-				c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
+				c.log(LogLevelError, fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
 			}
 		}()
 	}
@@ -978,11 +977,11 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 		if err == nil {
 			if c.logLevel >= LogLevelInfo {
 				endTime := time.Now()
-				c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
 			}
 		} else {
 			if c.logLevel >= LogLevelError {
-				c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
 			}
 		}
 
@@ -1057,7 +1056,7 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	c.lastActivityTime = time.Now()
 
 	if c.logLevel >= LogLevelTrace {
-		c.logger.Debug("rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
 	}
 
 	return t, &c.mr, err
@@ -1251,4 +1250,30 @@ func (c *Conn) unlock() error {
 	}
 	c.busy = false
 	return nil
+}
+
+func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
+	if c.Pid != 0 {
+		ctx = append(ctx, "pid", c.Pid)
+	}
+
+	switch lvl {
+	case LogLevelTrace:
+		c.logger.Debug(msg, ctx...)
+	case LogLevelDebug:
+		c.logger.Debug(msg, ctx...)
+	case LogLevelInfo:
+		c.logger.Info(msg, ctx...)
+	case LogLevelWarn:
+		c.logger.Warn(msg, ctx...)
+	case LogLevelError:
+		c.logger.Error(msg, ctx...)
+	}
+}
+
+// SetLogger replaces the current logger and returns the previous logger.
+func (c *Conn) SetLogger(logger Logger) Logger {
+	oldLogger := c.logger
+	c.logger = logger
+	return oldLogger
 }

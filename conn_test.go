@@ -1344,3 +1344,30 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 		t.Fatalf("conn.Exec should have failed with pgx.ErrConnBusy, but it was %v", err)
 	}
 }
+
+type testLogger struct{}
+
+func (l *testLogger) Debug(msg string, ctx ...interface{}) {}
+func (l *testLogger) Info(msg string, ctx ...interface{})  {}
+func (l *testLogger) Warn(msg string, ctx ...interface{})  {}
+func (l *testLogger) Error(msg string, ctx ...interface{}) {}
+
+func TestSetLogger(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	l1 := &testLogger{}
+	oldLogger := conn.SetLogger(l1)
+	if oldLogger != nil {
+		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
+	}
+
+	l2 := &testLogger{}
+	oldLogger = conn.SetLogger(l2)
+	if oldLogger != l1 {
+		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", l1, oldLogger)
+	}
+
+}
