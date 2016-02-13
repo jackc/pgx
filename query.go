@@ -52,7 +52,7 @@ type Rows struct {
 	sql        string
 	args       []interface{}
 	log        func(lvl int, msg string, ctx ...interface{})
-	logLevel   *int
+	shouldLog  func(lvl int) bool
 	unlockConn bool
 }
 
@@ -78,11 +78,11 @@ func (rows *Rows) close() {
 	rows.closed = true
 
 	if rows.err == nil {
-		if *rows.logLevel >= LogLevelInfo {
+		if rows.shouldLog(LogLevelInfo) {
 			endTime := time.Now()
 			rows.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
 		}
-	} else if *rows.logLevel >= LogLevelError {
+	} else if rows.shouldLog(LogLevelError) {
 		rows.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
 	}
 }
@@ -474,7 +474,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, logLevel: &c.logLevel}
+	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, shouldLog: c.shouldLog}
 
 	if err := c.lock(); err != nil {
 		rows.abort(err)

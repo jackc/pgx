@@ -15,7 +15,7 @@ type msgReader struct {
 	msgBytesRemaining int32
 	err               error
 	log               func(lvl int, msg string, ctx ...interface{})
-	logLevel          *int
+	shouldLog         func(lvl int) bool
 }
 
 // Err returns any error that the msgReader has experienced
@@ -25,7 +25,7 @@ func (r *msgReader) Err() error {
 
 // fatal tells r that a Fatal error has occurred
 func (r *msgReader) fatal(err error) {
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.fatal", "error", err, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 	r.err = err
@@ -38,7 +38,7 @@ func (r *msgReader) rxMsg() (byte, error) {
 	}
 
 	if r.msgBytesRemaining > 0 {
-		if *r.logLevel >= LogLevelTrace {
+		if r.shouldLog(LogLevelTrace) {
 			r.log(LogLevelTrace, "msgReader.rxMsg discarding unread previous message", "msgBytesRemaining", r.msgBytesRemaining)
 		}
 
@@ -68,7 +68,7 @@ func (r *msgReader) readByte() byte {
 		return 0
 	}
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readByte", "value", b, "byteAsString", string(b), "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -95,7 +95,7 @@ func (r *msgReader) readInt16() int16 {
 
 	n := int16(binary.BigEndian.Uint16(b))
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -122,7 +122,7 @@ func (r *msgReader) readInt32() int32 {
 
 	n := int32(binary.BigEndian.Uint32(b))
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt32", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -149,7 +149,7 @@ func (r *msgReader) readInt64() int64 {
 
 	n := int64(binary.BigEndian.Uint64(b))
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt64", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -180,7 +180,7 @@ func (r *msgReader) readCString() string {
 
 	s := string(b[0 : len(b)-1])
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readCString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -214,7 +214,7 @@ func (r *msgReader) readString(count int32) string {
 
 	s := string(b)
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
@@ -241,7 +241,7 @@ func (r *msgReader) readBytes(count int32) []byte {
 		return nil
 	}
 
-	if *r.logLevel >= LogLevelTrace {
+	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readBytes", "value", b, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 

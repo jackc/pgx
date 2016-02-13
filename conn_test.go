@@ -1345,12 +1345,28 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	}
 }
 
-type testLogger struct{}
+type testLog struct {
+	lvl int
+	msg string
+	ctx []interface{}
+}
 
-func (l *testLogger) Debug(msg string, ctx ...interface{}) {}
-func (l *testLogger) Info(msg string, ctx ...interface{})  {}
-func (l *testLogger) Warn(msg string, ctx ...interface{})  {}
-func (l *testLogger) Error(msg string, ctx ...interface{}) {}
+type testLogger struct {
+	logs []testLog
+}
+
+func (l *testLogger) Debug(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelDebug, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Info(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelInfo, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Warn(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelWarn, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Error(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelError, msg: msg, ctx: ctx})
+}
 
 func TestSetLogger(t *testing.T) {
 	t.Parallel()
@@ -1364,10 +1380,63 @@ func TestSetLogger(t *testing.T) {
 		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
 	}
 
+	if err := conn.Listen("foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(l1.logs) == 0 {
+		t.Fatal("Expected new logger l1 to be called, but it wasn't")
+	}
+
 	l2 := &testLogger{}
 	oldLogger = conn.SetLogger(l2)
 	if oldLogger != l1 {
 		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", l1, oldLogger)
 	}
 
+	if err := conn.Listen("bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(l2.logs) == 0 {
+		t.Fatal("Expected new logger l2 to be called, but it wasn't")
+	}
+}
+
+func TestSetLogLevel(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	logger := &testLogger{}
+	conn.SetLogger(logger)
+
+	if _, err := conn.SetLogLevel(0); err != pgx.ErrInvalidLogLevel {
+		t.Fatal("SetLogLevel with invalid level did not return error")
+	}
+
+	if _, err := conn.SetLogLevel(pgx.LogLevelNone); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := conn.Listen("foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(logger.logs) != 0 {
+		t.Fatalf("Expected logger not to be called, but it was: %v", logger.logs)
+	}
+
+	if _, err := conn.SetLogLevel(pgx.LogLevelTrace); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := conn.Listen("bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(logger.logs) == 0 {
+		t.Fatal("Expected logger to be called, but it wasn't")
+	}
 }
