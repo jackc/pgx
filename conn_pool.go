@@ -243,7 +243,8 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 		return rows, err
 	}
 
-	rows.pool = p
+	rows.AfterClose(p.rowsAfterClose)
+
 	return rows, nil
 }
 
@@ -294,4 +295,8 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 
 func (p *ConnPool) txAfterClose(tx *Tx) {
 	p.Release(tx.Conn())
+}
+
+func (p *ConnPool) rowsAfterClose(rows *Rows) {
+	p.Release(rows.Conn())
 }
