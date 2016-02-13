@@ -1,11 +1,33 @@
 # Tip
 
+## Fixes
+
+* Fix unrecognized commit failure
 * Fix msgReader.rxMsg bug when msgReader already has error
-* Add support for database/sql.Scanner and database/sql/driver.Valuer interfaces
 * Go float64 can no longer be encoded to a PostgreSQL float4
+
+## Features
+
+This release adds multiple extension points helpful when wrapping pgx with
+custom application behavior. pgx can now use custom types designed for the
+standard database/sql package such as
+[github.com/shopspring/decimal](https://github.com/shopspring/decimal).
+
+* Add *Tx.AfterClose() hook
+* Add *Tx.Conn()
+* Add *Tx.Status()
+* Add *Tx.Err()
+* Add *Rows.AfterClose() hook
+* Add *Rows.Conn()
+* Add *Conn.SetLogger() to allow changing logger
+* Add *Conn.SetLogLevel() to allow changing log level
 * Add ConnPool.Reset method
-* []byte skips encoding/decoding
+* Add support for database/sql.Scanner and database/sql/driver.Valuer interfaces
 * Rows.Scan errors now include which argument caused error
+
+## Performance
+
+* []byte skips encoding/decoding
 
 # 2.7.1 (October 26, 2015)
 
