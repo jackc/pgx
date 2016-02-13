@@ -117,6 +117,11 @@ func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
+// Conn returns the *Conn this transaction is using.
+func (tx *Tx) Conn() *Conn {
+	return tx.conn
+}
+
 // AfterClose adds f to a LILO queue of functions that will be called when
 // the transaction is closed (either Commit or Rollback).
 func (tx *Tx) AfterClose(f func(*Tx)) {
