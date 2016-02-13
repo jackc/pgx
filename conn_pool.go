@@ -287,7 +287,11 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 			}
 		}
 
-		tx.pool = p
+		tx.AfterClose(p.txAfterClose)
 		return tx, nil
 	}
+}
+
+func (p *ConnPool) txAfterClose(tx *Tx) {
+	p.Release(tx.Conn())
 }

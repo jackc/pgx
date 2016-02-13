@@ -54,9 +54,9 @@ func (c *Conn) begin(isoLevel string) (*Tx, error) {
 // All Tx methods return ErrTxClosed if Commit or Rollback has already been
 // called on the Tx.
 type Tx struct {
-	pool   *ConnPool
-	conn   *Conn
-	closed bool
+	conn       *Conn
+	afterClose func(*Tx)
+	closed     bool
 }
 
 // Commit commits the transaction
@@ -85,9 +85,8 @@ func (tx *Tx) Rollback() error {
 }
 
 func (tx *Tx) close() {
-	if tx.pool != nil {
-		tx.pool.Release(tx.conn)
-		tx.pool = nil
+	if tx.afterClose != nil {
+		tx.afterClose(tx)
 	}
 	tx.closed = true
 }
@@ -116,4 +115,18 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := tx.Query(sql, args...)
 	return (*Row)(rows)
+}
+
+// AfterClose adds f to a LILO queue of functions that will be called when
+// the transaction is closed (either Commit or Rollback).
+func (tx *Tx) AfterClose(f func(*Tx)) {
+	if tx.afterClose == nil {
+		tx.afterClose = f
+	} else {
+		prevFn := tx.afterClose
+		tx.afterClose = func(tx *Tx) {
+			f(tx)
+			prevFn(tx)
+		}
+	}
 }
