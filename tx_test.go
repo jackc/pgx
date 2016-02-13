@@ -48,6 +48,52 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 	}
 }
 
+func TestTxCommitWhenTxBroken(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	createSql := `
+    create temporary table foo(
+      id integer,
+      unique (id) initially deferred
+    );
+  `
+
+	if _, err := conn.Exec(createSql); err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	tx, err := conn.Begin()
+	if err != nil {
+		t.Fatalf("conn.Begin failed: %v", err)
+	}
+
+	if _, err := tx.Exec("insert into foo(id) values (1)"); err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
+	}
+
+	// Purposely break transaction
+	if _, err := tx.Exec("syntax error"); err == nil {
+		t.Fatal("Unexpected success")
+	}
+
+	err = tx.Commit()
+	if err != pgx.ErrTxCommitRollback {
+		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
+	}
+
+	var n int64
+	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
+	}
+}
+
 func TestTransactionSuccessfulRollback(t *testing.T) {
 	t.Parallel()
 
@@ -148,5 +194,58 @@ func TestTxAfterClose(t *testing.T) {
 
 	if t1.Before(t2) {
 		t.Errorf("AfterClose callbacks called out of order: %v, %v", t1, t2)
+	}
+}
+
+func TestTxStatus(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tx, err := conn.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if status := tx.Status(); status != pgx.TxStatusInProgress {
+		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
+	}
+
+	if err := tx.Rollback(); err != nil {
+		t.Fatal(err)
+	}
+
+	if status := tx.Status(); status != pgx.TxStatusRollbackSuccess {
+		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusRollbackSuccess, status)
+	}
+}
+
+func TestTxErr(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tx, err := conn.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Purposely break transaction
+	if _, err := tx.Exec("syntax error"); err == nil {
+		t.Fatal("Unexpected success")
+	}
+
+	if err := tx.Commit(); err != pgx.ErrTxCommitRollback {
+		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
+	}
+
+	if status := tx.Status(); status != pgx.TxStatusCommitFailure {
+		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusRollbackSuccess, status)
+	}
+
+	if err := tx.Err(); err != pgx.ErrTxCommitRollback {
+		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
 	}
 }
