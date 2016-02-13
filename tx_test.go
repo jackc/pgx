@@ -146,7 +146,7 @@ func TestTxAfterClose(t *testing.T) {
 		t.Error("Second Tx.AfterClose callback not called")
 	}
 
-	if t1.After(t2) {
-		t.Error("AfterClose callbacks called out of order: %v, %v", t1, t2)
+	if t1.Before(t2) {
+		t.Errorf("AfterClose callbacks called out of order: %v, %v", t1, t2)
 	}
 }
