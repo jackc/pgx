@@ -85,23 +85,23 @@ func TestNullHstoreTranscode(t *testing.T) {
 		{pgx.NullHstore{}, "null"},
 		{pgx.NullHstore{Valid: true}, "empty"},
 		{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			"single key/value"},
 		{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"bar", true}, "baz": pgx.NullString{"quz", true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "bar", Valid: true}, "baz": pgx.NullString{String: "quz", Valid: true}},
 			Valid:  true},
 			"multiple key/values"},
 		{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"NULL": pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{"NULL": pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			`string "NULL" key`},
 		{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"NULL", true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "NULL", Valid: true}},
 			Valid:  true},
 			`string "NULL" value`},
 		{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"", false}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "", Valid: false}},
 			Valid:  true},
 			`NULL value`},
 	}
@@ -120,36 +120,36 @@ func TestNullHstoreTranscode(t *testing.T) {
 	}
 	for _, sst := range specialStringTests {
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{sst.input + "foo": pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{sst.input + "foo": pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			"key with " + sst.description + " at beginning"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo" + sst.input + "foo": pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{"foo" + sst.input + "foo": pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			"key with " + sst.description + " in middle"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo" + sst.input: pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{"foo" + sst.input: pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			"key with " + sst.description + " at end"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{sst.input: pgx.NullString{"bar", true}},
+			Hstore: map[string]pgx.NullString{sst.input: pgx.NullString{String: "bar", Valid: true}},
 			Valid:  true},
 			"key is " + sst.description})
 
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{sst.input + "bar", true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: sst.input + "bar", Valid: true}},
 			Valid:  true},
 			"value with " + sst.description + " at beginning"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"bar" + sst.input + "bar", true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "bar" + sst.input + "bar", Valid: true}},
 			Valid:  true},
 			"value with " + sst.description + " in middle"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{"bar" + sst.input, true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: "bar" + sst.input, Valid: true}},
 			Valid:  true},
 			"value with " + sst.description + " at end"})
 		tests = append(tests, test{pgx.NullHstore{
-			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{sst.input, true}},
+			Hstore: map[string]pgx.NullString{"foo": pgx.NullString{String: sst.input, Valid: true}},
 			Valid:  true},
 			"value is " + sst.description})
 	}
