@@ -1024,7 +1024,7 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 func encodeJson(w *WriteBuf, value interface{}) error {
 	s, err := json.Marshal(value)
 	if err != nil {
-		fmt.Errorf("Failed to encode json from type: %T", value)
+		return fmt.Errorf("Failed to encode json from type: %T", value)
 	}
 
 	return encodeText(w, s)
