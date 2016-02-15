@@ -479,7 +479,7 @@ func TestConnPoolQuery(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {
@@ -528,7 +528,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", rows.Err())
+				t.Fatalf("conn.Query failed: %v", rows.Err())
 			}
 
 			if rowCount != 1000 {

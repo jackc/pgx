@@ -146,13 +146,13 @@ func ParseHstore(s string) (k []string, v []NullString, err error) {
 					case r == 'N':
 						state = hsNul
 					default:
-						err = fmt.Errorf("Invalid character '%s' after '=>', expecting '\"' or 'NULL'")
+						err = fmt.Errorf("Invalid character '%c' after '=>', expecting '\"' or 'NULL'", r)
 					}
 				default:
 					err = fmt.Errorf("Invalid character after '=', expecting '>'")
 				}
 			} else {
-				err = fmt.Errorf("Invalid character '%s' after value, expecting '='", r)
+				err = fmt.Errorf("Invalid character '%c' after value, expecting '='", r)
 			}
 		case hsVal:
 			switch r {
@@ -201,10 +201,10 @@ func ParseHstore(s string) (k []string, v []NullString, err error) {
 					r, end = p.Consume()
 					state = hsKey
 				default:
-					err = fmt.Errorf("Invalid character '%s' after ', ', expecting \"", r)
+					err = fmt.Errorf("Invalid character '%c' after ', ', expecting \"", r)
 				}
 			} else {
-				err = fmt.Errorf("Invalid character '%s' after value, expecting ','", r)
+				err = fmt.Errorf("Invalid character '%c' after value, expecting ','", r)
 			}
 		}
 

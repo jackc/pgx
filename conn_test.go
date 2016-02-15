@@ -543,7 +543,7 @@ func TestParseEnvLibpq(t *testing.T) {
 		for k, v := range savedEnv {
 			err := os.Setenv(k, v)
 			if err != nil {
-				t.Fatalf("Unable to restore environment:", err)
+				t.Fatalf("Unable to restore environment: %v", err)
 			}
 		}
 	}()
@@ -685,14 +685,14 @@ func TestParseEnvLibpq(t *testing.T) {
 		for _, n := range pgEnvvars {
 			err := os.Unsetenv(n)
 			if err != nil {
-				t.Fatalf("%s: Unable to clear environment:", tt.name, err)
+				t.Fatalf("%s: Unable to clear environment: %v", tt.name, err)
 			}
 		}
 
 		for k, v := range tt.envvars {
 			err := os.Setenv(k, v)
 			if err != nil {
-				t.Fatalf("%s: Unable to set environment:", tt.name, err)
+				t.Fatalf("%s: Unable to set environment: %v", tt.name, err)
 			}
 		}
 
@@ -1103,7 +1103,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 			rows, err := conn.Query("select generate_series(1,$1)", 100)
 			if err != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: %v", err)
 			}
 
 			for rows.Next() {
@@ -1114,7 +1114,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: %v", err)
 			}
 
 			if sum != 5050 {
@@ -1317,7 +1317,7 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 
 	rows1, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows1.Close()
 
@@ -1335,7 +1335,7 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows.Close()
 

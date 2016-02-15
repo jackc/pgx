@@ -21,7 +21,7 @@ func TestConnQueryScan(t *testing.T) {
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -33,7 +33,7 @@ func TestConnQueryScan(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {
@@ -54,7 +54,7 @@ func TestConnQueryValues(t *testing.T) {
 
 	rows, err := conn.Query("select 'foo', n, null, n::oid from generate_series(1,$1) n", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -80,7 +80,7 @@ func TestConnQueryValues(t *testing.T) {
 		}
 
 		if values[2] != nil {
-			t.Errorf(`Expected values[2] to be %d, but it was %d`, nil, values[2])
+			t.Errorf(`Expected values[2] to be %v, but it was %d`, nil, values[2])
 		}
 
 		if values[3] != pgx.Oid(rowCount) {
@@ -89,7 +89,7 @@ func TestConnQueryValues(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {
@@ -107,7 +107,7 @@ func TestConnQueryCloseEarly(t *testing.T) {
 	// Immediately close query without reading any rows
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	rows.Close()
 
@@ -116,7 +116,7 @@ func TestConnQueryCloseEarly(t *testing.T) {
 	// Read partial response then close
 	rows, err = conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	ok := rows.Next()
@@ -145,7 +145,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 	// Read a single value incorrectly
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	rowsRead := 0
@@ -181,7 +181,7 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	// Read too many values
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	rowsRead := 0
@@ -211,7 +211,7 @@ func TestConnQueryScanner(t *testing.T) {
 
 	rows, err := conn.Query("select null::int8, 1::int8")
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	ok := rows.Next()
@@ -222,7 +222,7 @@ func TestConnQueryScanner(t *testing.T) {
 	var n, m pgx.NullInt64
 	err = rows.Scan(&n, &m)
 	if err != nil {
-		t.Fatalf("rows.Scan failed: ", err)
+		t.Fatalf("rows.Scan failed: %v", err)
 	}
 	rows.Close()
 
@@ -282,7 +282,7 @@ func TestConnQueryEncoder(t *testing.T) {
 
 	rows, err := conn.Query("select $1::int8", &n)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	ok := rows.Next()
@@ -293,7 +293,7 @@ func TestConnQueryEncoder(t *testing.T) {
 	var m pgx.NullInt64
 	err = rows.Scan(&m)
 	if err != nil {
-		t.Fatalf("rows.Scan failed: ", err)
+		t.Fatalf("rows.Scan failed: %v", err)
 	}
 	rows.Close()
 
@@ -856,15 +856,15 @@ func TestReadingValueAfterEmptyArray(t *testing.T) {
 	var b int32
 	err := conn.QueryRow("select '{}'::text[], 42::integer").Scan(&a, &b)
 	if err != nil {
-		t.Fatalf("conn.QueryRow failed: ", err)
+		t.Fatalf("conn.QueryRow failed: %v", err)
 	}
 
 	if len(a) != 0 {
-		t.Errorf("Expected 'a' to have length 0, but it was: ", len(a))
+		t.Errorf("Expected 'a' to have length 0, but it was: %d", len(a))
 	}
 
 	if b != 42 {
-		t.Errorf("Expected 'b' to 42, but it was: ", b)
+		t.Errorf("Expected 'b' to 42, but it was: %d", b)
 	}
 }
 
@@ -875,7 +875,7 @@ func TestReadingNullByteArray(t *testing.T) {
 	var a []byte
 	err := conn.QueryRow("select null::text").Scan(&a)
 	if err != nil {
-		t.Fatalf("conn.QueryRow failed: ", err)
+		t.Fatalf("conn.QueryRow failed: %v", err)
 	}
 
 	if a != nil {
@@ -889,7 +889,7 @@ func TestReadingNullByteArrays(t *testing.T) {
 
 	rows, err := conn.Query("select null::text union all select null::text")
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	count := 0
@@ -897,14 +897,14 @@ func TestReadingNullByteArrays(t *testing.T) {
 		count++
 		var a []byte
 		if err := rows.Scan(&a); err != nil {
-			t.Fatalf("failed to scan row", err)
+			t.Fatalf("failed to scan row: %v", err)
 		}
 		if a != nil {
 			t.Errorf("Expected 'a' to be nil, but it was: %v", a)
 		}
 	}
 	if count != 2 {
-		t.Errorf("Expected to read 2 rows, read: ", count)
+		t.Errorf("Expected to read 2 rows, read: %d", count)
 	}
 }
 

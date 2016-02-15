@@ -169,7 +169,7 @@ func TestNullHstoreTranscode(t *testing.T) {
 			outValue, ok := result.Hstore[key]
 			if ok {
 				if inValue != outValue {
-					t.Errorf(`%s: Key %s mismatch - expected %s, received %s`, tt.description, key, inValue, outValue)
+					t.Errorf(`%s: Key %s mismatch - expected %v, received %v`, tt.description, key, inValue, outValue)
 				}
 			} else {
 				t.Errorf(`%s: Missing key %s`, tt.description, key)
