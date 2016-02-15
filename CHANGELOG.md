@@ -24,6 +24,8 @@ standard database/sql package such as
 * Add ConnPool.Reset method
 * Add support for database/sql.Scanner and database/sql/driver.Valuer interfaces
 * Rows.Scan errors now include which argument caused error
+* Add Encode() to allow custom Encoders to reuse internal encoding functionality
+* Add Decode() to allow customer Decoders to reuse internal decoding functionality
 
 ## Performance
 

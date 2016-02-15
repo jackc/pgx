@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net"
-	"reflect"
 	"time"
 )
 
@@ -297,79 +295,9 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
 			decodeJson(vr, &d)
 		} else {
-		decode:
-			switch v := d.(type) {
-			case *bool:
-				*v = decodeBool(vr)
-			case *int64:
-				*v = decodeInt8(vr)
-			case *int16:
-				*v = decodeInt2(vr)
-			case *int32:
-				*v = decodeInt4(vr)
-			case *Oid:
-				*v = decodeOid(vr)
-			case *string:
-				*v = decodeText(vr)
-			case *float32:
-				*v = decodeFloat4(vr)
-			case *float64:
-				*v = decodeFloat8(vr)
-			case *[]bool:
-				*v = decodeBoolArray(vr)
-			case *[]int16:
-				*v = decodeInt2Array(vr)
-			case *[]int32:
-				*v = decodeInt4Array(vr)
-			case *[]int64:
-				*v = decodeInt8Array(vr)
-			case *[]float32:
-				*v = decodeFloat4Array(vr)
-			case *[]float64:
-				*v = decodeFloat8Array(vr)
-			case *[]string:
-				*v = decodeTextArray(vr)
-			case *[]time.Time:
-				*v = decodeTimestampArray(vr)
-			case *time.Time:
-				switch vr.Type().DataType {
-				case DateOid:
-					*v = decodeDate(vr)
-				case TimestampTzOid:
-					*v = decodeTimestampTz(vr)
-				case TimestampOid:
-					*v = decodeTimestamp(vr)
-				default:
-					rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)})
-				}
-			case *net.IPNet:
-				*v = decodeInet(vr)
-			case *[]net.IPNet:
-				*v = decodeInetArray(vr)
-			default:
-				// if d is a pointer to pointer, strip the pointer and try again
-				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
-					if el := v.Elem(); el.Kind() == reflect.Ptr {
-						// -1 is a null value
-						if vr.Len() == -1 {
-							if !el.IsNil() {
-								// if the destination pointer is not nil, nil it out
-								el.Set(reflect.Zero(el.Type()))
-							}
-							continue
-						} else {
-							if el.IsNil() {
-								// allocate destination
-								el.Set(reflect.New(el.Type().Elem()))
-							}
-							d = el.Interface()
-							goto decode
-						}
-					}
-				}
-				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Scan cannot decode into %T", d)})
+			if err := Decode(vr, d); err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
 			}
-
 		}
 		if vr.Err() != nil {
 			rows.Fatal(scanArgError{col: i, err: vr.Err()})
