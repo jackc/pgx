@@ -3,12 +3,14 @@ package pgx
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 type ConnPoolConfig struct {
 	ConnConfig
-	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
-	AfterConnect   func(*Conn) error // function to call on every new connection
+	MaxConnections   int               // max simultaneous connections to use, default 5, must be at least 2
+	AfterConnect     func(*Conn) error // function to call on every new connection
+	ConnAllocTimeout time.Duration     // max wait time when all connections are busy (0 means not timeout)
 }
 
 type ConnPool struct {
@@ -22,6 +24,7 @@ type ConnPool struct {
 	logger               Logger
 	logLevel             int
 	closed               bool
+	connAllocTimeout     time.Duration
 }
 
 type ConnPoolStat struct {
@@ -41,6 +44,10 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	}
 	if p.maxConnections < 1 {
 		return nil, errors.New("MaxConnections must be at least 1")
+	}
+	p.connAllocTimeout = config.ConnAllocTimeout
+	if p.connAllocTimeout < 0 {
+		return nil, errors.New("ConnAllocTimeout must be equal or greater than 0")
 	}
 
 	p.afterConnect = config.AfterConnect
@@ -105,7 +112,24 @@ func (p *ConnPool) Acquire() (c *Conn, err error) {
 		if p.logLevel >= LogLevelWarn {
 			p.logger.Warn("All connections in pool are busy - waiting...")
 		}
+
+		deadlineReached := false
+
+		if p.connAllocTimeout > 0 {
+			timer := time.NewTimer(p.connAllocTimeout)
+			defer timer.Stop()
+
+			select {
+			case <-timer.C:
+				deadlineReached = true
+				p.cond.Signal()
+			}
+		}
+
 		for len(p.availableConnections) == 0 {
+			if deadlineReached {
+				return nil, errors.New("Timeout: All connections in pool are busy")
+			}
 			p.cond.Wait()
 		}
 	}

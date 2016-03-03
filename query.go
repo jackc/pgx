@@ -438,6 +438,12 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 		}
 	}
 
+	// Set query execution deadline
+	if c.config.QueryExecTimeout > 0 {
+		c.conn.SetDeadline(time.Now().Add(c.config.QueryExecTimeout))
+		defer c.conn.SetDeadline(time.Time{}) // reset deadline
+	}
+
 	rows.fields = ps.FieldDescriptions
 	err := c.sendPreparedQuery(ps, args...)
 	if err != nil {
