@@ -36,6 +36,7 @@ type ConnConfig struct {
 	LogLevel          int
 	Dial              DialFunc
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	QueryExecTimeout  time.Duration     // Max query/statement execution time
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -883,6 +884,12 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 
 	startTime := time.Now()
 	c.lastActivityTime = startTime
+
+	// Set statement execution deadline
+	if c.config.QueryExecTimeout > 0 {
+		c.conn.SetDeadline(time.Now().Add(c.config.QueryExecTimeout))
+		defer c.conn.SetDeadline(time.Time{}) // reset deadline
+	}
 
 	defer func() {
 		if err == nil {
