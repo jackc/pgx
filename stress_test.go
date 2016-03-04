@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -42,6 +43,7 @@ func TestStressConnPool(t *testing.T) {
 		{"notify", notify},
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
 		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
+		{"poolPrepareUseAndDeallocate", poolPrepareUseAndDeallocate},
 	}
 
 	var timer *time.Timer
@@ -244,6 +246,27 @@ func listenAndPoolUnlistens(pool *pgx.ConnPool, actionNum int) error {
 		return nil
 	}
 	return err
+}
+
+func poolPrepareUseAndDeallocate(pool *pgx.ConnPool, actionNum int) error {
+	psName := fmt.Sprintf("poolPreparedStatement%d", actionNum)
+
+	_, err := pool.Prepare(psName, "select $1::text")
+	if err != nil {
+		return err
+	}
+
+	var s string
+	err = pool.QueryRow(psName, "hello").Scan(&s)
+	if err != nil {
+		return err
+	}
+
+	if s != "hello" {
+		return fmt.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+
+	return pool.Deallocate(psName)
 }
 
 func txInsertRollback(pool *pgx.ConnPool, actionNum int) error {

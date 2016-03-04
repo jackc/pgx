@@ -26,6 +26,8 @@ standard database/sql package such as
 * Rows.Scan errors now include which argument caused error
 * Add Encode() to allow custom Encoders to reuse internal encoding functionality
 * Add Decode() to allow customer Decoders to reuse internal decoding functionality
+* Add ConnPool.Prepare method
+* Add ConnPool.Deallocate method
 
 ## Performance
 
