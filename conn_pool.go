@@ -73,48 +73,49 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 }
 
 // Acquire takes exclusive use of a connection until it is released.
-func (p *ConnPool) Acquire() (c *Conn, err error) {
+func (p *ConnPool) Acquire() (*Conn, error) {
 	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
+	c, err := p.acquire()
+	p.cond.L.Unlock()
+	return c, err
+}
 
+// acquire performs acquision assuming pool is already locked
+func (p *ConnPool) acquire() (*Conn, error) {
 	if p.closed {
 		return nil, errors.New("cannot acquire from closed pool")
 	}
 
 	// A connection is available
 	if len(p.availableConnections) > 0 {
-		c = p.availableConnections[len(p.availableConnections)-1]
+		c := p.availableConnections[len(p.availableConnections)-1]
 		c.poolResetCount = p.resetCount
 		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
-		return
+		return c, nil
 	}
 
 	// No connections are available, but we can create more
 	if len(p.allConnections) < p.maxConnections {
-		c, err = p.createConnection()
+		c, err := p.createConnection()
 		if err != nil {
-			return
+			return nil, err
 		}
 		c.poolResetCount = p.resetCount
 		p.allConnections = append(p.allConnections, c)
-		return
+		return c, nil
 	}
 
 	// All connections are in use and we cannot create more
-	if len(p.availableConnections) == 0 {
-		if p.logLevel >= LogLevelWarn {
-			p.logger.Warn("All connections in pool are busy - waiting...")
-		}
-		for len(p.availableConnections) == 0 {
-			p.cond.Wait()
-		}
+	if p.logLevel >= LogLevelWarn {
+		p.logger.Warn("All connections in pool are busy - waiting...")
 	}
 
-	c = p.availableConnections[len(p.availableConnections)-1]
-	c.poolResetCount = p.resetCount
-	p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
+	// Wait until there is an available connection OR room to create a new connection
+	for len(p.availableConnections) == 0 && len(p.allConnections) == p.maxConnections {
+		p.cond.Wait()
+	}
 
-	return
+	return p.acquire()
 }
 
 // Release gives up use of a connection.
