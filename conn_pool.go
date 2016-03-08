@@ -3,12 +3,14 @@ package pgx
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 type ConnPoolConfig struct {
 	ConnConfig
 	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
 	AfterConnect   func(*Conn) error // function to call on every new connection
+	AcquireTimeout time.Duration     // max wait time when all connections are busy (0 means no timeout)
 }
 
 type ConnPool struct {
@@ -23,6 +25,7 @@ type ConnPool struct {
 	logLevel             int
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
+	acquireTimeout       time.Duration
 }
 
 type ConnPoolStat struct {
@@ -42,6 +45,10 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	}
 	if p.maxConnections < 1 {
 		return nil, errors.New("MaxConnections must be at least 1")
+	}
+	p.acquireTimeout = config.AcquireTimeout
+	if p.acquireTimeout < 0 {
+		return nil, errors.New("AcquireTimeout must be equal to or greater than 0")
 	}
 
 	p.afterConnect = config.AfterConnect
@@ -77,13 +84,13 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 // Acquire takes exclusive use of a connection until it is released.
 func (p *ConnPool) Acquire() (*Conn, error) {
 	p.cond.L.Lock()
-	c, err := p.acquire()
+	c, err := p.acquire(nil)
 	p.cond.L.Unlock()
 	return c, err
 }
 
 // acquire performs acquision assuming pool is already locked
-func (p *ConnPool) acquire() (*Conn, error) {
+func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	if p.closed {
 		return nil, errors.New("cannot acquire from closed pool")
 	}
@@ -112,12 +119,29 @@ func (p *ConnPool) acquire() (*Conn, error) {
 		p.logger.Warn("All connections in pool are busy - waiting...")
 	}
 
+	// Set initial timeout/deadline value. If the method (acquire) happens to
+	// recursively call itself the deadline should retain its value.
+	if deadline == nil && p.acquireTimeout > 0 {
+		tmp := time.Now().Add(p.acquireTimeout)
+		deadline = &tmp
+	}
+	// If there is a deadline then start a timeout timer
+	if deadline != nil {
+		timer := time.AfterFunc(deadline.Sub(time.Now()), func() {
+			p.cond.Signal()
+		})
+		defer timer.Stop()
+	}
+
 	// Wait until there is an available connection OR room to create a new connection
 	for len(p.availableConnections) == 0 && len(p.allConnections) == p.maxConnections {
+		if deadline != nil && time.Now().After(*deadline) {
+			return nil, errors.New("Timeout: All connections in pool are busy")
+		}
 		p.cond.Wait()
 	}
 
-	return p.acquire()
+	return p.acquire(deadline)
 }
 
 // Release gives up use of a connection.
@@ -307,7 +331,7 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 		return ps, nil
 	}
 
-	c, err := p.acquire()
+	c, err := p.acquire(nil)
 	if err != nil {
 		return nil, err
 	}

@@ -3,10 +3,11 @@ package pgx_test
 import (
 	"bytes"
 	"database/sql"
-	"github.com/jackc/pgx"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 
 	"github.com/shopspring/decimal"
 )
@@ -1065,4 +1066,49 @@ func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnQueryWithQueryExecTimeoutSet(t *testing.T) {
+	t.Parallel()
+
+	config := *defaultConnConfig
+
+	// case 1: too small timeout to run a query
+	config.QueryExecTimeout = 500 * time.Millisecond
+	conn1 := mustConnect(t, config)
+	defer closeConn(t, conn1)
+
+	rows, err := conn1.Query("SELECT pg_sleep(2)")
+	if err != nil {
+		t.Fatalf("Expected Query() not to fail, instead it failed with '%v'", err)
+	}
+
+	hasNext := rows.Next()
+	if hasNext {
+		t.Fatal("Expected rows.Next() to return false, instead it did not")
+	}
+	if rows.Err() == nil {
+		t.Fatal("Expected Query() to fail with 'conn is dead', instead it did not")
+	}
+	if !strings.Contains(rows.Err().Error(), "terminating connection") {
+		t.Fatalf("Expected Query() to fail with timeout, instead it failed with '%v'", rows.Err())
+	}
+
+	// case 2: big enough timeout that allows query to finish.
+	config.QueryExecTimeout = 10 * time.Second
+	conn2 := mustConnect(t, config)
+	defer closeConn(t, conn2)
+
+	rows, err = conn2.Query("SELECT pg_sleep(2)")
+	if err != nil {
+		t.Fatalf("Expected Query() not to fail, instead it failed with '%v'", err)
+	}
+
+	hasNext = rows.Next()
+	if !hasNext {
+		t.Fatal("Expected rows.Next() to return true, instead it did not")
+	}
+	if rows.Err() != nil {
+		t.Fatalf("Expected rows.Next() not to fail, instead it failed with '%v'", rows.Err())
+	}
 }
