@@ -713,7 +713,7 @@ func Decode(vr *ValueReader, d interface{}) error {
 			return fmt.Errorf("Can't convert OID %v to uint64", vr.Type().DataType)
 		}
 		if valInt < 0 {
-			return fmt.Errorf("%d is less than zero for uint32", valInt)
+			return fmt.Errorf("%d is less than zero for uint64", valInt)
 		}
 		*v = uint64(valInt)
 	case *Oid:
