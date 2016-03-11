@@ -687,25 +687,35 @@ func Decode(vr *ValueReader, d interface{}) error {
 	case *int32:
 		*v = decodeInt4(vr)
 	case *uint32:
+		var valInt int32
 		switch vr.Type().DataType {
 		case Int2Oid:
-			*v = uint32(decodeInt2(vr))
+			valInt = int32(decodeInt2(vr))
 		case Int4Oid:
-			*v = uint32(decodeInt4(vr))
+			valInt = decodeInt4(vr)
 		default:
 			return fmt.Errorf("Can't convert OID %v to uint32", vr.Type().DataType)
 		}
+		if valInt < 0 {
+			return fmt.Errorf("%d is less than zero for uint32", valInt)
+		}
+		*v = uint32(valInt)
 	case *uint64:
+		var valInt int64
 		switch vr.Type().DataType {
 		case Int2Oid:
-			*v = uint64(decodeInt2(vr))
+			valInt = int64(decodeInt2(vr))
 		case Int4Oid:
-			*v = uint64(decodeInt4(vr))
+			valInt = int64(decodeInt4(vr))
 		case Int8Oid:
-			*v = uint64(decodeInt8(vr))
+			valInt = decodeInt8(vr)
 		default:
 			return fmt.Errorf("Can't convert OID %v to uint64", vr.Type().DataType)
 		}
+		if valInt < 0 {
+			return fmt.Errorf("%d is less than zero for uint32", valInt)
+		}
+		*v = uint64(valInt)
 	case *Oid:
 		*v = decodeOid(vr)
 	case *string:
