@@ -686,6 +686,36 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeInt2(vr)
 	case *int32:
 		*v = decodeInt4(vr)
+	case *uint32:
+		var valInt int32
+		switch vr.Type().DataType {
+		case Int2Oid:
+			valInt = int32(decodeInt2(vr))
+		case Int4Oid:
+			valInt = decodeInt4(vr)
+		default:
+			return fmt.Errorf("Can't convert OID %v to uint32", vr.Type().DataType)
+		}
+		if valInt < 0 {
+			return fmt.Errorf("%d is less than zero for uint32", valInt)
+		}
+		*v = uint32(valInt)
+	case *uint64:
+		var valInt int64
+		switch vr.Type().DataType {
+		case Int2Oid:
+			valInt = int64(decodeInt2(vr))
+		case Int4Oid:
+			valInt = int64(decodeInt4(vr))
+		case Int8Oid:
+			valInt = decodeInt8(vr)
+		default:
+			return fmt.Errorf("Can't convert OID %v to uint64", vr.Type().DataType)
+		}
+		if valInt < 0 {
+			return fmt.Errorf("%d is less than zero for uint64", valInt)
+		}
+		*v = uint64(valInt)
 	case *Oid:
 		*v = decodeOid(vr)
 	case *string:
@@ -1009,6 +1039,7 @@ func encodeUInt64(w *WriteBuf, oid Oid, value uint64) error {
 			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
 		}
 	case Int8Oid:
+
 		if value <= math.MaxInt64 {
 			w.WriteInt32(8)
 			w.WriteInt64(int64(value))
