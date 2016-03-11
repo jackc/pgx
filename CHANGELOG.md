@@ -28,6 +28,7 @@ standard database/sql package such as
 * Add Decode() to allow customer Decoders to reuse internal decoding functionality
 * Add ConnPool.Prepare method
 * Add ConnPool.Deallocate method
+* Add Scan to uint32 and uint64 (utrack)
 
 ## Performance
 
