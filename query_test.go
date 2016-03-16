@@ -135,6 +135,21 @@ func TestConnQueryCloseEarly(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query("select 1/0")
+	if err != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+	rows.Close()
+
+	ensureConnValid(t, conn)
+}
+
 // Test that a connection stays valid when query results read incorrectly
 func TestConnQueryReadWrongTypeError(t *testing.T) {
 	t.Parallel()

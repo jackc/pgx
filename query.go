@@ -101,6 +101,11 @@ func (rows *Rows) readUntilReadyForQuery() {
 		case dataRow:
 		case commandComplete:
 		case bindComplete:
+		case errorResponse:
+			err = rows.conn.rxErrorResponse(r)
+			if rows.err == nil {
+				rows.err = err
+			}
 		default:
 			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {

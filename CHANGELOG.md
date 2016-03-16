@@ -5,6 +5,7 @@
 * Fix unrecognized commit failure
 * Fix msgReader.rxMsg bug when msgReader already has error
 * Go float64 can no longer be encoded to a PostgreSQL float4
+* Fix connection corruption when query with error is closed early
 
 ## Features
 
