@@ -141,7 +141,7 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	rows, err := conn.Query("select 1/0")
+	rows, err := conn.Query("select 1/(10-n) from generate_series(1,10) n")
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
