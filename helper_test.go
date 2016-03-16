@@ -34,7 +34,7 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -46,7 +46,7 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {

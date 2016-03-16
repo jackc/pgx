@@ -13,7 +13,20 @@ const (
 	ReadUncommitted = "read uncommitted"
 )
 
+const (
+	TxStatusInProgress      = 0
+	TxStatusCommitFailure   = -1
+	TxStatusRollbackFailure = -2
+	TxStatusCommitSuccess   = 1
+	TxStatusRollbackSuccess = 2
+)
+
 var ErrTxClosed = errors.New("tx is closed")
+
+// ErrTxCommitRollback occurs when an error has occurred in a transaction and
+// Commit() is called. PostgreSQL accepts COMMIT on aborted transactions, but
+// it is treated as ROLLBACK.
+var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 
 // Begin starts a transaction with the default isolation level for the current
 // connection. To use a specific isolation level see BeginIso.
@@ -54,20 +67,32 @@ func (c *Conn) begin(isoLevel string) (*Tx, error) {
 // All Tx methods return ErrTxClosed if Commit or Rollback has already been
 // called on the Tx.
 type Tx struct {
-	pool   *ConnPool
-	conn   *Conn
-	closed bool
+	conn       *Conn
+	afterClose func(*Tx)
+	err        error
+	status     int8
 }
 
 // Commit commits the transaction
 func (tx *Tx) Commit() error {
-	if tx.closed {
+	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
 
-	_, err := tx.conn.Exec("commit")
-	tx.close()
-	return err
+	commandTag, err := tx.conn.Exec("commit")
+	if err == nil && commandTag == "COMMIT" {
+		tx.status = TxStatusCommitSuccess
+	} else if err == nil && commandTag == "ROLLBACK" {
+		tx.status = TxStatusCommitFailure
+		tx.err = ErrTxCommitRollback
+	} else {
+		tx.err = err
+	}
+
+	if tx.afterClose != nil {
+		tx.afterClose(tx)
+	}
+	return tx.err
 }
 
 // Rollback rolls back the transaction. Rollback will return ErrTxClosed if the
@@ -75,26 +100,26 @@ func (tx *Tx) Commit() error {
 // defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 // non-error condition.
 func (tx *Tx) Rollback() error {
-	if tx.closed {
+	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
 
-	_, err := tx.conn.Exec("rollback")
-	tx.close()
-	return err
-}
-
-func (tx *Tx) close() {
-	if tx.pool != nil {
-		tx.pool.Release(tx.conn)
-		tx.pool = nil
+	_, tx.err = tx.conn.Exec("rollback")
+	if tx.err == nil {
+		tx.status = TxStatusRollbackSuccess
+	} else {
+		tx.status = TxStatusRollbackFailure
 	}
-	tx.closed = true
+
+	if tx.afterClose != nil {
+		tx.afterClose(tx)
+	}
+	return tx.err
 }
 
 // Exec delegates to the underlying *Conn
 func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	if tx.closed {
+	if tx.status != TxStatusInProgress {
 		return CommandTag(""), ErrTxClosed
 	}
 
@@ -103,7 +128,7 @@ func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag,
 
 // Query delegates to the underlying *Conn
 func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
-	if tx.closed {
+	if tx.status != TxStatusInProgress {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
 		return &Rows{closed: true, err: err}, err
@@ -116,4 +141,34 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := tx.Query(sql, args...)
 	return (*Row)(rows)
+}
+
+// Conn returns the *Conn this transaction is using.
+func (tx *Tx) Conn() *Conn {
+	return tx.conn
+}
+
+// Status returns the status of the transaction from the set of
+// pgx.TxStatus* constants.
+func (tx *Tx) Status() int8 {
+	return tx.status
+}
+
+// Err returns the final error state, if any, of calling Commit or Rollback.
+func (tx *Tx) Err() error {
+	return tx.err
+}
+
+// AfterClose adds f to a LILO queue of functions that will be called when
+// the transaction is closed (either Commit or Rollback).
+func (tx *Tx) AfterClose(f func(*Tx)) {
+	if tx.afterClose == nil {
+		tx.afterClose = f
+	} else {
+		prevFn := tx.afterClose
+		tx.afterClose = func(tx *Tx) {
+			f(tx)
+			prevFn(tx)
+		}
+	}
 }

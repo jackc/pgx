@@ -1,10 +1,9 @@
 package pgx
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
-	"net"
-	"reflect"
 	"time"
 )
 
@@ -38,7 +37,6 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
-	pool       *ConnPool
 	conn       *Conn
 	mr         *msgReader
 	fields     []FieldDescription
@@ -46,13 +44,14 @@ type Rows struct {
 	rowCount   int
 	columnIdx  int
 	err        error
-	closed     bool
 	startTime  time.Time
 	sql        string
 	args       []interface{}
-	logger     Logger
-	logLevel   int
+	log        func(lvl int, msg string, ctx ...interface{})
+	shouldLog  func(lvl int) bool
+	afterClose func(*Rows)
 	unlockConn bool
+	closed     bool
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -69,20 +68,19 @@ func (rows *Rows) close() {
 		rows.unlockConn = false
 	}
 
-	if rows.pool != nil {
-		rows.pool.Release(rows.conn)
-		rows.pool = nil
-	}
-
 	rows.closed = true
 
 	if rows.err == nil {
-		if rows.logLevel >= LogLevelInfo {
+		if rows.shouldLog(LogLevelInfo) {
 			endTime := time.Now()
-			rows.logger.Info("Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+			rows.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
 		}
-	} else if rows.logLevel >= LogLevelError {
-		rows.logger.Error("Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
+	} else if rows.shouldLog(LogLevelError) {
+		rows.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
+	}
+
+	if rows.afterClose != nil {
+		rows.afterClose(rows)
 	}
 }
 
@@ -103,6 +101,11 @@ func (rows *Rows) readUntilReadyForQuery() {
 		case dataRow:
 		case commandComplete:
 		case bindComplete:
+		case errorResponse:
+			err = rows.conn.rxErrorResponse(r)
+			if rows.err == nil {
+				rows.err = err
+			}
 		default:
 			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {
@@ -194,6 +197,11 @@ func (rows *Rows) Next() bool {
 	}
 }
 
+// Conn returns the *Conn this *Rows is using.
+func (rows *Rows) Conn() *Conn {
+	return rows.conn
+}
+
 func (rows *Rows) nextColumn() (*ValueReader, bool) {
 	if rows.closed {
 		return nil, false
@@ -255,82 +263,46 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
+		} else if s, ok := d.(sql.Scanner); ok {
+			var val interface{}
+			if 0 <= vr.Len() {
+				switch vr.Type().DataType {
+				case BoolOid:
+					val = decodeBool(vr)
+				case Int8Oid:
+					val = int64(decodeInt8(vr))
+				case Int2Oid:
+					val = int64(decodeInt2(vr))
+				case Int4Oid:
+					val = int64(decodeInt4(vr))
+				case TextOid, VarcharOid:
+					val = decodeText(vr)
+				case OidOid:
+					val = int64(decodeOid(vr))
+				case Float4Oid:
+					val = float64(decodeFloat4(vr))
+				case Float8Oid:
+					val = decodeFloat8(vr)
+				case DateOid:
+					val = decodeDate(vr)
+				case TimestampOid:
+					val = decodeTimestamp(vr)
+				case TimestampTzOid:
+					val = decodeTimestampTz(vr)
+				default:
+					val = vr.ReadBytes(vr.Len())
+				}
+			}
+			err = s.Scan(val)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
 			decodeJson(vr, &d)
 		} else {
-		decode:
-			switch v := d.(type) {
-			case *bool:
-				*v = decodeBool(vr)
-			case *int64:
-				*v = decodeInt8(vr)
-			case *int16:
-				*v = decodeInt2(vr)
-			case *int32:
-				*v = decodeInt4(vr)
-			case *Oid:
-				*v = decodeOid(vr)
-			case *string:
-				*v = decodeText(vr)
-			case *float32:
-				*v = decodeFloat4(vr)
-			case *float64:
-				*v = decodeFloat8(vr)
-			case *[]bool:
-				*v = decodeBoolArray(vr)
-			case *[]int16:
-				*v = decodeInt2Array(vr)
-			case *[]int32:
-				*v = decodeInt4Array(vr)
-			case *[]int64:
-				*v = decodeInt8Array(vr)
-			case *[]float32:
-				*v = decodeFloat4Array(vr)
-			case *[]float64:
-				*v = decodeFloat8Array(vr)
-			case *[]string:
-				*v = decodeTextArray(vr)
-			case *[]time.Time:
-				*v = decodeTimestampArray(vr)
-			case *time.Time:
-				switch vr.Type().DataType {
-				case DateOid:
-					*v = decodeDate(vr)
-				case TimestampTzOid:
-					*v = decodeTimestampTz(vr)
-				case TimestampOid:
-					*v = decodeTimestamp(vr)
-				default:
-					rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)})
-				}
-			case *net.IPNet:
-				*v = decodeInet(vr)
-			case *[]net.IPNet:
-				*v = decodeInetArray(vr)
-			default:
-				// if d is a pointer to pointer, strip the pointer and try again
-				if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
-					if el := v.Elem(); el.Kind() == reflect.Ptr {
-						// -1 is a null value
-						if vr.Len() == -1 {
-							if !el.IsNil() {
-								// if the destination pointer is not nil, nil it out
-								el.Set(reflect.Zero(el.Type()))
-							}
-							continue
-						} else {
-							if el.IsNil() {
-								// allocate destination
-								el.Set(reflect.New(el.Type().Elem()))
-							}
-							d = el.Interface()
-							goto decode
-						}
-					}
-				}
-				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("Scan cannot decode into %T", d)})
+			if err := Decode(vr, d); err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
 			}
-
 		}
 		if vr.Err() != nil {
 			rows.Fatal(scanArgError{col: i, err: vr.Err()})
@@ -434,12 +406,26 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	return values, rows.Err()
 }
 
+// AfterClose adds f to a LILO queue of functions that will be called when
+// rows is closed.
+func (rows *Rows) AfterClose(f func(*Rows)) {
+	if rows.afterClose == nil {
+		rows.afterClose = f
+	} else {
+		prevFn := rows.afterClose
+		rows.afterClose = func(rows *Rows) {
+			f(rows)
+			prevFn(rows)
+		}
+	}
+}
+
 // Query executes sql with args. If there is an error the returned *Rows will
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, logger: c.logger, logLevel: c.logLevel}
+	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, shouldLog: c.shouldLog}
 
 	if err := c.lock(); err != nil {
 		rows.abort(err)

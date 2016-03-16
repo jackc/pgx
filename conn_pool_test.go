@@ -479,7 +479,7 @@ func TestConnPoolQuery(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {
@@ -528,7 +528,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", rows.Err())
+				t.Fatalf("conn.Query failed: %v", rows.Err())
 			}
 
 			if rowCount != 1000 {
@@ -597,5 +597,111 @@ func TestConnPoolExec(t *testing.T) {
 	}
 	if results != "DROP TABLE" {
 		t.Errorf("Unexpected results from Exec: %v", results)
+	}
+}
+
+func TestConnPoolPrepare(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	_, err := pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+
+	var s string
+	err = pool.QueryRow("test", "hello").Scan(&s)
+	if err != nil {
+		t.Errorf("Executing prepared statement failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+
+	err = pool.Deallocate("test")
+	if err != nil {
+		t.Errorf("Deallocate failed: %v", err)
+	}
+
+	err = pool.QueryRow("test", "hello").Scan(&s)
+	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
+		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
+	}
+}
+
+func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	testPreparedStatement := func(db queryRower, desc string) {
+		var s string
+		err := db.QueryRow("test", "hello").Scan(&s)
+		if err != nil {
+			t.Fatalf("%s. Executing prepared statement failed: %v", desc, err)
+		}
+
+		if s != "hello" {
+			t.Fatalf("%s. Prepared statement did not return expected value: %v", desc, s)
+		}
+	}
+
+	newReleaseOnce := func(c *pgx.Conn) func() {
+		var once sync.Once
+		return func() {
+			once.Do(func() { pool.Release(c) })
+		}
+	}
+
+	c1, err := pool.Acquire()
+	if err != nil {
+		t.Fatalf("Unable to acquire connection: %v", err)
+	}
+	c1Release := newReleaseOnce(c1)
+	defer c1Release()
+
+	_, err = pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+
+	testPreparedStatement(pool, "pool")
+
+	c1Release()
+
+	c2, err := pool.Acquire()
+	if err != nil {
+		t.Fatalf("Unable to acquire connection: %v", err)
+	}
+	c2Release := newReleaseOnce(c2)
+	defer c2Release()
+
+	// This conn will not be available and will be connection at this point
+	c3, err := pool.Acquire()
+	if err != nil {
+		t.Fatalf("Unable to acquire connection: %v", err)
+	}
+	c3Release := newReleaseOnce(c3)
+	defer c3Release()
+
+	testPreparedStatement(c2, "c2")
+	testPreparedStatement(c3, "c3")
+
+	c2Release()
+	c3Release()
+
+	err = pool.Deallocate("test")
+	if err != nil {
+		t.Errorf("Deallocate failed: %v", err)
+	}
+
+	var s string
+	err = pool.QueryRow("test", "hello").Scan(&s)
+	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
+		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
 	}
 }

@@ -543,7 +543,7 @@ func TestParseEnvLibpq(t *testing.T) {
 		for k, v := range savedEnv {
 			err := os.Setenv(k, v)
 			if err != nil {
-				t.Fatalf("Unable to restore environment:", err)
+				t.Fatalf("Unable to restore environment: %v", err)
 			}
 		}
 	}()
@@ -685,14 +685,14 @@ func TestParseEnvLibpq(t *testing.T) {
 		for _, n := range pgEnvvars {
 			err := os.Unsetenv(n)
 			if err != nil {
-				t.Fatalf("%s: Unable to clear environment:", tt.name, err)
+				t.Fatalf("%s: Unable to clear environment: %v", tt.name, err)
 			}
 		}
 
 		for k, v := range tt.envvars {
 			err := os.Setenv(k, v)
 			if err != nil {
-				t.Fatalf("%s: Unable to set environment:", tt.name, err)
+				t.Fatalf("%s: Unable to set environment: %v", tt.name, err)
 			}
 		}
 
@@ -1103,7 +1103,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 			rows, err := conn.Query("select generate_series(1,$1)", 100)
 			if err != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: %v", err)
 			}
 
 			for rows.Next() {
@@ -1114,7 +1114,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: ", err)
+				t.Fatalf("conn.Query failed: %v", err)
 			}
 
 			if sum != 5050 {
@@ -1198,7 +1198,7 @@ func TestFatalRxError(t *testing.T) {
 		var n int32
 		var s string
 		err := conn.QueryRow("select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
-		if err, ok := err.(pgx.PgError); !ok || err.Severity != "FATAL" {
+		if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Severity != "FATAL" {
 			t.Fatalf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
 		}
 	}()
@@ -1317,7 +1317,7 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 
 	rows1, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows1.Close()
 
@@ -1335,12 +1335,108 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("conn.Query failed: ", err)
+		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows.Close()
 
 	_, err = conn.Exec("create temporary table foo(spice timestamp[])")
 	if err != pgx.ErrConnBusy {
 		t.Fatalf("conn.Exec should have failed with pgx.ErrConnBusy, but it was %v", err)
+	}
+}
+
+type testLog struct {
+	lvl int
+	msg string
+	ctx []interface{}
+}
+
+type testLogger struct {
+	logs []testLog
+}
+
+func (l *testLogger) Debug(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelDebug, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Info(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelInfo, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Warn(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelWarn, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Error(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelError, msg: msg, ctx: ctx})
+}
+
+func TestSetLogger(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	l1 := &testLogger{}
+	oldLogger := conn.SetLogger(l1)
+	if oldLogger != nil {
+		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
+	}
+
+	if err := conn.Listen("foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(l1.logs) == 0 {
+		t.Fatal("Expected new logger l1 to be called, but it wasn't")
+	}
+
+	l2 := &testLogger{}
+	oldLogger = conn.SetLogger(l2)
+	if oldLogger != l1 {
+		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", l1, oldLogger)
+	}
+
+	if err := conn.Listen("bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(l2.logs) == 0 {
+		t.Fatal("Expected new logger l2 to be called, but it wasn't")
+	}
+}
+
+func TestSetLogLevel(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	logger := &testLogger{}
+	conn.SetLogger(logger)
+
+	if _, err := conn.SetLogLevel(0); err != pgx.ErrInvalidLogLevel {
+		t.Fatal("SetLogLevel with invalid level did not return error")
+	}
+
+	if _, err := conn.SetLogLevel(pgx.LogLevelNone); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := conn.Listen("foo"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(logger.logs) != 0 {
+		t.Fatalf("Expected logger not to be called, but it was: %v", logger.logs)
+	}
+
+	if _, err := conn.SetLogLevel(pgx.LogLevelTrace); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := conn.Listen("bar"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(logger.logs) == 0 {
+		t.Fatal("Expected logger to be called, but it wasn't")
 	}
 }

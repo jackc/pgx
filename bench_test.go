@@ -26,6 +26,27 @@ func BenchmarkConnPool(b *testing.B) {
 	}
 }
 
+func BenchmarkConnPoolQueryRow(b *testing.B) {
+	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		b.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		num := float64(-1)
+		if err := pool.QueryRow("select random()").Scan(&num); err != nil {
+			b.Fatal(err)
+		}
+
+		if num < 0 {
+			b.Fatalf("expected `select random()` to return between 0 and 1 but it was: %v", num)
+		}
+	}
+}
+
 func BenchmarkNullXWithNullValues(b *testing.B) {
 	conn := mustConnect(b, *defaultConnConfig)
 	defer closeConn(b, conn)

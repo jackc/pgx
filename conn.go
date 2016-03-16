@@ -14,7 +14,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -105,6 +104,7 @@ var ErrNotificationTimeout = errors.New("notification timeout")
 var ErrDeadConn = errors.New("conn is dead")
 var ErrTLSRefused = errors.New("server refused TLS connection")
 var ErrConnBusy = errors.New("conn is busy")
+var ErrInvalidLogLevel = errors.New("invalid log level")
 
 type ProtocolError string
 
@@ -127,11 +127,8 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 		c.logLevel = LogLevelDebug
 	}
 	c.logger = c.config.Logger
-	if c.logger == nil {
-		c.logLevel = LogLevelNone
-	}
-	c.mr.logger = c.logger
-	c.mr.logLevel = c.logLevel
+	c.mr.log = c.log
+	c.mr.shouldLog = c.shouldLog
 
 	if c.config.User == "" {
 		user, err := user.Current()
@@ -139,15 +136,15 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 			return nil, err
 		}
 		c.config.User = user.Username
-		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Using default connection config", "User", c.config.User)
+		if c.shouldLog(LogLevelDebug) {
+			c.log(LogLevelDebug, "Using default connection config", "User", c.config.User)
 		}
 	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
-		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Using default connection config", "Port", c.config.Port)
+		if c.shouldLog(LogLevelDebug) {
+			c.log(LogLevelDebug, "Using default connection config", "Port", c.config.Port)
 		}
 	}
 
@@ -179,13 +176,13 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	if c.logLevel >= LogLevelInfo {
-		c.logger.Info(fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+	if c.shouldLog(LogLevelInfo) {
+		c.log(LogLevelInfo, fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
 	}
 	c.conn, err = c.config.Dial(network, address)
 	if err != nil {
-		if c.logLevel >= LogLevelError {
-			c.logger.Error(fmt.Sprintf("Connection failed: %v", err))
+		if c.shouldLog(LogLevelError) {
+			c.log(LogLevelError, fmt.Sprintf("Connection failed: %v", err))
 		}
 		return err
 	}
@@ -193,8 +190,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		if c != nil && err != nil {
 			c.conn.Close()
 			c.alive = false
-			if c.logLevel >= LogLevelError {
-				c.logger.Error(err.Error())
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, err.Error())
 			}
 		}
 	}()
@@ -206,12 +203,12 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.lastActivityTime = time.Now()
 
 	if tlsConfig != nil {
-		if c.logLevel >= LogLevelDebug {
-			c.logger.Debug("Starting TLS handshake")
+		if c.shouldLog(LogLevelDebug) {
+			c.log(LogLevelDebug, "Starting TLS handshake")
 		}
 		if err := c.startTLS(tlsConfig); err != nil {
-			if c.logLevel >= LogLevelError {
-				c.logger.Error(fmt.Sprintf("TLS failed: %v", err))
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, fmt.Sprintf("TLS failed: %v", err))
 			}
 			return err
 		}
@@ -261,9 +258,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)
-			if c.logLevel >= LogLevelInfo {
-				c.logger = &connLogger{logger: c.logger, pid: c.Pid}
-				c.logger.Info("Connection established")
+			if c.shouldLog(LogLevelInfo) {
+				c.log(LogLevelInfo, "Connection established")
 			}
 
 			err = c.loadPgTypes()
@@ -338,8 +334,8 @@ func (c *Conn) Close() (err error) {
 	_, err = c.conn.Write(wbuf.buf)
 
 	c.die(errors.New("Closed"))
-	if c.logLevel >= LogLevelInfo {
-		c.logger.Info("Closed connection")
+	if c.shouldLog(LogLevelInfo) {
+		c.log(LogLevelInfo, "Closed connection")
 	}
 	return err
 }
@@ -548,10 +544,10 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 		}
 	}
 
-	if c.logLevel >= LogLevelError {
+	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
-				c.logger.Error(fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
+				c.log(LogLevelError, fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
 			}
 		}()
 	}
@@ -851,87 +847,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 	wbuf.WriteInt16(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		if arguments[i] == nil {
-			wbuf.WriteInt32(-1)
-			continue
-		}
-
-	encode:
-		switch arg := arguments[i].(type) {
-		case Encoder:
-			err = arg.Encode(wbuf, oid)
-		case string:
-			err = encodeText(wbuf, arguments[i])
-		case []byte:
-			err = encodeBytea(wbuf, arguments[i])
-		default:
-			if v := reflect.ValueOf(arguments[i]); v.Kind() == reflect.Ptr {
-				if v.IsNil() {
-					wbuf.WriteInt32(-1)
-					continue
-				} else {
-					arguments[i] = v.Elem().Interface()
-					goto encode
-				}
-			}
-			switch oid {
-			case BoolOid:
-				err = encodeBool(wbuf, arguments[i])
-			case ByteaOid:
-				err = encodeBytea(wbuf, arguments[i])
-			case Int2Oid:
-				err = encodeInt2(wbuf, arguments[i])
-			case Int4Oid:
-				err = encodeInt4(wbuf, arguments[i])
-			case Int8Oid:
-				err = encodeInt8(wbuf, arguments[i])
-			case Float4Oid:
-				err = encodeFloat4(wbuf, arguments[i])
-			case Float8Oid:
-				err = encodeFloat8(wbuf, arguments[i])
-			case TextOid, VarcharOid:
-				err = encodeText(wbuf, arguments[i])
-			case DateOid:
-				err = encodeDate(wbuf, arguments[i])
-			case TimestampTzOid:
-				err = encodeTimestampTz(wbuf, arguments[i])
-			case TimestampOid:
-				err = encodeTimestamp(wbuf, arguments[i])
-			case InetOid, CidrOid:
-				err = encodeInet(wbuf, arguments[i])
-			case InetArrayOid:
-				err = encodeInetArray(wbuf, arguments[i], InetOid)
-			case CidrArrayOid:
-				err = encodeInetArray(wbuf, arguments[i], CidrOid)
-			case BoolArrayOid:
-				err = encodeBoolArray(wbuf, arguments[i])
-			case Int2ArrayOid:
-				err = encodeInt2Array(wbuf, arguments[i])
-			case Int4ArrayOid:
-				err = encodeInt4Array(wbuf, arguments[i])
-			case Int8ArrayOid:
-				err = encodeInt8Array(wbuf, arguments[i])
-			case Float4ArrayOid:
-				err = encodeFloat4Array(wbuf, arguments[i])
-			case Float8ArrayOid:
-				err = encodeFloat8Array(wbuf, arguments[i])
-			case TextArrayOid:
-				err = encodeTextArray(wbuf, arguments[i], TextOid)
-			case VarcharArrayOid:
-				err = encodeTextArray(wbuf, arguments[i], VarcharOid)
-			case TimestampArrayOid:
-				err = encodeTimestampArray(wbuf, arguments[i], TimestampOid)
-			case TimestampTzArrayOid:
-				err = encodeTimestampArray(wbuf, arguments[i], TimestampTzOid)
-			case OidOid:
-				err = encodeOid(wbuf, arguments[i])
-			case JsonOid, JsonbOid:
-				err = encodeJson(wbuf, arguments[i])
-			default:
-				return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
-			}
-		}
-		if err != nil {
+		if err := Encode(wbuf, oid, arguments[i]); err != nil {
 			return err
 		}
 	}
@@ -970,13 +886,13 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 
 	defer func() {
 		if err == nil {
-			if c.logLevel >= LogLevelInfo {
+			if c.shouldLog(LogLevelInfo) {
 				endTime := time.Now()
-				c.logger.Info("Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
 			}
 		} else {
-			if c.logLevel >= LogLevelError {
-				c.logger.Error("Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
 			}
 		}
 
@@ -1050,8 +966,8 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 
 	c.lastActivityTime = time.Now()
 
-	if c.logLevel >= LogLevelTrace {
-		c.logger.Debug("rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+	if c.shouldLog(LogLevelTrace) {
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
 	}
 
 	return t, &c.mr, err
@@ -1245,4 +1161,47 @@ func (c *Conn) unlock() error {
 	}
 	c.busy = false
 	return nil
+}
+
+func (c *Conn) shouldLog(lvl int) bool {
+	return c.logger != nil && c.logLevel >= lvl
+}
+
+func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
+	if c.Pid != 0 {
+		ctx = append(ctx, "pid", c.Pid)
+	}
+
+	switch lvl {
+	case LogLevelTrace:
+		c.logger.Debug(msg, ctx...)
+	case LogLevelDebug:
+		c.logger.Debug(msg, ctx...)
+	case LogLevelInfo:
+		c.logger.Info(msg, ctx...)
+	case LogLevelWarn:
+		c.logger.Warn(msg, ctx...)
+	case LogLevelError:
+		c.logger.Error(msg, ctx...)
+	}
+}
+
+// SetLogger replaces the current logger and returns the previous logger.
+func (c *Conn) SetLogger(logger Logger) Logger {
+	oldLogger := c.logger
+	c.logger = logger
+	return oldLogger
+}
+
+// SetLogLevel replaces the current log level and returns the previous log
+// level.
+func (c *Conn) SetLogLevel(lvl int) (int, error) {
+	oldLvl := c.logLevel
+
+	if lvl < LogLevelNone || lvl > LogLevelTrace {
+		return oldLvl, ErrInvalidLogLevel
+	}
+
+	c.logLevel = lvl
+	return lvl, nil
 }

@@ -14,8 +14,8 @@ type msgReader struct {
 	buf               [128]byte
 	msgBytesRemaining int32
 	err               error
-	logger            Logger
-	logLevel          int
+	log               func(lvl int, msg string, ctx ...interface{})
+	shouldLog         func(lvl int) bool
 }
 
 // Err returns any error that the msgReader has experienced
@@ -25,28 +25,28 @@ func (r *msgReader) Err() error {
 
 // fatal tells r that a Fatal error has occurred
 func (r *msgReader) fatal(err error) {
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.fatal", "error", err, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.fatal", "error", err, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 	r.err = err
 }
 
 // rxMsg reads the type and size of the next message.
-func (r *msgReader) rxMsg() (t byte, err error) {
+func (r *msgReader) rxMsg() (byte, error) {
 	if r.err != nil {
-		return 0, err
+		return 0, r.err
 	}
 
 	if r.msgBytesRemaining > 0 {
-		if r.logLevel >= LogLevelTrace {
-			r.logger.Debug("msgReader.rxMsg discarding unread previous message", "msgBytesRemaining", r.msgBytesRemaining)
+		if r.shouldLog(LogLevelTrace) {
+			r.log(LogLevelTrace, "msgReader.rxMsg discarding unread previous message", "msgBytesRemaining", r.msgBytesRemaining)
 		}
 
 		io.CopyN(ioutil.Discard, r.reader, int64(r.msgBytesRemaining))
 	}
 
 	b := r.buf[0:5]
-	_, err = io.ReadFull(r.reader, b)
+	_, err := io.ReadFull(r.reader, b)
 	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b[1:])) - 4
 	return b[0], err
 }
@@ -68,8 +68,8 @@ func (r *msgReader) readByte() byte {
 		return 0
 	}
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readByte", "value", b, "byteAsString", string(b), "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readByte", "value", b, "byteAsString", string(b), "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return b
@@ -95,8 +95,8 @@ func (r *msgReader) readInt16() int16 {
 
 	n := int16(binary.BigEndian.Uint16(b))
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readInt16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readInt16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return n
@@ -122,8 +122,8 @@ func (r *msgReader) readInt32() int32 {
 
 	n := int32(binary.BigEndian.Uint32(b))
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readInt32", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readInt32", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return n
@@ -149,8 +149,8 @@ func (r *msgReader) readInt64() int64 {
 
 	n := int64(binary.BigEndian.Uint64(b))
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readInt64", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readInt64", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return n
@@ -180,8 +180,8 @@ func (r *msgReader) readCString() string {
 
 	s := string(b[0 : len(b)-1])
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readCString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readCString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return s
@@ -214,8 +214,8 @@ func (r *msgReader) readString(count int32) string {
 
 	s := string(b)
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return s
@@ -241,8 +241,8 @@ func (r *msgReader) readBytes(count int32) []byte {
 		return nil
 	}
 
-	if r.logLevel >= LogLevelTrace {
-		r.logger.Debug("msgReader.readBytes", "value", b, "msgBytesRemaining", r.msgBytesRemaining)
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readBytes", "value", b, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return b
