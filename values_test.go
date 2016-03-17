@@ -493,10 +493,50 @@ func TestArrayDecoding(t *testing.T) {
 			},
 		},
 		{
+			"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]int16))) == false {
+					t.Errorf("failed to encode smallint[]")
+				}
+			},
+		},
+		{
+			"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]uint16))) == false {
+					t.Errorf("failed to encode smallint[]")
+				}
+			},
+		},
+		{
 			"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
 			func(t *testing.T, query, scan interface{}) {
 				if reflect.DeepEqual(query, *(scan.(*[]int32))) == false {
 					t.Errorf("failed to encode int[]")
+				}
+			},
+		},
+		{
+			"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]uint32))) == false {
+					t.Errorf("failed to encode int[]")
+				}
+			},
+		},
+		{
+			"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]int64))) == false {
+					t.Errorf("failed to encode bigint[]")
+				}
+			},
+		},
+		{
+			"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
+			func(t *testing.T, query, scan interface{}) {
+				if reflect.DeepEqual(query, *(scan.(*[]uint64))) == false {
+					t.Errorf("failed to encode bigint[]")
 				}
 			},
 		},
