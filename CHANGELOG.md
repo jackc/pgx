@@ -30,6 +30,7 @@ standard database/sql package such as
 * Add ConnPool.Prepare method
 * Add ConnPool.Deallocate method
 * Add Scan to uint32 and uint64 (utrack)
+* Add encode and decode to []uint16, []uint32, and []uint64 (Max Musatov)
 
 ## Performance
 
