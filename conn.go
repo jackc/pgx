@@ -25,7 +25,7 @@ type DialFunc func(network, addr string) (net.Conn, error)
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port              uint16 // default: 5432
+	Port              uint32 // default: 5432
 	Database          string
 	User              string // default: OS user name
 	Password          string
@@ -363,7 +363,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 		if err != nil {
 			return cp, err
 		}
-		cp.Port = uint16(p)
+		cp.Port = uint32(p)
 	}
 	cp.Database = strings.TrimLeft(url.Path, "/")
 
@@ -423,7 +423,7 @@ func ParseDSN(s string) (ConnConfig, error) {
 			if p, err := strconv.ParseUint(b[2], 10, 16); err != nil {
 				return cp, err
 			} else {
-				cp.Port = uint16(p)
+				cp.Port = uint32(p)
 			}
 		case "dbname":
 			cp.Database = b[2]
@@ -480,7 +480,7 @@ func ParseEnvLibpq() (ConnConfig, error) {
 
 	if pgport := os.Getenv("PGPORT"); pgport != "" {
 		if port, err := strconv.ParseUint(pgport, 10, 16); err == nil {
-			cc.Port = uint16(port)
+			cc.Port = uint32(port)
 		} else {
 			return cc, err
 		}
