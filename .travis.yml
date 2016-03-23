@@ -1,6 +1,7 @@
 language: go
 
 go:
+  - 1.6.0
   - 1.5.2
   - tip
 
@@ -22,11 +23,11 @@ before_install:
 
 env:
   matrix:
+    - PGVERSION=9.5
     - PGVERSION=9.4
     - PGVERSION=9.3
     - PGVERSION=9.2
     - PGVERSION=9.1
-    - PGVERSION=9.0
 
 before_script:
   - mv conn_config_test.go.travis conn_config_test.go
