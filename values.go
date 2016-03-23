@@ -1056,7 +1056,7 @@ func encodeUInt64(w *WriteBuf, oid Oid, value uint64) error {
 			w.WriteInt32(8)
 			w.WriteInt64(int64(value))
 		} else {
-			return fmt.Errorf("%d is larger than max int64 %d", value, math.MaxInt64)
+			return fmt.Errorf("%d is larger than max int64 %d", value, int64(math.MaxInt64))
 		}
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "uint64", oid)
@@ -1082,11 +1082,11 @@ func encodeInt(w *WriteBuf, oid Oid, value int) error {
 			return fmt.Errorf("%d is larger than max int32 %d", value, math.MaxInt32)
 		}
 	case Int8Oid:
-		if value <= math.MaxInt64 {
+		if int64(value) <= int64(math.MaxInt64) {
 			w.WriteInt32(8)
 			w.WriteInt64(int64(value))
 		} else {
-			return fmt.Errorf("%d is larger than max int64 %d", value, math.MaxInt64)
+			return fmt.Errorf("%d is larger than max int64 %d", value, int64(math.MaxInt64))
 		}
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "uint64", oid)
@@ -1918,7 +1918,7 @@ func encodeUInt64Slice(w *WriteBuf, oid Oid, slice []uint64) error {
 			w.WriteInt32(8)
 			w.WriteInt64(int64(v))
 		} else {
-			return fmt.Errorf("%d is larger than max bigint %d", v, math.MaxInt64)
+			return fmt.Errorf("%d is larger than max bigint %d", v, int64(math.MaxInt64))
 		}
 	}
 
