@@ -657,7 +657,7 @@ func (c *Conn) Deallocate(name string) (err error) {
 
 // Listen establishes a PostgreSQL listen/notify to channel
 func (c *Conn) Listen(channel string) error {
-	_, err := c.Exec("listen " + channel)
+	_, err := c.Exec("listen " + quoteIdentifier(channel))
 	if err != nil {
 		return err
 	}
@@ -669,7 +669,7 @@ func (c *Conn) Listen(channel string) error {
 
 // Unlisten unsubscribes from a listen channel
 func (c *Conn) Unlisten(channel string) error {
-	_, err := c.Exec("unlisten " + channel)
+	_, err := c.Exec("unlisten " + quoteIdentifier(channel))
 	if err != nil {
 		return err
 	}
@@ -1204,4 +1204,8 @@ func (c *Conn) SetLogLevel(lvl int) (int, error) {
 
 	c.logLevel = lvl
 	return lvl, nil
+}
+
+func quoteIdentifier(s string) string {
+	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
 }

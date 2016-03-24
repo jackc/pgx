@@ -1185,6 +1185,22 @@ func TestListenNotifySelfNotification(t *testing.T) {
 	}
 }
 
+func TestListenUnlistenSpecialCharacters(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	chanName := "special characters !@#{$%^&*()}"
+	if err := conn.Listen(chanName); err != nil {
+		t.Fatalf("Unable to start listening: %v", err)
+	}
+
+	if err := conn.Unlisten(chanName); err != nil {
+		t.Fatalf("Unable to stop listening: %v", err)
+	}
+}
+
 func TestFatalRxError(t *testing.T) {
 	t.Parallel()
 
