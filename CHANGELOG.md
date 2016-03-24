@@ -1,3 +1,13 @@
+# Master
+
+## Features
+
+* Scan accepts nil argument to ignore a column
+
+## Fixes
+
+* Fix compilation on 32-bit architecture
+
 # 2.8.0 (March 18, 2016)
 
 ## Fixes
