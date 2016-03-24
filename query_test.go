@@ -218,6 +218,40 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryScanIgnoreColumn(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query("select 1::int8, 2::int8, 3::int8")
+	if err != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+
+	ok := rows.Next()
+	if !ok {
+		t.Fatal("rows.Next terminated early")
+	}
+
+	var n, m int64
+	err = rows.Scan(&n, nil, &m)
+	if err != nil {
+		t.Fatalf("rows.Scan failed: %v", err)
+	}
+	rows.Close()
+
+	if n != 1 {
+		t.Errorf("Expected n to equal 1, but it was %d", n)
+	}
+
+	if m != 3 {
+		t.Errorf("Expected n to equal 3, but it was %d", m)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnQueryScanner(t *testing.T) {
 	t.Parallel()
 

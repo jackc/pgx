@@ -233,8 +233,8 @@ func (e scanArgError) Error() string {
 
 // Scan reads the values from the current row into dest values positionally.
 // dest can include pointers to core types, values implementing the Scanner
-// interface, and []byte. []byte will skip the decoding process and directly
-// copy the raw bytes received from PostgreSQL.
+// interface, []byte, and nil. []byte will skip the decoding process and directly
+// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
 		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
@@ -244,6 +244,10 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	for i, d := range dest {
 		vr, _ := rows.nextColumn()
+
+		if d == nil {
+			continue
+		}
 
 		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
 		if b, ok := d.(*[]byte); ok {
