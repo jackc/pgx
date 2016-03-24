@@ -7,6 +7,7 @@
 ## Fixes
 
 * Fix compilation on 32-bit architecture
+* Fix Tx.status not being set on error on Commit
 
 # 2.8.0 (March 18, 2016)
 

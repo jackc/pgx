@@ -94,6 +94,52 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 	}
 }
 
+func TestTxCommitSerializationFailure(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 5)
+	defer pool.Close()
+
+	pool.Exec(`drop table if exists tx_serializable_sums`)
+	_, err := pool.Exec(`create table tx_serializable_sums(num integer);`)
+	if err != nil {
+		t.Fatalf("Unable to create temporary table: %v", err)
+	}
+	defer pool.Exec(`drop table tx_serializable_sums`)
+
+	tx1, err := pool.BeginIso(pgx.Serializable)
+	if err != nil {
+		t.Fatalf("BeginIso failed: %v", err)
+	}
+	defer tx1.Rollback()
+
+	tx2, err := pool.BeginIso(pgx.Serializable)
+	if err != nil {
+		t.Fatalf("BeginIso failed: %v", err)
+	}
+	defer tx2.Rollback()
+
+	_, err = tx1.Exec(`insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	if err != nil {
+		t.Fatalf("Exec failed: %v", err)
+	}
+
+	_, err = tx2.Exec(`insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	if err != nil {
+		t.Fatalf("Exec failed: %v", err)
+	}
+
+	err = tx1.Commit()
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	err = tx2.Commit()
+	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "40001" {
+		t.Fatalf("Expected serialization error 40001, got %#v", err)
+	}
+}
+
 func TestTransactionSuccessfulRollback(t *testing.T) {
 	t.Parallel()
 

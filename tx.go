@@ -86,6 +86,7 @@ func (tx *Tx) Commit() error {
 		tx.status = TxStatusCommitFailure
 		tx.err = ErrTxCommitRollback
 	} else {
+		tx.status = TxStatusCommitFailure
 		tx.err = err
 	}
 
