@@ -367,9 +367,8 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 			// again.
 			if alive {
 				return nil, err
-			} else {
-				continue
 			}
+			continue
 		}
 
 		tx.AfterClose(p.txAfterClose)

@@ -90,6 +90,7 @@ func init() {
 	}
 }
 
+// SerializationError occurs on failure to encode or decode a value
 type SerializationError string
 
 func (e SerializationError) Error() string {
@@ -612,7 +613,7 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 	}
 
 	if oid == JsonOid || oid == JsonbOid {
-		return encodeJson(wbuf, oid, arg)
+		return encodeJSON(wbuf, oid, arg)
 	}
 
 	switch arg := arg.(type) {
@@ -1279,7 +1280,7 @@ func encodeByteSlice(w *WriteBuf, oid Oid, value []byte) error {
 	return nil
 }
 
-func decodeJson(vr *ValueReader, d interface{}) error {
+func decodeJSON(vr *ValueReader, d interface{}) error {
 	if vr.Len() == -1 {
 		return nil
 	}
@@ -1296,7 +1297,7 @@ func decodeJson(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func encodeJson(w *WriteBuf, oid Oid, value interface{}) error {
+func encodeJSON(w *WriteBuf, oid Oid, value interface{}) error {
 	if oid != JsonOid && oid != JsonbOid {
 		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}

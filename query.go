@@ -23,9 +23,8 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 	if !rows.Next() {
 		if rows.Err() == nil {
 			return ErrNoRows
-		} else {
-			return rows.Err()
 		}
+		return rows.Err()
 	}
 
 	rows.Scan(dest...)
@@ -302,7 +301,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
-			decodeJson(vr, &d)
+			decodeJSON(vr, &d)
 		} else {
 			if err := Decode(vr, d); err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
@@ -328,7 +327,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 
 	values := make([]interface{}, 0, len(rows.fields))
 
-	for _, _ = range rows.fields {
+	for range rows.fields {
 		vr, _ := rows.nextColumn()
 
 		if vr.Len() == -1 {
@@ -385,11 +384,11 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeInet(vr))
 			case JsonOid:
 				var d interface{}
-				decodeJson(vr, &d)
+				decodeJSON(vr, &d)
 				values = append(values, d)
 			case JsonbOid:
 				var d interface{}
-				decodeJson(vr, &d)
+				decodeJSON(vr, &d)
 				values = append(values, d)
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))

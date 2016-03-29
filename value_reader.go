@@ -37,7 +37,7 @@ func (r *ValueReader) ReadByte() byte {
 		return 0
 	}
 
-	r.valueBytesRemaining -= 1
+	r.valueBytesRemaining--
 	if r.valueBytesRemaining < 0 {
 		r.Fatal(errors.New("read past end of value"))
 		return 0

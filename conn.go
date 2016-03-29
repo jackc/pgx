@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(network, addr string) (net.Conn, error)
 
 // ConnConfig contains all the options used to establish a connection.
@@ -67,6 +68,7 @@ type Conn struct {
 	poolResetCount     int
 }
 
+// PreparedStatement is a description of a prepared statement
 type PreparedStatement struct {
 	Name              string
 	SQL               string
@@ -74,17 +76,20 @@ type PreparedStatement struct {
 	ParameterOids     []Oid
 }
 
+// Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
 type Notification struct {
 	Pid     int32  // backend pid that sent the notification
 	Channel string // channel from which notification was received
 	Payload string
 }
 
+// PgType is information about PostgreSQL type and how to encode and decode it
 type PgType struct {
 	Name          string // name of type e.g. int4, text, date
 	DefaultFormat int16  // default format (text or binary) this type will be requested in
 }
 
+// CommandTag is the result of an Exec function
 type CommandTag string
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
@@ -99,13 +104,27 @@ func (ct CommandTag) RowsAffected() int64 {
 	return n
 }
 
+// ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
+
+// ErrNotificationTimeout occurs when WaitForNotification times out.
 var ErrNotificationTimeout = errors.New("notification timeout")
+
+// ErrDeadConn occurs on an attempt to use a dead connection
 var ErrDeadConn = errors.New("conn is dead")
+
+// ErrTLSRefused occurs when the connection attempt requires TLS and the
+// PostgreSQL server refuses to use TLS
 var ErrTLSRefused = errors.New("server refused TLS connection")
+
+// ErrConnBusy occurs when the connection is busy (for example, in the middle of
+// reading query results) and another action is attempts.
 var ErrConnBusy = errors.New("conn is busy")
+
+// ErrInvalidLogLevel occurs on attempt to set an invalid log level.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
+// ProtocolError occurs when unexpected data is received from PostgreSQL
 type ProtocolError string
 
 func (e ProtocolError) Error() string {
@@ -790,9 +809,8 @@ func (c *Conn) CauseOfDeath() error {
 func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 	if ps, present := c.preparedStatements[sql]; present {
 		return c.sendPreparedQuery(ps, arguments...)
-	} else {
-		return c.sendSimpleQuery(sql, arguments...)
 	}
+	return c.sendSimpleQuery(sql, arguments...)
 }
 
 func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {

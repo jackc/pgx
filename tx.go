@@ -47,14 +47,14 @@ func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
 }
 
 func (c *Conn) begin(isoLevel string) (*Tx, error) {
-	var beginSql string
+	var beginSQL string
 	if isoLevel == "" {
-		beginSql = "begin"
+		beginSQL = "begin"
 	} else {
-		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
+		beginSQL = fmt.Sprintf("begin isolation level %s", isoLevel)
 	}
 
-	_, err := c.Exec(beginSql)
+	_, err := c.Exec(beginSQL)
 	if err != nil {
 		return nil, err
 	}
