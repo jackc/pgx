@@ -31,7 +31,13 @@ var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 // Begin starts a transaction with the default isolation level for the current
 // connection. To use a specific isolation level see BeginIso.
 func (c *Conn) Begin() (*Tx, error) {
-	return c.begin("")
+	return c.begin("", false)
+}
+
+// BeginRO works the same way as Begin except the transaction is started in
+// read only mode.
+func (c *Conn) BeginRO() (*Tx, error) {
+	return c.begin("", true)
 }
 
 // BeginIso starts a transaction with isoLevel as the transaction isolation
@@ -43,15 +49,26 @@ func (c *Conn) Begin() (*Tx, error) {
 //   read committed (pgx.ReadCommitted)
 //   read uncommitted (pgx.ReadUncommitted)
 func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
-	return c.begin(isoLevel)
+	return c.begin(isoLevel, false)
 }
 
-func (c *Conn) begin(isoLevel string) (*Tx, error) {
+// BeginIsoRO works the same way as BeginIso except the transaction is started
+// in read only mode.
+func (c *Conn) BeginIsoRO(isoLevel string) (*Tx, error) {
+	return c.begin(isoLevel, true)
+}
+
+func (c *Conn) begin(isoLevel string, ro bool) (*Tx, error) {
 	var beginSQL string
+
 	if isoLevel == "" {
 		beginSQL = "begin"
 	} else {
 		beginSQL = fmt.Sprintf("begin isolation level %s", isoLevel)
+	}
+
+	if ro {
+		isoLevel += " read only"
 	}
 
 	_, err := c.Exec(beginSQL)
