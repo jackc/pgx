@@ -764,6 +764,22 @@ func Decode(vr *ValueReader, d interface{}) error {
 		default:
 			return fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)
 		}
+	case *net.IP:
+		ipnet := decodeInet(vr)
+		if oneCount, bitCount := ipnet.Mask.Size(); oneCount != bitCount {
+			return fmt.Errorf("Cannot decode netmask into *net.IP")
+		}
+		*v = ipnet.IP
+	case *[]net.IP:
+		ipnets := decodeInetArray(vr)
+		ips := make([]net.IP, len(ipnets))
+		for i, ipnet := range ipnets {
+			if oneCount, bitCount := ipnet.Mask.Size(); oneCount != bitCount {
+				return fmt.Errorf("Cannot decode netmask into *net.IP")
+			}
+			ips[i] = ipnet.IP
+		}
+		*v = ips
 	case *net.IPNet:
 		*v = decodeInet(vr)
 	case *[]net.IPNet:
@@ -1436,13 +1452,12 @@ func decodeInet(vr *ValueReader) net.IPNet {
 	}
 
 	pgType := vr.Type()
-	if vr.Len() != 8 && vr.Len() != 20 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for a %s: %d", pgType.Name, vr.Len())))
-		return zero
-	}
-
 	if pgType.DataType != InetOid && pgType.DataType != CidrOid {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into %s", pgType.DataType, pgType.Name)))
+		return zero
+	}
+	if vr.Len() != 8 && vr.Len() != 20 {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for a %s: %d", pgType.Name, vr.Len())))
 		return zero
 	}
 

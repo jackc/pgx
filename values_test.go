@@ -1,12 +1,13 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
 	"net"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 )
 
 func TestDateTranscode(t *testing.T) {
@@ -258,7 +259,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 	}
 }
 
-func TestInetCidrTranscode(t *testing.T) {
+func TestInetCidrTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -307,7 +308,67 @@ func TestInetCidrTranscode(t *testing.T) {
 	}
 }
 
-func TestInetCidrArrayTranscode(t *testing.T) {
+func TestInetCidrTranscodeIP(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value net.IP
+	}{
+		{"select $1::inet", net.ParseIP("0.0.0.0")},
+		{"select $1::inet", net.ParseIP("127.0.0.1")},
+		{"select $1::inet", net.ParseIP("12.34.56.0")},
+		{"select $1::inet", net.ParseIP("255.255.255.255")},
+		{"select $1::inet", net.ParseIP("::1")},
+		{"select $1::inet", net.ParseIP("2607:f8b0:4009:80b::200e")},
+		{"select $1::cidr", net.ParseIP("0.0.0.0")},
+		{"select $1::cidr", net.ParseIP("127.0.0.1")},
+		{"select $1::cidr", net.ParseIP("12.34.56.0")},
+		{"select $1::cidr", net.ParseIP("255.255.255.255")},
+		{"select $1::cidr", net.ParseIP("::1")},
+		{"select $1::cidr", net.ParseIP("2607:f8b0:4009:80b::200e")},
+	}
+
+	for i, tt := range tests {
+		var actual net.IP
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
+		}
+
+		if !actual.Equal(tt.value) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+
+	failTests := []struct {
+		sql   string
+		value net.IPNet
+	}{
+		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
+	}
+	for i, tt := range failTests {
+		var actual net.IP
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if !strings.Contains(err.Error(), "Cannot decode netmask") {
+			t.Errorf("%d. Expected failure cannot decode netmask, but got: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -360,6 +421,87 @@ func TestInetCidrArrayTranscode(t *testing.T) {
 
 		if !reflect.DeepEqual(actual, tt.value) {
 			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestInetCidrArrayTranscodeIP(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value []net.IP
+	}{
+		{
+			"select $1::inet[]",
+			[]net.IP{
+				net.ParseIP("0.0.0.0"),
+				net.ParseIP("127.0.0.1"),
+				net.ParseIP("12.34.56.0"),
+				net.ParseIP("255.255.255.255"),
+				net.ParseIP("2607:f8b0:4009:80b::200e"),
+			},
+		},
+		{
+			"select $1::cidr[]",
+			[]net.IP{
+				net.ParseIP("0.0.0.0"),
+				net.ParseIP("127.0.0.1"),
+				net.ParseIP("12.34.56.0"),
+				net.ParseIP("255.255.255.255"),
+				net.ParseIP("2607:f8b0:4009:80b::200e"),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		var actual []net.IP
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
+		}
+
+		if !reflect.DeepEqual(actual, tt.value) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.value, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+
+	failTests := []struct {
+		sql   string
+		value []net.IPNet
+	}{
+		{
+			"select $1::inet[]",
+			[]net.IPNet{
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+			},
+		},
+		{
+			"select $1::cidr[]",
+			[]net.IPNet{
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+			},
+		},
+	}
+
+	for i, tt := range failTests {
+		var actual []net.IP
+
+		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		if err == nil || !strings.Contains(err.Error(), "Cannot decode netmask") {
+			t.Errorf("%d. Expected failure cannot decode netmask, but got: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+			continue
 		}
 
 		ensureConnValid(t, conn)
