@@ -693,6 +693,18 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeInt2(vr)
 	case *int32:
 		*v = decodeInt4(vr)
+	case *uint16:
+		var valInt int16
+		switch vr.Type().DataType {
+		case Int2Oid:
+			valInt = int16(decodeInt2(vr))
+		default:
+			return fmt.Errorf("Can't convert OID %v to uint16", vr.Type().DataType)
+		}
+		if valInt < 0 {
+			return fmt.Errorf("%d is less than zero for uint16", valInt)
+		}
+		*v = uint16(valInt)
 	case *uint32:
 		var valInt int32
 		switch vr.Type().DataType {

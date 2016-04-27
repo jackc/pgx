@@ -474,6 +474,47 @@ func TestQueryRowCoreTypes(t *testing.T) {
 	}
 }
 
+func TestQueryRowCoreUnsignedIntTypes(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		ui16 uint16
+		ui32 uint32
+		ui64 uint64
+	}
+
+	var actual, zero allTypes
+
+	tests := []struct {
+		sql       string
+		queryArgs []interface{}
+		scanArgs  []interface{}
+		expected  allTypes
+	}{
+		{"select $1::int2", []interface{}{uint16(42)}, []interface{}{&actual.ui16}, allTypes{ui16: 42}},
+		{"select $1::int4", []interface{}{uint32(42)}, []interface{}{&actual.ui32}, allTypes{ui32: 42}},
+		{"select $1::int8", []interface{}{uint64(42)}, []interface{}{&actual.ui64}, allTypes{ui64: 42}},
+	}
+
+	for i, tt := range tests {
+		actual = zero
+
+		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
+		}
+
+		if actual != tt.expected {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestQueryRowCoreByteSlice(t *testing.T) {
 	t.Parallel()
 
