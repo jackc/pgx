@@ -416,9 +416,6 @@ func TestQueryRowCoreTypes(t *testing.T) {
 
 	type allTypes struct {
 		s   string
-		i16 int16
-		i32 int32
-		i64 int64
 		f32 float32
 		f64 float64
 		b   bool
@@ -435,9 +432,6 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		expected  allTypes
 	}{
 		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.s}, allTypes{s: "Jack"}},
-		{"select $1::int2", []interface{}{int16(42)}, []interface{}{&actual.i16}, allTypes{i16: 42}},
-		{"select $1::int4", []interface{}{int32(42)}, []interface{}{&actual.i32}, allTypes{i32: 42}},
-		{"select $1::int8", []interface{}{int64(42)}, []interface{}{&actual.i64}, allTypes{i64: 42}},
 		{"select $1::float4", []interface{}{float32(1.23)}, []interface{}{&actual.f32}, allTypes{f32: 1.23}},
 		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
 		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
@@ -474,41 +468,290 @@ func TestQueryRowCoreTypes(t *testing.T) {
 	}
 }
 
-func TestQueryRowCoreUnsignedIntTypes(t *testing.T) {
+func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
 	type allTypes struct {
+		ui   uint
+		ui8  uint8
 		ui16 uint16
 		ui32 uint32
 		ui64 uint64
+		i    int
+		i8   int8
+		i16  int16
+		i32  int32
+		i64  int64
 	}
 
 	var actual, zero allTypes
 
-	tests := []struct {
-		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
-		expected  allTypes
+	successfulEncodeTests := []struct {
+		sql      string
+		queryArg interface{}
+		scanArg  interface{}
+		expected allTypes
 	}{
-		{"select $1::int2", []interface{}{uint16(42)}, []interface{}{&actual.ui16}, allTypes{ui16: 42}},
-		{"select $1::int4", []interface{}{uint32(42)}, []interface{}{&actual.ui32}, allTypes{ui32: 42}},
-		{"select $1::int8", []interface{}{uint64(42)}, []interface{}{&actual.ui64}, allTypes{ui64: 42}},
+		// Check any integer type where value is within int2 range can be encoded
+		{"select $1::int2", int(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", int8(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", int16(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", int32(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", int64(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", uint(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", uint8(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", uint16(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", uint32(42), &actual.i16, allTypes{i16: 42}},
+		{"select $1::int2", uint64(42), &actual.i16, allTypes{i16: 42}},
+
+		// Check any integer type where value is within int4 range can be encoded
+		{"select $1::int4", int(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", int8(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", int16(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", int32(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", int64(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", uint(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", uint8(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", uint16(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", uint32(42), &actual.i32, allTypes{i32: 42}},
+		{"select $1::int4", uint64(42), &actual.i32, allTypes{i32: 42}},
+
+		// Check any integer type where value is within int8 range can be encoded
+		{"select $1::int8", int(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", int8(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", int16(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", int32(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", int64(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", uint(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", uint8(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", uint16(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", uint32(42), &actual.i64, allTypes{i64: 42}},
+		{"select $1::int8", uint64(42), &actual.i64, allTypes{i64: 42}},
 	}
 
-	for i, tt := range tests {
+	for i, tt := range successfulEncodeTests {
 		actual = zero
 
-		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		err := conn.QueryRow(tt.sql, tt.queryArg).Scan(tt.scanArg)
 		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArg -> %v)", i, err, tt.sql, tt.queryArg)
+			continue
 		}
 
 		if actual != tt.expected {
-			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
+			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArg -> %v)", i, tt.expected, actual, tt.sql, tt.queryArg)
+		}
+
+		ensureConnValid(t, conn)
+	}
+
+	failedEncodeTests := []struct {
+		sql      string
+		queryArg interface{}
+	}{
+		// Check any integer type where value is outside pg:int2 range cannot be encoded
+		{"select $1::int2", int(32769)},
+		{"select $1::int2", int32(32769)},
+		{"select $1::int2", int32(32769)},
+		{"select $1::int2", int64(32769)},
+		{"select $1::int2", uint(32769)},
+		{"select $1::int2", uint16(32769)},
+		{"select $1::int2", uint32(32769)},
+		{"select $1::int2", uint64(32769)},
+
+		// Check any integer type where value is outside pg:int4 range cannot be encoded
+		{"select $1::int4", int64(2147483649)},
+		{"select $1::int4", uint32(2147483649)},
+		{"select $1::int4", uint64(2147483649)},
+
+		// Check any integer type where value is outside pg:int8 range cannot be encoded
+		{"select $1::int8", uint64(9223372036854775809)},
+	}
+
+	for i, tt := range failedEncodeTests {
+		err := conn.QueryRow(tt.sql, tt.queryArg).Scan(nil)
+		if err == nil {
+			t.Errorf("%d. Expected failure to encode, but unexpectedly succeeded: %v (sql -> %v, queryArg -> %v)", i, err, tt.sql, tt.queryArg)
+		} else if !strings.Contains(err.Error(), "is greater than") {
+			t.Errorf("%d. Expected failure to encode, but got: %v (sql -> %v, queryArg -> %v)", i, err, tt.sql, tt.queryArg)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
+func TestQueryRowCoreIntegerDecoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type allTypes struct {
+		ui   uint
+		ui8  uint8
+		ui16 uint16
+		ui32 uint32
+		ui64 uint64
+		i    int
+		i8   int8
+		i16  int16
+		i32  int32
+		i64  int64
+	}
+
+	var actual, zero allTypes
+
+	successfulDecodeTests := []struct {
+		sql      string
+		scanArg  interface{}
+		expected allTypes
+	}{
+		// Check any integer type where value is within Go:int range can be decoded
+		{"select 42::int2", &actual.i, allTypes{i: 42}},
+		{"select 42::int4", &actual.i, allTypes{i: 42}},
+		{"select 42::int8", &actual.i, allTypes{i: 42}},
+		{"select -42::int2", &actual.i, allTypes{i: -42}},
+		{"select -42::int4", &actual.i, allTypes{i: -42}},
+		{"select -42::int8", &actual.i, allTypes{i: -42}},
+
+		// Check any integer type where value is within Go:int8 range can be decoded
+		{"select 42::int2", &actual.i8, allTypes{i8: 42}},
+		{"select 42::int4", &actual.i8, allTypes{i8: 42}},
+		{"select 42::int8", &actual.i8, allTypes{i8: 42}},
+		{"select -42::int2", &actual.i8, allTypes{i8: -42}},
+		{"select -42::int4", &actual.i8, allTypes{i8: -42}},
+		{"select -42::int8", &actual.i8, allTypes{i8: -42}},
+
+		// Check any integer type where value is within Go:int16 range can be decoded
+		{"select 42::int2", &actual.i16, allTypes{i16: 42}},
+		{"select 42::int4", &actual.i16, allTypes{i16: 42}},
+		{"select 42::int8", &actual.i16, allTypes{i16: 42}},
+		{"select -42::int2", &actual.i16, allTypes{i16: -42}},
+		{"select -42::int4", &actual.i16, allTypes{i16: -42}},
+		{"select -42::int8", &actual.i16, allTypes{i16: -42}},
+
+		// Check any integer type where value is within Go:int32 range can be decoded
+		{"select 42::int2", &actual.i32, allTypes{i32: 42}},
+		{"select 42::int4", &actual.i32, allTypes{i32: 42}},
+		{"select 42::int8", &actual.i32, allTypes{i32: 42}},
+		{"select -42::int2", &actual.i32, allTypes{i32: -42}},
+		{"select -42::int4", &actual.i32, allTypes{i32: -42}},
+		{"select -42::int8", &actual.i32, allTypes{i32: -42}},
+
+		// Check any integer type where value is within Go:int64 range can be decoded
+		{"select 42::int2", &actual.i64, allTypes{i64: 42}},
+		{"select 42::int4", &actual.i64, allTypes{i64: 42}},
+		{"select 42::int8", &actual.i64, allTypes{i64: 42}},
+		{"select -42::int2", &actual.i64, allTypes{i64: -42}},
+		{"select -42::int4", &actual.i64, allTypes{i64: -42}},
+		{"select -42::int8", &actual.i64, allTypes{i64: -42}},
+
+		// Check any integer type where value is within Go:uint range can be decoded
+		{"select 128::int2", &actual.ui, allTypes{ui: 128}},
+		{"select 128::int4", &actual.ui, allTypes{ui: 128}},
+		{"select 128::int8", &actual.ui, allTypes{ui: 128}},
+
+		// Check any integer type where value is within Go:uint8 range can be decoded
+		{"select 128::int2", &actual.ui8, allTypes{ui8: 128}},
+		{"select 128::int4", &actual.ui8, allTypes{ui8: 128}},
+		{"select 128::int8", &actual.ui8, allTypes{ui8: 128}},
+
+		// Check any integer type where value is within Go:uint16 range can be decoded
+		{"select 42::int2", &actual.ui16, allTypes{ui16: 42}},
+		{"select 32768::int4", &actual.ui16, allTypes{ui16: 32768}},
+		{"select 32768::int8", &actual.ui16, allTypes{ui16: 32768}},
+
+		// Check any integer type where value is within Go:uint32 range can be decoded
+		{"select 42::int2", &actual.ui32, allTypes{ui32: 42}},
+		{"select 42::int4", &actual.ui32, allTypes{ui32: 42}},
+		{"select 2147483648::int8", &actual.ui32, allTypes{ui32: 2147483648}},
+
+		// Check any integer type where value is within Go:uint64 range can be decoded
+		{"select 42::int2", &actual.ui64, allTypes{ui64: 42}},
+		{"select 42::int4", &actual.ui64, allTypes{ui64: 42}},
+		{"select 42::int8", &actual.ui64, allTypes{ui64: 42}},
+	}
+
+	for i, tt := range successfulDecodeTests {
+		actual = zero
+
+		err := conn.QueryRow(tt.sql).Scan(tt.scanArg)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
+			continue
+		}
+
+		if actual != tt.expected {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.expected, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+
+	failedDecodeTests := []struct {
+		sql         string
+		scanArg     interface{}
+		expectedErr string
+	}{
+		// Check any integer type where value is outside Go:int8 range cannot be decoded
+		{"select 128::int2", &actual.i8, "is greater than"},
+		{"select 128::int4", &actual.i8, "is greater than"},
+		{"select 128::int8", &actual.i8, "is greater than"},
+		{"select -129::int2", &actual.i8, "is less than"},
+		{"select -129::int4", &actual.i8, "is less than"},
+		{"select -129::int8", &actual.i8, "is less than"},
+
+		// Check any integer type where value is outside Go:int16 range cannot be decoded
+		{"select 32768::int4", &actual.i16, "is greater than"},
+		{"select 32768::int8", &actual.i16, "is greater than"},
+		{"select -32769::int4", &actual.i16, "is less than"},
+		{"select -32769::int8", &actual.i16, "is less than"},
+
+		// Check any integer type where value is outside Go:int32 range cannot be decoded
+		{"select 2147483648::int8", &actual.i32, "is greater than"},
+		{"select -2147483649::int8", &actual.i32, "is less than"},
+
+		// Check any integer type where value is outside Go:uint range cannot be decoded
+		{"select -1::int2", &actual.ui, "is less than"},
+		{"select -1::int4", &actual.ui, "is less than"},
+		{"select -1::int8", &actual.ui, "is less than"},
+
+		// Check any integer type where value is outside Go:uint8 range cannot be decoded
+		{"select 256::int2", &actual.ui8, "is greater than"},
+		{"select 256::int4", &actual.ui8, "is greater than"},
+		{"select 256::int8", &actual.ui8, "is greater than"},
+		{"select -1::int2", &actual.ui8, "is less than"},
+		{"select -1::int4", &actual.ui8, "is less than"},
+		{"select -1::int8", &actual.ui8, "is less than"},
+
+		// Check any integer type where value is outside Go:uint16 cannot be decoded
+		{"select 65536::int4", &actual.ui16, "is greater than"},
+		{"select 65536::int8", &actual.ui16, "is greater than"},
+		{"select -1::int2", &actual.ui16, "is less than"},
+		{"select -1::int4", &actual.ui16, "is less than"},
+		{"select -1::int8", &actual.ui16, "is less than"},
+
+		// Check any integer type where value is outside Go:uint32 range cannot be decoded
+		{"select 4294967296::int8", &actual.ui32, "is greater than"},
+		{"select -1::int2", &actual.ui32, "is less than"},
+		{"select -1::int4", &actual.ui32, "is less than"},
+		{"select -1::int8", &actual.ui32, "is less than"},
+
+		// Check any integer type where value is outside Go:uint64 range cannot be decoded
+		{"select -1::int2", &actual.ui64, "is less than"},
+		{"select -1::int4", &actual.ui64, "is less than"},
+		{"select -1::int8", &actual.ui64, "is less than"},
+	}
+
+	for i, tt := range failedDecodeTests {
+		err := conn.QueryRow(tt.sql).Scan(tt.scanArg)
+		if err == nil {
+			t.Errorf("%d. Expected failure to decode, but unexpectedly succeeded: %v (sql -> %v)", i, err, tt.sql)
+		} else if !strings.Contains(err.Error(), tt.expectedErr) {
+			t.Errorf("%d. Expected failure to decode, but got: %v (sql -> %v)", i, err, tt.sql)
 		}
 
 		ensureConnValid(t, conn)
@@ -619,9 +862,8 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "could not determine data type of parameter $1 (SQLSTATE 42P18)"},
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Cannot decode oid 25 into int16"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot encode uint64 into oid 600"},
-		{"select 42::int4", []interface{}{}, []interface{}{&actual.i}, "Scan cannot decode into *int"},
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Cannot decode oid 25 into any integer type"},
+		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot encode int8 into oid 600"},
 	}
 
 	for i, tt := range tests {
