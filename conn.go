@@ -66,6 +66,7 @@ type Conn struct {
 	pgsql_af_inet6     byte
 	busy               bool
 	poolResetCount     int
+	preallocatedRows   []Rows
 }
 
 // PreparedStatement is a description of a prepared statement

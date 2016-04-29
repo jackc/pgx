@@ -428,7 +428,8 @@ func (rows *Rows) AfterClose(f func(*Rows)) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, shouldLog: c.shouldLog}
+
+	rows := c.getRows(sql, args)
 
 	if err := c.lock(); err != nil {
 		rows.abort(err)
@@ -452,6 +453,25 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 		rows.abort(err)
 	}
 	return rows, rows.err
+}
+
+func (c *Conn) getRows(sql string, args []interface{}) *Rows {
+	if len(c.preallocatedRows) == 0 {
+		c.preallocatedRows = make([]Rows, 64)
+		return c.getRows(sql, args)
+	}
+
+	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
+	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
+
+	r.conn = c
+	r.startTime = c.lastActivityTime
+	r.sql = sql
+	r.args = args
+	r.log = c.log
+	r.shouldLog = c.shouldLog
+
+	return r
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
