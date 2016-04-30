@@ -463,7 +463,6 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 	if len(c.preallocatedRows) == 0 {
 		c.preallocatedRows = make([]Rows, 64)
-		return c.getRows(sql, args)
 	}
 
 	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
