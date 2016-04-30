@@ -733,6 +733,36 @@ func TestConnPoolPrepare(t *testing.T) {
 	}
 }
 
+func TestConnPoolPrepareDeallocatePrepare(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	_, err := pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+	err = pool.Deallocate("test")
+	if err != nil {
+		t.Fatalf("Unable to deallocate statement: %v", err)
+	}
+	_, err = pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+
+	var s string
+	err = pool.QueryRow("test", "hello").Scan(&s)
+	if err != nil {
+		t.Fatalf("Executing prepared statement failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+}
+
 func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
 	t.Parallel()
 

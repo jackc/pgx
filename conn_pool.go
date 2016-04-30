@@ -366,6 +366,7 @@ func (p *ConnPool) Deallocate(name string) (err error) {
 	}
 
 	p.invalidateAcquired()
+	delete(p.preparedStatements, name)
 
 	return nil
 }
