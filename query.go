@@ -301,7 +301,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
-			decodeJSON(vr, &d)
+			// Because the argument passed to decodeJSON will escape the heap.
+			// This allows d to be stack allocated and only copied to the heap when
+			// we actually are decoding JSON. This saves one memory allocation per
+			// row.
+			d2 := d
+			decodeJSON(vr, &d2)
 		} else {
 			if err := Decode(vr, d); err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
