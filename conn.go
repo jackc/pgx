@@ -47,6 +47,7 @@ type Conn struct {
 	lastActivityTime   time.Time     // the last time the connection was used
 	reader             *bufio.Reader // buffered reader to improve read performance
 	wbuf               [1024]byte
+	writeBuf           WriteBuf
 	Pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
