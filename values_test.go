@@ -196,7 +196,7 @@ func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typena
 	input := []int{1, 2, 234432}
 	var output []int16
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-	if err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
+	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
 		t.Errorf("%s: Expected *json.UnmarkalTypeError, but got %v", typename, err)
 	}
 }
