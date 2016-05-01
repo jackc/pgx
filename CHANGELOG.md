@@ -8,6 +8,7 @@
 
 * Encode and decode between all Go and PostgreSQL integer types with bounds checking
 * Decode inet/cidr to net.IP
+* Encode/decode [][]byte to/from bytea[]
 
 ## Performance
 

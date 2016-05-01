@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"bytes"
 	"net"
 	"reflect"
 	"strings"
@@ -706,12 +707,30 @@ func TestArrayDecoding(t *testing.T) {
 				}
 			},
 		},
+		{
+			"select $1::bytea[]", [][]byte{{0, 1, 2, 3}, {4, 5, 6, 7}}, &[][]byte{},
+			func(t *testing.T, query, scan interface{}) {
+				queryBytesSliceSlice := query.([][]byte)
+				scanBytesSliceSlice := *(scan.(*[][]byte))
+				if len(queryBytesSliceSlice) != len(scanBytesSliceSlice) {
+					t.Errorf("failed to encode byte[][] to bytea[]: expected %d to equal %d", len(queryBytesSliceSlice), len(scanBytesSliceSlice))
+				}
+				for i := range queryBytesSliceSlice {
+					qb := queryBytesSliceSlice[i]
+					sb := scanBytesSliceSlice[i]
+					if bytes.Compare(qb, sb) != 0 {
+						t.Errorf("failed to encode byte[][] to bytea[]: expected %v to equal %v", qb, sb)
+					}
+				}
+			},
+		},
 	}
 
 	for i, tt := range tests {
 		err := conn.QueryRow(tt.sql, tt.query).Scan(tt.scan)
 		if err != nil {
 			t.Errorf(`%d. error reading array: %v`, i, err)
+			continue
 		}
 		tt.assert(t, tt.query, tt.scan)
 		ensureConnValid(t, conn)

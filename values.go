@@ -32,6 +32,7 @@ const (
 	Int2ArrayOid        = 1005
 	Int4ArrayOid        = 1007
 	TextArrayOid        = 1009
+	ByteaArrayOid       = 1001
 	VarcharArrayOid     = 1015
 	Int8ArrayOid        = 1016
 	Float4ArrayOid      = 1021
@@ -67,6 +68,7 @@ var DefaultTypeFormats map[string]int16
 func init() {
 	DefaultTypeFormats = map[string]int16{
 		"_bool":        BinaryFormatCode,
+		"_bytea":       BinaryFormatCode,
 		"_cidr":        BinaryFormatCode,
 		"_float4":      BinaryFormatCode,
 		"_float8":      BinaryFormatCode,
@@ -604,6 +606,8 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeString(wbuf, oid, arg)
 	case []byte:
 		return encodeByteSlice(wbuf, oid, arg)
+	case [][]byte:
+		return encodeByteSliceSlice(wbuf, oid, arg)
 	}
 
 	if v := reflect.ValueOf(arg); v.Kind() == reflect.Ptr {
@@ -801,6 +805,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeTextArray(vr)
 	case *[]time.Time:
 		*v = decodeTimestampArray(vr)
+	case *[][]byte:
+		*v = decodeByteaArray(vr)
 	case *time.Time:
 		switch vr.Type().DataType {
 		case DateOid:
@@ -1678,6 +1684,67 @@ func encodeBoolSlice(w *WriteBuf, oid Oid, slice []bool) error {
 			b = 1
 		}
 		w.WriteByte(b)
+	}
+
+	return nil
+}
+
+func decodeByteaArray(vr *ValueReader) [][]byte {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != ByteaArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into [][]byte", vr.Type().DataType)))
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([][]byte, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		switch elSize {
+		case -1:
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		default:
+			a[i] = vr.ReadBytes(elSize)
+		}
+	}
+
+	return a
+}
+
+func encodeByteSliceSlice(w *WriteBuf, oid Oid, value [][]byte) error {
+	if oid != ByteaArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[][]byte", oid)
+	}
+
+	size := 20 // array header size
+	for _, el := range value {
+		size += 4 + len(el)
+	}
+
+	w.WriteInt32(int32(size))
+
+	w.WriteInt32(1)                 // number of dimensions
+	w.WriteInt32(0)                 // no nulls
+	w.WriteInt32(int32(ByteaOid))   // type of elements
+	w.WriteInt32(int32(len(value))) // number of elements
+	w.WriteInt32(1)                 // index of first element
+
+	for _, el := range value {
+		encodeByteSlice(w, ByteaOid, el)
 	}
 
 	return nil
