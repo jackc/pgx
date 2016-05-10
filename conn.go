@@ -303,7 +303,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 }
 
 func (c *Conn) loadPgTypes() error {
-	rows, err := c.Query("select t.oid, t.typname from pg_type t where t.typtype='b'")
+	rows, err := c.Query("select t.oid, t.typname from pg_type t left join pg_type base_type on t.typelem=base_type.oid where t.typtype='b' and (base_type.oid is null or base_type.typtype='b');")
 	if err != nil {
 		return err
 	}
