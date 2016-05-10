@@ -63,8 +63,8 @@ type Conn struct {
 	logLevel           int
 	mr                 msgReader
 	fp                 *fastpath
-	pgsql_af_inet      byte
-	pgsql_af_inet6     byte
+	pgsql_af_inet      *byte
+	pgsql_af_inet6     *byte
 	busy               bool
 	poolResetCount     int
 	preallocatedRows   []Rows
@@ -137,9 +137,16 @@ func (e ProtocolError) Error() string {
 // config.Host must be specified. config.User will default to the OS user name.
 // Other config fields are optional.
 func Connect(config ConnConfig) (c *Conn, err error) {
+	return connect(config, nil, nil, nil)
+}
+
+func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsql_af_inet *byte, pgsql_af_inet6 *byte) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
+	c.PgTypes = pgTypes
+	c.pgsql_af_inet = pgsql_af_inet
+	c.pgsql_af_inet6 = pgsql_af_inet6
 
 	if c.config.LogLevel != 0 {
 		c.logLevel = c.config.LogLevel
@@ -283,14 +290,18 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				c.log(LogLevelInfo, "Connection established")
 			}
 
-			err = c.loadPgTypes()
-			if err != nil {
-				return err
+			if c.PgTypes == nil {
+				err = c.loadPgTypes()
+				if err != nil {
+					return err
+				}
 			}
 
-			err = c.loadInetConstants()
-			if err != nil {
-				return err
+			if c.pgsql_af_inet == nil || c.pgsql_af_inet6 == nil {
+				err = c.loadInetConstants()
+				if err != nil {
+					return err
+				}
 			}
 
 			return nil
@@ -336,8 +347,8 @@ func (c *Conn) loadInetConstants() error {
 		return err
 	}
 
-	c.pgsql_af_inet = ipv4[0]
-	c.pgsql_af_inet6 = ipv6[0]
+	c.pgsql_af_inet = &ipv4[0]
+	c.pgsql_af_inet6 = &ipv6[0]
 
 	return nil
 }

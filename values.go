@@ -1576,10 +1576,10 @@ func encodeIPNet(w *WriteBuf, oid Oid, value net.IPNet) error {
 	switch len(value.IP) {
 	case net.IPv4len:
 		size = 8
-		family = w.conn.pgsql_af_inet
+		family = *w.conn.pgsql_af_inet
 	case net.IPv6len:
 		size = 20
-		family = w.conn.pgsql_af_inet6
+		family = *w.conn.pgsql_af_inet6
 	default:
 		return fmt.Errorf("Unexpected IP length: %v", len(value.IP))
 	}
