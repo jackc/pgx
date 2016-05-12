@@ -26,6 +26,9 @@ type ConnPool struct {
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
+	pgTypes              map[Oid]PgType
+	pgsql_af_inet        *byte
+	pgsql_af_inet6       *byte
 }
 
 type ConnPoolStat struct {
@@ -244,10 +247,14 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 }
 
 func (p *ConnPool) createConnection() (*Conn, error) {
-	c, err := Connect(p.config)
+	c, err := connect(p.config, p.pgTypes, p.pgsql_af_inet, p.pgsql_af_inet6)
 	if err != nil {
 		return nil, err
 	}
+
+	p.pgTypes = c.PgTypes
+	p.pgsql_af_inet = c.pgsql_af_inet
+	p.pgsql_af_inet6 = c.pgsql_af_inet6
 
 	if p.afterConnect != nil {
 		err = p.afterConnect(c)
