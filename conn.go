@@ -144,7 +144,12 @@ func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsql_af_inet *byte, pgs
 	c = new(Conn)
 
 	c.config = config
-	c.PgTypes = pgTypes
+	if pgTypes != nil {
+		c.PgTypes = make(map[Oid]PgType, len(pgTypes))
+		for k, v := range pgTypes {
+			c.PgTypes[k] = v
+		}
+	}
 	c.pgsql_af_inet = pgsql_af_inet
 	c.pgsql_af_inet6 = pgsql_af_inet6
 
