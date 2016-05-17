@@ -94,6 +94,7 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 		testJsonStringPointer(t, conn, typename)
 		testJsonSingleLevelStringMap(t, conn, typename)
 		testJsonNestedMap(t, conn, typename)
+		testJsonNullMap(t, conn, typename)
 		testJsonStringArray(t, conn, typename)
 		testJsonInt64Array(t, conn, typename)
 		testJsonInt16ArrayFailureDueToOverflow(t, conn, typename)
@@ -163,6 +164,28 @@ func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 
 	if !reflect.DeepEqual(input, output) {
 		t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, input, output)
+		return
+	}
+}
+
+func testJsonNullMap(t *testing.T, conn *pgx.Conn, typename string) {
+	type Answer struct {
+		A string
+		B string
+	}
+	var id *int64
+	var name *string
+	var answers *map[string]Answer
+	var token *string
+
+	err := conn.QueryRow("select 42, 'Foo', null::"+typename+", 'asdf'").Scan(&id, &name, &answers, &token)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
+
+	if answers != nil {
+		t.Errorf("%s: Did not scan NULL successfully: %v", typename, answers)
 		return
 	}
 }
