@@ -361,6 +361,50 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 	return ps, err
 }
 
+// Preparex creates a prepared statement on a connection in the pool to test the
+// statement is valid. If it succeeds all connections accessed through the pool
+// will have the statement available.
+//
+// Preparex creates a prepared statement with name and sql. sql can contain placeholders
+// for bound parameters. These placeholders are referenced positional as $1, $2, etc.
+// It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
+//
+// Preparex is idempotent; i.e. it is safe to call Preparex multiple times with the same
+// name and sql arguments. This allows a code path to Preparex and Query/Exec without
+// concern for if the statement has already been prepared.
+func (p *ConnPool) Preparex(name, sql string, opts PreparexOptions) (*PreparedStatement, error) {
+	p.cond.L.Lock()
+	defer p.cond.L.Unlock()
+
+	if ps, ok := p.preparedStatements[name]; ok && ps.SQL == sql {
+		return ps, nil
+	}
+
+	c, err := p.acquire(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	ps, err := c.Preparex(name, sql, opts)
+
+	p.availableConnections = append(p.availableConnections, c)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, c := range p.availableConnections {
+		_, err := c.Preparex(name, sql, opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p.invalidateAcquired()
+	p.preparedStatements[name] = ps
+
+	return ps, err
+}
+
 // Deallocate releases a prepared statement from all connections in the pool.
 func (p *ConnPool) Deallocate(name string) (err error) {
 	p.cond.L.Lock()
