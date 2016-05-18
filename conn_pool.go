@@ -329,7 +329,7 @@ func (p *ConnPool) Begin() (*Tx, error) {
 //
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with
 // the same name and sql arguments. This allows a code path to Prepare and
-// Query/Exec without concern for if the statement has already been prepared.
+// Query/Exec/Preparex without concern for if the statement has already been prepared.
 func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
@@ -370,7 +370,7 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 // It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
 //
 // Preparex is idempotent; i.e. it is safe to call Preparex multiple times with the same
-// name and sql arguments. This allows a code path to Preparex and Query/Exec without
+// name and sql arguments. This allows a code path to Preparex and Query/Exec/Prepare without
 // concern for if the statement has already been prepared.
 func (p *ConnPool) Preparex(name, sql string, opts PreparexOptions) (*PreparedStatement, error) {
 	p.cond.L.Lock()
