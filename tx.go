@@ -136,7 +136,7 @@ func (tx *Tx) Prepare(name, sql string) (*PreparedStatement, error) {
 	return tx.conn.Prepare(name, sql)
 }
 
-// Prepare delegates to the underlying *Conn
+// Preparex delegates to the underlying *Conn
 func (tx *Tx) Preparex(name, sql string, opts PreparexOptions) (*PreparedStatement, error) {
 	if tx.status != TxStatusInProgress {
 		return nil, ErrTxClosed
