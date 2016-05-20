@@ -1,5 +1,9 @@
 # Unreleased
 
+## Features
+
+* Add PrepareEx
+
 ## Fixes
 
 * Fix *ConnPool.Deallocate() not deleting prepared statement from map
