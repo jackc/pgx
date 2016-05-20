@@ -981,6 +981,34 @@ func TestPrepareIdempotency(t *testing.T) {
 	}
 }
 
+func TestPrepareEx(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgx.Oid{pgx.TextOid}})
+	if err != nil {
+		t.Errorf("Unable to prepare statement: %v", err)
+		return
+	}
+
+	var s string
+	err = conn.QueryRow("test", "hello").Scan(&s)
+	if err != nil {
+		t.Errorf("Executing prepared statement failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+
+	err = conn.Deallocate("test")
+	if err != nil {
+		t.Errorf("conn.Deallocate failed: %v", err)
+	}
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 

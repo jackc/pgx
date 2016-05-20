@@ -331,34 +331,7 @@ func (p *ConnPool) Begin() (*Tx, error) {
 // the same name and sql arguments. This allows a code path to Prepare and
 // Query/Exec/PrepareEx without concern for if the statement has already been prepared.
 func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
-	p.cond.L.Lock()
-	defer p.cond.L.Unlock()
-
-	if ps, ok := p.preparedStatements[name]; ok && ps.SQL == sql {
-		return ps, nil
-	}
-
-	c, err := p.acquire(nil)
-	if err != nil {
-		return nil, err
-	}
-	ps, err := c.Prepare(name, sql)
-	p.availableConnections = append(p.availableConnections, c)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, c := range p.availableConnections {
-		_, err := c.Prepare(name, sql)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	p.invalidateAcquired()
-	p.preparedStatements[name] = ps
-
-	return ps, err
+	return p.PrepareEx(name, sql, nil)
 }
 
 // PrepareEx creates a prepared statement on a connection in the pool to test the
@@ -372,7 +345,7 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec/Prepare without
 // concern for if the statement has already been prepared.
-func (p *ConnPool) PrepareEx(name, sql string, opts PrepareExOptions) (*PreparedStatement, error) {
+func (p *ConnPool) PrepareEx(name, sql string, opts *PrepareExOptions) (*PreparedStatement, error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
