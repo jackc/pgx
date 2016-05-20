@@ -78,8 +78,8 @@ type PreparedStatement struct {
 	ParameterOids     []Oid
 }
 
-// PreparexOptions is an option struct that can be passed to Preparex
-type PreparexOptions struct {
+// PrepareExOptions is an option struct that can be passed to PrepareEx
+type PrepareExOptions struct {
 	ParameterOids []Oid
 }
 
@@ -585,7 +585,7 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 //
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
-// name and sql arguments. This allows a code path to Prepare and Query/Exec/Preparex without
+// name and sql arguments. This allows a code path to Prepare and Query/Exec/PrepareEx without
 // concern for if the statement has already been prepared.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	if name != "" {
@@ -666,14 +666,14 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 	}
 }
 
-// Preparex creates a prepared statement with name and sql. sql can contain placeholders
+// PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 // It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
 //
-// Preparex is idempotent; i.e. it is safe to call Preparex multiple times with the same
-// name and sql arguments. This allows a code path to Preparex and Query/Exec/Prepare without
+// PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
+// name and sql arguments. This allows a code path to PrepareEx and Query/Exec/Prepare without
 // concern for if the statement has already been prepared.
-func (c *Conn) Preparex(name, sql string, opts PreparexOptions) (ps *PreparedStatement, err error) {
+func (c *Conn) PrepareEx(name, sql string, opts PrepareExOptions) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
@@ -694,7 +694,7 @@ func (c *Conn) Preparex(name, sql string, opts PreparexOptions) (ps *PreparedSta
 	wbuf.WriteCString(sql)
 
 	if len(opts.ParameterOids) > 65535 {
-		return nil, errors.New(fmt.Sprintf("Number of PreparexOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids)))
+		return nil, errors.New(fmt.Sprintf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids)))
 	}
 
 	if len(opts.ParameterOids) > 0 {

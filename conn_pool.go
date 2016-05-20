@@ -329,7 +329,7 @@ func (p *ConnPool) Begin() (*Tx, error) {
 //
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with
 // the same name and sql arguments. This allows a code path to Prepare and
-// Query/Exec/Preparex without concern for if the statement has already been prepared.
+// Query/Exec/PrepareEx without concern for if the statement has already been prepared.
 func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
@@ -361,18 +361,18 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 	return ps, err
 }
 
-// Preparex creates a prepared statement on a connection in the pool to test the
+// PrepareEx creates a prepared statement on a connection in the pool to test the
 // statement is valid. If it succeeds all connections accessed through the pool
 // will have the statement available.
 //
-// Preparex creates a prepared statement with name and sql. sql can contain placeholders
+// PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 // It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
 //
-// Preparex is idempotent; i.e. it is safe to call Preparex multiple times with the same
-// name and sql arguments. This allows a code path to Preparex and Query/Exec/Prepare without
+// PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
+// name and sql arguments. This allows a code path to PrepareEx and Query/Exec/Prepare without
 // concern for if the statement has already been prepared.
-func (p *ConnPool) Preparex(name, sql string, opts PreparexOptions) (*PreparedStatement, error) {
+func (p *ConnPool) PrepareEx(name, sql string, opts PrepareExOptions) (*PreparedStatement, error) {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
@@ -385,7 +385,7 @@ func (p *ConnPool) Preparex(name, sql string, opts PreparexOptions) (*PreparedSt
 		return nil, err
 	}
 
-	ps, err := c.Preparex(name, sql, opts)
+	ps, err := c.PrepareEx(name, sql, opts)
 
 	p.availableConnections = append(p.availableConnections, c)
 	if err != nil {
@@ -393,7 +393,7 @@ func (p *ConnPool) Preparex(name, sql string, opts PreparexOptions) (*PreparedSt
 	}
 
 	for _, c := range p.availableConnections {
-		_, err := c.Preparex(name, sql, opts)
+		_, err := c.PrepareEx(name, sql, opts)
 		if err != nil {
 			return nil, err
 		}
