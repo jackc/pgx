@@ -988,8 +988,12 @@ func encodeInt(w *WriteBuf, oid Oid, value int) error {
 		w.WriteInt32(4)
 		w.WriteInt32(int32(value))
 	case Int8Oid:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
+		if int64(value) <= int64(math.MaxInt64) {
+			w.WriteInt32(8)
+			w.WriteInt64(int64(value))
+		} else {
+			return fmt.Errorf("%d is larger than max int64 %d", value, int64(math.MaxInt64))
+		}
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "int8", oid)
 	}
@@ -1012,11 +1016,13 @@ func encodeUInt(w *WriteBuf, oid Oid, value uint) error {
 		w.WriteInt32(4)
 		w.WriteInt32(int32(value))
 	case Int8Oid:
-		if value > math.MaxInt64 {
+		//****** Changed value to int64(value) and math.MaxInt64 to int64(math.MaxInt64)
+		if int64(value) > int64(math.MaxInt64) {
 			return fmt.Errorf("%d is greater than max pg:int8", value)
 		}
 		w.WriteInt32(8)
 		w.WriteInt64(int64(value))
+
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "uint8", oid)
 	}
