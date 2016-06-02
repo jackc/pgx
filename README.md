@@ -20,7 +20,7 @@ Pgx supports many additional features beyond what is available through database/
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
 * Hstore support
 * JSON and JSONB support
-* Maps inet and cidr PostgreSQL types to net.IPNet
+* Maps inet and cidr PostgreSQL types to net.IPNet and net.IP
 * Large object support
 * Null mapping to Null* struct or pointer to pointer.
 * Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types

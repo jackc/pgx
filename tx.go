@@ -47,14 +47,14 @@ func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
 }
 
 func (c *Conn) begin(isoLevel string) (*Tx, error) {
-	var beginSql string
+	var beginSQL string
 	if isoLevel == "" {
-		beginSql = "begin"
+		beginSQL = "begin"
 	} else {
-		beginSql = fmt.Sprintf("begin isolation level %s", isoLevel)
+		beginSQL = fmt.Sprintf("begin isolation level %s", isoLevel)
 	}
 
-	_, err := c.Exec(beginSql)
+	_, err := c.Exec(beginSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +86,7 @@ func (tx *Tx) Commit() error {
 		tx.status = TxStatusCommitFailure
 		tx.err = ErrTxCommitRollback
 	} else {
+		tx.status = TxStatusCommitFailure
 		tx.err = err
 	}
 
@@ -124,6 +125,20 @@ func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag,
 	}
 
 	return tx.conn.Exec(sql, arguments...)
+}
+
+// Prepare delegates to the underlying *Conn
+func (tx *Tx) Prepare(name, sql string) (*PreparedStatement, error) {
+	return tx.PrepareEx(name, sql, nil)
+}
+
+// PrepareEx delegates to the underlying *Conn
+func (tx *Tx) PrepareEx(name, sql string, opts *PrepareExOptions) (*PreparedStatement, error) {
+	if tx.status != TxStatusInProgress {
+		return nil, ErrTxClosed
+	}
+
+	return tx.conn.PrepareEx(name, sql, opts)
 }
 
 // Query delegates to the underlying *Conn

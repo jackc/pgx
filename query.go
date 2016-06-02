@@ -23,9 +23,8 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 	if !rows.Next() {
 		if rows.Err() == nil {
 			return ErrNoRows
-		} else {
-			return rows.Err()
 		}
+		return rows.Err()
 	}
 
 	rows.Scan(dest...)
@@ -47,8 +46,6 @@ type Rows struct {
 	startTime  time.Time
 	sql        string
 	args       []interface{}
-	log        func(lvl int, msg string, ctx ...interface{})
-	shouldLog  func(lvl int) bool
 	afterClose func(*Rows)
 	unlockConn bool
 	closed     bool
@@ -71,12 +68,12 @@ func (rows *Rows) close() {
 	rows.closed = true
 
 	if rows.err == nil {
-		if rows.shouldLog(LogLevelInfo) {
+		if rows.conn.shouldLog(LogLevelInfo) {
 			endTime := time.Now()
-			rows.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+			rows.conn.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
 		}
-	} else if rows.shouldLog(LogLevelError) {
-		rows.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
+	} else if rows.conn.shouldLog(LogLevelError) {
+		rows.conn.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
 	}
 
 	if rows.afterClose != nil {
@@ -233,8 +230,8 @@ func (e scanArgError) Error() string {
 
 // Scan reads the values from the current row into dest values positionally.
 // dest can include pointers to core types, values implementing the Scanner
-// interface, and []byte. []byte will skip the decoding process and directly
-// copy the raw bytes received from PostgreSQL.
+// interface, []byte, and nil. []byte will skip the decoding process and directly
+// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
 		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
@@ -244,6 +241,10 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	for i, d := range dest {
 		vr, _ := rows.nextColumn()
+
+		if d == nil {
+			continue
+		}
 
 		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
 		if b, ok := d.(*[]byte); ok {
@@ -298,7 +299,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
-			decodeJson(vr, &d)
+			// Because the argument passed to decodeJSON will escape the heap.
+			// This allows d to be stack allocated and only copied to the heap when
+			// we actually are decoding JSON. This saves one memory allocation per
+			// row.
+			d2 := d
+			decodeJSON(vr, &d2)
 		} else {
 			if err := Decode(vr, d); err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
@@ -324,7 +330,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 
 	values := make([]interface{}, 0, len(rows.fields))
 
-	for _, _ = range rows.fields {
+	for range rows.fields {
 		vr, _ := rows.nextColumn()
 
 		if vr.Len() == -1 {
@@ -381,11 +387,11 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeInet(vr))
 			case JsonOid:
 				var d interface{}
-				decodeJson(vr, &d)
+				decodeJSON(vr, &d)
 				values = append(values, d)
 			case JsonbOid:
 				var d interface{}
-				decodeJson(vr, &d)
+				decodeJSON(vr, &d)
 				values = append(values, d)
 			default:
 				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
@@ -425,7 +431,8 @@ func (rows *Rows) AfterClose(f func(*Rows)) {
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	c.lastActivityTime = time.Now()
-	rows := &Rows{conn: c, startTime: c.lastActivityTime, sql: sql, args: args, log: c.log, shouldLog: c.shouldLog}
+
+	rows := c.getRows(sql, args)
 
 	if err := c.lock(); err != nil {
 		rows.abort(err)
@@ -449,6 +456,22 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 		rows.abort(err)
 	}
 	return rows, rows.err
+}
+
+func (c *Conn) getRows(sql string, args []interface{}) *Rows {
+	if len(c.preallocatedRows) == 0 {
+		c.preallocatedRows = make([]Rows, 64)
+	}
+
+	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
+	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
+
+	r.conn = c
+	r.startTime = c.lastActivityTime
+	r.sql = sql
+	r.args = args
+
+	return r
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while

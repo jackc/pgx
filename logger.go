@@ -30,7 +30,7 @@ type Logger interface {
 	Error(msg string, ctx ...interface{})
 }
 
-// Converts log level string to constant
+// LogLevelFromString converts log level string to constant
 //
 // Valid levels:
 //   trace

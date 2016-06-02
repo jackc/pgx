@@ -1,4 +1,36 @@
-# Tip
+# Unreleased
+
+## Features
+
+* Add PrepareEx
+
+## Fixes
+
+* Fix *ConnPool.Deallocate() not deleting prepared statement from map
+
+## Features
+
+* Encode and decode between all Go and PostgreSQL integer types with bounds checking
+* Decode inet/cidr to net.IP
+* Encode/decode [][]byte to/from bytea[]
+
+## Performance
+
+* Substantial reduction in memory allocations
+
+# 2.8.1 (March 24, 2016)
+
+## Features
+
+* Scan accepts nil argument to ignore a column
+
+## Fixes
+
+* Fix compilation on 32-bit architecture
+* Fix Tx.status not being set on error on Commit
+* Fix Listen/Unlisten with special characters
+
+# 2.8.0 (March 18, 2016)
 
 ## Fixes
 
@@ -30,6 +62,7 @@ standard database/sql package such as
 * Add ConnPool.Prepare method
 * Add ConnPool.Deallocate method
 * Add Scan to uint32 and uint64 (utrack)
+* Add encode and decode to []uint16, []uint32, and []uint64 (Max Musatov)
 
 ## Performance
 

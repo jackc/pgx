@@ -981,6 +981,34 @@ func TestPrepareIdempotency(t *testing.T) {
 	}
 }
 
+func TestPrepareEx(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgx.Oid{pgx.TextOid}})
+	if err != nil {
+		t.Errorf("Unable to prepare statement: %v", err)
+		return
+	}
+
+	var s string
+	err = conn.QueryRow("test", "hello").Scan(&s)
+	if err != nil {
+		t.Errorf("Executing prepared statement failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
+	}
+
+	err = conn.Deallocate("test")
+	if err != nil {
+		t.Errorf("conn.Deallocate failed: %v", err)
+	}
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
@@ -1185,6 +1213,22 @@ func TestListenNotifySelfNotification(t *testing.T) {
 	}
 }
 
+func TestListenUnlistenSpecialCharacters(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	chanName := "special characters !@#{$%^&*()}"
+	if err := conn.Listen(chanName); err != nil {
+		t.Fatalf("Unable to start listening: %v", err)
+	}
+
+	if err := conn.Unlisten(chanName); err != nil {
+		t.Fatalf("Unable to stop listening: %v", err)
+	}
+}
+
 func TestFatalRxError(t *testing.T) {
 	t.Parallel()
 
@@ -1198,8 +1242,10 @@ func TestFatalRxError(t *testing.T) {
 		var n int32
 		var s string
 		err := conn.QueryRow("select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
-		if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Severity != "FATAL" {
-			t.Fatalf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
+		if err == pgx.ErrDeadConn {
+		} else if pgErr, ok := err.(pgx.PgError); ok && pgErr.Severity == "FATAL" {
+		} else {
+			t.Fatalf("Expected QueryRow Scan to return fatal PgError or ErrDeadConn, but instead received %v", err)
 		}
 	}()
 

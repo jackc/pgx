@@ -3,9 +3,11 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/jackc/pgx"
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
@@ -15,6 +17,29 @@ func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
 		t.Fatalf("Unable to create connection pool: %v", err)
 	}
 	return pool
+}
+
+func acquireAllConnections(t *testing.T, pool *pgx.ConnPool, maxConnections int) []*pgx.Conn {
+	connections := make([]*pgx.Conn, maxConnections)
+	for i := 0; i < maxConnections; i++ {
+		var err error
+		if connections[i], err = pool.Acquire(); err != nil {
+			t.Fatalf("Unable to acquire connection: %v", err)
+		}
+	}
+	return connections
+}
+
+func releaseAllConnections(pool *pgx.ConnPool, connections []*pgx.Conn) {
+	for _, c := range connections {
+		pool.Release(c)
+	}
+}
+
+func acquireWithTimeTaken(pool *pgx.ConnPool) (*pgx.Conn, time.Duration, error) {
+	startTime := time.Now()
+	c, err := pool.Acquire()
+	return c, time.Now().Sub(startTime), err
 }
 
 func TestNewConnPool(t *testing.T) {
@@ -76,27 +101,14 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
 
-	acquireAll := func() (connections []*pgx.Conn) {
-		connections = make([]*pgx.Conn, maxConnections)
-		for i := 0; i < maxConnections; i++ {
-			var err error
-			if connections[i], err = pool.Acquire(); err != nil {
-				t.Fatalf("Unable to acquire connection: %v", err)
-			}
-		}
-		return
-	}
-
-	allConnections := acquireAll()
+	allConnections := acquireAllConnections(t, pool, maxConnections)
 
 	for _, c := range allConnections {
 		mustExec(t, c, "create temporary table t(counter integer not null)")
 		mustExec(t, c, "insert into t(counter) values(0);")
 	}
 
-	for _, c := range allConnections {
-		pool.Release(c)
-	}
+	releaseAllConnections(pool, allConnections)
 
 	f := func() {
 		conn, err := pool.Acquire()
@@ -121,7 +133,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 
 	// Check that temp table in each connection has been incremented some number of times
 	actualCount := int32(0)
-	allConnections = acquireAll()
+	allConnections = acquireAllConnections(t, pool, maxConnections)
 
 	for _, c := range allConnections {
 		var n int32
@@ -138,8 +150,97 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 		t.Error("Wrong number of increments")
 	}
 
-	for _, c := range allConnections {
-		pool.Release(c)
+	releaseAllConnections(pool, allConnections)
+}
+
+func TestAcquireTimeoutSanity(t *testing.T) {
+	t.Parallel()
+
+	config := pgx.ConnPoolConfig{
+		ConnConfig:     *defaultConnConfig,
+		MaxConnections: 1,
+	}
+
+	// case 1: default 0 value
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Expected NewConnPool with default config.AcquireTimeout not to fail, instead it failed with '%v'", err)
+	}
+	pool.Close()
+
+	// case 2: negative value
+	config.AcquireTimeout = -1 * time.Second
+	_, err = pgx.NewConnPool(config)
+	if err == nil {
+		t.Fatal("Expected NewConnPool with negative config.AcquireTimeout to fail, instead it did not")
+	}
+
+	// case 3: positive value
+	config.AcquireTimeout = 1 * time.Second
+	pool, err = pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Expected NewConnPool with positive config.AcquireTimeout not to fail, instead it failed with '%v'", err)
+	}
+	defer pool.Close()
+}
+
+func TestPoolWithAcquireTimeoutSet(t *testing.T) {
+	t.Parallel()
+
+	connAllocTimeout := 2 * time.Second
+	config := pgx.ConnPoolConfig{
+		ConnConfig:     *defaultConnConfig,
+		MaxConnections: 1,
+		AcquireTimeout: connAllocTimeout,
+	}
+
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	// Consume all connections ...
+	allConnections := acquireAllConnections(t, pool, config.MaxConnections)
+	defer releaseAllConnections(pool, allConnections)
+
+	// ... then try to consume 1 more. It should fail after a short timeout.
+	_, timeTaken, err := acquireWithTimeTaken(pool)
+
+	if err == nil || err.Error() != "Timeout: All connections in pool are busy" {
+		t.Fatalf("Expected error to be 'Timeout: All connections in pool are busy', instead it was '%v'", err)
+	}
+	if timeTaken < connAllocTimeout {
+		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
+	}
+}
+
+func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
+	t.Parallel()
+
+	maxConnections := 1
+	pool := createConnPool(t, maxConnections)
+	defer pool.Close()
+
+	// Consume all connections ...
+	allConnections := acquireAllConnections(t, pool, maxConnections)
+
+	// ... then try to consume 1 more. It should hang forever.
+	// To unblock it we release the previously taken connection in a goroutine.
+	stopDeadWaitTimeout := 5 * time.Second
+	timer := time.AfterFunc(stopDeadWaitTimeout, func() {
+		releaseAllConnections(pool, allConnections)
+	})
+	defer timer.Stop()
+
+	conn, timeTaken, err := acquireWithTimeTaken(pool)
+	if err == nil {
+		pool.Release(conn)
+	} else {
+		t.Fatalf("Expected error to be nil, instead it was '%v'", err)
+	}
+	if timeTaken < stopDeadWaitTimeout {
+		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", stopDeadWaitTimeout, timeTaken)
 	}
 }
 
@@ -629,6 +730,36 @@ func TestConnPoolPrepare(t *testing.T) {
 	err = pool.QueryRow("test", "hello").Scan(&s)
 	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
 		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
+	}
+}
+
+func TestConnPoolPrepareDeallocatePrepare(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	_, err := pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+	err = pool.Deallocate("test")
+	if err != nil {
+		t.Fatalf("Unable to deallocate statement: %v", err)
+	}
+	_, err = pool.Prepare("test", "select $1::varchar")
+	if err != nil {
+		t.Fatalf("Unable to prepare statement: %v", err)
+	}
+
+	var s string
+	err = pool.QueryRow("test", "hello").Scan(&s)
+	if err != nil {
+		t.Fatalf("Executing prepared statement failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 }
 

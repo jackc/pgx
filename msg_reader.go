@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"io/ioutil"
 )
 
 // msgReader is a helper that reads values from a PostgreSQL message.
@@ -42,7 +41,10 @@ func (r *msgReader) rxMsg() (byte, error) {
 			r.log(LogLevelTrace, "msgReader.rxMsg discarding unread previous message", "msgBytesRemaining", r.msgBytesRemaining)
 		}
 
-		io.CopyN(ioutil.Discard, r.reader, int64(r.msgBytesRemaining))
+		_, err := r.reader.Discard(int(r.msgBytesRemaining))
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	b := r.buf[0:5]

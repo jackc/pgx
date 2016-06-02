@@ -91,7 +91,8 @@ func (self PgError) Error() string {
 
 func newWriteBuf(c *Conn, t byte) *WriteBuf {
 	buf := append(c.wbuf[0:0], t, 0, 0, 0, 0)
-	return &WriteBuf{buf: buf, sizeIdx: 1, conn: c}
+	c.writeBuf = WriteBuf{buf: buf, sizeIdx: 1, conn: c}
+	return &c.writeBuf
 }
 
 // WrifeBuf is used build messages to send to the PostgreSQL server. It is used
