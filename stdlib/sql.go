@@ -132,7 +132,7 @@ func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	stat := pool.Stat()
 
 	if stat.MaxConnections <= 2 {
-		return nil, errors.New("pool connection size must be at least 2")
+		return nil, errors.New("pool connection size must be at least 3")
 	}
 	db.SetMaxIdleConns(stat.MaxConnections - 2)
 	db.SetMaxOpenConns(stat.MaxConnections)
