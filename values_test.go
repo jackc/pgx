@@ -959,3 +959,40 @@ func TestPointerPointerNonZero(t *testing.T) {
 		t.Errorf("Expected dest to be nil, got %#v", dest)
 	}
 }
+
+func TestRowDecode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql      string
+		expected []interface{}
+	}{
+		{
+			"select row(1, 'cat', '2015-01-01 08:12:42'::timestamptz)",
+			[]interface{}{
+				int32(1),
+				"cat",
+				time.Date(2015, 1, 1, 8, 12, 42, 0, time.Local),
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		var actual []interface{}
+
+		err := conn.QueryRow(tt.sql).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
+			continue
+		}
+
+		if !reflect.DeepEqual(actual, tt.expected) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.expected, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}

@@ -1,15 +1,13 @@
 # Unreleased
 
-## Features
-
-* Add PrepareEx
-
 ## Fixes
 
 * Fix *ConnPool.Deallocate() not deleting prepared statement from map
 
 ## Features
 
+* Add PrepareEx
+* Add basic record to []interface{} decoding
 * Encode and decode between all Go and PostgreSQL integer types with bounds checking
 * Decode inet/cidr to net.IP
 * Encode/decode [][]byte to/from bytea[]
