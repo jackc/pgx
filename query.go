@@ -449,7 +449,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 			return rows, rows.err
 		}
 	}
-
+	rows.sql = ps.SQL
 	rows.fields = ps.FieldDescriptions
 	err := c.sendPreparedQuery(ps, args...)
 	if err != nil {
