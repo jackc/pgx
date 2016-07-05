@@ -960,6 +960,110 @@ func TestPointerPointerNonZero(t *testing.T) {
 	}
 }
 
+func TestEncodeTypeRename(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	type _int int
+	inInt := _int(3)
+	var outInt _int
+
+	type _int8 int8
+	inInt8 := _int8(3)
+	var outInt8 _int8
+
+	type _int16 int16
+	inInt16 := _int16(3)
+	var outInt16 _int16
+
+	type _int32 int32
+	inInt32 := _int32(4)
+	var outInt32 _int32
+
+	type _int64 int64
+	inInt64 := _int64(5)
+	var outInt64 _int64
+
+	type _uint uint
+	inUint := _uint(6)
+	var outUint _uint
+
+	type _uint8 uint8
+	inUint8 := _uint8(7)
+	var outUint8 _uint8
+
+	type _uint16 uint16
+	inUint16 := _uint16(8)
+	var outUint16 _uint16
+
+	type _uint32 uint32
+	inUint32 := _uint32(9)
+	var outUint32 _uint32
+
+	type _uint64 uint64
+	inUint64 := _uint64(10)
+	var outUint64 _uint64
+
+	type _string string
+	inString := _string("foo")
+	var outString _string
+
+	err := conn.QueryRow("select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text",
+		inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString,
+	).Scan(&outInt, &outInt8, &outInt16, &outInt32, &outInt64, &outUint, &outUint8, &outUint16, &outUint32, &outUint64, &outString)
+	if err != nil {
+		t.Fatalf("Failed with type rename: %v", err)
+	}
+
+	if inInt != outInt {
+		t.Errorf("int rename: expected %v, got %v", inInt, outInt)
+	}
+
+	if inInt8 != outInt8 {
+		t.Errorf("int8 rename: expected %v, got %v", inInt8, outInt8)
+	}
+
+	if inInt16 != outInt16 {
+		t.Errorf("int16 rename: expected %v, got %v", inInt16, outInt16)
+	}
+
+	if inInt32 != outInt32 {
+		t.Errorf("int32 rename: expected %v, got %v", inInt32, outInt32)
+	}
+
+	if inInt64 != outInt64 {
+		t.Errorf("int64 rename: expected %v, got %v", inInt64, outInt64)
+	}
+
+	if inUint != outUint {
+		t.Errorf("uint rename: expected %v, got %v", inUint, outUint)
+	}
+
+	if inUint8 != outUint8 {
+		t.Errorf("uint8 rename: expected %v, got %v", inUint8, outUint8)
+	}
+
+	if inUint16 != outUint16 {
+		t.Errorf("uint16 rename: expected %v, got %v", inUint16, outUint16)
+	}
+
+	if inUint32 != outUint32 {
+		t.Errorf("uint32 rename: expected %v, got %v", inUint32, outUint32)
+	}
+
+	if inUint64 != outUint64 {
+		t.Errorf("uint64 rename: expected %v, got %v", inUint64, outUint64)
+	}
+
+	if inString != outString {
+		t.Errorf("string rename: expected %v, got %v", inString, outString)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestRowDecode(t *testing.T) {
 	t.Parallel()
 
