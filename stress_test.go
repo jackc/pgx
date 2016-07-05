@@ -18,7 +18,7 @@ type queryer interface {
 	Query(sql string, args ...interface{}) (*pgx.Rows, error)
 }
 type queryRower interface {
-	QueryRow(sql string, args ...interface{}) *pgx.Row
+	QueryRow(sql string, args ...interface{}) pgx.Scanable
 }
 
 func TestStressConnPool(t *testing.T) {
