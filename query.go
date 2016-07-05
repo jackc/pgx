@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// Scannable interface provides ability to mock DB connection for testing code
+// Scanable interface provides ability to mock DB connection for testing code
 // without establishing real DB connection.
-type Scannable interface {
+type Scanable interface {
 	Scan(...interface{}) error
 }
 
@@ -482,8 +482,8 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
 // querying is deferred until calling Scan on the returned *Row which implements
-// Scannable interface. That *Row will error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(sql string, args ...interface{}) Scannable {
+// Scanable interface. That *Row will error with ErrNoRows if no rows are returned.
+func (c *Conn) QueryRow(sql string, args ...interface{}) Scanable {
 	rows, _ := c.Query(sql, args...)
 	return (*Row)(rows)
 }

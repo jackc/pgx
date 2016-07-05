@@ -307,8 +307,8 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 
 // QueryRow acquires a connection and delegates the call to that connection. The
 // connection is released automatically after Scan is called on the returned
-// *Row.
-func (p *ConnPool) QueryRow(sql string, args ...interface{}) Scannable {
+// *Row wich implements Scanable interface.
+func (p *ConnPool) QueryRow(sql string, args ...interface{}) Scanable {
 	rows, _ := p.Query(sql, args...)
 	return (*Row)(rows)
 }
