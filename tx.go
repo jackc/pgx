@@ -153,7 +153,7 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 }
 
 // QueryRow delegates to the underlying *Conn
-func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
+func (tx *Tx) QueryRow(sql string, args ...interface{}) Scanable {
 	rows, _ := tx.Query(sql, args...)
 	return (*Row)(rows)
 }
