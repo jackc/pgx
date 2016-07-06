@@ -176,23 +176,20 @@ func TestPoolNonBlockingConections(t *testing.T) {
 		t.Fatalf("Expected NewConnPool not to fail, instead it failed with")
 	}
 
-	done := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(maxConnections)
 
 	startedAt := time.Now()
 	for i := 0; i < maxConnections; i++ {
 		go func() {
 			_, err := pool.Acquire()
-			done <- true
+			wg.Done()
 			if err == nil {
 				t.Fatal("Acquire() expected to fail but it did not")
 			}
 		}()
 	}
-
-	// Wait for all the channels to succeedd
-	for i := 0; i < maxConnections; i++ {
-		<-done
-	}
+	wg.Wait()
 
 	// Prior to createConnectionUnlocked() use the test took
 	// maxConnections * openTimeout seconds to complete.

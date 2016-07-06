@@ -121,9 +121,10 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	}
 
 	// If there is a deadline then start a timeout timer
+	var timer *time.Timer
 	if deadline != nil {
-		timer := time.AfterFunc(deadline.Sub(time.Now()), func() {
-			p.cond.Signal()
+		timer = time.AfterFunc(deadline.Sub(time.Now()), func() {
+			p.cond.Broadcast()
 		})
 		defer timer.Stop()
 	}
@@ -147,29 +148,34 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 		// there is no room in the list of allConnections
 		// (invalidateAcquired may remove our placeholder), try to re-acquire
 		// the connection.
-		if len(p.allConnections) >= p.maxConnections {
-			c.Close()
-			return p.acquire(deadline)
+		if len(p.allConnections) < p.maxConnections {
+			// Put the new connection to the list.
+			c.poolResetCount = p.resetCount
+			p.allConnections = append(p.allConnections, c)
+			return c, nil
 		}
-		// Put the new connection to the list.
-		c.poolResetCount = p.resetCount
-		p.allConnections = append(p.allConnections, c)
-		return c, nil
-	}
-
-	// All connections are in use and we cannot create more
-	if p.logLevel >= LogLevelWarn {
-		p.logger.Warn("All connections in pool are busy - waiting...")
-	}
-
-	// Wait until there is an available connection OR room to create a new connection
-	for len(p.availableConnections) == 0 && len(p.allConnections) == p.maxConnections {
-		if p.deadlinePassed(deadline) {
-			return nil, errors.New("Timeout: All connections in pool are busy")
+		// There is no room for the just created connection.
+		// Close it and try to re-acquire.
+		c.Close()
+	} else {
+		// All connections are in use and we cannot create more
+		if p.logLevel >= LogLevelWarn {
+			p.logger.Warn("All connections in pool are busy - waiting...")
 		}
-		p.cond.Wait()
+
+		// Wait until there is an available connection OR room to create a new connection
+		for len(p.availableConnections) == 0 && len(p.allConnections) == p.maxConnections {
+			if p.deadlinePassed(deadline) {
+				return nil, errors.New("Timeout: All connections in pool are busy")
+			}
+			p.cond.Wait()
+		}
 	}
 
+	// Stop the timer so that we do not spawn it on every acquire call.
+	if timer != nil {
+		timer.Stop()
+	}
 	return p.acquire(deadline)
 }
 
@@ -311,9 +317,8 @@ func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
 // afterConnectionCreated executes (if it is) afterConnect() callback and prepares
 // all the known statements for the new connection.
 func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
-	var err error
 	if p.afterConnect != nil {
-		err = p.afterConnect(c)
+		err := p.afterConnect(c)
 		if err != nil {
 			c.die(err)
 			return nil, err
