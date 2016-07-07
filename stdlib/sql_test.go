@@ -325,6 +325,72 @@ func TestConnQuery(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
+type testLog struct {
+	lvl int
+	msg string
+	ctx []interface{}
+}
+
+type testLogger struct {
+	logs []testLog
+}
+
+func (l *testLogger) Debug(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelDebug, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Info(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelInfo, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Warn(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelWarn, msg: msg, ctx: ctx})
+}
+func (l *testLogger) Error(msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelError, msg: msg, ctx: ctx})
+}
+
+func TestConnQueryLog(t *testing.T) {
+	logger := &testLogger{}
+
+	connConfig := pgx.ConnConfig{
+		Host:     "127.0.0.1",
+		User:     "pgx_md5",
+		Password: "secret",
+		Database: "pgx_test",
+		Logger:   logger,
+	}
+
+	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	db, err := stdlib.OpenFromConnPool(pool)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer closeDB(t, db)
+
+	// clear logs from initial connection
+	logger.logs = []testLog{}
+
+	var n int64
+	err = db.QueryRow("select 1").Scan(&n)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+
+	l := logger.logs[0]
+	if l.msg != "Query" {
+		t.Errorf("Expected to log Query, but got %v", l)
+	}
+
+	if !(l.ctx[0] == "sql" && l.ctx[1] == "select 1") {
+		t.Errorf("Expected to log Query with sql 'select 1', but got %v", l)
+	}
+}
+
 func TestConnQueryNull(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
