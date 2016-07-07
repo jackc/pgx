@@ -3,6 +3,7 @@
 ## Fixes
 
 * Fix *ConnPool.Deallocate() not deleting prepared statement from map
+* Fix stdlib not logging unprepared query SQL (Krzysztof Dryś)
 
 ## Features
 
