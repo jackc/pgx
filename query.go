@@ -345,6 +345,8 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, vr.ReadString(vr.Len()))
 		case BinaryFormatCode:
 			switch vr.Type().DataType {
+			case TextOid, VarcharOid:
+				values = append(values, decodeText(vr))
 			case BoolOid:
 				values = append(values, decodeBool(vr))
 			case ByteaOid:
