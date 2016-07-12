@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -151,6 +152,54 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	}
 
 	releaseAllConnections(pool, allConnections)
+}
+
+func TestPoolNonBlockingConections(t *testing.T) {
+	t.Parallel()
+
+	maxConnections := 5
+	openTimeout := 1 * time.Second
+	dialer := net.Dialer{
+		Timeout: openTimeout,
+	}
+	config := pgx.ConnPoolConfig{
+		ConnConfig:     *defaultConnConfig,
+		MaxConnections: maxConnections,
+	}
+	config.ConnConfig.Dial = dialer.Dial
+	// We need a server that would silently DROP all incoming requests.
+	// P.S. I bet there is something better than microsoft.com that does this...
+	config.Host = "microsoft.com"
+
+	pool, err := pgx.NewConnPool(config)
+	if err == nil {
+		t.Fatalf("Expected NewConnPool not to fail, instead it failed with")
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(maxConnections)
+
+	startedAt := time.Now()
+	for i := 0; i < maxConnections; i++ {
+		go func() {
+			_, err := pool.Acquire()
+			wg.Done()
+			if err == nil {
+				t.Fatal("Acquire() expected to fail but it did not")
+			}
+		}()
+	}
+	wg.Wait()
+
+	// Prior to createConnectionUnlocked() use the test took
+	// maxConnections * openTimeout seconds to complete.
+	// With createConnectionUnlocked() it takes ~ 1 * openTimeout seconds.
+	timeTaken := time.Now().Sub(startedAt)
+	if timeTaken > openTimeout+1*time.Second {
+		t.Fatalf("Expected all Aquire() to run in paralles and take about %v, instead it took '%v'", openTimeout, timeTaken)
+	}
+
+	defer pool.Close()
 }
 
 func TestAcquireTimeoutSanity(t *testing.T) {
