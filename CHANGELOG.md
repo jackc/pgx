@@ -5,6 +5,7 @@
 * Fix *ConnPool.Deallocate() not deleting prepared statement from map
 * Fix stdlib not logging unprepared query SQL (Krzysztof Dryś)
 * Fix Rows.Values() with varchar binary format
+* Concurrent ConnPool.Acquire calls with Dialer timeouts now timeout in the expected amount of time (Konstantin Dzreev)
 
 ## Features
 
