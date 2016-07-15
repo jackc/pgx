@@ -154,26 +154,47 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	releaseAllConnections(pool, allConnections)
 }
 
-func TestPoolNonBlockingConections(t *testing.T) {
+func TestPoolNonBlockingConnections(t *testing.T) {
 	t.Parallel()
 
-	maxConnections := 5
+	var dialCountLock sync.Mutex
+	dialCount := 0
 	openTimeout := 1 * time.Second
-	dialer := net.Dialer{
-		Timeout: openTimeout,
+	testDialer := func(network, address string) (net.Conn, error) {
+		var firstDial bool
+		dialCountLock.Lock()
+		dialCount++
+		firstDial = dialCount == 1
+		dialCountLock.Unlock()
+
+		if firstDial {
+			return net.Dial(network, address)
+		} else {
+			time.Sleep(openTimeout)
+			return nil, &net.OpError{Op: "dial", Net: "tcp"}
+		}
 	}
+
+	maxConnections := 3
 	config := pgx.ConnPoolConfig{
 		ConnConfig:     *defaultConnConfig,
 		MaxConnections: maxConnections,
 	}
-	config.ConnConfig.Dial = dialer.Dial
-	// We need a server that would silently DROP all incoming requests.
-	// P.S. I bet there is something better than microsoft.com that does this...
-	config.Host = "microsoft.com"
+	config.ConnConfig.Dial = testDialer
 
 	pool, err := pgx.NewConnPool(config)
-	if err == nil {
-		t.Fatalf("Expected NewConnPool not to fail, instead it failed with")
+	if err != nil {
+		t.Fatalf("Expected NewConnPool not to fail, instead it failed with: %v", err)
+	}
+	defer pool.Close()
+
+	// NewConnPool establishes an initial connection
+	// so we need to close that for the rest of the test
+	if conn, err := pool.Acquire(); err == nil {
+		conn.Close()
+		pool.Release(conn)
+	} else {
+		t.Fatalf("pool.Acquire unexpectedly failed: %v", err)
 	}
 
 	var wg sync.WaitGroup
@@ -196,10 +217,9 @@ func TestPoolNonBlockingConections(t *testing.T) {
 	// With createConnectionUnlocked() it takes ~ 1 * openTimeout seconds.
 	timeTaken := time.Now().Sub(startedAt)
 	if timeTaken > openTimeout+1*time.Second {
-		t.Fatalf("Expected all Aquire() to run in paralles and take about %v, instead it took '%v'", openTimeout, timeTaken)
+		t.Fatalf("Expected all Acquire() to run in parallel and take about %v, instead it took '%v'", openTimeout, timeTaken)
 	}
 
-	defer pool.Close()
 }
 
 func TestAcquireTimeoutSanity(t *testing.T) {
