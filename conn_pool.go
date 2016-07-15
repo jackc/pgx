@@ -18,6 +18,7 @@ type ConnPool struct {
 	availableConnections []*Conn
 	cond                 *sync.Cond
 	config               ConnConfig // config used when establishing connection
+	inProgressConnects   int
 	maxConnections       int
 	resetCount           int
 	afterConnect         func(*Conn) error
@@ -133,33 +134,17 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	}
 
 	// No connections are available, but we can create more
-	if len(p.allConnections) < p.maxConnections {
-		// Create a placeholder connection.
-		placeholderConn := &Conn{}
-		p.allConnections = append(p.allConnections, placeholderConn)
+	if len(p.allConnections)+p.inProgressConnects < p.maxConnections {
 		// Create a new connection.
-		// Carefull here: createConnectionUnlocked() removes the current lock,
+		// Careful here: createConnectionUnlocked() removes the current lock,
 		// creates a connection and then locks it back.
-		c, err := p.createConnectionUnlocked()
-		// Take the placeholder out of the list of connections.
-		p.removeFromAllConnections(placeholderConn)
-		// Make sure create connection did not fail
-		if err != nil {
-			return nil, err
-		}
-		// If resetCount was updated since we started our connection, or
-		// there is no room in the list of allConnections
-		// (invalidateAcquired may remove our placeholder), try to re-acquire
-		// the connection.
-		if len(p.allConnections) < p.maxConnections {
-			// Put the new connection to the list.
+		if c, err := p.createConnectionUnlocked(); err == nil {
 			c.poolResetCount = p.resetCount
 			p.allConnections = append(p.allConnections, c)
 			return c, nil
+		} else {
+			return nil, err
 		}
-		// There is no room for the just created connection.
-		// Close it and try to re-acquire.
-		c.Close()
 	} else {
 		// All connections are in use and we cannot create more
 		if p.logLevel >= LogLevelWarn {
@@ -167,7 +152,7 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 		}
 
 		// Wait until there is an available connection OR room to create a new connection
-		for len(p.availableConnections) == 0 && len(p.allConnections) == p.maxConnections {
+		for len(p.availableConnections) == 0 && len(p.allConnections)+p.inProgressConnects == p.maxConnections {
 			if p.deadlinePassed(deadline) {
 				return nil, errors.New("Timeout: All connections in pool are busy")
 			}
@@ -307,9 +292,11 @@ func (p *ConnPool) createConnection() (*Conn, error) {
 // To avoid this we put Connect(p.config) outside of the lock (it is thread safe)
 // what would allow us to make all the 20 connection in parallel (more or less).
 func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
+	p.inProgressConnects++
 	p.cond.L.Unlock()
 	c, err := Connect(p.config)
 	p.cond.L.Lock()
+	p.inProgressConnects--
 
 	if err != nil {
 		return nil, err
