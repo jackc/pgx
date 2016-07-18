@@ -34,7 +34,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 
 // Rows is the result set returned from *Conn.Query. Rows must be closed before
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
-// calling Next() until it returns false, or when a fatal error occurs.
+// calling )() until it returns false, or when a fatal error occurs.
 type Rows struct {
 	conn       *Conn
 	mr         *msgReader
@@ -155,6 +155,11 @@ func (rows *Rows) Fatal(err error) {
 func (rows *Rows) Next() bool {
 	if rows.closed {
 		return false
+	}
+
+	// Set query execution deadline
+	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
+		defer timeoutTimer.Stop()
 	}
 
 	rows.rowCount++
@@ -441,6 +446,13 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 		return rows, err
 	}
 	rows.unlockConn = true
+
+	// Set query execution deadline.
+	// Do it before making any write attempts. Otherwise it may hang forever if
+	// there is a connection issue.
+	if timeoutTimer := c.startQueryExecTimeoutTimer(); timeoutTimer != nil {
+		defer timeoutTimer.Stop()
+	}
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
