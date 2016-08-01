@@ -1,6 +1,6 @@
 # Pgx
 
-Pgx is a a pure Go database connection library designed specifically for
+Pgx is a pure Go database connection library designed specifically for
 PostgreSQL. Pgx is different from other drivers such as
 [pq](http://godoc.org/github.com/lib/pq) because, while it can operate as a
 database/sql compatible driver, pgx is primarily intended to be used directly.
