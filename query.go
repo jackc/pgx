@@ -298,7 +298,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if vr.Type().DataType == JsonOID || vr.Type().DataType == JsonbOID {
+		} else if vr.Type().DataType == JSONOID || vr.Type().DataType == JSONBOID {
 			// Because the argument passed to decodeJSON will escape the heap.
 			// This allows d to be stack allocated and only copied to the heap when
 			// we actually are decoding JSON. This saves one memory allocation per
@@ -387,11 +387,11 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestamp(vr))
 			case InetOID, CidrOID:
 				values = append(values, decodeInet(vr))
-			case JsonOID:
+			case JSONOID:
 				var d interface{}
 				decodeJSON(vr, &d)
 				values = append(values, d)
-			case JsonbOID:
+			case JSONBOID:
 				var d interface{}
 				decodeJSON(vr, &d)
 				values = append(values, d)

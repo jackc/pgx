@@ -78,30 +78,30 @@ func TestTimestampTzTranscode(t *testing.T) {
 	}
 }
 
-func TestJsonAndJsonbTranscode(t *testing.T) {
+func TestJSONAndJSONBTranscode(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgx.OID{pgx.JsonOID, pgx.JsonbOID} {
+	for _, oid := range []pgx.OID{pgx.JSONOID, pgx.JSONBOID} {
 		if _, ok := conn.PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 		typename := conn.PgTypes[oid].Name
 
-		testJsonString(t, conn, typename)
-		testJsonStringPointer(t, conn, typename)
-		testJsonSingleLevelStringMap(t, conn, typename)
-		testJsonNestedMap(t, conn, typename)
-		testJsonStringArray(t, conn, typename)
-		testJsonInt64Array(t, conn, typename)
-		testJsonInt16ArrayFailureDueToOverflow(t, conn, typename)
-		testJsonStruct(t, conn, typename)
+		testJSONString(t, conn, typename)
+		testJSONStringPointer(t, conn, typename)
+		testJSONSingleLevelStringMap(t, conn, typename)
+		testJSONNestedMap(t, conn, typename)
+		testJSONStringArray(t, conn, typename)
+		testJSONInt64Array(t, conn, typename)
+		testJSONInt16ArrayFailureDueToOverflow(t, conn, typename)
+		testJSONStruct(t, conn, typename)
 	}
 }
 
-func testJsonString(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -117,7 +117,7 @@ func testJsonString(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -133,7 +133,7 @@ func testJsonStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
 	input := map[string]string{"key": "value"}
 	var output map[string]string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -148,7 +148,7 @@ func testJsonSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string)
 	}
 }
 
-func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 	input := map[string]interface{}{
 		"name":      "Uncanny",
 		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
@@ -167,7 +167,7 @@ func testJsonNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonStringArray(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []string{"foo", "bar", "baz"}
 	var output []string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -180,7 +180,7 @@ func testJsonStringArray(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []int64{1, 2, 234432}
 	var output []int64
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -193,7 +193,7 @@ func testJsonInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []int{1, 2, 234432}
 	var output []int16
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
@@ -202,7 +202,7 @@ func testJsonInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typena
 	}
 }
 
-func testJsonStruct(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
 	type person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`

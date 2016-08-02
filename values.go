@@ -22,7 +22,7 @@ const (
 	Int4OID             = 23
 	TextOID             = 25
 	OIDOID              = 26
-	JsonOID             = 114
+	JSONOID             = 114
 	CidrOID             = 650
 	CidrArrayOID        = 651
 	Float4OID           = 700
@@ -47,7 +47,7 @@ const (
 	TimestampTzArrayOID = 1185
 	RecordOID           = 2249
 	UuidOID             = 2950
-	JsonbOID            = 3802
+	JSONBOID            = 3802
 )
 
 // PostgreSQL format codes
@@ -627,7 +627,7 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		}
 	}
 
-	if oid == JsonOID || oid == JsonbOID {
+	if oid == JSONOID || oid == JSONBOID {
 		return encodeJSON(wbuf, oid, arg)
 	}
 
@@ -1463,7 +1463,7 @@ func decodeJSON(vr *ValueReader, d interface{}) error {
 		return nil
 	}
 
-	if vr.Type().DataType != JsonOID && vr.Type().DataType != JsonbOID {
+	if vr.Type().DataType != JSONOID && vr.Type().DataType != JSONBOID {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
 	}
 
@@ -1476,7 +1476,7 @@ func decodeJSON(vr *ValueReader, d interface{}) error {
 }
 
 func encodeJSON(w *WriteBuf, oid OID, value interface{}) error {
-	if oid != JsonOID && oid != JsonbOID {
+	if oid != JSONOID && oid != JSONBOID {
 		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}
 

@@ -12,7 +12,7 @@ func Example_JSON() {
 		return
 	}
 
-	if _, ok := conn.PgTypes[pgx.JsonOID]; !ok {
+	if _, ok := conn.PgTypes[pgx.JSONOID]; !ok {
 		// No JSON type -- must be running against very old PostgreSQL
 		// Pretend it works
 		fmt.Println("John", 42)
