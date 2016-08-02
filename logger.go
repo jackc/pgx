@@ -33,12 +33,12 @@ type Logger interface {
 // LogLevelFromString converts log level string to constant
 //
 // Valid levels:
-//   trace
-//	 debug
-//	 info
-//	 warn
-//   error
-//	 none
+//	trace
+//	debug
+//	info
+//	warn
+//	error
+//	none
 func LogLevelFromString(s string) (int, error) {
 	switch s {
 	case "trace":
