@@ -14,20 +14,20 @@ type LargeObjects struct {
 	fp    *fastpath
 }
 
-const largeObjectFns = `select proname, oid from pg_catalog.pg_proc 
+const largeObjectFns = `select proname, oid from pg_catalog.pg_proc
 where proname in (
-'lo_open', 
-'lo_close', 
-'lo_create', 
-'lo_unlink', 
-'lo_lseek', 
-'lo_lseek64', 
-'lo_tell', 
-'lo_tell64', 
-'lo_truncate', 
-'lo_truncate64', 
-'loread', 
-'lowrite') 
+'lo_open',
+'lo_close',
+'lo_create',
+'lo_unlink',
+'lo_lseek',
+'lo_lseek64',
+'lo_tell',
+'lo_tell64',
+'lo_truncate',
+'lo_truncate64',
+'loread',
+'lowrite')
 and pronamespace = (select oid from pg_catalog.pg_namespace where nspname = 'pg_catalog')`
 
 // LargeObjects returns a LargeObjects instance for the transaction.
@@ -60,19 +60,19 @@ const (
 
 // Create creates a new large object. If id is zero, the server assigns an
 // unused OID.
-func (o *LargeObjects) Create(id Oid) (Oid, error) {
-	newOid, err := fpInt32(o.fp.CallFn("lo_create", []fpArg{fpIntArg(int32(id))}))
-	return Oid(newOid), err
+func (o *LargeObjects) Create(id OID) (OID, error) {
+	newOID, err := fpInt32(o.fp.CallFn("lo_create", []fpArg{fpIntArg(int32(id))}))
+	return OID(newOID), err
 }
 
 // Open opens an existing large object with the given mode.
-func (o *LargeObjects) Open(oid Oid, mode LargeObjectMode) (*LargeObject, error) {
+func (o *LargeObjects) Open(oid OID, mode LargeObjectMode) (*LargeObject, error) {
 	fd, err := fpInt32(o.fp.CallFn("lo_open", []fpArg{fpIntArg(int32(oid)), fpIntArg(int32(mode))}))
 	return &LargeObject{fd: fd, lo: o}, err
 }
 
 // Unlink removes a large object from the database.
-func (o *LargeObjects) Unlink(oid Oid) error {
+func (o *LargeObjects) Unlink(oid OID) error {
 	_, err := o.fp.CallFn("lo_unlink", []fpArg{fpIntArg(int32(oid))})
 	return err
 }

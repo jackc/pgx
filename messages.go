@@ -49,13 +49,13 @@ func (self *startupMessage) Bytes() (buf []byte) {
 	return buf
 }
 
-type Oid int32
+type OID int32
 
 type FieldDescription struct {
 	Name            string
-	Table           Oid
+	Table           OID
 	AttributeNumber int16
-	DataType        Oid
+	DataType        OID
 	DataTypeSize    int16
 	DataTypeName    string
 	Modifier        int32

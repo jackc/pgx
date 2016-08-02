@@ -27,7 +27,7 @@ type ConnPool struct {
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
-	pgTypes              map[Oid]PgType
+	pgTypes              map[OID]PgType
 	pgsql_af_inet        *byte
 	pgsql_af_inet6       *byte
 }

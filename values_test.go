@@ -84,7 +84,7 @@ func TestJsonAndJsonbTranscode(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
+	for _, oid := range []pgx.OID{pgx.JsonOID, pgx.JsonbOID} {
 		if _, ok := conn.PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}

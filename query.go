@@ -250,7 +250,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		if b, ok := d.(*[]byte); ok {
 			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
 			// Otherwise read the bytes directly regardless of what the actual type is.
-			if vr.Type().DataType == ByteaOid {
+			if vr.Type().DataType == ByteaOID {
 				*b = decodeBytea(vr)
 			} else {
 				if vr.Len() != -1 {
@@ -268,27 +268,27 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			var val interface{}
 			if 0 <= vr.Len() {
 				switch vr.Type().DataType {
-				case BoolOid:
+				case BoolOID:
 					val = decodeBool(vr)
-				case Int8Oid:
+				case Int8OID:
 					val = int64(decodeInt8(vr))
-				case Int2Oid:
+				case Int2OID:
 					val = int64(decodeInt2(vr))
-				case Int4Oid:
+				case Int4OID:
 					val = int64(decodeInt4(vr))
-				case TextOid, VarcharOid:
+				case TextOID, VarcharOID:
 					val = decodeText(vr)
-				case OidOid:
-					val = int64(decodeOid(vr))
-				case Float4Oid:
+				case OIDOID:
+					val = int64(decodeOID(vr))
+				case Float4OID:
 					val = float64(decodeFloat4(vr))
-				case Float8Oid:
+				case Float8OID:
 					val = decodeFloat8(vr)
-				case DateOid:
+				case DateOID:
 					val = decodeDate(vr)
-				case TimestampOid:
+				case TimestampOID:
 					val = decodeTimestamp(vr)
-				case TimestampTzOid:
+				case TimestampTzOID:
 					val = decodeTimestampTz(vr)
 				default:
 					val = vr.ReadBytes(vr.Len())
@@ -298,7 +298,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if vr.Type().DataType == JsonOid || vr.Type().DataType == JsonbOid {
+		} else if vr.Type().DataType == JsonOID || vr.Type().DataType == JsonbOID {
 			// Because the argument passed to decodeJSON will escape the heap.
 			// This allows d to be stack allocated and only copied to the heap when
 			// we actually are decoding JSON. This saves one memory allocation per
@@ -345,53 +345,53 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, vr.ReadString(vr.Len()))
 		case BinaryFormatCode:
 			switch vr.Type().DataType {
-			case TextOid, VarcharOid:
+			case TextOID, VarcharOID:
 				values = append(values, decodeText(vr))
-			case BoolOid:
+			case BoolOID:
 				values = append(values, decodeBool(vr))
-			case ByteaOid:
+			case ByteaOID:
 				values = append(values, decodeBytea(vr))
-			case Int8Oid:
+			case Int8OID:
 				values = append(values, decodeInt8(vr))
-			case Int2Oid:
+			case Int2OID:
 				values = append(values, decodeInt2(vr))
-			case Int4Oid:
+			case Int4OID:
 				values = append(values, decodeInt4(vr))
-			case OidOid:
-				values = append(values, decodeOid(vr))
-			case Float4Oid:
+			case OIDOID:
+				values = append(values, decodeOID(vr))
+			case Float4OID:
 				values = append(values, decodeFloat4(vr))
-			case Float8Oid:
+			case Float8OID:
 				values = append(values, decodeFloat8(vr))
-			case BoolArrayOid:
+			case BoolArrayOID:
 				values = append(values, decodeBoolArray(vr))
-			case Int2ArrayOid:
+			case Int2ArrayOID:
 				values = append(values, decodeInt2Array(vr))
-			case Int4ArrayOid:
+			case Int4ArrayOID:
 				values = append(values, decodeInt4Array(vr))
-			case Int8ArrayOid:
+			case Int8ArrayOID:
 				values = append(values, decodeInt8Array(vr))
-			case Float4ArrayOid:
+			case Float4ArrayOID:
 				values = append(values, decodeFloat4Array(vr))
-			case Float8ArrayOid:
+			case Float8ArrayOID:
 				values = append(values, decodeFloat8Array(vr))
-			case TextArrayOid, VarcharArrayOid:
+			case TextArrayOID, VarcharArrayOID:
 				values = append(values, decodeTextArray(vr))
-			case TimestampArrayOid, TimestampTzArrayOid:
+			case TimestampArrayOID, TimestampTzArrayOID:
 				values = append(values, decodeTimestampArray(vr))
-			case DateOid:
+			case DateOID:
 				values = append(values, decodeDate(vr))
-			case TimestampTzOid:
+			case TimestampTzOID:
 				values = append(values, decodeTimestampTz(vr))
-			case TimestampOid:
+			case TimestampOID:
 				values = append(values, decodeTimestamp(vr))
-			case InetOid, CidrOid:
+			case InetOID, CidrOID:
 				values = append(values, decodeInet(vr))
-			case JsonOid:
+			case JsonOID:
 				var d interface{}
 				decodeJSON(vr, &d)
 				values = append(values, d)
-			case JsonbOid:
+			case JsonbOID:
 				var d interface{}
 				decodeJSON(vr, &d)
 				values = append(values, d)
