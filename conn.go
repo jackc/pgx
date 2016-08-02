@@ -1252,18 +1252,7 @@ func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
 		ctx = append(ctx, "pid", c.Pid)
 	}
 
-	switch lvl {
-	case LogLevelTrace:
-		c.logger.Debug(msg, ctx...)
-	case LogLevelDebug:
-		c.logger.Debug(msg, ctx...)
-	case LogLevelInfo:
-		c.logger.Info(msg, ctx...)
-	case LogLevelWarn:
-		c.logger.Warn(msg, ctx...)
-	case LogLevelError:
-		c.logger.Error(msg, ctx...)
-	}
+	c.logger.Log(lvl, msg, ctx...)
 }
 
 // SetLogger replaces the current logger and returns the previous logger.

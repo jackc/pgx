@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
-	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 func BenchmarkConnPool(b *testing.B) {
@@ -294,70 +293,50 @@ func BenchmarkSelectWithoutLogging(b *testing.B) {
 	benchmarkSelectWithLog(b, conn)
 }
 
-func BenchmarkSelectWithLoggingTraceWithLog15(b *testing.B) {
-	connConfig := *defaultConnConfig
+type discardLogger struct{}
 
-	logger := log.New()
-	lvl, err := log.LvlFromString("debug")
-	if err != nil {
-		b.Fatal(err)
-	}
-	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
-	connConfig.Logger = logger
-	connConfig.LogLevel = pgx.LogLevelTrace
-	conn := mustConnect(b, connConfig)
+func (dl discardLogger) Log(level int, msg string, ctx ...interface{}) {}
+
+func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
+	conn := mustConnect(b, *defaultConnConfig)
 	defer closeConn(b, conn)
+
+	var logger discardLogger
+	conn.SetLogger(logger)
+	conn.SetLogLevel(pgx.LogLevelTrace)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
-func BenchmarkSelectWithLoggingDebugWithLog15(b *testing.B) {
-	connConfig := *defaultConnConfig
-
-	logger := log.New()
-	lvl, err := log.LvlFromString("debug")
-	if err != nil {
-		b.Fatal(err)
-	}
-	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
-	connConfig.Logger = logger
-	connConfig.LogLevel = pgx.LogLevelDebug
-	conn := mustConnect(b, connConfig)
+func BenchmarkSelectWithLoggingDebugWithDiscard(b *testing.B) {
+	conn := mustConnect(b, *defaultConnConfig)
 	defer closeConn(b, conn)
+
+	var logger discardLogger
+	conn.SetLogger(logger)
+	conn.SetLogLevel(pgx.LogLevelDebug)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
-func BenchmarkSelectWithLoggingInfoWithLog15(b *testing.B) {
-	connConfig := *defaultConnConfig
-
-	logger := log.New()
-	lvl, err := log.LvlFromString("info")
-	if err != nil {
-		b.Fatal(err)
-	}
-	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
-	connConfig.Logger = logger
-	connConfig.LogLevel = pgx.LogLevelInfo
-	conn := mustConnect(b, connConfig)
+func BenchmarkSelectWithLoggingInfoWithDiscard(b *testing.B) {
+	conn := mustConnect(b, *defaultConnConfig)
 	defer closeConn(b, conn)
+
+	var logger discardLogger
+	conn.SetLogger(logger)
+	conn.SetLogLevel(pgx.LogLevelInfo)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
-func BenchmarkSelectWithLoggingErrorWithLog15(b *testing.B) {
-	connConfig := *defaultConnConfig
-
-	logger := log.New()
-	lvl, err := log.LvlFromString("error")
-	if err != nil {
-		b.Fatal(err)
-	}
-	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
-	connConfig.Logger = logger
-	connConfig.LogLevel = pgx.LogLevelError
-	conn := mustConnect(b, connConfig)
+func BenchmarkSelectWithLoggingErrorWithDiscard(b *testing.B) {
+	conn := mustConnect(b, *defaultConnConfig)
 	defer closeConn(b, conn)
+
+	var logger discardLogger
+	conn.SetLogger(logger)
+	conn.SetLogLevel(pgx.LogLevelError)
 
 	benchmarkSelectWithLog(b, conn)
 }
@@ -416,19 +395,5 @@ func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
 		if record.lastLoginTime != time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local) {
 			b.Fatalf("bad value for lastLoginTime: %v", record.lastLoginTime)
 		}
-	}
-}
-
-func BenchmarkLog15Discard(b *testing.B) {
-	logger := log.New()
-	lvl, err := log.LvlFromString("error")
-	if err != nil {
-		b.Fatal(err)
-	}
-	logger.SetHandler(log.LvlFilterHandler(lvl, log.DiscardHandler()))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		logger.Debug("benchmark", "i", i, "b.N", b.N)
 	}
 }

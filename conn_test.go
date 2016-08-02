@@ -1401,17 +1401,8 @@ type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Debug(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelDebug, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Info(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelInfo, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Warn(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelWarn, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Error(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelError, msg: msg, ctx: ctx})
+func (l *testLogger) Log(level int, msg string, ctx ...interface{}) {
+	l.logs = append(l.logs, testLog{lvl: level, msg: msg, ctx: ctx})
 }
 
 func TestSetLogger(t *testing.T) {
