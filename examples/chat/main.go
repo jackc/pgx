@@ -67,7 +67,7 @@ func listen() {
 			os.Exit(1)
 		}
 
-		fmt.Println("PID:", notification.Pid, "Channel:", notification.Channel, "Payload:", notification.Payload)
+		fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
 	}
 }
 

@@ -48,7 +48,7 @@ type Conn struct {
 	reader             *bufio.Reader // buffered reader to improve read performance
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
-	Pid                int32             // backend pid
+	PID                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
 	PgTypes            map[OID]PgType    // oids to PgTypes
@@ -85,7 +85,7 @@ type PrepareExOptions struct {
 
 // Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
 type Notification struct {
-	Pid     int32  // backend pid that sent the notification
+	PID     int32  // backend pid that sent the notification
 	Channel string // channel from which notification was received
 	Payload string
 }
@@ -1137,7 +1137,7 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 }
 
 func (c *Conn) rxBackendKeyData(r *msgReader) {
-	c.Pid = r.readInt32()
+	c.PID = r.readInt32()
 	c.SecretKey = r.readInt32()
 }
 
@@ -1180,7 +1180,7 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 
 func (c *Conn) rxNotificationResponse(r *msgReader) {
 	n := new(Notification)
-	n.Pid = r.readInt32()
+	n.PID = r.readInt32()
 	n.Channel = r.readCString()
 	n.Payload = r.readCString()
 	c.notifications = append(c.notifications, n)
@@ -1248,8 +1248,8 @@ func (c *Conn) shouldLog(lvl int) bool {
 }
 
 func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
-	if c.Pid != 0 {
-		ctx = append(ctx, "pid", c.Pid)
+	if c.PID != 0 {
+		ctx = append(ctx, "pid", c.PID)
 	}
 
 	c.logger.Log(lvl, msg, ctx...)
