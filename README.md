@@ -1,5 +1,9 @@
 # Pgx
 
+## Experimental Branch
+
+This is the experimental v3 branch. v2 is the stable branch.
+
 Pgx is a pure Go database connection library designed specifically for
 PostgreSQL. Pgx is different from other drivers such as
 [pq](http://godoc.org/github.com/lib/pq) because, while it can operate as a
