@@ -1491,6 +1491,7 @@ func TestQueryExecTimeoutSanity(t *testing.T) {
 	t.Parallel()
 
 	config := *defaultConnConfig
+	config.Logger = &testLogger{}
 
 	// case 1: default 0 value
 	conn, err := pgx.Connect(config)
@@ -1519,6 +1520,7 @@ func TestExecWithQueryExecTimeoutSet(t *testing.T) {
 	t.Parallel()
 
 	config := *defaultConnConfig
+	config.Logger = &testLogger{}
 
 	// case 1: too small timeout to run a statement
 	config.QueryExecTimeout = 500 * time.Millisecond
@@ -1527,9 +1529,9 @@ func TestExecWithQueryExecTimeoutSet(t *testing.T) {
 
 	_, err := conn1.Exec("SELECT pg_sleep(2)")
 	if err == nil {
-		t.Fatal("Expected Exec to fail with 'conn is dead', instead it did not")
+		t.Fatal("Expected Exec to fail with 'use of closed network connection', instead it did not")
 	}
-	if !strings.Contains(err.Error(), "conn is dead") {
+	if !strings.Contains(err.Error(), "use of closed network connection") {
 		t.Fatalf("Expected Exec to fail with timeout, instead it failed with '%v'", err)
 	}
 
@@ -1546,29 +1548,5 @@ func TestExecWithQueryExecTimeoutSet(t *testing.T) {
 	_, err = conn2.Exec("SELECT pg_sleep(2)")
 	if err != nil {
 		t.Fatalf("Expected Exec not to fail, instead it failed with '%v'", err)
-	}
-}
-
-func TestKill(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, err := conn.Exec("SELECT pg_sleep(10)")
-		if err != nil && !strings.Contains(err.Error(), "conn is dead") {
-			t.Fatalf("Unexpected postgres error: %v", err)
-		}
-	}()
-
-	conn.Kill()
-	wg.Wait()
-
-	if conn.IsAlive() {
-		t.Fatal("Connection should not be live but was")
 	}
 }

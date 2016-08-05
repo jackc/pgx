@@ -402,29 +402,6 @@ func (c *Conn) Close() (err error) {
 	return err
 }
 
-// Kills current connection on the Postgres side.
-//
-// The method establishes a new connection to the DB and kills the orignal
-// connectiont.
-func (c *Conn) Kill() error {
-	if !c.IsAlive() {
-		return nil
-	}
-
-	killerConn, err := Connect(c.config)
-	if err != nil {
-		return err
-	}
-	defer killerConn.Close()
-
-	killerConn.config.QueryExecTimeout = 0
-	if _, err = killerConn.Exec("select pg_terminate_backend($1)", c.Pid); err != nil {
-		err = fmt.Errorf("Unable to kill backend PostgreSQL process: %v", err)
-	}
-
-	return err
-}
-
 // Starts a Query/Statement exec timeout if config.QueryExecTimeout is set.
 //
 // The timer should be stopped manually in the caller method to avoid false
@@ -436,17 +413,10 @@ func (c *Conn) Kill() error {
 func (c *Conn) startQueryExecTimeoutTimer() (timer *time.Timer) {
 	if c.config.QueryExecTimeout > 0 {
 		timer = time.AfterFunc(c.config.QueryExecTimeout, func() {
-			err := c.Kill()
-			// Close curent connection if Kill() happens to return an error.
-			// Most likely there was a low leven connection error.
-			if err != nil {
-				// To close current connection use c.die() instead of c.Close().
-				// C.Close() tries to rollback an openned transaction (if it is),
-				// but if there is a connection issue this may cause pgx code to hang
-				// until the remote host responds.
-				// C.die() does not do any high level voodoo, but closes the connection.
-				c.die(errors.New("QueryExecTimeout"))
+			if c.shouldLog(LogLevelInfo) {
+				c.log(LogLevelInfo, "Timeout: QueryExecTimeout")
 			}
+			c.die(errors.New("Timeout: QueryExecTimeout"))
 		})
 	}
 	return timer
