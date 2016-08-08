@@ -30,6 +30,8 @@ type ConnPool struct {
 	pgTypes              map[Oid]PgType
 	pgsql_af_inet        *byte
 	pgsql_af_inet6       *byte
+	txAfterClose         func(tx *Tx)
+	rowsAfterClose       func(rows *Rows)
 }
 
 type ConnPoolStat struct {
@@ -66,6 +68,14 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p.logger = config.Logger
 	if p.logger == nil {
 		p.logLevel = LogLevelNone
+	}
+
+	p.txAfterClose = func(tx *Tx) {
+		p.Release(tx.Conn())
+	}
+
+	p.rowsAfterClose = func(rows *Rows) {
+		p.Release(rows.Conn())
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
@@ -485,12 +495,4 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 		tx.AfterClose(p.txAfterClose)
 		return tx, nil
 	}
-}
-
-func (p *ConnPool) txAfterClose(tx *Tx) {
-	p.Release(tx.Conn())
-}
-
-func (p *ConnPool) rowsAfterClose(rows *Rows) {
-	p.Release(rows.Conn())
 }
