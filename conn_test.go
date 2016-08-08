@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -1531,8 +1532,10 @@ func TestExecWithQueryExecTimeoutSet(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected Exec to fail with 'use of closed network connection', instead it did not")
 	}
-	if !strings.Contains(err.Error(), "use of closed network connection") {
-		t.Fatalf("Expected Exec to fail with timeout, instead it failed with '%v'", err)
+
+	matched, _ := regexp.MatchString("Timeout: QueryExecTimeout. .* use of closed network connection", err.Error())
+	if !matched {
+		t.Fatalf("Expected Exec() to fail with timeout, instead it failed with '%v'", err)
 	}
 
 	// It should close the timed out connection

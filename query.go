@@ -159,7 +159,7 @@ func (rows *Rows) Next() bool {
 
 	// Set query execution deadline
 	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
-		defer timeoutTimer.Stop()
+		defer rows.stopAndProcessTimeoutTimer(timeoutTimer)
 	}
 
 	rows.rowCount++
@@ -246,7 +246,9 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 
 	// Set query execution deadline
 	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
-		defer timeoutTimer.Stop()
+		defer func() {
+			err = rows.stopAndProcessTimeoutTimer(timeoutTimer)
+		}()
 	}
 
 	for i, d := range dest {
@@ -333,17 +335,19 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 }
 
 // Values returns an array of the row values
-func (rows *Rows) Values() ([]interface{}, error) {
+func (rows *Rows) Values() (values []interface{}, err error) {
 	if rows.closed {
 		return nil, errors.New("rows is closed")
 	}
 
 	// Set query execution deadline
 	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
-		defer timeoutTimer.Stop()
+		defer func() {
+			err = rows.stopAndProcessTimeoutTimer(timeoutTimer)
+		}()
 	}
 
-	values := make([]interface{}, 0, len(rows.fields))
+	values = make([]interface{}, 0, len(rows.fields))
 
 	for range rows.fields {
 		vr, _ := rows.nextColumn()
@@ -446,12 +450,12 @@ func (rows *Rows) AfterClose(f func(*Rows)) {
 // Query executes sql with args. If there is an error the returned *Rows will
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
-func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
+func (c *Conn) Query(sql string, args ...interface{}) (rows *Rows, err error) {
 	c.lastActivityTime = time.Now()
 
-	rows := c.getRows(sql, args)
+	rows = c.getRows(sql, args)
 
-	if err := c.lock(); err != nil {
+	if err = c.lock(); err != nil {
 		rows.abort(err)
 		return rows, err
 	}
@@ -461,12 +465,13 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	// Do it before making any write attempts. Otherwise it may hang forever if
 	// there is a connection issue.
 	if timeoutTimer := c.startQueryExecTimeoutTimer(); timeoutTimer != nil {
-		defer timeoutTimer.Stop()
+		defer func() {
+			err = rows.stopAndProcessTimeoutTimer(timeoutTimer)
+		}()
 	}
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
-		var err error
 		ps, err = c.Prepare("", sql)
 		if err != nil {
 			rows.abort(err)
@@ -475,7 +480,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	}
 	rows.sql = ps.SQL
 	rows.fields = ps.FieldDescriptions
-	err := c.sendPreparedQuery(ps, args...)
+	err = c.sendPreparedQuery(ps, args...)
 	if err != nil {
 		rows.abort(err)
 	}
@@ -504,4 +509,15 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := c.Query(sql, args...)
 	return (*Row)(rows)
+}
+
+// stopAndProcessTimeoutTimer stops the given timer and overrides rows.Err() if
+// error was caused by a timeout.
+// Returns rows.Err()
+func (rows *Rows) stopAndProcessTimeoutTimer(timeoutTimer *time.Timer) error {
+	if timeoutTimer.Stop() || rows.Err() == nil {
+		return rows.Err()
+	}
+	rows.err = ProtocolError("Timeout: QueryExecTimeout. Orig error: " + rows.Err().Error())
+	return rows.err
 }

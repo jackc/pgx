@@ -991,7 +991,12 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 
 	// Set statement execution deadline
 	if timeoutTimer := c.startQueryExecTimeoutTimer(); timeoutTimer != nil {
-		defer timeoutTimer.Stop()
+		defer func() {
+			if timeoutTimer.Stop() || err == nil {
+				return
+			}
+			err = ProtocolError("Timeout: QueryExecTimeout. Orig error: " + err.Error())
+		}()
 	}
 
 	defer func() {
