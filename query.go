@@ -244,6 +244,11 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 		return err
 	}
 
+	// Set query execution deadline
+	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
+		defer timeoutTimer.Stop()
+	}
+
 	for i, d := range dest {
 		vr, _ := rows.nextColumn()
 
@@ -331,6 +336,11 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 func (rows *Rows) Values() ([]interface{}, error) {
 	if rows.closed {
 		return nil, errors.New("rows is closed")
+	}
+
+	// Set query execution deadline
+	if timeoutTimer := rows.conn.startQueryExecTimeoutTimer(); timeoutTimer != nil {
+		defer timeoutTimer.Stop()
 	}
 
 	values := make([]interface{}, 0, len(rows.fields))
