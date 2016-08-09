@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"bytes"
 	"database/sql"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1355,6 +1356,7 @@ func TestConnQueryWithQueryExecTimeoutSet(t *testing.T) {
 	t.Parallel()
 
 	config := *defaultConnConfig
+	config.Logger = &testLogger{}
 
 	// case 1: too small timeout to run a query
 	config.QueryExecTimeout = 500 * time.Millisecond
@@ -1371,9 +1373,11 @@ func TestConnQueryWithQueryExecTimeoutSet(t *testing.T) {
 		t.Fatal("Expected rows.Next() to return false, instead it did not")
 	}
 	if rows.Err() == nil {
-		t.Fatal("Expected Query() to fail with 'conn is dead', instead it did not")
+		t.Fatal("Expected Query() to fail with 'use of closed network connection', instead it did not")
 	}
-	if !strings.Contains(rows.Err().Error(), "terminating connection") {
+
+	matched, _ := regexp.MatchString("Timeout: QueryExecTimeout. .* use of closed network connection", rows.Err().Error())
+	if !matched {
 		t.Fatalf("Expected Query() to fail with timeout, instead it failed with '%v'", rows.Err())
 	}
 
