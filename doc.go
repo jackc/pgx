@@ -50,7 +50,7 @@ pgx also implements QueryRow in the same style as database/sql.
         return err
     }
 
-Use exec to execute a query that does not return a result set.
+Use Exec to execute a query that does not return a result set.
 
     commandTag, err := conn.Exec("delete from widgets where id=$1", 42)
     if err != nil {
