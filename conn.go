@@ -265,11 +265,10 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 	msg := newStartupMessage()
 
-	// Default to disabling TLS renegotiation.
-	//
-	// Go does not support (https://github.com/golang/go/issues/5742)
-	// PostgreSQL recommends disabling (http://www.postgresql.org/docs/9.4/static/runtime-config-connection.html#GUC-SSL-RENEGOTIATION-LIMIT)
-	if tlsConfig != nil {
+	// Disabling TLS renegotiation unless the tlsConfig specifically requests it.
+	// PostgreSQL recommends disabling (http://www.postgresql.org/docs/9.4/static/runtime-config-connection.html#GUC-SSL-RENEGOTIATION-LIMIT).
+	// However, to support Amazon Redshift allow it to be enabled.
+	if tlsConfig != nil && tlsConfig.Renegotiation == tls.RenegotiateNever {
 		msg.options["ssl_renegotiation_limit"] = "0"
 	}
 
