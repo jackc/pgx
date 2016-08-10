@@ -9,6 +9,7 @@
 
 ## Features
 
+* Add CopyTo
 * Add PrepareEx
 * Add basic record to []interface{} decoding
 * Encode and decode between all Go and PostgreSQL integer types with bounds checking

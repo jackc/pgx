@@ -25,6 +25,10 @@ const (
 	noData               = 'n'
 	closeComplete        = '3'
 	flush                = 'H'
+	copyInResponse       = 'G'
+	copyData             = 'd'
+	copyFail             = 'f'
+	copyDone             = 'c'
 )
 
 type startupMessage struct {

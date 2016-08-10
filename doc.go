@@ -104,6 +104,26 @@ creates a transaction with a specified isolation level.
         return err
     }
 
+Copy Protocol
+
+Use CopyTo to efficiently insert multiple rows at a time using the PostgreSQL
+copy protocol. CopyTo accepts a CopyToSource interface. If the data is already
+in a [][]interface{} use CopyToRows to wrap it in a CopyToSource interface. Or
+implement CopyToSource to avoid buffering the entire data set in memory.
+
+    rows := [][]interface{}{
+        {"John", "Smith", int32(36)},
+        {"Jane", "Doe", int32(29)},
+    }
+
+    copyCount, err := conn.CopyTo(
+        "people",
+        []string{"first_name", "last_name", "age"},
+        pgx.CopyToRows(rows),
+    )
+
+CopyTo can be faster than an insert with as few as 5 rows.
+
 Listen and Notify
 
 pgx can listen to the PostgreSQL notification system with the
