@@ -156,7 +156,7 @@ Array Mapping
 
 pgx maps between int16, int32, int64, float32, float64, and string Go slices
 and the equivalent PostgreSQL array type. Go slices of native types do not
-support nulls, so if a PostgreSQL array that contains a slice is read into a
+support nulls, so if a PostgreSQL array that contains a null is read into a
 native Go slice an error will occur.
 
 Hstore Mapping
