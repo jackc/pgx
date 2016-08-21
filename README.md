@@ -57,7 +57,13 @@ skip tests for connection types that are not configured.
 
 ### Normal Test Environment
 
-To setup the normal test environment run the following SQL:
+To setup the normal test environment, first install these dependencies:
+
+    go get github.com/jackc/fake
+    go get github.com/shopspring/decimal
+    go get gopkg.in/inconshreveable/log15.v2
+
+Then run the following SQL:
 
     create user pgx_md5 password 'secret';
     create database pgx_test;
@@ -66,7 +72,7 @@ Connect to database pgx_test and run:
 
     create extension hstore;
 
-Next open connection_settings_test.go.example and make a copy without the
+Next open conn_config_test.go.example and make a copy without the
 .example. If your PostgreSQL server is accepting connections on 127.0.0.1,
 then you are done.
 
