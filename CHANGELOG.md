@@ -1,4 +1,4 @@
-# Unreleased
+# 2.9.0 (August 26, 2016)
 
 ## Fixes
 
