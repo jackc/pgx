@@ -40,7 +40,7 @@ func releaseAllConnections(pool *pgx.ConnPool, connections []*pgx.Conn) {
 func acquireWithTimeTaken(pool *pgx.ConnPool) (*pgx.Conn, time.Duration, error) {
 	startTime := time.Now()
 	c, err := pool.Acquire()
-	return c, time.Now().Sub(startTime), err
+	return c, time.Since(startTime), err
 }
 
 func TestNewConnPool(t *testing.T) {
@@ -215,7 +215,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 	// Prior to createConnectionUnlocked() use the test took
 	// maxConnections * openTimeout seconds to complete.
 	// With createConnectionUnlocked() it takes ~ 1 * openTimeout seconds.
-	timeTaken := time.Now().Sub(startedAt)
+	timeTaken := time.Since(startedAt)
 	if timeTaken > openTimeout+1*time.Second {
 		t.Fatalf("Expected all Acquire() to run in parallel and take about %v, instead it took '%v'", openTimeout, timeTaken)
 	}

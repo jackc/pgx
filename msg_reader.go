@@ -62,7 +62,7 @@ func (r *msgReader) readByte() byte {
 		return 0
 	}
 
-	r.msgBytesRemaining -= 1
+	r.msgBytesRemaining--
 	if r.msgBytesRemaining < 0 {
 		r.fatal(errors.New("read past end of message"))
 		return 0
@@ -216,7 +216,7 @@ func (r *msgReader) readString(countI32 int32) string {
 		s = string(buf)
 		r.reader.Discard(count)
 	} else {
-		buf := make([]byte, int(count))
+		buf := make([]byte, count)
 		_, err := io.ReadFull(r.reader, buf)
 		if err != nil {
 			r.fatal(err)

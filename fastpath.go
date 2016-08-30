@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 )
 
-type fastpathArg []byte
-
 func newFastpath(cn *Conn) *fastpath {
 	return &fastpath{cn: cn, fns: make(map[string]Oid)}
 }

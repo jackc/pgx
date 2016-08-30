@@ -225,28 +225,28 @@ type NullString struct {
 	Valid  bool // Valid is true if String is not NULL
 }
 
-func (s *NullString) Scan(vr *ValueReader) error {
+func (n *NullString) Scan(vr *ValueReader) error {
 	// Not checking oid as so we can scan anything into into a NullString - may revisit this decision later
 
 	if vr.Len() == -1 {
-		s.String, s.Valid = "", false
+		n.String, n.Valid = "", false
 		return nil
 	}
 
-	s.Valid = true
-	s.String = decodeText(vr)
+	n.Valid = true
+	n.String = decodeText(vr)
 	return vr.Err()
 }
 
 func (n NullString) FormatCode() int16 { return TextFormatCode }
 
-func (s NullString) Encode(w *WriteBuf, oid Oid) error {
-	if !s.Valid {
+func (n NullString) Encode(w *WriteBuf, oid Oid) error {
+	if !n.Valid {
 		w.WriteInt32(-1)
 		return nil
 	}
 
-	return encodeString(w, oid, s.String)
+	return encodeString(w, oid, n.String)
 }
 
 // NullInt16 represents an smallint that may be null. NullInt16 implements the
@@ -621,10 +621,9 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		if refVal.IsNil() {
 			wbuf.WriteInt32(-1)
 			return nil
-		} else {
-			arg = refVal.Elem().Interface()
-			return Encode(wbuf, oid, arg)
 		}
+		arg = refVal.Elem().Interface()
+		return Encode(wbuf, oid, arg)
 	}
 
 	if oid == JsonOid || oid == JsonbOid {
@@ -892,14 +891,13 @@ func Decode(vr *ValueReader, d interface{}) error {
 						el.Set(reflect.Zero(el.Type()))
 					}
 					return nil
-				} else {
-					if el.IsNil() {
-						// allocate destination
-						el.Set(reflect.New(el.Type().Elem()))
-					}
-					d = el.Interface()
-					return Decode(vr, d)
 				}
+				if el.IsNil() {
+					// allocate destination
+					el.Set(reflect.New(el.Type().Elem()))
+				}
+				d = el.Interface()
+				return Decode(vr, d)
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				n := decodeInt(vr)
 				if el.OverflowInt(n) {
@@ -1645,10 +1643,10 @@ func encodeIPNet(w *WriteBuf, oid Oid, value net.IPNet) error {
 	switch len(value.IP) {
 	case net.IPv4len:
 		size = 8
-		family = *w.conn.pgsql_af_inet
+		family = *w.conn.pgsqlAfInet
 	case net.IPv6len:
 		size = 20
-		family = *w.conn.pgsql_af_inet6
+		family = *w.conn.pgsqlAfInet6
 	default:
 		return fmt.Errorf("Unexpected IP length: %v", len(value.IP))
 	}
