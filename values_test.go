@@ -630,7 +630,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bool[]", []bool{true, false, true}, &[]bool{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]bool))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]bool))) {
 					t.Errorf("failed to encode bool[]")
 				}
 			},
@@ -638,7 +638,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int16))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int16))) {
 					t.Errorf("failed to encode smallint[]")
 				}
 			},
@@ -646,7 +646,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint16))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint16))) {
 					t.Errorf("failed to encode smallint[]")
 				}
 			},
@@ -654,7 +654,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int32))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int32))) {
 					t.Errorf("failed to encode int[]")
 				}
 			},
@@ -662,7 +662,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint32))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint32))) {
 					t.Errorf("failed to encode int[]")
 				}
 			},
@@ -670,7 +670,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int64))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int64))) {
 					t.Errorf("failed to encode bigint[]")
 				}
 			},
@@ -678,7 +678,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint64))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint64))) {
 					t.Errorf("failed to encode bigint[]")
 				}
 			},
@@ -686,7 +686,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]string))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]string))) {
 					t.Errorf("failed to encode text[]")
 				}
 			},
@@ -694,7 +694,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
 					t.Errorf("failed to encode time.Time[] to timestamp[]")
 				}
 			},
@@ -702,7 +702,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
 					t.Errorf("failed to encode time.Time[] to timestamptz[]")
 				}
 			},
@@ -718,7 +718,7 @@ func TestArrayDecoding(t *testing.T) {
 				for i := range queryBytesSliceSlice {
 					qb := queryBytesSliceSlice[i]
 					sb := scanBytesSliceSlice[i]
-					if bytes.Compare(qb, sb) != 0 {
+					if !bytes.Equal(qb, sb) {
 						t.Errorf("failed to encode byte[][] to bytea[]: expected %v to equal %v", qb, sb)
 					}
 				}

@@ -39,10 +39,10 @@ func newStartupMessage() *startupMessage {
 	return &startupMessage{map[string]string{}}
 }
 
-func (self *startupMessage) Bytes() (buf []byte) {
+func (s *startupMessage) Bytes() (buf []byte) {
 	buf = make([]byte, 8, 128)
 	binary.BigEndian.PutUint32(buf[4:8], uint32(protocolVersionNumber))
-	for key, value := range self.options {
+	for key, value := range s.options {
 		buf = append(buf, key...)
 		buf = append(buf, 0)
 		buf = append(buf, value...)
@@ -89,8 +89,8 @@ type PgError struct {
 	Routine          string
 }
 
-func (self PgError) Error() string {
-	return self.Severity + ": " + self.Message + " (SQLSTATE " + self.Code + ")"
+func (pe PgError) Error() string {
+	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
 }
 
 func newWriteBuf(c *Conn, t byte) *WriteBuf {
@@ -99,7 +99,7 @@ func newWriteBuf(c *Conn, t byte) *WriteBuf {
 	return &c.writeBuf
 }
 
-// WrifeBuf is used build messages to send to the PostgreSQL server. It is used
+// WriteBuf is used build messages to send to the PostgreSQL server. It is used
 // by the Encoder interface when implementing custom encoders.
 type WriteBuf struct {
 	buf     []byte

@@ -1,16 +1,17 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
 	"strconv"
 	"testing"
+
+	"github.com/jackc/pgx"
 )
 
 func TestQueryArgs(t *testing.T) {
 	var qa pgx.QueryArgs
 
 	for i := 1; i < 512; i++ {
-		expectedPlaceholder := "$" + strconv.FormatInt(int64(i), 10)
+		expectedPlaceholder := "$" + strconv.Itoa(i)
 		placeholder := qa.Append(i)
 		if placeholder != expectedPlaceholder {
 			t.Errorf(`Expected qa.Append to return "%s", but it returned "%s"`, expectedPlaceholder, placeholder)

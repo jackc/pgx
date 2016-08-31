@@ -63,8 +63,8 @@ type Conn struct {
 	logLevel           int
 	mr                 msgReader
 	fp                 *fastpath
-	pgsql_af_inet      *byte
-	pgsql_af_inet6     *byte
+	pgsqlAfInet        *byte
+	pgsqlAfInet6       *byte
 	busy               bool
 	poolResetCount     int
 	preallocatedRows   []Rows
@@ -145,7 +145,7 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	return connect(config, nil, nil, nil)
 }
 
-func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsql_af_inet *byte, pgsql_af_inet6 *byte) (c *Conn, err error) {
+func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsqlAfInet *byte, pgsqlAfInet6 *byte) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
@@ -157,13 +157,13 @@ func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsql_af_inet *byte, pgs
 		}
 	}
 
-	if pgsql_af_inet != nil {
-		c.pgsql_af_inet = new(byte)
-		*c.pgsql_af_inet = *pgsql_af_inet
+	if pgsqlAfInet != nil {
+		c.pgsqlAfInet = new(byte)
+		*c.pgsqlAfInet = *pgsqlAfInet
 	}
-	if pgsql_af_inet6 != nil {
-		c.pgsql_af_inet6 = new(byte)
-		*c.pgsql_af_inet6 = *pgsql_af_inet6
+	if pgsqlAfInet6 != nil {
+		c.pgsqlAfInet6 = new(byte)
+		*c.pgsqlAfInet6 = *pgsqlAfInet6
 	}
 
 	if c.config.LogLevel != 0 {
@@ -315,7 +315,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				}
 			}
 
-			if c.pgsql_af_inet == nil || c.pgsql_af_inet6 == nil {
+			if c.pgsqlAfInet == nil || c.pgsqlAfInet6 == nil {
 				err = c.loadInetConstants()
 				if err != nil {
 					return err
@@ -372,8 +372,8 @@ func (c *Conn) loadInetConstants() error {
 		return err
 	}
 
-	c.pgsql_af_inet = &ipv4[0]
-	c.pgsql_af_inet6 = &ipv6[0]
+	c.pgsqlAfInet = &ipv4[0]
+	c.pgsqlAfInet6 = &ipv6[0]
 
 	return nil
 }
@@ -446,7 +446,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 	return cp, nil
 }
 
-var dsn_regexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
+var dsnRegexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
 
 // ParseDSN parses a database DSN (data source name) into a ConnConfig
 //
@@ -462,7 +462,7 @@ var dsn_regexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
 func ParseDSN(s string) (ConnConfig, error) {
 	var cp ConnConfig
 
-	m := dsn_regexp.FindAllStringSubmatch(s, -1)
+	m := dsnRegexp.FindAllStringSubmatch(s, -1)
 
 	var sslmode string
 
@@ -477,11 +477,11 @@ func ParseDSN(s string) (ConnConfig, error) {
 		case "host":
 			cp.Host = b[2]
 		case "port":
-			if p, err := strconv.ParseUint(b[2], 10, 16); err != nil {
+			p, err := strconv.ParseUint(b[2], 10, 16)
+			if err != nil {
 				return cp, err
-			} else {
-				cp.Port = uint16(p)
 			}
+			cp.Port = uint16(p)
 		case "dbname":
 			cp.Database = b[2]
 		case "sslmode":
@@ -627,7 +627,7 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 
 	if opts != nil {
 		if len(opts.ParameterOids) > 65535 {
-			return nil, errors.New(fmt.Sprintf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids)))
+			return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
 		}
 		wbuf.WriteInt16(int16(len(opts.ParameterOids)))
 		for _, oid := range opts.ParameterOids {
