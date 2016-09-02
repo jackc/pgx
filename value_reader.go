@@ -74,6 +74,20 @@ func (r *ValueReader) ReadInt32() int32 {
 	return r.mr.readInt32()
 }
 
+func (r *ValueReader) ReadUint32() uint32 {
+	if r.err != nil {
+		return 0
+	}
+
+	r.valueBytesRemaining -= 4
+	if r.valueBytesRemaining < 0 {
+		r.Fatal(errors.New("read past end of value"))
+		return 0
+	}
+
+	return r.mr.readUint32()
+}
+
 func (r *ValueReader) ReadInt64() int64 {
 	if r.err != nil {
 		return 0
@@ -89,7 +103,7 @@ func (r *ValueReader) ReadInt64() int64 {
 }
 
 func (r *ValueReader) ReadOid() Oid {
-	return Oid(r.ReadInt32())
+	return Oid(r.ReadUint32())
 }
 
 // ReadString reads count bytes and returns as string

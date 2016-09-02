@@ -551,6 +551,39 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 }
 
+func TestOid(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql   string
+		value pgx.Oid
+	}{
+		{"select $1::oid", 0},
+		{"select $1::oid", 1},
+		{"select $1::oid", 4294967295},
+	}
+
+	for i, tt := range tests {
+		expected := tt.value
+		var actual pgx.Oid
+
+		err := conn.QueryRow(tt.sql, expected).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, expected)
+			continue
+		}
+
+		if actual != expected {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, expected, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestNullX(t *testing.T) {
 	t.Parallel()
 

@@ -53,7 +53,7 @@ func (s *startupMessage) Bytes() (buf []byte) {
 	return buf
 }
 
-type Oid int32
+type Oid uint32
 
 type FieldDescription struct {
 	Name            string
