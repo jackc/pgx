@@ -1299,19 +1299,19 @@ func decodeInt4(vr *ValueReader) int32 {
 func decodeOid(vr *ValueReader) Oid {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into Oid"))
-		return 0
+		return Oid(0)
 	}
 
 	if vr.Type().DataType != OidOid {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into pgx.Oid", vr.Type().DataType)))
-		return 0
+		return Oid(0)
 	}
 
 	// Oid needs to decode text format because it is used in loadPgTypes
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
 		s := vr.ReadString(vr.Len())
-		n, err := strconv.ParseInt(s, 10, 32)
+		n, err := strconv.ParseUint(s, 10, 32)
 		if err != nil {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid Oid: %v", s)))
 		}
@@ -1319,7 +1319,7 @@ func decodeOid(vr *ValueReader) Oid {
 	case BinaryFormatCode:
 		if vr.Len() != 4 {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an Oid: %d", vr.Len())))
-			return 0
+			return Oid(0)
 		}
 		return Oid(vr.ReadInt32())
 	default:
@@ -1334,7 +1334,7 @@ func encodeOid(w *WriteBuf, oid Oid, value Oid) error {
 	}
 
 	w.WriteInt32(4)
-	w.WriteInt32(int32(value))
+	w.WriteUint32(uint32(value))
 
 	return nil
 }
