@@ -329,9 +329,23 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 	return encodeInt32(w, oid, n.Int32)
 }
 
+// Xid is PostgreSQL's Transaction ID type.
+//
+// In later versions of PostgreSQL, it is the type used for the backend_xid
+// and backend_xmin columns of the pg_stat_activity system view.
+//
+// Also, when one does
+//
+// 	select xmin, xmax, * from some_table;
+//
+// it is the data type of the xmin and xmax hidden system columns.
+//
+// It is currently implemented as an unsigned for byte integer.
+// Its definition can be found in src/include/postgres_ext.h as TransactionId
+// in the PostgreSQL sources.
 type Xid uint32
 
-// NullXid represents a transaction ID (Xid) that may be null. NullXid implements the
+// NullXid represents a Transaction ID (Xid) that may be null. NullXid implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan.
 //
