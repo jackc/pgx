@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixes
+
+* Oid underlying type changed to uint32, previously it was incorrectly int32
+
 # 2.9.0 (August 26, 2016)
 
 ## Fixes
