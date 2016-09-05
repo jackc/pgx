@@ -53,6 +53,10 @@ func (s *startupMessage) Bytes() (buf []byte) {
 	return buf
 }
 
+// Oid (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
+// used internally by PostgreSQL as a primary key for various system tables. It is currently implemented
+// as an unsigned four-byte integer. Its definition can be found in src/include/postgres_ext.h
+// in the PostgreSQL sources.
 type Oid uint32
 
 type FieldDescription struct {
@@ -140,7 +144,7 @@ func (wb *WriteBuf) WriteInt32(n int32) {
 
 func (wb *WriteBuf) WriteUint32(n uint32) {
 	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, uint32(n))
+	binary.BigEndian.PutUint32(b, n)
 	wb.buf = append(wb.buf, b...)
 }
 
