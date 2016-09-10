@@ -22,6 +22,7 @@ const (
 	Int4Oid             = 23
 	TextOid             = 25
 	OidOid              = 26
+	TidOid              = 27
 	XidOid              = 28
 	CidOid              = 29
 	JsonOid             = 114
@@ -95,6 +96,7 @@ func init() {
 		"int4":         BinaryFormatCode,
 		"int8":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
+		"tid":          BinaryFormatCode,
 		"xid":          BinaryFormatCode,
 		"cid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
