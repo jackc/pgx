@@ -340,7 +340,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 //
 // it is the data type of the xmin and xmax hidden system columns.
 //
-// It is currently implemented as an unsigned for byte integer.
+// It is currently implemented as an unsigned four byte integer.
 // Its definition can be found in src/include/postgres_ext.h as TransactionId
 // in the PostgreSQL sources.
 type Xid uint32
