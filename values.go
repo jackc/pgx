@@ -453,7 +453,7 @@ func (n NullCid) Encode(w *WriteBuf, oid Oid) error {
 // Its conversion functions can be found in src/backend/utils/adt/tid.c
 // in the PostgreSQL sources.
 type Tid struct {
-	BlockNumber  uint16
+	BlockNumber  uint32
 	OffsetNumber uint16
 }
 
@@ -473,7 +473,7 @@ func (n *NullTid) Scan(vr *ValueReader) error {
 	}
 
 	if vr.Len() == -1 {
-		n.Tid, n.Valid = 0, false
+		n.Tid, n.Valid = Tid{BlockNumber: 0, OffsetNumber: 0}, false
 		return nil
 	}
 	n.Valid = true
@@ -1639,13 +1639,13 @@ func decodeTid(vr *ValueReader) Tid {
 		if err != nil {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid offsetNumber part of a Tid: %v", s)))
 		}
-		return Tid{BlockNumber: blockNumber, OffsetNumber: offsetNumber}
+		return Tid{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber)}
 	case BinaryFormatCode:
-		if vr.Len() != 4 {
+		if vr.Len() != 6 {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an Oid: %d", vr.Len())))
 			return Tid{BlockNumber: 0, OffsetNumber: 0}
 		}
-		return Tid{BlockNumber: vr.ReadUint16(), OffsetNumber: vr.ReadUint16()}
+		return Tid{BlockNumber: vr.ReadUint32(), OffsetNumber: vr.ReadUint16()}
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return Tid{BlockNumber: 0, OffsetNumber: 0}
@@ -1657,9 +1657,9 @@ func encodeTid(w *WriteBuf, oid Oid, value Tid) error {
 		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Tid", oid)
 	}
 
-	w.WriteInt32(4)
-	w.WriteUint16(uint16(value.BlockNumber))
-	w.WriteUint16(uint16(value.OffsetNumber))
+	w.WriteInt32(6)
+	w.WriteUint32(value.BlockNumber)
+	w.WriteUint16(value.OffsetNumber)
 
 	return nil
 }
