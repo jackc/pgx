@@ -8,6 +8,7 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -1603,6 +1604,10 @@ func encodeCid(w *WriteBuf, oid Oid, value Cid) error {
 	return nil
 }
 
+// Note that we do not match negative numbers, because neither the
+// BlockNumber nor OffsetNumber of a Tid can be negative.
+var tidRegexp *regexp.Regexp = regexp.MustCompile(`^\((\d*),(\d*)\)$`)
+
 func decodeTid(vr *ValueReader) Tid {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into Tid"))
@@ -1616,13 +1621,25 @@ func decodeTid(vr *ValueReader) Tid {
 
 	// Unlikely Tid will ever go over the wire as text format, but who knows?
 	switch vr.Type().FormatCode {
-	case TextFormatCode: // XXX: not done yet src/backend/utils/adt/tid.c for hints; s already contains the string, so we just have to parse out (uint16,uint16)
+	case TextFormatCode:
 		s := vr.ReadString(vr.Len())
-		n, err := strconv.ParseUint(s, 10, 32)
-		if err != nil {
+
+		match := tidRegexp.FindStringSubmatch(s)
+		if match == nil {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid Oid: %v", s)))
+			return Tid{BlockNumber: 0, OffsetNumber: 0}
 		}
-		return Tid(n)
+
+		blockNumber, err := strconv.ParseUint(s, 10, 16)
+		if err != nil {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid BlockNumber part of a Tid: %v", s)))
+		}
+
+		offsetNumber, err := strconv.ParseUint(s, 10, 16)
+		if err != nil {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid offsetNumber part of a Tid: %v", s)))
+		}
+		return Tid{BlockNumber: blockNumber, OffsetNumber: offsetNumber}
 	case BinaryFormatCode:
 		if vr.Len() != 4 {
 			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an Oid: %d", vr.Len())))
@@ -1641,7 +1658,8 @@ func encodeTid(w *WriteBuf, oid Oid, value Tid) error {
 	}
 
 	w.WriteInt32(4)
-	w.WriteUint32(uint32(value))
+	w.WriteUint16(uint16(value.BlockNumber))
+	w.WriteUint16(uint16(value.OffsetNumber))
 
 	return nil
 }
