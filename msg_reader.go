@@ -137,6 +137,34 @@ func (r *msgReader) readInt32() int32 {
 	return n
 }
 
+func (r *msgReader) readUint16() uint16 {
+	if r.err != nil {
+		return 0
+	}
+
+	r.msgBytesRemaining -= 2
+	if r.msgBytesRemaining < 0 {
+		r.fatal(errors.New("read past end of message"))
+		return 0
+	}
+
+	b, err := r.reader.Peek(2)
+	if err != nil {
+		r.fatal(err)
+		return 0
+	}
+
+	n := uint16(binary.BigEndian.Uint16(b))
+
+	r.reader.Discard(2)
+
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readUint16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	}
+
+	return n
+}
+
 func (r *msgReader) readUint32() uint32 {
 	if r.err != nil {
 		return 0
