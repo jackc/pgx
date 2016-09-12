@@ -22,6 +22,7 @@ const (
 	Int4Oid             = 23
 	TextOid             = 25
 	OidOid              = 26
+	XidOid              = 28
 	JsonOid             = 114
 	CidrOid             = 650
 	CidrArrayOid        = 651
@@ -93,6 +94,7 @@ func init() {
 		"int4":         BinaryFormatCode,
 		"int8":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
+		"xid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
 		"text":         BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
@@ -325,6 +327,61 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	return encodeInt32(w, oid, n.Int32)
+}
+
+// Xid is PostgreSQL's Transaction ID type.
+//
+// In later versions of PostgreSQL, it is the type used for the backend_xid
+// and backend_xmin columns of the pg_stat_activity system view.
+//
+// Also, when one does
+//
+// 	select xmin, xmax, * from some_table;
+//
+// it is the data type of the xmin and xmax hidden system columns.
+//
+// It is currently implemented as an unsigned four byte integer.
+// Its definition can be found in src/include/postgres_ext.h as TransactionId
+// in the PostgreSQL sources.
+type Xid uint32
+
+// NullXid represents a Transaction ID (Xid) that may be null. NullXid implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
+//
+// If Valid is false then the value is NULL.
+type NullXid struct {
+	Xid   Xid
+	Valid bool // Valid is true if Int32 is not NULL
+}
+
+func (n *NullXid) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != XidOid {
+		return SerializationError(fmt.Sprintf("NullXid.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.Xid, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Xid = decodeXid(vr)
+	return vr.Err()
+}
+
+func (n NullXid) FormatCode() int16 { return BinaryFormatCode }
+
+func (n NullXid) Encode(w *WriteBuf, oid Oid) error {
+	if oid != XidOid {
+		return SerializationError(fmt.Sprintf("NullXid.Encode cannot encode into OID %d", oid))
+	}
+
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeXid(w, oid, n.Xid)
 }
 
 // NullInt64 represents an bigint that may be null. NullInt64 implements the
@@ -691,6 +748,8 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeIPNetSlice(wbuf, oid, arg)
 	case Oid:
 		return encodeOid(wbuf, oid, arg)
+	case Xid:
+		return encodeXid(wbuf, oid, arg)
 	default:
 		if strippedArg, ok := stripNamedType(&refVal); ok {
 			return Encode(wbuf, oid, strippedArg)
@@ -815,6 +874,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = uint64(n)
 	case *Oid:
 		*v = decodeOid(vr)
+	case *Xid:
+		*v = decodeXid(vr)
 	case *string:
 		*v = decodeText(vr)
 	case *float32:
@@ -1331,6 +1392,49 @@ func decodeOid(vr *ValueReader) Oid {
 func encodeOid(w *WriteBuf, oid Oid, value Oid) error {
 	if oid != OidOid {
 		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Oid", oid)
+	}
+
+	w.WriteInt32(4)
+	w.WriteUint32(uint32(value))
+
+	return nil
+}
+
+func decodeXid(vr *ValueReader) Xid {
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into Xid"))
+		return Xid(0)
+	}
+
+	if vr.Type().DataType != XidOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into pgx.Xid", vr.Type().DataType)))
+		return Xid(0)
+	}
+
+	// Unlikely Xid will ever go over the wire as text format, but who knows?
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		s := vr.ReadString(vr.Len())
+		n, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid Oid: %v", s)))
+		}
+		return Xid(n)
+	case BinaryFormatCode:
+		if vr.Len() != 4 {
+			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an Oid: %d", vr.Len())))
+			return Xid(0)
+		}
+		return Xid(vr.ReadUint32())
+	default:
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return Xid(0)
+	}
+}
+
+func encodeXid(w *WriteBuf, oid Oid, value Xid) error {
+	if oid != XidOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Xid", oid)
 	}
 
 	w.WriteInt32(4)
