@@ -60,6 +60,20 @@ func (r *ValueReader) ReadInt16() int16 {
 	return r.mr.readInt16()
 }
 
+func (r *ValueReader) ReadUint16() uint16 {
+	if r.err != nil {
+		return 0
+	}
+
+	r.valueBytesRemaining -= 2
+	if r.valueBytesRemaining < 0 {
+		r.Fatal(errors.New("read past end of value"))
+		return 0
+	}
+
+	return r.mr.readUint16()
+}
+
 func (r *ValueReader) ReadInt32() int32 {
 	if r.err != nil {
 		return 0

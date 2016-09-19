@@ -136,6 +136,12 @@ func (wb *WriteBuf) WriteInt16(n int16) {
 	wb.buf = append(wb.buf, b...)
 }
 
+func (wb *WriteBuf) WriteUint16(n uint16) {
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, n)
+	wb.buf = append(wb.buf, b...)
+}
+
 func (wb *WriteBuf) WriteInt32(n int32) {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, uint32(n))
