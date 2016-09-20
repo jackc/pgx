@@ -69,7 +69,8 @@ const minInt = -maxInt - 1
 // or binary). In theory the Scanner interface should be the one to determine
 // the format of the returned values. However, the query has already been
 // executed by the time Scan is called so it has no chance to set the format.
-// So for types that should be returned in binary th
+// So for types that should always be returned in binary the format should be
+// set here.
 var DefaultTypeFormats map[string]int16
 
 func init() {
