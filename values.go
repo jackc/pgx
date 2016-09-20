@@ -263,7 +263,7 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 // "char" type more akin to the C language's char type, or Go's byte type.
 // (Note that the name in PostgreSQL itself is "char", in double-quotes,
 // and not char.) It gets used a lot in PostgreSQL's system tables to hold
-// a single ASCII character value.
+// a single ASCII character value (eg pg_class.relkind).
 type Char byte
 
 // NullChar represents a pgx.Char that may be null. NullChar implements the
