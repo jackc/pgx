@@ -383,6 +383,51 @@ func (n NullInt32) Encode(w *WriteBuf, oid Oid) error {
 	return encodeInt32(w, oid, n.Int32)
 }
 
+// Oid (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
+// used internally by PostgreSQL as a primary key for various system tables. It is currently implemented
+// as an unsigned four-byte integer. Its definition can be found in src/include/postgres_ext.h
+// in the PostgreSQL sources.
+type Oid uint32
+
+// NullOid represents a Command Identifier (Oid) that may be null. NullOid implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan.
+//
+// If Valid is false then the value is NULL.
+type NullOid struct {
+	Oid   Oid
+	Valid bool // Valid is true if Oid is not NULL
+}
+
+func (n *NullOid) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != OidOid {
+		return SerializationError(fmt.Sprintf("NullOid.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.Oid, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Oid = decodeOid(vr)
+	return vr.Err()
+}
+
+func (n NullOid) FormatCode() int16 { return BinaryFormatCode }
+
+func (n NullOid) Encode(w *WriteBuf, oid Oid) error {
+	if oid != OidOid {
+		return SerializationError(fmt.Sprintf("NullOid.Encode cannot encode into OID %d", oid))
+	}
+
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeOid(w, oid, n.Oid)
+}
+
 // Xid is PostgreSQL's Transaction ID type.
 //
 // In later versions of PostgreSQL, it is the type used for the backend_xid
@@ -406,7 +451,7 @@ type Xid uint32
 // If Valid is false then the value is NULL.
 type NullXid struct {
 	Xid   Xid
-	Valid bool // Valid is true if Int32 is not NULL
+	Valid bool // Valid is true if Xid is not NULL
 }
 
 func (n *NullXid) Scan(vr *ValueReader) error {
@@ -458,7 +503,7 @@ type Cid uint32
 // If Valid is false then the value is NULL.
 type NullCid struct {
 	Cid   Cid
-	Valid bool // Valid is true if Int32 is not NULL
+	Valid bool // Valid is true if Cid is not NULL
 }
 
 func (n *NullCid) Scan(vr *ValueReader) error {
@@ -513,7 +558,7 @@ type Tid struct {
 // If Valid is false then the value is NULL.
 type NullTid struct {
 	Tid   Tid
-	Valid bool // Valid is true if Int32 is not NULL
+	Valid bool // Valid is true if Tid is not NULL
 }
 
 func (n *NullTid) Scan(vr *ValueReader) error {
