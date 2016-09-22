@@ -37,6 +37,9 @@ before_script:
   - psql -U postgres -c "create user pgx_md5 SUPERUSER PASSWORD 'secret'"
   - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
 
+install:
+  - go get -u github.com/shopspring/decimal
+
 script:
   - go test -v -race -short ./...
 
