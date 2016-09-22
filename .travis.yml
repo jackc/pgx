@@ -39,6 +39,7 @@ before_script:
 
 install:
   - go get -u github.com/shopspring/decimal
+  - go get -u gopkg.in/inconshreveable/log15.v2
 
 script:
   - go test -v -race -short ./...
