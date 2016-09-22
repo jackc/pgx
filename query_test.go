@@ -1282,7 +1282,7 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 	}
 	var num decimal.Decimal
 
-	err = conn.QueryRow("select $1::decimal", expected).Scan(&num)
+	err = conn.QueryRow("select $1::decimal", &expected).Scan(&num)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
