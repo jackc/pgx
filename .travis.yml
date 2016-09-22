@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.6.2
-  - 1.5.2
+  - 1.7.1
+  - 1.6.3
   - tip
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
