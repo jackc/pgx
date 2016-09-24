@@ -18,6 +18,7 @@ import (
 const (
 	BoolOid             = 16
 	ByteaOid            = 17
+	CharOid             = 18
 	Int8Oid             = 20
 	Int2Oid             = 21
 	Int4Oid             = 23
@@ -89,6 +90,7 @@ func init() {
 		"_varchar":     BinaryFormatCode,
 		"bool":         BinaryFormatCode,
 		"bytea":        BinaryFormatCode,
+		"char":         BinaryFormatCode,
 		"cidr":         BinaryFormatCode,
 		"date":         BinaryFormatCode,
 		"float4":       BinaryFormatCode,
@@ -257,7 +259,53 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	return encodeString(w, oid, n.String)
 }
 
-// NullInt16 represents an smallint that may be null. NullInt16 implements the
+// The pgx.Char type is for PostgreSQL's special 8-bit-only
+// "char" type more akin to the C language's char type, or Go's byte type.
+// (Note that the name in PostgreSQL itself is "char", in double-quotes,
+// and not char.) It gets used a lot in PostgreSQL's system tables to hold
+// a single ASCII character value (eg pg_class.relkind).
+type Char byte
+
+// NullChar represents a pgx.Char that may be null. NullChar implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullChar struct {
+	Char  Char
+	Valid bool // Valid is true if Char is not NULL
+}
+
+func (n *NullChar) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != CharOid {
+		return SerializationError(fmt.Sprintf("NullChar.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.Char, n.Valid = 0, false
+		return nil
+	}
+	n.Valid = true
+	n.Char = decodeChar(vr)
+	return vr.Err()
+}
+
+func (n NullChar) FormatCode() int16 { return BinaryFormatCode }
+
+func (n NullChar) Encode(w *WriteBuf, oid Oid) error {
+	if oid != CharOid {
+		return SerializationError(fmt.Sprintf("NullChar.Encode cannot encode into OID %d", oid))
+	}
+
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeChar(w, oid, n.Char)
+}
+
+// NullInt16 represents a smallint that may be null. NullInt16 implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan for prepared and unprepared queries.
 //
@@ -811,6 +859,8 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeInt(wbuf, oid, arg)
 	case uint:
 		return encodeUInt(wbuf, oid, arg)
+	case Char:
+		return encodeChar(wbuf, oid, arg)
 	case int8:
 		return encodeInt8(wbuf, oid, arg)
 	case uint8:
@@ -987,6 +1037,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 			return fmt.Errorf("%d is less than zero for uint64", n)
 		}
 		*v = uint64(n)
+	case *Char:
+		*v = decodeChar(vr)
 	case *Oid:
 		*v = decodeOid(vr)
 	case *Xid:
@@ -1186,6 +1238,30 @@ func decodeInt8(vr *ValueReader) int64 {
 	return vr.ReadInt64()
 }
 
+func decodeChar(vr *ValueReader) Char {
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into char"))
+		return Char(0)
+	}
+
+	if vr.Type().DataType != CharOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into char", vr.Type().DataType)))
+		return Char(0)
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return Char(0)
+	}
+
+	if vr.Len() != 1 {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for a char: %d", vr.Len())))
+		return Char(0)
+	}
+
+	return Char(vr.ReadByte())
+}
+
 func decodeInt2(vr *ValueReader) int16 {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into int16"))
@@ -1268,6 +1344,12 @@ func encodeUInt(w *WriteBuf, oid Oid, value uint) error {
 		return fmt.Errorf("cannot encode %s into oid %v", "uint8", oid)
 	}
 
+	return nil
+}
+
+func encodeChar(w *WriteBuf, oid Oid, value Char) error {
+	w.WriteInt32(1)
+	w.WriteByte(byte(value))
 	return nil
 }
 
