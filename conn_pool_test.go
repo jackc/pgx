@@ -366,12 +366,12 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to Acquire: %v", err)
 		}
-		rows, _ := c.Query("select 1")
+		rows, _ := c.Query("select 1, pg_sleep(0.02)")
 		rows.Close()
 		pool.Release(c)
 	}
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		doSomething()
 	}
 
@@ -381,7 +381,7 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
