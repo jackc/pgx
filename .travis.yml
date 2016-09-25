@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.6.2
-  - 1.5.2
+  - 1.7.1
+  - 1.6.3
   - tip
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
@@ -36,6 +36,11 @@ before_script:
   - psql -U postgres -c "create user pgx_ssl SUPERUSER PASSWORD 'secret'"
   - psql -U postgres -c "create user pgx_md5 SUPERUSER PASSWORD 'secret'"
   - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
+
+install:
+  - go get -u github.com/shopspring/decimal
+  - go get -u gopkg.in/inconshreveable/log15.v2
+  - go get -u github.com/jackc/fake
 
 script:
   - go test -v -race -short ./...
