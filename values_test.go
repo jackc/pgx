@@ -551,39 +551,6 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 }
 
-func TestOid(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	tests := []struct {
-		sql   string
-		value pgx.Oid
-	}{
-		{"select $1::oid", 0},
-		{"select $1::oid", 1},
-		{"select $1::oid", 4294967295},
-	}
-
-	for i, tt := range tests {
-		expected := tt.value
-		var actual pgx.Oid
-
-		err := conn.QueryRow(tt.sql, expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, expected)
-			continue
-		}
-
-		if actual != expected {
-			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, expected, actual, tt.sql)
-		}
-
-		ensureConnValid(t, conn)
-	}
-}
-
 func TestNullX(t *testing.T) {
 	t.Parallel()
 
@@ -595,6 +562,7 @@ func TestNullX(t *testing.T) {
 		i16 pgx.NullInt16
 		i32 pgx.NullInt32
 		c   pgx.NullChar
+		oid pgx.NullOid
 		xid pgx.NullXid
 		cid pgx.NullCid
 		tid pgx.NullTid
@@ -619,6 +587,9 @@ func TestNullX(t *testing.T) {
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: false}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 0, Valid: false}}},
+		{"select $1::oid", []interface{}{pgx.NullOid{Oid: 1, Valid: true}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOid{Oid: 1, Valid: true}}},
+		{"select $1::oid", []interface{}{pgx.NullOid{Oid: 1, Valid: false}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOid{Oid: 0, Valid: false}}},
+		{"select $1::oid", []interface{}{pgx.NullOid{Oid: 4294967295, Valid: true}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOid{Oid: 4294967295, Valid: true}}},
 		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 1, Valid: true}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 1, Valid: true}}},
 		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 1, Valid: false}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 0, Valid: false}}},
 		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 4294967295, Valid: true}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 4294967295, Valid: true}}},
