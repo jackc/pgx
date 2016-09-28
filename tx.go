@@ -159,12 +159,12 @@ func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 // CopyTo delegates to the underlying *Conn
-func (tx *Tx) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
+func (tx *Tx) CopyTo(schemaName string, tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
 	if tx.status != TxStatusInProgress {
 		return 0, ErrTxClosed
 	}
 
-	return tx.conn.CopyTo(tableName, columnNames, rowSrc)
+	return tx.conn.CopyTo(schemaName, tableName, columnNames, rowSrc)
 }
 
 // Conn returns the *Conn this transaction is using.
