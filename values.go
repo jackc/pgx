@@ -287,7 +287,7 @@ func (n Name) LengthOK() bool {
 // If Valid is false then the value is NULL.
 type NullName struct {
 	Name  Name
-	Valid bool // Valid is true if Char is not NULL
+	Valid bool // Valid is true if Name is not NULL
 }
 
 func (n *NullName) Scan(vr *ValueReader) error {
