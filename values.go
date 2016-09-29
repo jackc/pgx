@@ -19,6 +19,7 @@ const (
 	BoolOid             = 16
 	ByteaOid            = 17
 	CharOid             = 18
+	NameOid             = 19
 	Int8Oid             = 20
 	Int2Oid             = 21
 	Int4Oid             = 23
@@ -65,6 +66,12 @@ const maxUint = ^uint(0)
 const maxInt = int(maxUint >> 1)
 const minInt = -maxInt - 1
 
+// NameDataLen is the same as PostgreSQL's NAMEDATALEN, defined in
+// src/include/pg_config_manual.h. It is how many bytes long identifiers
+// are allowed to be, including the trailing '\0' at the end of C strings.
+// (Identifieres are table names, column names, function names, etc.)
+const NameDataLen = 64
+
 // DefaultTypeFormats maps type names to their default requested format (text
 // or binary). In theory the Scanner interface should be the one to determine
 // the format of the returned values. However, the query has already been
@@ -91,6 +98,7 @@ func init() {
 		"bool":         BinaryFormatCode,
 		"bytea":        BinaryFormatCode,
 		"char":         BinaryFormatCode,
+		"name":         BinaryFormatCode,
 		"cidr":         BinaryFormatCode,
 		"date":         BinaryFormatCode,
 		"float4":       BinaryFormatCode,
@@ -257,6 +265,55 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	return encodeString(w, oid, n.String)
+}
+
+// The pgx.Name type is for PostgreSQL's special 63-byte
+// name data type, used for identifiers like table names.
+type Name string
+
+// LengthOK is a convenience method that returns false if a name is longer
+// than PostgreSQL will allow. PostgreSQL identifiers are allowed
+// to be 63 bytes long (NAMEDATALEN in the PostgreSQL source code
+// is defined as 64 bytes long, but the 64th char is the '\0' C
+// string terminator.)
+func (n Name) LengthOK() bool {
+	return len(string(n)) < NameDataLen
+}
+
+// NullName represents a pgx.Name that may be null. NullName implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullName struct {
+	Name  Name
+	Valid bool // Valid is true if Char is not NULL
+}
+
+func (n *NullName) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != NameOid {
+		return SerializationError(fmt.Sprintf("NullName.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.Name, n.Valid = "", false
+		return nil
+	}
+
+	n.Valid = true
+	n.Name = Name(decodeText(vr))
+	return vr.Err()
+}
+
+func (n NullName) FormatCode() int16 { return TextFormatCode }
+
+func (n NullName) Encode(w *WriteBuf, oid Oid) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeString(w, oid, string(n.Name))
 }
 
 // The pgx.Char type is for PostgreSQL's special 8-bit-only
@@ -906,6 +963,10 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeUInt(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
+	case Name:
+		// The name data type goes over the wire using the same format as string,
+		// so just cast to string and use encodeString
+		return encodeString(wbuf, oid, string(arg))
 	case int8:
 		return encodeInt8(wbuf, oid, arg)
 	case uint8:
@@ -1084,6 +1145,9 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = uint64(n)
 	case *Char:
 		*v = decodeChar(vr)
+	case *Name:
+		// name goes over the wire just like text
+		*v = Name(decodeText(vr))
 	case *Oid:
 		*v = decodeOid(vr)
 	case *Xid:
