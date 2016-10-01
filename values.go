@@ -66,12 +66,6 @@ const maxUint = ^uint(0)
 const maxInt = int(maxUint >> 1)
 const minInt = -maxInt - 1
 
-// NameDataLen is the same as PostgreSQL's NAMEDATALEN, defined in
-// src/include/pg_config_manual.h. It is how many bytes long identifiers
-// are allowed to be, including the trailing '\0' at the end of C strings.
-// (Identifieres are table names, column names, function names, etc.)
-const NameDataLen = 64
-
 // DefaultTypeFormats maps type names to their default requested format (text
 // or binary). In theory the Scanner interface should be the one to determine
 // the format of the returned values. However, the query has already been
@@ -267,18 +261,20 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	return encodeString(w, oid, n.String)
 }
 
-// The pgx.Name type is for PostgreSQL's special 63-byte
+// Name is a type used for PostgreSQL's special 63-byte
 // name data type, used for identifiers like table names.
+// The pg_class.relname column is a good example of where the
+// name data type is used.
+//
+// Note that the underlying Go data type of pgx.Name is string,
+// so there is no way to enforce the 63-byte length. Inputting
+// a longer name into PostgreSQL will result in silent truncation
+// to 63 bytes.
+//
+// Also, if you have custom-compiled PostgreSQL and set
+// NAMEDATALEN to a different value, obviously that number of
+// bytes applies, rather than the default 63.
 type Name string
-
-// LengthOK is a convenience method that returns false if a name is longer
-// than PostgreSQL will allow. PostgreSQL identifiers are allowed
-// to be 63 bytes long (NAMEDATALEN in the PostgreSQL source code
-// is defined as 64 bytes long, but the 64th char is the '\0' C
-// string terminator.)
-func (n Name) LengthOK() bool {
-	return len(string(n)) < NameDataLen
-}
 
 // NullName represents a pgx.Name that may be null. NullName implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to

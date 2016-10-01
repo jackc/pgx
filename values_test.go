@@ -551,28 +551,6 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 }
 
-func TestNameLengthOK(t *testing.T) {
-	tests := []struct {
-		input    pgx.Name
-		expected bool
-	}{
-		{"", true},
-		{"1234", true},
-		{"123456789012345678901234567890123456789012345678901234567890123", true},
-		{"1234567890123456789012345678901234567890123456789012345678901234", false},
-	}
-
-	var actual bool
-
-	for i, tt := range tests {
-		actual = tt.input.LengthOK()
-
-		if actual != tt.expected {
-			t.Errorf("%d. Expected %v, got %v (name -> %v)", i, tt.expected, actual, tt.input)
-		}
-	}
-}
-
 func TestNullX(t *testing.T) {
 	t.Parallel()
 
@@ -621,9 +599,6 @@ func TestNullX(t *testing.T) {
 		{"select $1::\"char\"", []interface{}{pgx.NullChar{Char: 255, Valid: true}}, []interface{}{&actual.c}, allTypes{c: pgx.NullChar{Char: 255, Valid: true}}},
 		{"select $1::name", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "foo", Valid: true}}},
 		{"select $1::name", []interface{}{pgx.NullString{String: "foo", Valid: false}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "", Valid: false}}},
-		// bytes past NameDataLen-1 (63 bytes) get silently truncated by PostgreSQL
-		{"select $1::name", []interface{}{pgx.NullString{String: "1234567890123456789012345678901234567890123456789012345678901234", Valid: true}},
-			[]interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "123456789012345678901234567890123456789012345678901234567890123", Valid: true}}},
 		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 1, Valid: true}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 1, Valid: true}}},
 		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 1, Valid: false}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 0, Valid: false}}},
 		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 4294967295, Valid: true}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 4294967295, Valid: true}}},
