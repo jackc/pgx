@@ -92,24 +92,26 @@ func init() {
 		"bool":         BinaryFormatCode,
 		"bytea":        BinaryFormatCode,
 		"char":         BinaryFormatCode,
-		"name":         BinaryFormatCode,
+		"cid":          BinaryFormatCode,
 		"cidr":         BinaryFormatCode,
 		"date":         BinaryFormatCode,
 		"float4":       BinaryFormatCode,
 		"float8":       BinaryFormatCode,
+		"json":         BinaryFormatCode,
+		"jsonb":        BinaryFormatCode,
 		"inet":         BinaryFormatCode,
 		"int2":         BinaryFormatCode,
 		"int4":         BinaryFormatCode,
 		"int8":         BinaryFormatCode,
+		"name":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
-		"tid":          BinaryFormatCode,
-		"xid":          BinaryFormatCode,
-		"cid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
 		"text":         BinaryFormatCode,
+		"tid":          BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
 		"timestamptz":  BinaryFormatCode,
 		"varchar":      BinaryFormatCode,
+		"xid":          BinaryFormatCode,
 	}
 }
 
@@ -942,8 +944,11 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return Encode(wbuf, oid, arg)
 	}
 
-	if oid == JsonOid || oid == JsonbOid {
+	if oid == JsonOid {
 		return encodeJSON(wbuf, oid, arg)
+	}
+	if oid == JsonbOid {
+		return encodeJSONB(wbuf, oid, arg)
 	}
 
 	switch arg := arg.(type) {
@@ -1974,7 +1979,7 @@ func decodeJSON(vr *ValueReader, d interface{}) error {
 		return nil
 	}
 
-	if vr.Type().DataType != JsonOid && vr.Type().DataType != JsonbOid {
+	if vr.Type().DataType != JsonOid {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
 	}
 
@@ -1987,7 +1992,7 @@ func decodeJSON(vr *ValueReader, d interface{}) error {
 }
 
 func encodeJSON(w *WriteBuf, oid Oid, value interface{}) error {
-	if oid != JsonOid && oid != JsonbOid {
+	if oid != JsonOid {
 		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}
 
@@ -1997,6 +2002,44 @@ func encodeJSON(w *WriteBuf, oid Oid, value interface{}) error {
 	}
 
 	w.WriteInt32(int32(len(s)))
+	w.WriteBytes(s)
+
+	return nil
+}
+
+func decodeJSONB(vr *ValueReader, d interface{}) error {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().DataType != JsonbOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into jsonb", vr.Type().DataType)))
+	}
+
+	bytes := vr.ReadBytes(vr.Len())
+	if bytes[0] != 1 {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0])))
+	}
+
+	err := json.Unmarshal(bytes[1:], d)
+	if err != nil {
+		vr.Fatal(err)
+	}
+	return err
+}
+
+func encodeJSONB(w *WriteBuf, oid Oid, value interface{}) error {
+	if oid != JsonbOid {
+		return fmt.Errorf("cannot encode JSON into oid %v", oid)
+	}
+
+	s, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("Failed to encode json from type: %T", value)
+	}
+
+	w.WriteInt32(int32(len(s) + 1))
+	w.WriteByte(1) // JSONB format header
 	w.WriteBytes(s)
 
 	return nil

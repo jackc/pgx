@@ -119,6 +119,61 @@ func TestConnCopyToLarge(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnCopyToJSON(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
+		if _, ok := conn.PgTypes[oid]; !ok {
+			return // No JSON/JSONB type -- must be running against old PostgreSQL
+		}
+	}
+
+	mustExec(t, conn, `create temporary table foo(
+		a json,
+		b jsonb
+	)`)
+
+	inputRows := [][]interface{}{
+		{map[string]interface{}{"foo": "bar"}, map[string]interface{}{"bar": "quz"}},
+		{nil, nil},
+	}
+
+	copyCount, err := conn.CopyTo("foo", []string{"a", "b"}, pgx.CopyToRows(inputRows))
+	if err != nil {
+		t.Errorf("Unexpected error for CopyTo: %v", err)
+	}
+	if copyCount != len(inputRows) {
+		t.Errorf("Expected CopyTo to return %d copied rows, but got %d", len(inputRows), copyCount)
+	}
+
+	rows, err := conn.Query("select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnCopyToFailServerSideMidway(t *testing.T) {
 	t.Parallel()
 
