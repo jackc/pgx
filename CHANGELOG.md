@@ -12,6 +12,7 @@
 * Add "char" type support (Manni Wood)
 * Add NullOid type (Manni Wood)
 * Add json/jsonb binary support to allow use with CopyTo
+* Add named error ErrAcquireTimeout (Alexander Staubo)
 
 # 2.9.0 (August 26, 2016)
 
