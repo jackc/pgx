@@ -40,6 +40,9 @@ type ConnPoolStat struct {
 	AvailableConnections int // unused live connections
 }
 
+// ErrAcquireTimeout occurs when an attempt to acquire a connection times out.
+var ErrAcquireTimeout = errors.New("timeout acquiring connection from pool")
+
 // NewConnPool creates a new ConnPool. config.ConnConfig is passed through to
 // Connect directly.
 func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
@@ -131,7 +134,7 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 
 	// Make sure the deadline (if it is) has not passed yet
 	if p.deadlinePassed(deadline) {
-		return nil, errors.New("Timeout: Acquire connection timeout")
+		return nil, ErrAcquireTimeout
 	}
 
 	// If there is a deadline then start a timeout timer
@@ -164,7 +167,7 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	// Wait until there is an available connection OR room to create a new connection
 	for len(p.availableConnections) == 0 && len(p.allConnections)+p.inProgressConnects == p.maxConnections {
 		if p.deadlinePassed(deadline) {
-			return nil, errors.New("Timeout: All connections in pool are busy")
+			return nil, ErrAcquireTimeout
 		}
 		p.cond.Wait()
 	}

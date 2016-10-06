@@ -276,8 +276,8 @@ func TestPoolWithAcquireTimeoutSet(t *testing.T) {
 	// ... then try to consume 1 more. It should fail after a short timeout.
 	_, timeTaken, err := acquireWithTimeTaken(pool)
 
-	if err == nil || err.Error() != "Timeout: All connections in pool are busy" {
-		t.Fatalf("Expected error to be 'Timeout: All connections in pool are busy', instead it was '%v'", err)
+	if err == nil || err != pgx.ErrAcquireTimeout {
+		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
 	if timeTaken < connAllocTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
