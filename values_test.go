@@ -1098,11 +1098,11 @@ func TestRowDecode(t *testing.T) {
 		expected []interface{}
 	}{
 		{
-			"select row(1, 'cat', '2015-01-01 08:12:42'::timestamptz)",
+			"select row(1, 'cat', '2015-01-01 08:12:42-00'::timestamptz)",
 			[]interface{}{
 				int32(1),
 				"cat",
-				time.Date(2015, 1, 1, 8, 12, 42, 0, time.Local),
+				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
 			},
 		},
 	}
