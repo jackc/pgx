@@ -19,6 +19,7 @@ const (
 	BoolOid             = 16
 	ByteaOid            = 17
 	CharOid             = 18
+	NameOid             = 19
 	Int8Oid             = 20
 	Int2Oid             = 21
 	Int4Oid             = 23
@@ -102,6 +103,7 @@ func init() {
 		"int2":         BinaryFormatCode,
 		"int4":         BinaryFormatCode,
 		"int8":         BinaryFormatCode,
+		"name":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
 		"text":         BinaryFormatCode,
@@ -259,6 +261,57 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	return encodeString(w, oid, n.String)
+}
+
+// Name is a type used for PostgreSQL's special 63-byte
+// name data type, used for identifiers like table names.
+// The pg_class.relname column is a good example of where the
+// name data type is used.
+//
+// Note that the underlying Go data type of pgx.Name is string,
+// so there is no way to enforce the 63-byte length. Inputting
+// a longer name into PostgreSQL will result in silent truncation
+// to 63 bytes.
+//
+// Also, if you have custom-compiled PostgreSQL and set
+// NAMEDATALEN to a different value, obviously that number of
+// bytes applies, rather than the default 63.
+type Name string
+
+// NullName represents a pgx.Name that may be null. NullName implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullName struct {
+	Name  Name
+	Valid bool // Valid is true if Name is not NULL
+}
+
+func (n *NullName) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != NameOid {
+		return SerializationError(fmt.Sprintf("NullName.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.Name, n.Valid = "", false
+		return nil
+	}
+
+	n.Valid = true
+	n.Name = Name(decodeText(vr))
+	return vr.Err()
+}
+
+func (n NullName) FormatCode() int16 { return TextFormatCode }
+
+func (n NullName) Encode(w *WriteBuf, oid Oid) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeString(w, oid, string(n.Name))
 }
 
 // The pgx.Char type is for PostgreSQL's special 8-bit-only
@@ -911,6 +964,10 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeUInt(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
+	case Name:
+		// The name data type goes over the wire using the same format as string,
+		// so just cast to string and use encodeString
+		return encodeString(wbuf, oid, string(arg))
 	case int8:
 		return encodeInt8(wbuf, oid, arg)
 	case uint8:
@@ -1089,6 +1146,9 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = uint64(n)
 	case *Char:
 		*v = decodeChar(vr)
+	case *Name:
+		// name goes over the wire just like text
+		*v = Name(decodeText(vr))
 	case *Oid:
 		*v = decodeOid(vr)
 	case *Xid:
