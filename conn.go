@@ -209,12 +209,21 @@ func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsqlAfInet *byte, pgsql
 		c.config.Dial = (&net.Dialer{KeepAlive: 5 * time.Minute}).Dial
 	}
 
+	if c.shouldLog(LogLevelInfo) {
+		c.log(LogLevelInfo, fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+	}
 	err = c.connect(config, network, address, config.TLSConfig)
 	if err != nil && config.UseFallbackTLS {
+		if c.shouldLog(LogLevelInfo) {
+			c.log(LogLevelInfo, fmt.Sprintf("Connect with TLSConfig failed, trying FallbackTLSConfig: %v", err))
+		}
 		err = c.connect(config, network, address, config.FallbackTLSConfig)
 	}
 
 	if err != nil {
+		if c.shouldLog(LogLevelError) {
+			c.log(LogLevelError, fmt.Sprintf("Connect failed: %v", err))
+		}
 		return nil, err
 	}
 
@@ -222,23 +231,14 @@ func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsqlAfInet *byte, pgsql
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
-	}
 	c.conn, err = c.config.Dial(network, address)
 	if err != nil {
-		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, fmt.Sprintf("Connection failed: %v", err))
-		}
 		return err
 	}
 	defer func() {
 		if c != nil && err != nil {
 			c.conn.Close()
 			c.alive = false
-			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError, err.Error())
-			}
 		}
 	}()
 
@@ -253,9 +253,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			c.log(LogLevelDebug, "Starting TLS handshake")
 		}
 		if err := c.startTLS(tlsConfig); err != nil {
-			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError, fmt.Sprintf("TLS failed: %v", err))
-			}
 			return err
 		}
 	}
