@@ -37,6 +37,7 @@ type ConnConfig struct {
 	LogLevel          int
 	Dial              DialFunc
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	QueryExecTimeout  time.Duration     // Max query/statement execution time
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -164,6 +165,10 @@ func connect(config ConnConfig, pgTypes map[Oid]PgType, pgsql_af_inet *byte, pgs
 	if pgsql_af_inet6 != nil {
 		c.pgsql_af_inet6 = new(byte)
 		*c.pgsql_af_inet6 = *pgsql_af_inet6
+	}
+
+	if config.QueryExecTimeout < 0 {
+		return nil, errors.New("QueryExecTimeout must be equal to or greater than 0")
 	}
 
 	if c.config.LogLevel != 0 {
@@ -395,6 +400,26 @@ func (c *Conn) Close() (err error) {
 		c.log(LogLevelInfo, "Closed connection")
 	}
 	return err
+}
+
+// Starts a Query/Statement exec timeout if config.QueryExecTimeout is set.
+//
+// The timer should be stopped manually in the caller method to avoid false
+// timeout error to occur.
+//
+// FYI: Exec() and Query() may return different error messages:
+//   - conn.Exec():  "conn is dead"
+//   - conn.Query(): "FATAL: terminating connection due to administrator command (SQLSTATE 57P01)"
+func (c *Conn) startQueryExecTimeoutTimer() (timer *time.Timer) {
+	if c.config.QueryExecTimeout > 0 {
+		timer = time.AfterFunc(c.config.QueryExecTimeout, func() {
+			if c.shouldLog(LogLevelInfo) {
+				c.log(LogLevelInfo, "Timeout: QueryExecTimeout")
+			}
+			c.die(errors.New("Timeout: QueryExecTimeout"))
+		})
+	}
+	return timer
 }
 
 // ParseURI parses a database URI into ConnConfig
@@ -963,6 +988,16 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 
 	startTime := time.Now()
 	c.lastActivityTime = startTime
+
+	// Set statement execution deadline
+	if timeoutTimer := c.startQueryExecTimeoutTimer(); timeoutTimer != nil {
+		defer func() {
+			if timeoutTimer.Stop() || err == nil {
+				return
+			}
+			err = ProtocolError("Timeout: QueryExecTimeout. Orig error: " + err.Error())
+		}()
+	}
 
 	defer func() {
 		if err == nil {
