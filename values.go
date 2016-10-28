@@ -265,7 +265,18 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	return encodeString(w, oid, n.String)
 }
 
-// AclItem is used for PostgreSQL's aclitem data type.
+// AclItem is used for PostgreSQL's aclitem data type. A sample aclitem
+// might look like this:
+//
+//	postgres=arwdDxt/postgres
+//
+// Note, however, that because the user/role name part of an aclitem is
+// an identifier, it follows all the usual formatting rules for SQL
+// identifiers: if it contains spaces and other special characters,
+// it should appear in double-quotes:
+//
+//	postgres=arwdDxt/"role with spaces"
+//
 type AclItem string
 
 // NullAclItem represents a pgx.AclItem that may be null. NullAclItem implements the
