@@ -44,6 +44,7 @@ const (
 	Int8ArrayOid        = 1016
 	Float4ArrayOid      = 1021
 	Float8ArrayOid      = 1022
+	AclItemOid          = 1033
 	InetArrayOid        = 1041
 	VarcharOid          = 1043
 	DateOid             = 1082
@@ -89,6 +90,7 @@ func init() {
 		"_timestamp":   BinaryFormatCode,
 		"_timestamptz": BinaryFormatCode,
 		"_varchar":     BinaryFormatCode,
+		"aclitem":      TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
 		"bool":         BinaryFormatCode,
 		"bytea":        BinaryFormatCode,
 		"char":         BinaryFormatCode,
@@ -261,6 +263,47 @@ func (n NullString) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	return encodeString(w, oid, n.String)
+}
+
+// AclItem is used for PostgreSQL's aclitem data type.
+type AclItem string
+
+// NullAclItem represents a pgx.AclItem that may be null. NullAclItem implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullAclItem struct {
+	AclItem AclItem
+	Valid   bool // Valid is true if AclItem is not NULL
+}
+
+func (n *NullAclItem) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != AclItemOid {
+		return SerializationError(fmt.Sprintf("NullAclItem.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.AclItem, n.Valid = "", false
+		return nil
+	}
+
+	n.Valid = true
+	n.AclItem = AclItem(decodeText(vr))
+	return vr.Err()
+}
+
+// Particularly important to return TextFormatCode, seeing as Postgres
+// only ever sends aclitem as text, not binary.
+func (n NullAclItem) FormatCode() int16 { return TextFormatCode }
+
+func (n NullAclItem) Encode(w *WriteBuf, oid Oid) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeString(w, oid, string(n.AclItem))
 }
 
 // Name is a type used for PostgreSQL's special 63-byte
@@ -964,6 +1007,10 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeUInt(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
+	case AclItem:
+		// The aclitem data type goes over the wire using the same format as string,
+		// so just cast to string and use encodeString
+		return encodeString(wbuf, oid, string(arg))
 	case Name:
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
@@ -1146,6 +1193,9 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = uint64(n)
 	case *Char:
 		*v = decodeChar(vr)
+	case *AclItem:
+		// aclitem goes over the wire just like text
+		*v = AclItem(decodeText(vr))
 	case *Name:
 		// name goes over the wire just like text
 		*v = Name(decodeText(vr))
