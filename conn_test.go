@@ -1009,6 +1009,26 @@ func TestPrepareEx(t *testing.T) {
 	}
 }
 
+func TestQueryRowEx(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var s string
+	err := conn.QueryRowEx("select $1", &pgx.PrepareExOptions{
+		ParameterOids:     []pgx.Oid{pgx.TextOid},
+		FieldDescriptions: []pgx.FieldDescription{{DataType: pgx.TextOid}},
+	}, "hello").Scan(&s)
+	if err != nil {
+		t.Errorf("QueryRowEx failed: %v", err)
+	}
+
+	if s != "hello" {
+		t.Errorf("did not return expected value: %v", s)
+	}
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 

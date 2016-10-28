@@ -80,7 +80,8 @@ type PreparedStatement struct {
 
 // PrepareExOptions is an option struct that can be passed to PrepareEx
 type PrepareExOptions struct {
-	ParameterOids []Oid
+	ParameterOids     []Oid
+	FieldDescriptions []FieldDescription
 }
 
 // Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
@@ -617,6 +618,8 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}()
 	}
 
+	ps = &PreparedStatement{Name: name, SQL: sql}
+
 	// parse
 	wbuf := newWriteBuf(c, 'P')
 	wbuf.WriteCString(name)
@@ -630,6 +633,18 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		for _, oid := range opts.ParameterOids {
 			wbuf.WriteInt32(int32(oid))
 		}
+
+		ps.ParameterOids = opts.ParameterOids
+		ps.FieldDescriptions = opts.FieldDescriptions
+
+		wbuf.closeMsg()
+		_, err = c.conn.Write(wbuf.buf)
+		if err != nil {
+			c.die(err)
+			return nil, err
+		}
+
+		return ps, nil
 	} else {
 		wbuf.WriteInt16(0)
 	}
@@ -648,8 +663,6 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		c.die(err)
 		return nil, err
 	}
-
-	ps = &PreparedStatement{Name: name, SQL: sql}
 
 	var softErr error
 

@@ -184,6 +184,7 @@ func (rows *Rows) Next() bool {
 			return true
 		case commandComplete:
 		case bindComplete:
+		case parseComplete:
 		default:
 			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {
@@ -464,6 +465,38 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	return rows, rows.err
 }
 
+// Query executes sql with args. If there is an error the returned *Rows will
+// be returned in an error state. So it is allowed to ignore the error returned
+// from Query and handle it in *Rows.
+func (c *Conn) QueryEx(sql string, opts *PrepareExOptions, args ...interface{}) (*Rows, error) {
+	c.lastActivityTime = time.Now()
+
+	rows := c.getRows(sql, args)
+
+	if err := c.lock(); err != nil {
+		rows.abort(err)
+		return rows, err
+	}
+	rows.unlockConn = true
+
+	ps, ok := c.preparedStatements[sql]
+	if !ok {
+		var err error
+		ps, err = c.PrepareEx("", sql, opts)
+		if err != nil {
+			rows.abort(err)
+			return rows, rows.err
+		}
+	}
+	rows.sql = ps.SQL
+	rows.fields = ps.FieldDescriptions
+	err := c.sendPreparedQuery(ps, args...)
+	if err != nil {
+		rows.abort(err)
+	}
+	return rows, rows.err
+}
+
 func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 	if len(c.preallocatedRows) == 0 {
 		c.preallocatedRows = make([]Rows, 64)
@@ -485,5 +518,10 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 // error with ErrNoRows if no rows are returned.
 func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := c.Query(sql, args...)
+	return (*Row)(rows)
+}
+
+func (c *Conn) QueryRowEx(sql string, opts *PrepareExOptions, args ...interface{}) *Row {
+	rows, _ := c.QueryEx(sql, opts, args...)
 	return (*Row)(rows)
 }
