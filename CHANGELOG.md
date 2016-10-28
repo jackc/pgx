@@ -14,6 +14,10 @@
 * Add json/jsonb binary support to allow use with CopyTo
 * Add named error ErrAcquireTimeout (Alexander Staubo)
 
+## Compatibility
+
+* jsonb now defaults to binary format. This means passing a []byte to a jsonb column will no longer work.
+
 # 2.9.0 (August 26, 2016)
 
 ## Fixes
