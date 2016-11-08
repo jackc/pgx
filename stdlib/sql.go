@@ -230,7 +230,7 @@ func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, er
 // text format so that pgx.Rows.Values doesn't decode it into a native type
 // (e.g. []int32)
 func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
-	for i, _ := range ps.FieldDescriptions {
+	for i := range ps.FieldDescriptions {
 		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
