@@ -3009,7 +3009,16 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, value []AclItem) error {
 
 // XXX: decodeAclItemArray; using text encoding, not binary
 func decodeAclItemArray(vr *ValueReader) []AclItem {
-	return []AclItem{"=r/postgres"}
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into []AclItem"))
+		return nil
+	}
+
+	str := vr.ReadString(vr.Len())
+	// remove the '{' at the front and the '}' at the end
+	str = str[1 : len(str)-1]
+	return []AclItem{AclItem(str)}
+	// return []AclItem{"=r/postgres"}
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {

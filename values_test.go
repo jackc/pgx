@@ -661,7 +661,7 @@ func TestAclArrayDecoding(t *testing.T) {
 			&[]pgx.AclItem{},
 			func(t *testing.T, query, scan interface{}) {
 				if !reflect.DeepEqual(query, *(scan.(*[]pgx.AclItem))) {
-					t.Errorf("failed to encode aclitem[]")
+					t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, *(scan.(*[]pgx.AclItem)))
 				}
 			},
 		},
