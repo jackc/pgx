@@ -45,6 +45,7 @@ const (
 	Float4ArrayOid      = 1021
 	Float8ArrayOid      = 1022
 	AclItemOid          = 1033
+	AclItemArrayOid     = 1034
 	InetArrayOid        = 1041
 	VarcharOid          = 1043
 	DateOid             = 1082
@@ -77,6 +78,7 @@ var DefaultTypeFormats map[string]int16
 
 func init() {
 	DefaultTypeFormats = map[string]int16{
+		"_aclitem":     TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
 		"_bool":        BinaryFormatCode,
 		"_bytea":       BinaryFormatCode,
 		"_cidr":        BinaryFormatCode,
@@ -981,6 +983,8 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return Encode(wbuf, oid, v)
 	case string:
 		return encodeString(wbuf, oid, arg)
+	case []AclItem:
+		return encodeAclItemSlice(wbuf, oid, arg)
 	case []byte:
 		return encodeByteSlice(wbuf, oid, arg)
 	case [][]byte:
@@ -1224,6 +1228,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeFloat4(vr)
 	case *float64:
 		*v = decodeFloat8(vr)
+	case *[]AclItem:
+		*v = decodeAclItemArray(vr)
 	case *[]bool:
 		*v = decodeBoolArray(vr)
 	case *[]int16:
@@ -2991,6 +2997,18 @@ func decodeTextArray(vr *ValueReader) []string {
 	}
 
 	return a
+}
+
+// XXX: encodeAclItemSlice; using text encoding, not binary
+func encodeAclItemSlice(w *WriteBuf, oid Oid, value []AclItem) error {
+	w.WriteInt32(int32(len("{=r/postgres}")))
+	w.WriteBytes([]byte("{=r/postgres}"))
+	return nil
+}
+
+// XXX: decodeAclItemArray; using text encoding, not binary
+func decodeAclItemArray(vr *ValueReader) []AclItem {
+	return []AclItem{"=r/postgres"}
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {

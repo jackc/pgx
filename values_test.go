@@ -643,6 +643,42 @@ func TestNullX(t *testing.T) {
 	}
 }
 
+func TestAclArrayDecoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+	tests := []struct {
+		sql    string
+		query  interface{}
+		scan   interface{}
+		assert func(*testing.T, interface{}, interface{})
+	}{
+		{
+			"select $1::aclitem[]",
+			[]pgx.AclItem{"=r/postgres"},
+			&[]pgx.AclItem{},
+			func(t *testing.T, query, scan interface{}) {
+				if !reflect.DeepEqual(query, *(scan.(*[]pgx.AclItem))) {
+					t.Errorf("failed to encode aclitem[]")
+				}
+			},
+		},
+	}
+	for i, tt := range tests {
+		err := conn.QueryRow(tt.sql, tt.query).Scan(tt.scan)
+		if err != nil {
+			t.Errorf(`%d. error reading array: %v`, i, err)
+			if pgerr, ok := err.(pgx.PgError); ok {
+				t.Errorf(`%d. error reading array (detail): %s`, i, pgerr.Detail)
+			}
+			continue
+		}
+		tt.assert(t, tt.query, tt.scan)
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
