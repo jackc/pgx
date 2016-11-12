@@ -643,6 +643,12 @@ func TestNullX(t *testing.T) {
 	}
 }
 
+func assertAclItemSlicesEqual(t *testing.T, query, scan interface{}) {
+	if !reflect.DeepEqual(query, *(scan.(*[]pgx.AclItem))) {
+		t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, *(scan.(*[]pgx.AclItem)))
+	}
+}
+
 // XXX
 func TestAclArrayDecoding(t *testing.T) {
 	t.Parallel()
@@ -652,18 +658,12 @@ func TestAclArrayDecoding(t *testing.T) {
 
 	sql := "select $1::aclitem[]"
 	tests := []struct {
-		query  interface{}
-		scan   interface{}
-		assert func(*testing.T, interface{}, interface{})
+		query interface{}
+		scan  interface{}
 	}{
 		{
 			[]pgx.AclItem{"=r/postgres"},
 			&[]pgx.AclItem{},
-			func(t *testing.T, query, scan interface{}) {
-				if !reflect.DeepEqual(query, *(scan.(*[]pgx.AclItem))) {
-					t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, *(scan.(*[]pgx.AclItem)))
-				}
-			},
 		},
 	}
 	for i, tt := range tests {
@@ -675,7 +675,7 @@ func TestAclArrayDecoding(t *testing.T) {
 			}
 			continue
 		}
-		tt.assert(t, tt.query, tt.scan)
+		assertAclItemSlicesEqual(t, tt.query, tt.scan)
 		ensureConnValid(t, conn)
 	}
 }
