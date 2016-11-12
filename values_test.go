@@ -643,9 +643,9 @@ func TestNullX(t *testing.T) {
 	}
 }
 
-func assertAclItemSlicesEqual(t *testing.T, query, scan interface{}) {
-	if !reflect.DeepEqual(query, *(scan.(*[]pgx.AclItem))) {
-		t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, *(scan.(*[]pgx.AclItem)))
+func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
+	if !reflect.DeepEqual(query, scan) {
+		t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, scan)
 	}
 }
 
@@ -658,20 +658,20 @@ func TestAclArrayDecoding(t *testing.T) {
 
 	sql := "select $1::aclitem[]"
 	tests := []struct {
-		query interface{}
-		scan  interface{}
+		query []pgx.AclItem
+		scan  []pgx.AclItem
 	}{
 		{
 			[]pgx.AclItem{"=r/postgres"},
-			&[]pgx.AclItem{},
+			[]pgx.AclItem{},
 		},
 		{
 			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
-			&[]pgx.AclItem{},
+			[]pgx.AclItem{},
 		},
 	}
 	for i, tt := range tests {
-		err := conn.QueryRow(sql, tt.query).Scan(tt.scan)
+		err := conn.QueryRow(sql, tt.query).Scan(&tt.scan)
 		if err != nil {
 			t.Errorf(`%d. error reading array: %v`, i, err)
 			if pgerr, ok := err.(pgx.PgError); ok {
