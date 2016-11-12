@@ -649,14 +649,14 @@ func TestAclArrayDecoding(t *testing.T) {
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
+
+	sql := "select $1::aclitem[]"
 	tests := []struct {
-		sql    string
 		query  interface{}
 		scan   interface{}
 		assert func(*testing.T, interface{}, interface{})
 	}{
 		{
-			"select $1::aclitem[]",
 			[]pgx.AclItem{"=r/postgres"},
 			&[]pgx.AclItem{},
 			func(t *testing.T, query, scan interface{}) {
@@ -667,7 +667,7 @@ func TestAclArrayDecoding(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.query).Scan(tt.scan)
+		err := conn.QueryRow(sql, tt.query).Scan(tt.scan)
 		if err != nil {
 			t.Errorf(`%d. error reading array: %v`, i, err)
 			if pgerr, ok := err.(pgx.PgError); ok {

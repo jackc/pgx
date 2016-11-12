@@ -3018,7 +3018,6 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 	// remove the '{' at the front and the '}' at the end
 	str = str[1 : len(str)-1]
 	return []AclItem{AclItem(str)}
-	// return []AclItem{"=r/postgres"}
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
