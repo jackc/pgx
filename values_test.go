@@ -657,21 +657,20 @@ func TestAclArrayDecoding(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := "select $1::aclitem[]"
+	var scan []pgx.AclItem
+
 	tests := []struct {
 		query []pgx.AclItem
-		scan  []pgx.AclItem
 	}{
 		{
 			[]pgx.AclItem{"=r/postgres"},
-			[]pgx.AclItem{},
 		},
 		{
 			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
-			[]pgx.AclItem{},
 		},
 	}
 	for i, tt := range tests {
-		err := conn.QueryRow(sql, tt.query).Scan(&tt.scan)
+		err := conn.QueryRow(sql, tt.query).Scan(&scan)
 		if err != nil {
 			t.Errorf(`%d. error reading array: %v`, i, err)
 			if pgerr, ok := err.(pgx.PgError); ok {
@@ -679,7 +678,7 @@ func TestAclArrayDecoding(t *testing.T) {
 			}
 			continue
 		}
-		assertAclItemSlicesEqual(t, tt.query, tt.scan)
+		assertAclItemSlicesEqual(t, tt.query, scan)
 		ensureConnValid(t, conn)
 	}
 }
