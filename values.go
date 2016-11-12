@@ -3001,8 +3001,9 @@ func decodeTextArray(vr *ValueReader) []string {
 
 // XXX: encodeAclItemSlice; using text encoding, not binary
 func encodeAclItemSlice(w *WriteBuf, oid Oid, value []AclItem) error {
-	w.WriteInt32(int32(len("{=r/postgres}")))
-	w.WriteBytes([]byte("{=r/postgres}"))
+	str := "{" + value[0] + "}"
+	w.WriteInt32(int32(len(str)))
+	w.WriteBytes([]byte(str))
 	return nil
 }
 
