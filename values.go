@@ -3022,6 +3022,12 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 	}
 
 	str := vr.ReadString(vr.Len())
+
+	// short-circuit empty array
+	if str == "{}" {
+		return []AclItem{}
+	}
+
 	// remove the '{' at the front and the '}' at the end
 	str = str[1 : len(str)-1]
 	strs := strings.Split(str, ",")
