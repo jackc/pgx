@@ -663,6 +663,9 @@ func TestAclArrayDecoding(t *testing.T) {
 		query []pgx.AclItem
 	}{
 		{
+			[]pgx.AclItem{},
+		},
+		{
 			[]pgx.AclItem{"=r/postgres"},
 		},
 		{
