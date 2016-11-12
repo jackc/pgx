@@ -665,6 +665,10 @@ func TestAclArrayDecoding(t *testing.T) {
 			[]pgx.AclItem{"=r/postgres"},
 			&[]pgx.AclItem{},
 		},
+		{
+			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
+			&[]pgx.AclItem{},
+		},
 	}
 	for i, tt := range tests {
 		err := conn.QueryRow(sql, tt.query).Scan(tt.scan)

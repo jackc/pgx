@@ -3000,8 +3000,15 @@ func decodeTextArray(vr *ValueReader) []string {
 }
 
 // XXX: encodeAclItemSlice; using text encoding, not binary
-func encodeAclItemSlice(w *WriteBuf, oid Oid, value []AclItem) error {
-	str := "{" + value[0] + "}"
+func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
+	// cast aclitems into strings so we can use strings.Join
+	strs := make([]string, len(aclitems))
+	for i := range strs {
+		strs[i] = string(aclitems[i])
+	}
+
+	str := strings.Join(strs, ",")
+	str = "{" + str + "}"
 	w.WriteInt32(int32(len(str)))
 	w.WriteBytes([]byte(str))
 	return nil
@@ -3017,7 +3024,14 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 	str := vr.ReadString(vr.Len())
 	// remove the '{' at the front and the '}' at the end
 	str = str[1 : len(str)-1]
-	return []AclItem{AclItem(str)}
+	strs := strings.Split(str, ",")
+
+	// cast strings into AclItems before returning
+	aclitems := make([]AclItem, len(strs))
+	for i := range aclitems {
+		aclitems[i] = AclItem(strs[i])
+	}
+	return aclitems
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
