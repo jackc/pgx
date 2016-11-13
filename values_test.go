@@ -645,7 +645,7 @@ func TestNullX(t *testing.T) {
 
 func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
 	if !reflect.DeepEqual(query, scan) {
-		t.Errorf("failed to encode aclitem[]\n EXPECTED: %v\n ACTUAL: %v", query, scan)
+		t.Errorf("failed to encode aclitem[]\n EXPECTED: %d %v\n ACTUAL:   %d %v", len(query), query, len(scan), scan)
 	}
 }
 
@@ -670,6 +670,9 @@ func TestAclArrayDecoding(t *testing.T) {
 		},
 		{
 			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
+		},
+		{
+			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres", `postgres=arwdDxt/\" tricky\, ' \} \"\" \\ test user \"`},
 		},
 	}
 	for i, tt := range tests {
