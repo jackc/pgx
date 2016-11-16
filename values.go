@@ -3044,7 +3044,7 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	return nil
 }
 
-func ParseAclItemArray(arr string) ([]string, error) {
+func parseAclItemArray(arr string) ([]string, error) {
 	r := strings.NewReader(arr)
 	// Difficult to guess a performant initial capacity for a slice of
 	// values, but let's go with 5.
@@ -3066,7 +3066,7 @@ func ParseAclItemArray(arr string) ([]string, error) {
 
 		if rn == '"' {
 			// Discard the opening quote of the quoted value.
-			vlu, err = ParseQuotedAclItem(r)
+			vlu, err = parseQuotedAclItem(r)
 		} else {
 			// We have just read the first rune of an unquoted (bare) value;
 			// put it back so that ParseBareValue can read it.
@@ -3075,7 +3075,7 @@ func ParseAclItemArray(arr string) ([]string, error) {
 				// This error was not expected.
 				return nil, err
 			}
-			vlu, err = ParseBareAclItem(r)
+			vlu, err = parseBareAclItem(r)
 		}
 
 		if err != nil {
@@ -3091,7 +3091,7 @@ func ParseAclItemArray(arr string) ([]string, error) {
 	}
 }
 
-func ParseBareAclItem(r *strings.Reader) (string, error) {
+func parseBareAclItem(r *strings.Reader) (string, error) {
 	var buf bytes.Buffer
 	for {
 		rn, _, err := r.ReadRune()
@@ -3109,10 +3109,10 @@ func ParseBareAclItem(r *strings.Reader) (string, error) {
 	}
 }
 
-func ParseQuotedAclItem(r *strings.Reader) (string, error) {
+func parseQuotedAclItem(r *strings.Reader) (string, error) {
 	var buf bytes.Buffer
 	for {
-		rn, escaped, err := ReadPossiblyEscapedRune(r)
+		rn, escaped, err := readPossiblyEscapedRune(r)
 		if err != nil {
 			if err == io.EOF {
 				// Even when it is the last value, the final rune of
@@ -3143,7 +3143,7 @@ func ParseQuotedAclItem(r *strings.Reader) (string, error) {
 // in that case, it returns the rune after the backslash. The second
 // return value tells us whether or not the rune was
 // preceeded by a backslash (escaped).
-func ReadPossiblyEscapedRune(r *strings.Reader) (rune, bool, error) {
+func readPossiblyEscapedRune(r *strings.Reader) (rune, bool, error) {
 	rn, _, err := r.ReadRune()
 	if err != nil {
 		return 0, false, err
@@ -3174,7 +3174,7 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 
 	// remove the '{' at the front and the '}' at the end
 	str = str[1 : len(str)-1]
-	strs, err := ParseAclItemArray(str)
+	strs, err := parseAclItemArray(str)
 	if err != nil {
 		vr.Fatal(ProtocolError(err.Error()))
 		return nil
