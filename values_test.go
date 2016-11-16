@@ -672,13 +672,14 @@ func TestAclArrayDecoding(t *testing.T) {
 			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
 		},
 		{
-			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres", `postgres=arwdDxt/\" tricky\, ' \} \"\" \\ test user \"`},
+			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres", `postgres=arwdDxt/" tricky, ' } "" \ test user "`},
 		},
 	}
 	for i, tt := range tests {
 		err := conn.QueryRow(sql, tt.query).Scan(&scan)
 		if err != nil {
-			t.Errorf(`%d. error reading array: %v`, i, err)
+			// t.Errorf(`%d. error reading array: %v`, i, err)
+			t.Errorf(`%d. error reading array: %v query: %s`, i, err, tt.query)
 			if pgerr, ok := err.(pgx.PgError); ok {
 				t.Errorf(`%d. error reading array (detail): %s`, i, pgerr.Detail)
 			}
