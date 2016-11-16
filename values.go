@@ -3176,9 +3176,11 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 
 	// remove the '{' at the front and the '}' at the end
 	str = str[1 : len(str)-1]
-	strs, _ := ParseAclItemArray(str)
-	// XXX: what do I do with the error here?
-	// XXX strs := strings.Split(str, ",")
+	strs, err := ParseAclItemArray(str)
+	if err != nil {
+		vr.Fatal(ProtocolError(err.Error()))
+		return nil
+	}
 
 	// cast strings into AclItems before returning
 	aclitems := make([]AclItem, len(strs))
