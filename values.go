@@ -3000,7 +3000,7 @@ func decodeTextArray(vr *ValueReader) []string {
 	return a
 }
 
-func EscapeAclItem(acl string) (string, error) {
+func escapeAclItem(acl string) (string, error) {
 	var buf bytes.Buffer
 	r := strings.NewReader(acl)
 	for {
@@ -3030,7 +3030,7 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	var escaped string
 	var err error
 	for i := range strs {
-		escaped, err = EscapeAclItem(string(aclitems[i]))
+		escaped, err = escapeAclItem(string(aclitems[i]))
 		if err != nil {
 			return err
 		}
