@@ -649,7 +649,6 @@ func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
 	}
 }
 
-// XXX
 func TestAclArrayDecoding(t *testing.T) {
 	t.Parallel()
 
