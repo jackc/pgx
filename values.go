@@ -3024,7 +3024,6 @@ func NeedsEscape(rn rune) bool {
 	return rn == '\\' || rn == ',' || rn == '"' || rn == '}'
 }
 
-// XXX: encodeAclItemSlice; using text encoding, not binary
 func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	// cast aclitems into strings so we can use strings.Join
 	strs := make([]string, len(aclitems))
@@ -3160,7 +3159,6 @@ func ReadPossiblyEscapedRune(r *strings.Reader) (rune, bool, error) {
 	return rn, false, nil
 }
 
-// XXX: decodeAclItemArray; using text encoding, not binary
 func decodeAclItemArray(vr *ValueReader) []AclItem {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into []AclItem"))
