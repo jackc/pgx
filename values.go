@@ -3000,6 +3000,12 @@ func decodeTextArray(vr *ValueReader) []string {
 	return a
 }
 
+// escapeAclItem escapes an AclItem before it is added to
+// its aclitem[] string representation. The PostgreSQL aclitem
+// datatype itself can need escapes because it follows the
+// formatting rules of SQL identifiers. Think of this function
+// as escaping the escapes, so that PostgreSQL's array parser
+// will do the right thing.
 func escapeAclItem(acl string) (string, error) {
 	var buf bytes.Buffer
 	r := strings.NewReader(acl)
@@ -3013,17 +3019,22 @@ func escapeAclItem(acl string) (string, error) {
 			// This error was not expected
 			return "", err
 		}
-		if NeedsEscape(rn) {
+		if needsEscape(rn) {
 			buf.WriteRune('\\')
 		}
 		buf.WriteRune(rn)
 	}
 }
 
-func NeedsEscape(rn rune) bool {
+// needsEscape determines whether or not a rune needs escaping
+// before being placed in the textual representation of an
+// aclitem[] array.
+func needsEscape(rn rune) bool {
 	return rn == '\\' || rn == ',' || rn == '"' || rn == '}'
 }
 
+// encodeAclItemSlice encodes a slice of AclItems in
+// their textual represention for PostgreSQL.
 func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	// cast aclitems into strings so we can use strings.Join
 	strs := make([]string, len(aclitems))
@@ -3044,10 +3055,12 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	return nil
 }
 
+// parseAclItemArray parses the textual representation
+// of the aclitem[] type.
 func parseAclItemArray(arr string) ([]string, error) {
 	r := strings.NewReader(arr)
 	// Difficult to guess a performant initial capacity for a slice of
-	// values, but let's go with 5.
+	// aclitems, but let's go with 5.
 	vals := make([]string, 0, 5)
 	// A single value
 	vlu := ""
