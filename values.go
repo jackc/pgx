@@ -3058,7 +3058,10 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 }
 
 // parseAclItemArray parses the textual representation
-// of the aclitem[] type.
+// of the aclitem[] type. The textual representation is chosen because
+// Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin).
+// See https://www.postgresql.org/docs/current/static/arrays.html#ARRAYS-IO
+// for formatting notes.
 func parseAclItemArray(arr string) ([]AclItem, error) {
 	reader := strings.NewReader(arr)
 	// Difficult to guess a performant initial capacity for a slice of
