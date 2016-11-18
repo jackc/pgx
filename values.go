@@ -3007,22 +3007,22 @@ func decodeTextArray(vr *ValueReader) []string {
 // as escaping the escapes, so that PostgreSQL's array parser
 // will do the right thing.
 func escapeAclItem(acl string) (string, error) {
-	var buf bytes.Buffer
-	r := strings.NewReader(acl)
+	var escapedAclItem bytes.Buffer
+	reader := strings.NewReader(acl)
 	for {
-		rn, _, err := r.ReadRune()
+		rn, _, err := reader.ReadRune()
 		if err != nil {
 			if err == io.EOF {
-				// This error was expected and is OK
-				return buf.String(), nil
+				// Here, EOF is an expected end state, not an error.
+				return escapedAclItem.String(), nil
 			}
 			// This error was not expected
 			return "", err
 		}
 		if needsEscape(rn) {
-			buf.WriteRune('\\')
+			escapedAclItem.WriteRune('\\')
 		}
-		buf.WriteRune(rn)
+		escapedAclItem.WriteRune(rn)
 	}
 }
 
@@ -3038,18 +3038,21 @@ func needsEscape(rn rune) bool {
 func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 	// cast aclitems into strings so we can use strings.Join
 	strs := make([]string, len(aclitems))
-	var escaped string
+	var escapedAclItem string
 	var err error
 	for i := range strs {
-		escaped, err = escapeAclItem(string(aclitems[i]))
+		escapedAclItem, err = escapeAclItem(string(aclitems[i]))
 		if err != nil {
 			return err
 		}
-		strs[i] = string(escaped)
+		strs[i] = string(escapedAclItem)
 	}
 
-	str := strings.Join(strs, ",")
-	str = "{" + str + "}"
+	var buf bytes.Buffer
+	buf.WriteRune('{')
+	buf.WriteString(strings.Join(strs, ","))
+	buf.WriteRune('}')
+	str := buf.String()
 	w.WriteInt32(int32(len(str)))
 	w.WriteBytes([]byte(str))
 	return nil
@@ -3070,7 +3073,7 @@ func parseAclItemArray(arr string) ([]AclItem, error) {
 		rn, _, err := r.ReadRune()
 		if err != nil {
 			if err == io.EOF {
-				// This error was expected and is OK
+				// Here, EOF is an expected end state, not an error.
 				return vals, nil
 			}
 			// This error was not expected
@@ -3093,7 +3096,7 @@ func parseAclItemArray(arr string) ([]AclItem, error) {
 
 		if err != nil {
 			if err == io.EOF {
-				// This error was expected and is OK.
+				// Here, EOF is an expected end state, not an error..
 				vals = append(vals, AclItem(vlu))
 				return vals, nil
 			}
