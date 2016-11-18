@@ -3057,11 +3057,11 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 
 // parseAclItemArray parses the textual representation
 // of the aclitem[] type.
-func parseAclItemArray(arr string) ([]string, error) {
+func parseAclItemArray(arr string) ([]AclItem, error) {
 	r := strings.NewReader(arr)
 	// Difficult to guess a performant initial capacity for a slice of
 	// aclitems, but let's go with 5.
-	vals := make([]string, 0, 5)
+	vals := make([]AclItem, 0, 5)
 	// A single value
 	vlu := ""
 	for {
@@ -3094,13 +3094,13 @@ func parseAclItemArray(arr string) ([]string, error) {
 		if err != nil {
 			if err == io.EOF {
 				// This error was expected and is OK.
-				vals = append(vals, vlu)
+				vals = append(vals, AclItem(vlu))
 				return vals, nil
 			}
 			// This error was not expected.
 			return nil, err
 		}
-		vals = append(vals, vlu)
+		vals = append(vals, AclItem(vlu))
 	}
 }
 
@@ -3192,13 +3192,7 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 		vr.Fatal(ProtocolError(err.Error()))
 		return nil
 	}
-
-	// cast strings into AclItems before returning
-	aclitems := make([]AclItem, len(strs))
-	for i := range aclitems {
-		aclitems[i] = AclItem(strs[i])
-	}
-	return aclitems
+	return strs
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
