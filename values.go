@@ -3105,51 +3105,55 @@ func parseAclItemArray(arr string) ([]AclItem, error) {
 	}
 }
 
-func parseBareAclItem(r *strings.Reader) (AclItem, error) {
-	var buf bytes.Buffer
+// parseBareAclItem parses a bare (unquoted) aclitem from reader
+func parseBareAclItem(reader *strings.Reader) (AclItem, error) {
+	var aclItem bytes.Buffer
 	for {
-		rn, _, err := r.ReadRune()
+		rn, _, err := reader.ReadRune()
 		if err != nil {
 			// Return the read value in case the error is a harmless io.EOF.
-			// (io.EOF marks the end of a bare value at the end of a string)
-			return AclItem(buf.String()), err
+			// (io.EOF marks the end of a bare aclitem at the end of a string)
+			return AclItem(aclItem.String()), err
 		}
 		if rn == ',' {
-			// A comma marks the end of a bare value.
-			return AclItem(buf.String()), nil
+			// A comma marks the end of a bare aclitem.
+			return AclItem(aclItem.String()), nil
 		} else {
-			buf.WriteRune(rn)
+			aclItem.WriteRune(rn)
 		}
 	}
 }
 
-func parseQuotedAclItem(r *strings.Reader) (AclItem, error) {
-	var buf bytes.Buffer
+// parseQuotedAclItem parses an aclitem which is in double quotes from reader
+func parseQuotedAclItem(reader *strings.Reader) (AclItem, error) {
+	var aclItem bytes.Buffer
 	for {
-		rn, escaped, err := readPossiblyEscapedRune(r)
+		rn, escaped, err := readPossiblyEscapedRune(reader)
 		if err != nil {
 			if err == io.EOF {
 				// Even when it is the last value, the final rune of
-				// a quoted value should be the final closing quote, not io.EOF.
+				// a quoted aclitem should be the final closing quote, not io.EOF.
 				return AclItem(""), fmt.Errorf("unexpected end of quoted value")
 			}
-			// Return the read value in case the error is a harmless io.EOF.
-			return AclItem(buf.String()), err
+			// Return the read aclitem in case the error is a harmless io.EOF,
+			// which will be determined by the caller.
+			return AclItem(aclItem.String()), err
 		}
 		if !escaped && rn == '"' {
 			// An unescaped double quote marks the end of a quoted value.
 			// The next rune should either be a comma or the end of the string.
-			rn, _, err := r.ReadRune()
+			rn, _, err := reader.ReadRune()
 			if err != nil {
-				// Return the read value in case the error is a harmless io.EOF.
-				return AclItem(buf.String()), err
+				// Return the read value in case the error is a harmless io.EOF,
+				// which will be determined by the caller.
+				return AclItem(aclItem.String()), err
 			}
 			if rn != ',' {
 				return AclItem(""), fmt.Errorf("unexpected rune after quoted value")
 			}
-			return AclItem(buf.String()), nil
+			return AclItem(aclItem.String()), nil
 		}
-		buf.WriteRune(rn)
+		aclItem.WriteRune(rn)
 	}
 }
 
@@ -3157,14 +3161,14 @@ func parseQuotedAclItem(r *strings.Reader) (AclItem, error) {
 // in that case, it returns the rune after the backslash. The second
 // return value tells us whether or not the rune was
 // preceeded by a backslash (escaped).
-func readPossiblyEscapedRune(r *strings.Reader) (rune, bool, error) {
-	rn, _, err := r.ReadRune()
+func readPossiblyEscapedRune(reader *strings.Reader) (rune, bool, error) {
+	rn, _, err := reader.ReadRune()
 	if err != nil {
 		return 0, false, err
 	}
 	if rn == '\\' {
 		// Discard the backslash and read the next rune.
-		rn, _, err = r.ReadRune()
+		rn, _, err = reader.ReadRune()
 		if err != nil {
 			return 0, false, err
 		}
@@ -3181,19 +3185,20 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 
 	str := vr.ReadString(vr.Len())
 
-	// short-circuit empty array
+	// Short-circuit empty array.
 	if str == "{}" {
 		return []AclItem{}
 	}
 
-	// remove the '{' at the front and the '}' at the end
+	// Remove the '{' at the front and the '}' at the end,
+	// so that parseAclItemArray doesn't have to deal with them.
 	str = str[1 : len(str)-1]
-	strs, err := parseAclItemArray(str)
+	aclItems, err := parseAclItemArray(str)
 	if err != nil {
 		vr.Fatal(ProtocolError(err.Error()))
 		return nil
 	}
-	return strs
+	return aclItems
 }
 
 func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
