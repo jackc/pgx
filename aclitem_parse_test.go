@@ -36,62 +36,62 @@ func TestEscapeAclItem(t *testing.T) {
 func TestParseAclItemArray(t *testing.T) {
 	tests := []struct {
 		input    string
-		expected []string
+		expected []AclItem
 		errMsg   string
 	}{
 		{
 			"",
-			[]string{},
+			[]AclItem{},
 			"",
 		},
 		{
 			"one",
-			[]string{"one"},
+			[]AclItem{"one"},
 			"",
 		},
 		{
 			`"one"`,
-			[]string{"one"},
+			[]AclItem{"one"},
 			"",
 		},
 		{
 			"one,two,three",
-			[]string{"one", "two", "three"},
+			[]AclItem{"one", "two", "three"},
 			"",
 		},
 		{
 			`"one","two","three"`,
-			[]string{"one", "two", "three"},
+			[]AclItem{"one", "two", "three"},
 			"",
 		},
 		{
 			`"one",two,"three"`,
-			[]string{"one", "two", "three"},
+			[]AclItem{"one", "two", "three"},
 			"",
 		},
 		{
 			`one,two,"three"`,
-			[]string{"one", "two", "three"},
+			[]AclItem{"one", "two", "three"},
 			"",
 		},
 		{
 			`"one","two",three`,
-			[]string{"one", "two", "three"},
+			[]AclItem{"one", "two", "three"},
 			"",
 		},
 		{
 			`"one","t w o",three`,
-			[]string{"one", "t w o", "three"},
+			[]AclItem{"one", "t w o", "three"},
 			"",
 		},
 		{
 			`"one","t, w o\"\}\\",three`,
-			[]string{"one", `t, w o"}\`, "three"},
+			[]AclItem{"one", `t, w o"}\`, "three"},
 			"",
 		},
 		{
 			`"one","two",three"`,
-			[]string{"one", "two", `three"`},
+			[]AclItem{"one", "two", `three"`},
 			"",
 		},
 		{
