@@ -3036,7 +3036,6 @@ func needsEscape(rn rune) bool {
 // encodeAclItemSlice encodes a slice of AclItems in
 // their textual represention for PostgreSQL.
 func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
-	// cast aclitems into strings so we can use strings.Join
 	strs := make([]string, len(aclitems))
 	var escapedAclItem string
 	var err error
@@ -3061,20 +3060,20 @@ func encodeAclItemSlice(w *WriteBuf, oid Oid, aclitems []AclItem) error {
 // parseAclItemArray parses the textual representation
 // of the aclitem[] type.
 func parseAclItemArray(arr string) ([]AclItem, error) {
-	r := strings.NewReader(arr)
+	reader := strings.NewReader(arr)
 	// Difficult to guess a performant initial capacity for a slice of
 	// aclitems, but let's go with 5.
-	vals := make([]AclItem, 0, 5)
+	aclItems := make([]AclItem, 0, 5)
 	// A single value
-	vlu := ""
+	aclItem := AclItem("")
 	for {
 		// Grab the first/next/last rune to see if we are dealing with a
 		// quoted value, an unquoted value, or the end of the string.
-		rn, _, err := r.ReadRune()
+		rn, _, err := reader.ReadRune()
 		if err != nil {
 			if err == io.EOF {
 				// Here, EOF is an expected end state, not an error.
-				return vals, nil
+				return aclItems, nil
 			}
 			// This error was not expected
 			return nil, err
@@ -3082,50 +3081,49 @@ func parseAclItemArray(arr string) ([]AclItem, error) {
 
 		if rn == '"' {
 			// Discard the opening quote of the quoted value.
-			vlu, err = parseQuotedAclItem(r)
+			aclItem, err = parseQuotedAclItem(reader)
 		} else {
 			// We have just read the first rune of an unquoted (bare) value;
 			// put it back so that ParseBareValue can read it.
-			err := r.UnreadRune()
+			err := reader.UnreadRune()
 			if err != nil {
-				// This error was not expected.
 				return nil, err
 			}
-			vlu, err = parseBareAclItem(r)
+			aclItem, err = parseBareAclItem(reader)
 		}
 
 		if err != nil {
 			if err == io.EOF {
 				// Here, EOF is an expected end state, not an error..
-				vals = append(vals, AclItem(vlu))
-				return vals, nil
+				aclItems = append(aclItems, aclItem)
+				return aclItems, nil
 			}
 			// This error was not expected.
 			return nil, err
 		}
-		vals = append(vals, AclItem(vlu))
+		aclItems = append(aclItems, aclItem)
 	}
 }
 
-func parseBareAclItem(r *strings.Reader) (string, error) {
+func parseBareAclItem(r *strings.Reader) (AclItem, error) {
 	var buf bytes.Buffer
 	for {
 		rn, _, err := r.ReadRune()
 		if err != nil {
 			// Return the read value in case the error is a harmless io.EOF.
 			// (io.EOF marks the end of a bare value at the end of a string)
-			return buf.String(), err
+			return AclItem(buf.String()), err
 		}
 		if rn == ',' {
 			// A comma marks the end of a bare value.
-			return buf.String(), nil
+			return AclItem(buf.String()), nil
 		} else {
 			buf.WriteRune(rn)
 		}
 	}
 }
 
-func parseQuotedAclItem(r *strings.Reader) (string, error) {
+func parseQuotedAclItem(r *strings.Reader) (AclItem, error) {
 	var buf bytes.Buffer
 	for {
 		rn, escaped, err := readPossiblyEscapedRune(r)
@@ -3133,10 +3131,10 @@ func parseQuotedAclItem(r *strings.Reader) (string, error) {
 			if err == io.EOF {
 				// Even when it is the last value, the final rune of
 				// a quoted value should be the final closing quote, not io.EOF.
-				return "", fmt.Errorf("unexpected end of quoted value")
+				return AclItem(""), fmt.Errorf("unexpected end of quoted value")
 			}
 			// Return the read value in case the error is a harmless io.EOF.
-			return buf.String(), err
+			return AclItem(buf.String()), err
 		}
 		if !escaped && rn == '"' {
 			// An unescaped double quote marks the end of a quoted value.
@@ -3144,12 +3142,12 @@ func parseQuotedAclItem(r *strings.Reader) (string, error) {
 			rn, _, err := r.ReadRune()
 			if err != nil {
 				// Return the read value in case the error is a harmless io.EOF.
-				return buf.String(), err
+				return AclItem(buf.String()), err
 			}
 			if rn != ',' {
-				return "", fmt.Errorf("unexpected rune after quoted value")
+				return AclItem(""), fmt.Errorf("unexpected rune after quoted value")
 			}
-			return buf.String(), nil
+			return AclItem(buf.String()), nil
 		}
 		buf.WriteRune(rn)
 	}
