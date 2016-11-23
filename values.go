@@ -2081,12 +2081,16 @@ func decodeJSONB(vr *ValueReader, d interface{}) error {
 	}
 
 	if vr.Type().DataType != JsonbOid {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into jsonb", vr.Type().DataType)))
+		err := ProtocolError(fmt.Sprintf("Cannot decode oid %v into jsonb", vr.Type().DataType))
+		vr.Fatal(err)
+		return err
 	}
 
 	bytes := vr.ReadBytes(vr.Len())
 	if bytes[0] != 1 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0])))
+		err := ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0]))
+		vr.Fatal(err)
+		return err
 	}
 
 	err := json.Unmarshal(bytes[1:], d)
