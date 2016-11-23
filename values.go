@@ -2087,13 +2087,16 @@ func decodeJSONB(vr *ValueReader, d interface{}) error {
 	}
 
 	bytes := vr.ReadBytes(vr.Len())
-	if bytes[0] != 1 {
-		err := ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0]))
-		vr.Fatal(err)
-		return err
+	if vr.Type().FormatCode == BinaryFormatCode {
+		if bytes[0] != 1 {
+			err := ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0]))
+			vr.Fatal(err)
+			return err
+		}
+		bytes = bytes[1:]
 	}
 
-	err := json.Unmarshal(bytes[1:], d)
+	err := json.Unmarshal(bytes, d)
 	if err != nil {
 		vr.Fatal(err)
 	}
