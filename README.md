@@ -66,7 +66,7 @@ To setup the normal test environment, first install these dependencies:
 Then run the following SQL:
 
     create user pgx_md5 password 'secret';
-    create user " tricky, ' } "" \ test user " superuser password 'secret';
+    create user " tricky, ' } "" \ test user " password 'secret';
     create database pgx_test;
 
 Connect to database pgx_test and run:
