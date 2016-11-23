@@ -427,7 +427,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 	}
 
 	ignoreKeys := map[string]struct{}{
-		"sslmode": struct{}{},
+		"sslmode": {},
 	}
 
 	cp.RuntimeParams = make(map[string]string)
