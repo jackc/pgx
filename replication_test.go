@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"reflect"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -92,6 +93,11 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		var message *pgx.ReplicationMessage
 
 		message, err = replicationConn.WaitForReplicationMessage(time.Duration(1 * time.Second))
+		if err != nil {
+			if err != pgx.ErrNotificationTimeout {
+				t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
+			}
+		}
 		if message != nil {
 			if message.WalMessage != nil {
 				// The waldata payload with the test_decoding plugin looks like:
@@ -144,6 +150,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	// position, which should then be reflected if we fetch out our current wal position
 	// for the slot
 	replicationConn.SendStandbyStatus(pgx.NewStandbyStatus(maxWal))
+	replicationConn.StopReplication()
 
 	err = replicationConn.Close()
 	if err != nil {
