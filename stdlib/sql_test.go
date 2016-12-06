@@ -30,7 +30,7 @@ func ensureConnValid(t *testing.T, db *sql.DB) {
 
 	rows, err := db.Query("select generate_series(1,$1)", 10)
 	if err != nil {
-		t.Fatalf("db.Query failed: ", err)
+		t.Fatalf("db.Query failed: %v", err)
 	}
 	defer rows.Close()
 
@@ -42,7 +42,7 @@ func ensureConnValid(t *testing.T, db *sql.DB) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("db.Query failed: ", err)
+		t.Fatalf("db.Query failed: %v", err)
 	}
 
 	if rowCount != 10 {

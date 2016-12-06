@@ -148,13 +148,26 @@ func (c *Conn) SendStandbyStatus(k *StandbyStatus) (err error) {
 
 	_, err = c.conn.Write(writeBuf.buf)
 	if err != nil {
-		fmt.Printf("Error sending standby status %v\n", err)
 		c.die(err)
 	}
-	fmt.Printf("Write complete, wal position is %s\n", FormatLsn(k.WalApplyPosition))
 
 	return
 }
+
+// Send the message to formally stop the replication stream. This
+// is done before calling Close() during a clean shutdown.
+func (c *Conn) StopReplication() (err error) {
+	writeBuf := newWriteBuf(c, copyDone)
+
+	writeBuf.closeMsg()
+
+	_, err = c.conn.Write(writeBuf.buf)
+	if err != nil {
+		c.die(err)
+	}
+	return
+}
+
 
 func (c *Conn) readReplicationMessage() (r *ReplicationMessage, err error) {
 	var t byte
@@ -217,6 +230,9 @@ func (c *Conn) readReplicationMessage() (r *ReplicationMessage, err error) {
 // There is also a condition (during startup) which can cause both the replication message
 // to return as nil as well as the error, which is a normal part of the replication protocol
 // startup. It's important the client correctly handle (ignore) this scenario.
+//
+// This returns pgx.ErrNotificationTimeout when there is no replication message by the specified
+// duration.
 func (c *Conn) WaitForReplicationMessage(timeout time.Duration) (r *ReplicationMessage, err error) {
 	var zeroTime time.Time
 
