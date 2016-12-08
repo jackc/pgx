@@ -88,7 +88,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	i = 0
 	var foundTimes []int64
 	var foundCount int
-	var maxWal int64
+	var maxWal uint64
 	for {
 		var message *pgx.ReplicationMessage
 
