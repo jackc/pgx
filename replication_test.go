@@ -158,9 +158,9 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	}
 
 	restartLsn := getConfirmedFlushLsnFor(t, conn, "pgx_test")
-	integerRestartLsn, _ := pgx.ParseLsn(restartLsn)
+	integerRestartLsn, _ := pgx.ParseLSN(restartLsn)
 	if integerRestartLsn != maxWal {
-		t.Fatalf("Wal offset update failed, expected %s found %s", pgx.FormatLsn(maxWal), restartLsn)
+		t.Fatalf("Wal offset update failed, expected %s found %s", pgx.FormatLSN(maxWal), restartLsn)
 	}
 
 	_, err = conn.Exec("select pg_drop_replication_slot($1)", "pgx_test")
