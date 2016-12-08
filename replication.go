@@ -22,13 +22,13 @@ func init() {
 
 // Format the given 64bit LSN value into the XXX/XXX format,
 // which is the format reported by postgres.
-func FormatLsn(lsn int64) string {
-	return fmt.Sprintf("%X/%X", lsn>>32, int32(lsn))
+func FormatLSN(lsn int64) string {
+	return fmt.Sprintf("%X/%X", uint32(lsn>>32), uint32(lsn))
 }
 
 // Parse the given XXX/XXX format LSN as reported by postgres,
 // into a 64 bit integer as used internally by the wire procotols
-func ParseLsn(lsn string) (outputLsn int64, err error) {
+func ParseLSN(lsn string) (outputLsn int64, err error) {
 	var upperHalf int64
 	var lowerHalf int64
 	var nparsed int
@@ -72,7 +72,7 @@ func (w *WalMessage) ByteLag() int64 {
 }
 
 func (w *WalMessage) String() string {
-	return fmt.Sprintf("Wal: %s Time: %s Lag: %d", FormatLsn(w.WalStart), w.Time(), w.ByteLag())
+	return fmt.Sprintf("Wal: %s Time: %s Lag: %d", FormatLSN(w.WalStart), w.Time(), w.ByteLag())
 }
 
 // The server heartbeat is sent periodically from the server,
@@ -93,7 +93,7 @@ func (s *ServerHeartbeat) Time() time.Time {
 }
 
 func (s *ServerHeartbeat) String() string {
-	return fmt.Sprintf("WalEnd: %s ReplyRequested: %d T: %s", FormatLsn(s.ServerWalEnd), s.ReplyRequested, s.Time())
+	return fmt.Sprintf("WalEnd: %s ReplyRequested: %d T: %s", FormatLSN(s.ServerWalEnd), s.ReplyRequested, s.Time())
 }
 
 // The replication message wraps all possible messages from the
