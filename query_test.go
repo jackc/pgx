@@ -3,10 +3,11 @@ package pgx_test
 import (
 	"bytes"
 	"database/sql"
-	"github.com/jackc/pgx"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 
 	"github.com/shopspring/decimal"
 )
@@ -784,7 +785,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
 		}
 
-		if bytes.Compare(actual, tt.expected) != 0 {
+		if !bytes.Equal(actual, tt.expected) {
 			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.expected, actual, tt.sql)
 		}
 
@@ -1281,7 +1282,7 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 	}
 	var num decimal.Decimal
 
-	err = conn.QueryRow("select $1::decimal", expected).Scan(&num)
+	err = conn.QueryRow("select $1::decimal", &expected).Scan(&num)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}

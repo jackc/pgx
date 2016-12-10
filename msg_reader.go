@@ -10,7 +10,6 @@ import (
 // msgReader is a helper that reads values from a PostgreSQL message.
 type msgReader struct {
 	reader            *bufio.Reader
-	buf               [128]byte
 	msgBytesRemaining int32
 	err               error
 	log               func(lvl int, msg string, ctx ...interface{})
@@ -47,10 +46,15 @@ func (r *msgReader) rxMsg() (byte, error) {
 		}
 	}
 
-	b := r.buf[0:5]
-	_, err := io.ReadFull(r.reader, b)
+	b, err := r.reader.Peek(5)
+	if err != nil {
+		r.fatal(err)
+		return 0, err
+	}
+	msgType := b[0]
 	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b[1:])) - 4
-	return b[0], err
+	r.reader.Discard(5)
+	return msgType, nil
 }
 
 func (r *msgReader) readByte() byte {
@@ -58,7 +62,7 @@ func (r *msgReader) readByte() byte {
 		return 0
 	}
 
-	r.msgBytesRemaining -= 1
+	r.msgBytesRemaining--
 	if r.msgBytesRemaining < 0 {
 		r.fatal(errors.New("read past end of message"))
 		return 0
@@ -88,14 +92,15 @@ func (r *msgReader) readInt16() int16 {
 		return 0
 	}
 
-	b := r.buf[0:2]
-	_, err := io.ReadFull(r.reader, b)
+	b, err := r.reader.Peek(2)
 	if err != nil {
 		r.fatal(err)
 		return 0
 	}
 
 	n := int16(binary.BigEndian.Uint16(b))
+
+	r.reader.Discard(2)
 
 	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
@@ -115,8 +120,7 @@ func (r *msgReader) readInt32() int32 {
 		return 0
 	}
 
-	b := r.buf[0:4]
-	_, err := io.ReadFull(r.reader, b)
+	b, err := r.reader.Peek(4)
 	if err != nil {
 		r.fatal(err)
 		return 0
@@ -124,8 +128,66 @@ func (r *msgReader) readInt32() int32 {
 
 	n := int32(binary.BigEndian.Uint32(b))
 
+	r.reader.Discard(4)
+
 	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt32", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	}
+
+	return n
+}
+
+func (r *msgReader) readUint16() uint16 {
+	if r.err != nil {
+		return 0
+	}
+
+	r.msgBytesRemaining -= 2
+	if r.msgBytesRemaining < 0 {
+		r.fatal(errors.New("read past end of message"))
+		return 0
+	}
+
+	b, err := r.reader.Peek(2)
+	if err != nil {
+		r.fatal(err)
+		return 0
+	}
+
+	n := uint16(binary.BigEndian.Uint16(b))
+
+	r.reader.Discard(2)
+
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readUint16", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
+	}
+
+	return n
+}
+
+func (r *msgReader) readUint32() uint32 {
+	if r.err != nil {
+		return 0
+	}
+
+	r.msgBytesRemaining -= 4
+	if r.msgBytesRemaining < 0 {
+		r.fatal(errors.New("read past end of message"))
+		return 0
+	}
+
+	b, err := r.reader.Peek(4)
+	if err != nil {
+		r.fatal(err)
+		return 0
+	}
+
+	n := uint32(binary.BigEndian.Uint32(b))
+
+	r.reader.Discard(4)
+
+	if r.shouldLog(LogLevelTrace) {
+		r.log(LogLevelTrace, "msgReader.readUint32", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
 	}
 
 	return n
@@ -142,14 +204,15 @@ func (r *msgReader) readInt64() int64 {
 		return 0
 	}
 
-	b := r.buf[0:8]
-	_, err := io.ReadFull(r.reader, b)
+	b, err := r.reader.Peek(8)
 	if err != nil {
 		r.fatal(err)
 		return 0
 	}
 
 	n := int64(binary.BigEndian.Uint64(b))
+
+	r.reader.Discard(8)
 
 	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readInt64", "value", n, "msgBytesRemaining", r.msgBytesRemaining)
@@ -190,31 +253,33 @@ func (r *msgReader) readCString() string {
 }
 
 // readString reads count bytes and returns as string
-func (r *msgReader) readString(count int32) string {
+func (r *msgReader) readString(countI32 int32) string {
 	if r.err != nil {
 		return ""
 	}
 
-	r.msgBytesRemaining -= count
+	r.msgBytesRemaining -= countI32
 	if r.msgBytesRemaining < 0 {
 		r.fatal(errors.New("read past end of message"))
 		return ""
 	}
 
-	var b []byte
-	if count <= int32(len(r.buf)) {
-		b = r.buf[0:int(count)]
+	count := int(countI32)
+	var s string
+
+	if r.reader.Buffered() >= count {
+		buf, _ := r.reader.Peek(count)
+		s = string(buf)
+		r.reader.Discard(count)
 	} else {
-		b = make([]byte, int(count))
+		buf := make([]byte, count)
+		_, err := io.ReadFull(r.reader, buf)
+		if err != nil {
+			r.fatal(err)
+			return ""
+		}
+		s = string(buf)
 	}
-
-	_, err := io.ReadFull(r.reader, b)
-	if err != nil {
-		r.fatal(err)
-		return ""
-	}
-
-	s := string(b)
 
 	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.readString", "value", s, "msgBytesRemaining", r.msgBytesRemaining)

@@ -40,7 +40,7 @@ func releaseAllConnections(pool *pgx.ConnPool, connections []*pgx.Conn) {
 func acquireWithTimeTaken(pool *pgx.ConnPool) (*pgx.Conn, time.Duration, error) {
 	startTime := time.Now()
 	c, err := pool.Acquire()
-	return c, time.Now().Sub(startTime), err
+	return c, time.Since(startTime), err
 }
 
 func TestNewConnPool(t *testing.T) {
@@ -215,7 +215,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 	// Prior to createConnectionUnlocked() use the test took
 	// maxConnections * openTimeout seconds to complete.
 	// With createConnectionUnlocked() it takes ~ 1 * openTimeout seconds.
-	timeTaken := time.Now().Sub(startedAt)
+	timeTaken := time.Since(startedAt)
 	if timeTaken > openTimeout+1*time.Second {
 		t.Fatalf("Expected all Acquire() to run in parallel and take about %v, instead it took '%v'", openTimeout, timeTaken)
 	}
@@ -276,8 +276,8 @@ func TestPoolWithAcquireTimeoutSet(t *testing.T) {
 	// ... then try to consume 1 more. It should fail after a short timeout.
 	_, timeTaken, err := acquireWithTimeTaken(pool)
 
-	if err == nil || err.Error() != "Timeout: All connections in pool are busy" {
-		t.Fatalf("Expected error to be 'Timeout: All connections in pool are busy', instead it was '%v'", err)
+	if err == nil || err != pgx.ErrAcquireTimeout {
+		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
 	if timeTaken < connAllocTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
@@ -366,12 +366,12 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Unable to Acquire: %v", err)
 		}
-		rows, _ := c.Query("select 1")
+		rows, _ := c.Query("select 1, pg_sleep(0.02)")
 		rows.Close()
 		pool.Release(c)
 	}
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		doSomething()
 	}
 
@@ -381,7 +381,7 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -14,7 +14,7 @@ func init() {
 	placeholders = make([]string, 64)
 
 	for i := 1; i < 64; i++ {
-		placeholders[i] = "$" + strconv.FormatInt(int64(i), 10)
+		placeholders[i] = "$" + strconv.Itoa(i)
 	}
 }
 
@@ -25,5 +25,5 @@ func (qa *QueryArgs) Append(v interface{}) string {
 	if len(*qa) < len(placeholders) {
 		return placeholders[len(*qa)]
 	}
-	return "$" + strconv.FormatInt(int64(len(*qa)), 10)
+	return "$" + strconv.Itoa(len(*qa))
 }

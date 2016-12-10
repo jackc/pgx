@@ -158,6 +158,15 @@ func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
+// CopyTo delegates to the underlying *Conn
+func (tx *Tx) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
+	if tx.status != TxStatusInProgress {
+		return 0, ErrTxClosed
+	}
+
+	return tx.conn.CopyTo(tableName, columnNames, rowSrc)
+}
+
 // Conn returns the *Conn this transaction is using.
 func (tx *Tx) Conn() *Conn {
 	return tx.conn
