@@ -15,7 +15,6 @@ const (
 	hsVal
 	hsNul
 	hsNext
-	hsEnd
 )
 
 type hstoreParser struct {

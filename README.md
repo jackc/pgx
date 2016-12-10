@@ -19,6 +19,7 @@ Pgx supports many additional features beyond what is available through database/
 * Transaction isolation level control
 * Full TLS connection control
 * Binary format support for custom types (can be much faster)
+* Copy protocol support for faster bulk data loads
 * Logging support
 * Configurable connection pool with after connect hooks to do arbitrary connection setup
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
@@ -60,16 +61,23 @@ skip tests for connection types that are not configured.
 
 ### Normal Test Environment
 
-To setup the normal test environment run the following SQL:
+To setup the normal test environment, first install these dependencies:
+
+    go get github.com/jackc/fake
+    go get github.com/shopspring/decimal
+    go get gopkg.in/inconshreveable/log15.v2
+
+Then run the following SQL:
 
     create user pgx_md5 password 'secret';
+    create user " tricky, ' } "" \ test user " password 'secret';
     create database pgx_test;
 
 Connect to database pgx_test and run:
 
     create extension hstore;
 
-Next open connection_settings_test.go.example and make a copy without the
+Next open conn_config_test.go.example and make a copy without the
 .example. If your PostgreSQL server is accepting connections on 127.0.0.1,
 then you are done.
 
@@ -98,7 +106,8 @@ If you are developing on Windows with TCP connections:
 
 ## Version Policy
 
-pgx follows semantic versioning for the documented public API. ```master```
-branch tracks the latest stable branch (```v2```). Consider using ```import
-"gopkg.in/jackc/pgx.v2"``` to lock to the ```v2``` branch or use a vendoring
-tool such as [godep](https://github.com/tools/godep).
+pgx follows semantic versioning for the documented public API on stable releases. Branch ```v2``` is the latest stable release. ```master``` can contain new features or behavior that will change or be removed before being merged to the stable ```v2``` branch (in practice, this occurs very rarely).
+
+Consider using a vendoring
+tool such as [godep](https://github.com/tools/godep) or importing pgx via ```import
+"gopkg.in/jackc/pgx.v2"``` to lock to the ```v2``` branch.

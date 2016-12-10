@@ -914,7 +914,7 @@ func TestPrepareQueryManyParameters(t *testing.T) {
 		args := make([]interface{}, 0, tt.count)
 		for j := 0; j < tt.count; j++ {
 			params = append(params, fmt.Sprintf("($%d::text)", j+1))
-			args = append(args, strconv.FormatInt(int64(j), 10))
+			args = append(args, strconv.Itoa(j))
 		}
 
 		sql := "values" + strings.Join(params, ", ")

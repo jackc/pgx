@@ -88,67 +88,74 @@ func TestJSONAndJSONBTranscode(t *testing.T) {
 		if _, ok := conn.PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
-		typename := conn.PgTypes[oid].Name
 
-		testJSONString(t, conn, typename)
-		testJSONStringPointer(t, conn, typename)
-		testJSONSingleLevelStringMap(t, conn, typename)
-		testJSONNestedMap(t, conn, typename)
-		testJSONStringArray(t, conn, typename)
-		testJSONInt64Array(t, conn, typename)
-		testJSONInt16ArrayFailureDueToOverflow(t, conn, typename)
-		testJSONStruct(t, conn, typename)
+		for _, format := range []int16{pgx.TextFormatCode, pgx.BinaryFormatCode} {
+			pgtype := conn.PgTypes[oid]
+			pgtype.DefaultFormat = format
+			conn.PgTypes[oid] = pgtype
+
+			typename := conn.PgTypes[oid].Name
+
+			testJSONString(t, conn, typename, format)
+			testJSONStringPointer(t, conn, typename, format)
+			testJSONSingleLevelStringMap(t, conn, typename, format)
+			testJSONNestedMap(t, conn, typename, format)
+			testJSONStringArray(t, conn, typename, format)
+			testJSONInt64Array(t, conn, typename, format)
+			testJSONInt16ArrayFailureDueToOverflow(t, conn, typename, format)
+			testJSONStruct(t, conn, typename, format)
+		}
 	}
 }
 
-func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONString(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 		return
 	}
 
 	if !reflect.DeepEqual(expectedOutput, output) {
-		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, expectedOutput, output)
 		return
 	}
 }
 
-func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
 	err := conn.QueryRow("select $1::"+typename, &input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 		return
 	}
 
 	if !reflect.DeepEqual(expectedOutput, output) {
-		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, expectedOutput, output)
 		return
 	}
 }
 
-func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := map[string]string{"key": "value"}
 	var output map[string]string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 		return
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, input, output)
 		return
 	}
 }
 
-func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := map[string]interface{}{
 		"name":      "Uncanny",
 		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
@@ -157,52 +164,52 @@ func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 	var output map[string]interface{}
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 		return
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s %d: Did not transcode map[string]interface{} successfully: %v is not %v", typename, format, input, output)
 		return
 	}
 }
 
-func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := []string{"foo", "bar", "baz"}
 	var output []string
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode []string successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s %d: Did not transcode []string successfully: %v is not %v", typename, format, input, output)
 	}
 }
 
-func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := []int64{1, 2, 234432}
 	var output []int64
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode []int64 successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s %d: Did not transcode []int64 successfully: %v is not %v", typename, format, input, output)
 	}
 }
 
-func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	input := []int{1, 2, 234432}
 	var output []int16
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
-		t.Errorf("%s: Expected *json.UnmarkalTypeError, but got %v", typename, err)
+		t.Errorf("%s %d: Expected *json.UnmarkalTypeError, but got %v", typename, format, err)
 	}
 }
 
-func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string, format int16) {
 	type person struct {
 		Name string `json:"name"`
 		Age  int    `json:"age"`
@@ -217,11 +224,11 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
 
 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
 	if err != nil {
-		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode struct successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s %d: Did not transcode struct successfully: %v is not %v", typename, format, input, output)
 	}
 }
 
@@ -561,6 +568,13 @@ func TestNullX(t *testing.T) {
 		s   pgx.NullString
 		i16 pgx.NullInt16
 		i32 pgx.NullInt32
+		c   pgx.NullChar
+		a   pgx.NullAclItem
+		n   pgx.NullName
+		oid pgx.NullOID
+		xid pgx.NullXid
+		cid pgx.NullCid
+		tid pgx.NullTid
 		i64 pgx.NullInt64
 		f32 pgx.NullFloat32
 		f64 pgx.NullFloat64
@@ -582,6 +596,27 @@ func TestNullX(t *testing.T) {
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: false}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 0, Valid: false}}},
+		{"select $1::oid", []interface{}{pgx.NullOID{OID: 1, Valid: true}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOID{OID: 1, Valid: true}}},
+		{"select $1::oid", []interface{}{pgx.NullOID{OID: 1, Valid: false}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOID{OID: 0, Valid: false}}},
+		{"select $1::oid", []interface{}{pgx.NullOID{OID: 4294967295, Valid: true}}, []interface{}{&actual.oid}, allTypes{oid: pgx.NullOID{OID: 4294967295, Valid: true}}},
+		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 1, Valid: true}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 1, Valid: true}}},
+		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 1, Valid: false}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 0, Valid: false}}},
+		{"select $1::xid", []interface{}{pgx.NullXid{Xid: 4294967295, Valid: true}}, []interface{}{&actual.xid}, allTypes{xid: pgx.NullXid{Xid: 4294967295, Valid: true}}},
+		{"select $1::\"char\"", []interface{}{pgx.NullChar{Char: 1, Valid: true}}, []interface{}{&actual.c}, allTypes{c: pgx.NullChar{Char: 1, Valid: true}}},
+		{"select $1::\"char\"", []interface{}{pgx.NullChar{Char: 1, Valid: false}}, []interface{}{&actual.c}, allTypes{c: pgx.NullChar{Char: 0, Valid: false}}},
+		{"select $1::\"char\"", []interface{}{pgx.NullChar{Char: 255, Valid: true}}, []interface{}{&actual.c}, allTypes{c: pgx.NullChar{Char: 255, Valid: true}}},
+		{"select $1::name", []interface{}{pgx.NullName{Name: "foo", Valid: true}}, []interface{}{&actual.n}, allTypes{n: pgx.NullName{Name: "foo", Valid: true}}},
+		{"select $1::name", []interface{}{pgx.NullName{Name: "foo", Valid: false}}, []interface{}{&actual.n}, allTypes{n: pgx.NullName{Name: "", Valid: false}}},
+		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: true}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: true}}},
+		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: false}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: "", Valid: false}}},
+		// A tricky (and valid) aclitem can still be used, especially with Go's useful backticks
+		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}}},
+		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 1, Valid: true}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 1, Valid: true}}},
+		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 1, Valid: false}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 0, Valid: false}}},
+		{"select $1::cid", []interface{}{pgx.NullCid{Cid: 4294967295, Valid: true}}, []interface{}{&actual.cid}, allTypes{cid: pgx.NullCid{Cid: 4294967295, Valid: true}}},
+		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: true}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: true}}},
+		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: false}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 0, OffsetNumber: 0}, Valid: false}}},
+		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 4294967295, OffsetNumber: 65535}, Valid: true}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 4294967295, OffsetNumber: 65535}, Valid: true}}},
 		{"select $1::int8", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 1, Valid: true}}},
 		{"select $1::int8", []interface{}{pgx.NullInt64{Int64: 1, Valid: false}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 0, Valid: false}}},
 		{"select $1::float4", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, allTypes{f32: pgx.NullFloat32{Float32: 1.23, Valid: true}}},
@@ -615,6 +650,52 @@ func TestNullX(t *testing.T) {
 	}
 }
 
+func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
+	if !reflect.DeepEqual(query, scan) {
+		t.Errorf("failed to encode aclitem[]\n EXPECTED: %d %v\n ACTUAL:   %d %v", len(query), query, len(scan), scan)
+	}
+}
+
+func TestAclArrayDecoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := "select $1::aclitem[]"
+	var scan []pgx.AclItem
+
+	tests := []struct {
+		query []pgx.AclItem
+	}{
+		{
+			[]pgx.AclItem{},
+		},
+		{
+			[]pgx.AclItem{"=r/postgres"},
+		},
+		{
+			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
+		},
+		{
+			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres", `postgres=arwdDxt/" tricky, ' } "" \ test user "`},
+		},
+	}
+	for i, tt := range tests {
+		err := conn.QueryRow(sql, tt.query).Scan(&scan)
+		if err != nil {
+			// t.Errorf(`%d. error reading array: %v`, i, err)
+			t.Errorf(`%d. error reading array: %v query: %s`, i, err, tt.query)
+			if pgerr, ok := err.(pgx.PgError); ok {
+				t.Errorf(`%d. error reading array (detail): %s`, i, pgerr.Detail)
+			}
+			continue
+		}
+		assertAclItemSlicesEqual(t, tt.query, scan)
+		ensureConnValid(t, conn)
+	}
+}
+
 func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
@@ -630,7 +711,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bool[]", []bool{true, false, true}, &[]bool{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]bool))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]bool))) {
 					t.Errorf("failed to encode bool[]")
 				}
 			},
@@ -638,7 +719,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int16))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int16))) {
 					t.Errorf("failed to encode smallint[]")
 				}
 			},
@@ -646,7 +727,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint16))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint16))) {
 					t.Errorf("failed to encode smallint[]")
 				}
 			},
@@ -654,7 +735,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int32))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int32))) {
 					t.Errorf("failed to encode int[]")
 				}
 			},
@@ -662,7 +743,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint32))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint32))) {
 					t.Errorf("failed to encode int[]")
 				}
 			},
@@ -670,7 +751,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]int64))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]int64))) {
 					t.Errorf("failed to encode bigint[]")
 				}
 			},
@@ -678,7 +759,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]uint64))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]uint64))) {
 					t.Errorf("failed to encode bigint[]")
 				}
 			},
@@ -686,7 +767,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]string))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]string))) {
 					t.Errorf("failed to encode text[]")
 				}
 			},
@@ -694,7 +775,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
 					t.Errorf("failed to encode time.Time[] to timestamp[]")
 				}
 			},
@@ -702,7 +783,7 @@ func TestArrayDecoding(t *testing.T) {
 		{
 			"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
-				if reflect.DeepEqual(query, *(scan.(*[]time.Time))) == false {
+				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
 					t.Errorf("failed to encode time.Time[] to timestamptz[]")
 				}
 			},
@@ -718,7 +799,7 @@ func TestArrayDecoding(t *testing.T) {
 				for i := range queryBytesSliceSlice {
 					qb := queryBytesSliceSlice[i]
 					sb := scanBytesSliceSlice[i]
-					if bytes.Compare(qb, sb) != 0 {
+					if !bytes.Equal(qb, sb) {
 						t.Errorf("failed to encode byte[][] to bytea[]: expected %v to equal %v", qb, sb)
 					}
 				}
@@ -1075,11 +1156,11 @@ func TestRowDecode(t *testing.T) {
 		expected []interface{}
 	}{
 		{
-			"select row(1, 'cat', '2015-01-01 08:12:42'::timestamptz)",
+			"select row(1, 'cat', '2015-01-01 08:12:42-00'::timestamptz)",
 			[]interface{}{
 				int32(1),
 				"cat",
-				time.Date(2015, 1, 1, 8, 12, 42, 0, time.Local),
+				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
 			},
 		},
 	}
