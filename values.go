@@ -24,6 +24,7 @@ const (
 	Int8Oid             = 20
 	Int2Oid             = 21
 	Int4Oid             = 23
+	RegProcOid          = 24
 	TextOid             = 25
 	OidOid              = 26
 	TidOid              = 27
@@ -111,6 +112,7 @@ func init() {
 		"name":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
+		"regproc":      TextFormatCode, // favour text, which sends the name; binary sends the oid
 		"text":         BinaryFormatCode,
 		"tid":          BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
@@ -318,6 +320,50 @@ func (n NullAclItem) Encode(w *WriteBuf, oid Oid) error {
 	}
 
 	return encodeString(w, oid, string(n.AclItem))
+}
+
+// RegProc is used for PostgreSQL's regproc data type. It is one of the
+// OID alias types described in
+//
+// https://www.postgresql.org/docs/current/static/datatype-oid.html#DATATYPE-OID-TABLE
+type RegProc string
+
+// NullRegProc represents a pgx.RegProc that may be null. NullRegProc implements the
+// Scanner and Encoder interfaces so it may be used both as an argument to
+// Query[Row] and a destination for Scan for prepared and unprepared queries.
+//
+// If Valid is false then the value is NULL.
+type NullRegProc struct {
+	RegProc RegProc
+	Valid   bool // Valid is true if RegProc is not NULL
+}
+
+func (n *NullRegProc) Scan(vr *ValueReader) error {
+	if vr.Type().DataType != RegProcOid {
+		return SerializationError(fmt.Sprintf("NullRegProc.Scan cannot decode OID %d", vr.Type().DataType))
+	}
+
+	if vr.Len() == -1 {
+		n.RegProc, n.Valid = "", false
+		return nil
+	}
+
+	n.Valid = true
+	n.RegProc = RegProc(decodeText(vr))
+	return vr.Err()
+}
+
+// Particularly important to return TextFormatCode, because we want to
+// get the textual name from PostgreSQL, not the numeric OID.
+func (n NullRegProc) FormatCode() int16 { return TextFormatCode }
+
+func (n NullRegProc) Encode(w *WriteBuf, oid Oid) error {
+	if !n.Valid {
+		w.WriteInt32(-1)
+		return nil
+	}
+
+	return encodeString(w, oid, string(n.RegProc))
 }
 
 // Name is a type used for PostgreSQL's special 63-byte
@@ -655,7 +701,10 @@ func (n NullCid) Encode(w *WriteBuf, oid Oid) error {
 //
 // it is the data type of the ctid hidden system column.
 //
-// It is currently implemented as a pair unsigned two byte integers.
+// It is currently implemented as a pair of numbers: an unsigned four
+// byte integer for the block number, and an unsigned two byte integer
+// for the offset number.
+//
 // Its conversion functions can be found in src/backend/utils/adt/tid.c
 // in the PostgreSQL sources.
 type Tid struct {
@@ -1023,6 +1072,10 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return encodeUInt(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
+	case RegProc:
+		// The regproc data type goes over the wire using the same format as string,
+		// so just cast to string and use encodeString
+		return encodeString(wbuf, oid, string(arg))
 	case AclItem:
 		// The aclitem data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
@@ -1209,6 +1262,9 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = uint64(n)
 	case *Char:
 		*v = decodeChar(vr)
+	case *RegProc:
+		// regproc goes over the wire just like text
+		*v = RegProc(decodeText(vr))
 	case *AclItem:
 		// aclitem goes over the wire just like text
 		*v = AclItem(decodeText(vr))
