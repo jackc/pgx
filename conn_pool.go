@@ -383,7 +383,7 @@ func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
 // Begin acquires a connection and begins a transaction on it. When the
 // transaction is closed the connection will be automatically released.
 func (p *ConnPool) Begin() (*Tx, error) {
-	return p.BeginIso("")
+	return p.BeginEx(nil)
 }
 
 // Prepare creates a prepared statement on a connection in the pool to test the
@@ -469,17 +469,17 @@ func (p *ConnPool) Deallocate(name string) (err error) {
 	return nil
 }
 
-// BeginIso acquires a connection and begins a transaction in isolation mode iso
-// on it. When the transaction is closed the connection will be automatically
-// released.
-func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
+// BeginEx acquires a connection and starts a transaction with txOptions
+// determining the transaction mode. When the transaction is closed the
+// connection will be automatically released.
+func (p *ConnPool) BeginEx(txOptions *TxOptions) (*Tx, error) {
 	for {
 		c, err := p.Acquire()
 		if err != nil {
 			return nil, err
 		}
 
-		tx, err := c.BeginIso(iso)
+		tx, err := c.BeginEx(txOptions)
 		if err != nil {
 			alive := c.IsAlive()
 			p.Release(c)

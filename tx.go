@@ -1,16 +1,35 @@
 package pgx
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 )
 
+type TxIsoLevel string
+
 // Transaction isolation levels
 const (
-	Serializable    = "serializable"
-	RepeatableRead  = "repeatable read"
-	ReadCommitted   = "read committed"
-	ReadUncommitted = "read uncommitted"
+	Serializable    = TxIsoLevel("serializable")
+	RepeatableRead  = TxIsoLevel("repeatable read")
+	ReadCommitted   = TxIsoLevel("read committed")
+	ReadUncommitted = TxIsoLevel("read uncommitted")
+)
+
+type TxAccessMode string
+
+// Transaction access modes
+const (
+	ReadWrite = TxAccessMode("read write")
+	ReadOnly  = TxAccessMode("read only")
+)
+
+type TxDeferrableMode string
+
+// Transaction deferrable modes
+const (
+	Deferrable    = TxDeferrableMode("deferrable")
+	NotDeferrable = TxDeferrableMode("not deferrable")
 )
 
 const (
@@ -21,6 +40,12 @@ const (
 	TxStatusRollbackSuccess = 2
 )
 
+type TxOptions struct {
+	IsoLevel       TxIsoLevel
+	AccessMode     TxAccessMode
+	DeferrableMode TxDeferrableMode
+}
+
 var ErrTxClosed = errors.New("tx is closed")
 
 // ErrTxCommitRollback occurs when an error has occurred in a transaction and
@@ -28,30 +53,32 @@ var ErrTxClosed = errors.New("tx is closed")
 // it is treated as ROLLBACK.
 var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 
-// Begin starts a transaction with the default isolation level for the current
-// connection. To use a specific isolation level see BeginIso.
+// Begin starts a transaction with the default transaction mode for the
+// current connection. To use a specific transaction mode see BeginEx.
 func (c *Conn) Begin() (*Tx, error) {
-	return c.begin("")
+	return c.BeginEx(nil)
 }
 
-// BeginIso starts a transaction with isoLevel as the transaction isolation
-// level.
-//
-// Valid isolation levels (and their constants) are:
-//   serializable (pgx.Serializable)
-//   repeatable read (pgx.RepeatableRead)
-//   read committed (pgx.ReadCommitted)
-//   read uncommitted (pgx.ReadUncommitted)
-func (c *Conn) BeginIso(isoLevel string) (*Tx, error) {
-	return c.begin(isoLevel)
-}
-
-func (c *Conn) begin(isoLevel string) (*Tx, error) {
+// BeginEx starts a transaction with txOptions determining the transaction
+// mode.
+func (c *Conn) BeginEx(txOptions *TxOptions) (*Tx, error) {
 	var beginSQL string
-	if isoLevel == "" {
+	if txOptions == nil {
 		beginSQL = "begin"
 	} else {
-		beginSQL = fmt.Sprintf("begin isolation level %s", isoLevel)
+		buf := &bytes.Buffer{}
+		buf.WriteString("begin")
+		if txOptions.IsoLevel != "" {
+			fmt.Fprintf(buf, " isolation level %s", txOptions.IsoLevel)
+		}
+		if txOptions.AccessMode != "" {
+			fmt.Fprintf(buf, " %s", txOptions.AccessMode)
+		}
+		if txOptions.DeferrableMode != "" {
+			fmt.Fprintf(buf, " %s", txOptions.DeferrableMode)
+		}
+
+		beginSQL = buf.String()
 	}
 
 	_, err := c.Exec(beginSQL)
