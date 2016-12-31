@@ -55,6 +55,7 @@ const (
 	TimestampTzOid      = 1184
 	TimestampTzArrayOid = 1185
 	RecordOid           = 2249
+	RecordArrayOid      = 2287
 	UuidOid             = 2950
 	JsonbOid            = 3802
 )
@@ -89,6 +90,7 @@ func init() {
 		"_int2":        BinaryFormatCode,
 		"_int4":        BinaryFormatCode,
 		"_int8":        BinaryFormatCode,
+		"_record":      BinaryFormatCode,
 		"_text":        BinaryFormatCode,
 		"_timestamp":   BinaryFormatCode,
 		"_timestamptz": BinaryFormatCode,
@@ -1257,6 +1259,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeByteaArray(vr)
 	case *[]interface{}:
 		*v = decodeRecord(vr)
+	case *[][]interface{}:
+		*v = decodeRecordArray(vr)
 	case *time.Time:
 		switch vr.Type().DataType {
 		case DateOid:
@@ -2305,6 +2309,41 @@ func encodeIP(w *WriteBuf, oid Oid, value net.IP) error {
 	return encodeIPNet(w, oid, ipnet)
 }
 
+func decodeRecordArray(vr *ValueReader) [][]interface{} {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %#v %#v", vr, vr.Type())))
+		return nil
+	}
+
+	if vr.Type().DataType != RecordArrayOid {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into [][]interface{}", vr.Type().DataType)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([][]interface{}, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		if elSize == -1 {
+			vr.Fatal(ProtocolError("Cannot decode null element")) // TODO: we actually can i think
+			return nil
+		}
+
+		a[i] = rawDecodeRecord(vr)
+	}
+
+	return a
+}
+
 func decodeRecord(vr *ValueReader) []interface{} {
 	if vr.Len() == -1 {
 		return nil
@@ -2319,6 +2358,12 @@ func decodeRecord(vr *ValueReader) []interface{} {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []interface{}", vr.Type().DataType)))
 		return nil
 	}
+
+	return rawDecodeRecord(vr)
+}
+
+// reusable function, not intended to be used directly
+func rawDecodeRecord(vr *ValueReader) []interface{} {
 
 	valueCount := vr.ReadInt32()
 	record := make([]interface{}, 0, int(valueCount))

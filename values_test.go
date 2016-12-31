@@ -1181,3 +1181,53 @@ func TestRowDecode(t *testing.T) {
 		ensureConnValid(t, conn)
 	}
 }
+
+func TestRowArrayDecode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tests := []struct {
+		sql      string
+		expected [][]interface{}
+	}{
+		{
+			`
+				 SELECT ARRAY_AGG(ROW(id, uname, message))
+				 FROM (
+					SELECT
+						 id,
+						 uname,
+						 message
+					FROM
+							(VALUES
+								(1, 'John', 'How are you?'),
+								(2, 'Bob', 'fine thanks')
+							) as chat_messages(id, uname, message)
+					ORDER BY chat_messages.id ASC
+				 ) s;
+			`,
+			[][]interface{}{
+				[]interface{} { 1, "John", "How are you?"},
+				[]interface{} { 1, "Bob", "fine thanks"},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		var actual [][]interface{}
+
+		err := conn.QueryRow(tt.sql).Scan(&actual)
+		if err != nil {
+			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
+			continue
+		}
+
+		if !reflect.DeepEqual(actual, tt.expected) {
+			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.expected, actual, tt.sql)
+		}
+
+		ensureConnValid(t, conn)
+	}
+}
