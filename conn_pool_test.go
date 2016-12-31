@@ -560,9 +560,9 @@ func TestConnPoolTransactionIso(t *testing.T) {
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
-	tx, err := pool.BeginIso(pgx.Serializable)
+	tx, err := pool.BeginEx(&pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("pool.Begin failed: %v", err)
+		t.Fatalf("pool.BeginEx failed: %v", err)
 	}
 	defer tx.Rollback()
 

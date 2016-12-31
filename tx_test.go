@@ -107,15 +107,15 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer pool.Exec(`drop table tx_serializable_sums`)
 
-	tx1, err := pool.BeginIso(pgx.Serializable)
+	tx1, err := pool.BeginEx(&pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginIso failed: %v", err)
+		t.Fatalf("BeginEx failed: %v", err)
 	}
 	defer tx1.Rollback()
 
-	tx2, err := pool.BeginIso(pgx.Serializable)
+	tx2, err := pool.BeginEx(&pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginIso failed: %v", err)
+		t.Fatalf("BeginEx failed: %v", err)
 	}
 	defer tx2.Rollback()
 
@@ -182,20 +182,20 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	}
 }
 
-func TestBeginIso(t *testing.T) {
+func TestBeginExIsoLevels(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	isoLevels := []string{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
+	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
-		tx, err := conn.BeginIso(iso)
+		tx, err := conn.BeginEx(&pgx.TxOptions{IsoLevel: iso})
 		if err != nil {
-			t.Fatalf("conn.BeginIso failed: %v", err)
+			t.Fatalf("conn.BeginEx failed: %v", err)
 		}
 
-		var level string
+		var level pgx.TxIsoLevel
 		conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
 		if level != iso {
 			t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
@@ -205,6 +205,24 @@ func TestBeginIso(t *testing.T) {
 		if err != nil {
 			t.Fatalf("tx.Rollback failed: %v", err)
 		}
+	}
+}
+
+func TestBeginExReadOnly(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	tx, err := conn.BeginEx(&pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatalf("conn.BeginEx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = conn.Exec("create table foo(id serial primary key)")
+	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "25006" {
+		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
 	}
 }
 
