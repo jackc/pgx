@@ -124,11 +124,29 @@ type StandbyStatus struct {
 
 // Create a standby status struct, which sets all the WAL positions
 // to the given wal position, and the client time to the current time.
-func NewStandbyStatus(walPosition uint64) (status *StandbyStatus) {
-	status = new(StandbyStatus)
-	status.WalFlushPosition = walPosition
-	status.WalApplyPosition = walPosition
-	status.WalWritePosition = walPosition
+// The wal positions are, in order:
+// WalFlushPosition
+// WalApplyPosition
+// WalWritePosition
+//
+// If only one position is provided, it will be used as the value for all 3
+// status fields. Note you must provide either 1 wal position, or all 3
+// in order to initialize the standby status.
+func NewStandbyStatus(walPositions ...uint64) (status *StandbyStatus, err error) {
+	if len(walPositions) == 1 {
+		status = new(StandbyStatus)
+		status.WalFlushPosition = walPositions[0]
+		status.WalApplyPosition = walPositions[0]
+		status.WalWritePosition = walPositions[0]
+	} else if len(walPositions) == 3 {
+		status = new(StandbyStatus)
+		status.WalFlushPosition = walPositions[0]
+		status.WalApplyPosition = walPositions[1]
+		status.WalWritePosition = walPositions[2]
+	} else {
+		err = errors.New(fmt.Sprintf("Invalid number of wal positions provided, need 1 or 3, got %d", len(walPositions)))
+		return
+	}
 	status.ClientTime = uint64((time.Now().UnixNano() - epochNano) / 1000)
 	return
 }

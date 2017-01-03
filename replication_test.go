@@ -150,8 +150,33 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	// Before closing our connection, let's send a standby status to update our wal
 	// position, which should then be reflected if we fetch out our current wal position
 	// for the slot
-	replicationConn.SendStandbyStatus(pgx.NewStandbyStatus(maxWal))
+	status, err := pgx.NewStandbyStatus(maxWal)
+	if err != nil {
+		t.Errorf("Failed to create standby status %v", err)
+	}
+	replicationConn.SendStandbyStatus(status)
 	replicationConn.StopReplication()
+
+	// Let's push the boundary conditions of the standby status and ensure it errors correctly
+	status, err = pgx.NewStandbyStatus(0,1,2,3,4)
+	if err == nil {
+		t.Errorf("Expected error from new standby status, got %v",status)
+	}
+
+	// And if you provide 3 args, ensure the right fields are set
+	status, err = pgx.NewStandbyStatus(1,2,3)
+	if err != nil {
+		t.Errorf("Failed to create test status: %v", err)
+	}
+	if status.WalFlushPosition != 1 {
+		t.Errorf("Unexpected flush position %d", status.WalFlushPosition)
+	}
+	if status.WalApplyPosition != 2 {
+		t.Errorf("Unexpected apply position %d", status.WalApplyPosition)
+	}
+	if status.WalWritePosition != 3 {
+		t.Errorf("Unexpected write position %d", status.WalWritePosition)
+	}
 
 	err = replicationConn.Close()
 	if err != nil {
