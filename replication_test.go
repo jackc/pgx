@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 	"reflect"
+	"fmt"
 )
 
 // This function uses a postgresql 9.6 specific column
 func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 	// Fetch the restart LSN of the slot, to establish a starting point
-	rows, err := conn.Query("select confirmed_flush_lsn from pg_replication_slots where slot_name='pgx_test'")
+	rows, err := conn.Query(fmt.Sprintf("select confirmed_flush_lsn from pg_replication_slots where slot_name='%s'", slot))
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -66,7 +67,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	err = replicationConn.StartReplication("START_REPLICATION SLOT pgx_test LOGICAL 0/0")
+	err = replicationConn.StartReplication("pgx_test", 0, -1)
 	if err != nil {
 		t.Fatalf("Failed to start replication: %v", err)
 	}
