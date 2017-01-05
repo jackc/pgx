@@ -95,12 +95,14 @@ If you are developing on Unix with domain socket connections:
     local  pgx_test  pgx_none  trust
     local  pgx_test  pgx_pw    password
     local  pgx_test  pgx_md5   md5
+    local  replication pgx_replication 127.0.0.1/32 md5
 
 If you are developing on Windows with TCP connections:
 
     host  pgx_test  pgx_none  127.0.0.1/32 trust
     host  pgx_test  pgx_pw    127.0.0.1/32 password
     host  pgx_test  pgx_md5   127.0.0.1/32 md5
+    host  replication pgx_replication 127.0.0.1/32 md5
 
 For replication testing, add the following to your postgresql.conf:
 
