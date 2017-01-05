@@ -3,6 +3,8 @@ package pgx_test
 import (
   "crypto/tls"
   "github.com/jackc/pgx"
+  "os"
+  "strconv"
 )
 
 var defaultConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
@@ -13,3 +15,11 @@ var plainPasswordConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_pw",
 var invalidUserConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}
 var tlsConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_ssl", Password: "secret", Database: "pgx_test", TLSConfig: &tls.Config{InsecureSkipVerify: true}}
 var customDialerConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
+var pgVersion = os.getenv("PGVERSION")
+var replicationConfig *pgx.ConnConfig = nil
+if len(pgVersion) > 0 {
+    version, err := strconv.ParseFloat(pgVersion)
+    if err == nil && version >= 9.6 {
+        replicationConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
+    }
+}
