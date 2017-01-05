@@ -17,10 +17,14 @@ var tlsConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_ssl", Password
 var customDialerConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 var replicationConnConfig *pgx.ConnConfig = nil
 
-pgVersion := os.getenv("PGVERSION")
-if len(pgVersion) > 0 {
-    version, err := strconv.ParseFloat(pgVersion)
-    if err == nil && version >= 9.6 {
-        replicationConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
-    }
+func init() {
+        version := os.Getenv("PGVERSION")
+
+        if len(version) > 0 {
+                v, err := strconv.ParseFloat(version,64)
+                if err == nil && v >= 9.6 {
+                        replicationConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
+                }
+        }
 }
+
