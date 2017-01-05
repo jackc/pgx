@@ -40,15 +40,12 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	t.Parallel()
 
 	var err error
-	var replicationUserConfig pgx.ConnConfig
 
-	// /.s.PGSQL.5432
 	if replicationConnConfig == nil {
 		t.Skip("Skipping due to undefined replicationConnConfig")
 	}
 
-	replicationUserConfig = *replicationConnConfig
-	conn := mustConnect(t, replicationUserConfig)
+	conn := mustConnect(t, *replicationConnConfig)
 	defer closeConn(t, conn)
 
 	replicationConnConfig.RuntimeParams = make(map[string]string)

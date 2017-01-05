@@ -15,13 +15,12 @@ var plainPasswordConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_pw",
 var invalidUserConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}
 var tlsConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_ssl", Password: "secret", Database: "pgx_test", TLSConfig: &tls.Config{InsecureSkipVerify: true}}
 var customDialerConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
-var pgVersion string
-var replicationConfig *pgx.ConnConfig = nil
+var replicationConnConfig *pgx.ConnConfig = nil
 
-pgVersion = os.getenv("PGVERSION")
+pgVersion := os.getenv("PGVERSION")
 if len(pgVersion) > 0 {
     version, err := strconv.ParseFloat(pgVersion)
     if err == nil && version >= 9.6 {
-        replicationConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
+        replicationConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
     }
 }
