@@ -41,19 +41,20 @@ func TestSimpleReplicationConnection(t *testing.T) {
 
 	var err error
 	var replicationUserConfig pgx.ConnConfig
-	var replicationConnConfig pgx.ConnConfig
 
-	replicationUserConfig = *defaultConnConfig
-	replicationUserConfig.User = "pgx_replication"
+	// /.s.PGSQL.5432
+	if replicationConnConfig == nil {
+		t.Skip("Skipping due to undefined replicationConnConfig")
+	}
+
+	replicationUserConfig = *replicationConnConfig
 	conn := mustConnect(t, replicationUserConfig)
 	defer closeConn(t, conn)
 
-	replicationConnConfig = *defaultConnConfig
-	replicationConnConfig.User = "pgx_replication"
 	replicationConnConfig.RuntimeParams = make(map[string]string)
 	replicationConnConfig.RuntimeParams["replication"] = "database"
 
-	replicationConn := mustConnect(t, replicationConnConfig)
+	replicationConn := mustConnect(t, *replicationConnConfig)
 	defer closeConn(t, replicationConn)
 
 	_, err = replicationConn.Exec("CREATE_REPLICATION_SLOT pgx_test LOGICAL test_decoding")
