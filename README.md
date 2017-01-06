@@ -95,18 +95,26 @@ If you are developing on Unix with domain socket connections:
     local  pgx_test  pgx_none  trust
     local  pgx_test  pgx_pw    password
     local  pgx_test  pgx_md5   md5
-    local  replication pgx_replication 127.0.0.1/32 md5
 
 If you are developing on Windows with TCP connections:
 
     host  pgx_test  pgx_none  127.0.0.1/32 trust
     host  pgx_test  pgx_pw    127.0.0.1/32 password
     host  pgx_test  pgx_md5   127.0.0.1/32 md5
-    host  replication pgx_replication 127.0.0.1/32 md5
 
-For replication testing, add the following to your postgresql.conf:
+### Replication Test Environment
 
-    wal_level='logical'
+Add a replication user:
+
+    create user pgx_replication with replication password 'secret';
+
+Add a replication line to your pg_hba.conf:
+
+    host replication pgx_replication 127.0.0.1/32 md5
+
+Change the following settings in your postgresql.conf:
+
+    wal_level=logical
     max_wal_senders=5
     max_replication_slots=5
 
