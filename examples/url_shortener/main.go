@@ -98,7 +98,28 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+type log15Adapter struct {
+	logger log.Logger
+}
+
+func (a *log15Adapter) Log(level int, msg string, ctx ...interface{}) {
+	switch level {
+	case pgx.LogLevelTrace, pgx.LogLevelDebug:
+		a.logger.Debug(msg, ctx...)
+	case pgx.LogLevelInfo:
+		a.logger.Info(msg, ctx...)
+	case pgx.LogLevelWarn:
+		a.logger.Warn(msg, ctx...)
+	case pgx.LogLevelError:
+		a.logger.Error(msg, ctx...)
+	default:
+		panic("invalid log level")
+	}
+}
+
 func main() {
+	logger := &log15Adapter{logger: log.New("module", "pgx")}
+
 	var err error
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig: pgx.ConnConfig{
@@ -106,7 +127,7 @@ func main() {
 			User:     "jack",
 			Password: "jack",
 			Database: "url_shortener",
-			Logger:   log.New("module", "pgx"),
+			Logger:   logger,
 		},
 		MaxConnections: 5,
 		AfterConnect:   afterConnect,
