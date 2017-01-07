@@ -48,7 +48,7 @@ type Conn struct {
 	reader             *bufio.Reader // buffered reader to improve read performance
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
-	PID                int32             // backend pid
+	pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
 	PgTypes            map[OID]PgType    // oids to PgTypes
@@ -379,6 +379,11 @@ func (c *Conn) loadInetConstants() error {
 	c.pgsqlAfInet6 = &ipv6[0]
 
 	return nil
+}
+
+// PID returns the backend PID for this connection.
+func (c *Conn) PID() int32 {
+	return c.pid
 }
 
 // Close closes a connection. It is safe to call Close on a already closed
@@ -1140,7 +1145,7 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 }
 
 func (c *Conn) rxBackendKeyData(r *msgReader) {
-	c.PID = r.readInt32()
+	c.pid = r.readInt32()
 	c.SecretKey = r.readInt32()
 }
 
@@ -1251,7 +1256,7 @@ func (c *Conn) shouldLog(lvl int) bool {
 }
 
 func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
-	if c.PID != 0 {
+	if c.pid != 0 {
 		ctx = append(ctx, "pid", c.PID)
 	}
 
