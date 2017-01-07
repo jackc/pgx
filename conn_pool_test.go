@@ -428,7 +428,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 				}
 			}()
 
-			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.PID); err != nil {
+			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -599,7 +599,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			pool.Release(victimConn)
 
 			// Terminate connection that was released to pool
-			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.PID); err != nil {
+			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -616,7 +616,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			if err != nil {
 				t.Fatalf("tx.QueryRow Scan failed: %v", err)
 			}
-			if txPID == victimConn.PID {
+			if txPID == victimConn.PID() {
 				t.Error("Expected txPID to defer from killed conn pid, but it didn't")
 			}
 		}()

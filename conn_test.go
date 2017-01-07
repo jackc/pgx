@@ -27,7 +27,7 @@ func TestConnect(t *testing.T) {
 		t.Error("Runtime parameters not stored")
 	}
 
-	if conn.PID == 0 {
+	if conn.PID() == 0 {
 		t.Error("Backend PID not stored")
 	}
 
@@ -1255,7 +1255,7 @@ func TestFatalRxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID); err != nil {
+	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID()); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -1281,7 +1281,7 @@ func TestFatalTxError(t *testing.T) {
 			}
 			defer otherConn.Close()
 
-			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.PID)
+			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.PID())
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
