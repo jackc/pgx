@@ -190,8 +190,8 @@ type conversion from string.
 
 Transactions
 
-Transactions are started by calling Begin or BeginIso. The BeginIso variant
-creates a transaction with a specified isolation level.
+Transactions are started by calling Begin or BeginEx. The BeginEx variant
+can create a transaction with a specified isolation level.
 
     tx, err := conn.Begin()
     if err != nil {
