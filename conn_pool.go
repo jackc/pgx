@@ -181,7 +181,7 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 
 // Release gives up use of a connection.
 func (p *ConnPool) Release(conn *Conn) {
-	if conn.TxStatus != 'I' {
+	if conn.txStatus != 'I' {
 		conn.Exec("rollback")
 	}
 
