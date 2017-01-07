@@ -53,7 +53,7 @@ type Conn struct {
 	RuntimeParams      map[string]string // parameters that have been reported by the server
 	PgTypes            map[OID]PgType    // oids to PgTypes
 	config             ConnConfig        // config used when establishing this connection
-	TxStatus           byte
+	txStatus           byte
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	notifications      []*Notification
@@ -1150,7 +1150,7 @@ func (c *Conn) rxBackendKeyData(r *msgReader) {
 }
 
 func (c *Conn) rxReadyForQuery(r *msgReader) {
-	c.TxStatus = r.readByte()
+	c.txStatus = r.readByte()
 }
 
 func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {

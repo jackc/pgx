@@ -328,14 +328,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatal("Did not receive expected error")
 	}
 
-	if conn.TxStatus != 'E' {
-		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'E' {
+		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus())
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'I' {
+		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus())
 	}
 
 	conn, err = pool.Acquire()
@@ -343,14 +343,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
 	mustExec(t, conn, "begin")
-	if conn.TxStatus != 'T' {
-		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'T' {
+		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus())
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'I' {
+		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus())
 	}
 }
 
