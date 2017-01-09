@@ -17,7 +17,7 @@ func (r *ValueReader) Err() error {
 	return r.err
 }
 
-// Fatal tells r that a Fatal error has occurred
+// Fatal tells rc that a Fatal error has occurred
 func (r *ValueReader) Fatal(err error) {
 	r.err = err
 }
