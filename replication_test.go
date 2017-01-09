@@ -48,13 +48,10 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	conn := mustConnect(t, *replicationConnConfig)
 	defer closeConn(t, conn)
 
-	replicationConnConfig.RuntimeParams = make(map[string]string)
-	replicationConnConfig.RuntimeParams["replication"] = "database"
+	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn)
 
-	replicationConn := mustConnect(t, *replicationConnConfig)
-	defer closeConn(t, replicationConn)
-
-	_, err = replicationConn.Exec("CREATE_REPLICATION_SLOT pgx_test LOGICAL test_decoding")
+	err = replicationConn.CreateReplicationSlot("pgx_test","test_decoding")
 	if err != nil {
 		t.Logf("replication slot create failed: %v", err)
 	}
