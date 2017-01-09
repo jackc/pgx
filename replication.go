@@ -362,7 +362,7 @@ func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) 
 }
 
 // Drop the replication slot for the given name
-func (rc *ReplicationConn) DropReplicationSlot(slotName, outputPlugin string) (err error) {
+func (rc *ReplicationConn) DropReplicationSlot(slotName string) (err error) {
 	_, err = rc.c.Exec(fmt.Sprintf("DROP_REPLICATION_SLOT %s", slotName))
 	return
 }
