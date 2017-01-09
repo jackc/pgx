@@ -173,10 +173,6 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Errorf("Unexpected write position %d", status.WalWritePosition)
 	}
 
-	err = replicationConn.DropReplicationSlot("pgx_test")
-	if err != nil {
-		t.Fatalf("Failed to drop replication slot %v", err)
-	}
 	err = replicationConn.Close()
 	if err != nil {
 		t.Fatalf("Replication connection close failed: %v", err)
@@ -187,4 +183,10 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	if integerRestartLsn != maxWal {
 		t.Fatalf("Wal offset update failed, expected %s found %s", pgx.FormatLSN(maxWal), restartLsn)
 	}
+
+	_, err = conn.Exec("select pg_drop_replication_slot($1)", "pgx_test")
+	if err != nil {
+		t.Fatalf("Failed to drop replication slot: %v", err)
+	}
+
 }
