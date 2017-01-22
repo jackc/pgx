@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -113,9 +114,6 @@ func (ct CommandTag) RowsAffected() int64 {
 
 // ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
-
-// ErrNotificationTimeout occurs when WaitForNotification times out.
-var ErrNotificationTimeout = errors.New("notification timeout")
 
 // ErrDeadConn occurs on an attempt to use a dead connection
 var ErrDeadConn = errors.New("conn is dead")
@@ -743,6 +741,53 @@ func (c *Conn) Deallocate(name string) (err error) {
 	}
 }
 
+func (c *Conn) pingContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	default:
+	}
+
+	readDoneChan := make(chan struct{})
+	readDeadlineSet := make(chan bool)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.conn.SetReadDeadline(time.Now())
+			<-readDoneChan
+			readDeadlineSet <- true
+		case readDoneChan:
+			readDeadlineSet <- false
+		}
+	}()
+
+	var n int32
+	err := c.QueryRow("select 1::int4").Scan(&n)
+
+	// Cleanup cancelation goroutine
+	dr.readDoneChan <- struct{}{}
+
+	// Clear read deadline if set
+	if <-readDeadlineSet {
+		c.conn.SetReadDeadline(time.Time{})
+	}
+
+	// If ping query completed successfully return success even if ctx has now
+	// been canceled.
+	if err == nil {
+		return nil
+	}
+
+	// Prefer ctx err over Read err
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return err
+	}
+}
+
 // Listen establishes a PostgreSQL listen/notify to channel
 func (c *Conn) Listen(channel string) error {
 	_, err := c.Exec("listen " + quoteIdentifier(channel))
@@ -766,9 +811,9 @@ func (c *Conn) Unlisten(channel string) error {
 	return nil
 }
 
-// WaitForNotification waits for a PostgreSQL notification for up to timeout.
-// If the timeout occurs it returns pgx.ErrNotificationTimeout
-func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
+// WaitForNotification waits for a PostgreSQL notification until a notification
+// is received or ctx is canceled.
+func (c *Conn) WaitForNotification(ctx context.Context) (*Notification, error) {
 	// Return already received notification immediately
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
@@ -776,14 +821,28 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		return notification, nil
 	}
 
-	stopTime := time.Now().Add(timeout)
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	default:
+	}
+
+	readDoneChan := make(chan struct{})
+	readDeadlineSet := make(chan bool)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			dr.r.SetReadDeadline(time.Now())
+			<-dr.readDoneChan
+			dr.readDeadlineSet <- true
+		case <-dr.readDoneChan:
+			dr.readDeadlineSet <- false
+		}
+	}()
 
 	for {
 		now := time.Now()
-
-		if now.After(stopTime) {
-			return nil, ErrNotificationTimeout
-		}
 
 		// If there has been no activity on this connection for a while send a nop message just to ensure
 		// the connection is alive
@@ -801,13 +860,6 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 			}
 
 			c.lastActivityTime = now
-		}
-
-		var deadline time.Time
-		if stopTime.Before(nextEnsureAliveTime) {
-			deadline = stopTime
-		} else {
-			deadline = nextEnsureAliveTime
 		}
 
 		notification, err := c.waitForNotification(deadline)
@@ -1050,6 +1102,31 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	t, err = c.mr.rxMsg()
 	if err != nil {
 		c.die(err)
+	}
+
+	c.lastActivityTime = time.Now()
+
+	if c.shouldLog(LogLevelTrace) {
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+	}
+
+	return t, &c.mr, err
+}
+
+func (c *Conn) rxMsgDeadlineSafe() (t byte, r *msgReader, err error) {
+	if !c.alive {
+		return 0, nil, ErrDeadConn
+	}
+
+	t, err = c.mr.rxMsg()
+	if err != nil {
+		if err, ok := err.(*net.OpError); ok && err.Timeout() {
+			if c.shouldLog(LogLevelTrace) {
+				c.log(LogLevelTrace, "rxMsgDeadlineSafe timeout")
+			}
+		} else {
+			c.die(err)
+		}
 	}
 
 	c.lastActivityTime = time.Now()
