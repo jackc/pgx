@@ -1,0 +1,1 @@
+as long as we are using goroutines for IO, could keep automatically ping and keep connection alive

@@ -31,6 +31,11 @@ const (
 	copyDone             = 'c'
 )
 
+type pgMsg struct {
+	typ  byte
+	body []byte
+}
+
 type startupMessage struct {
 	options map[string]string
 }

@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	copyBothResponse    = 'W'
-	walData             = 'w'
-	senderKeepalive     = 'k'
-	standbyStatusUpdate = 'r'
+	copyBothResponse                  = 'W'
+	walData                           = 'w'
+	senderKeepalive                   = 'k'
+	standbyStatusUpdate               = 'r'
 	initialReplicationResponseTimeout = 5 * time.Second
 )
 
@@ -187,7 +187,6 @@ func (c *Conn) StopReplication() (err error) {
 	return
 }
 
-
 func (c *Conn) readReplicationMessage() (r *ReplicationMessage, err error) {
 	var t byte
 	var reader *msgReader
@@ -220,7 +219,7 @@ func (c *Conn) readReplicationMessage() (r *ReplicationMessage, err error) {
 			walStart := reader.readInt64()
 			serverWalEnd := reader.readInt64()
 			serverTime := reader.readInt64()
-			walData := reader.readBytes(reader.msgBytesRemaining)
+			walData := reader.readBytes(int32(reader.reader.Len()))
 			walMessage := WalMessage{WalStart: uint64(walStart),
 				ServerWalEnd: uint64(serverWalEnd),
 				ServerTime:   uint64(serverTime),
@@ -236,12 +235,12 @@ func (c *Conn) readReplicationMessage() (r *ReplicationMessage, err error) {
 			return &ReplicationMessage{ServerHeartbeat: h}, nil
 		default:
 			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError,"Unexpected data playload message type %v", t)
+				c.log(LogLevelError, "Unexpected data playload message type %v", t)
 			}
 		}
 	default:
 		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError,"Unexpected replication message type %v", t)
+			c.log(LogLevelError, "Unexpected replication message type %v", t)
 		}
 	}
 	return

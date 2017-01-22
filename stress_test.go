@@ -93,7 +93,7 @@ func TestStressConnPool(t *testing.T) {
 }
 
 func TestStressTLSConnection(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	if tlsConnConfig == nil {
 		t.Skip("Skipping due to undefined tlsConnConfig")
@@ -236,16 +236,7 @@ func listenAndPoolUnlistens(pool *pgx.ConnPool, actionNum int) error {
 	}
 	defer pool.Release(conn)
 
-	err = conn.Listen("stress")
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.WaitForNotification(100 * time.Millisecond)
-	if err == pgx.ErrNotificationTimeout {
-		return nil
-	}
-	return err
+	return conn.Listen("stress")
 }
 
 func poolPrepareUseAndDeallocate(pool *pgx.ConnPool, actionNum int) error {

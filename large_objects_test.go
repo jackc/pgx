@@ -8,7 +8,7 @@ import (
 )
 
 func TestLargeObjects(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {

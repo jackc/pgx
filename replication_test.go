@@ -1,13 +1,13 @@
 package pgx_test
 
 import (
+	"fmt"
 	"github.com/jackc/pgx"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"reflect"
-	"fmt"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -37,7 +37,7 @@ func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 // - Checks the wal position of the slot on the server to make sure
 //   the update succeeded
 func TestSimpleReplicationConnection(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	var err error
 
@@ -156,13 +156,13 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	replicationConn.StopReplication()
 
 	// Let's push the boundary conditions of the standby status and ensure it errors correctly
-	status, err = pgx.NewStandbyStatus(0,1,2,3,4)
+	status, err = pgx.NewStandbyStatus(0, 1, 2, 3, 4)
 	if err == nil {
-		t.Errorf("Expected error from new standby status, got %v",status)
+		t.Errorf("Expected error from new standby status, got %v", status)
 	}
 
 	// And if you provide 3 args, ensure the right fields are set
-	status, err = pgx.NewStandbyStatus(1,2,3)
+	status, err = pgx.NewStandbyStatus(1, 2, 3)
 	if err != nil {
 		t.Errorf("Failed to create test status: %v", err)
 	}

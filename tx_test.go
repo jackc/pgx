@@ -7,7 +7,7 @@ import (
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -49,7 +49,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 }
 
 func TestTxCommitWhenTxBroken(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -95,7 +95,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 }
 
 func TestTxCommitSerializationFailure(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	pool := createConnPool(t, 5)
 	defer pool.Close()
@@ -141,7 +141,7 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 }
 
 func TestTransactionSuccessfulRollback(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -183,7 +183,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 }
 
 func TestBeginExIsoLevels(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -209,7 +209,7 @@ func TestBeginExIsoLevels(t *testing.T) {
 }
 
 func TestBeginExReadOnly(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -227,7 +227,7 @@ func TestBeginExReadOnly(t *testing.T) {
 }
 
 func TestTxAfterClose(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -262,7 +262,7 @@ func TestTxAfterClose(t *testing.T) {
 }
 
 func TestTxStatus(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -286,7 +286,7 @@ func TestTxStatus(t *testing.T) {
 }
 
 func TestTxErr(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)

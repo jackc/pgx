@@ -17,7 +17,7 @@ func compareConnSlices(slice1, slice2 []*Conn) bool {
 }
 
 func TestConnPoolRemoveFromAllConnections(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 	pool := ConnPool{}
 	conn1 := &Conn{}
 	conn2 := &Conn{}

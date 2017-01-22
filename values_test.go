@@ -12,7 +12,7 @@ import (
 )
 
 func TestDateTranscode(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -52,7 +52,7 @@ func TestDateTranscode(t *testing.T) {
 }
 
 func TestTimestampTzTranscode(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -79,7 +79,7 @@ func TestTimestampTzTranscode(t *testing.T) {
 }
 
 func TestJSONAndJSONBTranscode(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -242,7 +242,7 @@ func mustParseCIDR(t *testing.T, s string) net.IPNet {
 }
 
 func TestStringToNotTextTypeTranscode(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -268,7 +268,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 }
 
 func TestInetCidrTranscodeIPNet(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -317,7 +317,7 @@ func TestInetCidrTranscodeIPNet(t *testing.T) {
 }
 
 func TestInetCidrTranscodeIP(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -377,7 +377,7 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 }
 
 func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -436,7 +436,7 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 }
 
 func TestInetCidrArrayTranscodeIP(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -517,7 +517,7 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 }
 
 func TestInetCidrTranscodeWithJustIP(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -559,7 +559,7 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 }
 
 func TestNullX(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -657,7 +657,7 @@ func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
 }
 
 func TestAclArrayDecoding(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -697,7 +697,7 @@ func TestAclArrayDecoding(t *testing.T) {
 }
 
 func TestArrayDecoding(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -826,7 +826,7 @@ func (*shortScanner) Scan(r *pgx.ValueReader) error {
 }
 
 func TestShortScanner(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -849,7 +849,7 @@ func TestShortScanner(t *testing.T) {
 }
 
 func TestEmptyArrayDecoding(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -897,7 +897,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 }
 
 func TestNullXMismatch(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -944,7 +944,7 @@ func TestNullXMismatch(t *testing.T) {
 }
 
 func TestPointerPointer(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1024,7 +1024,7 @@ func TestPointerPointer(t *testing.T) {
 }
 
 func TestPointerPointerNonZero(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1042,7 +1042,7 @@ func TestPointerPointerNonZero(t *testing.T) {
 }
 
 func TestEncodeTypeRename(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1146,7 +1146,7 @@ func TestEncodeTypeRename(t *testing.T) {
 }
 
 func TestRowDecode(t *testing.T) {
-	t.Parallel()
+	// TMPDISABLE t.Parallel()()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)

@@ -2,6 +2,8 @@ package pgx
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -43,11 +45,15 @@ type ConnConfig struct {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn      // the underlying TCP or unix domain socket connection
-	lastActivityTime   time.Time     // the last time the connection was used
-	reader             *bufio.Reader // buffered reader to improve read performance
-	wbuf               [1024]byte
-	writeBuf           WriteBuf
+	conn             net.Conn      // the underlying TCP or unix domain socket connection
+	lastActivityTime time.Time     // the last time the connection was used
+	reader           *bufio.Reader // buffered reader to improve read performance
+	wbuf             [1024]byte
+	writeBuf         WriteBuf
+
+	pgMsgChan chan pgMsg
+	pgErrChan chan error
+
 	pid                int32             // backend pid
 	SecretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
@@ -61,7 +67,6 @@ type Conn struct {
 	causeOfDeath       error
 	logger             Logger
 	logLevel           int
-	mr                 msgReader
 	fp                 *fastpath
 	pgsqlAfInet        *byte
 	pgsqlAfInet6       *byte
@@ -173,8 +178,6 @@ func connect(config ConnConfig, pgTypes map[OID]PgType, pgsqlAfInet *byte, pgsql
 		c.logLevel = LogLevelDebug
 	}
 	c.logger = c.config.Logger
-	c.mr.log = c.log
-	c.mr.shouldLog = c.shouldLog
 
 	if c.config.User == "" {
 		user, err := user.Current()
@@ -258,7 +261,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	}
 
 	c.reader = bufio.NewReader(c.conn)
-	c.mr.reader = c.reader
 
 	msg := newStartupMessage()
 
@@ -283,6 +285,10 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	if err = c.txStartupMessage(msg); err != nil {
 		return err
 	}
+
+	c.pgMsgChan = make(chan pgMsg, 1)
+	c.pgErrChan = make(chan error, 1)
+	go c.readMessages()
 
 	for {
 		var t byte
@@ -331,6 +337,34 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				return err
 			}
 		}
+	}
+}
+
+// TODO - more rigorous handling of conn failure. Does pgErrChan need to be buffered to avoid hanging the goroutine?
+func (c *Conn) readMessages() {
+	defer func() {
+		close(c.pgErrChan)
+		close(c.pgMsgChan)
+	}()
+
+	headerBuf := make([]byte, 5)
+
+	for {
+		if _, err := io.ReadFull(c.reader, headerBuf); err != nil {
+			c.pgErrChan <- err
+			return
+		}
+
+		msg := pgMsg{typ: headerBuf[0]}
+		n := int32(binary.BigEndian.Uint32(headerBuf[1:])) - 4
+		msg.body = make([]byte, int(n))
+
+		if _, err := io.ReadFull(c.reader, msg.body); err != nil {
+			c.pgErrChan <- err
+			return
+		}
+
+		c.pgMsgChan <- msg
 	}
 }
 
@@ -766,9 +800,8 @@ func (c *Conn) Unlisten(channel string) error {
 	return nil
 }
 
-// WaitForNotification waits for a PostgreSQL notification for up to timeout.
-// If the timeout occurs it returns pgx.ErrNotificationTimeout
-func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
+// WaitForNotification waits for a PostgreSQL notification until ctx.Done().
+func (c *Conn) WaitForNotification(ctx context.Context) (*Notification, error) {
 	// Return already received notification immediately
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
@@ -776,82 +809,11 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		return notification, nil
 	}
 
-	stopTime := time.Now().Add(timeout)
-
 	for {
-		now := time.Now()
-
-		if now.After(stopTime) {
-			return nil, ErrNotificationTimeout
-		}
-
-		// If there has been no activity on this connection for a while send a nop message just to ensure
-		// the connection is alive
-		nextEnsureAliveTime := c.lastActivityTime.Add(15 * time.Second)
-		if nextEnsureAliveTime.Before(now) {
-			// If the server can't respond to a nop in 15 seconds, assume it's dead
-			err := c.conn.SetReadDeadline(now.Add(15 * time.Second))
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = c.Exec("--;")
-			if err != nil {
-				return nil, err
-			}
-
-			c.lastActivityTime = now
-		}
-
-		var deadline time.Time
-		if stopTime.Before(nextEnsureAliveTime) {
-			deadline = stopTime
-		} else {
-			deadline = nextEnsureAliveTime
-		}
-
-		notification, err := c.waitForNotification(deadline)
-		if err != ErrNotificationTimeout {
-			return notification, err
-		}
-	}
-}
-
-func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
-	var zeroTime time.Time
-
-	for {
-		// Use SetReadDeadline to implement the timeout. SetReadDeadline will
-		// cause operations to fail with a *net.OpError that has a Timeout()
-		// of true. Because the normal pgx rxMsg path considers any error to
-		// have potentially corrupted the state of the connection, it dies
-		// on any errors. So to avoid timeout errors in rxMsg we set the
-		// deadline and peek into the reader. If a timeout error occurs there
-		// we don't break the pgx connection. If the Peek returns that data
-		// is available then we turn off the read deadline before the rxMsg.
-		err := c.conn.SetReadDeadline(deadline)
-		if err != nil {
-			return nil, err
-		}
-
-		// Wait until there is a byte available before continuing onto the normal msg reading path
-		_, err = c.reader.Peek(1)
-		if err != nil {
-			c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
-			if err, ok := err.(*net.OpError); ok && err.Timeout() {
-				return nil, ErrNotificationTimeout
-			}
-			return nil, err
-		}
-
-		err = c.conn.SetReadDeadline(zeroTime)
-		if err != nil {
-			return nil, err
-		}
-
 		var t byte
 		var r *msgReader
-		if t, r, err = c.rxMsg(); err == nil {
+		var err error
+		if t, r, err = c.rxMsgContext(ctx); err == nil {
 			if err = c.processContextFreeMsg(t, r); err != nil {
 				return nil, err
 			}
@@ -1042,23 +1004,62 @@ func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	}
 }
 
+func (c *Conn) rxMsgContext(ctx context.Context) (t byte, r *msgReader, err error) {
+	if !c.alive {
+		return 0, nil, ErrDeadConn
+	}
+
+	select {
+	case msg := <-c.pgMsgChan:
+		t = msg.typ
+		r = &msgReader{
+			reader:    bytes.NewBuffer(msg.body),
+			log:       c.log,
+			shouldLog: c.shouldLog,
+		}
+	case err = <-c.pgErrChan:
+		c.die(err)
+		return 0, nil, err
+	case <-ctx.Done():
+		return 0, nil, ctx.Err()
+	}
+
+	// TODO - is this meaningful when read is actually happening in Goroutine? Is lastActivityTime even necessary?
+	c.lastActivityTime = time.Now()
+
+	if c.shouldLog(LogLevelTrace) {
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "reader.Len", r.reader.Len())
+	}
+
+	return t, r, err
+}
+
 func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	if !c.alive {
 		return 0, nil, ErrDeadConn
 	}
 
-	t, err = c.mr.rxMsg()
-	if err != nil {
+	select {
+	case msg := <-c.pgMsgChan:
+		t = msg.typ
+		r = &msgReader{
+			reader:    bytes.NewBuffer(msg.body),
+			log:       c.log,
+			shouldLog: c.shouldLog,
+		}
+	case err = <-c.pgErrChan:
 		c.die(err)
+		return 0, nil, err
 	}
 
+	// TODO - is this meaningful when read is actually happening in Goroutine? Is lastActivityTime even necessary?
 	c.lastActivityTime = time.Now()
 
 	if c.shouldLog(LogLevelTrace) {
-		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "reader.Len", r.reader.Len())
 	}
 
-	return t, &c.mr, err
+	return t, r, err
 }
 
 func (c *Conn) rxAuthenticationX(r *msgReader) (err error) {
@@ -1176,11 +1177,11 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	// wrong. So read the count, ignore it, and compute the proper value from
 	// the size of the message.
 	r.readInt16()
-	parameterCount := r.msgBytesRemaining / 4
+	parameterCount := r.reader.Len() / 4
 
 	parameters = make([]OID, 0, parameterCount)
 
-	for i := int32(0); i < parameterCount; i++ {
+	for i := 0; i < parameterCount; i++ {
 		parameters = append(parameters, r.readOID())
 	}
 	return
