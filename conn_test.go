@@ -17,7 +17,7 @@ import (
 )
 
 func TestConnect(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
@@ -61,7 +61,7 @@ func TestConnect(t *testing.T) {
 }
 
 func TestConnectWithUnixSocketDirectory(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	// /.s.PGSQL.5432
 	if unixSocketConnConfig == nil {
@@ -80,7 +80,7 @@ func TestConnectWithUnixSocketDirectory(t *testing.T) {
 }
 
 func TestConnectWithUnixSocketFile(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if unixSocketConnConfig == nil {
 		t.Skip("Skipping due to undefined unixSocketConnConfig")
@@ -100,7 +100,7 @@ func TestConnectWithUnixSocketFile(t *testing.T) {
 }
 
 func TestConnectWithTcp(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if tcpConnConfig == nil {
 		t.Skip("Skipping due to undefined tcpConnConfig")
@@ -118,7 +118,7 @@ func TestConnectWithTcp(t *testing.T) {
 }
 
 func TestConnectWithTLS(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if tlsConnConfig == nil {
 		t.Skip("Skipping due to undefined tlsConnConfig")
@@ -136,7 +136,7 @@ func TestConnectWithTLS(t *testing.T) {
 }
 
 func TestConnectWithInvalidUser(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if invalidUserConnConfig == nil {
 		t.Skip("Skipping due to undefined invalidUserConnConfig")
@@ -153,7 +153,7 @@ func TestConnectWithInvalidUser(t *testing.T) {
 }
 
 func TestConnectWithPlainTextPassword(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if plainPasswordConnConfig == nil {
 		t.Skip("Skipping due to undefined plainPasswordConnConfig")
@@ -171,7 +171,7 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 }
 
 func TestConnectWithMD5Password(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if md5ConnConfig == nil {
 		t.Skip("Skipping due to undefined md5ConnConfig")
@@ -189,7 +189,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 }
 
 func TestConnectWithTLSFallback(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if tlsConnConfig == nil {
 		t.Skip("Skipping due to undefined tlsConnConfig")
@@ -218,7 +218,7 @@ func TestConnectWithTLSFallback(t *testing.T) {
 }
 
 func TestConnectWithConnectionRefused(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	// Presumably nothing is listening on 127.0.0.1:1
 	bad := *defaultConnConfig
@@ -232,7 +232,7 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 }
 
 func TestConnectCustomDialer(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if customDialerConnConfig == nil {
 		t.Skip("Skipping due to undefined customDialerConnConfig")
@@ -260,7 +260,7 @@ func TestConnectCustomDialer(t *testing.T) {
 }
 
 func TestConnectWithRuntimeParams(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	connConfig := *defaultConnConfig
 	connConfig.RuntimeParams = map[string]string{
@@ -293,7 +293,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 }
 
 func TestParseURI(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	tests := []struct {
 		url        string
@@ -423,7 +423,7 @@ func TestParseURI(t *testing.T) {
 }
 
 func TestParseDSN(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	tests := []struct {
 		url        string
@@ -766,7 +766,7 @@ func TestParseEnvLibpq(t *testing.T) {
 }
 
 func TestExec(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -801,7 +801,7 @@ func TestExec(t *testing.T) {
 }
 
 func TestExecFailure(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -818,7 +818,7 @@ func TestExecFailure(t *testing.T) {
 }
 
 func TestPrepare(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -870,7 +870,7 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestPrepareBadSQLFailure(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -883,7 +883,7 @@ func TestPrepareBadSQLFailure(t *testing.T) {
 }
 
 func TestPrepareQueryManyParameters(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -953,7 +953,7 @@ func TestPrepareQueryManyParameters(t *testing.T) {
 }
 
 func TestPrepareIdempotency(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -983,7 +983,7 @@ func TestPrepareIdempotency(t *testing.T) {
 }
 
 func TestPrepareEx(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1011,7 +1011,7 @@ func TestPrepareEx(t *testing.T) {
 }
 
 func TestListenNotify(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	listener := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, listener)
@@ -1073,7 +1073,7 @@ func TestListenNotify(t *testing.T) {
 }
 
 func TestUnlistenSpecificChannel(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	listener := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, listener)
@@ -1118,7 +1118,7 @@ func TestUnlistenSpecificChannel(t *testing.T) {
 }
 
 func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	listenerDone := make(chan bool)
 	go func() {
@@ -1182,7 +1182,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 }
 
 func TestListenNotifySelfNotification(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1221,7 +1221,7 @@ func TestListenNotifySelfNotification(t *testing.T) {
 }
 
 func TestListenUnlistenSpecialCharacters(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1237,7 +1237,7 @@ func TestListenUnlistenSpecialCharacters(t *testing.T) {
 }
 
 func TestFatalRxError(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1274,7 +1274,7 @@ func TestFatalRxError(t *testing.T) {
 }
 
 func TestFatalTxError(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	// Run timing sensitive test many times
 	for i := 0; i < 50; i++ {
@@ -1306,7 +1306,7 @@ func TestFatalTxError(t *testing.T) {
 }
 
 func TestCommandTag(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	var tests = []struct {
 		commandTag   pgx.CommandTag
@@ -1331,7 +1331,7 @@ func TestCommandTag(t *testing.T) {
 }
 
 func TestInsertBoolArray(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1347,7 +1347,7 @@ func TestInsertBoolArray(t *testing.T) {
 }
 
 func TestInsertTimestampArray(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1363,7 +1363,7 @@ func TestInsertTimestampArray(t *testing.T) {
 }
 
 func TestCatchSimultaneousConnectionQueries(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1381,7 +1381,7 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 }
 
 func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1413,7 +1413,7 @@ func (l *testLogger) Log(level int, msg string, ctx ...interface{}) {
 }
 
 func TestSetLogger(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1448,7 +1448,7 @@ func TestSetLogger(t *testing.T) {
 }
 
 func TestSetLogLevel(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)

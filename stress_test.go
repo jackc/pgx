@@ -93,7 +93,7 @@ func TestStressConnPool(t *testing.T) {
 }
 
 func TestStressTLSConnection(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	if tlsConnConfig == nil {
 		t.Skip("Skipping due to undefined tlsConnConfig")

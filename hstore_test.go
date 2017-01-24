@@ -6,7 +6,7 @@ import (
 )
 
 func TestHstoreTranscode(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -71,7 +71,7 @@ func TestHstoreTranscode(t *testing.T) {
 }
 
 func TestNullHstoreTranscode(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)

@@ -10,7 +10,7 @@ import (
 )
 
 func TestConnCopyToSmall(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -64,7 +64,7 @@ func TestConnCopyToSmall(t *testing.T) {
 }
 
 func TestConnCopyToLarge(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -120,7 +120,7 @@ func TestConnCopyToLarge(t *testing.T) {
 }
 
 func TestConnCopyToJSON(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -175,7 +175,7 @@ func TestConnCopyToJSON(t *testing.T) {
 }
 
 func TestConnCopyToFailServerSideMidway(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -249,7 +249,7 @@ func (fs *failSource) Err() error {
 }
 
 func TestConnCopyToFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -325,7 +325,7 @@ func (cfs *clientFailSource) Err() error {
 }
 
 func TestConnCopyToCopyToSourceErrorMidway(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -385,7 +385,7 @@ func (cfs *clientFinalErrSource) Err() error {
 }
 
 func TestConnCopyToCopyToSourceErrorEnd(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)

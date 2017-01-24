@@ -44,7 +44,7 @@ func acquireWithTimeTaken(pool *pgx.ConnPool) (*pgx.Conn, time.Duration, error) 
 }
 
 func TestNewConnPool(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	var numCallbacks int
 	afterConnect := func(c *pgx.Conn) error {
@@ -79,7 +79,7 @@ func TestNewConnPool(t *testing.T) {
 }
 
 func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig}
 	pool, err := pgx.NewConnPool(config)
@@ -94,7 +94,7 @@ func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 }
 
 func TestPoolAcquireAndReleaseCycle(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	maxConnections := 2
 	incrementCount := int32(100)
@@ -155,7 +155,7 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 }
 
 func TestPoolNonBlockingConnections(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	var dialCountLock sync.Mutex
 	dialCount := 0
@@ -223,7 +223,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 }
 
 func TestAcquireTimeoutSanity(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	config := pgx.ConnPoolConfig{
 		ConnConfig:     *defaultConnConfig,
@@ -254,7 +254,7 @@ func TestAcquireTimeoutSanity(t *testing.T) {
 }
 
 func TestPoolWithAcquireTimeoutSet(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	connAllocTimeout := 2 * time.Second
 	config := pgx.ConnPoolConfig{
@@ -285,7 +285,7 @@ func TestPoolWithAcquireTimeoutSet(t *testing.T) {
 }
 
 func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	maxConnections := 1
 	pool := createConnPool(t, maxConnections)
@@ -314,7 +314,7 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 }
 
 func TestPoolReleaseWithTransactions(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -355,7 +355,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 }
 
 func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	maxConnections := 3
 	pool := createConnPool(t, maxConnections)
@@ -397,7 +397,7 @@ func TestPoolAcquireAndReleaseCycleAutoConnect(t *testing.T) {
 }
 
 func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	// Run timing sensitive test many times
 	for i := 0; i < 50; i++ {
@@ -466,7 +466,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 }
 
 func TestConnPoolResetClosesCheckedOutConnectionsOnRelease(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 5)
 	defer pool.Close()
@@ -528,7 +528,7 @@ func TestConnPoolResetClosesCheckedOutConnectionsOnRelease(t *testing.T) {
 }
 
 func TestConnPoolResetClosesCheckedInConnections(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 5)
 	defer pool.Close()
@@ -588,7 +588,7 @@ func TestConnPoolResetClosesCheckedInConnections(t *testing.T) {
 }
 
 func TestConnPoolTransaction(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -630,7 +630,7 @@ func TestConnPoolTransaction(t *testing.T) {
 }
 
 func TestConnPoolTransactionIso(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -653,7 +653,7 @@ func TestConnPoolTransactionIso(t *testing.T) {
 }
 
 func TestConnPoolBeginRetry(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	// Run timing sensitive test many times
 	for i := 0; i < 50; i++ {
@@ -699,7 +699,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 }
 
 func TestConnPoolQuery(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -741,7 +741,7 @@ func TestConnPoolQuery(t *testing.T) {
 }
 
 func TestConnPoolQueryConcurrentLoad(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 10)
 	defer pool.Close()
@@ -793,7 +793,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 }
 
 func TestConnPoolQueryRow(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -815,7 +815,7 @@ func TestConnPoolQueryRow(t *testing.T) {
 }
 
 func TestConnPoolExec(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -846,7 +846,7 @@ func TestConnPoolExec(t *testing.T) {
 }
 
 func TestConnPoolPrepare(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -878,7 +878,7 @@ func TestConnPoolPrepare(t *testing.T) {
 }
 
 func TestConnPoolPrepareDeallocatePrepare(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()
@@ -908,7 +908,7 @@ func TestConnPoolPrepareDeallocatePrepare(t *testing.T) {
 }
 
 func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	pool := createConnPool(t, 2)
 	defer pool.Close()

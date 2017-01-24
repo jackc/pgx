@@ -37,7 +37,7 @@ func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 // - Checks the wal position of the slot on the server to make sure
 //   the update succeeded
 func TestSimpleReplicationConnection(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	var err error
 

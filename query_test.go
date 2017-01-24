@@ -13,7 +13,7 @@ import (
 )
 
 func TestConnQueryScan(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -46,7 +46,7 @@ func TestConnQueryScan(t *testing.T) {
 }
 
 func TestConnQueryValues(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -100,7 +100,7 @@ func TestConnQueryValues(t *testing.T) {
 
 // Test that a connection stays valid when query results are closed early
 func TestConnQueryCloseEarly(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -137,7 +137,7 @@ func TestConnQueryCloseEarly(t *testing.T) {
 }
 
 func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -153,7 +153,7 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 
 // Test that a connection stays valid when query results read incorrectly
 func TestConnQueryReadWrongTypeError(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -189,7 +189,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 
 // Test that a connection stays valid when query results read incorrectly
 func TestConnQueryReadTooManyValues(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -220,7 +220,7 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 }
 
 func TestConnQueryScanIgnoreColumn(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -254,7 +254,7 @@ func TestConnQueryScanIgnoreColumn(t *testing.T) {
 }
 
 func TestConnQueryScanner(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -292,7 +292,7 @@ func TestConnQueryScanner(t *testing.T) {
 }
 
 func TestConnQueryErrorWhileReturningRows(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -323,7 +323,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 }
 
 func TestConnQueryEncoder(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -359,7 +359,7 @@ func TestConnQueryEncoder(t *testing.T) {
 }
 
 func TestQueryEncodeError(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -393,7 +393,7 @@ func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.OID) error {
 }
 
 func TestQueryEncodeCoreTextFormatError(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -410,7 +410,7 @@ func TestQueryEncodeCoreTextFormatError(t *testing.T) {
 }
 
 func TestQueryRowCoreTypes(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -470,7 +470,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 }
 
 func TestQueryRowCoreIntegerEncoding(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -585,7 +585,7 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 }
 
 func TestQueryRowCoreIntegerDecoding(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -760,7 +760,7 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 }
 
 func TestQueryRowCoreByteSlice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -794,7 +794,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 }
 
 func TestQueryRowByteSliceArgument(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -818,7 +818,7 @@ func TestQueryRowByteSliceArgument(t *testing.T) {
 }
 
 func TestQueryRowUnknownType(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -841,7 +841,7 @@ func TestQueryRowUnknownType(t *testing.T) {
 }
 
 func TestQueryRowErrors(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -883,7 +883,7 @@ func TestQueryRowErrors(t *testing.T) {
 }
 
 func TestQueryRowNoResults(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -898,7 +898,7 @@ func TestQueryRowNoResults(t *testing.T) {
 }
 
 func TestQueryRowCoreInt16Slice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -945,7 +945,7 @@ func TestQueryRowCoreInt16Slice(t *testing.T) {
 }
 
 func TestQueryRowCoreInt32Slice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -992,7 +992,7 @@ func TestQueryRowCoreInt32Slice(t *testing.T) {
 }
 
 func TestQueryRowCoreInt64Slice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1039,7 +1039,7 @@ func TestQueryRowCoreInt64Slice(t *testing.T) {
 }
 
 func TestQueryRowCoreFloat32Slice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1086,7 +1086,7 @@ func TestQueryRowCoreFloat32Slice(t *testing.T) {
 }
 
 func TestQueryRowCoreFloat64Slice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1133,7 +1133,7 @@ func TestQueryRowCoreFloat64Slice(t *testing.T) {
 }
 
 func TestQueryRowCoreStringSlice(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1244,7 +1244,7 @@ func TestReadingNullByteArrays(t *testing.T) {
 // Use github.com/shopspring/decimal as real-world database/sql custom type
 // to test against.
 func TestConnQueryDatabaseSQLScanner(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1271,7 +1271,7 @@ func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 // Use github.com/shopspring/decimal as real-world database/sql custom type
 // to test against.
 func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
@@ -1295,7 +1295,7 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 }
 
 func TestConnQueryDatabaseSQLNullX(t *testing.T) {
-	// TMPDISABLE t.Parallel()()
+	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
