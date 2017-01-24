@@ -3,6 +3,7 @@
 ## Fixes
 
 * Oid underlying type changed to uint32, previously it was incorrectly int32 (Manni Wood)
+* Explicitly close checked-in connections on ConnPool.Reset, previously they were closed by GC
 
 ## Features
 
