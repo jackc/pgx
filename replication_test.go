@@ -1,13 +1,13 @@
 package pgx_test
 
 import (
+	"fmt"
 	"github.com/jackc/pgx"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
-	"reflect"
-	"fmt"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -51,7 +51,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
-	err = replicationConn.CreateReplicationSlot("pgx_test","test_decoding")
+	err = replicationConn.CreateReplicationSlot("pgx_test", "test_decoding")
 	if err != nil {
 		t.Logf("replication slot create failed: %v", err)
 	}
@@ -152,14 +152,23 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	replicationConn.SendStandbyStatus(status)
 	replicationConn.StopReplication()
 
+	if replicationConn.IsAlive() == false {
+		t.Errorf("Connection died: %v", replicationConn.CauseOfDeath())
+	}
+
+	err = replicationConn.Close()
+	if err != nil {
+		t.Fatalf("Replication connection close failed: %v", err)
+	}
+
 	// Let's push the boundary conditions of the standby status and ensure it errors correctly
-	status, err = pgx.NewStandbyStatus(0,1,2,3,4)
+	status, err = pgx.NewStandbyStatus(0, 1, 2, 3, 4)
 	if err == nil {
-		t.Errorf("Expected error from new standby status, got %v",status)
+		t.Errorf("Expected error from new standby status, got %v", status)
 	}
 
 	// And if you provide 3 args, ensure the right fields are set
-	status, err = pgx.NewStandbyStatus(1,2,3)
+	status, err = pgx.NewStandbyStatus(1, 2, 3)
 	if err != nil {
 		t.Errorf("Failed to create test status: %v", err)
 	}
@@ -173,20 +182,23 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Errorf("Unexpected write position %d", status.WalWritePosition)
 	}
 
-	err = replicationConn.Close()
-	if err != nil {
-		t.Fatalf("Replication connection close failed: %v", err)
-	}
-
 	restartLsn := getConfirmedFlushLsnFor(t, conn, "pgx_test")
 	integerRestartLsn, _ := pgx.ParseLSN(restartLsn)
 	if integerRestartLsn != maxWal {
 		t.Fatalf("Wal offset update failed, expected %s found %s", pgx.FormatLSN(maxWal), restartLsn)
 	}
 
-	_, err = conn.Exec("select pg_drop_replication_slot($1)", "pgx_test")
+	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn2)
+
+	err = replicationConn2.DropReplicationSlot("pgx_test")
 	if err != nil {
 		t.Fatalf("Failed to drop replication slot: %v", err)
+	}
+
+	droppedLsn := getConfirmedFlushLsnFor(t, conn, "pgx_test")
+	if droppedLsn != "" {
+		t.Errorf("Got odd flush lsn %s for supposedly dropped slot", droppedLsn)
 	}
 
 }

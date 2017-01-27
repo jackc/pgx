@@ -8,10 +8,10 @@ import (
 )
 
 const (
-	copyBothResponse    = 'W'
-	walData             = 'w'
-	senderKeepalive     = 'k'
-	standbyStatusUpdate = 'r'
+	copyBothResponse                  = 'W'
+	walData                           = 'w'
+	senderKeepalive                   = 'k'
+	standbyStatusUpdate               = 'r'
 	initialReplicationResponseTimeout = 5 * time.Second
 )
 
@@ -157,7 +157,7 @@ func ReplicationConnect(config ConnConfig) (r *ReplicationConn, err error) {
 	}
 	config.RuntimeParams["replication"] = "database"
 
-	c,err := Connect(config)
+	c, err := Connect(config)
 	if err != nil {
 		return
 	}
@@ -208,6 +208,13 @@ func (rc *ReplicationConn) Close() error {
 	return rc.c.Close()
 }
 
+func (rc *ReplicationConn) IsAlive() bool {
+	return rc.c.IsAlive()
+}
+
+func (rc *ReplicationConn) CauseOfDeath() error {
+	return rc.c.CauseOfDeath()
+}
 
 func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err error) {
 	var t byte
@@ -257,12 +264,12 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 			return &ReplicationMessage{ServerHeartbeat: h}, nil
 		default:
 			if rc.c.shouldLog(LogLevelError) {
-				rc.c.log(LogLevelError,"Unexpected data playload message type %v", t)
+				rc.c.log(LogLevelError, "Unexpected data playload message type %v", t)
 			}
 		}
 	default:
 		if rc.c.shouldLog(LogLevelError) {
-			rc.c.log(LogLevelError,"Unexpected replication message type %v", t)
+			rc.c.log(LogLevelError, "Unexpected replication message type %v", t)
 		}
 	}
 	return
