@@ -150,7 +150,6 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Errorf("Failed to create standby status %v", err)
 	}
 	replicationConn.SendStandbyStatus(status)
-	replicationConn.StopReplication()
 
 	if replicationConn.IsAlive() == false {
 		t.Errorf("Connection died: %v", replicationConn.CauseOfDeath())
@@ -161,25 +160,8 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Fatalf("Replication connection close failed: %v", err)
 	}
 
-	// Let's push the boundary conditions of the standby status and ensure it errors correctly
-	status, err = pgx.NewStandbyStatus(0, 1, 2, 3, 4)
-	if err == nil {
-		t.Errorf("Expected error from new standby status, got %v", status)
-	}
-
-	// And if you provide 3 args, ensure the right fields are set
-	status, err = pgx.NewStandbyStatus(1, 2, 3)
-	if err != nil {
-		t.Errorf("Failed to create test status: %v", err)
-	}
-	if status.WalFlushPosition != 1 {
-		t.Errorf("Unexpected flush position %d", status.WalFlushPosition)
-	}
-	if status.WalApplyPosition != 2 {
-		t.Errorf("Unexpected apply position %d", status.WalApplyPosition)
-	}
-	if status.WalWritePosition != 3 {
-		t.Errorf("Unexpected write position %d", status.WalWritePosition)
+	if replicationConn.IsAlive() == true {
+		t.Errorf("Connection still alive: %v", replicationConn.CauseOfDeath())
 	}
 
 	restartLsn := getConfirmedFlushLsnFor(t, conn, "pgx_test")
@@ -200,5 +182,148 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	if droppedLsn != "" {
 		t.Errorf("Got odd flush lsn %s for supposedly dropped slot", droppedLsn)
 	}
+}
 
+func TestReplicationConn_DropReplicationSlot(t *testing.T) {
+	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn)
+
+	err := replicationConn.CreateReplicationSlot("pgx_slot_test", "test_decoding")
+	if err != nil {
+		t.Logf("replication slot create failed: %v", err)
+	}
+	err = replicationConn.DropReplicationSlot("pgx_slot_test")
+	if err != nil {
+		t.Fatalf("Failed to drop replication slot: %v", err)
+	}
+
+	// We re-create to ensure the drop worked.
+	err = replicationConn.CreateReplicationSlot("pgx_slot_test", "test_decoding")
+	if err != nil {
+		t.Logf("replication slot create failed: %v", err)
+	}
+
+	// And finally we drop to ensure we don't leave dirty state
+	err = replicationConn.DropReplicationSlot("pgx_slot_test")
+	if err != nil {
+		t.Fatalf("Failed to drop replication slot: %v", err)
+	}
+}
+
+func TestIdentifySystem(t *testing.T) {
+	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn2)
+
+	r, err := replicationConn2.IdentifySystem()
+	if err != nil {
+		t.Error(err)
+	}
+	defer r.Close()
+	for _, fd := range r.FieldDescriptions() {
+		t.Logf("Field: %s of type %v", fd.Name, fd.DataType)
+	}
+
+	var rowCount int
+	for r.Next() {
+		rowCount++
+		values, err := r.Values()
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("Row values: %v", values)
+	}
+	if r.Err() != nil {
+		t.Error(r.Err())
+	}
+
+	if rowCount == 0 {
+		t.Errorf("Failed to find any rows: %d", rowCount)
+	}
+}
+
+func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
+	r, err := rc.IdentifySystem()
+	if err != nil {
+		t.Error(err)
+	}
+	defer r.Close()
+	for r.Next() {
+		values, e := r.Values()
+		if e != nil {
+			t.Error(e)
+		}
+		timeline, e := strconv.Atoi(values[1].(string))
+		if e != nil {
+			t.Error(e)
+		}
+		return timeline
+	}
+	t.Fatal("Failed to read timeline")
+	return -1
+}
+
+
+func TestGetTimelineHistory(t *testing.T) {
+	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn)
+
+	timeline := getCurrentTimeline(t, replicationConn)
+
+	r, err := replicationConn.TimelineHistory(timeline)
+	if err != nil {
+		t.Errorf("%#v", err)
+	}
+	defer r.Close()
+
+	for _, fd := range r.FieldDescriptions() {
+		t.Logf("Field: %s of type %v", fd.Name, fd.DataType)
+	}
+
+	var rowCount int
+	for r.Next() {
+		rowCount++
+		values, err := r.Values()
+		if err != nil {
+			t.Error(err)
+		}
+		t.Logf("Row values: %v", values)
+	}
+	if r.Err() != nil {
+		if strings.Contains(r.Err().Error(), "No such file or directory") {
+			// This is normal, this means the timeline we're on has no
+			// history, which is the common case in a test db that
+			// has only one timeline
+			return
+		}
+		t.Error(r.Err())
+	}
+
+	// If we have a timeline history (see above) there should have been
+	// rows emitted
+	if rowCount == 0 {
+		t.Errorf("Failed to find any rows: %d", rowCount)
+	}
+}
+
+func TestStandbyStatusParsing(t *testing.T) {
+	// Let's push the boundary conditions of the standby status and ensure it errors correctly
+	status, err := pgx.NewStandbyStatus(0, 1, 2, 3, 4)
+	if err == nil {
+		t.Errorf("Expected error from new standby status, got %v", status)
+	}
+
+	// And if you provide 3 args, ensure the right fields are set
+	status, err = pgx.NewStandbyStatus(1, 2, 3)
+	if err != nil {
+		t.Errorf("Failed to create test status: %v", err)
+	}
+	if status.WalFlushPosition != 1 {
+		t.Errorf("Unexpected flush position %d", status.WalFlushPosition)
+	}
+	if status.WalApplyPosition != 2 {
+		t.Errorf("Unexpected apply position %d", status.WalApplyPosition)
+	}
+	if status.WalWritePosition != 3 {
+		t.Errorf("Unexpected write position %d", status.WalWritePosition)
+	}
 }

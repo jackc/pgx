@@ -190,20 +190,6 @@ func (rc *ReplicationConn) SendStandbyStatus(k *StandbyStatus) (err error) {
 	return
 }
 
-// Send the message to formally stop the replication stream. This
-// is done before calling Close() during a clean shutdown.
-func (rc *ReplicationConn) StopReplication() (err error) {
-	writeBuf := newWriteBuf(rc.c, copyDone)
-
-	writeBuf.closeMsg()
-
-	_, err = rc.c.conn.Write(writeBuf.buf)
-	if err != nil {
-		rc.c.die(err)
-	}
-	return
-}
-
 func (rc *ReplicationConn) Close() error {
 	return rc.c.Close()
 }
@@ -318,6 +304,74 @@ func (rc *ReplicationConn) WaitForReplicationMessage(timeout time.Duration) (r *
 	}
 
 	return rc.readReplicationMessage()
+}
+
+func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
+	rc.c.lastActivityTime = time.Now()
+
+	rows := rc.c.getRows(sql, nil)
+
+	if err := rc.c.lock(); err != nil {
+		rows.abort(err)
+		return rows, err
+	}
+	rows.unlockConn = true
+
+	err := rc.c.sendSimpleQuery(sql)
+	if err != nil {
+		rows.abort(err)
+	}
+
+	var t byte
+	var r *msgReader
+	t, r, err = rc.c.rxMsg()
+	if err != nil {
+		return nil, err
+	}
+
+	switch t {
+	case rowDescription:
+		rows.fields = rc.c.rxRowDescription(r)
+		// We don't have c.PgTypes here because we're a replication
+		// connection. This means the field descriptions will have
+		// only Oids. Not much we can do about this.
+	default:
+		if e := rc.c.processContextFreeMsg(t, r); e != nil {
+			rows.abort(e)
+			return rows, e
+		}
+	}
+
+	return rows, rows.err
+}
+
+// Execute the "IDENTIFY_SYSTEM" command as documented here:
+// https://www.postgresql.org/docs/9.5/static/protocol-replication.html
+//
+// This will return (if successful) a result set that has a single row
+// that contains the systemid, current timeline, xlogpos and database
+// name.
+//
+// NOTE: Because this is a replication mode connection, we don't have
+// type names, so the field descriptions in the result will have only
+// Oids and no DataTypeName values
+func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
+	return rc.sendReplicationModeQuery("IDENTIFY_SYSTEM")
+}
+
+// Execute the "TIMELINE_HISTORY" command as documented here:
+// https://www.postgresql.org/docs/9.5/static/protocol-replication.html
+//
+// This will return (if successful) a result set that has a single row
+// that contains the filename of the history file and the content
+// of the history file. If called for timeline 1, typically this will
+// generate an error that the timeline history file does not exist.
+//
+// NOTE: Because this is a replication mode connection, we don't have
+// type names, so the field descriptions in the result will have only
+// Oids and no DataTypeName values
+func (rc *ReplicationConn) TimelineHistory(timeline int) (r *Rows, err error) {
+	return rc.sendReplicationModeQuery(fmt.Sprintf("TIMELINE_HISTORY %d", timeline))
 }
 
 // Start a replication connection, sending WAL data to the given replication
