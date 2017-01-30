@@ -151,24 +151,13 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	}
 	replicationConn.SendStandbyStatus(status)
 
-	if replicationConn.IsAlive() == false {
-		t.Errorf("Connection died: %v", replicationConn.CauseOfDeath())
-	}
-
-	err = replicationConn.Close()
-	if err != nil {
-		t.Fatalf("Replication connection close failed: %v", err)
-	}
-
-	if replicationConn.IsAlive() == true {
-		t.Errorf("Connection still alive: %v", replicationConn.CauseOfDeath())
-	}
-
 	restartLsn := getConfirmedFlushLsnFor(t, conn, "pgx_test")
 	integerRestartLsn, _ := pgx.ParseLSN(restartLsn)
 	if integerRestartLsn != maxWal {
 		t.Fatalf("Wal offset update failed, expected %s found %s", pgx.FormatLSN(maxWal), restartLsn)
 	}
+
+	closeReplicationConn(t, replicationConn)
 
 	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn2)
