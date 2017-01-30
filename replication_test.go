@@ -262,7 +262,6 @@ func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
 	return -1
 }
 
-
 func TestGetTimelineHistory(t *testing.T) {
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
