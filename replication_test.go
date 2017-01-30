@@ -185,6 +185,10 @@ func TestSimpleReplicationConnection(t *testing.T) {
 }
 
 func TestReplicationConn_DropReplicationSlot(t *testing.T) {
+	if replicationConnConfig == nil {
+		t.Skip("Skipping due to undefined replicationConnConfig")
+	}
+
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
@@ -211,6 +215,10 @@ func TestReplicationConn_DropReplicationSlot(t *testing.T) {
 }
 
 func TestIdentifySystem(t *testing.T) {
+	if replicationConnConfig == nil {
+		t.Skip("Skipping due to undefined replicationConnConfig")
+	}
+
 	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn2)
 
@@ -263,6 +271,10 @@ func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
 }
 
 func TestGetTimelineHistory(t *testing.T) {
+	if replicationConnConfig == nil {
+		t.Skip("Skipping due to undefined replicationConnConfig")
+	}
+
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
