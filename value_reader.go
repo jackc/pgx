@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"errors"
+	"fmt"
 )
 
 // ValueReader is used by the Scanner interface to decode values.
@@ -133,6 +134,26 @@ func (r *ValueReader) ReadString(count int32) string {
 	}
 
 	return r.mr.readString(count)
+}
+
+// ReadUuid reads count bytes and returns the formatted uuid
+func (r *ValueReader) ReadUuid(count int32) string {
+	if r.err != nil {
+		return ""
+	}
+	if count != 16 {
+		r.Fatal(errors.New("unexpected UUID length"))
+		return ""
+	}
+
+	r.valueBytesRemaining -= count
+	if r.valueBytesRemaining < 0 {
+		r.Fatal(errors.New("read past end of value"))
+		return ""
+	}
+
+	v := r.mr.readBytes(count)
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", v[:4], v[4:6], v[6:8], v[8:10], v[10:])
 }
 
 // ReadBytes reads count bytes and returns as []byte

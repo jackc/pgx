@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -56,6 +57,7 @@ const (
 	TimestampTzArrayOid = 1185
 	RecordOid           = 2249
 	UuidOid             = 2950
+	UuidArrayOid        = 2951
 	JsonbOid            = 3802
 )
 
@@ -92,6 +94,7 @@ func init() {
 		"_text":        BinaryFormatCode,
 		"_timestamp":   BinaryFormatCode,
 		"_timestamptz": BinaryFormatCode,
+		"_uuid":        BinaryFormatCode,
 		"_varchar":     BinaryFormatCode,
 		"aclitem":      TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
 		"bool":         BinaryFormatCode,
@@ -115,6 +118,7 @@ func init() {
 		"tid":          BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
 		"timestamptz":  BinaryFormatCode,
+		"uuid":         BinaryFormatCode,
 		"varchar":      BinaryFormatCode,
 		"xid":          BinaryFormatCode,
 	}
@@ -253,7 +257,12 @@ func (n *NullString) Scan(vr *ValueReader) error {
 	}
 
 	n.Valid = true
-	n.String = decodeText(vr)
+	switch vr.Type().DataType {
+	case UuidOid:
+		n.String = decodeUuid(vr)
+	default:
+		n.String = decodeText(vr)
+	}
 	return vr.Err()
 }
 
@@ -1012,7 +1021,12 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 
 	switch arg := arg.(type) {
 	case []string:
-		return encodeStringSlice(wbuf, oid, arg)
+		switch oid {
+		case UuidArrayOid:
+			return encodeUuidSlice(wbuf, oid, arg)
+		default:
+			return encodeStringSlice(wbuf, oid, arg)
+		}
 	case bool:
 		return encodeBool(wbuf, oid, arg)
 	case []bool:
@@ -1224,7 +1238,12 @@ func Decode(vr *ValueReader, d interface{}) error {
 	case *Cid:
 		*v = decodeCid(vr)
 	case *string:
-		*v = decodeText(vr)
+		switch vr.Type().DataType {
+		case UuidOid:
+			*v = decodeUuid(vr)
+		default:
+			*v = decodeText(vr)
+		}
 	case *float32:
 		*v = decodeFloat4(vr)
 	case *float64:
@@ -2009,6 +2028,15 @@ func decodeText(vr *ValueReader) string {
 	}
 
 	return vr.ReadString(vr.Len())
+}
+
+func decodeUuid(vr *ValueReader) string {
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into uuid"))
+		return ""
+	}
+
+	return vr.ReadUuid(vr.Len())
 }
 
 func encodeString(w *WriteBuf, oid Oid, value string) error {
@@ -2977,7 +3005,15 @@ func decodeTextArray(vr *ValueReader) []string {
 		return nil
 	}
 
-	if vr.Type().DataType != TextArrayOid && vr.Type().DataType != VarcharArrayOid {
+	var elOid Oid
+	switch vr.Type().DataType {
+	case TextArrayOid:
+		elOid = TextOid
+	case VarcharArrayOid:
+		elOid = VarcharOid
+	case UuidArrayOid:
+		elOid = UuidOid
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []string", vr.Type().DataType)))
 		return nil
 	}
@@ -3001,7 +3037,11 @@ func decodeTextArray(vr *ValueReader) []string {
 			return nil
 		}
 
-		a[i] = vr.ReadString(elSize)
+		if elOid == UuidOid {
+			a[i] = vr.ReadUuid(elSize)
+		} else {
+			a[i] = vr.ReadString(elSize)
+		}
 	}
 
 	return a
@@ -3218,6 +3258,8 @@ func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
 		elOid = VarcharOid
 	case TextArrayOid:
 		elOid = TextOid
+	case UuidArrayOid:
+		return encodeUuidSlice(w, oid, slice)
 	default:
 		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
 	}
@@ -3239,6 +3281,25 @@ func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
 	for _, v := range slice {
 		w.WriteInt32(int32(len(v)))
 		w.WriteBytes([]byte(v))
+	}
+
+	return nil
+}
+
+func encodeUuidSlice(w *WriteBuf, oid Oid, slice []string) error {
+	if oid != UuidArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
+	}
+
+	encodeArrayHeader(w, UuidOid, len(slice), 16+4)
+
+	for _, v := range slice {
+		uuid, err := parseUUID(v)
+		if err != nil {
+			return err
+		}
+		w.WriteInt32(16)
+		w.WriteBytes(uuid[:])
 	}
 
 	return nil
@@ -3418,4 +3479,21 @@ func encodeArrayHeader(w *WriteBuf, oid, length, sizePerItem int) {
 	w.WriteInt32(int32(oid))    // type of elements
 	w.WriteInt32(int32(length)) // number of elements
 	w.WriteInt32(1)             // index of first element
+}
+
+func parseUUID(s string) ([16]byte, error) {
+	u := [16]byte{}
+	if len(s) != 36 {
+		return u, errors.New("invalid UUID")
+	}
+	p := make([][]byte, 5)
+	if _, err := fmt.Sscanf(s, "%08x-%04x-%04x-%04x-%012x", &p[0], &p[1], &p[2], &p[3], &p[4]); err != nil {
+		return u, err
+	}
+	copy(u[0:4], p[0])
+	copy(u[4:6], p[1])
+	copy(u[6:8], p[2])
+	copy(u[8:10], p[3])
+	copy(u[10:16], p[4])
+	return u, nil
 }
