@@ -773,9 +773,9 @@ func TestArrayDecoding(t *testing.T) {
 			},
 		},
 		{
-			"select $1::uuid[]", []string{"01086ee0-4963-4e35-9116-30c173a8d0bd", "01086ee0-4963-4e35-9116-aaaaaaaaaaaa"}, &[]string{},
+			"select $1::uuid[]", pgx.UUIDs{"01086ee0-4963-4e35-9116-30c173a8d0bd", "01086ee0-4963-4e35-9116-aaaaaaaaaaaa"}, &pgx.UUIDs{},
 			func(t *testing.T, query, scan interface{}) {
-				if !reflect.DeepEqual(query, *(scan.(*[]string))) {
+				if !reflect.DeepEqual(query, *(scan.(*pgx.UUIDs))) {
 					t.Fatalf("failed to encode uuid[]")
 				}
 			},

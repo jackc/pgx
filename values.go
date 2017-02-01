@@ -118,7 +118,6 @@ func init() {
 		"tid":          BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
 		"timestamptz":  BinaryFormatCode,
-		"uuid":         BinaryFormatCode,
 		"varchar":      BinaryFormatCode,
 		"xid":          BinaryFormatCode,
 	}
@@ -257,12 +256,7 @@ func (n *NullString) Scan(vr *ValueReader) error {
 	}
 
 	n.Valid = true
-	switch vr.Type().DataType {
-	case UuidOid:
-		n.String = decodeUuid(vr)
-	default:
-		n.String = decodeText(vr)
-	}
+	n.String = decodeText(vr)
 	return vr.Err()
 }
 
@@ -973,6 +967,62 @@ func (h NullHstore) Encode(w *WriteBuf, oid Oid) error {
 	return nil
 }
 
+type UUIDs []string
+
+func (u *UUIDs) Scan(vr *ValueReader) error {
+	if vr.Len() == -1 {
+		return nil
+	}
+
+	if oid := vr.Type().DataType; oid != UuidArrayOid {
+		return SerializationError(fmt.Sprintf("UUIDs.Scan cannot decode OID %d", oid))
+	}
+
+	if vr.Type().FormatCode != BinaryFormatCode {
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
+		return nil
+	}
+
+	numElems, err := decode1dArrayHeader(vr)
+	if err != nil {
+		vr.Fatal(err)
+		return nil
+	}
+
+	a := make([]string, int(numElems))
+	for i := 0; i < len(a); i++ {
+		elSize := vr.ReadInt32()
+		if elSize == -1 {
+			vr.Fatal(ProtocolError("Cannot decode null element"))
+			return nil
+		}
+		a[i] = vr.ReadUuid(elSize)
+	}
+	*u = a
+	return vr.Err()
+}
+
+func (u UUIDs) FormatCode() int16 { return BinaryFormatCode }
+
+func (u UUIDs) Encode(w *WriteBuf, oid Oid) error {
+	if oid != UuidArrayOid {
+		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
+	}
+
+	encodeArrayHeader(w, UuidOid, len(u), 16+4)
+
+	for _, v := range u {
+		uuid, err := parseUUID(v)
+		if err != nil {
+			return err
+		}
+		w.WriteInt32(16)
+		w.WriteBytes(uuid[:])
+	}
+
+	return nil
+}
+
 // Encode encodes arg into wbuf as the type oid. This allows implementations
 // of the Encoder interface to delegate the actual work of encoding to the
 // built-in functionality.
@@ -1021,12 +1071,7 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 
 	switch arg := arg.(type) {
 	case []string:
-		switch oid {
-		case UuidArrayOid:
-			return encodeUuidSlice(wbuf, oid, arg)
-		default:
-			return encodeStringSlice(wbuf, oid, arg)
-		}
+		return encodeStringSlice(wbuf, oid, arg)
 	case bool:
 		return encodeBool(wbuf, oid, arg)
 	case []bool:
@@ -1238,12 +1283,7 @@ func Decode(vr *ValueReader, d interface{}) error {
 	case *Cid:
 		*v = decodeCid(vr)
 	case *string:
-		switch vr.Type().DataType {
-		case UuidOid:
-			*v = decodeUuid(vr)
-		default:
-			*v = decodeText(vr)
-		}
+		*v = decodeText(vr)
 	case *float32:
 		*v = decodeFloat4(vr)
 	case *float64:
@@ -2028,15 +2068,6 @@ func decodeText(vr *ValueReader) string {
 	}
 
 	return vr.ReadString(vr.Len())
-}
-
-func decodeUuid(vr *ValueReader) string {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into uuid"))
-		return ""
-	}
-
-	return vr.ReadUuid(vr.Len())
 }
 
 func encodeString(w *WriteBuf, oid Oid, value string) error {
@@ -3005,14 +3036,8 @@ func decodeTextArray(vr *ValueReader) []string {
 		return nil
 	}
 
-	var elOid Oid
 	switch vr.Type().DataType {
-	case TextArrayOid:
-		elOid = TextOid
-	case VarcharArrayOid:
-		elOid = VarcharOid
-	case UuidArrayOid:
-		elOid = UuidOid
+	case TextArrayOid, VarcharArrayOid:
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []string", vr.Type().DataType)))
 		return nil
@@ -3037,11 +3062,7 @@ func decodeTextArray(vr *ValueReader) []string {
 			return nil
 		}
 
-		if elOid == UuidOid {
-			a[i] = vr.ReadUuid(elSize)
-		} else {
-			a[i] = vr.ReadString(elSize)
-		}
+		a[i] = vr.ReadString(elSize)
 	}
 
 	return a
@@ -3258,8 +3279,6 @@ func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
 		elOid = VarcharOid
 	case TextArrayOid:
 		elOid = TextOid
-	case UuidArrayOid:
-		return encodeUuidSlice(w, oid, slice)
 	default:
 		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
 	}
@@ -3281,25 +3300,6 @@ func encodeStringSlice(w *WriteBuf, oid Oid, slice []string) error {
 	for _, v := range slice {
 		w.WriteInt32(int32(len(v)))
 		w.WriteBytes([]byte(v))
-	}
-
-	return nil
-}
-
-func encodeUuidSlice(w *WriteBuf, oid Oid, slice []string) error {
-	if oid != UuidArrayOid {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
-	}
-
-	encodeArrayHeader(w, UuidOid, len(slice), 16+4)
-
-	for _, v := range slice {
-		uuid, err := parseUUID(v)
-		if err != nil {
-			return err
-		}
-		w.WriteInt32(16)
-		w.WriteBytes(uuid[:])
 	}
 
 	return nil
