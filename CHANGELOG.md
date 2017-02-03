@@ -14,6 +14,7 @@
 * Add NullOid type (Manni Wood)
 * Add json/jsonb binary support to allow use with CopyTo
 * Add named error ErrAcquireTimeout (Alexander Staubo)
+* Add logical replication decoding (Kris Wehner)
 
 ## Compatibility
 
