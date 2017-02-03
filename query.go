@@ -264,6 +264,11 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
+		} else if s, ok := d.(PgxScanner); ok {
+			err = s.ScanPgx(vr)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
 		} else if s, ok := d.(sql.Scanner); ok {
 			var val interface{}
 			if 0 <= vr.Len() {

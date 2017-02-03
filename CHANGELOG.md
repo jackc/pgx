@@ -15,6 +15,7 @@
 * Add json/jsonb binary support to allow use with CopyTo
 * Add named error ErrAcquireTimeout (Alexander Staubo)
 * Add logical replication decoding (Kris Wehner)
+* Add PgxScanner interface to allow types to simultaneously support database/sql and pgx (Jack Christensen)
 
 ## Compatibility
 

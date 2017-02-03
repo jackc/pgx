@@ -157,14 +157,15 @@ Custom Type Support
 pgx includes support for the common data types like integers, floats, strings,
 dates, and times that have direct mappings between Go and SQL. Support can be
 added for additional types like point, hstore, numeric, etc. that do not have
-direct mappings in Go by the types implementing Scanner and Encoder.
+direct mappings in Go by the types implementing ScannerPgx and Encoder.
 
 Custom types can support text or binary formats. Binary format can provide a
 large performance increase. The natural place for deciding the format for a
-value would be in Scanner as it is responsible for decoding the returned data.
-However, that is impossible as the query has already been sent by the time the
-Scanner is invoked. The solution to this is the global DefaultTypeFormats. If a
-custom type prefers binary format it should register it there.
+value would be in ScannerPgx as it is responsible for decoding the returned
+data. However, that is impossible as the query has already been sent by the time
+the ScannerPgx is invoked. The solution to this is the global
+DefaultTypeFormats. If a custom type prefers binary format it should register it
+there.
 
         pgx.DefaultTypeFormats["point"] = pgx.BinaryFormatCode
 
