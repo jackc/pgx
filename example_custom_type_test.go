@@ -18,7 +18,7 @@ type NullPoint struct {
 	Valid bool    // Valid is true if not NULL
 }
 
-func (p *NullPoint) Scan(vr *pgx.ValueReader) error {
+func (p *NullPoint) ScanPgx(vr *pgx.ValueReader) error {
 	if vr.Type().DataTypeName != "point" {
 		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode %s (OID %d)", vr.Type().DataTypeName, vr.Type().DataType))
 	}
