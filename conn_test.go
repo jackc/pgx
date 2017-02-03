@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -814,6 +815,31 @@ func TestExecFailure(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
 	}
+}
+
+func TestExecContext(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// When not canceled
+	ctx, cancelFn := context.WithCancel(context.Background())
+	_, err := conn.ExecContext(ctx, "select pg_sleep(1)")
+	if err != nil {
+		t.Error("Unexpected err from ExecContext")
+	}
+	cancelFn()
+
+	// When canceled
+	ctx, cancelFn = context.WithCancel(context.Background())
+	go func() { time.Sleep(time.Second); cancelFn() }()
+	_, err = conn.ExecContext(ctx, "select pg_sleep(60)")
+	if err != context.Canceled {
+		t.Errorf("Expected context.Canceled, got %v", err)
+	}
+
+	t.Fatal("TODO: connection should still be usable")
 }
 
 func TestPrepare(t *testing.T) {

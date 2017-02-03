@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -68,6 +69,9 @@ type Conn struct {
 	busy               bool
 	poolResetCount     int
 	preallocatedRows   []Rows
+
+	connDeadlineSetChan chan bool
+	connIdleChan        chan struct{}
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -256,6 +260,9 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			return err
 		}
 	}
+
+	c.connDeadlineSetChan = make(chan bool)
+	c.connIdleChan = make(chan struct{})
 
 	c.reader = bufio.NewReader(c.conn)
 	c.mr.reader = c.reader
@@ -743,6 +750,53 @@ func (c *Conn) Deallocate(name string) (err error) {
 	}
 }
 
+func (c *Conn) pingContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	readDoneChan := make(chan struct{})
+	readDeadlineSet := make(chan bool)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.conn.SetReadDeadline(time.Now())
+			<-readDoneChan
+			readDeadlineSet <- true
+		case <-readDoneChan:
+			readDeadlineSet <- false
+		}
+	}()
+
+	var n int32
+	err := c.QueryRow("select 1::int4").Scan(&n)
+
+	// Cleanup cancelation goroutine
+	readDoneChan <- struct{}{}
+
+	// Clear read deadline if set
+	if <-readDeadlineSet {
+		c.conn.SetReadDeadline(time.Time{})
+	}
+
+	// If ping query completed successfully return success even if ctx has now
+	// been canceled.
+	if err == nil {
+		return nil
+	}
+
+	// Prefer ctx err over Read err
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		return err
+	}
+}
+
 // Listen establishes a PostgreSQL listen/notify to channel
 func (c *Conn) Listen(channel string) error {
 	_, err := c.Exec("listen " + quoteIdentifier(channel))
@@ -1020,6 +1074,28 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	}
 }
 
+// ExecContext executes sql. sql can be either a prepared statement name or an SQL string.
+// arguments should be referenced positionally from the sql string as $1, $2, etc.
+func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error) {
+	c.beginContextOp(ctx)
+	commandTag, err := c.Exec(sql, arguments...)
+	c.endContextOp()
+
+	// If the Exec completed without error then return success even if ctx has
+	// since been canceled.
+	if err == nil {
+		return commandTag, nil
+	}
+
+	// Prefer ctx err over Exec err
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+		return "", err
+	}
+}
+
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages
 // is the same regardless of when they occur.
@@ -1049,7 +1125,13 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 
 	t, err = c.mr.rxMsg()
 	if err != nil {
-		c.die(err)
+		if err, ok := err.(*net.OpError); ok && err.Timeout() {
+			if c.shouldLog(LogLevelTrace) {
+				c.log(LogLevelTrace, "rxMsgDeadlineSafe timeout")
+			}
+		} else {
+			c.die(err)
+		}
 	}
 
 	c.lastActivityTime = time.Now()
@@ -1285,4 +1367,35 @@ func (c *Conn) SetLogLevel(lvl int) (int, error) {
 
 func quoteIdentifier(s string) string {
 	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
+}
+
+func (c *Conn) beginContextOp(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.conn.SetDeadline(time.Now())
+			<-c.connIdleChan
+			c.connDeadlineSetChan <- true
+		case <-c.connIdleChan:
+			c.connDeadlineSetChan <- false
+		}
+	}()
+
+	return nil
+}
+
+func (c *Conn) endContextOp() {
+	// Cleanup cancelation goroutine
+	c.connIdleChan <- struct{}{}
+
+	// Clear read deadline if set
+	if <-c.connDeadlineSetChan {
+		c.conn.SetDeadline(time.Time{})
+	}
 }
