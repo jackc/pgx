@@ -21,7 +21,7 @@ func (r *msgReader) Err() error {
 	return r.err
 }
 
-// fatal tells r that a Fatal error has occurred
+// fatal tells rc that a Fatal error has occurred
 func (r *msgReader) fatal(err error) {
 	if r.shouldLog(LogLevelTrace) {
 		r.log(LogLevelTrace, "msgReader.fatal", "error", err, "msgBytesRemaining", r.msgBytesRemaining)
