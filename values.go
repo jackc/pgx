@@ -129,9 +129,9 @@ func (e SerializationError) Error() string {
 
 // Scanner is an interface used to decode values from the PostgreSQL server.
 type Scanner interface {
-	// Scan MUST check r.Type().DataType (to check by OID) or
-	// r.Type().DataTypeName (to check by name) to ensure that it is scanning an
-	// expected column type. It also MUST check r.Type().FormatCode before
+	// Scan MUST check rc.Type().DataType (to check by OID) or
+	// rc.Type().DataTypeName (to check by name) to ensure that it is scanning an
+	// expected column type. It also MUST check rc.Type().FormatCode before
 	// decoding. It should not assume that it was called on a data type or format
 	// that it understands.
 	Scan(r *ValueReader) error
@@ -3167,7 +3167,7 @@ func parseQuotedAclItem(reader *strings.Reader) (AclItem, error) {
 	}
 }
 
-// Returns the next rune from r, unless it is a backslash;
+// Returns the next rune from rc, unless it is a backslash;
 // in that case, it returns the rune after the backslash. The second
 // return value tells us whether or not the rune was
 // preceeded by a backslash (escaped).
