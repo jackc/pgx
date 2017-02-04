@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.7.1
-  - 1.6.3
+  - 1.7.4
+  - 1.6.4
   - tip
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
@@ -34,7 +34,6 @@ env:
     - PGVERSION=9.4
     - PGVERSION=9.3
     - PGVERSION=9.2
-    - PGVERSION=9.1
 
 # The tricky test user, below, has to actually exist so that it can be used in a test
 # of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.

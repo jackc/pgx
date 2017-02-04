@@ -3,6 +3,7 @@
 ## Fixes
 
 * Oid underlying type changed to uint32, previously it was incorrectly int32 (Manni Wood)
+* Explicitly close checked-in connections on ConnPool.Reset, previously they were closed by GC
 
 ## Features
 
@@ -13,6 +14,8 @@
 * Add NullOid type (Manni Wood)
 * Add json/jsonb binary support to allow use with CopyTo
 * Add named error ErrAcquireTimeout (Alexander Staubo)
+* Add logical replication decoding (Kris Wehner)
+* Add PgxScanner interface to allow types to simultaneously support database/sql and pgx (Jack Christensen)
 
 ## Compatibility
 
