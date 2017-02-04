@@ -255,8 +255,13 @@ func (p *ConnPool) Reset() {
 	defer p.cond.L.Unlock()
 
 	p.resetCount++
-	p.allConnections = make([]*Conn, 0, p.maxConnections)
-	p.availableConnections = make([]*Conn, 0, p.maxConnections)
+	p.allConnections = p.allConnections[0:0]
+
+	for _, conn := range p.availableConnections {
+		conn.Close()
+	}
+
+	p.availableConnections = p.availableConnections[0:0]
 }
 
 // invalidateAcquired causes all acquired connections to be closed when released.
