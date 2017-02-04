@@ -507,12 +507,6 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
 	doneChan := make(chan struct{})
 
 	go func() {
@@ -529,9 +523,9 @@ func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}
 	if err != nil {
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return rows, ctx.Err()
 		case doneChan <- struct{}{}:
-			return nil, err
+			return rows, err
 		}
 	}
 
@@ -539,4 +533,9 @@ func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}
 	rows.doneChan = doneChan
 
 	return rows, nil
+}
+
+func (c *Conn) QueryRowContext(ctx context.Context, sql string, args ...interface{}) *Row {
+	rows, _ := c.QueryContext(ctx, sql, args...)
+	return (*Row)(rows)
 }
