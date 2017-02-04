@@ -298,7 +298,7 @@ type pgxNullInt64 struct {
 }
 
 func (n *pgxNullInt64) ScanPgx(vr *pgx.ValueReader) error {
-	if vr.Type().DataType != pgx.Int8Oid {
+	if vr.Type().DataType != pgx.Int8OID {
 		return pgx.SerializationError(fmt.Sprintf("pgxNullInt64.Scan cannot decode OID %d", vr.Type().DataType))
 	}
 
