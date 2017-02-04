@@ -989,16 +989,18 @@ func (u *UUIDs) Scan(vr *ValueReader) error {
 		return nil
 	}
 
-	a := make([]string, int(numElems))
-	for i := 0; i < len(a); i++ {
-		elSize := vr.ReadInt32()
-		if elSize == -1 {
-			vr.Fatal(ProtocolError("Cannot decode null element"))
-			return nil
+	if numElems > 0 {
+		a := make([]string, int(numElems))
+		for i := 0; i < len(a); i++ {
+			elSize := vr.ReadInt32()
+			if elSize == -1 {
+				vr.Fatal(ProtocolError("Cannot decode null element"))
+				return nil
+			}
+			a[i] = vr.ReadUuid(elSize)
 		}
-		a[i] = vr.ReadUuid(elSize)
+		*u = a
 	}
-	*u = a
 	return vr.Err()
 }
 
