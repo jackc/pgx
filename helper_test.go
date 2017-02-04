@@ -21,7 +21,6 @@ func mustReplicationConnect(t testing.TB, config pgx.ConnConfig) *pgx.Replicatio
 	return conn
 }
 
-
 func closeConn(t testing.TB, conn *pgx.Conn) {
 	err := conn.Close()
 	if err != nil {
@@ -71,4 +70,20 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	if sum != 55 {
 		t.Error("Wrong values returned")
 	}
+}
+
+func ensureConnDeadOnServer(t *testing.T, conn *pgx.Conn, config pgx.ConnConfig) {
+	checkConn := mustConnect(t, config)
+	defer closeConn(t, checkConn)
+
+	for i := 0; i < 10; i++ {
+		var found bool
+		err := checkConn.QueryRow("select true from pg_stat_activity where pid=$1", conn.Pid).Scan(&found)
+		if err == pgx.ErrNoRows {
+			return
+		} else if err != nil {
+			t.Fatalf("Unable to check if conn is dead on server: %v", err)
+		}
+	}
+	t.Fatal("Expected conn to be disconnected from server, but it wasn't")
 }
