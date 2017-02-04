@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"time"
 )
 
@@ -49,6 +50,9 @@ type Rows struct {
 	afterClose func(*Rows)
 	unlockConn bool
 	closed     bool
+
+	ctx      context.Context
+	doneChan chan struct{}
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -120,6 +124,15 @@ func (rows *Rows) Close() {
 		return
 	}
 	rows.readUntilReadyForQuery()
+
+	if rows.ctx != nil {
+		select {
+		case <-rows.ctx.Done():
+			rows.err = rows.ctx.Err()
+		case rows.doneChan <- struct{}{}:
+		}
+	}
+
 	rows.close()
 }
 
@@ -491,4 +504,39 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 	rows, _ := c.Query(sql, args...)
 	return (*Row)(rows)
+}
+
+func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	doneChan := make(chan struct{})
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.cancelQuery()
+			c.Close()
+		case <-doneChan:
+		}
+	}()
+
+	rows, err := c.Query(sql, args...)
+
+	if err != nil {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case doneChan <- struct{}{}:
+			return nil, err
+		}
+	}
+
+	rows.ctx = ctx
+	rows.doneChan = doneChan
+
+	return rows, nil
 }

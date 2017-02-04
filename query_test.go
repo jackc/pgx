@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"golang.org/x/net/context"
 	"strings"
 	"testing"
 	"time"
@@ -1411,4 +1412,114 @@ func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestQueryContextSuccess(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	rows, err := conn.QueryContext(ctx, "select 42::integer")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result, rowCount int
+	for rows.Next() {
+		err = rows.Scan(&result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rowCount++
+	}
+
+	if rows.Err() != nil {
+		t.Fatal(rows.Err())
+	}
+
+	if rowCount != 1 {
+		t.Fatalf("Expected 1 row, got %d", rowCount)
+	}
+	if result != 42 {
+		t.Fatalf("Expected result 42, got %d", result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	rows, err := conn.QueryContext(ctx, "select 10/(10-n) from generate_series(1, 100) n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result, rowCount int
+	for rows.Next() {
+		err = rows.Scan(&result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rowCount++
+	}
+
+	if rows.Err() == nil || rows.Err().Error() != "ERROR: division by zero (SQLSTATE 22012)" {
+		t.Fatalf("Expected division by zero error, but got %v", rows.Err())
+	}
+
+	if rowCount != 9 {
+		t.Fatalf("Expected 9 rows, got %d", rowCount)
+	}
+	if result != 10 {
+		t.Fatalf("Expected result 10, got %d", result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryContextCancelationCancelsQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFunc()
+	}()
+
+	rows, err := conn.QueryContext(ctx, "select pg_sleep(5)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for rows.Next() {
+		t.Fatal("No rows should ever be ready -- context cancel apparently did not happen")
+	}
+
+	if rows.Err() != context.Canceled {
+		t.Fatal("Expected context.Canceled error, got %v", rows.Err())
+	}
+
+	checkConn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, checkConn)
+
+	var found bool
+	err = checkConn.QueryRow("select true from pg_stat_activity where pid=$1", conn.Pid).Scan(&found)
+	if err != pgx.ErrNoRows {
+		t.Fatal("Expected context canceled connection to be disconnected from server, but it wasn't")
+	}
+
 }
