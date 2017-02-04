@@ -1513,14 +1513,7 @@ func TestQueryContextCancelationCancelsQuery(t *testing.T) {
 		t.Fatal("Expected context.Canceled error, got %v", rows.Err())
 	}
 
-	checkConn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, checkConn)
-
-	var found bool
-	err = checkConn.QueryRow("select true from pg_stat_activity where pid=$1", conn.Pid).Scan(&found)
-	if err != pgx.ErrNoRows {
-		t.Fatal("Expected context canceled connection to be disconnected from server, but it wasn't")
-	}
+	ensureConnDeadOnServer(t, conn, *defaultConnConfig)
 }
 
 func TestQueryRowContextSuccess(t *testing.T) {
@@ -1580,12 +1573,5 @@ func TestQueryRowContextCancelationCancelsQuery(t *testing.T) {
 		t.Fatal("Expected context.Canceled error, got %v", err)
 	}
 
-	checkConn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, checkConn)
-
-	var found bool
-	err = checkConn.QueryRow("select true from pg_stat_activity where pid=$1", conn.Pid).Scan(&found)
-	if err != pgx.ErrNoRows {
-		t.Fatal("Expected context canceled connection to be disconnected from server, but it wasn't")
-	}
+	ensureConnDeadOnServer(t, conn, *defaultConnConfig)
 }
