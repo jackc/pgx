@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"crypto/tls"
 	"fmt"
+	"golang.org/x/net/context"
 	"net"
 	"os"
 	"reflect"
@@ -813,6 +814,73 @@ func TestExecFailure(t *testing.T) {
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
+	}
+}
+
+func TestExecContextWithoutCancelation(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecContext(ctx, "create temporary table foo(id integer primary key);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecContext: %v", commandTag)
+	}
+}
+
+func TestExecContextFailureWithoutCancelation(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	if _, err := conn.ExecContext(ctx, "selct;"); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+
+	rows, _ := conn.Query("select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("ExecContext failure appears to have broken connection: %v", rows.Err())
+	}
+}
+
+func TestExecContextCancelationCancelsQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFunc()
+	}()
+
+	_, err := conn.ExecContext(ctx, "select pg_sleep(60)")
+	if err != context.Canceled {
+		t.Fatal("Expected context.Canceled err, got %v", err)
+	}
+
+	time.Sleep(500 * time.Millisecond)
+
+	checkConn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, checkConn)
+
+	var found bool
+	err = checkConn.QueryRow("select true from pg_stat_activity where pid=$1", conn.Pid).Scan(&found)
+	if err != pgx.ErrNoRows {
+		t.Fatal("Expected context canceled connection to be disconnected from server, but it wasn't")
 	}
 }
 
