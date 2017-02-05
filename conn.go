@@ -1051,9 +1051,12 @@ func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 }
 
 func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
+	c.closingLock.Lock()
 	if !c.alive {
+		c.closingLock.Unlock()
 		return 0, nil, ErrDeadConn
 	}
+	c.closingLock.Unlock()
 
 	t, err = c.mr.rxMsg()
 	if err != nil {

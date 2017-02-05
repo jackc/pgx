@@ -51,8 +51,9 @@ type Rows struct {
 	unlockConn bool
 	closed     bool
 
-	ctx      context.Context
-	doneChan chan struct{}
+	ctx        context.Context
+	doneChan   chan struct{}
+	closedChan chan bool
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -127,7 +128,7 @@ func (rows *Rows) Close() {
 
 	if rows.ctx != nil {
 		select {
-		case <-rows.ctx.Done():
+		case <-rows.closedChan:
 			rows.err = rows.ctx.Err()
 		case rows.doneChan <- struct{}{}:
 		}
@@ -508,12 +509,14 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 
 func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
 	doneChan := make(chan struct{})
+	closedChan := make(chan bool)
 
 	go func() {
 		select {
 		case <-ctx.Done():
 			c.cancelQuery()
 			c.Close()
+			closedChan <- true
 		case <-doneChan:
 		}
 	}()
@@ -522,7 +525,7 @@ func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}
 
 	if err != nil {
 		select {
-		case <-ctx.Done():
+		case <-closedChan:
 			return rows, ctx.Err()
 		case doneChan <- struct{}{}:
 			return rows, err
@@ -531,6 +534,7 @@ func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}
 
 	rows.ctx = ctx
 	rows.doneChan = doneChan
+	rows.closedChan = closedChan
 
 	return rows, nil
 }
