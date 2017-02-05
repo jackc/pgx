@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -74,8 +75,6 @@ type Conn struct {
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	notifications      []*Notification
-	alive              bool
-	causeOfDeath       error
 	logger             Logger
 	logLevel           int
 	mr                 msgReader
@@ -85,6 +84,10 @@ type Conn struct {
 	busy               bool
 	poolResetCount     int
 	preallocatedRows   []Rows
+
+	closingLock  sync.Mutex
+	alive        bool
+	causeOfDeath error
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -391,14 +394,14 @@ func (c *Conn) loadInetConstants() error {
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close() (err error) {
-	if !c.IsAlive() {
+	c.closingLock.Lock()
+	defer c.closingLock.Unlock()
+
+	if !c.alive {
 		return nil
 	}
 
-	wbuf := newWriteBuf(c, 'X')
-	wbuf.closeMsg()
-
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
 
 	c.die(errors.New("Closed"))
 	if c.shouldLog(LogLevelInfo) {
@@ -870,7 +873,10 @@ func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
 }
 
 func (c *Conn) IsAlive() bool {
-	return c.alive
+	c.closingLock.Lock()
+	alive := c.alive
+	c.closingLock.Unlock()
+	return alive
 }
 
 func (c *Conn) CauseOfDeath() error {
