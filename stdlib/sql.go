@@ -44,6 +44,7 @@
 package stdlib
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
 	"errors"
@@ -211,6 +212,21 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	return c.queryPrepared("", argsV)
 }
 
+func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	ps, err := c.conn.PrepareExContext(ctx, "", query, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	restrictBinaryToDatabaseSqlTypes(ps)
+
+	return c.queryPreparedContext(ctx, "", argsV)
+}
+
 func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
@@ -222,6 +238,24 @@ func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, er
 	if err != nil {
 		return nil, err
 	}
+
+	return &Rows{rows: rows}, nil
+}
+
+func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []driver.NamedValue) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	args := namedValueToInterface(argsV)
+
+	rows, err := c.conn.QueryContext(ctx, name, args...)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+
+	fmt.Println("ere")
 
 	return &Rows{rows: rows}, nil
 }
@@ -311,6 +345,18 @@ func valueToInterface(argsV []driver.Value) []interface{} {
 	for _, v := range argsV {
 		if v != nil {
 			args = append(args, v.(interface{}))
+		} else {
+			args = append(args, nil)
+		}
+	}
+	return args
+}
+
+func namedValueToInterface(argsV []driver.NamedValue) []interface{} {
+	args := make([]interface{}, 0, len(argsV))
+	for _, v := range argsV {
+		if v.Value != nil {
+			args = append(args, v.Value.(interface{}))
 		} else {
 			args = append(args, nil)
 		}
