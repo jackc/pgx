@@ -619,6 +619,41 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+	return c.PrepareExContext(context.Background(), name, sql, opts)
+
+}
+
+func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	doneChan := make(chan struct{})
+	closedChan := make(chan struct{})
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.cancelQuery()
+			c.Close()
+			closedChan <- struct{}{}
+		case <-doneChan:
+		}
+	}()
+
+	ps, err = c.prepareEx(name, sql, opts)
+
+	select {
+	case <-closedChan:
+		return nil, ctx.Err()
+	case doneChan <- struct{}{}:
+		return ps, err
+	}
+}
+
+func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
@@ -1349,29 +1384,24 @@ func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interfa
 	}
 
 	doneChan := make(chan struct{})
-	closedChan := make(chan bool)
+	closedChan := make(chan struct{})
 
 	go func() {
 		select {
 		case <-ctx.Done():
 			c.cancelQuery()
 			c.Close()
-			<-doneChan
-			closedChan <- true
+			closedChan <- struct{}{}
 		case <-doneChan:
-			closedChan <- false
 		}
 	}()
 
 	commandTag, err = c.Exec(sql, arguments...)
 
-	// Signal cancelation goroutine that operation is done
-	doneChan <- struct{}{}
-
-	// If c was closed due to context cancelation then return context err
-	if <-closedChan {
+	select {
+	case <-closedChan:
 		return "", ctx.Err()
+	case doneChan <- struct{}{}:
+		return commandTag, err
 	}
-
-	return commandTag, err
 }
