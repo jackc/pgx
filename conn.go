@@ -90,8 +90,9 @@ type Conn struct {
 	causeOfDeath error
 
 	// context support
-	doneChan   chan struct{}
-	closedChan chan struct{}
+	ctxInProgress bool
+	doneChan      chan struct{}
+	closedChan    chan error
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -262,7 +263,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.alive = true
 	c.lastActivityTime = time.Now()
 	c.doneChan = make(chan struct{})
-	c.closedChan = make(chan struct{})
+	c.closedChan = make(chan error)
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
@@ -629,22 +630,14 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 }
 
 func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+	err = c.initContext(ctx)
+	if err != nil {
+		return nil, err
 	}
-
-	go c.contextHandler(ctx)
 
 	ps, err = c.prepareEx(name, sql, opts)
-
-	select {
-	case <-c.closedChan:
-		return nil, ctx.Err()
-	case c.doneChan <- struct{}{}:
-		return ps, err
-	}
+	err = c.termContext(err)
+	return ps, err
 }
 
 func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
@@ -1371,22 +1364,56 @@ func (c *Conn) PingContext(ctx context.Context) error {
 }
 
 func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+	err = c.initContext(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	commandTag, err = c.Exec(sql, arguments...)
+	err = c.termContext(err)
+	return commandTag, err
+}
+
+func (c *Conn) initContext(ctx context.Context) error {
+	if c.ctxInProgress {
+		return errors.New("ctx already in progress")
+	}
+
+	if ctx.Done() == nil {
+		return nil
+	}
+
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return ctx.Err()
 	default:
 	}
 
+	c.ctxInProgress = true
+
 	go c.contextHandler(ctx)
 
-	commandTag, err = c.Exec(sql, arguments...)
+	return nil
+}
+
+func (c *Conn) termContext(opErr error) error {
+	if !c.ctxInProgress {
+		return opErr
+	}
+
+	var err error
 
 	select {
-	case <-c.closedChan:
-		return "", ctx.Err()
+	case err = <-c.closedChan:
+		if opErr == nil {
+			err = nil
+		}
 	case c.doneChan <- struct{}{}:
-		return commandTag, err
+		err = opErr
 	}
+
+	c.ctxInProgress = false
+	return err
 }
 
 func (c *Conn) contextHandler(ctx context.Context) {
@@ -1394,7 +1421,7 @@ func (c *Conn) contextHandler(ctx context.Context) {
 	case <-ctx.Done():
 		c.cancelQuery()
 		c.Close()
-		c.closedChan <- struct{}{}
+		c.closedChan <- ctx.Err()
 	case <-c.doneChan:
 	}
 }
