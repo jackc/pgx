@@ -50,8 +50,6 @@ type Rows struct {
 	afterClose func(*Rows)
 	unlockConn bool
 	closed     bool
-
-	ctx context.Context
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -84,6 +82,9 @@ func (rows *Rows) close() {
 	}
 }
 
+// TODO - consider inlining in Close(). This method calling rows.close is a
+// foot-gun waiting to happen if anyone puts anything between the call to this
+// and rows.close.
 func (rows *Rows) readUntilReadyForQuery() {
 	for {
 		t, r, err := rows.conn.rxMsg()
@@ -122,16 +123,8 @@ func (rows *Rows) Close() {
 	if rows.closed {
 		return
 	}
+	rows.err = rows.conn.termContext(rows.err)
 	rows.readUntilReadyForQuery()
-
-	if rows.ctx != nil {
-		select {
-		case <-rows.conn.closedChan:
-			rows.err = rows.ctx.Err()
-		case rows.conn.doneChan <- struct{}{}:
-		}
-	}
-
 	rows.close()
 }
 
@@ -506,20 +499,16 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
-	go c.contextHandler(ctx)
-
-	rows, err := c.Query(sql, args...)
-
+	err := c.initContext(ctx)
 	if err != nil {
-		select {
-		case <-c.closedChan:
-			return rows, ctx.Err()
-		case c.doneChan <- struct{}{}:
-			return rows, err
-		}
+		return nil, err
 	}
 
-	rows.ctx = ctx
+	rows, err := c.Query(sql, args...)
+	if err != nil {
+		err = c.termContext(err)
+		return nil, err
+	}
 
 	return rows, nil
 }

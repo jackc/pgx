@@ -182,6 +182,10 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 
 // Release gives up use of a connection.
 func (p *ConnPool) Release(conn *Conn) {
+	if conn.ctxInProgress {
+		panic("should never release when context is in progress")
+	}
+
 	if conn.TxStatus != 'I' {
 		conn.Exec("rollback")
 	}
