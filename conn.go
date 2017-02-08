@@ -88,6 +88,10 @@ type Conn struct {
 	closingLock  sync.Mutex
 	alive        bool
 	causeOfDeath error
+
+	// context support
+	doneChan   chan struct{}
+	closedChan chan struct{}
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -257,6 +261,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.channels = make(map[string]struct{})
 	c.alive = true
 	c.lastActivityTime = time.Now()
+	c.doneChan = make(chan struct{})
+	c.closedChan = make(chan struct{})
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
@@ -619,8 +625,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
-	return c.PrepareExContext(context.Background(), name, sql, opts)
-
+	return c.prepareEx(name, sql, opts)
 }
 
 func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
@@ -630,25 +635,14 @@ func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *Pre
 	default:
 	}
 
-	doneChan := make(chan struct{})
-	closedChan := make(chan struct{})
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			c.cancelQuery()
-			c.Close()
-			closedChan <- struct{}{}
-		case <-doneChan:
-		}
-	}()
+	go c.contextHandler(ctx)
 
 	ps, err = c.prepareEx(name, sql, opts)
 
 	select {
-	case <-closedChan:
+	case <-c.closedChan:
 		return nil, ctx.Err()
-	case doneChan <- struct{}{}:
+	case c.doneChan <- struct{}{}:
 		return ps, err
 	}
 }
@@ -1383,25 +1377,24 @@ func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interfa
 	default:
 	}
 
-	doneChan := make(chan struct{})
-	closedChan := make(chan struct{})
-
-	go func() {
-		select {
-		case <-ctx.Done():
-			c.cancelQuery()
-			c.Close()
-			closedChan <- struct{}{}
-		case <-doneChan:
-		}
-	}()
+	go c.contextHandler(ctx)
 
 	commandTag, err = c.Exec(sql, arguments...)
 
 	select {
-	case <-closedChan:
+	case <-c.closedChan:
 		return "", ctx.Err()
-	case doneChan <- struct{}{}:
+	case c.doneChan <- struct{}{}:
 		return commandTag, err
+	}
+}
+
+func (c *Conn) contextHandler(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		c.cancelQuery()
+		c.Close()
+		c.closedChan <- struct{}{}
+	case <-c.doneChan:
 	}
 }
