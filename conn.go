@@ -61,9 +61,8 @@ func (cc *ConnConfig) networkAddress() (network, address string) {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn      // the underlying TCP or unix domain socket connection
-	lastActivityTime   time.Time     // the last time the connection was used
-	reader             *bufio.Reader // buffered reader to improve read performance
+	conn               net.Conn  // the underlying TCP or unix domain socket connection
+	lastActivityTime   time.Time // the last time the connection was used
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
 	Pid                int32             // backend pid
@@ -274,8 +273,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.reader = bufio.NewReader(c.conn)
-	c.mr.reader = c.reader
+	c.mr.reader = bufio.NewReader(c.conn)
 
 	msg := newStartupMessage()
 
@@ -862,7 +860,7 @@ func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
 		}
 
 		// Wait until there is a byte available before continuing onto the normal msg reading path
-		_, err = c.reader.Peek(1)
+		_, err = c.mr.reader.Peek(1)
 		if err != nil {
 			c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
 			if err, ok := err.(*net.OpError); ok && err.Timeout() {
