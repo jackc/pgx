@@ -289,7 +289,7 @@ func (rc *ReplicationConn) WaitForReplicationMessage(timeout time.Duration) (r *
 	}
 
 	// Wait until there is a byte available before continuing onto the normal msg reading path
-	_, err = rc.c.reader.Peek(1)
+	_, err = rc.c.mr.reader.Peek(1)
 	if err != nil {
 		rc.c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
 		if err, ok := err.(*net.OpError); ok && err.Timeout() {
