@@ -1403,6 +1403,9 @@ func (c *Conn) termContext(opErr error) error {
 
 	select {
 	case err = <-c.closedChan:
+		if dlErr := c.conn.SetDeadline(time.Time{}); dlErr != nil {
+			c.Close() // Close connection if unable to disable deadline
+		}
 		if opErr == nil {
 			err = nil
 		}
@@ -1418,7 +1421,9 @@ func (c *Conn) contextHandler(ctx context.Context) {
 	select {
 	case <-ctx.Done():
 		c.cancelQuery()
-		c.Close()
+		if err := c.conn.SetDeadline(time.Now()); err != nil {
+			c.Close() // Close connection if unable to set deadline
+		}
 		c.closedChan <- ctx.Err()
 	case <-c.doneChan:
 	}
