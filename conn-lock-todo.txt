@@ -1,0 +1,11 @@
+Extract all locking state into a separate struct that will encapsulate locking and state change behavior.
+
+This struct should add or subsume at least the following:
+* alive
+* closingLock
+* ctxInProgress (though this may be restructured because it's possible a Tx may have a ctx and a query run in that Tx could have one)
+* busy
+* lock/unlock
+* Tx in-progress
+* Rows in-progress
+* ConnPool checked-out or checked-in - maybe include reference to conn pool
