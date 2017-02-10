@@ -16,11 +16,6 @@ type msgReader struct {
 	shouldLog         func(lvl int) bool
 }
 
-// Err returns any error that the msgReader has experienced
-func (r *msgReader) Err() error {
-	return r.err
-}
-
 // fatal tells rc that a Fatal error has occurred
 func (r *msgReader) fatal(err error) {
 	if r.shouldLog(LogLevelTrace) {
