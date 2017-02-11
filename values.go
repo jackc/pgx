@@ -2406,8 +2406,8 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	length = vr.ReadInt32()
 
 	idxFirstElem := vr.ReadInt32()
-	if idxFirstElem != 1 {
-		return 0, ProtocolError(fmt.Sprintf("Expected array's first element to start a index 1, but it is %d", idxFirstElem))
+	if idxFirstElem < 0 || idxFirstElem > 1 {
+		return 0, ProtocolError(fmt.Sprintf("Expected array's first element to start at index 0 or 1, but it is %d", idxFirstElem))
 	}
 
 	return length, nil
