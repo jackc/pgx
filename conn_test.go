@@ -872,7 +872,7 @@ func TestExecContextCancelationCancelsQuery(t *testing.T) {
 		t.Fatal("Expected context.Canceled err, got %v", err)
 	}
 
-	ensureConnDeadOnServer(t, conn, *defaultConnConfig)
+	ensureConnValid(t, conn)
 }
 
 func TestPrepare(t *testing.T) {
