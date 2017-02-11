@@ -82,41 +82,6 @@ func (rows *Rows) close() {
 	}
 }
 
-// TODO - consider inlining in Close(). This method calling rows.close is a
-// foot-gun waiting to happen if anyone puts anything between the call to this
-// and rows.close.
-func (rows *Rows) readUntilReadyForQuery() {
-	for {
-		t, r, err := rows.conn.rxMsg()
-		if err != nil {
-			rows.close()
-			return
-		}
-
-		switch t {
-		case readyForQuery:
-			rows.conn.rxReadyForQuery(r)
-			rows.close()
-			return
-		case rowDescription:
-		case dataRow:
-		case commandComplete:
-		case bindComplete:
-		case errorResponse:
-			err = rows.conn.rxErrorResponse(r)
-			if rows.err == nil {
-				rows.err = err
-			}
-		default:
-			err = rows.conn.processContextFreeMsg(t, r)
-			if err != nil {
-				rows.close()
-				return
-			}
-		}
-	}
-}
-
 // Close closes the rows, making the connection ready for use again. It is safe
 // to call Close after rows is already closed.
 func (rows *Rows) Close() {
@@ -124,7 +89,6 @@ func (rows *Rows) Close() {
 		return
 	}
 	rows.err = rows.conn.termContext(rows.err)
-	rows.readUntilReadyForQuery()
 	rows.close()
 }
 
@@ -174,10 +138,6 @@ func (rows *Rows) Next() bool {
 		}
 
 		switch t {
-		case readyForQuery:
-			rows.conn.rxReadyForQuery(r)
-			rows.close()
-			return false
 		case dataRow:
 			fieldCount := r.readInt16()
 			if int(fieldCount) != len(rows.fields) {
@@ -188,7 +148,9 @@ func (rows *Rows) Next() bool {
 			rows.mr = r
 			return true
 		case commandComplete:
-		case bindComplete:
+			rows.close()
+			return false
+
 		default:
 			err = rows.conn.processContextFreeMsg(t, r)
 			if err != nil {

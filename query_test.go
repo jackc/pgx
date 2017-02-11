@@ -1513,7 +1513,7 @@ func TestQueryContextCancelationCancelsQuery(t *testing.T) {
 		t.Fatal("Expected context.Canceled error, got %v", rows.Err())
 	}
 
-	ensureConnDeadOnServer(t, conn, *defaultConnConfig)
+	ensureConnValid(t, conn)
 }
 
 func TestQueryRowContextSuccess(t *testing.T) {
@@ -1573,5 +1573,5 @@ func TestQueryRowContextCancelationCancelsQuery(t *testing.T) {
 		t.Fatal("Expected context.Canceled error, got %v", err)
 	}
 
-	ensureConnDeadOnServer(t, conn, *defaultConnConfig)
+	ensureConnValid(t, conn)
 }

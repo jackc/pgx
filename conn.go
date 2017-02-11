@@ -93,6 +93,8 @@ type Conn struct {
 	status       int32 // One of connStatus* constants
 	causeOfDeath error
 
+	readyForQuery bool // can the connection be used to send a query
+
 	// context support
 	ctxInProgress bool
 	doneChan      chan struct{}
@@ -653,6 +655,10 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}
 	}
 
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return nil, err
+	}
+
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
@@ -692,6 +698,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		c.die(err)
 		return nil, err
 	}
+	c.readyForQuery = false
 
 	ps = &PreparedStatement{Name: name, SQL: sql}
 
@@ -706,7 +713,6 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}
 
 		switch t {
-		case parseComplete:
 		case parameterDescription:
 			ps.ParameterOids = c.rxParameterDescription(r)
 
@@ -720,7 +726,6 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 				ps.FieldDescriptions[i].DataTypeName = t.Name
 				ps.FieldDescriptions[i].FormatCode = t.DefaultFormat
 			}
-		case noData:
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 
@@ -739,6 +744,10 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 
 // Deallocate released a prepared statement
 func (c *Conn) Deallocate(name string) (err error) {
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
+	}
+
 	delete(c.preparedStatements, name)
 
 	// close
@@ -807,6 +816,10 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		notification := c.notifications[0]
 		c.notifications = c.notifications[1:]
 		return notification, nil
+	}
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return nil, err
 	}
 
 	stopTime := time.Now().Add(timeout)
@@ -916,6 +929,9 @@ func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 }
 
 func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
+	}
 
 	if len(args) == 0 {
 		wbuf := newWriteBuf(c, 'Q')
@@ -927,6 +943,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 			c.die(err)
 			return err
 		}
+		c.readyForQuery = false
 
 		return nil
 	}
@@ -942,6 +959,10 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOids) != len(arguments) {
 		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
+	}
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
 	}
 
 	// bind
@@ -991,6 +1012,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	if err != nil {
 		c.die(err)
 	}
+	c.readyForQuery = false
 
 	return err
 }
@@ -1040,9 +1062,6 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 			return commandTag, softErr
-		case rowDescription:
-		case dataRow:
-		case bindComplete:
 		case commandComplete:
 			commandTag = CommandTag(r.readCString())
 		default:
@@ -1054,25 +1073,36 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 }
 
 // Processes messages that are not exclusive to one context such as
-// authentication or query response. The response to these messages
-// is the same regardless of when they occur.
+// authentication or query response. The response to these messages is the same
+// regardless of when they occur. It also ignores messages that are only
+// meaningful in a given context. These messages can occur do to a context
+// deadline interrupting message processing. For example, an interrupted query
+// may have left DataRow messages on the wire.
 func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	switch t {
-	case 'S':
-		c.rxParameterStatus(r)
-		return nil
+	case bindComplete:
+	case commandComplete:
+	case dataRow:
+	case emptyQueryResponse:
 	case errorResponse:
 		return c.rxErrorResponse(r)
+	case noData:
 	case noticeResponse:
-		return nil
-	case emptyQueryResponse:
-		return nil
 	case notificationResponse:
 		c.rxNotificationResponse(r)
-		return nil
+	case parameterDescription:
+	case parseComplete:
+	case readyForQuery:
+		c.rxReadyForQuery(r)
+	case rowDescription:
+	case 'S':
+		c.rxParameterStatus(r)
+
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
+
+	return nil
 }
 
 func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
@@ -1082,7 +1112,9 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 
 	t, err = c.mr.rxMsg()
 	if err != nil {
-		c.die(err)
+		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
+			c.die(err)
+		}
 	}
 
 	c.lastActivityTime = time.Now()
@@ -1183,6 +1215,7 @@ func (c *Conn) rxBackendKeyData(r *msgReader) {
 }
 
 func (c *Conn) rxReadyForQuery(r *msgReader) {
+	c.readyForQuery = true
 	c.TxStatus = r.readByte()
 }
 
@@ -1427,4 +1460,28 @@ func (c *Conn) contextHandler(ctx context.Context) {
 		c.closedChan <- ctx.Err()
 	case <-c.doneChan:
 	}
+}
+
+func (c *Conn) ensureConnectionReadyForQuery() error {
+	for !c.readyForQuery {
+		t, r, err := c.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch t {
+		case errorResponse:
+			pgErr := c.rxErrorResponse(r)
+			if pgErr.Severity == "FATAL" {
+				return pgErr
+			}
+		default:
+			err = c.processContextFreeMsg(t, r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
