@@ -66,7 +66,7 @@ func TestStressConnPool(t *testing.T) {
 			action := actions[rand.Intn(len(actions))]
 			err := action.fn(pool, n)
 			if err != nil {
-				errChan <- err
+				errChan <- fmt.Errorf("%s: %v", action.name, err)
 				break
 			}
 		}
@@ -355,19 +355,19 @@ func canceledQueryContext(pool *pgx.ConnPool, actionNum int) error {
 		cancelFunc()
 	}()
 
-	rows, err := pool.QueryContext(ctx, "select pg_sleep(5)")
+	rows, err := pool.QueryContext(ctx, "select pg_sleep(2)")
 	if err == context.Canceled {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("canceledQueryContext: Only allowed error is context.Canceled, got %v", err)
+		return fmt.Errorf("Only allowed error is context.Canceled, got %v", err)
 	}
 
 	for rows.Next() {
-		return errors.New("canceledQueryContext: should never receive row")
+		return errors.New("should never receive row")
 	}
 
 	if rows.Err() != context.Canceled {
-		return fmt.Errorf("canceledQueryContext: Expected context.Canceled error, got %v", rows.Err())
+		return fmt.Errorf("Expected context.Canceled error, got %v", rows.Err())
 	}
 
 	return nil
@@ -380,9 +380,9 @@ func canceledExecContext(pool *pgx.ConnPool, actionNum int) error {
 		cancelFunc()
 	}()
 
-	_, err := pool.ExecContext(ctx, "select pg_sleep(5)")
+	_, err := pool.ExecContext(ctx, "select pg_sleep(2)")
 	if err != context.Canceled {
-		return fmt.Errorf("canceledExecContext: Expected context.Canceled error, got %v", err)
+		return fmt.Errorf("Expected context.Canceled error, got %v", err)
 	}
 
 	return nil
