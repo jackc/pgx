@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"io"
 	"net"
 	"net/url"
@@ -17,7 +18,15 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
+)
+
+const (
+	connStatusUninitialized = iota
+	connStatusClosed
+	connStatusIdle
+	connStatusBusy
 )
 
 // DialFunc is a function that can be used to connect to a PostgreSQL server
@@ -39,13 +48,28 @@ type ConnConfig struct {
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 }
 
+func (cc *ConnConfig) networkAddress() (network, address string) {
+	network = "tcp"
+	address = fmt.Sprintf("%s:%d", cc.Host, cc.Port)
+	// See if host is a valid path, if yes connect with a socket
+	if _, err := os.Stat(cc.Host); err == nil {
+		// For backward compatibility accept socket file paths -- but directories are now preferred
+		network = "unix"
+		address = cc.Host
+		if !strings.Contains(address, "/.s.PGSQL.") {
+			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatInt(int64(cc.Port), 10)
+		}
+	}
+
+	return network, address
+}
+
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn      // the underlying TCP or unix domain socket connection
-	lastActivityTime   time.Time     // the last time the connection was used
-	reader             *bufio.Reader // buffered reader to improve read performance
+	conn               net.Conn  // the underlying TCP or unix domain socket connection
+	lastActivityTime   time.Time // the last time the connection was used
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
 	pid                int32             // backend pid
@@ -57,17 +81,26 @@ type Conn struct {
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	notifications      []*Notification
-	alive              bool
-	causeOfDeath       error
 	logger             Logger
 	logLevel           int
 	mr                 msgReader
 	fp                 *fastpath
 	pgsqlAfInet        *byte
 	pgsqlAfInet6       *byte
-	busy               bool
 	poolResetCount     int
 	preallocatedRows   []Rows
+
+	status       int32 // One of connStatus* constants
+	causeOfDeath error
+
+	readyForQuery         bool // connection has received ReadyForQuery message since last query was sent
+	cancelQueryInProgress int32
+	cancelQueryCompleted  chan struct{}
+
+	// context support
+	ctxInProgress bool
+	doneChan      chan struct{}
+	closedChan    chan error
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -194,17 +227,7 @@ func connect(config ConnConfig, pgTypes map[OID]PgType, pgsqlAfInet *byte, pgsql
 		}
 	}
 
-	network := "tcp"
-	address := fmt.Sprintf("%s:%d", c.config.Host, c.config.Port)
-	// See if host is a valid path, if yes connect with a socket
-	if _, err := os.Stat(c.config.Host); err == nil {
-		// For backward compatibility accept socket file paths -- but directories are now preferred
-		network = "unix"
-		address = c.config.Host
-		if !strings.Contains(address, "/.s.PGSQL.") {
-			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatInt(int64(c.config.Port), 10)
-		}
-	}
+	network, address := c.config.networkAddress()
 	if c.config.Dial == nil {
 		c.config.Dial = (&net.Dialer{KeepAlive: 5 * time.Minute}).Dial
 	}
@@ -238,15 +261,18 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	defer func() {
 		if c != nil && err != nil {
 			c.conn.Close()
-			c.alive = false
+			atomic.StoreInt32(&c.status, connStatusClosed)
 		}
 	}()
 
 	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.channels = make(map[string]struct{})
-	c.alive = true
+	atomic.StoreInt32(&c.status, connStatusIdle)
 	c.lastActivityTime = time.Now()
+	c.cancelQueryCompleted = make(chan struct{}, 1)
+	c.doneChan = make(chan struct{})
+	c.closedChan = make(chan error)
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
@@ -257,8 +283,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.reader = bufio.NewReader(c.conn)
-	c.mr.reader = c.reader
+	c.mr.reader = bufio.NewReader(c.conn)
 
 	msg := newStartupMessage()
 
@@ -389,14 +414,17 @@ func (c *Conn) PID() int32 {
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close() (err error) {
-	if !c.IsAlive() {
-		return nil
+	for {
+		status := atomic.LoadInt32(&c.status)
+		if status < connStatusIdle {
+			return nil
+		}
+		if atomic.CompareAndSwapInt32(&c.status, status, connStatusClosed) {
+			break
+		}
 	}
 
-	wbuf := newWriteBuf(c, 'X')
-	wbuf.closeMsg()
-
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
 
 	c.die(errors.New("Closed"))
 	if c.shouldLog(LogLevelInfo) {
@@ -614,10 +642,34 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+	return c.PrepareExContext(context.Background(), name, sql, opts)
+}
+
+func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.initContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ps, err = c.prepareEx(name, sql, opts)
+	err = c.termContext(err)
+	return ps, err
+}
+
+func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
 		}
+	}
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return nil, err
 	}
 
 	if c.shouldLog(LogLevelError) {
@@ -659,6 +711,7 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		c.die(err)
 		return nil, err
 	}
+	c.readyForQuery = false
 
 	ps = &PreparedStatement{Name: name, SQL: sql}
 
@@ -673,7 +726,6 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}
 
 		switch t {
-		case parseComplete:
 		case parameterDescription:
 			ps.ParameterOIDs = c.rxParameterDescription(r)
 
@@ -687,7 +739,6 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 				ps.FieldDescriptions[i].DataTypeName = t.Name
 				ps.FieldDescriptions[i].FormatCode = t.DefaultFormat
 			}
-		case noData:
 		case readyForQuery:
 			c.rxReadyForQuery(r)
 
@@ -705,7 +756,29 @@ func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 }
 
 // Deallocate released a prepared statement
-func (c *Conn) Deallocate(name string) (err error) {
+func (c *Conn) Deallocate(name string) error {
+	return c.deallocateContext(context.Background(), name)
+}
+
+// TODO - consider making this public
+func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = c.initContext(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = c.termContext(err)
+	}()
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
+	}
+
 	delete(c.preparedStatements, name)
 
 	// close
@@ -776,6 +849,17 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		return notification, nil
 	}
 
+	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
+	if err := c.waitForPreviousCancelQuery(ctx); err != nil {
+		cancelFn()
+		return nil, err
+	}
+	cancelFn()
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return nil, err
+	}
+
 	stopTime := time.Now().Add(timeout)
 
 	for {
@@ -835,7 +919,7 @@ func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
 		}
 
 		// Wait until there is a byte available before continuing onto the normal msg reading path
-		_, err = c.reader.Peek(1)
+		_, err = c.mr.reader.Peek(1)
 		if err != nil {
 			c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
 			if err, ok := err.(*net.OpError); ok && err.Timeout() {
@@ -868,7 +952,7 @@ func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
 }
 
 func (c *Conn) IsAlive() bool {
-	return c.alive
+	return atomic.LoadInt32(&c.status) >= connStatusIdle
 }
 
 func (c *Conn) CauseOfDeath() error {
@@ -883,6 +967,9 @@ func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
 }
 
 func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
+	}
 
 	if len(args) == 0 {
 		wbuf := newWriteBuf(c, 'Q')
@@ -894,6 +981,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 			c.die(err)
 			return err
 		}
+		c.readyForQuery = false
 
 		return nil
 	}
@@ -909,6 +997,10 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOIDs) != len(arguments) {
 		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
+	}
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return err
 	}
 
 	// bind
@@ -958,6 +1050,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	if err != nil {
 		c.die(err)
 	}
+	c.readyForQuery = false
 
 	return err
 }
@@ -965,91 +1058,52 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	if err = c.lock(); err != nil {
-		return commandTag, err
-	}
-
-	startTime := time.Now()
-	c.lastActivityTime = startTime
-
-	defer func() {
-		if err == nil {
-			if c.shouldLog(LogLevelInfo) {
-				endTime := time.Now()
-				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
-			}
-		} else {
-			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
-			}
-		}
-
-		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
-			err = unlockErr
-		}
-	}()
-
-	if err = c.sendQuery(sql, arguments...); err != nil {
-		return
-	}
-
-	var softErr error
-
-	for {
-		var t byte
-		var r *msgReader
-		t, r, err = c.rxMsg()
-		if err != nil {
-			return commandTag, err
-		}
-
-		switch t {
-		case readyForQuery:
-			c.rxReadyForQuery(r)
-			return commandTag, softErr
-		case rowDescription:
-		case dataRow:
-		case bindComplete:
-		case commandComplete:
-			commandTag = CommandTag(r.readCString())
-		default:
-			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
-				softErr = e
-			}
-		}
-	}
+	return c.ExecContext(context.Background(), sql, arguments...)
 }
 
 // Processes messages that are not exclusive to one context such as
-// authentication or query response. The response to these messages
-// is the same regardless of when they occur.
+// authentication or query response. The response to these messages is the same
+// regardless of when they occur. It also ignores messages that are only
+// meaningful in a given context. These messages can occur due to a context
+// deadline interrupting message processing. For example, an interrupted query
+// may have left DataRow messages on the wire.
 func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
 	switch t {
-	case 'S':
-		c.rxParameterStatus(r)
-		return nil
+	case bindComplete:
+	case commandComplete:
+	case dataRow:
+	case emptyQueryResponse:
 	case errorResponse:
 		return c.rxErrorResponse(r)
+	case noData:
 	case noticeResponse:
-		return nil
-	case emptyQueryResponse:
-		return nil
 	case notificationResponse:
 		c.rxNotificationResponse(r)
-		return nil
+	case parameterDescription:
+	case parseComplete:
+	case readyForQuery:
+		c.rxReadyForQuery(r)
+	case rowDescription:
+	case 'S':
+		c.rxParameterStatus(r)
+
 	default:
 		return fmt.Errorf("Received unknown message type: %c", t)
 	}
+
+	return nil
 }
 
 func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
-	if !c.alive {
+	if atomic.LoadInt32(&c.status) < connStatusIdle {
 		return 0, nil, ErrDeadConn
 	}
 
 	t, err = c.mr.rxMsg()
 	if err != nil {
-		c.die(err)
+		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
+			c.die(err)
+		}
 	}
 
 	c.lastActivityTime = time.Now()
@@ -1150,6 +1204,7 @@ func (c *Conn) rxBackendKeyData(r *msgReader) {
 }
 
 func (c *Conn) rxReadyForQuery(r *msgReader) {
+	c.readyForQuery = true
 	c.txStatus = r.readByte()
 }
 
@@ -1230,25 +1285,23 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 }
 
 func (c *Conn) die(err error) {
-	c.alive = false
+	atomic.StoreInt32(&c.status, connStatusClosed)
 	c.causeOfDeath = err
 	c.conn.Close()
 }
 
 func (c *Conn) lock() error {
-	if c.busy {
-		return ErrConnBusy
+	if atomic.CompareAndSwapInt32(&c.status, connStatusIdle, connStatusBusy) {
+		return nil
 	}
-	c.busy = true
-	return nil
+	return ErrConnBusy
 }
 
 func (c *Conn) unlock() error {
-	if !c.busy {
-		return errors.New("unlock conn that is not busy")
+	if atomic.CompareAndSwapInt32(&c.status, connStatusBusy, connStatusIdle) {
+		return nil
 	}
-	c.busy = false
-	return nil
+	return errors.New("unlock conn that is not busy")
 }
 
 func (c *Conn) shouldLog(lvl int) bool {
@@ -1285,4 +1338,230 @@ func (c *Conn) SetLogLevel(lvl int) (int, error) {
 
 func quoteIdentifier(s string) string {
 	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
+}
+
+// cancelQuery sends a cancel request to the PostgreSQL server. It returns an
+// error if unable to deliver the cancel request, but lack of an error does not
+// ensure that the query was canceled. As specified in the documentation, there
+// is no way to be sure a query was canceled. See
+// https://www.postgresql.org/docs/current/static/protocol-flow.html#AEN112861
+func (c *Conn) cancelQuery() {
+	if !atomic.CompareAndSwapInt32(&c.cancelQueryInProgress, 0, 1) {
+		panic("cancelQuery when cancelQueryInProgress")
+	}
+
+	if err := c.conn.SetDeadline(time.Now()); err != nil {
+		c.Close() // Close connection if unable to set deadline
+		return
+	}
+
+	doCancel := func() error {
+		network, address := c.config.networkAddress()
+		cancelConn, err := c.config.Dial(network, address)
+		if err != nil {
+			return err
+		}
+		defer cancelConn.Close()
+
+		// If server doesn't process cancellation request in bounded time then abort.
+		err = cancelConn.SetDeadline(time.Now().Add(15 * time.Second))
+		if err != nil {
+			return err
+		}
+
+		buf := make([]byte, 16)
+		binary.BigEndian.PutUint32(buf[0:4], 16)
+		binary.BigEndian.PutUint32(buf[4:8], 80877102)
+		binary.BigEndian.PutUint32(buf[8:12], uint32(c.pid))
+		binary.BigEndian.PutUint32(buf[12:16], uint32(c.SecretKey))
+		_, err = cancelConn.Write(buf)
+		if err != nil {
+			return err
+		}
+
+		_, err = cancelConn.Read(buf)
+		if err != io.EOF {
+			return fmt.Errorf("Server failed to close connection after cancel query request: %v %v", err, buf)
+		}
+
+		return nil
+	}
+
+	go func() {
+		err := doCancel()
+		if err != nil {
+			c.Close() // Something is very wrong. Terminate the connection.
+		}
+		c.cancelQueryCompleted <- struct{}{}
+	}()
+}
+
+func (c *Conn) Ping() error {
+	return c.PingContext(context.Background())
+}
+
+func (c *Conn) PingContext(ctx context.Context) error {
+	_, err := c.ExecContext(ctx, ";")
+	return err
+}
+
+func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	err = c.initContext(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		err = c.termContext(err)
+	}()
+
+	if err = c.lock(); err != nil {
+		return commandTag, err
+	}
+
+	startTime := time.Now()
+	c.lastActivityTime = startTime
+
+	defer func() {
+		if err == nil {
+			if c.shouldLog(LogLevelInfo) {
+				endTime := time.Now()
+				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+			}
+		} else {
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+			}
+		}
+
+		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
+			err = unlockErr
+		}
+	}()
+
+	if err = c.sendQuery(sql, arguments...); err != nil {
+		return
+	}
+
+	var softErr error
+
+	for {
+		var t byte
+		var r *msgReader
+		t, r, err = c.rxMsg()
+		if err != nil {
+			return commandTag, err
+		}
+
+		switch t {
+		case readyForQuery:
+			c.rxReadyForQuery(r)
+			return commandTag, softErr
+		case commandComplete:
+			commandTag = CommandTag(r.readCString())
+		default:
+			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
+				softErr = e
+			}
+		}
+	}
+
+	return commandTag, err
+}
+
+func (c *Conn) initContext(ctx context.Context) error {
+	if c.ctxInProgress {
+		return errors.New("ctx already in progress")
+	}
+
+	if ctx.Done() == nil {
+		return nil
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	c.ctxInProgress = true
+
+	go c.contextHandler(ctx)
+
+	return nil
+}
+
+func (c *Conn) termContext(opErr error) error {
+	if !c.ctxInProgress {
+		return opErr
+	}
+
+	var err error
+
+	select {
+	case err = <-c.closedChan:
+		if opErr == nil {
+			err = nil
+		}
+	case c.doneChan <- struct{}{}:
+		err = opErr
+	}
+
+	c.ctxInProgress = false
+	return err
+}
+
+func (c *Conn) contextHandler(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		c.cancelQuery()
+		c.closedChan <- ctx.Err()
+	case <-c.doneChan:
+	}
+}
+
+func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
+	if atomic.LoadInt32(&c.cancelQueryInProgress) == 0 {
+		return nil
+	}
+
+	select {
+	case <-c.cancelQueryCompleted:
+		atomic.StoreInt32(&c.cancelQueryInProgress, 0)
+		if err := c.conn.SetDeadline(time.Time{}); err != nil {
+			c.Close() // Close connection if unable to disable deadline
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (c *Conn) ensureConnectionReadyForQuery() error {
+	for !c.readyForQuery {
+		t, r, err := c.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch t {
+		case errorResponse:
+			pgErr := c.rxErrorResponse(r)
+			if pgErr.Severity == "FATAL" {
+				return pgErr
+			}
+		default:
+			err = c.processContextFreeMsg(t, r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"net"
 )
 
 // msgReader is a helper that reads values from a PostgreSQL message.
@@ -14,11 +15,6 @@ type msgReader struct {
 	err               error
 	log               func(lvl int, msg string, ctx ...interface{})
 	shouldLog         func(lvl int) bool
-}
-
-// Err returns any error that the msgReader has experienced
-func (r *msgReader) Err() error {
-	return r.err
 }
 
 // fatal tells rc that a Fatal error has occurred
@@ -40,20 +36,39 @@ func (r *msgReader) rxMsg() (byte, error) {
 			r.log(LogLevelTrace, "msgReader.rxMsg discarding unread previous message", "msgBytesRemaining", r.msgBytesRemaining)
 		}
 
-		_, err := r.reader.Discard(int(r.msgBytesRemaining))
+		n, err := r.reader.Discard(int(r.msgBytesRemaining))
+		r.msgBytesRemaining -= int32(n)
 		if err != nil {
+			if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
+				r.fatal(err)
+			}
 			return 0, err
 		}
 	}
 
 	b, err := r.reader.Peek(5)
 	if err != nil {
-		r.fatal(err)
+		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
+			r.fatal(err)
+		}
 		return 0, err
 	}
+
 	msgType := b[0]
-	r.msgBytesRemaining = int32(binary.BigEndian.Uint32(b[1:])) - 4
+	payloadSize := int32(binary.BigEndian.Uint32(b[1:])) - 4
+
+	// Try to preload bufio.Reader with entire message
+	b, err = r.reader.Peek(5 + int(payloadSize))
+	if err != nil && err != bufio.ErrBufferFull {
+		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
+			r.fatal(err)
+		}
+		return 0, err
+	}
+
+	r.msgBytesRemaining = payloadSize
 	r.reader.Discard(5)
+
 	return msgType, nil
 }
 

@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/net/context"
 	"math/rand"
 	"testing"
 	"time"
@@ -44,6 +45,8 @@ func TestStressConnPool(t *testing.T) {
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
 		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
 		{"poolPrepareUseAndDeallocate", poolPrepareUseAndDeallocate},
+		{"canceledQueryContext", canceledQueryContext},
+		{"canceledExecContext", canceledExecContext},
 	}
 
 	var timer *time.Timer
@@ -63,7 +66,7 @@ func TestStressConnPool(t *testing.T) {
 			action := actions[rand.Intn(len(actions))]
 			err := action.fn(pool, n)
 			if err != nil {
-				errChan <- err
+				errChan <- fmt.Errorf("%s: %v", action.name, err)
 				break
 			}
 		}
@@ -343,4 +346,44 @@ func txMultipleQueries(pool *pgx.ConnPool, actionNum int) error {
 	}
 
 	return tx.Commit()
+}
+
+func canceledQueryContext(pool *pgx.ConnPool, actionNum int) error {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
+		cancelFunc()
+	}()
+
+	rows, err := pool.QueryContext(ctx, "select pg_sleep(2)")
+	if err == context.Canceled {
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("Only allowed error is context.Canceled, got %v", err)
+	}
+
+	for rows.Next() {
+		return errors.New("should never receive row")
+	}
+
+	if rows.Err() != context.Canceled {
+		return fmt.Errorf("Expected context.Canceled error, got %v", rows.Err())
+	}
+
+	return nil
+}
+
+func canceledExecContext(pool *pgx.ConnPool, actionNum int) error {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
+		cancelFunc()
+	}()
+
+	_, err := pool.ExecContext(ctx, "select pg_sleep(2)")
+	if err != context.Canceled {
+		return fmt.Errorf("Expected context.Canceled error, got %v", err)
+	}
+
+	return nil
 }
