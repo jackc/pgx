@@ -51,6 +51,8 @@ install:
   - go get -u github.com/shopspring/decimal
   - go get -u gopkg.in/inconshreveable/log15.v2
   - go get -u github.com/jackc/fake
+  - go get -u golang.org/x/net/context
+  - go get -u github.com/jackc/pgmock/pgmsg
 
 script:
   - go test -v -race -short ./...

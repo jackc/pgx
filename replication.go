@@ -289,7 +289,7 @@ func (rc *ReplicationConn) WaitForReplicationMessage(timeout time.Duration) (r *
 	}
 
 	// Wait until there is a byte available before continuing onto the normal msg reading path
-	_, err = rc.c.reader.Peek(1)
+	_, err = rc.c.mr.reader.Peek(1)
 	if err != nil {
 		rc.c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
 		if err, ok := err.(*net.OpError); ok && err.Timeout() {
@@ -312,14 +312,14 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 	rows := rc.c.getRows(sql, nil)
 
 	if err := rc.c.lock(); err != nil {
-		rows.abort(err)
+		rows.Fatal(err)
 		return rows, err
 	}
 	rows.unlockConn = true
 
 	err := rc.c.sendSimpleQuery(sql)
 	if err != nil {
-		rows.abort(err)
+		rows.Fatal(err)
 	}
 
 	var t byte
@@ -337,7 +337,7 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 		// only Oids. Not much we can do about this.
 	default:
 		if e := rc.c.processContextFreeMsg(t, r); e != nil {
-			rows.abort(e)
+			rows.Fatal(e)
 			return rows, e
 		}
 	}

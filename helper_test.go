@@ -21,7 +21,6 @@ func mustReplicationConnect(t testing.TB, config pgx.ConnConfig) *pgx.Replicatio
 	return conn
 }
 
-
 func closeConn(t testing.TB, conn *pgx.Conn) {
 	err := conn.Close()
 	if err != nil {

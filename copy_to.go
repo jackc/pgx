@@ -66,7 +66,6 @@ func (ct *copyTo) readUntilReadyForQuery() {
 			ct.conn.rxReadyForQuery(r)
 			close(ct.readerErrChan)
 			return
-		case commandComplete:
 		case errorResponse:
 			ct.readerErrChan <- ct.conn.rxErrorResponse(r)
 		default:
