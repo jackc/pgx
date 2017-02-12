@@ -1075,7 +1075,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages is the same
 // regardless of when they occur. It also ignores messages that are only
-// meaningful in a given context. These messages can occur do to a context
+// meaningful in a given context. These messages can occur due to a context
 // deadline interrupting message processing. For example, an interrupted query
 // may have left DataRow messages on the wire.
 func (c *Conn) processContextFreeMsg(t byte, r *msgReader) (err error) {
