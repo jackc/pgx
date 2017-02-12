@@ -255,8 +255,6 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 		return nil, err
 	}
 
-	fmt.Println("ere")
-
 	return &Rows{rows: rows}, nil
 }
 
