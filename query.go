@@ -56,7 +56,9 @@ func (rows *Rows) FieldDescriptions() []FieldDescription {
 	return rows.fields
 }
 
-func (rows *Rows) close() {
+// Close closes the rows, making the connection ready for use again. It is safe
+// to call Close after rows is already closed.
+func (rows *Rows) Close() {
 	if rows.closed {
 		return
 	}
@@ -67,6 +69,8 @@ func (rows *Rows) close() {
 	}
 
 	rows.closed = true
+
+	rows.err = rows.conn.termContext(rows.err)
 
 	if rows.err == nil {
 		if rows.conn.shouldLog(LogLevelInfo) {
@@ -82,29 +86,8 @@ func (rows *Rows) close() {
 	}
 }
 
-// Close closes the rows, making the connection ready for use again. It is safe
-// to call Close after rows is already closed.
-func (rows *Rows) Close() {
-	if rows.closed {
-		return
-	}
-	rows.err = rows.conn.termContext(rows.err)
-	rows.close()
-}
-
 func (rows *Rows) Err() error {
 	return rows.err
-}
-
-// abort signals that the query was not successfully sent to the server.
-// This differs from Fatal in that it is not necessary to readUntilReadyForQuery
-func (rows *Rows) abort(err error) {
-	if rows.err != nil {
-		return
-	}
-
-	rows.err = err
-	rows.close()
 }
 
 // Fatal signals an error occurred after the query was sent to the server. It
@@ -148,7 +131,7 @@ func (rows *Rows) Next() bool {
 			rows.mr = r
 			return true
 		case commandComplete:
-			rows.close()
+			rows.Close()
 			return false
 
 		default:
@@ -408,32 +391,7 @@ func (rows *Rows) AfterClose(f func(*Rows)) {
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
 func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
-	c.lastActivityTime = time.Now()
-
-	rows := c.getRows(sql, args)
-
-	if err := c.lock(); err != nil {
-		rows.abort(err)
-		return rows, err
-	}
-	rows.unlockConn = true
-
-	ps, ok := c.preparedStatements[sql]
-	if !ok {
-		var err error
-		ps, err = c.Prepare("", sql)
-		if err != nil {
-			rows.abort(err)
-			return rows, rows.err
-		}
-	}
-	rows.sql = ps.SQL
-	rows.fields = ps.FieldDescriptions
-	err := c.sendPreparedQuery(ps, args...)
-	if err != nil {
-		rows.abort(err)
-	}
-	return rows, rows.err
+	return c.QueryContext(context.Background(), sql, args...)
 }
 
 func (c *Conn) getRows(sql string, args []interface{}) *Rows {
@@ -460,19 +418,42 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
-func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
-	err := c.initContext(ctx)
+func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (rows *Rows, err error) {
+	c.lastActivityTime = time.Now()
+
+	rows = c.getRows(sql, args)
+
+	if err := c.lock(); err != nil {
+		rows.Fatal(err)
+		return rows, err
+	}
+	rows.unlockConn = true
+
+	ps, ok := c.preparedStatements[sql]
+	if !ok {
+		var err error
+		ps, err = c.PrepareExContext(ctx, "", sql, nil)
+		if err != nil {
+			rows.Fatal(err)
+			return rows, rows.err
+		}
+	}
+	rows.sql = ps.SQL
+	rows.fields = ps.FieldDescriptions
+
+	err = c.initContext(ctx)
 	if err != nil {
-		return nil, err
+		rows.Fatal(err)
+		return rows, err
 	}
 
-	rows, err := c.Query(sql, args...)
+	err = c.sendPreparedQuery(ps, args...)
 	if err != nil {
+		rows.Fatal(err)
 		err = c.termContext(err)
-		return nil, err
 	}
 
-	return rows, nil
+	return rows, err
 }
 
 func (c *Conn) QueryRowContext(ctx context.Context, sql string, args ...interface{}) *Row {
