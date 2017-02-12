@@ -419,6 +419,11 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}) (rows *Rows, err error) {
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	c.lastActivityTime = time.Now()
 
 	rows = c.getRows(sql, args)
