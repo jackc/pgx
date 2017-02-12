@@ -1020,56 +1020,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	if err = c.lock(); err != nil {
-		return commandTag, err
-	}
-
-	startTime := time.Now()
-	c.lastActivityTime = startTime
-
-	defer func() {
-		if err == nil {
-			if c.shouldLog(LogLevelInfo) {
-				endTime := time.Now()
-				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
-			}
-		} else {
-			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
-			}
-		}
-
-		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
-			err = unlockErr
-		}
-	}()
-
-	if err = c.sendQuery(sql, arguments...); err != nil {
-		return
-	}
-
-	var softErr error
-
-	for {
-		var t byte
-		var r *msgReader
-		t, r, err = c.rxMsg()
-		if err != nil {
-			return commandTag, err
-		}
-
-		switch t {
-		case readyForQuery:
-			c.rxReadyForQuery(r)
-			return commandTag, softErr
-		case commandComplete:
-			commandTag = CommandTag(r.readCString())
-		default:
-			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
-				softErr = e
-			}
-		}
-	}
+	return c.ExecContext(context.Background(), sql, arguments...)
 }
 
 // Processes messages that are not exclusive to one context such as
@@ -1398,9 +1349,61 @@ func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interfa
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		err = c.termContext(err)
+	}()
 
-	commandTag, err = c.Exec(sql, arguments...)
-	err = c.termContext(err)
+	if err = c.lock(); err != nil {
+		return commandTag, err
+	}
+
+	startTime := time.Now()
+	c.lastActivityTime = startTime
+
+	defer func() {
+		if err == nil {
+			if c.shouldLog(LogLevelInfo) {
+				endTime := time.Now()
+				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+			}
+		} else {
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+			}
+		}
+
+		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
+			err = unlockErr
+		}
+	}()
+
+	if err = c.sendQuery(sql, arguments...); err != nil {
+		return
+	}
+
+	var softErr error
+
+	for {
+		var t byte
+		var r *msgReader
+		t, r, err = c.rxMsg()
+		if err != nil {
+			return commandTag, err
+		}
+
+		switch t {
+		case readyForQuery:
+			c.rxReadyForQuery(r)
+			return commandTag, softErr
+		case commandComplete:
+			commandTag = CommandTag(r.readCString())
+		default:
+			if e := c.processContextFreeMsg(t, r); e != nil && softErr == nil {
+				softErr = e
+			}
+		}
+	}
+
 	return commandTag, err
 }
 
