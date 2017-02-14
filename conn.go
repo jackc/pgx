@@ -425,6 +425,11 @@ func (c *Conn) Close() (err error) {
 	}
 
 	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
+	if err != nil && c.shouldLog(LogLevelWarn) {
+		c.log(LogLevelWarn, "Failed to send terminate message", "err", err)
+	}
+
+	err = c.conn.Close()
 
 	c.die(errors.New("Closed"))
 	if c.shouldLog(LogLevelInfo) {
