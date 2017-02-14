@@ -1084,7 +1084,7 @@ func TestListenNotify(t *testing.T) {
 	mustExec(t, notifier, "notify chat")
 
 	// when notification is waiting on the socket to be read
-	notification, err := listener.WaitForNotification(time.Second)
+	notification, err := listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1099,7 +1099,10 @@ func TestListenNotify(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
-	notification, err = listener.WaitForNotification(0)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	notification, err = listener.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1108,8 +1111,9 @@ func TestListenNotify(t *testing.T) {
 	}
 
 	// when timeout occurs
-	notification, err = listener.WaitForNotification(time.Millisecond)
-	if err != pgx.ErrNotificationTimeout {
+	ctx, _ = context.WithTimeout(context.Background(), time.Millisecond)
+	notification, err = listener.WaitForNotification(ctx)
+	if err != context.DeadlineExceeded {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 	if notification != nil {
@@ -1118,7 +1122,7 @@ func TestListenNotify(t *testing.T) {
 
 	// listener can listen again after a timeout
 	mustExec(t, notifier, "notify chat")
-	notification, err = listener.WaitForNotification(time.Second)
+	notification, err = listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1143,7 +1147,7 @@ func TestUnlistenSpecificChannel(t *testing.T) {
 	mustExec(t, notifier, "notify unlisten_test")
 
 	// when notification is waiting on the socket to be read
-	notification, err := listener.WaitForNotification(time.Second)
+	notification, err := listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1163,8 +1167,10 @@ func TestUnlistenSpecificChannel(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
-	notification, err = listener.WaitForNotification(100 * time.Millisecond)
-	if err != pgx.ErrNotificationTimeout {
+
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	notification, err = listener.WaitForNotification(ctx)
+	if err != context.DeadlineExceeded {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 }
@@ -1246,7 +1252,8 @@ func TestListenNotifySelfNotification(t *testing.T) {
 	// Notify self and WaitForNotification immediately
 	mustExec(t, conn, "notify self")
 
-	notification, err := conn.WaitForNotification(time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	notification, err := conn.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1263,7 +1270,8 @@ func TestListenNotifySelfNotification(t *testing.T) {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
 
-	notification, err = conn.WaitForNotification(time.Second)
+	ctx, _ = context.WithTimeout(context.Background(), time.Second)
+	notification, err = conn.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}

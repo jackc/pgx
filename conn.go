@@ -1,7 +1,6 @@
 package pgx
 
 import (
-	"bufio"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -20,6 +19,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/jackc/pgx/chunkreader"
 )
 
 const (
@@ -283,7 +284,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.mr.reader = bufio.NewReader(c.conn)
+	c.mr.cr = chunkreader.NewChunkReader(c.conn)
 
 	msg := newStartupMessage()
 
@@ -844,9 +845,8 @@ func (c *Conn) Unlisten(channel string) error {
 	return nil
 }
 
-// WaitForNotification waits for a PostgreSQL notification for up to timeout.
-// If the timeout occurs it returns pgx.ErrNotificationTimeout
-func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error) {
+// WaitForNotification waits for a PostgreSQL notification.
+func (c *Conn) WaitForNotification(ctx context.Context) (notification *Notification, err error) {
 	// Return already received notification immediately
 	if len(c.notifications) > 0 {
 		notification := c.notifications[0]
@@ -854,97 +854,40 @@ func (c *Conn) WaitForNotification(timeout time.Duration) (*Notification, error)
 		return notification, nil
 	}
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), timeout)
-	if err := c.waitForPreviousCancelQuery(ctx); err != nil {
-		cancelFn()
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
 		return nil, err
 	}
-	cancelFn()
+
+	err = c.initContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = c.termContext(err)
+	}()
+
+	if err = c.lock(); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
+			err = unlockErr
+		}
+	}()
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
 		return nil, err
 	}
 
-	stopTime := time.Now().Add(timeout)
-
 	for {
-		now := time.Now()
-
-		if now.After(stopTime) {
-			return nil, ErrNotificationTimeout
-		}
-
-		// If there has been no activity on this connection for a while send a nop message just to ensure
-		// the connection is alive
-		nextEnsureAliveTime := c.lastActivityTime.Add(15 * time.Second)
-		if nextEnsureAliveTime.Before(now) {
-			// If the server can't respond to a nop in 15 seconds, assume it's dead
-			err := c.conn.SetReadDeadline(now.Add(15 * time.Second))
-			if err != nil {
-				return nil, err
-			}
-
-			_, err = c.Exec("--;")
-			if err != nil {
-				return nil, err
-			}
-
-			c.lastActivityTime = now
-		}
-
-		var deadline time.Time
-		if stopTime.Before(nextEnsureAliveTime) {
-			deadline = stopTime
-		} else {
-			deadline = nextEnsureAliveTime
-		}
-
-		notification, err := c.waitForNotification(deadline)
-		if err != ErrNotificationTimeout {
-			return notification, err
-		}
-	}
-}
-
-func (c *Conn) waitForNotification(deadline time.Time) (*Notification, error) {
-	var zeroTime time.Time
-
-	for {
-		// Use SetReadDeadline to implement the timeout. SetReadDeadline will
-		// cause operations to fail with a *net.OpError that has a Timeout()
-		// of true. Because the normal pgx rxMsg path considers any error to
-		// have potentially corrupted the state of the connection, it dies
-		// on any errors. So to avoid timeout errors in rxMsg we set the
-		// deadline and peek into the reader. If a timeout error occurs there
-		// we don't break the pgx connection. If the Peek returns that data
-		// is available then we turn off the read deadline before the rxMsg.
-		err := c.conn.SetReadDeadline(deadline)
+		t, r, err := c.rxMsg()
 		if err != nil {
 			return nil, err
 		}
 
-		// Wait until there is a byte available before continuing onto the normal msg reading path
-		_, err = c.mr.reader.Peek(1)
+		err = c.processContextFreeMsg(t, r)
 		if err != nil {
-			c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
-			if err, ok := err.(*net.OpError); ok && err.Timeout() {
-				return nil, ErrNotificationTimeout
-			}
-			return nil, err
-		}
-
-		err = c.conn.SetReadDeadline(zeroTime)
-		if err != nil {
-			return nil, err
-		}
-
-		var t byte
-		var r *msgReader
-		if t, r, err = c.rxMsg(); err == nil {
-			if err = c.processContextFreeMsg(t, r); err != nil {
-				return nil, err
-			}
-		} else {
 			return nil, err
 		}
 
@@ -1114,7 +1057,7 @@ func (c *Conn) rxMsg() (t byte, r *msgReader, err error) {
 	c.lastActivityTime = time.Now()
 
 	if c.shouldLog(LogLevelTrace) {
-		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBytesRemaining", c.mr.msgBytesRemaining)
+		c.log(LogLevelTrace, "rxMsg", "type", string(t), "msgBodyLen", len(c.mr.msgBody))
 	}
 
 	return t, &c.mr, err
@@ -1236,11 +1179,11 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	// wrong. So read the count, ignore it, and compute the proper value from
 	// the size of the message.
 	r.readInt16()
-	parameterCount := r.msgBytesRemaining / 4
+	parameterCount := len(r.msgBody[r.rp:]) / 4
 
 	parameters = make([]OID, 0, parameterCount)
 
-	for i := int32(0); i < parameterCount; i++ {
+	for i := 0; i < parameterCount; i++ {
 		parameters = append(parameters, r.readOID())
 	}
 	return

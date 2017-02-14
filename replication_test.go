@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"fmt"
 	"github.com/jackc/pgx"
 	"reflect"
@@ -88,11 +89,10 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	for {
 		var message *pgx.ReplicationMessage
 
-		message, err = replicationConn.WaitForReplicationMessage(time.Duration(1 * time.Second))
-		if err != nil {
-			if err != pgx.ErrNotificationTimeout {
-				t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
-			}
+		ctx, _ := context.WithTimeout(context.Background(), time.Second)
+		message, err = replicationConn.WaitForReplicationMessage(ctx)
+		if err != nil && err != context.DeadlineExceeded {
+			t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
 		}
 		if message != nil {
 			if message.WalMessage != nil {
