@@ -244,8 +244,9 @@ func listenAndPoolUnlistens(pool *pgx.ConnPool, actionNum int) error {
 		return err
 	}
 
-	_, err = conn.WaitForNotification(100 * time.Millisecond)
-	if err == pgx.ErrNotificationTimeout {
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	_, err = conn.WaitForNotification(ctx)
+	if err == context.DeadlineExceeded {
 		return nil
 	}
 	return err

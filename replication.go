@@ -1,9 +1,9 @@
 package pgx
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"net"
 	"time"
 )
 
@@ -234,7 +234,7 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 			walStart := reader.readInt64()
 			serverWalEnd := reader.readInt64()
 			serverTime := reader.readInt64()
-			walData := reader.readBytes(reader.msgBytesRemaining)
+			walData := reader.readBytes(int32(len(reader.msgBody) - reader.rp))
 			walMessage := WalMessage{WalStart: uint64(walStart),
 				ServerWalEnd: uint64(serverWalEnd),
 				ServerTime:   uint64(serverTime),
@@ -261,47 +261,23 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 	return
 }
 
-// Wait for a single replication message up to timeout time.
+// Wait for a single replication message.
 //
 // Properly using this requires some knowledge of the postgres replication mechanisms,
 // as the client can receive both WAL data (the ultimate payload) and server heartbeat
 // updates. The caller also must send standby status updates in order to keep the connection
 // alive and working.
 //
-// This returns pgx.ErrNotificationTimeout when there is no replication message by the specified
-// duration.
-func (rc *ReplicationConn) WaitForReplicationMessage(timeout time.Duration) (r *ReplicationMessage, err error) {
-	var zeroTime time.Time
-
-	deadline := time.Now().Add(timeout)
-
-	// Use SetReadDeadline to implement the timeout. SetReadDeadline will
-	// cause operations to fail with a *net.OpError that has a Timeout()
-	// of true. Because the normal pgx rxMsg path considers any error to
-	// have potentially corrupted the state of the connection, it dies
-	// on any errors. So to avoid timeout errors in rxMsg we set the
-	// deadline and peek into the reader. If a timeout error occurs there
-	// we don't break the pgx connection. If the Peek returns that data
-	// is available then we turn off the read deadline before the rxMsg.
-	err = rc.c.conn.SetReadDeadline(deadline)
+// This returns the context error when there is no replication message before
+// the context is canceled.
+func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (r *ReplicationMessage, err error) {
+	err = rc.c.initContext(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	// Wait until there is a byte available before continuing onto the normal msg reading path
-	_, err = rc.c.mr.reader.Peek(1)
-	if err != nil {
-		rc.c.conn.SetReadDeadline(zeroTime) // we can only return one error and we already have one -- so ignore possiple error from SetReadDeadline
-		if err, ok := err.(*net.OpError); ok && err.Timeout() {
-			return nil, ErrNotificationTimeout
-		}
-		return nil, err
-	}
-
-	err = rc.c.conn.SetReadDeadline(zeroTime)
-	if err != nil {
-		return nil, err
-	}
+	defer func() {
+		err = rc.c.termContext(err)
+	}()
 
 	return rc.readReplicationMessage()
 }
@@ -401,12 +377,14 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 		return
 	}
 
+	ctx, _ := context.WithTimeout(context.Background(), initialReplicationResponseTimeout)
+
 	// The first replication message that comes back here will be (in a success case)
 	// a empty CopyBoth that is (apparently) sent as the confirmation that the replication has
 	// started. This call will either return nil, nil or if it returns an error
 	// that indicates the start replication command failed
 	var r *ReplicationMessage
-	r, err = rc.WaitForReplicationMessage(initialReplicationResponseTimeout)
+	r, err = rc.WaitForReplicationMessage(ctx)
 	if err != nil && r != nil {
 		if rc.c.shouldLog(LogLevelError) {
 			rc.c.log(LogLevelError, "Unxpected replication message %v", r)
