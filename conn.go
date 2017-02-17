@@ -1417,8 +1417,6 @@ func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interfa
 			}
 		}
 	}
-
-	return commandTag, err
 }
 
 func (c *Conn) initContext(ctx context.Context) error {
