@@ -964,12 +964,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case string, *string:
 			wbuf.WriteInt16(TextFormatCode)
 		default:
-			switch oid {
-			case BoolOID, ByteaOID, Int2OID, Int4OID, Int8OID, Float4OID, Float8OID, TimestampTzOID, TimestampTzArrayOID, TimestampOID, TimestampArrayOID, DateOID, BoolArrayOID, ByteaArrayOID, Int2ArrayOID, Int4ArrayOID, Int8ArrayOID, Float4ArrayOID, Float8ArrayOID, TextArrayOID, VarcharArrayOID, OIDOID, InetOID, CidrOID, InetArrayOID, CidrArrayOID, RecordOID, JSONOID, JSONBOID:
-				wbuf.WriteInt16(BinaryFormatCode)
-			default:
-				wbuf.WriteInt16(TextFormatCode)
-			}
+			wbuf.WriteInt16(internalNativeGoTypeFormats[oid])
 		}
 	}
 
