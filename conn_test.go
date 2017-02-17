@@ -32,10 +32,6 @@ func TestConnect(t *testing.T) {
 		t.Error("Backend PID not stored")
 	}
 
-	if conn.SecretKey == 0 {
-		t.Error("Backend secret key not stored")
-	}
-
 	var currentDB string
 	err = conn.QueryRow("select current_database()").Scan(&currentDB)
 	if err != nil {
