@@ -100,6 +100,23 @@ func TestConnQueryValues(t *testing.T) {
 	}
 }
 
+// https://github.com/jackc/pgx/issues/228
+func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var s string
+
+	err := conn.QueryRow("select 1").Scan(&s)
+	if err == nil || !strings.Contains(err.Error(), "cannot decode binary value into string") {
+		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 // Test that a connection stays valid when query results are closed early
 func TestConnQueryCloseEarly(t *testing.T) {
 	t.Parallel()
