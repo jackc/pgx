@@ -89,7 +89,8 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	for {
 		var message *pgx.ReplicationMessage
 
-		ctx, _ := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
+		defer cancelFn()
 		message, err = replicationConn.WaitForReplicationMessage(ctx)
 		if err != nil && err != context.DeadlineExceeded {
 			t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))

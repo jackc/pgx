@@ -377,7 +377,8 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 		return
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), initialReplicationResponseTimeout)
+	ctx, cancelFn := context.WithTimeout(context.Background(), initialReplicationResponseTimeout)
+	defer cancelFn()
 
 	// The first replication message that comes back here will be (in a success case)
 	// a empty CopyBoth that is (apparently) sent as the confirmation that the replication has
