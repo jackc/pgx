@@ -74,7 +74,7 @@ type Conn struct {
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
 	pid                int32             // backend pid
-	SecretKey          int32             // key to use to send a cancel query message to the server
+	secretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
 	PgTypes            map[OID]PgType    // oids to PgTypes
 	config             ConnConfig        // config used when establishing this connection
@@ -1148,7 +1148,7 @@ func (c *Conn) rxErrorResponse(r *msgReader) (err PgError) {
 
 func (c *Conn) rxBackendKeyData(r *msgReader) {
 	c.pid = r.readInt32()
-	c.SecretKey = r.readInt32()
+	c.secretKey = r.readInt32()
 }
 
 func (c *Conn) rxReadyForQuery(r *msgReader) {
@@ -1321,7 +1321,7 @@ func (c *Conn) cancelQuery() {
 		binary.BigEndian.PutUint32(buf[0:4], 16)
 		binary.BigEndian.PutUint32(buf[4:8], 80877102)
 		binary.BigEndian.PutUint32(buf[8:12], uint32(c.pid))
-		binary.BigEndian.PutUint32(buf[12:16], uint32(c.SecretKey))
+		binary.BigEndian.PutUint32(buf[12:16], uint32(c.secretKey))
 		_, err = cancelConn.Write(buf)
 		if err != nil {
 			return err
