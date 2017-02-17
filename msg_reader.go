@@ -178,10 +178,6 @@ func (r *msgReader) readInt64() int64 {
 	return n
 }
 
-func (r *msgReader) readOID() OID {
-	return OID(r.readInt32())
-}
-
 // readCString reads a null terminated string
 func (r *msgReader) readCString() string {
 	if r.err != nil {

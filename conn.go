@@ -1157,9 +1157,9 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
 		f.Name = r.readCString()
-		f.Table = r.readOID()
+		f.Table = OID(r.readUint32())
 		f.AttributeNumber = r.readInt16()
-		f.DataType = r.readOID()
+		f.DataType = OID(r.readUint32())
 		f.DataTypeSize = r.readInt16()
 		f.Modifier = r.readInt32()
 		f.FormatCode = r.readInt16()
@@ -1179,7 +1179,7 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	parameters = make([]OID, 0, parameterCount)
 
 	for i := 0; i < parameterCount; i++ {
-		parameters = append(parameters, r.readOID())
+		parameters = append(parameters, OID(r.readUint32()))
 	}
 	return
 }
