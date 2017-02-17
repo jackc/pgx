@@ -1510,7 +1510,7 @@ func TestQueryContextCancelationCancelsQuery(t *testing.T) {
 	}
 
 	if rows.Err() != context.Canceled {
-		t.Fatal("Expected context.Canceled error, got %v", rows.Err())
+		t.Fatalf("Expected context.Canceled error, got %v", rows.Err())
 	}
 
 	ensureConnValid(t, conn)
@@ -1570,7 +1570,7 @@ func TestQueryRowContextCancelationCancelsQuery(t *testing.T) {
 	var result []byte
 	err := conn.QueryRowContext(ctx, "select pg_sleep(5)").Scan(&result)
 	if err != context.Canceled {
-		t.Fatal("Expected context.Canceled error, got %v", err)
+		t.Fatalf("Expected context.Canceled error, got %v", err)
 	}
 
 	ensureConnValid(t, conn)

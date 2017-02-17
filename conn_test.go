@@ -869,7 +869,7 @@ func TestExecContextCancelationCancelsQuery(t *testing.T) {
 
 	_, err := conn.ExecContext(ctx, "select pg_sleep(60)")
 	if err != context.Canceled {
-		t.Fatal("Expected context.Canceled err, got %v", err)
+		t.Fatalf("Expected context.Canceled err, got %v", err)
 	}
 
 	ensureConnValid(t, conn)
