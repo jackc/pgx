@@ -301,7 +301,19 @@ func (rows *Rows) Values() ([]interface{}, error) {
 		// All intrinsic types (except string) are encoded with binary
 		// encoding so anything else should be treated as a string
 		case TextFormatCode:
-			values = append(values, vr.ReadString(vr.Len()))
+			switch vr.Type().DataType {
+			case JSONOID:
+				var d interface{}
+				decodeJSON(vr, &d)
+				values = append(values, d)
+			case JSONBOID:
+				var d interface{}
+				decodeJSONB(vr, &d)
+				values = append(values, d)
+			default:
+				values = append(values, vr.ReadString(vr.Len()))
+			}
+
 		case BinaryFormatCode:
 			switch vr.Type().DataType {
 			case TextOID, VarcharOID:

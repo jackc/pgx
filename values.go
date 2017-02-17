@@ -102,20 +102,15 @@ func init() {
 		"date":         BinaryFormatCode,
 		"float4":       BinaryFormatCode,
 		"float8":       BinaryFormatCode,
-		"json":         BinaryFormatCode,
-		"jsonb":        BinaryFormatCode,
 		"inet":         BinaryFormatCode,
 		"int2":         BinaryFormatCode,
 		"int4":         BinaryFormatCode,
 		"int8":         BinaryFormatCode,
-		"name":         BinaryFormatCode,
 		"oid":          BinaryFormatCode,
 		"record":       BinaryFormatCode,
-		"text":         BinaryFormatCode,
 		"tid":          BinaryFormatCode,
 		"timestamp":    BinaryFormatCode,
 		"timestamptz":  BinaryFormatCode,
-		"varchar":      BinaryFormatCode,
 		"xid":          BinaryFormatCode,
 	}
 }
@@ -2022,6 +2017,20 @@ func decodeText(vr *ValueReader) string {
 		return ""
 	}
 
+	if vr.Type().FormatCode == BinaryFormatCode {
+		vr.Fatal(ProtocolError("cannot decode binary value into string"))
+		return ""
+	}
+
+	return vr.ReadString(vr.Len())
+}
+
+func decodeTextAllowBinary(vr *ValueReader) string {
+	if vr.Len() == -1 {
+		vr.Fatal(ProtocolError("Cannot decode null into string"))
+		return ""
+	}
+
 	return vr.ReadString(vr.Len())
 }
 
@@ -2370,7 +2379,7 @@ func decodeRecord(vr *ValueReader) []interface{} {
 		case InetOID, CidrOID:
 			record = append(record, decodeInet(&fieldVR))
 		case TextOID, VarcharOID, UnknownOID:
-			record = append(record, decodeText(&fieldVR))
+			record = append(record, decodeTextAllowBinary(&fieldVR))
 		default:
 			vr.Fatal(fmt.Errorf("decodeRecord cannot decode oid %d", fd.DataType))
 			return nil
