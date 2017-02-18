@@ -219,6 +219,15 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
+		} else if s, ok := d.(ScannerV3); ok {
+			val, err := decodeByOID(vr)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+			err = s.ScanPgxV3(nil, val)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
 		} else if s, ok := d.(sql.Scanner); ok {
 			var val interface{}
 			if 0 <= vr.Len() {
@@ -296,7 +305,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, nil)
 			continue
 		}
-
+		// TODO - consider what are the implications of returning complex types since database/sql uses this method
 		switch vr.Type().FormatCode {
 		// All intrinsic types (except string) are encoded with binary
 		// encoding so anything else should be treated as a string

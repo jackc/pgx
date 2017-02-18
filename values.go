@@ -200,6 +200,10 @@ type Encoder interface {
 	FormatCode() int16
 }
 
+type ScannerV3 interface {
+	ScanPgxV3(fieldDescription interface{}, src interface{}) error
+}
+
 // NullFloat32 represents an float4 that may be null. NullFloat32 implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan.
@@ -1164,6 +1168,20 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+func decodeByOID(vr *ValueReader) (interface{}, error) {
+	switch vr.Type().DataType {
+	case Int2OID, Int4OID, Int8OID:
+		n := decodeInt(vr)
+		return n, vr.Err()
+	case BoolOID:
+		b := decodeBool(vr)
+		return b, vr.Err()
+	default:
+		buf := vr.ReadBytes(vr.Len())
+		return buf, vr.Err()
+	}
 }
 
 // Decode decodes from vr into d. d must be a pointer. This allows
