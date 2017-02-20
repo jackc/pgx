@@ -1681,12 +1681,10 @@ func encodeInt32(w *WriteBuf, oid OID, value int32) error {
 			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
 		}
 	case Int4OID:
-		w.WriteInt32(4)
-		buf, err := pgtype.Int4(value).FormatBinary()
+		err := pgtype.Int4(value).EncodeBinary(w)
 		if err != nil {
 			return err
 		}
-		w.WriteBytes(buf)
 	case Int8OID:
 		w.WriteInt32(8)
 		w.WriteInt64(int64(value))

@@ -130,10 +130,11 @@ func (wb *WriteBuf) WriteInt16(n int16) {
 	wb.buf = append(wb.buf, b...)
 }
 
-func (wb *WriteBuf) WriteUint16(n uint16) {
+func (wb *WriteBuf) WriteUint16(n uint16) (int, error) {
 	b := make([]byte, 2)
 	binary.BigEndian.PutUint16(b, n)
 	wb.buf = append(wb.buf, b...)
+	return 2, nil
 }
 
 func (wb *WriteBuf) WriteInt32(n int32) {
@@ -142,10 +143,11 @@ func (wb *WriteBuf) WriteInt32(n int32) {
 	wb.buf = append(wb.buf, b...)
 }
 
-func (wb *WriteBuf) WriteUint32(n uint32) {
+func (wb *WriteBuf) WriteUint32(n uint32) (int, error) {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, n)
 	wb.buf = append(wb.buf, b...)
+	return 4, nil
 }
 
 func (wb *WriteBuf) WriteInt64(n int64) {
@@ -154,6 +156,18 @@ func (wb *WriteBuf) WriteInt64(n int64) {
 	wb.buf = append(wb.buf, b...)
 }
 
+func (wb *WriteBuf) WriteUint64(n uint64) (int, error) {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, n)
+	wb.buf = append(wb.buf, b...)
+	return 8, nil
+}
+
 func (wb *WriteBuf) WriteBytes(b []byte) {
 	wb.buf = append(wb.buf, b...)
+}
+
+func (wb *WriteBuf) Write(b []byte) (int, error) {
+	wb.buf = append(wb.buf, b...)
+	return len(b), nil
 }

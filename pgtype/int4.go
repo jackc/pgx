@@ -3,6 +3,7 @@ package pgtype
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"strconv"
 )
 
@@ -27,12 +28,22 @@ func (i *Int4) ParseBinary(src []byte) error {
 	return nil
 }
 
-func (i Int4) FormatText() (string, error) {
-	return strconv.FormatInt(int64(i), 10), nil
+func (i Int4) EncodeText(w io.Writer) error {
+	s := strconv.FormatInt(int64(i), 10)
+	_, err := WriteInt32(w, int32(len(s)))
+	if err != nil {
+		return nil
+	}
+	_, err = w.Write([]byte(s))
+	return err
 }
 
-func (i Int4) FormatBinary() ([]byte, error) {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, uint32(i))
-	return buf, nil
+func (i Int4) EncodeBinary(w io.Writer) error {
+	_, err := WriteInt32(w, 4)
+	if err != nil {
+		return err
+	}
+
+	_, err = WriteInt32(w, int32(i))
+	return err
 }
