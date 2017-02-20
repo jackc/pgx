@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 // PostgreSQL oids for common types
@@ -1680,7 +1682,11 @@ func encodeInt32(w *WriteBuf, oid OID, value int32) error {
 		}
 	case Int4OID:
 		w.WriteInt32(4)
-		w.WriteInt32(value)
+		buf, err := pgtype.Int4(value).FormatBinary()
+		if err != nil {
+			return err
+		}
+		w.WriteBytes(buf)
 	case Int8OID:
 		w.WriteInt32(8)
 		w.WriteInt64(int64(value))
@@ -1785,17 +1791,24 @@ func decodeInt4(vr *ValueReader) int32 {
 		return 0
 	}
 
-	if vr.Type().FormatCode != BinaryFormatCode {
+	var n pgtype.Int4
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = n.ParseText(vr.ReadString(vr.Len()))
+	case BinaryFormatCode:
+		err = n.ParseBinary(vr.ReadBytes(vr.Len()))
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 
-	if vr.Len() != 4 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int4: %d", vr.Len())))
+	if err != nil {
+		vr.Fatal(err)
 		return 0
 	}
 
-	return vr.ReadInt32()
+	return int32(n)
 }
 
 func decodeOID(vr *ValueReader) OID {
