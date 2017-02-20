@@ -1,19 +1,19 @@
-package pgtype
+package pgio
 
 import (
 	"encoding/binary"
 	"io"
 )
 
-type uint16Writer interface {
+type Uint16Writer interface {
 	WriteUint16(uint16) (n int, err error)
 }
 
-type uint32Writer interface {
+type Uint32Writer interface {
 	WriteUint32(uint32) (n int, err error)
 }
 
-type uint64Writer interface {
+type Uint64Writer interface {
 	WriteUint64(uint64) (n int, err error)
 }
 
@@ -30,7 +30,7 @@ func WriteByte(w io.Writer, b byte) error {
 // may be more efficient than directly using Write if w provides a WriteUint16
 // method.
 func WriteUint16(w io.Writer, n uint16) (int, error) {
-	if w, ok := w.(uint16Writer); ok {
+	if w, ok := w.(Uint16Writer); ok {
 		return w.WriteUint16(n)
 	}
 	b := make([]byte, 2)
@@ -49,7 +49,7 @@ func WriteInt16(w io.Writer, n int16) (int, error) {
 // may be more efficient than directly using Write if w provides a WriteUint32
 // method.
 func WriteUint32(w io.Writer, n uint32) (int, error) {
-	if w, ok := w.(uint32Writer); ok {
+	if w, ok := w.(Uint32Writer); ok {
 		return w.WriteUint32(n)
 	}
 	b := make([]byte, 4)
@@ -68,7 +68,7 @@ func WriteInt32(w io.Writer, n int32) (int, error) {
 // may be more efficient than directly using Write if w provides a WriteUint64
 // method.
 func WriteUint64(w io.Writer, n uint64) (int, error) {
-	if w, ok := w.(uint64Writer); ok {
+	if w, ok := w.(Uint64Writer); ok {
 		return w.WriteUint64(n)
 	}
 	b := make([]byte, 8)

@@ -1,19 +1,19 @@
-package pgtype
+package pgio
 
 import (
 	"encoding/binary"
 	"io"
 )
 
-type uint16Reader interface {
+type Uint16Reader interface {
 	ReadUint16() (n uint16, err error)
 }
 
-type uint32Reader interface {
+type Uint32Reader interface {
 	ReadUint32() (n uint32, err error)
 }
 
-type uint64Reader interface {
+type Uint64Reader interface {
 	ReadUint64() (n uint64, err error)
 }
 
@@ -32,7 +32,7 @@ func ReadByte(r io.Reader) (byte, error) {
 // may be more efficient than directly using Read if r provides a ReadUint16
 // method.
 func ReadUint16(r io.Reader) (uint16, error) {
-	if r, ok := r.(uint16Reader); ok {
+	if r, ok := r.(Uint16Reader); ok {
 		return r.ReadUint16()
 	}
 
@@ -57,7 +57,7 @@ func ReadInt16(r io.Reader) (int16, error) {
 // may be more efficient than directly using Read if r provides a ReadUint32
 // method.
 func ReadUint32(r io.Reader) (uint32, error) {
-	if r, ok := r.(uint32Reader); ok {
+	if r, ok := r.(Uint32Reader); ok {
 		return r.ReadUint32()
 	}
 
@@ -82,7 +82,7 @@ func ReadInt32(r io.Reader) (int32, error) {
 // may be more efficient than directly using Read if r provides a ReadUint64
 // method.
 func ReadUint64(r io.Reader) (uint64, error) {
-	if r, ok := r.(uint64Reader); ok {
+	if r, ok := r.(Uint64Reader); ok {
 		return r.ReadUint64()
 	}
 

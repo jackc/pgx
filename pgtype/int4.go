@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type Int4 int32
 
 func (i *Int4) DecodeText(r io.Reader) error {
-	size, err := ReadInt32(r)
+	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func (i *Int4) DecodeText(r io.Reader) error {
 }
 
 func (i *Int4) DecodeBinary(r io.Reader) error {
-	size, err := ReadInt32(r)
+	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
@@ -43,7 +45,7 @@ func (i *Int4) DecodeBinary(r io.Reader) error {
 		return fmt.Errorf("invalid length for int4: %v", size)
 	}
 
-	n, err := ReadInt32(r)
+	n, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
@@ -54,7 +56,7 @@ func (i *Int4) DecodeBinary(r io.Reader) error {
 
 func (i Int4) EncodeText(w io.Writer) error {
 	s := strconv.FormatInt(int64(i), 10)
-	_, err := WriteInt32(w, int32(len(s)))
+	_, err := pgio.WriteInt32(w, int32(len(s)))
 	if err != nil {
 		return nil
 	}
@@ -63,11 +65,11 @@ func (i Int4) EncodeText(w io.Writer) error {
 }
 
 func (i Int4) EncodeBinary(w io.Writer) error {
-	_, err := WriteInt32(w, 4)
+	_, err := pgio.WriteInt32(w, 4)
 	if err != nil {
 		return err
 	}
 
-	_, err = WriteInt32(w, int32(i))
+	_, err = pgio.WriteInt32(w, int32(i))
 	return err
 }
