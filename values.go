@@ -1467,17 +1467,26 @@ func decodeInt8(vr *ValueReader) int64 {
 		return 0
 	}
 
-	if vr.Type().FormatCode != BinaryFormatCode {
+	vr.err = errRewoundLen
+
+	var n pgtype.Int8
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = n.DecodeText(&valueReader2{vr})
+	case BinaryFormatCode:
+		err = n.DecodeBinary(&valueReader2{vr})
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 
-	if vr.Len() != 8 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int8: %d", vr.Len())))
+	if err != nil {
+		vr.Fatal(err)
 		return 0
 	}
 
-	return vr.ReadInt64()
+	return int64(n)
 }
 
 func decodeChar(vr *ValueReader) Char {
@@ -1515,17 +1524,26 @@ func decodeInt2(vr *ValueReader) int16 {
 		return 0
 	}
 
-	if vr.Type().FormatCode != BinaryFormatCode {
+	vr.err = errRewoundLen
+
+	var n pgtype.Int2
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = n.DecodeText(&valueReader2{vr})
+	case BinaryFormatCode:
+		err = n.DecodeBinary(&valueReader2{vr})
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
 	}
 
-	if vr.Len() != 2 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an int2: %d", vr.Len())))
+	if err != nil {
+		vr.Fatal(err)
 		return 0
 	}
 
-	return vr.ReadInt16()
+	return int16(n)
 }
 
 func encodeInt(w *WriteBuf, oid OID, value int) error {
