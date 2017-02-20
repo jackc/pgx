@@ -101,6 +101,7 @@ func newWriteBuf(c *Conn, t byte) *WriteBuf {
 // by the Encoder interface when implementing custom encoders.
 type WriteBuf struct {
 	buf     []byte
+	convBuf [8]byte
 	sizeIdx int
 	conn    *Conn
 }
@@ -125,41 +126,32 @@ func (wb *WriteBuf) WriteCString(s string) {
 }
 
 func (wb *WriteBuf) WriteInt16(n int16) {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, uint16(n))
-	wb.buf = append(wb.buf, b...)
+	wb.WriteUint16(uint16(n))
 }
 
 func (wb *WriteBuf) WriteUint16(n uint16) (int, error) {
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, n)
-	wb.buf = append(wb.buf, b...)
+	binary.BigEndian.PutUint16(wb.convBuf[:2], n)
+	wb.buf = append(wb.buf, wb.convBuf[:2]...)
 	return 2, nil
 }
 
 func (wb *WriteBuf) WriteInt32(n int32) {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, uint32(n))
-	wb.buf = append(wb.buf, b...)
+	wb.WriteUint32(uint32(n))
 }
 
 func (wb *WriteBuf) WriteUint32(n uint32) (int, error) {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, n)
-	wb.buf = append(wb.buf, b...)
+	binary.BigEndian.PutUint32(wb.convBuf[:4], n)
+	wb.buf = append(wb.buf, wb.convBuf[:4]...)
 	return 4, nil
 }
 
 func (wb *WriteBuf) WriteInt64(n int64) {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(n))
-	wb.buf = append(wb.buf, b...)
+	wb.WriteUint64(uint64(n))
 }
 
 func (wb *WriteBuf) WriteUint64(n uint64) (int, error) {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, n)
-	wb.buf = append(wb.buf, b...)
+	binary.BigEndian.PutUint64(wb.convBuf[:8], n)
+	wb.buf = append(wb.buf, wb.convBuf[:8]...)
 	return 8, nil
 }
 

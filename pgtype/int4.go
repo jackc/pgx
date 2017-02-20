@@ -1,7 +1,6 @@
 package pgtype
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -9,8 +8,23 @@ import (
 
 type Int4 int32
 
-func (i *Int4) ParseText(src string) error {
-	n, err := strconv.ParseInt(src, 10, 32)
+func (i *Int4) DecodeText(r io.Reader) error {
+	size, err := ReadInt32(r)
+	if err != nil {
+		return err
+	}
+
+	if size == -1 {
+		return fmt.Errorf("invalid length for int4: %v", size)
+	}
+
+	buf := make([]byte, int(size))
+	_, err = r.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	n, err := strconv.ParseInt(string(buf), 10, 32)
 	if err != nil {
 		return err
 	}
@@ -19,12 +33,22 @@ func (i *Int4) ParseText(src string) error {
 	return nil
 }
 
-func (i *Int4) ParseBinary(src []byte) error {
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for int4: %v", len(src))
+func (i *Int4) DecodeBinary(r io.Reader) error {
+	size, err := ReadInt32(r)
+	if err != nil {
+		return err
 	}
 
-	*i = Int4(binary.BigEndian.Uint32(src))
+	if size != 4 {
+		return fmt.Errorf("invalid length for int4: %v", size)
+	}
+
+	n, err := ReadInt32(r)
+	if err != nil {
+		return err
+	}
+
+	*i = Int4(n)
 	return nil
 }
 

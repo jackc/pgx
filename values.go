@@ -1789,13 +1789,15 @@ func decodeInt4(vr *ValueReader) int32 {
 		return 0
 	}
 
+	vr.err = errRewoundLen
+
 	var n pgtype.Int4
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = n.ParseText(vr.ReadString(vr.Len()))
+		err = n.DecodeText(&valueReader2{vr})
 	case BinaryFormatCode:
-		err = n.ParseBinary(vr.ReadBytes(vr.Len()))
+		err = n.DecodeBinary(&valueReader2{vr})
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
