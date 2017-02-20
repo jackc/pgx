@@ -2228,43 +2228,42 @@ func encodeJSONB(w *WriteBuf, oid OID, value interface{}) error {
 }
 
 func decodeDate(vr *ValueReader) time.Time {
-	var zeroTime time.Time
-
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into time.Time"))
-		return zeroTime
+		return time.Time{}
 	}
 
 	if vr.Type().DataType != DateOID {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into time.Time", vr.Type().DataType)))
-		return zeroTime
+		return time.Time{}
 	}
 
-	if vr.Type().FormatCode != BinaryFormatCode {
+	vr.err = errRewoundLen
+
+	var d pgtype.Date
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = d.DecodeText(&valueReader2{vr})
+	case BinaryFormatCode:
+		err = d.DecodeBinary(&valueReader2{vr})
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return zeroTime
+		return time.Time{}
 	}
 
-	if vr.Len() != 4 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an date: %d", vr.Len())))
+	if err != nil {
+		vr.Fatal(err)
+		return time.Time{}
 	}
-	dayOffset := vr.ReadInt32()
-	return time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
+
+	return d.Time()
 }
 
 func encodeTime(w *WriteBuf, oid OID, value time.Time) error {
 	switch oid {
 	case DateOID:
-		tUnix := time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC).Unix()
-		dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
-
-		secSinceDateEpoch := tUnix - dateEpoch
-		daysSinceDateEpoch := secSinceDateEpoch / 86400
-
-		w.WriteInt32(4)
-		w.WriteInt32(int32(daysSinceDateEpoch))
-
-		return nil
+		return pgtype.DateFromTime(value).EncodeBinary(w)
 	case TimestampTzOID, TimestampOID:
 		microsecSinceUnixEpoch := value.Unix()*1000000 + int64(value.Nanosecond())/1000
 		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
