@@ -503,7 +503,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return encodeInt16(w, oid, n.Int16)
+	return pgtype.Int2(n.Int16).EncodeBinary(w)
 }
 
 // NullInt32 represents an integer that may be null. NullInt32 implements the
@@ -542,7 +542,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return encodeInt32(w, oid, n.Int32)
+	return pgtype.Int4(n.Int32).EncodeBinary(w)
 }
 
 // OID (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
@@ -788,7 +788,7 @@ func (n NullInt64) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return encodeInt64(w, oid, n.Int64)
+	return pgtype.Int8(n.Int64).EncodeBinary(w)
 }
 
 // NullBool represents an bool that may be null. NullBool implements the Scanner
@@ -1558,253 +1558,9 @@ func decodeInt2(vr *ValueReader) int16 {
 	return int16(n)
 }
 
-func encodeInt(w *WriteBuf, oid OID, value int) error {
-	switch oid {
-	case Int2OID:
-		if value < math.MinInt16 {
-			return fmt.Errorf("%d is less than min pg:int2", value)
-		} else if value > math.MaxInt16 {
-			return fmt.Errorf("%d is greater than max pg:int2", value)
-		}
-		w.WriteInt32(2)
-		w.WriteInt16(int16(value))
-	case Int4OID:
-		if value < math.MinInt32 {
-			return fmt.Errorf("%d is less than min pg:int4", value)
-		} else if value > math.MaxInt32 {
-			return fmt.Errorf("%d is greater than max pg:int4", value)
-		}
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		if int64(value) <= int64(math.MaxInt64) {
-			w.WriteInt32(8)
-			w.WriteInt64(int64(value))
-		} else {
-			return fmt.Errorf("%d is larger than max int64 %d", value, int64(math.MaxInt64))
-		}
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int8", oid)
-	}
-
-	return nil
-}
-
-func encodeUInt(w *WriteBuf, oid OID, value uint) error {
-	switch oid {
-	case Int2OID:
-		if value > math.MaxInt16 {
-			return fmt.Errorf("%d is greater than max pg:int2", value)
-		}
-		w.WriteInt32(2)
-		w.WriteInt16(int16(value))
-	case Int4OID:
-		if value > math.MaxInt32 {
-			return fmt.Errorf("%d is greater than max pg:int4", value)
-		}
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		//****** Changed value to int64(value) and math.MaxInt64 to int64(math.MaxInt64)
-		if int64(value) > int64(math.MaxInt64) {
-			return fmt.Errorf("%d is greater than max pg:int8", value)
-		}
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "uint8", oid)
-	}
-
-	return nil
-}
-
 func encodeChar(w *WriteBuf, oid OID, value Char) error {
 	w.WriteInt32(1)
 	w.WriteByte(byte(value))
-	return nil
-}
-
-func encodeInt8(w *WriteBuf, oid OID, value int8) error {
-	switch oid {
-	case Int2OID:
-		w.WriteInt32(2)
-		w.WriteInt16(int16(value))
-	case Int4OID:
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int8", oid)
-	}
-
-	return nil
-}
-
-func encodeUInt8(w *WriteBuf, oid OID, value uint8) error {
-	switch oid {
-	case Int2OID:
-		w.WriteInt32(2)
-		w.WriteInt16(int16(value))
-	case Int4OID:
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "uint8", oid)
-	}
-
-	return nil
-}
-
-func encodeInt16(w *WriteBuf, oid OID, value int16) error {
-	switch oid {
-	case Int2OID:
-		w.WriteInt32(2)
-		w.WriteInt16(value)
-	case Int4OID:
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int16", oid)
-	}
-
-	return nil
-}
-
-func encodeUInt16(w *WriteBuf, oid OID, value uint16) error {
-	switch oid {
-	case Int2OID:
-		if value <= math.MaxInt16 {
-			w.WriteInt32(2)
-			w.WriteInt16(int16(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
-		}
-	case Int4OID:
-		w.WriteInt32(4)
-		w.WriteInt32(int32(value))
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int16", oid)
-	}
-
-	return nil
-}
-
-func encodeInt32(w *WriteBuf, oid OID, value int32) error {
-	switch oid {
-	case Int2OID:
-		if value <= math.MaxInt16 {
-			w.WriteInt32(2)
-			w.WriteInt16(int16(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
-		}
-	case Int4OID:
-		err := pgtype.Int4(value).EncodeBinary(w)
-		if err != nil {
-			return err
-		}
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int32", oid)
-	}
-
-	return nil
-}
-
-func encodeUInt32(w *WriteBuf, oid OID, value uint32) error {
-	switch oid {
-	case Int2OID:
-		if value <= math.MaxInt16 {
-			w.WriteInt32(2)
-			w.WriteInt16(int16(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
-		}
-	case Int4OID:
-		if value <= math.MaxInt32 {
-			w.WriteInt32(4)
-			w.WriteInt32(int32(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int32 %d", value, math.MaxInt32)
-		}
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(int64(value))
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "uint32", oid)
-	}
-
-	return nil
-}
-
-func encodeInt64(w *WriteBuf, oid OID, value int64) error {
-	switch oid {
-	case Int2OID:
-		if value <= math.MaxInt16 {
-			w.WriteInt32(2)
-			w.WriteInt16(int16(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
-		}
-	case Int4OID:
-		if value <= math.MaxInt32 {
-			w.WriteInt32(4)
-			w.WriteInt32(int32(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int32 %d", value, math.MaxInt32)
-		}
-	case Int8OID:
-		w.WriteInt32(8)
-		w.WriteInt64(value)
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "int64", oid)
-	}
-
-	return nil
-}
-
-func encodeUInt64(w *WriteBuf, oid OID, value uint64) error {
-	switch oid {
-	case Int2OID:
-		if value <= math.MaxInt16 {
-			w.WriteInt32(2)
-			w.WriteInt16(int16(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int16 %d", value, math.MaxInt16)
-		}
-	case Int4OID:
-		if value <= math.MaxInt32 {
-			w.WriteInt32(4)
-			w.WriteInt32(int32(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int32 %d", value, math.MaxInt32)
-		}
-	case Int8OID:
-
-		if value <= math.MaxInt64 {
-			w.WriteInt32(8)
-			w.WriteInt64(int64(value))
-		} else {
-			return fmt.Errorf("%d is greater than max int64 %d", value, int64(math.MaxInt64))
-		}
-	default:
-		return fmt.Errorf("cannot encode %s into oid %v", "uint64", oid)
-	}
-
 	return nil
 }
 
