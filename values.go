@@ -1060,6 +1060,27 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeJSONB(wbuf, oid, arg)
 	}
 
+	switch oid {
+	case Int2OID:
+		i2, err := pgtype.ConvertToInt2(arg)
+		if err != nil {
+			return err
+		}
+		return i2.EncodeBinary(wbuf)
+	case Int4OID:
+		i4, err := pgtype.ConvertToInt4(arg)
+		if err != nil {
+			return err
+		}
+		return i4.EncodeBinary(wbuf)
+	case Int8OID:
+		i8, err := pgtype.ConvertToInt8(arg)
+		if err != nil {
+			return err
+		}
+		return i8.EncodeBinary(wbuf)
+	}
+
 	switch arg := arg.(type) {
 	case []string:
 		return encodeStringSlice(wbuf, oid, arg)
@@ -1067,10 +1088,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeBool(wbuf, oid, arg)
 	case []bool:
 		return encodeBoolSlice(wbuf, oid, arg)
-	case int:
-		return encodeInt(wbuf, oid, arg)
-	case uint:
-		return encodeUInt(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
 	case AclItem:
@@ -1081,32 +1098,16 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case int8:
-		return encodeInt8(wbuf, oid, arg)
-	case uint8:
-		return encodeUInt8(wbuf, oid, arg)
-	case int16:
-		return encodeInt16(wbuf, oid, arg)
 	case []int16:
 		return encodeInt16Slice(wbuf, oid, arg)
-	case uint16:
-		return encodeUInt16(wbuf, oid, arg)
 	case []uint16:
 		return encodeUInt16Slice(wbuf, oid, arg)
-	case int32:
-		return encodeInt32(wbuf, oid, arg)
 	case []int32:
 		return encodeInt32Slice(wbuf, oid, arg)
-	case uint32:
-		return encodeUInt32(wbuf, oid, arg)
 	case []uint32:
 		return encodeUInt32Slice(wbuf, oid, arg)
-	case int64:
-		return encodeInt64(wbuf, oid, arg)
 	case []int64:
 		return encodeInt64Slice(wbuf, oid, arg)
-	case uint64:
-		return encodeUInt64(wbuf, oid, arg)
 	case []uint64:
 		return encodeUInt64Slice(wbuf, oid, arg)
 	case float32:
@@ -1146,27 +1147,38 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	switch val.Kind() {
 	case reflect.Int:
-		return int(val.Int()), true
+		convVal := int(val.Int())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Int8:
-		return int8(val.Int()), true
+		convVal := int8(val.Int())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Int16:
-		return int16(val.Int()), true
+		convVal := int16(val.Int())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Int32:
-		return int32(val.Int()), true
+		convVal := int32(val.Int())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Int64:
-		return int64(val.Int()), true
+		convVal := int64(val.Int())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Uint:
-		return uint(val.Uint()), true
+		convVal := uint(val.Uint())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Uint8:
-		return uint8(val.Uint()), true
+		convVal := uint8(val.Uint())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Uint16:
-		return uint16(val.Uint()), true
+		convVal := uint16(val.Uint())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Uint32:
-		return uint32(val.Uint()), true
+		convVal := uint32(val.Uint())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.Uint64:
-		return uint64(val.Uint()), true
+		convVal := uint64(val.Uint())
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	case reflect.String:
-		return val.String(), true
+		convVal := val.String()
+		return convVal, reflect.TypeOf(convVal) != val.Type()
 	}
 
 	return nil, false

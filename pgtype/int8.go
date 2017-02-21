@@ -3,12 +3,63 @@ package pgtype
 import (
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
 )
 
 type Int8 int64
+
+func ConvertToInt8(src interface{}) (Int8, error) {
+	switch value := src.(type) {
+	case Int8:
+		return value, nil
+	case int8:
+		return Int8(value), nil
+	case uint8:
+		return Int8(value), nil
+	case int16:
+		return Int8(value), nil
+	case uint16:
+		return Int8(value), nil
+	case int32:
+		return Int8(value), nil
+	case uint32:
+		return Int8(value), nil
+	case int64:
+		return Int8(value), nil
+	case uint64:
+		if value > math.MaxInt64 {
+			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+		}
+		return Int8(value), nil
+	case int:
+		if int64(value) < math.MinInt64 {
+			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+		}
+		if int64(value) > math.MaxInt64 {
+			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+		}
+		return Int8(value), nil
+	case uint:
+		if uint64(value) > math.MaxInt64 {
+			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+		}
+		return Int8(value), nil
+	case string:
+		num, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return Int8(num), nil
+	default:
+		if originalSrc, ok := underlyingIntType(src); ok {
+			return ConvertToInt8(originalSrc)
+		}
+		return 0, fmt.Errorf("cannot convert %v to Int8", value)
+	}
+}
 
 func (i *Int8) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)

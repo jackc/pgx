@@ -1048,11 +1048,11 @@ func TestEncodeTypeRename(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type _int int
-	inInt := _int(3)
+	inInt := _int(1)
 	var outInt _int
 
 	type _int8 int8
-	inInt8 := _int8(3)
+	inInt8 := _int8(2)
 	var outInt8 _int8
 
 	type _int16 int16
