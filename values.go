@@ -2033,13 +2033,7 @@ func encodeTime(w *WriteBuf, oid OID, value time.Time) error {
 	case DateOID:
 		return pgtype.DateFromTime(value).EncodeBinary(w)
 	case TimestampTzOID, TimestampOID:
-		microsecSinceUnixEpoch := value.Unix()*1000000 + int64(value.Nanosecond())/1000
-		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
-
-		w.WriteInt32(8)
-		w.WriteInt64(microsecSinceY2K)
-
-		return nil
+		return pgtype.TimestamptzFromTime(value).EncodeBinary(w)
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "time.Time", oid)
 	}
@@ -2060,19 +2054,26 @@ func decodeTimestampTz(vr *ValueReader) time.Time {
 		return zeroTime
 	}
 
-	if vr.Type().FormatCode != BinaryFormatCode {
+	vr.err = errRewoundLen
+
+	var t pgtype.Timestamptz
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = t.DecodeText(&valueReader2{vr})
+	case BinaryFormatCode:
+		err = t.DecodeBinary(&valueReader2{vr})
+	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return zeroTime
+		return time.Time{}
 	}
 
-	if vr.Len() != 8 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an timestamptz: %d", vr.Len())))
-		return zeroTime
+	if err != nil {
+		vr.Fatal(err)
+		return time.Time{}
 	}
 
-	microsecSinceY2K := vr.ReadInt64()
-	microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
-	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
+	return t.Time()
 }
 
 func decodeTimestamp(vr *ValueReader) time.Time {

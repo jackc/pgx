@@ -11,6 +11,7 @@ import (
 type Date struct {
 	// time.Time is embedded to hide internal implementation. Possibly do date
 	// implementation at some point rather than simply delegating to time.Time.
+	// Also TODO handling Infinity and -Infinity
 	t time.Time
 }
 
@@ -21,7 +22,7 @@ func (d *Date) DecodeText(r io.Reader) error {
 	}
 
 	if size == -1 {
-		return fmt.Errorf("invalid length for int8: %v", size)
+		return fmt.Errorf("invalid length for date: %v", size)
 	}
 
 	buf := make([]byte, int(size))
