@@ -1428,13 +1428,26 @@ func decodeBool(vr *ValueReader) bool {
 		return false
 	}
 
-	if vr.Len() != 1 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an bool: %d", vr.Len())))
+	vr.err = errRewoundLen
+
+	var b pgtype.Bool
+	var err error
+	switch vr.Type().FormatCode {
+	case TextFormatCode:
+		err = b.DecodeText(&valueReader2{vr})
+	case BinaryFormatCode:
+		err = b.DecodeBinary(&valueReader2{vr})
+	default:
+		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return false
 	}
 
-	b := vr.ReadByte()
-	return b != 0
+	if err != nil {
+		vr.Fatal(err)
+		return false
+	}
+
+	return bool(b)
 }
 
 func encodeBool(w *WriteBuf, oid OID, value bool) error {
@@ -1442,16 +1455,8 @@ func encodeBool(w *WriteBuf, oid OID, value bool) error {
 		return fmt.Errorf("cannot encode Go %s into oid %d", "bool", oid)
 	}
 
-	w.WriteInt32(1)
-
-	var n byte
-	if value {
-		n = 1
-	}
-
-	w.WriteByte(n)
-
-	return nil
+	b := pgtype.Bool(value)
+	return b.EncodeBinary(w)
 }
 
 func decodeInt(vr *ValueReader) int64 {
