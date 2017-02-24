@@ -1071,8 +1071,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	switch arg := arg.(type) {
 	case []string:
 		return encodeStringSlice(wbuf, oid, arg)
-	case bool:
-		return encodeBool(wbuf, oid, arg)
 	case []bool:
 		return encodeBoolSlice(wbuf, oid, arg)
 	case Char:
@@ -2023,7 +2021,12 @@ func decodeDate(vr *ValueReader) time.Time {
 func encodeTime(w *WriteBuf, oid OID, value time.Time) error {
 	switch oid {
 	case DateOID:
-		return pgtype.DateFromTime(value).EncodeBinary(w)
+		var d pgtype.Date
+		err := d.ConvertFrom(value)
+		if err != nil {
+			return err
+		}
+		return d.EncodeBinary(w)
 	case TimestampTzOID, TimestampOID:
 		return pgtype.TimestamptzFromTime(value).EncodeBinary(w)
 	default:

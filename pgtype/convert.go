@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"reflect"
+	"time"
 )
 
 // underlyingIntType gets the underlying type that can be converted to Int2, Int4, or Int8
@@ -70,4 +71,25 @@ func underlyingBoolType(val interface{}) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+// underlyingTimeType gets the underlying type that can be converted to time.Time
+func underlyingTimeType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return time.Time{}, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	}
+
+	timeType := reflect.TypeOf(time.Time{})
+	if refVal.Type().ConvertibleTo(timeType) {
+		return refVal.Convert(timeType).Interface(), true
+	}
+
+	return time.Time{}, false
 }
