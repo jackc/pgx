@@ -11,7 +11,7 @@ import (
 
 type Int2 int16
 
-func (i *Int2) Convert(src interface{}) error {
+func (i *Int2) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int2:
 		*i = value
@@ -73,11 +73,15 @@ func (i *Int2) Convert(src interface{}) error {
 		*i = Int2(num)
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return i.Convert(originalSrc)
+			return i.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int2", value)
 	}
 
+	return nil
+}
+
+func (i *Int2) AssignTo(dst interface{}) error {
 	return nil
 }
 

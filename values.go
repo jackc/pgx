@@ -1060,28 +1060,12 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeJSONB(wbuf, oid, arg)
 	}
 
-	switch oid {
-	case Int2OID:
-		var i2 pgtype.Int2
-		err := i2.Convert(arg)
+	if value, ok := wbuf.conn.oidPgtypeValues[oid]; ok {
+		err := value.ConvertFrom(arg)
 		if err != nil {
 			return err
 		}
-		return i2.EncodeBinary(wbuf)
-	case Int4OID:
-		var i4 pgtype.Int4
-		err := i4.Convert(arg)
-		if err != nil {
-			return err
-		}
-		return i4.EncodeBinary(wbuf)
-	case Int8OID:
-		var i8 pgtype.Int8
-		err := i8.Convert(arg)
-		if err != nil {
-			return err
-		}
-		return i8.EncodeBinary(wbuf)
+		return value.(pgtype.BinaryEncoder).EncodeBinary(wbuf)
 	}
 
 	switch arg := arg.(type) {

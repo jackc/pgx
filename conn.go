@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"net"
 	"net/url"
@@ -20,7 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jackc/pgx/chunkreader"
+	"github.com/jackc/pgx/pgtype"
 )
 
 const (
@@ -102,6 +104,8 @@ type Conn struct {
 	ctxInProgress bool
 	doneChan      chan struct{}
 	closedChan    chan error
+
+	oidPgtypeValues map[OID]pgtype.Value
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -274,6 +278,16 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.cancelQueryCompleted = make(chan struct{}, 1)
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
+
+	i2 := pgtype.Int2(0)
+	i4 := pgtype.Int4(0)
+	i8 := pgtype.Int8(0)
+
+	c.oidPgtypeValues = map[OID]pgtype.Value{
+		Int2OID: &i2,
+		Int4OID: &i4,
+		Int8OID: &i8,
+	}
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {

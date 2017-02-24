@@ -11,7 +11,7 @@ import (
 
 type Int4 int32
 
-func (i *Int4) Convert(src interface{}) error {
+func (i *Int4) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int4:
 		*i = value
@@ -64,11 +64,15 @@ func (i *Int4) Convert(src interface{}) error {
 		*i = Int4(num)
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return i.Convert(originalSrc)
+			return i.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
 
+	return nil
+}
+
+func (i *Int4) AssignTo(dst interface{}) error {
 	return nil
 }
 
