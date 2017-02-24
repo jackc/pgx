@@ -1062,19 +1062,22 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 
 	switch oid {
 	case Int2OID:
-		i2, err := pgtype.ConvertToInt2(arg)
+		var i2 pgtype.Int2
+		err := i2.Convert(arg)
 		if err != nil {
 			return err
 		}
 		return i2.EncodeBinary(wbuf)
 	case Int4OID:
-		i4, err := pgtype.ConvertToInt4(arg)
+		var i4 pgtype.Int4
+		err := i4.Convert(arg)
 		if err != nil {
 			return err
 		}
 		return i4.EncodeBinary(wbuf)
 	case Int8OID:
-		i8, err := pgtype.ConvertToInt8(arg)
+		var i8 pgtype.Int8
+		err := i8.Convert(arg)
 		if err != nil {
 			return err
 		}

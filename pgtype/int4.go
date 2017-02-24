@@ -11,63 +11,65 @@ import (
 
 type Int4 int32
 
-func ConvertToInt4(src interface{}) (Int4, error) {
+func (i *Int4) Convert(src interface{}) error {
 	switch value := src.(type) {
 	case Int4:
-		return value, nil
+		*i = value
 	case int8:
-		return Int4(value), nil
+		*i = Int4(value)
 	case uint8:
-		return Int4(value), nil
+		*i = Int4(value)
 	case int16:
-		return Int4(value), nil
+		*i = Int4(value)
 	case uint16:
-		return Int4(value), nil
+		*i = Int4(value)
 	case int32:
-		return Int4(value), nil
+		*i = Int4(value)
 	case uint32:
 		if value > math.MaxInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		return Int4(value), nil
+		*i = Int4(value)
 	case int64:
 		if value < math.MinInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
 		if value > math.MaxInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		return Int4(value), nil
+		*i = Int4(value)
 	case uint64:
 		if value > math.MaxInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		return Int4(value), nil
+		*i = Int4(value)
 	case int:
 		if value < math.MinInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
 		if value > math.MaxInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		return Int4(value), nil
+		*i = Int4(value)
 	case uint:
 		if value > math.MaxInt32 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int4", value)
+			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		return Int4(value), nil
+		*i = Int4(value)
 	case string:
 		num, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
-			return 0, err
+			return err
 		}
-		return Int4(num), nil
+		*i = Int4(num)
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return ConvertToInt4(originalSrc)
+			return i.Convert(originalSrc)
 		}
-		return 0, fmt.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
+
+	return nil
 }
 
 func (i *Int4) DecodeText(r io.Reader) error {

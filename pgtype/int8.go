@@ -11,54 +11,56 @@ import (
 
 type Int8 int64
 
-func ConvertToInt8(src interface{}) (Int8, error) {
+func (i *Int8) Convert(src interface{}) error {
 	switch value := src.(type) {
 	case Int8:
-		return value, nil
+		*i = value
 	case int8:
-		return Int8(value), nil
+		*i = Int8(value)
 	case uint8:
-		return Int8(value), nil
+		*i = Int8(value)
 	case int16:
-		return Int8(value), nil
+		*i = Int8(value)
 	case uint16:
-		return Int8(value), nil
+		*i = Int8(value)
 	case int32:
-		return Int8(value), nil
+		*i = Int8(value)
 	case uint32:
-		return Int8(value), nil
+		*i = Int8(value)
 	case int64:
-		return Int8(value), nil
+		*i = Int8(value)
 	case uint64:
 		if value > math.MaxInt64 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		return Int8(value), nil
+		*i = Int8(value)
 	case int:
 		if int64(value) < math.MinInt64 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		if int64(value) > math.MaxInt64 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		return Int8(value), nil
+		*i = Int8(value)
 	case uint:
 		if uint64(value) > math.MaxInt64 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		return Int8(value), nil
+		*i = Int8(value)
 	case string:
 		num, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return 0, err
+			return err
 		}
-		return Int8(num), nil
+		*i = Int8(num)
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return ConvertToInt8(originalSrc)
+			return i.Convert(originalSrc)
 		}
-		return 0, fmt.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
+
+	return nil
 }
 
 func (i *Int8) DecodeText(r io.Reader) error {

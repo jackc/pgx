@@ -85,3 +85,35 @@ func TestInt8Transcode(t *testing.T) {
 		}
 	}
 }
+
+func TestInt8Convert(t *testing.T) {
+	type _int8 int8
+
+	successfulTests := []struct {
+		source interface{}
+		result pgtype.Int8
+	}{
+		{source: int8(1), result: pgtype.Int8(1)},
+		{source: int16(1), result: pgtype.Int8(1)},
+		{source: int32(1), result: pgtype.Int8(1)},
+		{source: int64(1), result: pgtype.Int8(1)},
+		{source: int8(-1), result: pgtype.Int8(-1)},
+		{source: int16(-1), result: pgtype.Int8(-1)},
+		{source: int32(-1), result: pgtype.Int8(-1)},
+		{source: int64(-1), result: pgtype.Int8(-1)},
+		{source: uint8(1), result: pgtype.Int8(1)},
+		{source: uint16(1), result: pgtype.Int8(1)},
+		{source: uint32(1), result: pgtype.Int8(1)},
+		{source: uint64(1), result: pgtype.Int8(1)},
+		{source: "1", result: pgtype.Int8(1)},
+		{source: _int8(1), result: pgtype.Int8(1)},
+	}
+
+	for i, tt := range successfulTests {
+		var r pgtype.Int8
+		err := r.Convert(tt.source)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+	}
+}

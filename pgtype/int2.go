@@ -11,72 +11,74 @@ import (
 
 type Int2 int16
 
-func ConvertToInt2(src interface{}) (Int2, error) {
+func (i *Int2) Convert(src interface{}) error {
 	switch value := src.(type) {
 	case Int2:
-		return value, nil
+		*i = value
 	case int8:
-		return Int2(value), nil
+		*i = Int2(value)
 	case uint8:
-		return Int2(value), nil
+		*i = Int2(value)
 	case int16:
-		return Int2(value), nil
+		*i = Int2(value)
 	case uint16:
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case int32:
 		if value < math.MinInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case uint32:
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case int64:
 		if value < math.MinInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case uint64:
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case int:
 		if value < math.MinInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case uint:
 		if value > math.MaxInt16 {
-			return 0, fmt.Errorf("%d is greater than maximum value for Int2", value)
+			return fmt.Errorf("%d is greater than maximum value for Int2", value)
 		}
-		return Int2(value), nil
+		*i = Int2(value)
 	case string:
 		num, err := strconv.ParseInt(value, 10, 16)
 		if err != nil {
-			return 0, err
+			return err
 		}
-		return Int2(num), nil
+		*i = Int2(num)
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return ConvertToInt2(originalSrc)
+			return i.Convert(originalSrc)
 		}
-		return 0, fmt.Errorf("cannot convert %v to Int2", value)
+		return fmt.Errorf("cannot convert %v to Int2", value)
 	}
+
+	return nil
 }
 
 func (i *Int2) DecodeText(r io.Reader) error {
