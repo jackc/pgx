@@ -52,3 +52,22 @@ func underlyingIntType(val interface{}) (interface{}, bool) {
 
 	return nil, false
 }
+
+// underlyingBoolType gets the underlying type that can be converted to Bool
+func underlyingBoolType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return nil, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	case reflect.Bool:
+		convVal := refVal.Bool()
+		return convVal, reflect.TypeOf(convVal) != refVal.Type()
+	}
+
+	return nil, false
+}

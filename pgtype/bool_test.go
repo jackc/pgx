@@ -81,3 +81,27 @@ func TestBoolTranscode(t *testing.T) {
 		}
 	}
 }
+
+func TestBoolConvertFrom(t *testing.T) {
+	type _int8 int8
+
+	successfulTests := []struct {
+		source interface{}
+		result pgtype.Bool
+	}{
+		{source: true, result: pgtype.Bool(true)},
+		{source: false, result: pgtype.Bool(false)},
+		{source: "true", result: pgtype.Bool(true)},
+		{source: "false", result: pgtype.Bool(false)},
+		{source: "t", result: pgtype.Bool(true)},
+		{source: "f", result: pgtype.Bool(false)},
+	}
+
+	for i, tt := range successfulTests {
+		var r pgtype.Bool
+		err := r.ConvertFrom(tt.source)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+	}
+}
