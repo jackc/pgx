@@ -4,51 +4,18 @@ import (
 	"math"
 	"testing"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 )
 
 func TestInt2Transcode(t *testing.T) {
-	conn := mustConnectPgx(t)
-	defer mustClose(t, conn)
-
-	ps, err := conn.Prepare("test", "select $1::int2")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tests := []struct {
-		result pgtype.Int2
-	}{
-		{result: pgtype.Int2{Int: math.MinInt16, Status: pgtype.Present}},
-		{result: pgtype.Int2{Int: -1, Status: pgtype.Present}},
-		{result: pgtype.Int2{Int: 0, Status: pgtype.Present}},
-		{result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{result: pgtype.Int2{Int: math.MaxInt16, Status: pgtype.Present}},
-	}
-
-	formats := []struct {
-		name       string
-		formatCode int16
-	}{
-		{name: "TextFormat", formatCode: pgx.TextFormatCode},
-		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
-	}
-
-	for _, fc := range formats {
-		ps.FieldDescriptions[0].FormatCode = fc.formatCode
-		for i, tt := range tests {
-			var r pgtype.Int2
-			err := conn.QueryRow("test", tt.result).Scan(&r)
-			if err != nil {
-				t.Errorf("%v %d: %v", fc.name, i, err)
-			}
-
-			if r != tt.result {
-				t.Errorf("%v %d: expected %v, got %v", fc.name, i, tt.result, r)
-			}
-		}
-	}
+	testSuccessfulTranscode(t, "int2", []interface{}{
+		pgtype.Int2{Int: math.MinInt16, Status: pgtype.Present},
+		pgtype.Int2{Int: -1, Status: pgtype.Present},
+		pgtype.Int2{Int: 0, Status: pgtype.Present},
+		pgtype.Int2{Int: 1, Status: pgtype.Present},
+		pgtype.Int2{Int: math.MaxInt16, Status: pgtype.Present},
+		pgtype.Int2{Int: 0, Status: pgtype.Null},
+	})
 }
 
 func TestInt2ConvertFrom(t *testing.T) {

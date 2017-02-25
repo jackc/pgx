@@ -3,50 +3,15 @@ package pgtype_test
 import (
 	"testing"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 )
 
 func TestBoolTranscode(t *testing.T) {
-	conn := mustConnectPgx(t)
-	defer mustClose(t, conn)
-
-	ps, err := conn.Prepare("test", "select $1::bool")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	tests := []struct {
-		result pgtype.Bool
-	}{
-		{result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
-		{result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{result: pgtype.Bool{Bool: false, Status: pgtype.Null}},
-	}
-
-	formats := []struct {
-		name       string
-		formatCode int16
-	}{
-		{name: "TextFormat", formatCode: pgx.TextFormatCode},
-		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
-	}
-
-	for _, fc := range formats {
-		ps.FieldDescriptions[0].FormatCode = fc.formatCode
-
-		for i, tt := range tests {
-			var r pgtype.Bool
-			err := conn.QueryRow("test", tt.result).Scan(&r)
-			if err != nil {
-				t.Errorf("%v %d: %v", fc.name, i, err)
-			}
-
-			if r != tt.result {
-				t.Errorf("%v %d: expected %v, got %v", fc.name, i, tt.result, r)
-			}
-		}
-	}
+	testSuccessfulTranscode(t, "bool", []interface{}{
+		pgtype.Bool{Bool: false, Status: pgtype.Present},
+		pgtype.Bool{Bool: true, Status: pgtype.Present},
+		pgtype.Bool{Bool: false, Status: pgtype.Null},
+	})
 }
 
 func TestBoolConvertFrom(t *testing.T) {
