@@ -1996,11 +1996,6 @@ func encodeJSONB(w *WriteBuf, oid OID, value interface{}) error {
 }
 
 func decodeDate(vr *ValueReader) time.Time {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into time.Time"))
-		return time.Time{}
-	}
-
 	if vr.Type().DataType != DateOID {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into time.Time", vr.Type().DataType)))
 		return time.Time{}
@@ -2025,7 +2020,12 @@ func decodeDate(vr *ValueReader) time.Time {
 		return time.Time{}
 	}
 
-	return d.Time()
+	if d.Status == pgtype.Null {
+		vr.Fatal(ProtocolError("Cannot decode null into int16"))
+		return time.Time{}
+	}
+
+	return d.Time
 }
 
 func encodeTime(w *WriteBuf, oid OID, value time.Time) error {

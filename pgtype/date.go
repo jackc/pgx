@@ -9,14 +9,9 @@ import (
 )
 
 type Date struct {
-	// time.Time is embedded to hide internal implementation. Possibly do date
-	// implementation at some point rather than simply delegating to time.Time.
-	// Also TODO handling Infinity and -Infinity
-	t time.Time
-}
-
-func NewDate(year int, month time.Month, day int) *Date {
-	return &Date{t: time.Date(year, month, day, 0, 0, 0, 0, time.Local)}
+	// TODO handling Infinity and -Infinity
+	Time   time.Time
+	Status Status
 }
 
 func (d *Date) ConvertFrom(src interface{}) error {
@@ -24,7 +19,7 @@ func (d *Date) ConvertFrom(src interface{}) error {
 	case Date:
 		*d = value
 	case time.Time:
-		*d = Date{t: value}
+		*d = Date{Time: value}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return d.ConvertFrom(originalSrc)
@@ -46,7 +41,8 @@ func (d *Date) DecodeText(r io.Reader) error {
 	}
 
 	if size == -1 {
-		return fmt.Errorf("invalid length for date: %v", size)
+		*d = Date{Status: Null}
+		return nil
 	}
 
 	buf := make([]byte, int(size))
@@ -55,10 +51,12 @@ func (d *Date) DecodeText(r io.Reader) error {
 		return err
 	}
 
-	d.t, err = time.ParseInLocation("2006-01-02", string(buf), time.Local)
+	t, err := time.ParseInLocation("2006-01-02", string(buf), time.UTC)
 	if err != nil {
 		return err
 	}
+
+	*d = Date{Time: t}
 
 	return nil
 }
@@ -67,6 +65,11 @@ func (d *Date) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
+	}
+
+	if size == -1 {
+		*d = Date{Status: Null}
+		return nil
 	}
 
 	if size != 4 {
@@ -78,28 +81,38 @@ func (d *Date) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	d.t = time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.Local)
+	t := time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.UTC)
+
+	*d = Date{Time: t}
 
 	return nil
 }
 
 func (d Date) EncodeText(w io.Writer) error {
+	if done, err := encodeNotPresent(w, d.Status); done {
+		return err
+	}
+
 	_, err := pgio.WriteInt32(w, 10)
 	if err != nil {
 		return nil
 	}
 
-	_, err = w.Write([]byte(d.t.Format("2006-01-02")))
+	_, err = w.Write([]byte(d.Time.Format("2006-01-02")))
 	return err
 }
 
 func (d Date) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, d.Status); done {
+		return err
+	}
+
 	_, err := pgio.WriteInt32(w, 4)
 	if err != nil {
 		return err
 	}
 
-	tUnix := time.Date(d.t.Year(), d.t.Month(), d.t.Day(), 0, 0, 0, 0, time.UTC).Unix()
+	tUnix := time.Date(d.Time.Year(), d.Time.Month(), d.Time.Day(), 0, 0, 0, 0, time.UTC).Unix()
 	dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
 
 	secSinceDateEpoch := tUnix - dateEpoch
@@ -107,8 +120,4 @@ func (d Date) EncodeBinary(w io.Writer) error {
 
 	_, err = pgio.WriteInt32(w, int32(daysSinceDateEpoch))
 	return err
-}
-
-func (d Date) Time() time.Time {
-	return d.t
 }
