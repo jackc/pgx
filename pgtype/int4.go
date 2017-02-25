@@ -9,27 +9,30 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type Int4 int32
+type Int4 struct {
+	Int    int32
+	Status Status
+}
 
 func (i *Int4) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int4:
 		*i = value
 	case int8:
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case uint8:
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case int16:
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case uint16:
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case int32:
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case uint32:
 		if value > math.MaxInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case int64:
 		if value < math.MinInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
@@ -37,12 +40,12 @@ func (i *Int4) ConvertFrom(src interface{}) error {
 		if value > math.MaxInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case uint64:
 		if value > math.MaxInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case int:
 		if value < math.MinInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
@@ -50,18 +53,18 @@ func (i *Int4) ConvertFrom(src interface{}) error {
 		if value > math.MaxInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case uint:
 		if value > math.MaxInt32 {
 			return fmt.Errorf("%d is greater than maximum value for Int4", value)
 		}
-		*i = Int4(value)
+		*i = Int4{Int: int32(value), Status: Present}
 	case string:
 		num, err := strconv.ParseInt(value, 10, 32)
 		if err != nil {
 			return err
 		}
-		*i = Int4(num)
+		*i = Int4{Int: int32(num), Status: Present}
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
 			return i.ConvertFrom(originalSrc)
@@ -83,7 +86,8 @@ func (i *Int4) DecodeText(r io.Reader) error {
 	}
 
 	if size == -1 {
-		return fmt.Errorf("invalid length for int4: %v", size)
+		*i = Int4{Status: Null}
+		return nil
 	}
 
 	buf := make([]byte, int(size))
@@ -97,7 +101,7 @@ func (i *Int4) DecodeText(r io.Reader) error {
 		return err
 	}
 
-	*i = Int4(n)
+	*i = Int4{Int: int32(n), Status: Present}
 	return nil
 }
 
@@ -105,6 +109,11 @@ func (i *Int4) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
+	}
+
+	if size == -1 {
+		*i = Int4{Status: Null}
+		return nil
 	}
 
 	if size != 4 {
@@ -116,12 +125,16 @@ func (i *Int4) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	*i = Int4(n)
+	*i = Int4{Int: n, Status: Present}
 	return nil
 }
 
 func (i Int4) EncodeText(w io.Writer) error {
-	s := strconv.FormatInt(int64(i), 10)
+	if done, err := encodeNotPresent(w, i.Status); done {
+		return err
+	}
+
+	s := strconv.FormatInt(int64(i.Int), 10)
 	_, err := pgio.WriteInt32(w, int32(len(s)))
 	if err != nil {
 		return nil
@@ -131,11 +144,15 @@ func (i Int4) EncodeText(w io.Writer) error {
 }
 
 func (i Int4) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, i.Status); done {
+		return err
+	}
+
 	_, err := pgio.WriteInt32(w, 4)
 	if err != nil {
 		return err
 	}
 
-	_, err = pgio.WriteInt32(w, int32(i))
+	_, err = pgio.WriteInt32(w, i.Int)
 	return err
 }

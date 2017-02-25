@@ -542,7 +542,7 @@ func (n NullInt32) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int4(n.Int32).EncodeBinary(w)
+	return pgtype.Int4{Int: n.Int32, Status: pgtype.Present}.EncodeBinary(w)
 }
 
 // OID (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
@@ -788,7 +788,7 @@ func (n NullInt64) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int8(n.Int64).EncodeBinary(w)
+	return pgtype.Int8{Int: n.Int64, Status: pgtype.Present}.EncodeBinary(w)
 }
 
 // NullBool represents an bool that may be null. NullBool implements the Scanner
@@ -1487,7 +1487,12 @@ func decodeInt8(vr *ValueReader) int64 {
 		return 0
 	}
 
-	return int64(n)
+	if n.Status == pgtype.Null {
+		vr.Fatal(ProtocolError("Cannot decode null into int16"))
+		return 0
+	}
+
+	return n.Int
 }
 
 func decodeChar(vr *ValueReader) Char {
@@ -1584,7 +1589,12 @@ func decodeInt4(vr *ValueReader) int32 {
 		return 0
 	}
 
-	return int32(n)
+	if n.Status == pgtype.Null {
+		vr.Fatal(ProtocolError("Cannot decode null into int16"))
+		return 0
+	}
+
+	return n.Int
 }
 
 func decodeOID(vr *ValueReader) OID {
