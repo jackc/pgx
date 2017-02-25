@@ -503,7 +503,7 @@ func (n NullInt16) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int2(n.Int16).EncodeBinary(w)
+	return pgtype.Int2{Int: n.Int16, Status: pgtype.Present}.EncodeBinary(w)
 }
 
 // NullInt32 represents an integer that may be null. NullInt32 implements the
@@ -1515,10 +1515,6 @@ func decodeChar(vr *ValueReader) Char {
 }
 
 func decodeInt2(vr *ValueReader) int16 {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into int16"))
-		return 0
-	}
 
 	if vr.Type().DataType != Int2OID {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into int16", vr.Type().DataType)))
@@ -1544,7 +1540,12 @@ func decodeInt2(vr *ValueReader) int16 {
 		return 0
 	}
 
-	return int16(n)
+	if n.Status == pgtype.Null {
+		vr.Fatal(ProtocolError("Cannot decode null into int16"))
+		return 0
+	}
+
+	return n.Int
 }
 
 func encodeChar(w *WriteBuf, oid OID, value Char) error {
