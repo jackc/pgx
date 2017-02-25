@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"golang.org/x/net/context"
 	"time"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
@@ -225,6 +227,18 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 			err = s.ScanPgxV3(nil, val)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
+			vr.err = errRewoundLen
+			err = s.DecodeBinary(&valueReader2{vr})
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+		} else if s, ok := d.(pgtype.TextDecoder); ok && vr.Type().FormatCode == TextFormatCode {
+			vr.err = errRewoundLen
+			err = s.DecodeText(&valueReader2{vr})
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}

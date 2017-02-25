@@ -279,13 +279,12 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 
-	b := pgtype.Bool(false)
 	i2 := pgtype.Int2(0)
 	i4 := pgtype.Int4(0)
 	i8 := pgtype.Int8(0)
 
 	c.oidPgtypeValues = map[OID]pgtype.Value{
-		BoolOID: &b,
+		BoolOID: &pgtype.Bool{},
 		DateOID: &pgtype.Date{},
 		Int2OID: &i2,
 		Int4OID: &i4,
@@ -978,6 +977,10 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
+		case pgtype.BinaryEncoder:
+			wbuf.WriteInt16(BinaryFormatCode)
+		case pgtype.TextEncoder:
+			wbuf.WriteInt16(TextFormatCode)
 		case string, *string:
 			wbuf.WriteInt16(TextFormatCode)
 		default:

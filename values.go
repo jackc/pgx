@@ -1026,6 +1026,10 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	switch arg := arg.(type) {
 	case Encoder:
 		return arg.Encode(wbuf, oid)
+	case pgtype.BinaryEncoder:
+		return arg.EncodeBinary(wbuf)
+	case pgtype.TextEncoder:
+		return arg.EncodeText(wbuf)
 	case driver.Valuer:
 		v, err := arg.Value()
 		if err != nil {
@@ -1398,18 +1402,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 }
 
 func decodeBool(vr *ValueReader) bool {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into bool"))
-		return false
-	}
-
 	if vr.Type().DataType != BoolOID {
 		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into bool", vr.Type().DataType)))
-		return false
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return false
 	}
 
@@ -1432,7 +1426,12 @@ func decodeBool(vr *ValueReader) bool {
 		return false
 	}
 
-	return bool(b)
+	if b.Status != pgtype.Present {
+		vr.Fatal(fmt.Errorf("Cannot decode null into bool"))
+		return false
+	}
+
+	return b.Bool
 }
 
 func encodeBool(w *WriteBuf, oid OID, value bool) error {
@@ -1440,7 +1439,7 @@ func encodeBool(w *WriteBuf, oid OID, value bool) error {
 		return fmt.Errorf("cannot encode Go %s into oid %d", "bool", oid)
 	}
 
-	b := pgtype.Bool(value)
+	b := pgtype.Bool{Bool: value, Status: pgtype.Present}
 	return b.EncodeBinary(w)
 }
 

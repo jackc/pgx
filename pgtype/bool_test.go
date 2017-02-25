@@ -1,11 +1,9 @@
 package pgtype_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -21,63 +19,32 @@ func TestBoolTranscode(t *testing.T) {
 	tests := []struct {
 		result pgtype.Bool
 	}{
-		{result: pgtype.Bool(false)},
-		{result: pgtype.Bool(true)},
+		{result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
+		{result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{result: pgtype.Bool{Bool: false, Status: pgtype.Null}},
 	}
 
-	ps.FieldDescriptions[0].FormatCode = pgx.TextFormatCode
-	for i, tt := range tests {
-		inputBuf := &bytes.Buffer{}
-		err = tt.result.EncodeText(inputBuf)
-		if err != nil {
-			t.Errorf("TextFormat %d: %v", i, err)
-		}
-
-		var s string
-		err := conn.QueryRow("test", string(inputBuf.Bytes()[4:])).Scan(&s)
-		if err != nil {
-			t.Errorf("TextFormat %d: %v", i, err)
-		}
-
-		outputBuf := &bytes.Buffer{}
-		pgio.WriteInt32(outputBuf, int32(len(s)))
-		outputBuf.WriteString(s)
-		var r pgtype.Bool
-		err = r.DecodeText(outputBuf)
-		if err != nil {
-			t.Errorf("TextFormat %d: %v", i, err)
-		}
-
-		if r != tt.result {
-			t.Errorf("TextFormat %d: expected %v, got %v", i, tt.result, r)
-		}
+	formats := []struct {
+		name       string
+		formatCode int16
+	}{
+		{name: "TextFormat", formatCode: pgx.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
 	}
 
-	ps.FieldDescriptions[0].FormatCode = pgx.BinaryFormatCode
-	for i, tt := range tests {
-		inputBuf := &bytes.Buffer{}
-		err = tt.result.EncodeBinary(inputBuf)
-		if err != nil {
-			t.Errorf("BinaryFormat %d: %v", i, err)
-		}
+	for _, fc := range formats {
+		ps.FieldDescriptions[0].FormatCode = fc.formatCode
 
-		var buf []byte
-		err := conn.QueryRow("test", inputBuf.Bytes()[4:]).Scan(&buf)
-		if err != nil {
-			t.Errorf("BinaryFormat %d: %v", i, err)
-		}
+		for i, tt := range tests {
+			var r pgtype.Bool
+			err := conn.QueryRow("test", tt.result).Scan(&r)
+			if err != nil {
+				t.Errorf("%v %d: %v", fc.name, i, err)
+			}
 
-		outputBuf := &bytes.Buffer{}
-		pgio.WriteInt32(outputBuf, int32(len(buf)))
-		outputBuf.Write(buf)
-		var r pgtype.Bool
-		err = r.DecodeBinary(outputBuf)
-		if err != nil {
-			t.Errorf("BinaryFormat %d: %v", i, err)
-		}
-
-		if r != tt.result {
-			t.Errorf("BinaryFormat %d: expected %v, got %v", i, tt.result, r)
+			if r != tt.result {
+				t.Errorf("%v %d: expected %v, got %v", fc.name, i, tt.result, r)
+			}
 		}
 	}
 }
@@ -89,12 +56,12 @@ func TestBoolConvertFrom(t *testing.T) {
 		source interface{}
 		result pgtype.Bool
 	}{
-		{source: true, result: pgtype.Bool(true)},
-		{source: false, result: pgtype.Bool(false)},
-		{source: "true", result: pgtype.Bool(true)},
-		{source: "false", result: pgtype.Bool(false)},
-		{source: "t", result: pgtype.Bool(true)},
-		{source: "f", result: pgtype.Bool(false)},
+		{source: true, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: false, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "false", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "t", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "f", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {

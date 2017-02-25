@@ -1,7 +1,18 @@
 package pgtype
 
 import (
+	"errors"
 	"io"
+
+	"github.com/jackc/pgx/pgio"
+)
+
+type Status byte
+
+const (
+	Undefined Status = iota
+	Null
+	Present
 )
 
 type Value interface {
@@ -23,4 +34,17 @@ type BinaryEncoder interface {
 
 type TextEncoder interface {
 	EncodeText(w io.Writer) error
+}
+
+var errUndefined = errors.New("cannot encode status undefined")
+
+func encodeNotPresent(w io.Writer, status Status) (done bool, err error) {
+	switch status {
+	case Undefined:
+		return true, errUndefined
+	case Null:
+		_, err = pgio.WriteInt32(w, -1)
+		return true, err
+	}
+	return false, nil
 }
