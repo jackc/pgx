@@ -22,11 +22,11 @@ func TestBoolConvertFrom(t *testing.T) {
 		result pgtype.Bool
 	}{
 		{source: true, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: false, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: false, result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
 		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: "false", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "false", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
 		{source: "t", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: "f", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "f", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
@@ -34,6 +34,10 @@ func TestBoolConvertFrom(t *testing.T) {
 		err := r.ConvertFrom(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
+		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
 		}
 	}
 }

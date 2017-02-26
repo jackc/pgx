@@ -47,14 +47,14 @@ func TestTimestamptzConvertFrom(t *testing.T) {
 	}
 
 	for i, tt := range successfulTests {
-		var d pgtype.Timestamptz
-		err := d.ConvertFrom(tt.source)
+		var r pgtype.Timestamptz
+		err := r.ConvertFrom(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if d != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, d)
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
 		}
 	}
 }

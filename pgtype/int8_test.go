@@ -47,5 +47,9 @@ func TestInt8ConvertFrom(t *testing.T) {
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
 	}
 }
