@@ -15,6 +15,14 @@ const (
 	Present
 )
 
+type InfinityModifier int8
+
+const (
+	Infinity         InfinityModifier = 1
+	None             InfinityModifier = 0
+	NegativeInfinity InfinityModifier = -Infinity
+)
+
 type Value interface {
 	ConvertFrom(src interface{}) error
 	AssignTo(dst interface{}) error

@@ -2,11 +2,13 @@ package pgtype_test
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 func mustConnectPgx(t testing.TB) *pgx.Conn {
@@ -32,6 +34,33 @@ func mustClose(t testing.TB, conn interface {
 	}
 }
 
+type forceTextEncoder struct {
+	e pgtype.TextEncoder
+}
+
+func (f forceTextEncoder) EncodeText(w io.Writer) error {
+	return f.e.EncodeText(w)
+}
+
+type forceBinaryEncoder struct {
+	e pgtype.BinaryEncoder
+}
+
+func (f forceBinaryEncoder) EncodeBinary(w io.Writer) error {
+	return f.e.EncodeBinary(w)
+}
+
+func forceEncoder(e interface{}, formatCode int16) interface{} {
+	switch formatCode {
+	case pgx.TextFormatCode:
+		return forceTextEncoder{e: e.(pgtype.TextEncoder)}
+	case pgx.BinaryFormatCode:
+		return forceBinaryEncoder{e: e.(pgtype.BinaryEncoder)}
+	default:
+		panic("bad encoder")
+	}
+}
+
 func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface{}) {
 	conn := mustConnectPgx(t)
 	defer mustClose(t, conn)
@@ -53,12 +82,12 @@ func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface
 		ps.FieldDescriptions[0].FormatCode = fc.formatCode
 		for i, v := range values {
 			result := reflect.New(reflect.TypeOf(v))
-			err := conn.QueryRow("test", v).Scan(result.Interface())
+			err := conn.QueryRow("test", forceEncoder(v, fc.formatCode)).Scan(result.Interface())
 			if err != nil {
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}
 
-			if reflect.DeepEqual(result.Interface(), v) {
+			if !reflect.DeepEqual(result.Elem().Interface(), v) {
 				t.Errorf("%v %d: expected %v, got %v", fc.name, i, v, result.Interface())
 			}
 		}

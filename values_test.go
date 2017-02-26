@@ -18,24 +18,24 @@ func TestDateTranscode(t *testing.T) {
 	defer closeConn(t, conn)
 
 	dates := []time.Time{
-		time.Date(1, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1000, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1600, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1700, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1800, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local),
-		time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(2001, 1, 2, 0, 0, 0, 0, time.Local),
-		time.Date(2004, 2, 29, 0, 0, 0, 0, time.Local),
-		time.Date(2013, 7, 4, 0, 0, 0, 0, time.Local),
-		time.Date(2013, 12, 25, 0, 0, 0, 0, time.Local),
-		time.Date(2029, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(2081, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(2096, 2, 29, 0, 0, 0, 0, time.Local),
-		time.Date(2550, 1, 1, 0, 0, 0, 0, time.Local),
-		time.Date(9999, 12, 31, 0, 0, 0, 0, time.Local),
+		time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1600, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1700, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1800, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC),
+		time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2001, 1, 2, 0, 0, 0, 0, time.UTC),
+		time.Date(2004, 2, 29, 0, 0, 0, 0, time.UTC),
+		time.Date(2013, 7, 4, 0, 0, 0, 0, time.UTC),
+		time.Date(2013, 12, 25, 0, 0, 0, 0, time.UTC),
+		time.Date(2029, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2081, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2096, 2, 29, 0, 0, 0, 0, time.UTC),
+		time.Date(2550, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC),
 	}
 
 	for _, actualDate := range dates {
@@ -629,8 +629,8 @@ func TestNullX(t *testing.T) {
 		{"select $1::timestamptz", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
 		{"select $1::timestamp", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}},
 		{"select $1::timestamp", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
-		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}}},
-		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.Local), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
+		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}}},
+		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
 		{"select 42::int4, $1::float8", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.i32, &actual.f64}, allTypes{i32: pgx.NullInt32{Int32: 42, Valid: true}, f64: pgx.NullFloat64{Float64: 1.23, Valid: true}}},
 	}
 

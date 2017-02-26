@@ -16,6 +16,8 @@ func TestDateTranscode(t *testing.T) {
 		pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 		pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 		pgtype.Date{Status: pgtype.Null},
+		pgtype.Date{Status: pgtype.Present, InfinityModifier: pgtype.Infinity},
+		pgtype.Date{Status: pgtype.Present, InfinityModifier: -pgtype.Infinity},
 	})
 }
 
@@ -26,13 +28,13 @@ func TestDateConvertFrom(t *testing.T) {
 		source interface{}
 		result *pgtype.Date
 	}{
-		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC)}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC)}},
-		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: &pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}},
+		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: &pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: &pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
