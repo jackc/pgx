@@ -1,7 +1,10 @@
 package pgtype
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"unicode"
 
 	"github.com/jackc/pgx/pgio"
 )
@@ -90,4 +93,182 @@ func (ah *ArrayHeader) EncodeBinary(w io.Writer) error {
 	}
 
 	return nil
+}
+
+type UntypedTextArray struct {
+	Elements   []string
+	Dimensions []ArrayDimension
+}
+
+func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
+	uta := &UntypedTextArray{}
+
+	buf := bytes.NewBufferString(src)
+
+	skipWhitespace(buf)
+
+	r, _, err := buf.ReadRune()
+	if err != nil {
+		return nil, fmt.Errorf("invalid array: %v", err)
+	}
+
+	var explicitBounds bool
+	// Array has explicit bounds
+	if r == '[' {
+
+	}
+
+	// Parse values
+	if r != '{' {
+		return nil, fmt.Errorf("invalid array, expected '{': %v", err)
+	}
+	if !explicitBounds {
+		uta.Dimensions = append(uta.Dimensions, ArrayDimension{LowerBound: 1})
+	}
+	currentDimension := 0
+
+	for currentDimension >= 0 {
+
+	}
+
+	switch r {
+	case '(':
+		utr.LowerType = Exclusive
+	case '[':
+		utr.LowerType = Inclusive
+	default:
+		return nil, fmt.Errorf("missing lower bound, instead got: %v", string(r))
+	}
+
+	r, _, err = buf.ReadRune()
+	if err != nil {
+		return nil, fmt.Errorf("invalid lower value: %v", err)
+	}
+	buf.UnreadRune()
+
+	if r == ',' {
+		utr.LowerType = Unbounded
+	} else {
+		utr.Lower, err = rangeParseValue(buf)
+		if err != nil {
+			return nil, fmt.Errorf("invalid lower value: %v", err)
+		}
+	}
+
+	r, _, err = buf.ReadRune()
+	if err != nil {
+		return nil, fmt.Errorf("missing range separator: %v", err)
+	}
+	if r != ',' {
+		return nil, fmt.Errorf("missing range separator: %v", r)
+	}
+
+	r, _, err = buf.ReadRune()
+	if err != nil {
+		return nil, fmt.Errorf("invalid upper value: %v", err)
+	}
+	buf.UnreadRune()
+
+	if r == ')' || r == ']' {
+		utr.UpperType = Unbounded
+	} else {
+		utr.Upper, err = rangeParseValue(buf)
+		if err != nil {
+			return nil, fmt.Errorf("invalid upper value: %v", err)
+		}
+	}
+
+	r, _, err = buf.ReadRune()
+	if err != nil {
+		return nil, fmt.Errorf("missing upper bound: %v", err)
+	}
+	switch r {
+	case ')':
+		utr.UpperType = Exclusive
+	case ']':
+		utr.UpperType = Inclusive
+	default:
+		return nil, fmt.Errorf("missing upper bound, instead got: %v", string(r))
+	}
+
+	skipWhitespace(buf)
+
+	if buf.Len() > 0 {
+		return nil, fmt.Errorf("unexpected trailing data: %v", buf.String())
+	}
+
+	return utr, nil
+}
+
+func skipWhitespace(buf *bytes.Buffer) {
+	var r rune
+	var err error
+	for r, _, _ = buf.ReadRune(); unicode.IsSpace(r); r, _, _ = buf.ReadRune() {
+	}
+
+	if err != io.EOF {
+		buf.UnreadRune()
+	}
+}
+
+func rangeParseValue(buf *bytes.Buffer) (string, error) {
+	r, _, err := buf.ReadRune()
+	if err != nil {
+		return "", err
+	}
+	if r == '"' {
+		return rangeParseQuotedValue(buf)
+	}
+	buf.UnreadRune()
+
+	s := &bytes.Buffer{}
+
+	for {
+		r, _, err := buf.ReadRune()
+		if err != nil {
+			return "", err
+		}
+
+		switch r {
+		case '\\':
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return "", err
+			}
+		case ',', '[', ']', '(', ')':
+			buf.UnreadRune()
+			return s.String(), nil
+		}
+
+		s.WriteRune(r)
+	}
+}
+
+func rangeParseQuotedValue(buf *bytes.Buffer) (string, error) {
+	s := &bytes.Buffer{}
+
+	for {
+		r, _, err := buf.ReadRune()
+		if err != nil {
+			return "", err
+		}
+
+		switch r {
+		case '\\':
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return "", err
+			}
+		case '"':
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return "", err
+			}
+			if r != '"' {
+				buf.UnreadRune()
+				return s.String(), nil
+			}
+		}
+		s.WriteRune(r)
+	}
 }
