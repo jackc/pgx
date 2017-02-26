@@ -2038,7 +2038,12 @@ func encodeTime(w *WriteBuf, oid OID, value time.Time) error {
 		}
 		return d.EncodeBinary(w)
 	case TimestampTzOID, TimestampOID:
-		return pgtype.TimestamptzFromTime(value).EncodeBinary(w)
+		var t pgtype.Timestamptz
+		err := t.ConvertFrom(value)
+		if err != nil {
+			return err
+		}
+		return t.EncodeBinary(w)
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "time.Time", oid)
 	}
@@ -2078,7 +2083,12 @@ func decodeTimestampTz(vr *ValueReader) time.Time {
 		return time.Time{}
 	}
 
-	return t.Time()
+	if t.Status == pgtype.Null {
+		vr.Fatal(ProtocolError("Cannot decode null into time.Time"))
+		return time.Time{}
+	}
+
+	return t.Time
 }
 
 func decodeTimestamp(vr *ValueReader) time.Time {

@@ -62,6 +62,12 @@ func forceEncoder(e interface{}, formatCode int16) interface{} {
 }
 
 func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface{}) {
+	testSuccessfulTranscodeEqFunc(t, pgTypeName, values, func(a, b interface{}) bool {
+		return reflect.DeepEqual(a, b)
+	})
+}
+
+func testSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	conn := mustConnectPgx(t)
 	defer mustClose(t, conn)
 
@@ -87,7 +93,7 @@ func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}
 
-			if !reflect.DeepEqual(result.Elem().Interface(), v) {
+			if !eqFunc(result.Elem().Interface(), v) {
 				t.Errorf("%v %d: expected %v, got %v", fc.name, i, v, result.Interface())
 			}
 		}
