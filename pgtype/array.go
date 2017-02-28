@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"unicode"
 
 	"github.com/jackc/pgx/pgio"
@@ -118,17 +119,64 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 
 	// Array has explicit dimensions
 	if r == '[' {
-		// TODO - parse explicit dimensions
-		panic(explicitDimensions)
+		buf.UnreadRune()
+
+		for {
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return nil, fmt.Errorf("invalid array: %v", err)
+			}
+
+			if r == '=' {
+				break
+			} else if r != '[' {
+				return nil, fmt.Errorf("invalid array, expected '[' or '=' got %v", r)
+			}
+
+			lower, err := arrayParseInteger(buf)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array: %v", err)
+			}
+
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return nil, fmt.Errorf("invalid array: %v", err)
+			}
+
+			if r != ':' {
+				return nil, fmt.Errorf("invalid array, expected ':' got %v", r)
+			}
+
+			upper, err := arrayParseInteger(buf)
+			if err != nil {
+				return nil, fmt.Errorf("invalid array: %v", err)
+			}
+
+			r, _, err = buf.ReadRune()
+			if err != nil {
+				return nil, fmt.Errorf("invalid array: %v", err)
+			}
+
+			if r != ']' {
+				return nil, fmt.Errorf("invalid array, expected ']' got %v", r)
+			}
+
+			explicitDimensions = append(explicitDimensions, ArrayDimension{LowerBound: lower, Length: upper - lower + 1})
+		}
+
+		r, _, err = buf.ReadRune()
+		if err != nil {
+			return nil, fmt.Errorf("invalid array: %v", err)
+		}
 	}
 
-	// Consume all initial opening brackets. This provides number of dimensions.
-	var implicitDimensions []ArrayDimension
 	if r != '{' {
 		return nil, fmt.Errorf("invalid array, expected '{': %v", err)
 	}
-	buf.UnreadRune()
 
+	implicitDimensions := []ArrayDimension{{LowerBound: 1, Length: 0}}
+
+	// Consume all initial opening brackets. This provides number of dimensions.
 	for {
 		r, _, err = buf.ReadRune()
 		if err != nil {
@@ -136,6 +184,7 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 		}
 
 		if r == '{' {
+			implicitDimensions[len(implicitDimensions)-1].Length = 1
 			implicitDimensions = append(implicitDimensions, ArrayDimension{LowerBound: 1})
 		} else {
 			buf.UnreadRune()
@@ -144,9 +193,6 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 	}
 	currentDim := len(implicitDimensions) - 1
 	counterDim := currentDim
-	elemCount := 0
-
-	fmt.Println("-------", currentDim, buf.String())
 
 	for {
 		r, _, err = buf.ReadRune()
@@ -156,30 +202,24 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 
 		switch r {
 		case '{':
-			fmt.Println("{", buf.String())
-
-			if counterDim == currentDim {
-				elemCount++
+			if currentDim == counterDim {
+				implicitDimensions[currentDim].Length++
 			}
 			currentDim++
 		case ',':
 		case '}':
-			fmt.Println("}", buf.String())
-			if counterDim == currentDim {
-				implicitDimensions[counterDim].Length = int32(elemCount)
-				elemCount = 0
-			}
-
 			currentDim--
+			if currentDim < counterDim {
+				counterDim = currentDim
+			}
 		default:
 			buf.UnreadRune()
-			fmt.Println("default", buf.String())
 			value, err := arrayParseValue(buf)
 			if err != nil {
 				return nil, fmt.Errorf("invalid array value: %v", err)
 			}
-			if counterDim == currentDim {
-				elemCount++
+			if currentDim == counterDim {
+				implicitDimensions[currentDim].Length++
 			}
 			uta.Elements = append(uta.Elements, value)
 		}
@@ -187,7 +227,6 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 		if currentDim < 0 {
 			break
 		}
-
 	}
 
 	skipWhitespace(buf)
@@ -271,5 +310,27 @@ func arrayParseQuotedValue(buf *bytes.Buffer) (string, error) {
 			return s.String(), nil
 		}
 		s.WriteRune(r)
+	}
+}
+
+func arrayParseInteger(buf *bytes.Buffer) (int32, error) {
+	s := &bytes.Buffer{}
+
+	for {
+		r, _, err := buf.ReadRune()
+		if err != nil {
+			return 0, err
+		}
+
+		if '0' <= r && r <= '9' {
+			s.WriteRune(r)
+		} else {
+			buf.UnreadRune()
+			n, err := strconv.ParseInt(s.String(), 10, 32)
+			if err != nil {
+				return 0, err
+			}
+			return int32(n), nil
+		}
 	}
 }

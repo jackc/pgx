@@ -47,6 +47,41 @@ func TestParseUntypedTextArray(t *testing.T) {
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
 			},
 		},
+		{
+			source: "{{a,b},{c,d},{e,f}}",
+			result: pgtype.UntypedTextArray{
+				Elements:   []string{"a", "b", "c", "d", "e", "f"},
+				Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
+			},
+		},
+		{
+			source: "{{{a,b},{c,d},{e,f}},{{a,b},{c,d},{e,f}}}",
+			result: pgtype.UntypedTextArray{
+				Elements: []string{"a", "b", "c", "d", "e", "f", "a", "b", "c", "d", "e", "f"},
+				Dimensions: []pgtype.ArrayDimension{
+					{Length: 2, LowerBound: 1},
+					{Length: 3, LowerBound: 1},
+					{Length: 2, LowerBound: 1},
+				},
+			},
+		},
+		{
+			source: "[4:4]={1}",
+			result: pgtype.UntypedTextArray{
+				Elements:   []string{"1"},
+				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 4}},
+			},
+		},
+		{
+			source: "[4:5][2:3]={{a,b},{c,d}}",
+			result: pgtype.UntypedTextArray{
+				Elements: []string{"a", "b", "c", "d"},
+				Dimensions: []pgtype.ArrayDimension{
+					{Length: 2, LowerBound: 4},
+					{Length: 2, LowerBound: 2},
+				},
+			},
+		},
 	}
 
 	for i, tt := range tests {
