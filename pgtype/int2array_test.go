@@ -22,6 +22,31 @@ func TestInt2ArrayTranscode(t *testing.T) {
 			Status:     pgtype.Present,
 		},
 		&pgtype.Int2Array{Status: pgtype.Null},
+		&pgtype.Int2Array{
+			Elements: []pgtype.Int2{
+				pgtype.Int2{Int: 1, Status: pgtype.Present},
+				pgtype.Int2{Int: 2, Status: pgtype.Present},
+				pgtype.Int2{Int: 3, Status: pgtype.Present},
+				pgtype.Int2{Int: 4, Status: pgtype.Present},
+				pgtype.Int2{Status: pgtype.Null},
+				pgtype.Int2{Int: 6, Status: pgtype.Present},
+			},
+			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
+			Status:     pgtype.Present,
+		},
+		&pgtype.Int2Array{
+			Elements: []pgtype.Int2{
+				pgtype.Int2{Int: 1, Status: pgtype.Present},
+				pgtype.Int2{Int: 2, Status: pgtype.Present},
+				pgtype.Int2{Int: 3, Status: pgtype.Present},
+				pgtype.Int2{Int: 4, Status: pgtype.Present},
+			},
+			Dimensions: []pgtype.ArrayDimension{
+				{Length: 2, LowerBound: 4},
+				{Length: 2, LowerBound: 2},
+			},
+			Status: pgtype.Present,
+		},
 	})
 }
 

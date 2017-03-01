@@ -102,9 +102,7 @@ type UntypedTextArray struct {
 }
 
 func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
-	uta := &UntypedTextArray{
-		Elements: []string{},
-	}
+	uta := &UntypedTextArray{}
 
 	buf := bytes.NewBufferString(src)
 
@@ -235,13 +233,12 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 		return nil, fmt.Errorf("unexpected trailing data: %v", buf.String())
 	}
 
-	if len(explicitDimensions) > 0 {
+	if len(uta.Elements) == 0 {
+		uta.Dimensions = nil
+	} else if len(explicitDimensions) > 0 {
 		uta.Dimensions = explicitDimensions
 	} else {
 		uta.Dimensions = implicitDimensions
-		if len(uta.Dimensions) == 1 && uta.Dimensions[0].Length == 0 {
-			uta.Dimensions = []ArrayDimension{}
-		}
 	}
 
 	return uta, nil
@@ -333,4 +330,46 @@ func arrayParseInteger(buf *bytes.Buffer) (int32, error) {
 			return int32(n), nil
 		}
 	}
+}
+
+func EncodeTextArrayDimensions(w io.Writer, dimensions []ArrayDimension) error {
+	var customDimensions bool
+	for _, dim := range dimensions {
+		if dim.LowerBound != 1 {
+			customDimensions = true
+		}
+	}
+
+	if !customDimensions {
+		return nil
+	}
+
+	for _, dim := range dimensions {
+		err := pgio.WriteByte(w, '[')
+		if err != nil {
+			return err
+		}
+
+		_, err = io.WriteString(w, strconv.FormatInt(int64(dim.LowerBound), 10))
+		if err != nil {
+			return err
+		}
+
+		err = pgio.WriteByte(w, ':')
+		if err != nil {
+			return err
+		}
+
+		_, err = io.WriteString(w, strconv.FormatInt(int64(dim.LowerBound+dim.Length-1), 10))
+		if err != nil {
+			return err
+		}
+
+		err = pgio.WriteByte(w, ']')
+		if err != nil {
+			return err
+		}
+	}
+
+	return pgio.WriteByte(w, '=')
 }

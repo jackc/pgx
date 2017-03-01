@@ -80,7 +80,7 @@ func testSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []int
 		name       string
 		formatCode int16
 	}{
-		// {name: "TextFormat", formatCode: pgx.TextFormatCode},
+		{name: "TextFormat", formatCode: pgx.TextFormatCode},
 		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
 	}
 
