@@ -50,10 +50,7 @@ func (b *Bool) AssignTo(dst interface{}) error {
 			// if dst is a pointer to pointer, strip the pointer and try again
 			case reflect.Ptr:
 				if b.Status == Null {
-					if !el.IsNil() {
-						// if the destination pointer is not nil, nil it out
-						el.Set(reflect.Zero(el.Type()))
-					}
+					el.Set(reflect.Zero(el.Type()))
 					return nil
 				}
 				if el.IsNil() {
