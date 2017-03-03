@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/jackc/pgx/pgio"
@@ -14,6 +15,52 @@ type Int2Array struct {
 }
 
 func (a *Int2Array) ConvertFrom(src interface{}) error {
+	switch value := src.(type) {
+	case Int2Array:
+		*a = value
+	case []int16:
+		if value == nil {
+			*a = Int2Array{Status: Null}
+		} else if len(value) == 0 {
+			*a = Int2Array{Status: Present}
+		} else {
+			elements := make([]Int2, len(value))
+			for i := range value {
+				if err := elements[i].ConvertFrom(value[i]); err != nil {
+					return err
+				}
+			}
+			*a = Int2Array{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+	case []uint16:
+		if value == nil {
+			*a = Int2Array{Status: Null}
+		} else if len(value) == 0 {
+			*a = Int2Array{Status: Present}
+		} else {
+			elements := make([]Int2, len(value))
+			for i := range value {
+				if err := elements[i].ConvertFrom(value[i]); err != nil {
+					return err
+				}
+			}
+			*a = Int2Array{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+	default:
+		if originalSrc, ok := underlyingSliceType(src); ok {
+			return a.ConvertFrom(originalSrc)
+		}
+		return fmt.Errorf("cannot convert %v to Int2", value)
+	}
+
 	return nil
 }
 

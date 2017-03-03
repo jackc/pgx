@@ -93,3 +93,25 @@ func underlyingTimeType(val interface{}) (interface{}, bool) {
 
 	return time.Time{}, false
 }
+
+// underlyingSliceType gets the underlying slice type
+func underlyingSliceType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return nil, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	case reflect.Slice:
+		baseSliceType := reflect.SliceOf(refVal.Type().Elem())
+		if refVal.Type().ConvertibleTo(baseSliceType) {
+			convVal := refVal.Convert(baseSliceType)
+			return convVal.Interface(), reflect.TypeOf(convVal.Interface()) != refVal.Type()
+		}
+	}
+
+	return nil, false
+}
