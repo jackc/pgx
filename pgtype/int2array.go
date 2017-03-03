@@ -14,15 +14,15 @@ type Int2Array struct {
 	Status     Status
 }
 
-func (a *Int2Array) ConvertFrom(src interface{}) error {
+func (dst *Int2Array) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int2Array:
-		*a = value
+		*dst = value
 	case []int16:
 		if value == nil {
-			*a = Int2Array{Status: Null}
+			*dst = Int2Array{Status: Null}
 		} else if len(value) == 0 {
-			*a = Int2Array{Status: Present}
+			*dst = Int2Array{Status: Present}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -30,7 +30,7 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 					return err
 				}
 			}
-			*a = Int2Array{
+			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -38,9 +38,9 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 		}
 	case []uint16:
 		if value == nil {
-			*a = Int2Array{Status: Null}
+			*dst = Int2Array{Status: Null}
 		} else if len(value) == 0 {
-			*a = Int2Array{Status: Present}
+			*dst = Int2Array{Status: Present}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -48,7 +48,7 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 					return err
 				}
 			}
-			*a = Int2Array{
+			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -56,7 +56,7 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return a.ConvertFrom(originalSrc)
+			return dst.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int2", value)
 	}
@@ -64,13 +64,13 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 	return nil
 }
 
-func (a *Int2Array) AssignTo(dst interface{}) error {
+func (src *Int2Array) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 	case *[]int16:
-		if a.Status == Present {
-			*v = make([]int16, len(a.Elements))
-			for i := range a.Elements {
-				if err := a.Elements[i].AssignTo(&((*v)[i])); err != nil {
+		if src.Status == Present {
+			*v = make([]int16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
 				}
 			}
@@ -78,10 +78,10 @@ func (a *Int2Array) AssignTo(dst interface{}) error {
 			*v = nil
 		}
 	case *[]uint16:
-		if a.Status == Present {
-			*v = make([]uint16, len(a.Elements))
-			for i := range a.Elements {
-				if err := a.Elements[i].AssignTo(&((*v)[i])); err != nil {
+		if src.Status == Present {
+			*v = make([]uint16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
 				}
 			}
@@ -89,20 +89,20 @@ func (a *Int2Array) AssignTo(dst interface{}) error {
 			*v = nil
 		}
 	default:
-		return fmt.Errorf("cannot put decode %v into %T", a, dst)
+		return fmt.Errorf("cannot put decode %v into %T", src, dst)
 	}
 
 	return nil
 }
 
-func (a *Int2Array) DecodeText(r io.Reader) error {
+func (dst *Int2Array) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*a = Int2Array{Status: Null}
+		*dst = Int2Array{Status: Null}
 		return nil
 	}
 
@@ -135,19 +135,19 @@ func (a *Int2Array) DecodeText(r io.Reader) error {
 		}
 	}
 
-	*a = Int2Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = Int2Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (a *Int2Array) DecodeBinary(r io.Reader) error {
+func (dst *Int2Array) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*a = Int2Array{Status: Null}
+		*dst = Int2Array{Status: Null}
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (a *Int2Array) DecodeBinary(r io.Reader) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*a = Int2Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = Int2Array{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -176,16 +176,16 @@ func (a *Int2Array) DecodeBinary(r io.Reader) error {
 		}
 	}
 
-	*a = Int2Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = Int2Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (a *Int2Array) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, a.Status); done {
+func (src *Int2Array) EncodeText(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
-	if len(a.Dimensions) == 0 {
+	if len(src.Dimensions) == 0 {
 		_, err := pgio.WriteInt32(w, 2)
 		if err != nil {
 			return err
@@ -197,7 +197,7 @@ func (a *Int2Array) EncodeText(w io.Writer) error {
 
 	buf := &bytes.Buffer{}
 
-	err := EncodeTextArrayDimensions(buf, a.Dimensions)
+	err := EncodeTextArrayDimensions(buf, src.Dimensions)
 	if err != nil {
 		return err
 	}
@@ -207,15 +207,15 @@ func (a *Int2Array) EncodeText(w io.Writer) error {
 	// [4]. A multi-dimensional array of lengths [3,5,2] would have a
 	// dimElemCounts of [30,10,2]. This is used to simplify when to render a '{'
 	// or '}'.
-	dimElemCounts := make([]int, len(a.Dimensions))
-	dimElemCounts[len(a.Dimensions)-1] = int(a.Dimensions[len(a.Dimensions)-1].Length)
-	for i := len(a.Dimensions) - 2; i > -1; i-- {
-		dimElemCounts[i] = int(a.Dimensions[i].Length) * dimElemCounts[i+1]
+	dimElemCounts := make([]int, len(src.Dimensions))
+	dimElemCounts[len(src.Dimensions)-1] = int(src.Dimensions[len(src.Dimensions)-1].Length)
+	for i := len(src.Dimensions) - 2; i > -1; i-- {
+		dimElemCounts[i] = int(src.Dimensions[i].Length) * dimElemCounts[i+1]
 	}
 
 	textElementWriter := NewTextElementWriter(buf)
 
-	for i, elem := range a.Elements {
+	for i, elem := range src.Elements {
 		if i > 0 {
 			err = pgio.WriteByte(buf, ',')
 			if err != nil {
@@ -257,8 +257,8 @@ func (a *Int2Array) EncodeText(w io.Writer) error {
 	return err
 }
 
-func (a *Int2Array) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, a.Status); done {
+func (src *Int2Array) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
@@ -268,18 +268,18 @@ func (a *Int2Array) EncodeBinary(w io.Writer) error {
 	// or how not pay allocations for the byte order conversions.
 	elemBuf := &bytes.Buffer{}
 
-	for i := range a.Elements {
-		err := a.Elements[i].EncodeBinary(elemBuf)
+	for i := range src.Elements {
+		err := src.Elements[i].EncodeBinary(elemBuf)
 		if err != nil {
 			return err
 		}
-		if a.Elements[i].Status == Null {
+		if src.Elements[i].Status == Null {
 			arrayHeader.ContainsNull = true
 		}
 	}
 
 	arrayHeader.ElementOID = Int2OID
-	arrayHeader.Dimensions = a.Dimensions
+	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -
 	// or how not pay allocations for the byte order conversions.
