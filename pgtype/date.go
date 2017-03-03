@@ -39,7 +39,7 @@ func (d *Date) ConvertFrom(src interface{}) error {
 func (d *Date) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 	case *time.Time:
-		if d.Status != Present {
+		if d.Status != Present || d.InfinityModifier != None {
 			return fmt.Errorf("cannot assign %v to %T", d, dst)
 		}
 		*v = d.Time
