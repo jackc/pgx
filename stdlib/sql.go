@@ -320,7 +320,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 	}
 
-	values, err := r.rows.Values()
+	values, err := r.rows.ValuesForStdlib()
 	if err != nil {
 		return err
 	}

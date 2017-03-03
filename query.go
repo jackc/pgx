@@ -439,6 +439,99 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	return values, rows.Err()
 }
 
+// ValuesForStdlib is a temporary function to keep all systems operational
+// while refactoring. Do not use.
+func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
+	if rows.closed {
+		return nil, errors.New("rows is closed")
+	}
+
+	values := make([]interface{}, 0, len(rows.fields))
+
+	for range rows.fields {
+		vr, _ := rows.nextColumn()
+
+		if vr.Len() == -1 {
+			values = append(values, nil)
+			continue
+		}
+		// TODO - consider what are the implications of returning complex types since database/sql uses this method
+		switch vr.Type().FormatCode {
+		// All intrinsic types (except string) are encoded with binary
+		// encoding so anything else should be treated as a string
+		case TextFormatCode:
+			values = append(values, vr.ReadString(vr.Len()))
+		case BinaryFormatCode:
+			switch vr.Type().DataType {
+			case TextOID, VarcharOID:
+				values = append(values, decodeText(vr))
+			case BoolOID:
+				values = append(values, decodeBool(vr))
+			case ByteaOID:
+				values = append(values, decodeBytea(vr))
+			case Int8OID:
+				values = append(values, decodeInt8(vr))
+			case Int2OID:
+				values = append(values, decodeInt2(vr))
+			case Int4OID:
+				values = append(values, decodeInt4(vr))
+			case OIDOID:
+				values = append(values, decodeOID(vr))
+			case Float4OID:
+				values = append(values, decodeFloat4(vr))
+			case Float8OID:
+				values = append(values, decodeFloat8(vr))
+			case BoolArrayOID:
+				values = append(values, decodeBoolArray(vr))
+			case Int2ArrayOID:
+				values = append(values, decodeInt2Array(vr))
+			case Int4ArrayOID:
+				values = append(values, decodeInt4Array(vr))
+			case Int8ArrayOID:
+				values = append(values, decodeInt8Array(vr))
+			case Float4ArrayOID:
+				values = append(values, decodeFloat4Array(vr))
+			case Float8ArrayOID:
+				values = append(values, decodeFloat8Array(vr))
+			case TextArrayOID, VarcharArrayOID:
+				values = append(values, decodeTextArray(vr))
+			case TimestampArrayOID, TimestampTzArrayOID:
+				values = append(values, decodeTimestampArray(vr))
+			case DateOID:
+				values = append(values, decodeDate(vr))
+			case TimestampTzOID:
+				values = append(values, decodeTimestampTz(vr))
+			case TimestampOID:
+				values = append(values, decodeTimestamp(vr))
+			case InetOID, CidrOID:
+				values = append(values, decodeInet(vr))
+			case JSONOID:
+				var d interface{}
+				decodeJSON(vr, &d)
+				values = append(values, d)
+			case JSONBOID:
+				var d interface{}
+				decodeJSONB(vr, &d)
+				values = append(values, d)
+			default:
+				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
+			}
+		default:
+			rows.Fatal(errors.New("Unknown format code"))
+		}
+
+		if vr.Err() != nil {
+			rows.Fatal(vr.Err())
+		}
+
+		if rows.Err() != nil {
+			return nil, rows.Err()
+		}
+	}
+
+	return values, rows.Err()
+}
+
 // AfterClose adds f to a LILO queue of functions that will be called when
 // rows is closed.
 func (rows *Rows) AfterClose(f func(*Rows)) {
