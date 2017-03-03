@@ -7,8 +7,6 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-type _bool bool
-
 func TestBoolTranscode(t *testing.T) {
 	testSuccessfulTranscode(t, "bool", []interface{}{
 		pgtype.Bool{Bool: false, Status: pgtype.Present},
