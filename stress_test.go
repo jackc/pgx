@@ -96,42 +96,6 @@ func TestStressConnPool(t *testing.T) {
 	}
 }
 
-func TestStressTLSConnection(t *testing.T) {
-	t.Parallel()
-
-	if tlsConnConfig == nil {
-		t.Skip("Skipping due to undefined tlsConnConfig")
-	}
-
-	if testing.Short() {
-		t.Skip("Skipping due to testing -short")
-	}
-
-	conn, err := pgx.Connect(*tlsConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-	defer conn.Close()
-
-	for i := 0; i < 50; i++ {
-		sql := `select * from generate_series(1, $1)`
-
-		rows, err := conn.Query(sql, 2000000)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var n int32
-		for rows.Next() {
-			rows.Scan(&n)
-		}
-
-		if rows.Err() != nil {
-			t.Fatalf("queryCount: %d, Row number: %d. %v", i, n, rows.Err())
-		}
-	}
-}
-
 func setupStressDB(t *testing.T, pool *pgx.ConnPool) {
 	_, err := pool.Exec(`
 		drop table if exists widgets;
