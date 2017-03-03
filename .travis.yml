@@ -54,7 +54,7 @@ install:
   - go get -u github.com/jackc/pgmock/pgmsg
 
 script:
-  - go test -v -race -short ./...
+  - go test -v -race ./...
 
 matrix:
   allow_failures:
