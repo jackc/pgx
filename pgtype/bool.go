@@ -14,21 +14,21 @@ type Bool struct {
 	Status Status
 }
 
-func (b *Bool) ConvertFrom(src interface{}) error {
+func (dst *Bool) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Bool:
-		*b = value
+		*dst = value
 	case bool:
-		*b = Bool{Bool: value, Status: Present}
+		*dst = Bool{Bool: value, Status: Present}
 	case string:
 		bb, err := strconv.ParseBool(value)
 		if err != nil {
 			return err
 		}
-		*b = Bool{Bool: bb, Status: Present}
+		*dst = Bool{Bool: bb, Status: Present}
 	default:
 		if originalSrc, ok := underlyingBoolType(src); ok {
-			return b.ConvertFrom(originalSrc)
+			return dst.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Bool", value)
 	}
@@ -36,20 +36,20 @@ func (b *Bool) ConvertFrom(src interface{}) error {
 	return nil
 }
 
-func (b *Bool) AssignTo(dst interface{}) error {
+func (src *Bool) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 	case *bool:
-		if b.Status != Present {
-			return fmt.Errorf("cannot assign %v to %T", b, dst)
+		if src.Status != Present {
+			return fmt.Errorf("cannot assign %v to %T", src, dst)
 		}
-		*v = b.Bool
+		*v = src.Bool
 	default:
 		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 			el := v.Elem()
 			switch el.Kind() {
 			// if dst is a pointer to pointer, strip the pointer and try again
 			case reflect.Ptr:
-				if b.Status == Null {
+				if src.Status == Null {
 					el.Set(reflect.Zero(el.Type()))
 					return nil
 				}
@@ -57,29 +57,29 @@ func (b *Bool) AssignTo(dst interface{}) error {
 					// allocate destination
 					el.Set(reflect.New(el.Type().Elem()))
 				}
-				return b.AssignTo(el.Interface())
+				return src.AssignTo(el.Interface())
 			case reflect.Bool:
-				if b.Status != Present {
-					return fmt.Errorf("cannot assign %v to %T", b, dst)
+				if src.Status != Present {
+					return fmt.Errorf("cannot assign %v to %T", src, dst)
 				}
-				el.SetBool(b.Bool)
+				el.SetBool(src.Bool)
 				return nil
 			}
 		}
-		return fmt.Errorf("cannot put decode %v into %T", b, dst)
+		return fmt.Errorf("cannot put decode %v into %T", src, dst)
 	}
 
 	return nil
 }
 
-func (b *Bool) DecodeText(r io.Reader) error {
+func (dst *Bool) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*b = Bool{Status: Null}
+		*dst = Bool{Status: Null}
 		return nil
 	}
 
@@ -92,18 +92,18 @@ func (b *Bool) DecodeText(r io.Reader) error {
 		return err
 	}
 
-	*b = Bool{Bool: byt == 't', Status: Present}
+	*dst = Bool{Bool: byt == 't', Status: Present}
 	return nil
 }
 
-func (b *Bool) DecodeBinary(r io.Reader) error {
+func (dst *Bool) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*b = Bool{Status: Null}
+		*dst = Bool{Status: Null}
 		return nil
 	}
 
@@ -116,12 +116,12 @@ func (b *Bool) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	*b = Bool{Bool: byt == 1, Status: Present}
+	*dst = Bool{Bool: byt == 1, Status: Present}
 	return nil
 }
 
-func (b Bool) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, b.Status); done {
+func (src Bool) EncodeText(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
@@ -131,7 +131,7 @@ func (b Bool) EncodeText(w io.Writer) error {
 	}
 
 	var buf []byte
-	if b.Bool {
+	if src.Bool {
 		buf = []byte{'t'}
 	} else {
 		buf = []byte{'f'}
@@ -141,8 +141,8 @@ func (b Bool) EncodeText(w io.Writer) error {
 	return err
 }
 
-func (b Bool) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, b.Status); done {
+func (src Bool) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
@@ -152,7 +152,7 @@ func (b Bool) EncodeBinary(w io.Writer) error {
 	}
 
 	var buf []byte
-	if b.Bool {
+	if src.Bool {
 		buf = []byte{1}
 	} else {
 		buf = []byte{0}

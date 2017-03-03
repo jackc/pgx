@@ -14,29 +14,29 @@ type Int8 struct {
 	Status Status
 }
 
-func (i *Int8) ConvertFrom(src interface{}) error {
+func (dst *Int8) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int8:
-		*i = value
+		*dst = value
 	case int8:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case uint8:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case int16:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case uint16:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case int32:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case uint32:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case int64:
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case uint64:
 		if value > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case int:
 		if int64(value) < math.MinInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
@@ -44,21 +44,21 @@ func (i *Int8) ConvertFrom(src interface{}) error {
 		if int64(value) > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case uint:
 		if uint64(value) > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*i = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Status: Present}
 	case string:
 		num, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-		*i = Int8{Int: num, Status: Present}
+		*dst = Int8{Int: num, Status: Present}
 	default:
 		if originalSrc, ok := underlyingIntType(src); ok {
-			return i.ConvertFrom(originalSrc)
+			return dst.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
@@ -66,18 +66,18 @@ func (i *Int8) ConvertFrom(src interface{}) error {
 	return nil
 }
 
-func (i *Int8) AssignTo(dst interface{}) error {
-	return int64AssignTo(int64(i.Int), i.Status, dst)
+func (src *Int8) AssignTo(dst interface{}) error {
+	return int64AssignTo(int64(src.Int), src.Status, dst)
 }
 
-func (i *Int8) DecodeText(r io.Reader) error {
+func (dst *Int8) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*i = Int8{Status: Null}
+		*dst = Int8{Status: Null}
 		return nil
 	}
 
@@ -92,18 +92,18 @@ func (i *Int8) DecodeText(r io.Reader) error {
 		return err
 	}
 
-	*i = Int8{Int: n, Status: Present}
+	*dst = Int8{Int: n, Status: Present}
 	return nil
 }
 
-func (i *Int8) DecodeBinary(r io.Reader) error {
+func (dst *Int8) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*i = Int8{Status: Null}
+		*dst = Int8{Status: Null}
 		return nil
 	}
 
@@ -116,16 +116,16 @@ func (i *Int8) DecodeBinary(r io.Reader) error {
 		return err
 	}
 
-	*i = Int8{Int: n, Status: Present}
+	*dst = Int8{Int: n, Status: Present}
 	return nil
 }
 
-func (i Int8) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, i.Status); done {
+func (src Int8) EncodeText(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
-	s := strconv.FormatInt(i.Int, 10)
+	s := strconv.FormatInt(src.Int, 10)
 	_, err := pgio.WriteInt32(w, int32(len(s)))
 	if err != nil {
 		return nil
@@ -134,8 +134,8 @@ func (i Int8) EncodeText(w io.Writer) error {
 	return err
 }
 
-func (i Int8) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, i.Status); done {
+func (src Int8) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
 
@@ -144,6 +144,6 @@ func (i Int8) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	_, err = pgio.WriteInt64(w, i.Int)
+	_, err = pgio.WriteInt64(w, src.Int)
 	return err
 }

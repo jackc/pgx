@@ -25,34 +25,34 @@ type ArrayDimension struct {
 	LowerBound int32
 }
 
-func (ah *ArrayHeader) DecodeBinary(r io.Reader) error {
+func (dst *ArrayHeader) DecodeBinary(r io.Reader) error {
 	numDims, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if numDims > 0 {
-		ah.Dimensions = make([]ArrayDimension, numDims)
+		dst.Dimensions = make([]ArrayDimension, numDims)
 	}
 
 	containsNull, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
-	ah.ContainsNull = containsNull == 1
+	dst.ContainsNull = containsNull == 1
 
-	ah.ElementOID, err = pgio.ReadInt32(r)
+	dst.ElementOID, err = pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
-	for i := range ah.Dimensions {
-		ah.Dimensions[i].Length, err = pgio.ReadInt32(r)
+	for i := range dst.Dimensions {
+		dst.Dimensions[i].Length, err = pgio.ReadInt32(r)
 		if err != nil {
 			return err
 		}
 
-		ah.Dimensions[i].LowerBound, err = pgio.ReadInt32(r)
+		dst.Dimensions[i].LowerBound, err = pgio.ReadInt32(r)
 		if err != nil {
 			return err
 		}
@@ -61,14 +61,14 @@ func (ah *ArrayHeader) DecodeBinary(r io.Reader) error {
 	return nil
 }
 
-func (ah *ArrayHeader) EncodeBinary(w io.Writer) error {
-	_, err := pgio.WriteInt32(w, int32(len(ah.Dimensions)))
+func (src *ArrayHeader) EncodeBinary(w io.Writer) error {
+	_, err := pgio.WriteInt32(w, int32(len(src.Dimensions)))
 	if err != nil {
 		return err
 	}
 
 	var containsNull int32
-	if ah.ContainsNull {
+	if src.ContainsNull {
 		containsNull = 1
 	}
 	_, err = pgio.WriteInt32(w, containsNull)
@@ -76,18 +76,18 @@ func (ah *ArrayHeader) EncodeBinary(w io.Writer) error {
 		return err
 	}
 
-	_, err = pgio.WriteInt32(w, ah.ElementOID)
+	_, err = pgio.WriteInt32(w, src.ElementOID)
 	if err != nil {
 		return err
 	}
 
-	for i := range ah.Dimensions {
-		_, err = pgio.WriteInt32(w, ah.Dimensions[i].Length)
+	for i := range src.Dimensions {
+		_, err = pgio.WriteInt32(w, src.Dimensions[i].Length)
 		if err != nil {
 			return err
 		}
 
-		_, err = pgio.WriteInt32(w, ah.Dimensions[i].LowerBound)
+		_, err = pgio.WriteInt32(w, src.Dimensions[i].LowerBound)
 		if err != nil {
 			return err
 		}
@@ -102,7 +102,7 @@ type UntypedTextArray struct {
 }
 
 func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
-	uta := &UntypedTextArray{}
+	dst := &UntypedTextArray{}
 
 	buf := bytes.NewBufferString(src)
 
@@ -219,7 +219,7 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 			if currentDim == counterDim {
 				implicitDimensions[currentDim].Length++
 			}
-			uta.Elements = append(uta.Elements, value)
+			dst.Elements = append(dst.Elements, value)
 		}
 
 		if currentDim < 0 {
@@ -233,15 +233,15 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 		return nil, fmt.Errorf("unexpected trailing data: %v", buf.String())
 	}
 
-	if len(uta.Elements) == 0 {
-		uta.Dimensions = nil
+	if len(dst.Elements) == 0 {
+		dst.Dimensions = nil
 	} else if len(explicitDimensions) > 0 {
-		uta.Dimensions = explicitDimensions
+		dst.Dimensions = explicitDimensions
 	} else {
-		uta.Dimensions = implicitDimensions
+		dst.Dimensions = implicitDimensions
 	}
 
-	return uta, nil
+	return dst, nil
 }
 
 func skipWhitespace(buf *bytes.Buffer) {
