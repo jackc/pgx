@@ -11,6 +11,11 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
+// Test for renamed types
+type _bool bool
+type _int8 int8
+type _int16 int16
+
 func mustConnectPgx(t testing.TB) *pgx.Conn {
 	config, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
 	if err != nil {
