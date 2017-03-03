@@ -111,7 +111,7 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	var s string
 
 	err := conn.QueryRow("select 1").Scan(&s)
-	if err == nil || !strings.Contains(err.Error(), "cannot decode binary value into string") {
+	if err == nil || !(strings.Contains(err.Error(), "cannot decode binary value into string") || strings.Contains(err.Error(), "cannot assign")) {
 		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
 	}
 
@@ -200,7 +200,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" {
+	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -542,7 +542,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		if err == nil {
 			t.Errorf("%d. Expected null to cause error, but it didn't (sql -> %v)", i, tt.sql)
 		}
-		if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
+		if err != nil && !strings.Contains(err.Error(), "Cannot decode null") && !strings.Contains(err.Error(), "cannot assign") {
 			t.Errorf(`%d. Expected null to cause error "Cannot decode null..." but it was %v (sql -> %v)`, i, err, tt.sql)
 		}
 
@@ -1018,7 +1018,7 @@ func TestQueryRowCoreInt16Slice(t *testing.T) {
 	if err == nil {
 		t.Error("Expected null to cause error when scanned into slice, but it didn't")
 	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
+	if err != nil && !(strings.Contains(err.Error(), "Cannot decode null") || strings.Contains(err.Error(), "cannot assign")) {
 		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
 	}
 

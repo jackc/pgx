@@ -3,6 +3,7 @@ package pgtype
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
@@ -36,6 +37,41 @@ func (b *Bool) ConvertFrom(src interface{}) error {
 }
 
 func (b *Bool) AssignTo(dst interface{}) error {
+	switch v := dst.(type) {
+	case *bool:
+		if b.Status != Present {
+			return fmt.Errorf("cannot assign %v to %T", b, dst)
+		}
+		*v = b.Bool
+	default:
+		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
+			el := v.Elem()
+			switch el.Kind() {
+			// if dst is a pointer to pointer, strip the pointer and try again
+			case reflect.Ptr:
+				if b.Status == Null {
+					if !el.IsNil() {
+						// if the destination pointer is not nil, nil it out
+						el.Set(reflect.Zero(el.Type()))
+					}
+					return nil
+				}
+				if el.IsNil() {
+					// allocate destination
+					el.Set(reflect.New(el.Type().Elem()))
+				}
+				return b.AssignTo(el.Interface())
+			case reflect.Bool:
+				if b.Status != Present {
+					return fmt.Errorf("cannot assign %v to %T", b, dst)
+				}
+				el.SetBool(b.Bool)
+				return nil
+			}
+		}
+		return fmt.Errorf("cannot put decode %v into %T", b, dst)
+	}
+
 	return nil
 }
 

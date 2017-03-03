@@ -65,6 +65,33 @@ func (a *Int2Array) ConvertFrom(src interface{}) error {
 }
 
 func (a *Int2Array) AssignTo(dst interface{}) error {
+	switch v := dst.(type) {
+	case *[]int16:
+		if a.Status == Present {
+			*v = make([]int16, len(a.Elements))
+			for i := range a.Elements {
+				if err := a.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+		} else {
+			*v = nil
+		}
+	case *[]uint16:
+		if a.Status == Present {
+			*v = make([]uint16, len(a.Elements))
+			for i := range a.Elements {
+				if err := a.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+		} else {
+			*v = nil
+		}
+	default:
+		return fmt.Errorf("cannot put decode %v into %T", a, dst)
+	}
+
 	return nil
 }
 

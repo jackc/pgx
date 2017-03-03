@@ -85,7 +85,7 @@ func (i *Int2) ConvertFrom(src interface{}) error {
 }
 
 func (i *Int2) AssignTo(dst interface{}) error {
-	return nil
+	return int64AssignTo(int64(i.Int), i.Status, dst)
 }
 
 func (i *Int2) DecodeText(r io.Reader) error {

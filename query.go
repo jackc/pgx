@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/jackc/pgx/pgtype"
 )
@@ -288,8 +289,39 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			d2 := d
 			decodeJSONB(vr, &d2)
 		} else {
-			if err := Decode(vr, d); err != nil {
-				rows.Fatal(scanArgError{col: i, err: err})
+			if pgVal, present := rows.conn.oidPgtypeValues[vr.Type().DataType]; present {
+				switch vr.Type().FormatCode {
+				case TextFormatCode:
+					if textDecoder, ok := pgVal.(pgtype.TextDecoder); ok {
+						vr.err = errRewoundLen
+						err = textDecoder.DecodeText(&valueReader2{vr})
+						if err != nil {
+							vr.Fatal(err)
+						}
+					} else {
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.TextDecoder", pgVal))
+					}
+				case BinaryFormatCode:
+					if binaryDecoder, ok := pgVal.(pgtype.BinaryDecoder); ok {
+						vr.err = errRewoundLen
+						err = binaryDecoder.DecodeBinary(&valueReader2{vr})
+						if err != nil {
+							vr.Fatal(err)
+						}
+					} else {
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.BinaryDecoder", pgVal))
+					}
+				default:
+					vr.Fatal(fmt.Errorf("unknown format code: %v", vr.Type().FormatCode))
+				}
+
+				if err := pgVal.AssignTo(d); err != nil {
+					vr.Fatal(err)
+				}
+			} else {
+				if err := Decode(vr, d); err != nil {
+					rows.Fatal(scanArgError{col: i, err: err})
+				}
 			}
 		}
 		if vr.Err() != nil {

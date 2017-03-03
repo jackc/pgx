@@ -3,6 +3,7 @@ package pgtype
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
@@ -36,6 +37,35 @@ func (d *Date) ConvertFrom(src interface{}) error {
 }
 
 func (d *Date) AssignTo(dst interface{}) error {
+	switch v := dst.(type) {
+	case *time.Time:
+		if d.Status != Present {
+			return fmt.Errorf("cannot assign %v to %T", d, dst)
+		}
+		*v = d.Time
+	default:
+		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
+			el := v.Elem()
+			switch el.Kind() {
+			// if dst is a pointer to pointer, strip the pointer and try again
+			case reflect.Ptr:
+				if d.Status == Null {
+					if !el.IsNil() {
+						// if the destination pointer is not nil, nil it out
+						el.Set(reflect.Zero(el.Type()))
+					}
+					return nil
+				}
+				if el.IsNil() {
+					// allocate destination
+					el.Set(reflect.New(el.Type().Elem()))
+				}
+				return d.AssignTo(el.Interface())
+			}
+		}
+		return fmt.Errorf("cannot decode %v into %T", d, dst)
+	}
+
 	return nil
 }
 
