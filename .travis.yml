@@ -27,6 +27,7 @@ before_install:
   - sudo /etc/init.d/postgresql restart
 
 env:
+  - DATABASE_URL=postgres://pgx_md5:secret@127.0.0.1/pgx_test
   matrix:
     - PGVERSION=9.6
     - PGVERSION=9.5
