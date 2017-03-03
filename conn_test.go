@@ -1,9 +1,9 @@
 package pgx_test
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
-	"golang.org/x/net/context"
 	"net"
 	"os"
 	"reflect"

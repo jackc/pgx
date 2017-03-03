@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -8,8 +9,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jackc/fake"
 	"github.com/jackc/pgx"

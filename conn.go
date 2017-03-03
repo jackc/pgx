@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
@@ -18,8 +19,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jackc/pgx/chunkreader"
 	"github.com/jackc/pgx/pgtype"

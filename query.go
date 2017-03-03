@@ -1,12 +1,11 @@
 package pgx
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/jackc/pgx/pgtype"
 )

@@ -1,8 +1,8 @@
 package pgx
 
 import (
+	"context"
 	"errors"
-	"golang.org/x/net/context"
 	"sync"
 	"time"
 )

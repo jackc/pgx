@@ -2,16 +2,14 @@ package pgx_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/jackc/pgx"
-
 	"github.com/shopspring/decimal"
 )
 
