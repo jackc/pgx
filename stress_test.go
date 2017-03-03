@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -52,13 +54,15 @@ func TestStressConnPool(t *testing.T) {
 		{"canceledExecContext", canceledExecContext},
 	}
 
-	var actionCount int
-
-	if testing.Short() {
-		actionCount = 1000
-	} else {
-		actionCount = 10000
+	actionCount := 1000
+	if s := os.Getenv("STRESS_FACTOR"); s != "" {
+		stressFactor, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			t.Fatalf("failed to parse STRESS_FACTOR: %v", s)
+		}
+		actionCount *= int(stressFactor)
 	}
+
 	workerCount := 16
 
 	workChan := make(chan int)
