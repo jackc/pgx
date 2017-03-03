@@ -3,10 +3,11 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"math/rand"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/jackc/fake"
 	"github.com/jackc/pgx"
@@ -23,6 +24,8 @@ type queryRower interface {
 }
 
 func TestStressConnPool(t *testing.T) {
+	t.Parallel()
+
 	maxConnections := 8
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
@@ -49,11 +52,12 @@ func TestStressConnPool(t *testing.T) {
 		{"canceledExecContext", canceledExecContext},
 	}
 
-	var timer *time.Timer
+	var actionCount int
+
 	if testing.Short() {
-		timer = time.NewTimer(5 * time.Second)
+		actionCount = 1000
 	} else {
-		timer = time.NewTimer(60 * time.Second)
+		actionCount = 10000
 	}
 	workerCount := 16
 
@@ -77,11 +81,8 @@ func TestStressConnPool(t *testing.T) {
 		go work()
 	}
 
-	var stop bool
-	for i := 0; !stop; i++ {
+	for i := 0; i < actionCount; i++ {
 		select {
-		case <-timer.C:
-			stop = true
 		case workChan <- i:
 		case err := <-errChan:
 			close(workChan)
