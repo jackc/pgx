@@ -2,10 +2,11 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"github.com/jackc/pgx"
 	"os"
-	"time"
+
+	"github.com/jackc/pgx"
 )
 
 var pool *pgx.ConnPool
@@ -58,10 +59,7 @@ func listen() {
 	conn.Listen("chat")
 
 	for {
-		notification, err := conn.WaitForNotification(time.Second)
-		if err == pgx.ErrNotificationTimeout {
-			continue
-		}
+		notification, err := conn.WaitForNotification(context.Background())
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
 			os.Exit(1)
