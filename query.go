@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"time"
+
+	"golang.org/x/net/context"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
@@ -219,6 +222,27 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
+		} else if s, ok := d.(ScannerV3); ok {
+			val, err := decodeByOID(vr)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+			err = s.ScanPgxV3(nil, val)
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
+			vr.err = errRewoundLen
+			err = s.DecodeBinary(&valueReader2{vr})
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
+		} else if s, ok := d.(pgtype.TextDecoder); ok && vr.Type().FormatCode == TextFormatCode {
+			vr.err = errRewoundLen
+			err = s.DecodeText(&valueReader2{vr})
+			if err != nil {
+				rows.Fatal(scanArgError{col: i, err: err})
+			}
 		} else if s, ok := d.(sql.Scanner); ok {
 			var val interface{}
 			if 0 <= vr.Len() {
@@ -265,8 +289,39 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			d2 := d
 			decodeJSONB(vr, &d2)
 		} else {
-			if err := Decode(vr, d); err != nil {
-				rows.Fatal(scanArgError{col: i, err: err})
+			if pgVal, present := rows.conn.oidPgtypeValues[vr.Type().DataType]; present {
+				switch vr.Type().FormatCode {
+				case TextFormatCode:
+					if textDecoder, ok := pgVal.(pgtype.TextDecoder); ok {
+						vr.err = errRewoundLen
+						err = textDecoder.DecodeText(&valueReader2{vr})
+						if err != nil {
+							vr.Fatal(err)
+						}
+					} else {
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.TextDecoder", pgVal))
+					}
+				case BinaryFormatCode:
+					if binaryDecoder, ok := pgVal.(pgtype.BinaryDecoder); ok {
+						vr.err = errRewoundLen
+						err = binaryDecoder.DecodeBinary(&valueReader2{vr})
+						if err != nil {
+							vr.Fatal(err)
+						}
+					} else {
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.BinaryDecoder", pgVal))
+					}
+				default:
+					vr.Fatal(fmt.Errorf("unknown format code: %v", vr.Type().FormatCode))
+				}
+
+				if err := pgVal.AssignTo(d); err != nil {
+					vr.Fatal(err)
+				}
+			} else {
+				if err := Decode(vr, d); err != nil {
+					rows.Fatal(scanArgError{col: i, err: err})
+				}
 			}
 		}
 		if vr.Err() != nil {
@@ -296,7 +351,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, nil)
 			continue
 		}
-
+		// TODO - consider what are the implications of returning complex types since database/sql uses this method
 		switch vr.Type().FormatCode {
 		// All intrinsic types (except string) are encoded with binary
 		// encoding so anything else should be treated as a string

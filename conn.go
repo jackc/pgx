@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"golang.org/x/net/context"
 	"io"
 	"net"
 	"net/url"
@@ -20,7 +19,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/jackc/pgx/chunkreader"
+	"github.com/jackc/pgx/pgtype"
 )
 
 const (
@@ -102,6 +104,8 @@ type Conn struct {
 	ctxInProgress bool
 	doneChan      chan struct{}
 	closedChan    chan error
+
+	oidPgtypeValues map[OID]pgtype.Value
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -274,6 +278,16 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.cancelQueryCompleted = make(chan struct{}, 1)
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
+
+	c.oidPgtypeValues = map[OID]pgtype.Value{
+		BoolOID:        &pgtype.Bool{},
+		DateOID:        &pgtype.Date{},
+		Int2OID:        &pgtype.Int2{},
+		Int2ArrayOID:   &pgtype.Int2Array{},
+		Int4OID:        &pgtype.Int4{},
+		Int8OID:        &pgtype.Int8{},
+		TimestampTzOID: &pgtype.Timestamptz{},
+	}
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
@@ -961,6 +975,10 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
+		case pgtype.BinaryEncoder:
+			wbuf.WriteInt16(BinaryFormatCode)
+		case pgtype.TextEncoder:
+			wbuf.WriteInt16(TextFormatCode)
 		case string, *string:
 			wbuf.WriteInt16(TextFormatCode)
 		default:
