@@ -1188,86 +1188,6 @@ func decodeByOID(vr *ValueReader) (interface{}, error) {
 // decoding to the built-in functionality.
 func Decode(vr *ValueReader, d interface{}) error {
 	switch v := d.(type) {
-	case *bool:
-		*v = decodeBool(vr)
-	case *int:
-		n := decodeInt(vr)
-		if n < int64(minInt) {
-			return fmt.Errorf("%d is less than minimum value for int", n)
-		} else if n > int64(maxInt) {
-			return fmt.Errorf("%d is greater than maximum value for int", n)
-		}
-		*v = int(n)
-	case *int8:
-		n := decodeInt(vr)
-		if n < math.MinInt8 {
-			return fmt.Errorf("%d is less than minimum value for int8", n)
-		} else if n > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for int8", n)
-		}
-		*v = int8(n)
-	case *int16:
-		n := decodeInt(vr)
-		if n < math.MinInt16 {
-			return fmt.Errorf("%d is less than minimum value for int16", n)
-		} else if n > math.MaxInt16 {
-			return fmt.Errorf("%d is greater than maximum value for int16", n)
-		}
-		*v = int16(n)
-	case *int32:
-		n := decodeInt(vr)
-		if n < math.MinInt32 {
-			return fmt.Errorf("%d is less than minimum value for int32", n)
-		} else if n > math.MaxInt32 {
-			return fmt.Errorf("%d is greater than maximum value for int32", n)
-		}
-		*v = int32(n)
-	case *int64:
-		n := decodeInt(vr)
-		if n < math.MinInt64 {
-			return fmt.Errorf("%d is less than minimum value for int64", n)
-		} else if n > math.MaxInt64 {
-			return fmt.Errorf("%d is greater than maximum value for int64", n)
-		}
-		*v = int64(n)
-	case *uint:
-		n := decodeInt(vr)
-		if n < 0 {
-			return fmt.Errorf("%d is less than zero for uint8", n)
-		} else if maxInt == math.MaxInt32 && n > math.MaxUint32 {
-			return fmt.Errorf("%d is greater than maximum value for uint", n)
-		}
-		*v = uint(n)
-	case *uint8:
-		n := decodeInt(vr)
-		if n < 0 {
-			return fmt.Errorf("%d is less than zero for uint8", n)
-		} else if n > math.MaxUint8 {
-			return fmt.Errorf("%d is greater than maximum value for uint8", n)
-		}
-		*v = uint8(n)
-	case *uint16:
-		n := decodeInt(vr)
-		if n < 0 {
-			return fmt.Errorf("%d is less than zero for uint16", n)
-		} else if n > math.MaxUint16 {
-			return fmt.Errorf("%d is greater than maximum value for uint16", n)
-		}
-		*v = uint16(n)
-	case *uint32:
-		n := decodeInt(vr)
-		if n < 0 {
-			return fmt.Errorf("%d is less than zero for uint32", n)
-		} else if n > math.MaxUint32 {
-			return fmt.Errorf("%d is greater than maximum value for uint32", n)
-		}
-		*v = uint32(n)
-	case *uint64:
-		n := decodeInt(vr)
-		if n < 0 {
-			return fmt.Errorf("%d is less than zero for uint64", n)
-		}
-		*v = uint64(n)
 	case *Char:
 		*v = decodeChar(vr)
 	case *AclItem:
@@ -1294,10 +1214,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeAclItemArray(vr)
 	case *[]bool:
 		*v = decodeBoolArray(vr)
-	case *[]int16:
-		*v = decodeInt2Array(vr)
-	case *[]uint16:
-		*v = decodeInt2ArrayToUInt(vr)
 	case *[]int32:
 		*v = decodeInt4Array(vr)
 	case *[]uint32:
@@ -1320,10 +1236,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeRecord(vr)
 	case *time.Time:
 		switch vr.Type().DataType {
-		case DateOID:
-			*v = decodeDate(vr)
-		case TimestampTzOID:
-			*v = decodeTimestampTz(vr)
 		case TimestampOID:
 			*v = decodeTimestamp(vr)
 		default:
