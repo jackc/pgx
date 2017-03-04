@@ -773,14 +773,6 @@ func TestArrayDecoding(t *testing.T) {
 			},
 		},
 		{
-			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
-			func(t *testing.T, query, scan interface{}) {
-				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
-					t.Errorf("failed to encode time.Time[] to timestamp[]")
-				}
-			},
-		},
-		{
 			"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
 				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
@@ -1003,8 +995,6 @@ func TestPointerPointer(t *testing.T) {
 		{"select $1::bool", []interface{}{zero.b}, []interface{}{&actual.b}, allTypes{}},
 		{"select $1::timestamptz", []interface{}{expected.t}, []interface{}{&actual.t}, allTypes{t: expected.t}},
 		{"select $1::timestamptz", []interface{}{zero.t}, []interface{}{&actual.t}, allTypes{}},
-		{"select $1::timestamp", []interface{}{expected.t}, []interface{}{&actual.t}, allTypes{t: expected.t}},
-		{"select $1::timestamp", []interface{}{zero.t}, []interface{}{&actual.t}, allTypes{}},
 	}
 
 	for i, tt := range tests {
