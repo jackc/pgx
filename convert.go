@@ -11,8 +11,8 @@ const maxUint = ^uint(0)
 const maxInt = int(maxUint >> 1)
 const minInt = -maxInt - 1
 
-// underlyingIntType gets the underlying type that can be converted to Int2, Int4, or Int8
-func underlyingIntType(val interface{}) (interface{}, bool) {
+// underlyingNumberType gets the underlying type that can be converted to Int2, Int4, Int8, Float4, or Float8
+func underlyingNumberType(val interface{}) (interface{}, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -51,6 +51,12 @@ func underlyingIntType(val interface{}) (interface{}, bool) {
 		return convVal, reflect.TypeOf(convVal) != refVal.Type()
 	case reflect.Uint64:
 		convVal := uint64(refVal.Uint())
+		return convVal, reflect.TypeOf(convVal) != refVal.Type()
+	case reflect.Float32:
+		convVal := float32(refVal.Float())
+		return convVal, reflect.TypeOf(convVal) != refVal.Type()
+	case reflect.Float64:
+		convVal := refVal.Float()
 		return convVal, reflect.TypeOf(convVal) != refVal.Type()
 	case reflect.String:
 		convVal := refVal.String()
@@ -241,6 +247,48 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 					}
 					el.SetUint(uint64(srcVal))
 					return nil
+				}
+			}
+			return fmt.Errorf("cannot assign %v into %T", srcVal, dst)
+		}
+		return nil
+	}
+
+	// if dst is a pointer to pointer and srcStatus is not Present, nil it out
+	if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
+		el := v.Elem()
+		if el.Kind() == reflect.Ptr {
+			el.Set(reflect.Zero(el.Type()))
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+}
+
+func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
+	if srcStatus == Present {
+		switch v := dst.(type) {
+		case *float32:
+			*v = float32(srcVal)
+		case *float64:
+			*v = srcVal
+		default:
+			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
+				el := v.Elem()
+				switch el.Kind() {
+				// if dst is a pointer to pointer, strip the pointer and try again
+				case reflect.Ptr:
+					if el.IsNil() {
+						// allocate destination
+						el.Set(reflect.New(el.Type().Elem()))
+					}
+					return float64AssignTo(srcVal, srcStatus, el.Interface())
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+					i64 := int64(srcVal)
+					if float64(i64) == srcVal {
+						return int64AssignTo(i64, srcStatus, dst)
+					}
 				}
 			}
 			return fmt.Errorf("cannot assign %v into %T", srcVal, dst)
