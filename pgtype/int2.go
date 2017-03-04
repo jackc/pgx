@@ -75,7 +75,7 @@ func (dst *Int2) ConvertFrom(src interface{}) error {
 		}
 		*dst = Int2{Int: int16(num), Status: Present}
 	default:
-		if originalSrc, ok := underlyingIntType(src); ok {
+		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int2", value)

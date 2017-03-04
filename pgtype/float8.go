@@ -1,0 +1,161 @@
+package pgtype
+
+import (
+	"fmt"
+	"io"
+	"math"
+	"strconv"
+
+	"github.com/jackc/pgx/pgio"
+)
+
+type Float8 struct {
+	Float  float64
+	Status Status
+}
+
+func (dst *Float8) ConvertFrom(src interface{}) error {
+	switch value := src.(type) {
+	case Float8:
+		*dst = value
+	case float32:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case float64:
+		*dst = Float8{Float: value, Status: Present}
+	case int8:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case uint8:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case int16:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case uint16:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case int32:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case uint32:
+		*dst = Float8{Float: float64(value), Status: Present}
+	case int64:
+		f64 := float64(value)
+		if int64(f64) == value {
+			*dst = Float8{Float: f64, Status: Present}
+		} else {
+			return fmt.Errorf("%v cannot be exactly represented as float64", value)
+		}
+	case uint64:
+		f64 := float64(value)
+		if uint64(f64) == value {
+			*dst = Float8{Float: f64, Status: Present}
+		} else {
+			return fmt.Errorf("%v cannot be exactly represented as float64", value)
+		}
+	case int:
+		f64 := float64(value)
+		if int(f64) == value {
+			*dst = Float8{Float: f64, Status: Present}
+		} else {
+			return fmt.Errorf("%v cannot be exactly represented as float64", value)
+		}
+	case uint:
+		f64 := float64(value)
+		if uint(f64) == value {
+			*dst = Float8{Float: f64, Status: Present}
+		} else {
+			return fmt.Errorf("%v cannot be exactly represented as float64", value)
+		}
+	case string:
+		num, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return err
+		}
+		*dst = Float8{Float: float64(num), Status: Present}
+	default:
+		if originalSrc, ok := underlyingNumberType(src); ok {
+			return dst.ConvertFrom(originalSrc)
+		}
+		return fmt.Errorf("cannot convert %v to Float8", value)
+	}
+
+	return nil
+}
+
+func (src *Float8) AssignTo(dst interface{}) error {
+	return float64AssignTo(src.Float, src.Status, dst)
+}
+
+func (dst *Float8) DecodeText(r io.Reader) error {
+	size, err := pgio.ReadInt32(r)
+	if err != nil {
+		return err
+	}
+
+	if size == -1 {
+		*dst = Float8{Status: Null}
+		return nil
+	}
+
+	buf := make([]byte, int(size))
+	_, err = r.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	n, err := strconv.ParseFloat(string(buf), 64)
+	if err != nil {
+		return err
+	}
+
+	*dst = Float8{Float: n, Status: Present}
+	return nil
+}
+
+func (dst *Float8) DecodeBinary(r io.Reader) error {
+	size, err := pgio.ReadInt32(r)
+	if err != nil {
+		return err
+	}
+
+	if size == -1 {
+		*dst = Float8{Status: Null}
+		return nil
+	}
+
+	if size != 8 {
+		return fmt.Errorf("invalid length for float4: %v", size)
+	}
+
+	n, err := pgio.ReadInt64(r)
+	if err != nil {
+		return err
+	}
+
+	*dst = Float8{Float: math.Float64frombits(uint64(n)), Status: Present}
+	return nil
+}
+
+func (src Float8) EncodeText(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
+		return err
+	}
+
+	s := strconv.FormatFloat(float64(src.Float), 'f', -1, 64)
+	_, err := pgio.WriteInt32(w, int32(len(s)))
+	if err != nil {
+		return nil
+	}
+	_, err = w.Write([]byte(s))
+	return err
+}
+
+func (src Float8) EncodeBinary(w io.Writer) error {
+	if done, err := encodeNotPresent(w, src.Status); done {
+		return err
+	}
+
+	_, err := pgio.WriteInt32(w, 8)
+	if err != nil {
+		return err
+	}
+
+	_, err = pgio.WriteInt64(w, int64(math.Float64bits(src.Float)))
+	return err
+}
