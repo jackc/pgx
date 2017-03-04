@@ -122,6 +122,28 @@ func underlyingSliceType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+func underlyingPtrSliceType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	if refVal.Kind() != reflect.Ptr {
+		return nil, false
+	}
+	if refVal.IsNil() {
+		return nil, false
+	}
+
+	sliceVal := refVal.Elem().Interface()
+	baseSliceType := reflect.SliceOf(reflect.TypeOf(sliceVal).Elem())
+	ptrBaseSliceType := reflect.PtrTo(baseSliceType)
+
+	if refVal.Type().ConvertibleTo(ptrBaseSliceType) {
+		convVal := refVal.Convert(ptrBaseSliceType)
+		return convVal.Interface(), reflect.TypeOf(convVal.Interface()) != refVal.Type()
+	}
+
+	return nil, false
+}
+
 func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 	if srcStatus == Present {
 		switch v := dst.(type) {
