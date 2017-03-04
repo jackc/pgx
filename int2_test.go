@@ -118,4 +118,24 @@ func TestInt2AssignTo(t *testing.T) {
 			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
 		}
 	}
+
+	errorTests := []struct {
+		src pgtype.Int2
+		dst interface{}
+	}{
+		{src: pgtype.Int2{Int: 150, Status: pgtype.Present}, dst: &i8},
+		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui8},
+		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui16},
+		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui32},
+		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui64},
+		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui},
+		{src: pgtype.Int2{Int: 0, Status: pgtype.Null}, dst: &i16},
+	}
+
+	for i, tt := range errorTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err == nil {
+			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
+		}
+	}
 }
