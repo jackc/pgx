@@ -66,7 +66,7 @@ func (dst *Int4) ConvertFrom(src interface{}) error {
 		}
 		*dst = Int4{Int: int32(num), Status: Present}
 	default:
-		if originalSrc, ok := underlyingIntType(src); ok {
+		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int8", value)

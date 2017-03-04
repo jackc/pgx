@@ -1088,14 +1088,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case float32:
-		return encodeFloat32(wbuf, oid, arg)
-	case []float32:
-		return encodeFloat32Slice(wbuf, oid, arg)
-	case float64:
-		return encodeFloat64(wbuf, oid, arg)
-	case []float64:
-		return encodeFloat64Slice(wbuf, oid, arg)
 	case net.IP:
 		return encodeIP(wbuf, oid, arg)
 	case []net.IP:
@@ -1195,16 +1187,8 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeCid(vr)
 	case *string:
 		*v = decodeText(vr)
-	case *float32:
-		*v = decodeFloat4(vr)
-	case *float64:
-		*v = decodeFloat8(vr)
 	case *[]AclItem:
 		*v = decodeAclItemArray(vr)
-	case *[]float32:
-		*v = decodeFloat4Array(vr)
-	case *[]float64:
-		*v = decodeFloat8Array(vr)
 	case *[]string:
 		*v = decodeTextArray(vr)
 	case *[][]byte:
