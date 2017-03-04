@@ -4,75 +4,57 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/jackc/pgx/pgio"
 )
 
-type Int2Array struct {
-	Elements   []Int2
+type TimestamptzArray struct {
+	Elements   []Timestamptz
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *Int2Array) ConvertFrom(src interface{}) error {
+func (dst *TimestamptzArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
-	case Int2Array:
+	case TimestamptzArray:
 		*dst = value
-	
-	case []int16:
+
+	case []time.Time:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = TimestamptzArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = TimestamptzArray{Status: Present}
 		} else {
-			elements := make([]Int2, len(value))
+			elements := make([]Timestamptz, len(value))
 			for i := range value {
 				if err := elements[i].ConvertFrom(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = Int2Array{
+			*dst = TimestamptzArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
 			}
 		}
-	
-	case []uint16:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-	
+
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int2", value)
+		return fmt.Errorf("cannot convert %v to Timestamptz", value)
 	}
 
 	return nil
 }
 
-func (src *Int2Array) AssignTo(dst interface{}) error {
+func (src *TimestamptzArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
-	
-	case *[]int16:
+
+	case *[]time.Time:
 		if src.Status == Present {
-			*v = make([]int16, len(src.Elements))
+			*v = make([]time.Time, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -81,19 +63,7 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 		} else {
 			*v = nil
 		}
-	
-	case *[]uint16:
-		if src.Status == Present {
-			*v = make([]uint16, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-		} else {
-			*v = nil
-		}
-	
+
 	default:
 		if originalDst, ok := underlyingPtrSliceType(dst); ok {
 			return src.AssignTo(originalDst)
@@ -104,14 +74,14 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Int2Array) DecodeText(r io.Reader) error {
+func (dst *TimestamptzArray) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*dst = Int2Array{Status: Null}
+		*dst = TimestamptzArray{Status: Null}
 		return nil
 	}
 
@@ -127,13 +97,13 @@ func (dst *Int2Array) DecodeText(r io.Reader) error {
 	}
 
 	textElementReader := NewTextElementReader(r)
-	var elements []Int2
+	var elements []Timestamptz
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Int2, len(uta.Elements))
+		elements = make([]Timestamptz, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Int2
+			var elem Timestamptz
 			textElementReader.Reset(s)
 			err = elem.DecodeText(textElementReader)
 			if err != nil {
@@ -144,19 +114,19 @@ func (dst *Int2Array) DecodeText(r io.Reader) error {
 		}
 	}
 
-	*dst = Int2Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = TimestamptzArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *Int2Array) DecodeBinary(r io.Reader) error {
+func (dst *TimestamptzArray) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*dst = Int2Array{Status: Null}
+		*dst = TimestamptzArray{Status: Null}
 		return nil
 	}
 
@@ -167,7 +137,7 @@ func (dst *Int2Array) DecodeBinary(r io.Reader) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = Int2Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = TimestamptzArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -176,7 +146,7 @@ func (dst *Int2Array) DecodeBinary(r io.Reader) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Int2, elementCount)
+	elements := make([]Timestamptz, elementCount)
 
 	for i := range elements {
 		err = elements[i].DecodeBinary(r)
@@ -185,11 +155,11 @@ func (dst *Int2Array) DecodeBinary(r io.Reader) error {
 		}
 	}
 
-	*dst = Int2Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = TimestamptzArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *Int2Array) EncodeText(w io.Writer) error {
+func (src *TimestamptzArray) EncodeText(w io.Writer) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -266,7 +236,7 @@ func (src *Int2Array) EncodeText(w io.Writer) error {
 	return err
 }
 
-func (src *Int2Array) EncodeBinary(w io.Writer) error {
+func (src *TimestamptzArray) EncodeBinary(w io.Writer) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -287,7 +257,7 @@ func (src *Int2Array) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	arrayHeader.ElementOID = Int2OID
+	arrayHeader.ElementOID = TimestamptzOID
 	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -

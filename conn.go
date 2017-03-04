@@ -279,13 +279,18 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.closedChan = make(chan error)
 
 	c.oidPgtypeValues = map[OID]pgtype.Value{
-		BoolOID:        &pgtype.Bool{},
-		DateOID:        &pgtype.Date{},
-		Int2OID:        &pgtype.Int2{},
-		Int2ArrayOID:   &pgtype.Int2Array{},
-		Int4OID:        &pgtype.Int4{},
-		Int8OID:        &pgtype.Int8{},
-		TimestampTzOID: &pgtype.Timestamptz{},
+		BoolOID:             &pgtype.Bool{},
+		BoolArrayOID:        &pgtype.BoolArray{},
+		DateOID:             &pgtype.Date{},
+		DateArrayOID:        &pgtype.DateArray{},
+		Int2OID:             &pgtype.Int2{},
+		Int2ArrayOID:        &pgtype.Int2Array{},
+		Int4OID:             &pgtype.Int4{},
+		Int4ArrayOID:        &pgtype.Int4Array{},
+		Int8OID:             &pgtype.Int8{},
+		Int8ArrayOID:        &pgtype.Int8Array{},
+		TimestampTzOID:      &pgtype.Timestamptz{},
+		TimestampTzArrayOID: &pgtype.TimestamptzArray{},
 	}
 
 	if tlsConfig != nil {

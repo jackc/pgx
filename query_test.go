@@ -1063,9 +1063,6 @@ func TestQueryRowCoreInt32Slice(t *testing.T) {
 	if err == nil {
 		t.Error("Expected null to cause error when scanned into slice, but it didn't")
 	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
 
 	ensureConnValid(t, conn)
 }
@@ -1109,9 +1106,6 @@ func TestQueryRowCoreInt64Slice(t *testing.T) {
 	err := conn.QueryRow("select '{1, 2, 3, 4, 5, null}'::int8[];").Scan(&actual)
 	if err == nil {
 		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
 	}
 
 	ensureConnValid(t, conn)
