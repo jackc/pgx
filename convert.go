@@ -85,6 +85,22 @@ func underlyingBoolType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+// underlyingPtrType dereferences a pointer
+func underlyingPtrType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return nil, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	}
+
+	return nil, false
+}
+
 // underlyingTimeType gets the underlying type that can be converted to time.Time
 func underlyingTimeType(val interface{}) (interface{}, bool) {
 	refVal := reflect.ValueOf(val)
