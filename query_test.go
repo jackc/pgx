@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -288,67 +287,6 @@ func TestConnQueryScanner(t *testing.T) {
 	}
 
 	var n, m pgx.NullInt64
-	err = rows.Scan(&n, &m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if n.Valid {
-		t.Error("Null should not be valid, but it was")
-	}
-
-	if !m.Valid {
-		t.Error("1 should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-type pgxNullInt64 struct {
-	Int64 int64
-	Valid bool // Valid is true if Int64 is not NULL
-}
-
-func (n *pgxNullInt64) ScanPgx(vr *pgx.ValueReader) error {
-	if vr.Type().DataType != pgx.Int8OID {
-		return pgx.SerializationError(fmt.Sprintf("pgxNullInt64.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Int64, n.Valid = 0, false
-		return nil
-	}
-	n.Valid = true
-
-	err := pgx.Decode(vr, &n.Int64)
-	if err != nil {
-		return err
-	}
-	return vr.Err()
-}
-
-func TestConnQueryPgxScanner(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query("select null::int8, 1::int8")
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var n, m pgxNullInt64
 	err = rows.Scan(&n, &m)
 	if err != nil {
 		t.Fatalf("rows.Scan failed: %v", err)
@@ -942,7 +880,7 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "could not determine data type of parameter $1 (SQLSTATE 42P18)"},
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Cannot decode oid 25 into any integer type"},
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot decode"},
 		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "Cannot encode int into oid 600"},
 	}
 

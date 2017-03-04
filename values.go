@@ -1076,8 +1076,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	switch arg := arg.(type) {
 	case []string:
 		return encodeStringSlice(wbuf, oid, arg)
-	case []bool:
-		return encodeBoolSlice(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
 	case AclItem:
@@ -1207,23 +1205,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 				}
 				d = el.Interface()
 				return Decode(vr, d)
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				n := decodeInt(vr)
-				if el.OverflowInt(n) {
-					return fmt.Errorf("Scan cannot decode %d into %T", n, d)
-				}
-				el.SetInt(n)
-				return nil
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-				n := decodeInt(vr)
-				if n < 0 {
-					return fmt.Errorf("%d is less than zero for %T", n, d)
-				}
-				if el.OverflowUint(uint64(n)) {
-					return fmt.Errorf("Scan cannot decode %d into %T", n, d)
-				}
-				el.SetUint(uint64(n))
-				return nil
 			case reflect.String:
 				el.SetString(decodeText(vr))
 				return nil
