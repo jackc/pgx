@@ -1088,14 +1088,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case net.IP:
-		return encodeIP(wbuf, oid, arg)
-	case []net.IP:
-		return encodeIPSlice(wbuf, oid, arg)
-	case net.IPNet:
-		return encodeIPNet(wbuf, oid, arg)
-	case []net.IPNet:
-		return encodeIPNetSlice(wbuf, oid, arg)
 	case OID:
 		return encodeOID(wbuf, oid, arg)
 	case Xid:
@@ -1195,26 +1187,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeByteaArray(vr)
 	case *[]interface{}:
 		*v = decodeRecord(vr)
-	case *net.IP:
-		ipnet := decodeInet(vr)
-		if oneCount, bitCount := ipnet.Mask.Size(); oneCount != bitCount {
-			return fmt.Errorf("Cannot decode netmask into *net.IP")
-		}
-		*v = ipnet.IP
-	case *[]net.IP:
-		ipnets := decodeInetArray(vr)
-		ips := make([]net.IP, len(ipnets))
-		for i, ipnet := range ipnets {
-			if oneCount, bitCount := ipnet.Mask.Size(); oneCount != bitCount {
-				return fmt.Errorf("Cannot decode netmask into *net.IP")
-			}
-			ips[i] = ipnet.IP
-		}
-		*v = ips
-	case *net.IPNet:
-		*v = decodeInet(vr)
-	case *[]net.IPNet:
-		*v = decodeInetArray(vr)
 	default:
 		if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
 			el := v.Elem()

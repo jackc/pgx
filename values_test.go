@@ -232,13 +232,13 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string, format int16)
 	}
 }
 
-func mustParseCIDR(t *testing.T, s string) net.IPNet {
+func mustParseCIDR(t *testing.T, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return *ipnet
+	return ipnet
 }
 
 func TestStringToNotTextTypeTranscode(t *testing.T) {
@@ -275,7 +275,7 @@ func TestInetCidrTranscodeIPNet(t *testing.T) {
 
 	tests := []struct {
 		sql   string
-		value net.IPNet
+		value *net.IPNet
 	}{
 		{"select $1::inet", mustParseCIDR(t, "0.0.0.0/32")},
 		{"select $1::inet", mustParseCIDR(t, "127.0.0.1/32")},
@@ -358,7 +358,7 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 
 	failTests := []struct {
 		sql   string
-		value net.IPNet
+		value *net.IPNet
 	}{
 		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
 		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
@@ -367,8 +367,8 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 		var actual net.IP
 
 		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
-		if !strings.Contains(err.Error(), "Cannot decode netmask") {
-			t.Errorf("%d. Expected failure cannot decode netmask, but got: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+		if err == nil {
+			t.Errorf("%d. Expected failure but got none", i)
 			continue
 		}
 
@@ -384,11 +384,11 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 
 	tests := []struct {
 		sql   string
-		value []net.IPNet
+		value []*net.IPNet
 	}{
 		{
 			"select $1::inet[]",
-			[]net.IPNet{
+			[]*net.IPNet{
 				mustParseCIDR(t, "0.0.0.0/32"),
 				mustParseCIDR(t, "127.0.0.1/32"),
 				mustParseCIDR(t, "12.34.56.0/32"),
@@ -403,7 +403,7 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 		},
 		{
 			"select $1::cidr[]",
-			[]net.IPNet{
+			[]*net.IPNet{
 				mustParseCIDR(t, "0.0.0.0/32"),
 				mustParseCIDR(t, "127.0.0.1/32"),
 				mustParseCIDR(t, "12.34.56.0/32"),
@@ -419,7 +419,7 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		var actual []net.IPNet
+		var actual []*net.IPNet
 
 		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
 		if err != nil {
@@ -485,18 +485,18 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 
 	failTests := []struct {
 		sql   string
-		value []net.IPNet
+		value []*net.IPNet
 	}{
 		{
 			"select $1::inet[]",
-			[]net.IPNet{
+			[]*net.IPNet{
 				mustParseCIDR(t, "12.34.56.0/32"),
 				mustParseCIDR(t, "192.168.1.0/24"),
 			},
 		},
 		{
 			"select $1::cidr[]",
-			[]net.IPNet{
+			[]*net.IPNet{
 				mustParseCIDR(t, "12.34.56.0/32"),
 				mustParseCIDR(t, "192.168.1.0/24"),
 			},
@@ -507,8 +507,8 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 		var actual []net.IP
 
 		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
-		if err == nil || !strings.Contains(err.Error(), "Cannot decode netmask") {
-			t.Errorf("%d. Expected failure cannot decode netmask, but got: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
+		if err == nil {
+			t.Errorf("%d. Expected failure but got none", i)
 			continue
 		}
 
