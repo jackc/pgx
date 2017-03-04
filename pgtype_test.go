@@ -16,6 +16,8 @@ type _bool bool
 type _int8 int8
 type _int16 int16
 type _int16Slice []int16
+type _int32Slice []int32
+type _int64Slice []int64
 
 func mustConnectPgx(t testing.TB) *pgx.Conn {
 	config, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
