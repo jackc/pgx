@@ -118,4 +118,25 @@ func TestInt4AssignTo(t *testing.T) {
 			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
 		}
 	}
+
+	errorTests := []struct {
+		src pgtype.Int4
+		dst interface{}
+	}{
+		{src: pgtype.Int4{Int: 150, Status: pgtype.Present}, dst: &i8},
+		{src: pgtype.Int4{Int: 40000, Status: pgtype.Present}, dst: &i16},
+		{src: pgtype.Int4{Int: -1, Status: pgtype.Present}, dst: &ui8},
+		{src: pgtype.Int4{Int: -1, Status: pgtype.Present}, dst: &ui16},
+		{src: pgtype.Int4{Int: -1, Status: pgtype.Present}, dst: &ui32},
+		{src: pgtype.Int4{Int: -1, Status: pgtype.Present}, dst: &ui64},
+		{src: pgtype.Int4{Int: -1, Status: pgtype.Present}, dst: &ui},
+		{src: pgtype.Int4{Int: 0, Status: pgtype.Null}, dst: &i32},
+	}
+
+	for i, tt := range errorTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err == nil {
+			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
+		}
+	}
 }
