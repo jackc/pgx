@@ -54,6 +54,7 @@ const (
 	DateOID             = 1082
 	TimestampOID        = 1114
 	TimestampArrayOID   = 1115
+	DateArrayOID        = 1182
 	TimestampTzOID      = 1184
 	TimestampTzArrayOID = 1185
 	RecordOID           = 2249
@@ -1087,14 +1088,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case []int32:
-		return encodeInt32Slice(wbuf, oid, arg)
-	case []uint32:
-		return encodeUInt32Slice(wbuf, oid, arg)
-	case []int64:
-		return encodeInt64Slice(wbuf, oid, arg)
-	case []uint64:
-		return encodeUInt64Slice(wbuf, oid, arg)
 	case float32:
 		return encodeFloat32(wbuf, oid, arg)
 	case []float32:
@@ -1212,16 +1205,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeFloat8(vr)
 	case *[]AclItem:
 		*v = decodeAclItemArray(vr)
-	case *[]bool:
-		*v = decodeBoolArray(vr)
-	case *[]int32:
-		*v = decodeInt4Array(vr)
-	case *[]uint32:
-		*v = decodeInt4ArrayToUInt(vr)
-	case *[]int64:
-		*v = decodeInt8Array(vr)
-	case *[]uint64:
-		*v = decodeInt8ArrayToUInt(vr)
 	case *[]float32:
 		*v = decodeFloat4Array(vr)
 	case *[]float64:

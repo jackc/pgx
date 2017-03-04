@@ -44,8 +44,9 @@ const (
 	DateOID             = 1082
 	TimestampOID        = 1114
 	TimestampArrayOID   = 1115
-	TimestampTzOID      = 1184
-	TimestampTzArrayOID = 1185
+	DateArrayOID        = 1182
+	TimestamptzOID      = 1184
+	TimestamptzArrayOID = 1185
 	RecordOID           = 2249
 	UUIDOID             = 2950
 	JSONBOID            = 3802
