@@ -89,6 +89,9 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 			*v = nil
 		}
 	default:
+		if originalDst, ok := underlyingPtrSliceType(dst); ok {
+			return src.AssignTo(originalDst)
+		}
 		return fmt.Errorf("cannot put decode %v into %T", src, dst)
 	}
 
