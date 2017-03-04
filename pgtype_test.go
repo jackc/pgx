@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"reflect"
 	"testing"
@@ -42,6 +43,15 @@ func mustClose(t testing.TB, conn interface {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func mustParseCIDR(t testing.TB, s string) *net.IPNet {
+	_, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return ipnet
 }
 
 type forceTextEncoder struct {
