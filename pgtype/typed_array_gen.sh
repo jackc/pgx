@@ -4,3 +4,4 @@ erb pgtype_array_type=Int8Array pgtype_element_type=Int8 go_array_types=[]int64,
 erb pgtype_array_type=BoolArray pgtype_element_type=Bool go_array_types=[]bool element_oid=BoolOID typed_array.go.erb > boolarray.go
 erb pgtype_array_type=DateArray pgtype_element_type=Date go_array_types=[]time.Time element_oid=DateOID typed_array.go.erb > datearray.go
 erb pgtype_array_type=TimestamptzArray pgtype_element_type=Timestamptz go_array_types=[]time.Time element_oid=TimestamptzOID typed_array.go.erb > timestamptzarray.go
+erb pgtype_array_type=TimestampArray pgtype_element_type=Timestamp go_array_types=[]time.Time element_oid=TimestampOID typed_array.go.erb > timestamparray.go

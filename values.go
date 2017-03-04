@@ -1096,10 +1096,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeFloat64(wbuf, oid, arg)
 	case []float64:
 		return encodeFloat64Slice(wbuf, oid, arg)
-	case time.Time:
-		return encodeTime(wbuf, oid, arg)
-	case []time.Time:
-		return encodeTimeSlice(wbuf, oid, arg)
 	case net.IP:
 		return encodeIP(wbuf, oid, arg)
 	case []net.IP:
@@ -1211,19 +1207,10 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeFloat8Array(vr)
 	case *[]string:
 		*v = decodeTextArray(vr)
-	case *[]time.Time:
-		*v = decodeTimestampArray(vr)
 	case *[][]byte:
 		*v = decodeByteaArray(vr)
 	case *[]interface{}:
 		*v = decodeRecord(vr)
-	case *time.Time:
-		switch vr.Type().DataType {
-		case TimestampOID:
-			*v = decodeTimestamp(vr)
-		default:
-			return fmt.Errorf("Can't convert OID %v to time.Time", vr.Type().DataType)
-		}
 	case *net.IP:
 		ipnet := decodeInet(vr)
 		if oneCount, bitCount := ipnet.Mask.Size(); oneCount != bitCount {
