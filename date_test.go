@@ -94,4 +94,20 @@ func TestDateAssignTo(t *testing.T) {
 			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
 		}
 	}
+
+	errorTests := []struct {
+		src pgtype.Date
+		dst interface{}
+	}{
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, dst: &tim},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, dst: &tim},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Null}, dst: &tim},
+	}
+
+	for i, tt := range errorTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err == nil {
+			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
+		}
+	}
 }
