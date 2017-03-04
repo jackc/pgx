@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"math"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
@@ -19,8 +20,6 @@ func TestInt8Transcode(t *testing.T) {
 }
 
 func TestInt8ConvertFrom(t *testing.T) {
-	type _int8 int8
-
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Int8
@@ -50,6 +49,73 @@ func TestInt8ConvertFrom(t *testing.T) {
 
 		if r != tt.result {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}
+
+func TestInt8AssignTo(t *testing.T) {
+	var i8 int8
+	var i16 int16
+	var i32 int32
+	var i64 int64
+	var i int
+	var ui8 uint8
+	var ui16 uint16
+	var ui32 uint32
+	var ui64 uint64
+	var ui uint
+	var pi8 *int8
+	var _i8 _int8
+	var _pi8 *_int8
+
+	simpleTests := []struct {
+		src      pgtype.Int8
+		dst      interface{}
+		expected interface{}
+	}{
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &i8, expected: int8(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &i16, expected: int16(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &i32, expected: int32(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &i64, expected: int64(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &i, expected: int(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &ui8, expected: uint8(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &ui16, expected: uint16(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &ui64, expected: uint64(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &ui, expected: uint(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
+		{src: pgtype.Int8{Int: 0, Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
+		{src: pgtype.Int8{Int: 0, Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
+	}
+
+	for i, tt := range simpleTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
+			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+		}
+	}
+
+	pointerAllocTests := []struct {
+		src      pgtype.Int8
+		dst      interface{}
+		expected interface{}
+	}{
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &pi8, expected: int8(42)},
+		{src: pgtype.Int8{Int: 42, Status: pgtype.Present}, dst: &_pi8, expected: _int8(42)},
+	}
+
+	for i, tt := range pointerAllocTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if dst := reflect.ValueOf(tt.dst).Elem().Elem().Interface(); dst != tt.expected {
+			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
 		}
 	}
 }
