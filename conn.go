@@ -425,18 +425,38 @@ func (c *Conn) Close() (err error) {
 		}
 	}
 
+	defer func() {
+		c.conn.Close()
+		c.die(errors.New("Closed"))
+		if c.shouldLog(LogLevelInfo) {
+			c.log(LogLevelInfo, "Closed connection")
+		}
+	}()
+
+	err = c.conn.SetDeadline(time.Time{})
+	if err != nil && c.shouldLog(LogLevelWarn) {
+		c.log(LogLevelWarn, "Failed to clear deadlines to send close message", "err", err)
+		return err
+	}
+
 	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "Failed to send terminate message", "err", err)
+		return err
 	}
 
-	err = c.conn.Close()
-
-	c.die(errors.New("Closed"))
-	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "Closed connection")
+	err = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	if err != nil && c.shouldLog(LogLevelWarn) {
+		c.log(LogLevelWarn, "Failed to set read deadline to finish closing", "err", err)
+		return err
 	}
-	return err
+
+	_, err = c.conn.Read(make([]byte, 1))
+	if err != io.EOF {
+		return err
+	}
+
+	return nil
 }
 
 // ParseURI parses a database URI into ConnConfig
