@@ -211,9 +211,16 @@ func (src *<%= pgtype_array_type %>) EncodeText(w io.Writer) error {
 		}
 
 		textElementWriter.Reset()
-		err = elem.EncodeText(textElementWriter)
-		if err != nil {
-			return err
+		if elem.String == "" && elem.Status == Present {
+			_, err := io.WriteString(buf, `""`)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = elem.EncodeText(textElementWriter)
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, dec := range dimElemCounts {
@@ -236,6 +243,10 @@ func (src *<%= pgtype_array_type %>) EncodeText(w io.Writer) error {
 }
 
 func (src *<%= pgtype_array_type %>) EncodeBinary(w io.Writer) error {
+	return src.encodeBinary(w, <%= element_oid %>)
+}
+
+func (src *<%= pgtype_array_type %>) encodeBinary(w io.Writer, elementOID int32) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -256,7 +267,7 @@ func (src *<%= pgtype_array_type %>) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	arrayHeader.ElementOID = <%= element_oid %>
+	arrayHeader.ElementOID = elementOID
 	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -
