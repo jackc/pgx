@@ -29,8 +29,6 @@ type ConnPool struct {
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
 	pgTypes              map[OID]PgType
-	pgsqlAfInet          *byte
-	pgsqlAfInet6         *byte
 	txAfterClose         func(tx *Tx)
 	rowsAfterClose       func(rows *Rows)
 }
@@ -294,7 +292,7 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 }
 
 func (p *ConnPool) createConnection() (*Conn, error) {
-	c, err := connect(p.config, p.pgTypes, p.pgsqlAfInet, p.pgsqlAfInet6)
+	c, err := connect(p.config, p.pgTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -330,8 +328,6 @@ func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
 // all the known statements for the new connection.
 func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
 	p.pgTypes = c.PgTypes
-	p.pgsqlAfInet = c.pgsqlAfInet
-	p.pgsqlAfInet6 = c.pgsqlAfInet6
 
 	if p.afterConnect != nil {
 		err := p.afterConnect(c)

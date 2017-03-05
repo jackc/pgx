@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -1934,82 +1933,6 @@ func decodeTimestamp(vr *ValueReader) time.Time {
 	return time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000)
 }
 
-func decodeInet(vr *ValueReader) net.IPNet {
-	var zero net.IPNet
-
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into net.IPNet"))
-		return zero
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return zero
-	}
-
-	pgType := vr.Type()
-	if pgType.DataType != InetOID && pgType.DataType != CidrOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into %s", pgType.DataType, pgType.Name)))
-		return zero
-	}
-	if vr.Len() != 8 && vr.Len() != 20 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for a %s: %d", pgType.Name, vr.Len())))
-		return zero
-	}
-
-	vr.ReadByte() // ignore family
-	bits := vr.ReadByte()
-	vr.ReadByte() // ignore is_cidr
-	addressLength := vr.ReadByte()
-
-	var ipnet net.IPNet
-	ipnet.IP = vr.ReadBytes(int32(addressLength))
-	ipnet.Mask = net.CIDRMask(int(bits), int(addressLength)*8)
-
-	return ipnet
-}
-
-func encodeIPNet(w *WriteBuf, oid OID, value net.IPNet) error {
-	if oid != InetOID && oid != CidrOID {
-		return fmt.Errorf("cannot encode %s into oid %v", "net.IPNet", oid)
-	}
-
-	var size int32
-	var family byte
-	switch len(value.IP) {
-	case net.IPv4len:
-		size = 8
-		family = *w.conn.pgsqlAfInet
-	case net.IPv6len:
-		size = 20
-		family = *w.conn.pgsqlAfInet6
-	default:
-		return fmt.Errorf("Unexpected IP length: %v", len(value.IP))
-	}
-
-	w.WriteInt32(size)
-	w.WriteByte(family)
-	ones, _ := value.Mask.Size()
-	w.WriteByte(byte(ones))
-	w.WriteByte(0) // is_cidr is ignored on server
-	w.WriteByte(byte(len(value.IP)))
-	w.WriteBytes(value.IP)
-
-	return nil
-}
-
-func encodeIP(w *WriteBuf, oid OID, value net.IP) error {
-	if oid != InetOID && oid != CidrOID {
-		return fmt.Errorf("cannot encode %s into oid %v", "net.IP", oid)
-	}
-
-	var ipnet net.IPNet
-	ipnet.IP = value
-	bitCount := len(value) * 8
-	ipnet.Mask = net.CIDRMask(bitCount, bitCount)
-	return encodeIPNet(w, oid, ipnet)
-}
-
 func decodeRecord(vr *ValueReader) []interface{} {
 	if vr.Len() == -1 {
 		return nil
@@ -2058,8 +1981,6 @@ func decodeRecord(vr *ValueReader) []interface{} {
 			record = append(record, decodeTimestampTz(&fieldVR))
 		case TimestampOID:
 			record = append(record, decodeTimestamp(&fieldVR))
-		case InetOID, CidrOID:
-			record = append(record, decodeInet(&fieldVR))
 		case TextOID, VarcharOID, UnknownOID:
 			record = append(record, decodeTextAllowBinary(&fieldVR))
 		default:
@@ -2978,110 +2899,6 @@ func encodeTimeSlice(w *WriteBuf, oid OID, slice []time.Time) error {
 		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
 		microsecSinceY2K := microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
 		w.WriteInt64(microsecSinceY2K)
-	}
-
-	return nil
-}
-
-func decodeInetArray(vr *ValueReader) []net.IPNet {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != InetArrayOID && vr.Type().DataType != CidrArrayOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []net.IP", vr.Type().DataType)))
-		return nil
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return nil
-	}
-
-	numElems, err := decode1dArrayHeader(vr)
-	if err != nil {
-		vr.Fatal(err)
-		return nil
-	}
-
-	a := make([]net.IPNet, int(numElems))
-	for i := 0; i < len(a); i++ {
-		elSize := vr.ReadInt32()
-		if elSize == -1 {
-			vr.Fatal(ProtocolError("Cannot decode null element"))
-			return nil
-		}
-
-		vr.ReadByte() // ignore family
-		bits := vr.ReadByte()
-		vr.ReadByte() // ignore is_cidr
-		addressLength := vr.ReadByte()
-
-		var ipnet net.IPNet
-		ipnet.IP = vr.ReadBytes(int32(addressLength))
-		ipnet.Mask = net.CIDRMask(int(bits), int(addressLength)*8)
-
-		a[i] = ipnet
-	}
-
-	return a
-}
-
-func encodeIPNetSlice(w *WriteBuf, oid OID, slice []net.IPNet) error {
-	var elOID OID
-	switch oid {
-	case InetArrayOID:
-		elOID = InetOID
-	case CidrArrayOID:
-		elOID = CidrOID
-	default:
-		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
-	}
-
-	size := int32(20) // array header size
-	for _, ipnet := range slice {
-		size += 4 + 4 + int32(len(ipnet.IP)) // size of element + inet/cidr metadata + IP bytes
-	}
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(int32(elOID))      // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
-	for _, ipnet := range slice {
-		encodeIPNet(w, elOID, ipnet)
-	}
-
-	return nil
-}
-
-func encodeIPSlice(w *WriteBuf, oid OID, slice []net.IP) error {
-	var elOID OID
-	switch oid {
-	case InetArrayOID:
-		elOID = InetOID
-	case CidrArrayOID:
-		elOID = CidrOID
-	default:
-		return fmt.Errorf("cannot encode Go %s into oid %d", "[]net.IPNet", oid)
-	}
-
-	size := int32(20) // array header size
-	for _, ip := range slice {
-		size += 4 + 4 + int32(len(ip)) // size of element + inet/cidr metadata + IP bytes
-	}
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(int32(elOID))      // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
-	for _, ip := range slice {
-		encodeIP(w, elOID, ip)
 	}
 
 	return nil

@@ -87,8 +87,6 @@ type Conn struct {
 	logLevel           int
 	mr                 msgReader
 	fp                 *fastpath
-	pgsqlAfInet        *byte
-	pgsqlAfInet6       *byte
 	poolResetCount     int
 	preallocatedRows   []Rows
 
@@ -179,10 +177,10 @@ func (e ProtocolError) Error() string {
 // config.Host must be specified. config.User will default to the OS user name.
 // Other config fields are optional.
 func Connect(config ConnConfig) (c *Conn, err error) {
-	return connect(config, nil, nil, nil)
+	return connect(config, nil)
 }
 
-func connect(config ConnConfig, pgTypes map[OID]PgType, pgsqlAfInet *byte, pgsqlAfInet6 *byte) (c *Conn, err error) {
+func connect(config ConnConfig, pgTypes map[OID]PgType) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
@@ -192,15 +190,6 @@ func connect(config ConnConfig, pgTypes map[OID]PgType, pgsqlAfInet *byte, pgsql
 		for k, v := range pgTypes {
 			c.PgTypes[k] = v
 		}
-	}
-
-	if pgsqlAfInet != nil {
-		c.pgsqlAfInet = new(byte)
-		*c.pgsqlAfInet = *pgsqlAfInet
-	}
-	if pgsqlAfInet6 != nil {
-		c.pgsqlAfInet6 = new(byte)
-		*c.pgsqlAfInet6 = *pgsqlAfInet6
 	}
 
 	if c.config.LogLevel != 0 {
@@ -372,13 +361,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				}
 			}
 
-			if c.pgsqlAfInet == nil || c.pgsqlAfInet6 == nil {
-				err = c.loadInetConstants()
-				if err != nil {
-					return err
-				}
-			}
-
 			return nil
 		default:
 			if err = c.processContextFreeMsg(t, r); err != nil {
@@ -416,23 +398,6 @@ where (
 	}
 
 	return rows.Err()
-}
-
-// Family is needed for binary encoding of inet/cidr. The constant is based on
-// the server's definition of AF_INET. In theory, this could differ between
-// platforms, so request an IPv4 and an IPv6 inet and get the family from that.
-func (c *Conn) loadInetConstants() error {
-	var ipv4, ipv6 []byte
-
-	err := c.QueryRow("select '127.0.0.1'::inet, '1::'::inet").Scan(&ipv4, &ipv6)
-	if err != nil {
-		return err
-	}
-
-	c.pgsqlAfInet = &ipv4[0]
-	c.pgsqlAfInet6 = &ipv6[0]
-
-	return nil
 }
 
 // PID returns the backend PID for this connection.

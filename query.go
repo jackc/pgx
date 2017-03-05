@@ -410,8 +410,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOID:
 				values = append(values, decodeTimestamp(vr))
-			case InetOID, CidrOID:
-				values = append(values, decodeInet(vr))
 			case JSONOID:
 				var d interface{}
 				decodeJSON(vr, &d)
@@ -503,8 +501,6 @@ func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
 				values = append(values, decodeTimestampTz(vr))
 			case TimestampOID:
 				values = append(values, decodeTimestamp(vr))
-			case InetOID, CidrOID:
-				values = append(values, decodeInet(vr))
 			case JSONOID:
 				var d interface{}
 				decodeJSON(vr, &d)
