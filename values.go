@@ -29,7 +29,7 @@ const (
 	OIDOID              = 26
 	TidOID              = 27
 	XidOID              = 28
-	CidOID              = 29
+	CIDOID              = 29
 	JSONOID             = 114
 	CidrOID             = 650
 	CidrArrayOID        = 651
@@ -645,58 +645,6 @@ func (n NullXid) Encode(w *WriteBuf, oid OID) error {
 	return encodeXid(w, oid, n.Xid)
 }
 
-// Cid is PostgreSQL's Command Identifier type.
-//
-// When one does
-//
-// 	select cmin, cmax, * from some_table;
-//
-// it is the data type of the cmin and cmax hidden system columns.
-//
-// It is currently implemented as an unsigned four byte integer.
-// Its definition can be found in src/include/c.h as CommandId
-// in the PostgreSQL sources.
-type Cid uint32
-
-// NullCid represents a Command Identifier (Cid) that may be null. NullCid implements the
-// Scanner and Encoder interfaces so it may be used both as an argument to
-// Query[Row] and a destination for Scan.
-//
-// If Valid is false then the value is NULL.
-type NullCid struct {
-	Cid   Cid
-	Valid bool // Valid is true if Cid is not NULL
-}
-
-func (n *NullCid) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != CidOID {
-		return SerializationError(fmt.Sprintf("NullCid.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Cid, n.Valid = 0, false
-		return nil
-	}
-	n.Valid = true
-	n.Cid = decodeCid(vr)
-	return vr.Err()
-}
-
-func (n NullCid) FormatCode() int16 { return BinaryFormatCode }
-
-func (n NullCid) Encode(w *WriteBuf, oid OID) error {
-	if oid != CidOID {
-		return SerializationError(fmt.Sprintf("NullCid.Encode cannot encode into OID %d", oid))
-	}
-
-	if !n.Valid {
-		w.WriteInt32(-1)
-		return nil
-	}
-
-	return encodeCid(w, oid, n.Cid)
-}
-
 // Tid is PostgreSQL's Tuple Identifier type.
 //
 // When one does
@@ -1087,8 +1035,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeOID(wbuf, oid, arg)
 	case Xid:
 		return encodeXid(wbuf, oid, arg)
-	case Cid:
-		return encodeCid(wbuf, oid, arg)
 	default:
 		if strippedArg, ok := stripNamedType(&refVal); ok {
 			return Encode(wbuf, oid, strippedArg)
@@ -1170,8 +1116,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeXid(vr)
 	case *Tid:
 		*v = decodeTid(vr)
-	case *Cid:
-		*v = decodeCid(vr)
 	case *string:
 		*v = decodeText(vr)
 	case *[]AclItem:
@@ -1485,49 +1429,6 @@ func decodeXid(vr *ValueReader) Xid {
 func encodeXid(w *WriteBuf, oid OID, value Xid) error {
 	if oid != XidOID {
 		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Xid", oid)
-	}
-
-	w.WriteInt32(4)
-	w.WriteUint32(uint32(value))
-
-	return nil
-}
-
-func decodeCid(vr *ValueReader) Cid {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into Cid"))
-		return Cid(0)
-	}
-
-	if vr.Type().DataType != CidOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into pgx.Cid", vr.Type().DataType)))
-		return Cid(0)
-	}
-
-	// Unlikely Cid will ever go over the wire as text format, but who knows?
-	switch vr.Type().FormatCode {
-	case TextFormatCode:
-		s := vr.ReadString(vr.Len())
-		n, err := strconv.ParseUint(s, 10, 32)
-		if err != nil {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid OID: %v", s)))
-		}
-		return Cid(n)
-	case BinaryFormatCode:
-		if vr.Len() != 4 {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an OID: %d", vr.Len())))
-			return Cid(0)
-		}
-		return Cid(vr.ReadUint32())
-	default:
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return Cid(0)
-	}
-}
-
-func encodeCid(w *WriteBuf, oid OID, value Cid) error {
-	if oid != CidOID {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Cid", oid)
 	}
 
 	w.WriteInt32(4)

@@ -270,6 +270,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.oidPgtypeValues = map[OID]pgtype.Value{
 		BoolArrayOID:        &pgtype.BoolArray{},
 		BoolOID:             &pgtype.Bool{},
+		CIDOID:              &pgtype.CID{},
 		CidrArrayOID:        &pgtype.CidrArray{},
 		CidrOID:             &pgtype.Inet{},
 		DateArrayOID:        &pgtype.DateArray{},
