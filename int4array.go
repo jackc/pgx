@@ -18,7 +18,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case Int4Array:
 		*dst = value
-	
+
 	case []int32:
 		if value == nil {
 			*dst = Int4Array{Status: Null}
@@ -37,7 +37,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 				Status:     Present,
 			}
 		}
-	
+
 	case []uint32:
 		if value == nil {
 			*dst = Int4Array{Status: Null}
@@ -56,7 +56,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 				Status:     Present,
 			}
 		}
-	
+
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
@@ -69,7 +69,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 
 func (src *Int4Array) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
-	
+
 	case *[]int32:
 		if src.Status == Present {
 			*v = make([]int32, len(src.Elements))
@@ -81,7 +81,7 @@ func (src *Int4Array) AssignTo(dst interface{}) error {
 		} else {
 			*v = nil
 		}
-	
+
 	case *[]uint32:
 		if src.Status == Present {
 			*v = make([]uint32, len(src.Elements))
@@ -93,12 +93,12 @@ func (src *Int4Array) AssignTo(dst interface{}) error {
 		} else {
 			*v = nil
 		}
-	
+
 	default:
 		if originalDst, ok := underlyingPtrSliceType(dst); ok {
 			return src.AssignTo(originalDst)
 		}
-		return fmt.Errorf("cannot put decode %v into %T", src, dst)
+		return fmt.Errorf("cannot decode %v into %T", src, dst)
 	}
 
 	return nil
