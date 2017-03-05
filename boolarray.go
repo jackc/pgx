@@ -18,7 +18,7 @@ func (dst *BoolArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case BoolArray:
 		*dst = value
-	
+
 	case []bool:
 		if value == nil {
 			*dst = BoolArray{Status: Null}
@@ -37,7 +37,7 @@ func (dst *BoolArray) ConvertFrom(src interface{}) error {
 				Status:     Present,
 			}
 		}
-	
+
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
@@ -50,7 +50,7 @@ func (dst *BoolArray) ConvertFrom(src interface{}) error {
 
 func (src *BoolArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
-	
+
 	case *[]bool:
 		if src.Status == Present {
 			*v = make([]bool, len(src.Elements))
@@ -62,12 +62,12 @@ func (src *BoolArray) AssignTo(dst interface{}) error {
 		} else {
 			*v = nil
 		}
-	
+
 	default:
 		if originalDst, ok := underlyingPtrSliceType(dst); ok {
 			return src.AssignTo(originalDst)
 		}
-		return fmt.Errorf("cannot put decode %v into %T", src, dst)
+		return fmt.Errorf("cannot decode %v into %T", src, dst)
 	}
 
 	return nil

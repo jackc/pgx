@@ -68,7 +68,7 @@ func (src *TimestamptzArray) AssignTo(dst interface{}) error {
 		if originalDst, ok := underlyingPtrSliceType(dst); ok {
 			return src.AssignTo(originalDst)
 		}
-		return fmt.Errorf("cannot put decode %v into %T", src, dst)
+		return fmt.Errorf("cannot decode %v into %T", src, dst)
 	}
 
 	return nil

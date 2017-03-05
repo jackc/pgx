@@ -41,6 +41,13 @@ func TestParseUntypedTextArray(t *testing.T) {
 			},
 		},
 		{
+			source: `{""}`,
+			result: pgtype.UntypedTextArray{
+				Elements:   []string{""},
+				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
+			},
+		},
+		{
 			source: `{"He said, \"Hello.\""}`,
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{`He said, "Hello."`},
