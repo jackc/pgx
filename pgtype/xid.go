@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// Xid is PostgreSQL's Transaction ID type.
+// XID is PostgreSQL's Transaction ID type.
 //
 // In later versions of PostgreSQL, it is the type used for the backend_xid
 // and backend_xmin columns of the pg_stat_activity system view.
