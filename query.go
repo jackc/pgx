@@ -256,8 +256,6 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					val = int64(decodeInt4(vr))
 				case TextOID, VarcharOID:
 					val = decodeText(vr)
-				case OIDOID:
-					val = int64(decodeOID(vr))
 				case Float4OID:
 					val = float64(decodeFloat4(vr))
 				case Float8OID:
@@ -382,8 +380,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeInt2(vr))
 			case Int4OID:
 				values = append(values, decodeInt4(vr))
-			case OIDOID:
-				values = append(values, decodeOID(vr))
 			case Float4OID:
 				values = append(values, decodeFloat4(vr))
 			case Float8OID:
@@ -457,8 +453,6 @@ func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
 				values = append(values, decodeInt2(vr))
 			case Int4OID:
 				values = append(values, decodeInt4(vr))
-			case OIDOID:
-				values = append(values, decodeOID(vr))
 			case Float4OID:
 				values = append(values, decodeFloat4(vr))
 			case Float8OID:
