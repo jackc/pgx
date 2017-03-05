@@ -295,6 +295,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		TimestampTzOID:      &pgtype.Timestamptz{},
 		VarcharArrayOID:     &pgtype.VarcharArray{},
 		VarcharOID:          &pgtype.Text{},
+		XIDOID:              &pgtype.XID{},
 	}
 
 	if tlsConfig != nil {
