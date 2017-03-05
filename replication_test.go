@@ -3,12 +3,13 @@ package pgx_test
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -47,14 +48,19 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	}
 
 	conn := mustConnect(t, *replicationConnConfig)
-	defer closeConn(t, conn)
+	defer func() {
+		// Ensure replication slot is destroyed, but don't check for errors as it
+		// should have already been destroyed.
+		conn.Exec("select pg_drop_replication_slot('pgx_test')")
+		closeConn(t, conn)
+	}()
 
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
 	err = replicationConn.CreateReplicationSlot("pgx_test", "test_decoding")
 	if err != nil {
-		t.Logf("replication slot create failed: %v", err)
+		t.Fatalf("replication slot create failed: %v", err)
 	}
 
 	// Do a simple change so we can get some wal data

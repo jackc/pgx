@@ -270,16 +270,43 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 //
 // This returns the context error when there is no replication message before
 // the context is canceled.
-func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (r *ReplicationMessage, err error) {
-	err = rc.c.initContext(ctx)
-	if err != nil {
-		return nil, err
+func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*ReplicationMessage, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
 	}
-	defer func() {
-		err = rc.c.termContext(err)
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := rc.c.conn.SetDeadline(time.Now()); err != nil {
+				rc.Close() // Close connection if unable to set deadline
+				return
+			}
+			rc.c.closedChan <- ctx.Err()
+		case <-rc.c.doneChan:
+		}
 	}()
 
-	return rc.readReplicationMessage()
+	r, opErr := rc.readReplicationMessage()
+
+	var err error
+	select {
+	case err = <-rc.c.closedChan:
+		if err := rc.c.conn.SetDeadline(time.Time{}); err != nil {
+			rc.Close() // Close connection if unable to disable deadline
+			return nil, err
+		}
+
+		if opErr == nil {
+			err = nil
+		}
+	case rc.c.doneChan <- struct{}{}:
+		err = opErr
+	}
+
+	return r, err
 }
 
 func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
