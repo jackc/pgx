@@ -18,28 +18,33 @@ import (
 // It is currently implemented as an unsigned four byte integer.
 // Its definition can be found in src/include/postgres_ext.h as TransactionId
 // in the PostgreSQL sources.
-type XID CID
+type XID pguint32
 
+// ConvertFrom converts from src to dst. Note that as XID is not a general
+// number type ConvertFrom does not do automatic type conversion as other number
+// types do.
 func (dst *XID) ConvertFrom(src interface{}) error {
-	return (*CID)(dst).ConvertFrom(src)
+	return (*pguint32)(dst).ConvertFrom(src)
 }
 
+// AssignTo assigns from src to dst. Note that as XID is not a general number
+// type AssignTo does not do automatic type conversion as other number types do.
 func (src *XID) AssignTo(dst interface{}) error {
-	return (*CID)(src).AssignTo(dst)
+	return (*pguint32)(src).AssignTo(dst)
 }
 
 func (dst *XID) DecodeText(r io.Reader) error {
-	return (*CID)(dst).DecodeText(r)
+	return (*pguint32)(dst).DecodeText(r)
 }
 
 func (dst *XID) DecodeBinary(r io.Reader) error {
-	return (*CID)(dst).DecodeBinary(r)
+	return (*pguint32)(dst).DecodeBinary(r)
 }
 
 func (src XID) EncodeText(w io.Writer) error {
-	return (CID)(src).EncodeText(w)
+	return (pguint32)(src).EncodeText(w)
 }
 
 func (src XID) EncodeBinary(w io.Writer) error {
-	return (CID)(src).EncodeBinary(w)
+	return (pguint32)(src).EncodeBinary(w)
 }
