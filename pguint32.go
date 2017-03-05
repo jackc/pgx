@@ -89,7 +89,7 @@ func (dst *pguint32) DecodeBinary(r io.Reader) error {
 	}
 
 	if size != 4 {
-		return fmt.Errorf("invalid length for cid: %v", size)
+		return fmt.Errorf("invalid length: %v", size)
 	}
 
 	n, err := pgio.ReadUint32(r)
