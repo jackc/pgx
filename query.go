@@ -388,22 +388,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				values = append(values, decodeFloat4(vr))
 			case Float8OID:
 				values = append(values, decodeFloat8(vr))
-			case BoolArrayOID:
-				values = append(values, decodeBoolArray(vr))
-			case Int2ArrayOID:
-				values = append(values, decodeInt2Array(vr))
-			case Int4ArrayOID:
-				values = append(values, decodeInt4Array(vr))
-			case Int8ArrayOID:
-				values = append(values, decodeInt8Array(vr))
-			case Float4ArrayOID:
-				values = append(values, decodeFloat4Array(vr))
-			case Float8ArrayOID:
-				values = append(values, decodeFloat8Array(vr))
-			case TextArrayOID, VarcharArrayOID:
-				values = append(values, decodeTextArray(vr))
-			case TimestampArrayOID, TimestampTzArrayOID:
-				values = append(values, decodeTimestampArray(vr))
 			case DateOID:
 				values = append(values, decodeDate(vr))
 			case TimestampTzOID:
@@ -479,22 +463,6 @@ func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
 				values = append(values, decodeFloat4(vr))
 			case Float8OID:
 				values = append(values, decodeFloat8(vr))
-			case BoolArrayOID:
-				values = append(values, decodeBoolArray(vr))
-			case Int2ArrayOID:
-				values = append(values, decodeInt2Array(vr))
-			case Int4ArrayOID:
-				values = append(values, decodeInt4Array(vr))
-			case Int8ArrayOID:
-				values = append(values, decodeInt8Array(vr))
-			case Float4ArrayOID:
-				values = append(values, decodeFloat4Array(vr))
-			case Float8ArrayOID:
-				values = append(values, decodeFloat8Array(vr))
-			case TextArrayOID, VarcharArrayOID:
-				values = append(values, decodeTextArray(vr))
-			case TimestampArrayOID, TimestampTzArrayOID:
-				values = append(values, decodeTimestampArray(vr))
 			case DateOID:
 				values = append(values, decodeDate(vr))
 			case TimestampTzOID:

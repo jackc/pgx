@@ -66,7 +66,7 @@ func (src *Bool) AssignTo(dst interface{}) error {
 				return nil
 			}
 		}
-		return fmt.Errorf("cannot put decode %v into %T", src, dst)
+		return fmt.Errorf("cannot decode %v into %T", src, dst)
 	}
 
 	return nil

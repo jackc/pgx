@@ -1179,9 +1179,6 @@ func TestQueryRowCoreStringSlice(t *testing.T) {
 	if err == nil {
 		t.Error("Expected null to cause error when scanned into slice, but it didn't")
 	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
 
 	ensureConnValid(t, conn)
 }

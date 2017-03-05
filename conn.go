@@ -286,10 +286,14 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		Int4OID:             &pgtype.Int4{},
 		Int8ArrayOID:        &pgtype.Int8Array{},
 		Int8OID:             &pgtype.Int8{},
+		TextArrayOID:        &pgtype.TextArray{},
+		TextOID:             &pgtype.Text{},
 		TimestampArrayOID:   &pgtype.TimestampArray{},
 		TimestampOID:        &pgtype.Timestamp{},
 		TimestampTzArrayOID: &pgtype.TimestamptzArray{},
 		TimestampTzOID:      &pgtype.Timestamptz{},
+		VarcharArrayOID:     &pgtype.VarcharArray{},
+		VarcharOID:          &pgtype.Text{},
 	}
 
 	if tlsConfig != nil {

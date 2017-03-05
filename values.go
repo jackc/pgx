@@ -1073,8 +1073,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	}
 
 	switch arg := arg.(type) {
-	case []string:
-		return encodeStringSlice(wbuf, oid, arg)
 	case Char:
 		return encodeChar(wbuf, oid, arg)
 	case AclItem:
@@ -1178,8 +1176,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeText(vr)
 	case *[]AclItem:
 		*v = decodeAclItemArray(vr)
-	case *[]string:
-		*v = decodeTextArray(vr)
 	case *[][]byte:
 		*v = decodeByteaArray(vr)
 	case *[]interface{}:
@@ -2569,41 +2565,6 @@ func encodeFloat64Slice(w *WriteBuf, oid OID, slice []float64) error {
 	return nil
 }
 
-func decodeTextArray(vr *ValueReader) []string {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != TextArrayOID && vr.Type().DataType != VarcharArrayOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []string", vr.Type().DataType)))
-		return nil
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return nil
-	}
-
-	numElems, err := decode1dArrayHeader(vr)
-	if err != nil {
-		vr.Fatal(err)
-		return nil
-	}
-
-	a := make([]string, int(numElems))
-	for i := 0; i < len(a); i++ {
-		elSize := vr.ReadInt32()
-		if elSize == -1 {
-			vr.Fatal(ProtocolError("Cannot decode null element"))
-			return nil
-		}
-
-		a[i] = vr.ReadString(elSize)
-	}
-
-	return a
-}
-
 // escapeAclItem escapes an AclItem before it is added to
 // its aclitem[] string representation. The PostgreSQL aclitem
 // datatype itself can need escapes because it follows the
@@ -2806,39 +2767,6 @@ func decodeAclItemArray(vr *ValueReader) []AclItem {
 		return nil
 	}
 	return aclItems
-}
-
-func encodeStringSlice(w *WriteBuf, oid OID, slice []string) error {
-	var elOID OID
-	switch oid {
-	case VarcharArrayOID:
-		elOID = VarcharOID
-	case TextArrayOID:
-		elOID = TextOID
-	default:
-		return fmt.Errorf("cannot encode Go %s into oid %d", "[]string", oid)
-	}
-
-	var totalStringSize int
-	for _, v := range slice {
-		totalStringSize += len(v)
-	}
-
-	size := 20 + len(slice)*4 + totalStringSize
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(int32(elOID))      // type of elements
-	w.WriteInt32(int32(len(slice))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
-	for _, v := range slice {
-		w.WriteInt32(int32(len(v)))
-		w.WriteBytes([]byte(v))
-	}
-
-	return nil
 }
 
 func decodeTimestampArray(vr *ValueReader) []time.Time {
