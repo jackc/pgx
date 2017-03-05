@@ -8,3 +8,4 @@ erb pgtype_array_type=TimestampArray pgtype_element_type=Timestamp go_array_type
 erb pgtype_array_type=Float4Array pgtype_element_type=Float4 go_array_types=[]float32 element_oid=Float4OID typed_array.go.erb > float4array.go
 erb pgtype_array_type=Float8Array pgtype_element_type=Float8 go_array_types=[]float64 element_oid=Float8OID typed_array.go.erb > float8array.go
 erb pgtype_array_type=InetArray pgtype_element_type=Inet go_array_types=[]*net.IPNet,[]net.IP element_oid=InetOID typed_array.go.erb > inetarray.go
+erb pgtype_array_type=TextArray pgtype_element_type=Text go_array_types=[]string element_oid=TextOID typed_array.go.erb > textarray.go

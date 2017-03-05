@@ -8,49 +8,30 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type Int8Array struct {
-	Elements   []Int8
+type TextArray struct {
+	Elements   []Text
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *Int8Array) ConvertFrom(src interface{}) error {
+func (dst *TextArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
-	case Int8Array:
+	case TextArray:
 		*dst = value
 
-	case []int64:
+	case []string:
 		if value == nil {
-			*dst = Int8Array{Status: Null}
+			*dst = TextArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = Int8Array{Status: Present}
+			*dst = TextArray{Status: Present}
 		} else {
-			elements := make([]Int8, len(value))
+			elements := make([]Text, len(value))
 			for i := range value {
 				if err := elements[i].ConvertFrom(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = Int8Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint64:
-		if value == nil {
-			*dst = Int8Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int8Array{Status: Present}
-		} else {
-			elements := make([]Int8, len(value))
-			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int8Array{
+			*dst = TextArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -61,30 +42,18 @@ func (dst *Int8Array) ConvertFrom(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Text", value)
 	}
 
 	return nil
 }
 
-func (src *Int8Array) AssignTo(dst interface{}) error {
+func (src *TextArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 
-	case *[]int64:
+	case *[]string:
 		if src.Status == Present {
-			*v = make([]int64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-		} else {
-			*v = nil
-		}
-
-	case *[]uint64:
-		if src.Status == Present {
-			*v = make([]uint64, len(src.Elements))
+			*v = make([]string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -104,14 +73,14 @@ func (src *Int8Array) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Int8Array) DecodeText(r io.Reader) error {
+func (dst *TextArray) DecodeText(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*dst = Int8Array{Status: Null}
+		*dst = TextArray{Status: Null}
 		return nil
 	}
 
@@ -127,13 +96,13 @@ func (dst *Int8Array) DecodeText(r io.Reader) error {
 	}
 
 	textElementReader := NewTextElementReader(r)
-	var elements []Int8
+	var elements []Text
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Int8, len(uta.Elements))
+		elements = make([]Text, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Int8
+			var elem Text
 			textElementReader.Reset(s)
 			err = elem.DecodeText(textElementReader)
 			if err != nil {
@@ -144,19 +113,19 @@ func (dst *Int8Array) DecodeText(r io.Reader) error {
 		}
 	}
 
-	*dst = Int8Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = TextArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *Int8Array) DecodeBinary(r io.Reader) error {
+func (dst *TextArray) DecodeBinary(r io.Reader) error {
 	size, err := pgio.ReadInt32(r)
 	if err != nil {
 		return err
 	}
 
 	if size == -1 {
-		*dst = Int8Array{Status: Null}
+		*dst = TextArray{Status: Null}
 		return nil
 	}
 
@@ -167,7 +136,7 @@ func (dst *Int8Array) DecodeBinary(r io.Reader) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = Int8Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = TextArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -176,7 +145,7 @@ func (dst *Int8Array) DecodeBinary(r io.Reader) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Int8, elementCount)
+	elements := make([]Text, elementCount)
 
 	for i := range elements {
 		err = elements[i].DecodeBinary(r)
@@ -185,11 +154,11 @@ func (dst *Int8Array) DecodeBinary(r io.Reader) error {
 		}
 	}
 
-	*dst = Int8Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = TextArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *Int8Array) EncodeText(w io.Writer) error {
+func (src *TextArray) EncodeText(w io.Writer) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -242,9 +211,16 @@ func (src *Int8Array) EncodeText(w io.Writer) error {
 		}
 
 		textElementWriter.Reset()
-		err = elem.EncodeText(textElementWriter)
-		if err != nil {
-			return err
+		if elem.String == "" && elem.Status == Present {
+			_, err := io.WriteString(buf, `""`)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = elem.EncodeText(textElementWriter)
+			if err != nil {
+				return err
+			}
 		}
 
 		for _, dec := range dimElemCounts {
@@ -266,7 +242,11 @@ func (src *Int8Array) EncodeText(w io.Writer) error {
 	return err
 }
 
-func (src *Int8Array) EncodeBinary(w io.Writer) error {
+func (src *TextArray) EncodeBinary(w io.Writer) error {
+	return src.encodeBinary(w, TextOID)
+}
+
+func (src *TextArray) encodeBinary(w io.Writer, elementOID int32) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -287,7 +267,7 @@ func (src *Int8Array) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	arrayHeader.ElementOID = Int8OID
+	arrayHeader.ElementOID = elementOID
 	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -
