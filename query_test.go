@@ -53,7 +53,7 @@ func TestConnQueryValues(t *testing.T) {
 
 	var rowCount int32
 
-	rows, err := conn.Query("select 'foo'::text, 'bar'::varchar, n, null, n::oid from generate_series(1,$1) n", 10)
+	rows, err := conn.Query("select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestConnQueryValues(t *testing.T) {
 			t.Errorf(`Expected values[3] to be %v, but it was %d`, nil, values[3])
 		}
 
-		if values[4] != pgx.OID(rowCount) {
+		if values[4] != rowCount {
 			t.Errorf(`Expected values[4] to be %d, but it was %d`, rowCount, values[4])
 		}
 	}
@@ -477,9 +477,6 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		err = conn.QueryRow(tt.sql, nil).Scan(tt.scanArgs...)
 		if err == nil {
 			t.Errorf("%d. Expected null to cause error, but it didn't (sql -> %v)", i, tt.sql)
-		}
-		if err != nil && !strings.Contains(err.Error(), "Cannot decode null") && !strings.Contains(err.Error(), "cannot assign") {
-			t.Errorf(`%d. Expected null to cause error "Cannot decode null..." but it was %v (sql -> %v)`, i, err, tt.sql)
 		}
 
 		ensureConnValid(t, conn)

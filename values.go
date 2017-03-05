@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -548,46 +549,75 @@ func (n NullInt32) Encode(w *WriteBuf, oid OID) error {
 // OID (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
 // used internally by PostgreSQL as a primary key for various system tables. It is currently implemented
 // as an unsigned four-byte integer. Its definition can be found in src/include/postgres_ext.h
-// in the PostgreSQL sources.
+// in the PostgreSQL sources. OID cannot be NULL. To allow for NULL OIDs use pgtype.OID.
 type OID uint32
 
-// NullOID represents a Command Identifier (OID) that may be null. NullOID implements the
-// Scanner and Encoder interfaces so it may be used both as an argument to
-// Query[Row] and a destination for Scan.
-//
-// If Valid is false then the value is NULL.
-type NullOID struct {
-	OID   OID
-	Valid bool // Valid is true if OID is not NULL
+func (dst *OID) DecodeText(r io.Reader) error {
+	size, err := pgio.ReadInt32(r)
+	if err != nil {
+		return err
+	}
+
+	if size == -1 {
+		return fmt.Errorf("cannot decode nil into OID")
+	}
+
+	buf := make([]byte, int(size))
+	_, err = r.Read(buf)
+	if err != nil {
+		return err
+	}
+
+	n, err := strconv.ParseUint(string(buf), 10, 32)
+	if err != nil {
+		return err
+	}
+
+	*dst = OID(n)
+	return nil
 }
 
-func (n *NullOID) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != OIDOID {
-		return SerializationError(fmt.Sprintf("NullOID.Scan cannot decode OID %d", vr.Type().DataType))
+func (dst *OID) DecodeBinary(r io.Reader) error {
+	size, err := pgio.ReadInt32(r)
+	if err != nil {
+		return err
 	}
 
-	if vr.Len() == -1 {
-		n.OID, n.Valid = 0, false
-		return nil
+	if size == -1 {
+		return fmt.Errorf("cannot decode nil into OID")
 	}
-	n.Valid = true
-	n.OID = decodeOID(vr)
-	return vr.Err()
+
+	if size != 4 {
+		return fmt.Errorf("invalid length for OID: %v", size)
+	}
+
+	n, err := pgio.ReadUint32(r)
+	if err != nil {
+		return err
+	}
+
+	*dst = OID(n)
+	return nil
 }
 
-func (n NullOID) FormatCode() int16 { return BinaryFormatCode }
-
-func (n NullOID) Encode(w *WriteBuf, oid OID) error {
-	if oid != OIDOID {
-		return SerializationError(fmt.Sprintf("NullOID.Encode cannot encode into OID %d", oid))
-	}
-
-	if !n.Valid {
-		w.WriteInt32(-1)
+func (src OID) EncodeText(w io.Writer) error {
+	s := strconv.FormatUint(uint64(src), 10)
+	_, err := pgio.WriteInt32(w, int32(len(s)))
+	if err != nil {
 		return nil
 	}
+	_, err = w.Write([]byte(s))
+	return err
+}
 
-	return encodeOID(w, oid, n.OID)
+func (src OID) EncodeBinary(w io.Writer) error {
+	_, err := pgio.WriteInt32(w, 4)
+	if err != nil {
+		return err
+	}
+
+	_, err = pgio.WriteUint32(w, uint32(src))
+	return err
 }
 
 // Tid is PostgreSQL's Tuple Identifier type.
@@ -976,8 +1006,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The name data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case OID:
-		return encodeOID(wbuf, oid, arg)
 	default:
 		if strippedArg, ok := stripNamedType(&refVal); ok {
 			return Encode(wbuf, oid, strippedArg)
@@ -1053,8 +1081,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 	case *Name:
 		// name goes over the wire just like text
 		*v = Name(decodeText(vr))
-	case *OID:
-		*v = decodeOID(vr)
 	case *Tid:
 		*v = decodeTid(vr)
 	case *string:
@@ -1290,49 +1316,6 @@ func decodeInt4(vr *ValueReader) int32 {
 	}
 
 	return n.Int
-}
-
-func decodeOID(vr *ValueReader) OID {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into OID"))
-		return OID(0)
-	}
-
-	if vr.Type().DataType != OIDOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into pgx.OID", vr.Type().DataType)))
-		return OID(0)
-	}
-
-	// OID needs to decode text format because it is used in loadPgTypes
-	switch vr.Type().FormatCode {
-	case TextFormatCode:
-		s := vr.ReadString(vr.Len())
-		n, err := strconv.ParseUint(s, 10, 32)
-		if err != nil {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid OID: %v", s)))
-		}
-		return OID(n)
-	case BinaryFormatCode:
-		if vr.Len() != 4 {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an OID: %d", vr.Len())))
-			return OID(0)
-		}
-		return OID(vr.ReadInt32())
-	default:
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return OID(0)
-	}
-}
-
-func encodeOID(w *WriteBuf, oid OID, value OID) error {
-	if oid != OIDOID {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.OID", oid)
-	}
-
-	w.WriteInt32(4)
-	w.WriteUint32(uint32(value))
-
-	return nil
 }
 
 // Note that we do not match negative numbers, because neither the
@@ -1764,8 +1747,6 @@ func decodeRecord(vr *ValueReader) []interface{} {
 			record = append(record, decodeInt2(&fieldVR))
 		case Int4OID:
 			record = append(record, decodeInt4(&fieldVR))
-		case OIDOID:
-			record = append(record, decodeOID(&fieldVR))
 		case Float4OID:
 			record = append(record, decodeFloat4(&fieldVR))
 		case Float8OID:

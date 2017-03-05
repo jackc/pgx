@@ -287,6 +287,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		Int4OID:             &pgtype.Int4{},
 		Int8ArrayOID:        &pgtype.Int8Array{},
 		Int8OID:             &pgtype.Int8{},
+		OIDOID:              &pgtype.OID{},
 		TextArrayOID:        &pgtype.TextArray{},
 		TextOID:             &pgtype.Text{},
 		TimestampArrayOID:   &pgtype.TimestampArray{},
@@ -392,7 +393,7 @@ where (
 	c.PgTypes = make(map[OID]PgType, 128)
 
 	for rows.Next() {
-		var oid OID
+		var oid uint32
 		var t PgType
 
 		rows.Scan(&oid, &t.Name)
@@ -400,7 +401,7 @@ where (
 		// The zero value is text format so we ignore any types without a default type format
 		t.DefaultFormat, _ = DefaultTypeFormats[t.Name]
 
-		c.PgTypes[oid] = t
+		c.PgTypes[OID(oid)] = t
 	}
 
 	return rows.Err()
