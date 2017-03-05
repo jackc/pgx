@@ -19,7 +19,7 @@ const (
 	TextOID             = 25
 	OIDOID              = 26
 	TidOID              = 27
-	XidOID              = 28
+	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
 	CidrOID             = 650
