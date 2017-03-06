@@ -371,57 +371,6 @@ func (n NullAclItem) Encode(w *WriteBuf, oid OID) error {
 	return encodeString(w, oid, string(n.AclItem))
 }
 
-// Name is a type used for PostgreSQL's special 63-byte
-// name data type, used for identifiers like table names.
-// The pg_class.relname column is a good example of where the
-// name data type is used.
-//
-// Note that the underlying Go data type of pgx.Name is string,
-// so there is no way to enforce the 63-byte length. Inputting
-// a longer name into PostgreSQL will result in silent truncation
-// to 63 bytes.
-//
-// Also, if you have custom-compiled PostgreSQL and set
-// NAMEDATALEN to a different value, obviously that number of
-// bytes applies, rather than the default 63.
-type Name string
-
-// NullName represents a pgx.Name that may be null. NullName implements the
-// Scanner and Encoder interfaces so it may be used both as an argument to
-// Query[Row] and a destination for Scan for prepared and unprepared queries.
-//
-// If Valid is false then the value is NULL.
-type NullName struct {
-	Name  Name
-	Valid bool // Valid is true if Name is not NULL
-}
-
-func (n *NullName) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != NameOID {
-		return SerializationError(fmt.Sprintf("NullName.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Name, n.Valid = "", false
-		return nil
-	}
-
-	n.Valid = true
-	n.Name = Name(decodeText(vr))
-	return vr.Err()
-}
-
-func (n NullName) FormatCode() int16 { return TextFormatCode }
-
-func (n NullName) Encode(w *WriteBuf, oid OID) error {
-	if !n.Valid {
-		w.WriteInt32(-1)
-		return nil
-	}
-
-	return encodeString(w, oid, string(n.Name))
-}
-
 // The pgx.Char type is for PostgreSQL's special 8-bit-only
 // "char" type more akin to the C language's char type, or Go's byte type.
 // (Note that the name in PostgreSQL itself is "char", in double-quotes,
@@ -1002,10 +951,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		// The aclitem data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
 		return encodeString(wbuf, oid, string(arg))
-	case Name:
-		// The name data type goes over the wire using the same format as string,
-		// so just cast to string and use encodeString
-		return encodeString(wbuf, oid, string(arg))
 	default:
 		if strippedArg, ok := stripNamedType(&refVal); ok {
 			return Encode(wbuf, oid, strippedArg)
@@ -1078,9 +1023,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 	case *AclItem:
 		// aclitem goes over the wire just like text
 		*v = AclItem(decodeText(vr))
-	case *Name:
-		// name goes over the wire just like text
-		*v = Name(decodeText(vr))
 	case *Tid:
 		*v = decodeTid(vr)
 	case *string:
