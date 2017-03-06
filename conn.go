@@ -287,6 +287,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		Int4OID:             &pgtype.Int4{},
 		Int8ArrayOID:        &pgtype.Int8Array{},
 		Int8OID:             &pgtype.Int8{},
+		NameOID:             &pgtype.Name{},
 		OIDOID:              &pgtype.OID{},
 		TextArrayOID:        &pgtype.TextArray{},
 		TextOID:             &pgtype.Text{},
