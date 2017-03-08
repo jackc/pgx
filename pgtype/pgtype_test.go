@@ -74,12 +74,15 @@ func (f forceBinaryEncoder) EncodeBinary(w io.Writer) error {
 func forceEncoder(e interface{}, formatCode int16) interface{} {
 	switch formatCode {
 	case pgx.TextFormatCode:
-		return forceTextEncoder{e: e.(pgtype.TextEncoder)}
+		if e, ok := e.(pgtype.TextEncoder); ok {
+			return forceTextEncoder{e: e}
+		}
 	case pgx.BinaryFormatCode:
-		return forceBinaryEncoder{e: e.(pgtype.BinaryEncoder)}
-	default:
-		panic("bad encoder")
+		if e, ok := e.(pgtype.BinaryEncoder); ok {
+			return forceBinaryEncoder{e: e.(pgtype.BinaryEncoder)}
+		}
 	}
+	return nil
 }
 
 func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface{}) {
@@ -105,9 +108,14 @@ func testSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []int
 		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
 	}
 
-	for _, fc := range formats {
-		ps.FieldDescriptions[0].FormatCode = fc.formatCode
-		for i, v := range values {
+	for i, v := range values {
+		for _, fc := range formats {
+			ps.FieldDescriptions[0].FormatCode = fc.formatCode
+			vEncoder := forceEncoder(v, fc.formatCode)
+			if vEncoder == nil {
+				t.Logf("%v does not implement %v", fc.name)
+				continue
+			}
 			// Derefence value if it is a pointer
 			derefV := v
 			refVal := reflect.ValueOf(v)

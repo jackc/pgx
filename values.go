@@ -371,52 +371,6 @@ func (n NullAclItem) Encode(w *WriteBuf, oid OID) error {
 	return encodeString(w, oid, string(n.AclItem))
 }
 
-// The pgx.Char type is for PostgreSQL's special 8-bit-only
-// "char" type more akin to the C language's char type, or Go's byte type.
-// (Note that the name in PostgreSQL itself is "char", in double-quotes,
-// and not char.) It gets used a lot in PostgreSQL's system tables to hold
-// a single ASCII character value (eg pg_class.relkind).
-type Char byte
-
-// NullChar represents a pgx.Char that may be null. NullChar implements the
-// Scanner and Encoder interfaces so it may be used both as an argument to
-// Query[Row] and a destination for Scan for prepared and unprepared queries.
-//
-// If Valid is false then the value is NULL.
-type NullChar struct {
-	Char  Char
-	Valid bool // Valid is true if Char is not NULL
-}
-
-func (n *NullChar) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != CharOID {
-		return SerializationError(fmt.Sprintf("NullChar.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Char, n.Valid = 0, false
-		return nil
-	}
-	n.Valid = true
-	n.Char = decodeChar(vr)
-	return vr.Err()
-}
-
-func (n NullChar) FormatCode() int16 { return BinaryFormatCode }
-
-func (n NullChar) Encode(w *WriteBuf, oid OID) error {
-	if oid != CharOID {
-		return SerializationError(fmt.Sprintf("NullChar.Encode cannot encode into OID %d", oid))
-	}
-
-	if !n.Valid {
-		w.WriteInt32(-1)
-		return nil
-	}
-
-	return encodeChar(w, oid, n.Char)
-}
-
 // NullInt16 represents a smallint that may be null. NullInt16 implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan for prepared and unprepared queries.
@@ -945,8 +899,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	}
 
 	switch arg := arg.(type) {
-	case Char:
-		return encodeChar(wbuf, oid, arg)
 	case AclItem:
 		// The aclitem data type goes over the wire using the same format as string,
 		// so just cast to string and use encodeString
@@ -1018,8 +970,6 @@ func decodeByOID(vr *ValueReader) (interface{}, error) {
 // decoding to the built-in functionality.
 func Decode(vr *ValueReader, d interface{}) error {
 	switch v := d.(type) {
-	case *Char:
-		*v = decodeChar(vr)
 	case *AclItem:
 		// aclitem goes over the wire just like text
 		*v = AclItem(decodeText(vr))
@@ -1158,30 +1108,6 @@ func decodeInt8(vr *ValueReader) int64 {
 	return n.Int
 }
 
-func decodeChar(vr *ValueReader) Char {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into char"))
-		return Char(0)
-	}
-
-	if vr.Type().DataType != CharOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into char", vr.Type().DataType)))
-		return Char(0)
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return Char(0)
-	}
-
-	if vr.Len() != 1 {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for a char: %d", vr.Len())))
-		return Char(0)
-	}
-
-	return Char(vr.ReadByte())
-}
-
 func decodeInt2(vr *ValueReader) int16 {
 
 	if vr.Type().DataType != Int2OID {
@@ -1214,12 +1140,6 @@ func decodeInt2(vr *ValueReader) int16 {
 	}
 
 	return n.Int
-}
-
-func encodeChar(w *WriteBuf, oid OID, value Char) error {
-	w.WriteInt32(1)
-	w.WriteByte(byte(value))
-	return nil
 }
 
 func decodeInt4(vr *ValueReader) int32 {
