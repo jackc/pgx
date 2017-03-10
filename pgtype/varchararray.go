@@ -14,12 +14,12 @@ func (src *VarcharArray) AssignTo(dst interface{}) error {
 	return (*TextArray)(src).AssignTo(dst)
 }
 
-func (dst *VarcharArray) DecodeText(r io.Reader) error {
-	return (*TextArray)(dst).DecodeText(r)
+func (dst *VarcharArray) DecodeText(src []byte) error {
+	return (*TextArray)(dst).DecodeText(src)
 }
 
-func (dst *VarcharArray) DecodeBinary(r io.Reader) error {
-	return (*TextArray)(dst).DecodeBinary(r)
+func (dst *VarcharArray) DecodeBinary(src []byte) error {
+	return (*TextArray)(dst).DecodeBinary(src)
 }
 
 func (src *VarcharArray) EncodeText(w io.Writer) error {

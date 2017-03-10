@@ -4,8 +4,6 @@ import (
 	"errors"
 )
 
-var errRewoundLen = errors.New("len was rewound")
-
 // ValueReader is used by the Scanner interface to decode values.
 type ValueReader struct {
 	mr                  *msgReader
@@ -157,27 +155,10 @@ func (r *ValueReader) ReadBytes(count int32) []byte {
 	return r.mr.readBytes(count)
 }
 
-type valueReader2 struct {
-	*ValueReader
-}
-
-func (r *valueReader2) Read(dst []byte) (int, error) {
-	if r.err != nil {
-		return 0, r.err
+// bytes is a compatibility function for pgtype.TextDecoder and pgtype.BinaryDecoder
+func (r *ValueReader) bytes() []byte {
+	if r.Len() >= 0 {
+		return r.ReadBytes(r.Len())
 	}
-
-	src := r.ReadBytes(int32(len(dst)))
-
-	copy(dst, src)
-
-	return len(dst), nil
-}
-
-func (r *valueReader2) ReadUint32() (uint32, error) {
-	if r.err == errRewoundLen {
-		r.err = nil
-		return uint32(r.Len()), nil
-	}
-
-	return r.ValueReader.ReadUint32(), nil
+	return nil
 }

@@ -71,29 +71,18 @@ func (src *Text) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Text) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Text) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Text{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	*dst = Text{String: string(buf), Status: Present}
+	*dst = Text{String: string(src), Status: Present}
 	return nil
 }
 
-func (dst *Text) DecodeBinary(r io.Reader) error {
-	return dst.DecodeText(r)
+func (dst *Text) DecodeBinary(src []byte) error {
+	return dst.DecodeText(src)
 }
 
 func (src Text) EncodeText(w io.Writer) error {

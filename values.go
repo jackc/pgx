@@ -3,6 +3,7 @@ package pgx
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -455,23 +456,12 @@ func (n NullInt32) Encode(w *WriteBuf, oid OID) error {
 // in the PostgreSQL sources. OID cannot be NULL. To allow for NULL OIDs use pgtype.OID.
 type OID uint32
 
-func (dst *OID) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *OID) DecodeText(src []byte) error {
+	if src == nil {
 		return fmt.Errorf("cannot decode nil into OID")
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	n, err := strconv.ParseUint(string(buf), 10, 32)
+	n, err := strconv.ParseUint(string(src), 10, 32)
 	if err != nil {
 		return err
 	}
@@ -480,25 +470,16 @@ func (dst *OID) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *OID) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *OID) DecodeBinary(src []byte) error {
+	if src == nil {
 		return fmt.Errorf("cannot decode nil into OID")
 	}
 
-	if size != 4 {
-		return fmt.Errorf("invalid length for OID: %v", size)
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length: %v", len(src))
 	}
 
-	n, err := pgio.ReadUint32(r)
-	if err != nil {
-		return err
-	}
-
+	n := binary.BigEndian.Uint32(src)
 	*dst = OID(n)
 	return nil
 }
@@ -1020,15 +1001,13 @@ func decodeBool(vr *ValueReader) bool {
 		return false
 	}
 
-	vr.err = errRewoundLen
-
 	var b pgtype.Bool
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = b.DecodeText(&valueReader2{vr})
+		err = b.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = b.DecodeBinary(&valueReader2{vr})
+		err = b.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return false
@@ -1081,15 +1060,13 @@ func decodeInt8(vr *ValueReader) int64 {
 		return 0
 	}
 
-	vr.err = errRewoundLen
-
 	var n pgtype.Int8
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = n.DecodeText(&valueReader2{vr})
+		err = n.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = n.DecodeBinary(&valueReader2{vr})
+		err = n.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
@@ -1115,15 +1092,13 @@ func decodeInt2(vr *ValueReader) int16 {
 		return 0
 	}
 
-	vr.err = errRewoundLen
-
 	var n pgtype.Int2
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = n.DecodeText(&valueReader2{vr})
+		err = n.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = n.DecodeBinary(&valueReader2{vr})
+		err = n.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
@@ -1153,15 +1128,13 @@ func decodeInt4(vr *ValueReader) int32 {
 		return 0
 	}
 
-	vr.err = errRewoundLen
-
 	var n pgtype.Int4
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = n.DecodeText(&valueReader2{vr})
+		err = n.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = n.DecodeBinary(&valueReader2{vr})
+		err = n.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return 0
@@ -1455,15 +1428,13 @@ func decodeDate(vr *ValueReader) time.Time {
 		return time.Time{}
 	}
 
-	vr.err = errRewoundLen
-
 	var d pgtype.Date
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = d.DecodeText(&valueReader2{vr})
+		err = d.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = d.DecodeBinary(&valueReader2{vr})
+		err = d.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return time.Time{}
@@ -1518,15 +1489,13 @@ func decodeTimestampTz(vr *ValueReader) time.Time {
 		return zeroTime
 	}
 
-	vr.err = errRewoundLen
-
 	var t pgtype.Timestamptz
 	var err error
 	switch vr.Type().FormatCode {
 	case TextFormatCode:
-		err = t.DecodeText(&valueReader2{vr})
+		err = t.DecodeText(vr.bytes())
 	case BinaryFormatCode:
-		err = t.DecodeBinary(&valueReader2{vr})
+		err = t.DecodeBinary(vr.bytes())
 	default:
 		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
 		return time.Time{}

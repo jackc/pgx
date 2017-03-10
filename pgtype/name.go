@@ -27,12 +27,12 @@ func (src *Name) AssignTo(dst interface{}) error {
 	return (*Text)(src).AssignTo(dst)
 }
 
-func (dst *Name) DecodeText(r io.Reader) error {
-	return (*Text)(dst).DecodeText(r)
+func (dst *Name) DecodeText(src []byte) error {
+	return (*Text)(dst).DecodeText(src)
 }
 
-func (dst *Name) DecodeBinary(r io.Reader) error {
-	return (*Text)(dst).DecodeBinary(r)
+func (dst *Name) DecodeBinary(src []byte) error {
+	return (*Text)(dst).DecodeBinary(src)
 }
 
 func (src Name) EncodeText(w io.Writer) error {

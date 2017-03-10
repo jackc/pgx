@@ -231,14 +231,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
-			vr.err = errRewoundLen
-			err = s.DecodeBinary(&valueReader2{vr})
+			err = s.DecodeBinary(vr.bytes())
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if s, ok := d.(pgtype.TextDecoder); ok && vr.Type().FormatCode == TextFormatCode {
-			vr.err = errRewoundLen
-			err = s.DecodeText(&valueReader2{vr})
+			err = s.DecodeText(vr.bytes())
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
@@ -290,8 +288,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				switch vr.Type().FormatCode {
 				case TextFormatCode:
 					if textDecoder, ok := pgVal.(pgtype.TextDecoder); ok {
-						vr.err = errRewoundLen
-						err = textDecoder.DecodeText(&valueReader2{vr})
+						err = textDecoder.DecodeText(vr.bytes())
 						if err != nil {
 							vr.Fatal(err)
 						}
@@ -300,8 +297,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					}
 				case BinaryFormatCode:
 					if binaryDecoder, ok := pgVal.(pgtype.BinaryDecoder); ok {
-						vr.err = errRewoundLen
-						err = binaryDecoder.DecodeBinary(&valueReader2{vr})
+						err = binaryDecoder.DecodeBinary(vr.bytes())
 						if err != nil {
 							vr.Fatal(err)
 						}
