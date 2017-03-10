@@ -1486,3 +1486,40 @@ func TestSetLogLevel(t *testing.T) {
 		t.Fatal("Expected logger to be called, but it wasn't")
 	}
 }
+
+func TestIdentifierSanitize(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		ident    pgx.Identifier
+		expected string
+	}{
+		{
+			ident:    pgx.Identifier{`foo`},
+			expected: `"foo"`,
+		},
+		{
+			ident:    pgx.Identifier{`select`},
+			expected: `"select"`,
+		},
+		{
+			ident:    pgx.Identifier{`foo`, `bar`},
+			expected: `"foo"."bar"`,
+		},
+		{
+			ident:    pgx.Identifier{`you should " not do this`},
+			expected: `"you should "" not do this"`,
+		},
+		{
+			ident:    pgx.Identifier{`you should " not do this`, `please don't`},
+			expected: `"you should "" not do this"."please don't"`,
+		},
+	}
+
+	for i, tt := range tests {
+		qval := tt.ident.Sanitize()
+		if qval != tt.expected {
+			t.Errorf("%d. Expected Sanitize %v to return %v but it was %v", i, tt.ident, tt.expected, qval)
+		}
+	}
+}

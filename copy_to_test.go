@@ -1,7 +1,6 @@
 package pgx_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -227,27 +226,6 @@ func TestConnCopyToFailServerSideMidway(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-type failSource struct {
-	count int
-}
-
-func (fs *failSource) Next() bool {
-	time.Sleep(time.Millisecond * 100)
-	fs.count++
-	return fs.count < 100
-}
-
-func (fs *failSource) Values() ([]interface{}, error) {
-	if fs.count == 3 {
-		return []interface{}{nil}, nil
-	}
-	return []interface{}{make([]byte, 100000)}, nil
-}
-
-func (fs *failSource) Err() error {
-	return nil
-}
-
 func TestConnCopyToFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	t.Parallel()
 
@@ -302,28 +280,6 @@ func TestConnCopyToFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-type clientFailSource struct {
-	count int
-	err   error
-}
-
-func (cfs *clientFailSource) Next() bool {
-	cfs.count++
-	return cfs.count < 100
-}
-
-func (cfs *clientFailSource) Values() ([]interface{}, error) {
-	if cfs.count == 3 {
-		cfs.err = fmt.Errorf("client error")
-		return nil, cfs.err
-	}
-	return []interface{}{make([]byte, 100000)}, nil
-}
-
-func (cfs *clientFailSource) Err() error {
-	return cfs.err
-}
-
 func TestConnCopyToCopyToSourceErrorMidway(t *testing.T) {
 	t.Parallel()
 
@@ -365,23 +321,6 @@ func TestConnCopyToCopyToSourceErrorMidway(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
-}
-
-type clientFinalErrSource struct {
-	count int
-}
-
-func (cfs *clientFinalErrSource) Next() bool {
-	cfs.count++
-	return cfs.count < 5
-}
-
-func (cfs *clientFinalErrSource) Values() ([]interface{}, error) {
-	return []interface{}{make([]byte, 100000)}, nil
-}
-
-func (cfs *clientFinalErrSource) Err() error {
-	return fmt.Errorf("final error")
 }
 
 func TestConnCopyToCopyToSourceErrorEnd(t *testing.T) {
