@@ -14,12 +14,12 @@ func (src *CidrArray) AssignTo(dst interface{}) error {
 	return (*InetArray)(src).AssignTo(dst)
 }
 
-func (dst *CidrArray) DecodeText(r io.Reader) error {
-	return (*InetArray)(dst).DecodeText(r)
+func (dst *CidrArray) DecodeText(src []byte) error {
+	return (*InetArray)(dst).DecodeText(src)
 }
 
-func (dst *CidrArray) DecodeBinary(r io.Reader) error {
-	return (*InetArray)(dst).DecodeBinary(r)
+func (dst *CidrArray) DecodeBinary(src []byte) error {
+	return (*InetArray)(dst).DecodeBinary(src)
 }
 
 func (src *CidrArray) EncodeText(w io.Writer) error {

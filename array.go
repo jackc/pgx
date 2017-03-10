@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -25,40 +26,37 @@ type ArrayDimension struct {
 	LowerBound int32
 }
 
-func (dst *ArrayHeader) DecodeBinary(r io.Reader) error {
-	numDims, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
+func (dst *ArrayHeader) DecodeBinary(src []byte) (int, error) {
+	if len(src) < 12 {
+		return 0, fmt.Errorf("array header too short: %d", len(src))
 	}
+
+	rp := 0
+
+	numDims := int(binary.BigEndian.Uint32(src[rp:]))
+	rp += 4
+
+	dst.ContainsNull = binary.BigEndian.Uint32(src[rp:]) == 1
+	rp += 4
+
+	dst.ElementOID = int32(binary.BigEndian.Uint32(src[rp:]))
+	rp += 4
 
 	if numDims > 0 {
 		dst.Dimensions = make([]ArrayDimension, numDims)
 	}
-
-	containsNull, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
+	if len(src) < 12+numDims*8 {
+		return 0, fmt.Errorf("array header too short for %d dimensions: %d", numDims, len(src))
 	}
-	dst.ContainsNull = containsNull == 1
-
-	dst.ElementOID, err = pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
 	for i := range dst.Dimensions {
-		dst.Dimensions[i].Length, err = pgio.ReadInt32(r)
-		if err != nil {
-			return err
-		}
+		dst.Dimensions[i].Length = int32(binary.BigEndian.Uint32(src[rp:]))
+		rp += 4
 
-		dst.Dimensions[i].LowerBound, err = pgio.ReadInt32(r)
-		if err != nil {
-			return err
-		}
+		dst.Dimensions[i].LowerBound = int32(binary.BigEndian.Uint32(src[rp:]))
+		rp += 4
 	}
 
-	return nil
+	return rp, nil
 }
 
 func (src *ArrayHeader) EncodeBinary(w io.Writer) error {

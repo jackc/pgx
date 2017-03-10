@@ -106,27 +106,17 @@ func (src *QChar) AssignTo(dst interface{}) error {
 	return int64AssignTo(int64(src.Int), src.Status, dst)
 }
 
-func (dst *QChar) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *QChar) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = QChar{Status: Null}
 		return nil
 	}
 
-	if size != 1 {
-		return fmt.Errorf(`invalid length for "char": %v`, size)
+	if len(src) != 1 {
+		return fmt.Errorf(`invalid length for "char": %v`, len(src))
 	}
 
-	byt, err := pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
-	*dst = QChar{Int: int8(byt), Status: Present}
+	*dst = QChar{Int: int8(src[0]), Status: Present}
 	return nil
 }
 

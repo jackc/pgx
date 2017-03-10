@@ -30,12 +30,12 @@ func (src *CID) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *CID) DecodeText(r io.Reader) error {
-	return (*pguint32)(dst).DecodeText(r)
+func (dst *CID) DecodeText(src []byte) error {
+	return (*pguint32)(dst).DecodeText(src)
 }
 
-func (dst *CID) DecodeBinary(r io.Reader) error {
-	return (*pguint32)(dst).DecodeBinary(r)
+func (dst *CID) DecodeBinary(src []byte) error {
+	return (*pguint32)(dst).DecodeBinary(src)
 }
 
 func (src CID) EncodeText(w io.Writer) error {

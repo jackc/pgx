@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"reflect"
@@ -66,24 +67,13 @@ func (src *Date) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Date) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Date) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Date{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	sbuf := string(buf)
+	sbuf := string(src)
 	switch sbuf {
 	case "infinity":
 		*dst = Date{Status: Present, InfinityModifier: Infinity}
@@ -101,25 +91,17 @@ func (dst *Date) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Date) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Date) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Date{Status: Null}
 		return nil
 	}
 
-	if size != 4 {
-		return fmt.Errorf("invalid length for date: %v", size)
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length for date: %v", len(src))
 	}
 
-	dayOffset, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
+	dayOffset := int32(binary.BigEndian.Uint32(src))
 
 	switch dayOffset {
 	case infinityDayOffset:

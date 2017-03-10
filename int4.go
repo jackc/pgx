@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -79,24 +80,13 @@ func (src *Int4) AssignTo(dst interface{}) error {
 	return int64AssignTo(int64(src.Int), src.Status, dst)
 }
 
-func (dst *Int4) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Int4) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Int4{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	n, err := strconv.ParseInt(string(buf), 10, 32)
+	n, err := strconv.ParseInt(string(src), 10, 32)
 	if err != nil {
 		return err
 	}
@@ -105,26 +95,17 @@ func (dst *Int4) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Int4) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Int4) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Int4{Status: Null}
 		return nil
 	}
 
-	if size != 4 {
-		return fmt.Errorf("invalid length for int4: %v", size)
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length for int4: %v", len(src))
 	}
 
-	n, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
+	n := int32(binary.BigEndian.Uint32(src))
 	*dst = Int4{Int: n, Status: Present}
 	return nil
 }

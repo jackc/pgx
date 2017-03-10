@@ -71,29 +71,18 @@ func (src *Bytea) AssignTo(dst interface{}) error {
 
 // DecodeText only supports the hex format. This has been the default since
 // PostgreSQL 9.0.
-func (dst *Bytea) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Bytea) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Bytea{Status: Null}
 		return nil
 	}
 
-	sbuf := make([]byte, int(size))
-	_, err = io.ReadFull(r, sbuf)
-	if err != nil {
-		return err
-	}
-
-	if len(sbuf) < 2 || sbuf[0] != '\\' || sbuf[1] != 'x' {
+	if len(src) < 2 || src[0] != '\\' || src[1] != 'x' {
 		return fmt.Errorf("invalid hex format")
 	}
 
-	buf := make([]byte, (len(sbuf)-2)/2)
-	_, err = hex.Decode(buf, sbuf[2:])
+	buf := make([]byte, (len(src)-2)/2)
+	_, err := hex.Decode(buf, src[2:])
 	if err != nil {
 		return err
 	}
@@ -102,25 +91,13 @@ func (dst *Bytea) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Bytea) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Bytea) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Bytea{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-
-	_, err = io.ReadFull(r, buf)
-	if err != nil {
-		return err
-	}
-
-	*dst = Bytea{Bytes: buf, Status: Present}
+	*dst = Bytea{Bytes: src, Status: Present}
 	return nil
 }
 
