@@ -22,6 +22,7 @@ type _int32Slice []int32
 type _int64Slice []int64
 type _float32Slice []float32
 type _float64Slice []float64
+type _byteSlice []byte
 
 func mustConnectPgx(t testing.TB) *pgx.Conn {
 	config, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
