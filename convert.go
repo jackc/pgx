@@ -85,6 +85,27 @@ func underlyingBoolType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+// underlyingBytesType gets the underlying type that can be converted to []byte
+func underlyingBytesType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return nil, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	case reflect.Slice:
+		if refVal.Type().Elem().Kind() == reflect.Uint8 {
+			convVal := refVal.Bytes()
+			return convVal, reflect.TypeOf(convVal) != refVal.Type()
+		}
+	}
+
+	return nil, false
+}
+
 // underlyingStringType gets the underlying type that can be converted to String
 func underlyingStringType(val interface{}) (interface{}, bool) {
 	refVal := reflect.ValueOf(val)
