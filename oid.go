@@ -24,12 +24,12 @@ func (src *OID) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *OID) DecodeText(r io.Reader) error {
-	return (*pguint32)(dst).DecodeText(r)
+func (dst *OID) DecodeText(src []byte) error {
+	return (*pguint32)(dst).DecodeText(src)
 }
 
-func (dst *OID) DecodeBinary(r io.Reader) error {
-	return (*pguint32)(dst).DecodeBinary(r)
+func (dst *OID) DecodeBinary(src []byte) error {
+	return (*pguint32)(dst).DecodeBinary(src)
 }
 
 func (src OID) EncodeText(w io.Writer) error {

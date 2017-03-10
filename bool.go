@@ -72,51 +72,31 @@ func (src *Bool) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Bool) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Bool) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Bool{Status: Null}
 		return nil
 	}
 
-	if size != 1 {
-		return fmt.Errorf("invalid length for bool: %v", size)
+	if len(src) != 1 {
+		return fmt.Errorf("invalid length for bool: %v", len(src))
 	}
 
-	byt, err := pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
-	*dst = Bool{Bool: byt == 't', Status: Present}
+	*dst = Bool{Bool: src[0] == 't', Status: Present}
 	return nil
 }
 
-func (dst *Bool) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Bool) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Bool{Status: Null}
 		return nil
 	}
 
-	if size != 1 {
-		return fmt.Errorf("invalid length for bool: %v", size)
+	if len(src) != 1 {
+		return fmt.Errorf("invalid length for bool: %v", len(src))
 	}
 
-	byt, err := pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
-	*dst = Bool{Bool: byt == 1, Status: Present}
+	*dst = Bool{Bool: src[0] == 1, Status: Present}
 	return nil
 }
 

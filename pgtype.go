@@ -74,11 +74,11 @@ type Value interface {
 }
 
 type BinaryDecoder interface {
-	DecodeBinary(r io.Reader) error
+	DecodeBinary(src []byte) error
 }
 
 type TextDecoder interface {
-	DecodeText(r io.Reader) error
+	DecodeText(src []byte) error
 }
 
 type BinaryEncoder interface {

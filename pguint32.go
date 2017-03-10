@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"strconv"
@@ -51,24 +52,13 @@ func (src *pguint32) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *pguint32) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *pguint32) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = pguint32{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	n, err := strconv.ParseUint(string(buf), 10, 32)
+	n, err := strconv.ParseUint(string(src), 10, 32)
 	if err != nil {
 		return err
 	}
@@ -77,26 +67,17 @@ func (dst *pguint32) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *pguint32) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *pguint32) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = pguint32{Status: Null}
 		return nil
 	}
 
-	if size != 4 {
-		return fmt.Errorf("invalid length: %v", size)
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length: %v", len(src))
 	}
 
-	n, err := pgio.ReadUint32(r)
-	if err != nil {
-		return err
-	}
-
+	n := binary.BigEndian.Uint32(src)
 	*dst = pguint32{Uint: n, Status: Present}
 	return nil
 }
