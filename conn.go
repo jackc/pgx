@@ -111,6 +111,19 @@ func (ct CommandTag) RowsAffected() int64 {
 	return n
 }
 
+// Identifier a PostgreSQL identifier or name. Identifiers can be composed of
+// multiple parts such as ["schema", "table"] or ["table", "column"].
+type Identifier []string
+
+// Sanitize returns a sanitized string safe for SQL interpolation.
+func (ident Identifier) Sanitize() string {
+	parts := make([]string, len(ident))
+	for i := range ident {
+		parts[i] = `"` + strings.Replace(ident[i], `"`, `""`, -1) + `"`
+	}
+	return strings.Join(parts, ".")
+}
+
 // ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
 

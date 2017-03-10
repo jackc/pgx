@@ -5,33 +5,32 @@ import (
 	"fmt"
 )
 
-// Deprecated. Use CopyFromRows instead. CopyToRows returns a CopyToSource
-// interface over the provided rows slice making it usable by *Conn.CopyTo.
-func CopyToRows(rows [][]interface{}) CopyToSource {
-	return &copyToRows{rows: rows, idx: -1}
+// CopyFromRows returns a CopyFromSource interface over the provided rows slice
+// making it usable by *Conn.CopyFrom.
+func CopyFromRows(rows [][]interface{}) CopyFromSource {
+	return &copyFromRows{rows: rows, idx: -1}
 }
 
-type copyToRows struct {
+type copyFromRows struct {
 	rows [][]interface{}
 	idx  int
 }
 
-func (ctr *copyToRows) Next() bool {
+func (ctr *copyFromRows) Next() bool {
 	ctr.idx++
 	return ctr.idx < len(ctr.rows)
 }
 
-func (ctr *copyToRows) Values() ([]interface{}, error) {
+func (ctr *copyFromRows) Values() ([]interface{}, error) {
 	return ctr.rows[ctr.idx], nil
 }
 
-func (ctr *copyToRows) Err() error {
+func (ctr *copyFromRows) Err() error {
 	return nil
 }
 
-// Deprecated. Use CopyFromSource instead. CopyToSource is the interface used by
-// *Conn.CopyTo as the source for copy data.
-type CopyToSource interface {
+// CopyFromSource is the interface used by *Conn.CopyFrom as the source for copy data.
+type CopyFromSource interface {
 	// Next returns true if there is another row and makes the next row data
 	// available to Values(). When there are no more rows available or an error
 	// has occurred it returns false.
@@ -40,20 +39,20 @@ type CopyToSource interface {
 	// Values returns the values for the current row.
 	Values() ([]interface{}, error)
 
-	// Err returns any error that has been encountered by the CopyToSource. If
-	// this is not nil *Conn.CopyTo will abort the copy.
+	// Err returns any error that has been encountered by the CopyFromSource. If
+	// this is not nil *Conn.CopyFrom will abort the copy.
 	Err() error
 }
 
-type copyTo struct {
+type copyFrom struct {
 	conn          *Conn
-	tableName     string
+	tableName     Identifier
 	columnNames   []string
-	rowSrc        CopyToSource
+	rowSrc        CopyFromSource
 	readerErrChan chan error
 }
 
-func (ct *copyTo) readUntilReadyForQuery() {
+func (ct *copyFrom) readUntilReadyForQuery() {
 	for {
 		t, r, err := ct.conn.rxMsg()
 		if err != nil {
@@ -79,15 +78,15 @@ func (ct *copyTo) readUntilReadyForQuery() {
 	}
 }
 
-func (ct *copyTo) waitForReaderDone() error {
+func (ct *copyFrom) waitForReaderDone() error {
 	var err error
 	for err = range ct.readerErrChan {
 	}
 	return err
 }
 
-func (ct *copyTo) run() (int, error) {
-	quotedTableName := quoteIdentifier(ct.tableName)
+func (ct *copyFrom) run() (int, error) {
+	quotedTableName := ct.tableName.Sanitize()
 	buf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
 		if i != 0 {
@@ -189,7 +188,28 @@ func (ct *copyTo) run() (int, error) {
 	return sentCount, nil
 }
 
-func (ct *copyTo) cancelCopyIn() error {
+func (c *Conn) readUntilCopyInResponse() error {
+	for {
+		var t byte
+		var r *msgReader
+		t, r, err := c.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch t {
+		case copyInResponse:
+			return nil
+		default:
+			err = c.processContextFreeMsg(t, r)
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (ct *copyFrom) cancelCopyIn() error {
 	wbuf := newWriteBuf(ct.conn, copyFail)
 	wbuf.WriteCString("client error: abort")
 	wbuf.closeMsg()
@@ -202,15 +222,14 @@ func (ct *copyTo) cancelCopyIn() error {
 	return nil
 }
 
-// Deprecated. Use CopyFrom instead. CopyTo uses the PostgreSQL copy protocol to
-// perform bulk data insertion. It returns the number of rows copied and an
-// error.
+// CopyFrom uses the PostgreSQL copy protocol to perform bulk data insertion.
+// It returns the number of rows copied and an error.
 //
-// CopyTo requires all values use the binary format. Almost all types
+// CopyFrom requires all values use the binary format. Almost all types
 // implemented by pgx use the binary format by default. Types implementing
 // Encoder can only be used if they encode to the binary format.
-func (c *Conn) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
-	ct := &copyTo{
+func (c *Conn) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
+	ct := &copyFrom{
 		conn:          c,
 		tableName:     tableName,
 		columnNames:   columnNames,
