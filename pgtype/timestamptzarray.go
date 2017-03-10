@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"time"
@@ -74,29 +75,17 @@ func (src *TimestamptzArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *TimestamptzArray) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *TimestamptzArray) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = TimestamptzArray{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = io.ReadFull(r, buf)
+	uta, err := ParseUntypedTextArray(string(src))
 	if err != nil {
 		return err
 	}
 
-	uta, err := ParseUntypedTextArray(string(buf))
-	if err != nil {
-		return err
-	}
-
-	textElementReader := NewTextElementReader(r)
 	var elements []Timestamptz
 
 	if len(uta.Elements) > 0 {
@@ -104,8 +93,11 @@ func (dst *TimestamptzArray) DecodeText(r io.Reader) error {
 
 		for i, s := range uta.Elements {
 			var elem Timestamptz
-			textElementReader.Reset(s)
-			err = elem.DecodeText(textElementReader)
+			var elemSrc []byte
+			if s != "NULL" {
+				elemSrc = []byte(s)
+			}
+			err = elem.DecodeText(elemSrc)
 			if err != nil {
 				return err
 			}
@@ -119,19 +111,14 @@ func (dst *TimestamptzArray) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *TimestamptzArray) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *TimestamptzArray) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = TimestamptzArray{Status: Null}
 		return nil
 	}
 
 	var arrayHeader ArrayHeader
-	err = arrayHeader.DecodeBinary(r)
+	rp, err := arrayHeader.DecodeBinary(src)
 	if err != nil {
 		return err
 	}
@@ -149,7 +136,14 @@ func (dst *TimestamptzArray) DecodeBinary(r io.Reader) error {
 	elements := make([]Timestamptz, elementCount)
 
 	for i := range elements {
-		err = elements[i].DecodeBinary(r)
+		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
+		rp += 4
+		var elemSrc []byte
+		if elemLen >= 0 {
+			elemSrc = src[rp : rp+elemLen]
+			rp += elemLen
+		}
+		err = elements[i].DecodeBinary(elemSrc)
 		if err != nil {
 			return err
 		}
@@ -237,6 +231,10 @@ func (src *TimestamptzArray) EncodeText(w io.Writer) error {
 }
 
 func (src *TimestamptzArray) EncodeBinary(w io.Writer) error {
+	return src.encodeBinary(w, TimestamptzOID)
+}
+
+func (src *TimestamptzArray) encodeBinary(w io.Writer, elementOID int32) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -257,7 +255,7 @@ func (src *TimestamptzArray) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	arrayHeader.ElementOID = TimestamptzOID
+	arrayHeader.ElementOID = elementOID
 	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -

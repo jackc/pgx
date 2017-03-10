@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -19,8 +20,7 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
 	case InetArray:
 		*dst = value
-	case CidrArray:
-		*dst = InetArray(value)
+
 	case []*net.IPNet:
 		if value == nil {
 			*dst = InetArray{Status: Null}
@@ -39,6 +39,7 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 				Status:     Present,
 			}
 		}
+
 	case []net.IP:
 		if value == nil {
 			*dst = InetArray{Status: Null}
@@ -57,6 +58,7 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 				Status:     Present,
 			}
 		}
+
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
@@ -81,6 +83,7 @@ func (src *InetArray) AssignTo(dst interface{}) error {
 		} else {
 			*v = nil
 		}
+
 	case *[]net.IP:
 		if src.Status == Present {
 			*v = make([]net.IP, len(src.Elements))
@@ -103,29 +106,17 @@ func (src *InetArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *InetArray) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *InetArray) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = InetArray{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = io.ReadFull(r, buf)
+	uta, err := ParseUntypedTextArray(string(src))
 	if err != nil {
 		return err
 	}
 
-	uta, err := ParseUntypedTextArray(string(buf))
-	if err != nil {
-		return err
-	}
-
-	textElementReader := NewTextElementReader(r)
 	var elements []Inet
 
 	if len(uta.Elements) > 0 {
@@ -133,8 +124,11 @@ func (dst *InetArray) DecodeText(r io.Reader) error {
 
 		for i, s := range uta.Elements {
 			var elem Inet
-			textElementReader.Reset(s)
-			err = elem.DecodeText(textElementReader)
+			var elemSrc []byte
+			if s != "NULL" {
+				elemSrc = []byte(s)
+			}
+			err = elem.DecodeText(elemSrc)
 			if err != nil {
 				return err
 			}
@@ -148,19 +142,14 @@ func (dst *InetArray) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *InetArray) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *InetArray) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = InetArray{Status: Null}
 		return nil
 	}
 
 	var arrayHeader ArrayHeader
-	err = arrayHeader.DecodeBinary(r)
+	rp, err := arrayHeader.DecodeBinary(src)
 	if err != nil {
 		return err
 	}
@@ -178,7 +167,14 @@ func (dst *InetArray) DecodeBinary(r io.Reader) error {
 	elements := make([]Inet, elementCount)
 
 	for i := range elements {
-		err = elements[i].DecodeBinary(r)
+		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
+		rp += 4
+		var elemSrc []byte
+		if elemLen >= 0 {
+			elemSrc = src[rp : rp+elemLen]
+			rp += elemLen
+		}
+		err = elements[i].DecodeBinary(elemSrc)
 		if err != nil {
 			return err
 		}

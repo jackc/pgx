@@ -91,26 +91,16 @@ func (src *Inet) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Inet) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Inet) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Inet{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = io.ReadFull(r, buf)
-	if err != nil {
-		return err
-	}
-
 	var ipnet *net.IPNet
+	var err error
 
-	if ip := net.ParseIP(string(buf)); ip != nil {
+	if ip := net.ParseIP(string(src)); ip != nil {
 		ipv4 := ip.To4()
 		if ipv4 != nil {
 			ip = ipv4
@@ -119,7 +109,7 @@ func (dst *Inet) DecodeText(r io.Reader) error {
 		mask := net.CIDRMask(bitCount, bitCount)
 		ipnet = &net.IPNet{Mask: mask, IP: ip}
 	} else {
-		_, ipnet, err = net.ParseCIDR(string(buf))
+		_, ipnet, err = net.ParseCIDR(string(src))
 		if err != nil {
 			return err
 		}
@@ -129,50 +119,24 @@ func (dst *Inet) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Inet) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Inet) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Inet{Status: Null}
 		return nil
 	}
 
-	if size != 8 && size != 20 {
-		return fmt.Errorf("Received an invalid size for a inet: %d", size)
+	if len(src) != 8 && len(src) != 20 {
+		return fmt.Errorf("Received an invalid size for a inet: %d", len(src))
 	}
 
 	// ignore family
-	_, err = pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
-	bits, err := pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
+	bits := src[1]
 	// ignore is_cidr
-	_, err = pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
-
-	addressLength, err := pgio.ReadByte(r)
-	if err != nil {
-		return err
-	}
+	addressLength := src[3]
 
 	var ipnet net.IPNet
 	ipnet.IP = make(net.IP, int(addressLength))
-	_, err = r.Read(ipnet.IP)
-	if err != nil {
-		return err
-	}
-
+	copy(ipnet.IP, src[4:])
 	ipnet.Mask = net.CIDRMask(int(bits), int(addressLength)*8)
 
 	*dst = Inet{IPNet: &ipnet, Status: Present}

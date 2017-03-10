@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -73,29 +74,17 @@ func (src *Float4Array) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Float4Array) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Float4Array) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Float4Array{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = io.ReadFull(r, buf)
+	uta, err := ParseUntypedTextArray(string(src))
 	if err != nil {
 		return err
 	}
 
-	uta, err := ParseUntypedTextArray(string(buf))
-	if err != nil {
-		return err
-	}
-
-	textElementReader := NewTextElementReader(r)
 	var elements []Float4
 
 	if len(uta.Elements) > 0 {
@@ -103,8 +92,11 @@ func (dst *Float4Array) DecodeText(r io.Reader) error {
 
 		for i, s := range uta.Elements {
 			var elem Float4
-			textElementReader.Reset(s)
-			err = elem.DecodeText(textElementReader)
+			var elemSrc []byte
+			if s != "NULL" {
+				elemSrc = []byte(s)
+			}
+			err = elem.DecodeText(elemSrc)
 			if err != nil {
 				return err
 			}
@@ -118,19 +110,14 @@ func (dst *Float4Array) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Float4Array) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Float4Array) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Float4Array{Status: Null}
 		return nil
 	}
 
 	var arrayHeader ArrayHeader
-	err = arrayHeader.DecodeBinary(r)
+	rp, err := arrayHeader.DecodeBinary(src)
 	if err != nil {
 		return err
 	}
@@ -148,7 +135,14 @@ func (dst *Float4Array) DecodeBinary(r io.Reader) error {
 	elements := make([]Float4, elementCount)
 
 	for i := range elements {
-		err = elements[i].DecodeBinary(r)
+		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
+		rp += 4
+		var elemSrc []byte
+		if elemLen >= 0 {
+			elemSrc = src[rp : rp+elemLen]
+			rp += elemLen
+		}
+		err = elements[i].DecodeBinary(elemSrc)
 		if err != nil {
 			return err
 		}
@@ -236,6 +230,10 @@ func (src *Float4Array) EncodeText(w io.Writer) error {
 }
 
 func (src *Float4Array) EncodeBinary(w io.Writer) error {
+	return src.encodeBinary(w, Float4OID)
+}
+
+func (src *Float4Array) encodeBinary(w io.Writer, elementOID int32) error {
 	if done, err := encodeNotPresent(w, src.Status); done {
 		return err
 	}
@@ -256,7 +254,7 @@ func (src *Float4Array) EncodeBinary(w io.Writer) error {
 		}
 	}
 
-	arrayHeader.ElementOID = Float4OID
+	arrayHeader.ElementOID = elementOID
 	arrayHeader.Dimensions = src.Dimensions
 
 	// TODO - consider how to avoid having to buffer array before writing length -

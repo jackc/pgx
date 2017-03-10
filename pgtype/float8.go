@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
@@ -82,24 +83,13 @@ func (src *Float8) AssignTo(dst interface{}) error {
 	return float64AssignTo(src.Float, src.Status, dst)
 }
 
-func (dst *Float8) DecodeText(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Float8) DecodeText(src []byte) error {
+	if src == nil {
 		*dst = Float8{Status: Null}
 		return nil
 	}
 
-	buf := make([]byte, int(size))
-	_, err = r.Read(buf)
-	if err != nil {
-		return err
-	}
-
-	n, err := strconv.ParseFloat(string(buf), 64)
+	n, err := strconv.ParseFloat(string(src), 64)
 	if err != nil {
 		return err
 	}
@@ -108,25 +98,17 @@ func (dst *Float8) DecodeText(r io.Reader) error {
 	return nil
 }
 
-func (dst *Float8) DecodeBinary(r io.Reader) error {
-	size, err := pgio.ReadInt32(r)
-	if err != nil {
-		return err
-	}
-
-	if size == -1 {
+func (dst *Float8) DecodeBinary(src []byte) error {
+	if src == nil {
 		*dst = Float8{Status: Null}
 		return nil
 	}
 
-	if size != 8 {
-		return fmt.Errorf("invalid length for float4: %v", size)
+	if len(src) != 8 {
+		return fmt.Errorf("invalid length for float4: %v", len(src))
 	}
 
-	n, err := pgio.ReadInt64(r)
-	if err != nil {
-		return err
-	}
+	n := int64(binary.BigEndian.Uint64(src))
 
 	*dst = Float8{Float: math.Float64frombits(uint64(n)), Status: Present}
 	return nil
