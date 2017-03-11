@@ -47,7 +47,7 @@ func mustClose(t testing.TB, conn interface {
 	}
 }
 
-func mustParseCIDR(t testing.TB, s string) *net.IPNet {
+func mustParseCidr(t testing.TB, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)

@@ -7,23 +7,23 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-func TestXIDTranscode(t *testing.T) {
+func TestXidTranscode(t *testing.T) {
 	testSuccessfulTranscode(t, "xid", []interface{}{
-		pgtype.XID{Uint: 42, Status: pgtype.Present},
-		pgtype.XID{Status: pgtype.Null},
+		pgtype.Xid{Uint: 42, Status: pgtype.Present},
+		pgtype.Xid{Status: pgtype.Null},
 	})
 }
 
-func TestXIDConvertFrom(t *testing.T) {
+func TestXidConvertFrom(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.XID
+		result pgtype.Xid
 	}{
-		{source: uint32(1), result: pgtype.XID{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.Xid{Uint: 1, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
-		var r pgtype.XID
+		var r pgtype.Xid
 		err := r.ConvertFrom(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -35,17 +35,17 @@ func TestXIDConvertFrom(t *testing.T) {
 	}
 }
 
-func TestXIDAssignTo(t *testing.T) {
+func TestXidAssignTo(t *testing.T) {
 	var ui32 uint32
 	var pui32 *uint32
 
 	simpleTests := []struct {
-		src      pgtype.XID
+		src      pgtype.Xid
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.XID{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.XID{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.Xid{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.Xid{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -60,11 +60,11 @@ func TestXIDAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.XID
+		src      pgtype.Xid
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.XID{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.Xid{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -79,10 +79,10 @@ func TestXIDAssignTo(t *testing.T) {
 	}
 
 	errorTests := []struct {
-		src pgtype.XID
+		src pgtype.Xid
 		dst interface{}
 	}{
-		{src: pgtype.XID{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.Xid{Status: pgtype.Null}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {

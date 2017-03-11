@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// XID is PostgreSQL's Transaction ID type.
+// Xid is PostgreSQL's Transaction ID type.
 //
 // In later versions of PostgreSQL, it is the type used for the backend_xid
 // and backend_xmin columns of the pg_stat_activity system view.
@@ -18,33 +18,33 @@ import (
 // It is currently implemented as an unsigned four byte integer.
 // Its definition can be found in src/include/postgres_ext.h as TransactionId
 // in the PostgreSQL sources.
-type XID pguint32
+type Xid pguint32
 
-// ConvertFrom converts from src to dst. Note that as XID is not a general
+// ConvertFrom converts from src to dst. Note that as Xid is not a general
 // number type ConvertFrom does not do automatic type conversion as other number
 // types do.
-func (dst *XID) ConvertFrom(src interface{}) error {
+func (dst *Xid) ConvertFrom(src interface{}) error {
 	return (*pguint32)(dst).ConvertFrom(src)
 }
 
-// AssignTo assigns from src to dst. Note that as XID is not a general number
+// AssignTo assigns from src to dst. Note that as Xid is not a general number
 // type AssignTo does not do automatic type conversion as other number types do.
-func (src *XID) AssignTo(dst interface{}) error {
+func (src *Xid) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *XID) DecodeText(src []byte) error {
+func (dst *Xid) DecodeText(src []byte) error {
 	return (*pguint32)(dst).DecodeText(src)
 }
 
-func (dst *XID) DecodeBinary(src []byte) error {
+func (dst *Xid) DecodeBinary(src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(src)
 }
 
-func (src XID) EncodeText(w io.Writer) (bool, error) {
+func (src Xid) EncodeText(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeText(w)
 }
 
-func (src XID) EncodeBinary(w io.Writer) (bool, error) {
+func (src Xid) EncodeBinary(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeBinary(w)
 }
