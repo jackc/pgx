@@ -873,8 +873,6 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		return encodeAclItemSlice(wbuf, oid, arg)
 	case []byte:
 		return encodeByteSlice(wbuf, oid, arg)
-	case [][]byte:
-		return encodeByteSliceSlice(wbuf, oid, arg)
 	}
 
 	refVal := reflect.ValueOf(arg)
@@ -996,8 +994,6 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeText(vr)
 	case *[]AclItem:
 		*v = decodeAclItemArray(vr)
-	case *[][]byte:
-		*v = decodeByteaArray(vr)
 	case *[]interface{}:
 		*v = decodeRecord(vr)
 	default:
@@ -1682,67 +1678,6 @@ func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
 	}
 
 	return length, nil
-}
-
-func decodeByteaArray(vr *ValueReader) [][]byte {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != ByteaArrayOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into [][]byte", vr.Type().DataType)))
-		return nil
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return nil
-	}
-
-	numElems, err := decode1dArrayHeader(vr)
-	if err != nil {
-		vr.Fatal(err)
-		return nil
-	}
-
-	a := make([][]byte, int(numElems))
-	for i := 0; i < len(a); i++ {
-		elSize := vr.ReadInt32()
-		switch elSize {
-		case -1:
-			vr.Fatal(ProtocolError("Cannot decode null element"))
-			return nil
-		default:
-			a[i] = vr.ReadBytes(elSize)
-		}
-	}
-
-	return a
-}
-
-func encodeByteSliceSlice(w *WriteBuf, oid OID, value [][]byte) error {
-	if oid != ByteaArrayOID {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "[][]byte", oid)
-	}
-
-	size := 20 // array header size
-	for _, el := range value {
-		size += 4 + len(el)
-	}
-
-	w.WriteInt32(int32(size))
-
-	w.WriteInt32(1)                 // number of dimensions
-	w.WriteInt32(0)                 // no nulls
-	w.WriteInt32(int32(ByteaOID))   // type of elements
-	w.WriteInt32(int32(len(value))) // number of elements
-	w.WriteInt32(1)                 // index of first element
-
-	for _, el := range value {
-		encodeByteSlice(w, ByteaOID, el)
-	}
-
-	return nil
 }
 
 // escapeAclItem escapes an AclItem before it is added to
