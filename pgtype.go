@@ -16,7 +16,7 @@ const (
 	Int4OID             = 23
 	TextOID             = 25
 	OIDOID              = 26
-	TidOID              = 27
+	TIDOID              = 27
 	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
@@ -66,8 +66,13 @@ const (
 	NegativeInfinity InfinityModifier = -Infinity
 )
 
-type Value interface {
+type Value interface{}
+
+type ConverterFrom interface {
 	ConvertFrom(src interface{}) error
+}
+
+type AssignerTo interface {
 	AssignTo(dst interface{}) error
 }
 
