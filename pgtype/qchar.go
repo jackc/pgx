@@ -120,15 +120,13 @@ func (dst *QChar) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src QChar) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src QChar) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	_, err := pgio.WriteInt32(w, 1)
-	if err != nil {
-		return nil
-	}
-
-	return pgio.WriteByte(w, byte(src.Int))
+	return false, pgio.WriteByte(w, byte(src.Int))
 }

@@ -116,9 +116,12 @@ func (dst *Date) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Date) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Date) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var s string
@@ -132,23 +135,16 @@ func (src Date) EncodeText(w io.Writer) error {
 		s = "-infinity"
 	}
 
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, s)
+	return false, err
 }
 
-func (src Date) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
-	}
-
-	_, err := pgio.WriteInt32(w, 4)
-	if err != nil {
-		return err
+func (src Date) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var daysSinceDateEpoch int32
@@ -165,6 +161,6 @@ func (src Date) EncodeBinary(w io.Writer) error {
 		daysSinceDateEpoch = negativeInfinityDayOffset
 	}
 
-	_, err = pgio.WriteInt32(w, daysSinceDateEpoch)
-	return err
+	_, err := pgio.WriteInt32(w, daysSinceDateEpoch)
+	return false, err
 }

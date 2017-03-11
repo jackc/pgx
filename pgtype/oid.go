@@ -32,10 +32,10 @@ func (dst *OID) DecodeBinary(src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(src)
 }
 
-func (src OID) EncodeText(w io.Writer) error {
+func (src OID) EncodeText(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeText(w)
 }
 
-func (src OID) EncodeBinary(w io.Writer) error {
+func (src OID) EncodeBinary(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeBinary(w)
 }

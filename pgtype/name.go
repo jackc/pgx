@@ -35,10 +35,10 @@ func (dst *Name) DecodeBinary(src []byte) error {
 	return (*Text)(dst).DecodeBinary(src)
 }
 
-func (src Name) EncodeText(w io.Writer) error {
+func (src Name) EncodeText(w io.Writer) (bool, error) {
 	return (Text)(src).EncodeText(w)
 }
 
-func (src Name) EncodeBinary(w io.Writer) error {
+func (src Name) EncodeBinary(w io.Writer) (bool, error) {
 	return (Text)(src).EncodeBinary(w)
 }
