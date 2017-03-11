@@ -204,10 +204,6 @@ type Encoder interface {
 	FormatCode() int16
 }
 
-type ScannerV3 interface {
-	ScanPgxV3(fieldDescription interface{}, src interface{}) error
-}
-
 // NullFloat32 represents an float4 that may be null. NullFloat32 implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan.
