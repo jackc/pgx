@@ -9,7 +9,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +28,7 @@ const (
 	Int4OID             = 23
 	TextOID             = 25
 	OIDOID              = 26
-	TidOID              = 27
+	TIDOID              = 27
 	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
@@ -444,61 +443,6 @@ func (src OID) EncodeBinary(w io.Writer) (bool, error) {
 	return false, err
 }
 
-// Tid is PostgreSQL's Tuple Identifier type.
-//
-// When one does
-//
-// 	select ctid, * from some_table;
-//
-// it is the data type of the ctid hidden system column.
-//
-// It is currently implemented as a pair unsigned two byte integers.
-// Its conversion functions can be found in src/backend/utils/adt/tid.c
-// in the PostgreSQL sources.
-type Tid struct {
-	BlockNumber  uint32
-	OffsetNumber uint16
-}
-
-// NullTid represents a Tuple Identifier (Tid) that may be null. NullTid implements the
-// Scanner and Encoder interfaces so it may be used both as an argument to
-// Query[Row] and a destination for Scan.
-//
-// If Valid is false then the value is NULL.
-type NullTid struct {
-	Tid   Tid
-	Valid bool // Valid is true if Tid is not NULL
-}
-
-func (n *NullTid) Scan(vr *ValueReader) error {
-	if vr.Type().DataType != TidOID {
-		return SerializationError(fmt.Sprintf("NullTid.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Tid, n.Valid = Tid{BlockNumber: 0, OffsetNumber: 0}, false
-		return nil
-	}
-	n.Valid = true
-	n.Tid = decodeTid(vr)
-	return vr.Err()
-}
-
-func (n NullTid) FormatCode() int16 { return BinaryFormatCode }
-
-func (n NullTid) Encode(w *WriteBuf, oid OID) error {
-	if oid != TidOID {
-		return SerializationError(fmt.Sprintf("NullTid.Encode cannot encode into OID %d", oid))
-	}
-
-	if !n.Valid {
-		w.WriteInt32(-1)
-		return nil
-	}
-
-	return encodeTid(w, oid, n.Tid)
-}
-
 // NullInt64 represents an bigint that may be null. NullInt64 implements the
 // Scanner and Encoder interfaces so it may be used both as an argument to
 // Query[Row] and a destination for Scan.
@@ -836,9 +780,13 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	}
 
 	if value, ok := wbuf.conn.oidPgtypeValues[oid]; ok {
-		err := value.ConvertFrom(arg)
-		if err != nil {
-			return err
+		if converterFrom, ok := value.(pgtype.ConverterFrom); ok {
+			err := converterFrom.ConvertFrom(arg)
+			if err != nil {
+				return err
+			}
+		} else {
+			return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 		}
 
 		buf := &bytes.Buffer{}
@@ -906,8 +854,6 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 // decoding to the built-in functionality.
 func Decode(vr *ValueReader, d interface{}) error {
 	switch v := d.(type) {
-	case *Tid:
-		*v = decodeTid(vr)
 	case *string:
 		*v = decodeText(vr)
 	case *[]interface{}:
@@ -1090,66 +1036,6 @@ func decodeInt4(vr *ValueReader) int32 {
 	}
 
 	return n.Int
-}
-
-// Note that we do not match negative numbers, because neither the
-// BlockNumber nor OffsetNumber of a Tid can be negative.
-var tidRegexp *regexp.Regexp = regexp.MustCompile(`^\((\d*),(\d*)\)$`)
-
-func decodeTid(vr *ValueReader) Tid {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into Tid"))
-		return Tid{BlockNumber: 0, OffsetNumber: 0}
-	}
-
-	if vr.Type().DataType != TidOID {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into pgx.Tid", vr.Type().DataType)))
-		return Tid{BlockNumber: 0, OffsetNumber: 0}
-	}
-
-	// Unlikely Tid will ever go over the wire as text format, but who knows?
-	switch vr.Type().FormatCode {
-	case TextFormatCode:
-		s := vr.ReadString(vr.Len())
-
-		match := tidRegexp.FindStringSubmatch(s)
-		if match == nil {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid OID: %v", s)))
-			return Tid{BlockNumber: 0, OffsetNumber: 0}
-		}
-
-		blockNumber, err := strconv.ParseUint(s, 10, 16)
-		if err != nil {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid BlockNumber part of a Tid: %v", s)))
-		}
-
-		offsetNumber, err := strconv.ParseUint(s, 10, 16)
-		if err != nil {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received invalid offsetNumber part of a Tid: %v", s)))
-		}
-		return Tid{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber)}
-	case BinaryFormatCode:
-		if vr.Len() != 6 {
-			vr.Fatal(ProtocolError(fmt.Sprintf("Received an invalid size for an OID: %d", vr.Len())))
-			return Tid{BlockNumber: 0, OffsetNumber: 0}
-		}
-		return Tid{BlockNumber: vr.ReadUint32(), OffsetNumber: vr.ReadUint16()}
-	default:
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return Tid{BlockNumber: 0, OffsetNumber: 0}
-	}
-}
-
-func encodeTid(w *WriteBuf, oid OID, value Tid) error {
-	if oid != TidOID {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "pgx.Tid", oid)
-	}
-
-	w.WriteInt32(6)
-	w.WriteUint32(value.BlockNumber)
-	w.WriteUint16(value.OffsetNumber)
-
-	return nil
 }
 
 func decodeFloat4(vr *ValueReader) float32 {
