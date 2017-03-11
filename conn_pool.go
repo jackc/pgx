@@ -28,7 +28,7 @@ type ConnPool struct {
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
-	pgTypes              map[OID]PgType
+	pgTypes              map[Oid]PgType
 	txAfterClose         func(tx *Tx)
 	rowsAfterClose       func(rows *Rows)
 }
@@ -446,7 +446,7 @@ func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error) {
 //
 // PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-// It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
+// It defers from Prepare as it allows additional options (such as parameter Oids) to be passed via struct
 //
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec/Prepare without

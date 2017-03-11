@@ -230,10 +230,10 @@ func (src *DateArray) EncodeText(w io.Writer) (bool, error) {
 }
 
 func (src *DateArray) EncodeBinary(w io.Writer) (bool, error) {
-	return src.encodeBinary(w, DateOID)
+	return src.encodeBinary(w, DateOid)
 }
 
-func (src *DateArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) {
+func (src *DateArray) encodeBinary(w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -242,7 +242,7 @@ func (src *DateArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) 
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOID: elementOID,
+		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
 	}
 

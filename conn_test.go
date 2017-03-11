@@ -1042,7 +1042,7 @@ func TestPrepareEx(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOIDs: []pgx.OID{pgx.TextOID}})
+	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgx.Oid{pgx.TextOid}})
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return

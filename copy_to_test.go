@@ -125,7 +125,7 @@ func TestConnCopyToJSON(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgx.OID{pgx.JSONOID, pgx.JSONBOID} {
+	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
 		if _, ok := conn.PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}

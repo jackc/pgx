@@ -6,10 +6,10 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-func TestTIDTranscode(t *testing.T) {
+func TestTidTranscode(t *testing.T) {
 	testSuccessfulTranscode(t, "tid", []interface{}{
-		pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Status: pgtype.Present},
-		pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Status: pgtype.Present},
-		pgtype.TID{Status: pgtype.Null},
+		pgtype.Tid{BlockNumber: 42, OffsetNumber: 43, Status: pgtype.Present},
+		pgtype.Tid{BlockNumber: 4294967295, OffsetNumber: 65535, Status: pgtype.Present},
+		pgtype.Tid{Status: pgtype.Null},
 	})
 }

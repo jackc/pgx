@@ -116,8 +116,8 @@ func (r *ValueReader) ReadInt64() int64 {
 	return r.mr.readInt64()
 }
 
-func (r *ValueReader) ReadOID() OID {
-	return OID(r.ReadUint32())
+func (r *ValueReader) ReadOid() Oid {
+	return Oid(r.ReadUint32())
 }
 
 // ReadString reads count bytes and returns as string

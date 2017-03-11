@@ -84,7 +84,7 @@ func TestJSONAndJSONBTranscode(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgx.OID{pgx.JSONOID, pgx.JSONBOID} {
+	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
 		if _, ok := conn.PgTypes[oid]; !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
@@ -232,7 +232,7 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string, format int16)
 	}
 }
 
-func mustParseCIDR(t *testing.T, s string) *net.IPNet {
+func mustParseCidr(t *testing.T, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
@@ -277,26 +277,26 @@ func TestInetCidrTranscodeIPNet(t *testing.T) {
 		sql   string
 		value *net.IPNet
 	}{
-		{"select $1::inet", mustParseCIDR(t, "0.0.0.0/32")},
-		{"select $1::inet", mustParseCIDR(t, "127.0.0.1/32")},
-		{"select $1::inet", mustParseCIDR(t, "12.34.56.0/32")},
-		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
-		{"select $1::inet", mustParseCIDR(t, "255.0.0.0/8")},
-		{"select $1::inet", mustParseCIDR(t, "255.255.255.255/32")},
-		{"select $1::inet", mustParseCIDR(t, "::/128")},
-		{"select $1::inet", mustParseCIDR(t, "::/0")},
-		{"select $1::inet", mustParseCIDR(t, "::1/128")},
-		{"select $1::inet", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
-		{"select $1::cidr", mustParseCIDR(t, "0.0.0.0/32")},
-		{"select $1::cidr", mustParseCIDR(t, "127.0.0.1/32")},
-		{"select $1::cidr", mustParseCIDR(t, "12.34.56.0/32")},
-		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
-		{"select $1::cidr", mustParseCIDR(t, "255.0.0.0/8")},
-		{"select $1::cidr", mustParseCIDR(t, "255.255.255.255/32")},
-		{"select $1::cidr", mustParseCIDR(t, "::/128")},
-		{"select $1::cidr", mustParseCIDR(t, "::/0")},
-		{"select $1::cidr", mustParseCIDR(t, "::1/128")},
-		{"select $1::cidr", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
+		{"select $1::inet", mustParseCidr(t, "0.0.0.0/32")},
+		{"select $1::inet", mustParseCidr(t, "127.0.0.1/32")},
+		{"select $1::inet", mustParseCidr(t, "12.34.56.0/32")},
+		{"select $1::inet", mustParseCidr(t, "192.168.1.0/24")},
+		{"select $1::inet", mustParseCidr(t, "255.0.0.0/8")},
+		{"select $1::inet", mustParseCidr(t, "255.255.255.255/32")},
+		{"select $1::inet", mustParseCidr(t, "::/128")},
+		{"select $1::inet", mustParseCidr(t, "::/0")},
+		{"select $1::inet", mustParseCidr(t, "::1/128")},
+		{"select $1::inet", mustParseCidr(t, "2607:f8b0:4009:80b::200e/128")},
+		{"select $1::cidr", mustParseCidr(t, "0.0.0.0/32")},
+		{"select $1::cidr", mustParseCidr(t, "127.0.0.1/32")},
+		{"select $1::cidr", mustParseCidr(t, "12.34.56.0/32")},
+		{"select $1::cidr", mustParseCidr(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCidr(t, "255.0.0.0/8")},
+		{"select $1::cidr", mustParseCidr(t, "255.255.255.255/32")},
+		{"select $1::cidr", mustParseCidr(t, "::/128")},
+		{"select $1::cidr", mustParseCidr(t, "::/0")},
+		{"select $1::cidr", mustParseCidr(t, "::1/128")},
+		{"select $1::cidr", mustParseCidr(t, "2607:f8b0:4009:80b::200e/128")},
 	}
 
 	for i, tt := range tests {
@@ -360,8 +360,8 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 		sql   string
 		value *net.IPNet
 	}{
-		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
-		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::inet", mustParseCidr(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCidr(t, "192.168.1.0/24")},
 	}
 	for i, tt := range failTests {
 		var actual net.IP
@@ -389,31 +389,31 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 		{
 			"select $1::inet[]",
 			[]*net.IPNet{
-				mustParseCIDR(t, "0.0.0.0/32"),
-				mustParseCIDR(t, "127.0.0.1/32"),
-				mustParseCIDR(t, "12.34.56.0/32"),
-				mustParseCIDR(t, "192.168.1.0/24"),
-				mustParseCIDR(t, "255.0.0.0/8"),
-				mustParseCIDR(t, "255.255.255.255/32"),
-				mustParseCIDR(t, "::/128"),
-				mustParseCIDR(t, "::/0"),
-				mustParseCIDR(t, "::1/128"),
-				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
+				mustParseCidr(t, "0.0.0.0/32"),
+				mustParseCidr(t, "127.0.0.1/32"),
+				mustParseCidr(t, "12.34.56.0/32"),
+				mustParseCidr(t, "192.168.1.0/24"),
+				mustParseCidr(t, "255.0.0.0/8"),
+				mustParseCidr(t, "255.255.255.255/32"),
+				mustParseCidr(t, "::/128"),
+				mustParseCidr(t, "::/0"),
+				mustParseCidr(t, "::1/128"),
+				mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"),
 			},
 		},
 		{
 			"select $1::cidr[]",
 			[]*net.IPNet{
-				mustParseCIDR(t, "0.0.0.0/32"),
-				mustParseCIDR(t, "127.0.0.1/32"),
-				mustParseCIDR(t, "12.34.56.0/32"),
-				mustParseCIDR(t, "192.168.1.0/24"),
-				mustParseCIDR(t, "255.0.0.0/8"),
-				mustParseCIDR(t, "255.255.255.255/32"),
-				mustParseCIDR(t, "::/128"),
-				mustParseCIDR(t, "::/0"),
-				mustParseCIDR(t, "::1/128"),
-				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
+				mustParseCidr(t, "0.0.0.0/32"),
+				mustParseCidr(t, "127.0.0.1/32"),
+				mustParseCidr(t, "12.34.56.0/32"),
+				mustParseCidr(t, "192.168.1.0/24"),
+				mustParseCidr(t, "255.0.0.0/8"),
+				mustParseCidr(t, "255.255.255.255/32"),
+				mustParseCidr(t, "::/128"),
+				mustParseCidr(t, "::/0"),
+				mustParseCidr(t, "::1/128"),
+				mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"),
 			},
 		},
 	}
@@ -490,15 +490,15 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 		{
 			"select $1::inet[]",
 			[]*net.IPNet{
-				mustParseCIDR(t, "12.34.56.0/32"),
-				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCidr(t, "12.34.56.0/32"),
+				mustParseCidr(t, "192.168.1.0/24"),
 			},
 		},
 		{
 			"select $1::cidr[]",
 			[]*net.IPNet{
-				mustParseCIDR(t, "12.34.56.0/32"),
-				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCidr(t, "12.34.56.0/32"),
+				mustParseCidr(t, "192.168.1.0/24"),
 			},
 		},
 	}
@@ -541,7 +541,7 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		expected := mustParseCIDR(t, tt.value)
+		expected := mustParseCidr(t, tt.value)
 		var actual net.IPNet
 
 		err := conn.QueryRow(tt.sql, expected.IP).Scan(&actual)
@@ -840,13 +840,13 @@ func TestNullXMismatch(t *testing.T) {
 		err       string
 	}{
 		{"select $1::date", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, "invalid input syntax for type date"},
-		{"select $1::date", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, "cannot encode into OID 1082"},
-		{"select $1::date", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, "cannot encode into OID 1082"},
-		{"select $1::date", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, "cannot encode into OID 1082"},
-		{"select $1::date", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, "cannot encode into OID 1082"},
-		{"select $1::date", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.f64}, "cannot encode into OID 1082"},
-		{"select $1::date", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, "cannot encode into OID 1082"},
-		{"select $1::int4", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, "cannot encode into OID 23"},
+		{"select $1::date", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, "cannot encode into Oid 1082"},
+		{"select $1::date", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, "cannot encode into Oid 1082"},
+		{"select $1::date", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, "cannot encode into Oid 1082"},
+		{"select $1::date", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, "cannot encode into Oid 1082"},
+		{"select $1::date", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.f64}, "cannot encode into Oid 1082"},
+		{"select $1::date", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, "cannot encode into Oid 1082"},
+		{"select $1::int4", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, "cannot encode into Oid 23"},
 	}
 
 	for i, tt := range tests {

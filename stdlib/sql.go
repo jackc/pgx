@@ -58,23 +58,23 @@ var openFromConnPoolCount int
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
 // binary, anything else will be forced to text format
-var databaseSqlOIDs map[pgx.OID]bool
+var databaseSqlOids map[pgx.Oid]bool
 
 func init() {
 	d := &Driver{}
 	sql.Register("pgx", d)
 
-	databaseSqlOIDs = make(map[pgx.OID]bool)
-	databaseSqlOIDs[pgx.BoolOID] = true
-	databaseSqlOIDs[pgx.ByteaOID] = true
-	databaseSqlOIDs[pgx.Int2OID] = true
-	databaseSqlOIDs[pgx.Int4OID] = true
-	databaseSqlOIDs[pgx.Int8OID] = true
-	databaseSqlOIDs[pgx.Float4OID] = true
-	databaseSqlOIDs[pgx.Float8OID] = true
-	databaseSqlOIDs[pgx.DateOID] = true
-	databaseSqlOIDs[pgx.TimestampTzOID] = true
-	databaseSqlOIDs[pgx.TimestampOID] = true
+	databaseSqlOids = make(map[pgx.Oid]bool)
+	databaseSqlOids[pgx.BoolOid] = true
+	databaseSqlOids[pgx.ByteaOid] = true
+	databaseSqlOids[pgx.Int2Oid] = true
+	databaseSqlOids[pgx.Int4Oid] = true
+	databaseSqlOids[pgx.Int8Oid] = true
+	databaseSqlOids[pgx.Float4Oid] = true
+	databaseSqlOids[pgx.Float8Oid] = true
+	databaseSqlOids[pgx.DateOid] = true
+	databaseSqlOids[pgx.TimestampTzOid] = true
+	databaseSqlOids[pgx.TimestampOid] = true
 }
 
 type Driver struct {
@@ -263,7 +263,7 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 // (e.g. []int32)
 func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
 	for i, _ := range ps.FieldDescriptions {
-		intrinsic, _ := databaseSqlOIDs[ps.FieldDescriptions[i].DataType]
+		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
 		}
@@ -280,7 +280,7 @@ func (s *Stmt) Close() error {
 }
 
 func (s *Stmt) NumInput() int {
-	return len(s.ps.ParameterOIDs)
+	return len(s.ps.ParameterOids)
 }
 
 func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
