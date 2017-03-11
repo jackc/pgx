@@ -39,8 +39,6 @@ func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 // - Checks the wal position of the slot on the server to make sure
 //   the update succeeded
 func TestSimpleReplicationConnection(t *testing.T) {
-	t.Parallel()
-
 	var err error
 
 	if replicationConnConfig == nil {
@@ -74,71 +72,63 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Fatalf("Failed to start replication: %v", err)
 	}
 
-	var i int32
 	var insertedTimes []int64
-	for i < 5 {
+	currentTime := time.Now().Unix()
+
+	for i := 0; i < 5; i++ {
 		var ct pgx.CommandTag
-		currentTime := time.Now().Unix()
 		insertedTimes = append(insertedTimes, currentTime)
 		ct, err = conn.Exec("insert into replication_test(a) values($1)", currentTime)
 		if err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 		t.Logf("Inserted %d rows", ct.RowsAffected())
-		i++
+		currentTime++
 	}
 
-	i = 0
 	var foundTimes []int64
 	var foundCount int
 	var maxWal uint64
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
 	for {
 		var message *pgx.ReplicationMessage
 
-		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second)
-		defer cancelFn()
 		message, err = replicationConn.WaitForReplicationMessage(ctx)
-		if err != nil && err != context.DeadlineExceeded {
+		if err != nil {
 			t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
 		}
-		if message != nil {
-			if message.WalMessage != nil {
-				// The waldata payload with the test_decoding plugin looks like:
-				// public.replication_test: INSERT: a[integer]:2
-				// What we wanna do here is check that once we find one of our inserted times,
-				// that they occur in the wal stream in the order we executed them.
-				walString := string(message.WalMessage.WalData)
-				if strings.Contains(walString, "public.replication_test: INSERT") {
-					stringParts := strings.Split(walString, ":")
-					offset, err := strconv.ParseInt(stringParts[len(stringParts)-1], 10, 64)
-					if err != nil {
-						t.Fatalf("Failed to parse walString %s", walString)
-					}
-					if foundCount > 0 || offset == insertedTimes[0] {
-						foundTimes = append(foundTimes, offset)
-						foundCount++
-					}
-				}
-				if message.WalMessage.WalStart > maxWal {
-					maxWal = message.WalMessage.WalStart
-				}
 
+		if message.WalMessage != nil {
+			// The waldata payload with the test_decoding plugin looks like:
+			// public.replication_test: INSERT: a[integer]:2
+			// What we wanna do here is check that once we find one of our inserted times,
+			// that they occur in the wal stream in the order we executed them.
+			walString := string(message.WalMessage.WalData)
+			if strings.Contains(walString, "public.replication_test: INSERT") {
+				stringParts := strings.Split(walString, ":")
+				offset, err := strconv.ParseInt(stringParts[len(stringParts)-1], 10, 64)
+				if err != nil {
+					t.Fatalf("Failed to parse walString %s", walString)
+				}
+				if foundCount > 0 || offset == insertedTimes[0] {
+					foundTimes = append(foundTimes, offset)
+					foundCount++
+				}
+				if foundCount == len(insertedTimes) {
+					break
+				}
 			}
-			if message.ServerHeartbeat != nil {
-				t.Logf("Got heartbeat: %s", message.ServerHeartbeat)
+			if message.WalMessage.WalStart > maxWal {
+				maxWal = message.WalMessage.WalStart
 			}
-		} else {
-			t.Log("Timed out waiting for wal message")
-			i++
-		}
-		if i > 3 {
-			t.Log("Actual timeout")
-			break
-		}
-	}
 
-	if foundCount != len(insertedTimes) {
-		t.Fatalf("Failed to find all inserted time values in WAL stream (found %d expected %d)", foundCount, len(insertedTimes))
+		}
+		if message.ServerHeartbeat != nil {
+			t.Logf("Got heartbeat: %s", message.ServerHeartbeat)
+		}
 	}
 
 	for i := range insertedTimes {

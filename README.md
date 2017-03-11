@@ -122,6 +122,8 @@ Change the following settings in your postgresql.conf:
     max_wal_senders=5
     max_replication_slots=5
 
+Set `replicationConnConfig` appropriately in `conn_config_test.go`.
+
 ## Version Policy
 
 pgx follows semantic versioning for the documented public API on stable releases. Branch `v2` is the latest stable release. `master` can contain new features or behavior that will change or be removed before being merged to the stable `v2` branch (in practice, this occurs very rarely).
