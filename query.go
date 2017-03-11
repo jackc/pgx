@@ -221,15 +221,6 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if s, ok := d.(ScannerV3); ok {
-			val, err := decodeByOID(vr)
-			if err != nil {
-				rows.Fatal(scanArgError{col: i, err: err})
-			}
-			err = s.ScanPgxV3(nil, val)
-			if err != nil {
-				rows.Fatal(scanArgError{col: i, err: err})
-			}
 		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
 			err = s.DecodeBinary(vr.bytes())
 			if err != nil {
