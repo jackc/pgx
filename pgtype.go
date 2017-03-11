@@ -35,8 +35,8 @@ const (
 	Int8ArrayOID        = 1016
 	Float4ArrayOID      = 1021
 	Float8ArrayOID      = 1022
-	AclItemOID          = 1033
-	AclItemArrayOID     = 1034
+	ACLItemOID          = 1033
+	ACLItemArrayOID     = 1034
 	InetArrayOID        = 1041
 	VarcharOID          = 1043
 	DateOID             = 1082
