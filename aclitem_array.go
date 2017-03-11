@@ -8,30 +8,30 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type ACLItemArray struct {
-	Elements   []ACLItem
+type AclitemArray struct {
+	Elements   []Aclitem
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *ACLItemArray) ConvertFrom(src interface{}) error {
+func (dst *AclitemArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
-	case ACLItemArray:
+	case AclitemArray:
 		*dst = value
 
 	case []string:
 		if value == nil {
-			*dst = ACLItemArray{Status: Null}
+			*dst = AclitemArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = ACLItemArray{Status: Present}
+			*dst = AclitemArray{Status: Present}
 		} else {
-			elements := make([]ACLItem, len(value))
+			elements := make([]Aclitem, len(value))
 			for i := range value {
 				if err := elements[i].ConvertFrom(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = ACLItemArray{
+			*dst = AclitemArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -42,13 +42,13 @@ func (dst *ACLItemArray) ConvertFrom(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to ACLItem", value)
+		return fmt.Errorf("cannot convert %v to Aclitem", value)
 	}
 
 	return nil
 }
 
-func (src *ACLItemArray) AssignTo(dst interface{}) error {
+func (src *AclitemArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 
 	case *[]string:
@@ -73,9 +73,9 @@ func (src *ACLItemArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *ACLItemArray) DecodeText(src []byte) error {
+func (dst *AclitemArray) DecodeText(src []byte) error {
 	if src == nil {
-		*dst = ACLItemArray{Status: Null}
+		*dst = AclitemArray{Status: Null}
 		return nil
 	}
 
@@ -84,13 +84,13 @@ func (dst *ACLItemArray) DecodeText(src []byte) error {
 		return err
 	}
 
-	var elements []ACLItem
+	var elements []Aclitem
 
 	if len(uta.Elements) > 0 {
-		elements = make([]ACLItem, len(uta.Elements))
+		elements = make([]Aclitem, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem ACLItem
+			var elem Aclitem
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -104,12 +104,12 @@ func (dst *ACLItemArray) DecodeText(src []byte) error {
 		}
 	}
 
-	*dst = ACLItemArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = AclitemArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (src *ACLItemArray) EncodeText(w io.Writer) (bool, error) {
+func (src *AclitemArray) EncodeText(w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

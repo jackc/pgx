@@ -7,26 +7,26 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-func TestACLItemTranscode(t *testing.T) {
+func TestAclitemTranscode(t *testing.T) {
 	testSuccessfulTranscode(t, "aclitem", []interface{}{
-		pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-		pgtype.ACLItem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-		pgtype.ACLItem{Status: pgtype.Null},
+		pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+		pgtype.Aclitem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
+		pgtype.Aclitem{Status: pgtype.Null},
 	})
 }
 
-func TestACLItemConvertFrom(t *testing.T) {
+func TestAclitemConvertFrom(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.ACLItem
+		result pgtype.Aclitem
 	}{
-		{source: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, result: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
-		{source: "postgres=arwdDxt/postgres", result: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
-		{source: (*string)(nil), result: pgtype.ACLItem{Status: pgtype.Null}},
+		{source: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, result: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+		{source: "postgres=arwdDxt/postgres", result: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+		{source: (*string)(nil), result: pgtype.Aclitem{Status: pgtype.Null}},
 	}
 
 	for i, tt := range successfulTests {
-		var d pgtype.ACLItem
+		var d pgtype.Aclitem
 		err := d.ConvertFrom(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -38,17 +38,17 @@ func TestACLItemConvertFrom(t *testing.T) {
 	}
 }
 
-func TestACLItemAssignTo(t *testing.T) {
+func TestAclitemAssignTo(t *testing.T) {
 	var s string
 	var ps *string
 
 	simpleTests := []struct {
-		src      pgtype.ACLItem
+		src      pgtype.Aclitem
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &s, expected: "postgres=arwdDxt/postgres"},
-		{src: pgtype.ACLItem{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &s, expected: "postgres=arwdDxt/postgres"},
+		{src: pgtype.Aclitem{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -63,11 +63,11 @@ func TestACLItemAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.ACLItem
+		src      pgtype.Aclitem
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &ps, expected: "postgres=arwdDxt/postgres"},
+		{src: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &ps, expected: "postgres=arwdDxt/postgres"},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -82,10 +82,10 @@ func TestACLItemAssignTo(t *testing.T) {
 	}
 
 	errorTests := []struct {
-		src pgtype.ACLItem
+		src pgtype.Aclitem
 		dst interface{}
 	}{
-		{src: pgtype.ACLItem{Status: pgtype.Null}, dst: &s},
+		{src: pgtype.Aclitem{Status: pgtype.Null}, dst: &s},
 	}
 
 	for i, tt := range errorTests {

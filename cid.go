@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// CID is PostgreSQL's Command Identifier type.
+// Cid is PostgreSQL's Command Identifier type.
 //
 // When one does
 //
@@ -15,33 +15,33 @@ import (
 // It is currently implemented as an unsigned four byte integer.
 // Its definition can be found in src/include/c.h as CommandId
 // in the PostgreSQL sources.
-type CID pguint32
+type Cid pguint32
 
-// ConvertFrom converts from src to dst. Note that as CID is not a general
+// ConvertFrom converts from src to dst. Note that as Cid is not a general
 // number type ConvertFrom does not do automatic type conversion as other number
 // types do.
-func (dst *CID) ConvertFrom(src interface{}) error {
+func (dst *Cid) ConvertFrom(src interface{}) error {
 	return (*pguint32)(dst).ConvertFrom(src)
 }
 
-// AssignTo assigns from src to dst. Note that as CID is not a general number
+// AssignTo assigns from src to dst. Note that as Cid is not a general number
 // type AssignTo does not do automatic type conversion as other number types do.
-func (src *CID) AssignTo(dst interface{}) error {
+func (src *Cid) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *CID) DecodeText(src []byte) error {
+func (dst *Cid) DecodeText(src []byte) error {
 	return (*pguint32)(dst).DecodeText(src)
 }
 
-func (dst *CID) DecodeBinary(src []byte) error {
+func (dst *Cid) DecodeBinary(src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(src)
 }
 
-func (src CID) EncodeText(w io.Writer) (bool, error) {
+func (src Cid) EncodeText(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeText(w)
 }
 
-func (src CID) EncodeBinary(w io.Writer) (bool, error) {
+func (src Cid) EncodeBinary(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeBinary(w)
 }
