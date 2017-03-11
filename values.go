@@ -901,20 +901,6 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	return nil, false
 }
 
-func decodeByOID(vr *ValueReader) (interface{}, error) {
-	switch vr.Type().DataType {
-	case Int2OID, Int4OID, Int8OID:
-		n := decodeInt(vr)
-		return n, vr.Err()
-	case BoolOID:
-		b := decodeBool(vr)
-		return b, vr.Err()
-	default:
-		buf := vr.ReadBytes(vr.Len())
-		return buf, vr.Err()
-	}
-}
-
 // Decode decodes from vr into d. d must be a pointer. This allows
 // implementations of the Decoder interface to delegate the actual work of
 // decoding to the built-in functionality.
