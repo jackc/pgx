@@ -144,61 +144,55 @@ func (dst *Inet) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Inet) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Inet) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	s := src.IPNet.String()
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, src.IPNet.String())
+	return false, err
 }
 
 // EncodeBinary encodes src into w.
-func (src Inet) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Inet) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	var size int32
 	var family byte
 	switch len(src.IPNet.IP) {
 	case net.IPv4len:
-		size = 8
 		family = defaultAFInet
 	case net.IPv6len:
-		size = 20
 		family = defaultAFInet6
 	default:
-		return fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
-	}
-
-	if _, err := pgio.WriteInt32(w, size); err != nil {
-		return err
+		return false, fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
 	}
 
 	if err := pgio.WriteByte(w, family); err != nil {
-		return err
+		return false, err
 	}
 
 	ones, _ := src.IPNet.Mask.Size()
 	if err := pgio.WriteByte(w, byte(ones)); err != nil {
-		return err
+		return false, err
 	}
 
 	// is_cidr is ignored on server
 	if err := pgio.WriteByte(w, 0); err != nil {
-		return err
+		return false, err
 	}
 
 	if err := pgio.WriteByte(w, byte(len(src.IPNet.IP))); err != nil {
-		return err
+		return false, err
 	}
 
 	_, err := w.Write(src.IPNet.IP)
-	return err
+	return false, err
 }

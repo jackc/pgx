@@ -5,8 +5,6 @@ import (
 	"io"
 	"reflect"
 	"strconv"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 type Bool struct {
@@ -100,14 +98,12 @@ func (dst *Bool) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Bool) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
-	}
-
-	_, err := pgio.WriteInt32(w, 1)
-	if err != nil {
-		return nil
+func (src Bool) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var buf []byte
@@ -117,18 +113,16 @@ func (src Bool) EncodeText(w io.Writer) error {
 		buf = []byte{'f'}
 	}
 
-	_, err = w.Write(buf)
-	return err
+	_, err := w.Write(buf)
+	return false, err
 }
 
-func (src Bool) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
-	}
-
-	_, err := pgio.WriteInt32(w, 1)
-	if err != nil {
-		return nil
+func (src Bool) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var buf []byte
@@ -138,6 +132,6 @@ func (src Bool) EncodeBinary(w io.Writer) error {
 		buf = []byte{0}
 	}
 
-	_, err = w.Write(buf)
-	return err
+	_, err := w.Write(buf)
+	return false, err
 }

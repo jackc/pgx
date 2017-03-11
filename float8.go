@@ -114,30 +114,26 @@ func (dst *Float8) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Float8) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Float8) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	s := strconv.FormatFloat(float64(src.Float), 'f', -1, 64)
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, strconv.FormatFloat(float64(src.Float), 'f', -1, 64))
+	return false, err
 }
 
-func (src Float8) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Float8) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	_, err := pgio.WriteInt32(w, 8)
-	if err != nil {
-		return err
-	}
-
-	_, err = pgio.WriteInt64(w, int64(math.Float64bits(src.Float)))
-	return err
+	_, err := pgio.WriteInt64(w, int64(math.Float64bits(src.Float)))
+	return false, err
 }

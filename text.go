@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 type Text struct {
@@ -85,20 +83,18 @@ func (dst *Text) DecodeBinary(src []byte) error {
 	return dst.DecodeText(src)
 }
 
-func (src Text) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Text) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	_, err := pgio.WriteInt32(w, int32(len(src.String)))
-	if err != nil {
-		return nil
-	}
-
-	_, err = io.WriteString(w, src.String)
-	return err
+	_, err := io.WriteString(w, src.String)
+	return false, err
 }
 
-func (src Text) EncodeBinary(w io.Writer) error {
+func (src Text) EncodeBinary(w io.Writer) (bool, error) {
 	return src.EncodeText(w)
 }
