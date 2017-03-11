@@ -22,10 +22,10 @@ func (dst *VarcharArray) DecodeBinary(src []byte) error {
 	return (*TextArray)(dst).DecodeBinary(src)
 }
 
-func (src *VarcharArray) EncodeText(w io.Writer) error {
+func (src *VarcharArray) EncodeText(w io.Writer) (bool, error) {
 	return (*TextArray)(src).EncodeText(w)
 }
 
-func (src *VarcharArray) EncodeBinary(w io.Writer) error {
+func (src *VarcharArray) EncodeBinary(w io.Writer) (bool, error) {
 	return (*TextArray)(src).encodeBinary(w, VarcharOID)
 }

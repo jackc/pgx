@@ -152,26 +152,22 @@ func (dst *BoolArray) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src *BoolArray) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src *BoolArray) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
-		_, err := pgio.WriteInt32(w, 2)
-		if err != nil {
-			return err
-		}
-
-		_, err = w.Write([]byte("{}"))
-		return err
+		_, err := io.WriteString(w, "{}")
+		return false, err
 	}
 
-	buf := &bytes.Buffer{}
-
-	err := EncodeTextArrayDimensions(buf, src.Dimensions)
+	err := EncodeTextArrayDimensions(w, src.Dimensions)
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	// dimElemCounts is the multiples of elements that each array lies on. For
@@ -185,100 +181,112 @@ func (src *BoolArray) EncodeText(w io.Writer) error {
 		dimElemCounts[i] = int(src.Dimensions[i].Length) * dimElemCounts[i+1]
 	}
 
-	textElementWriter := NewTextElementWriter(buf)
-
 	for i, elem := range src.Elements {
 		if i > 0 {
-			err = pgio.WriteByte(buf, ',')
+			err = pgio.WriteByte(w, ',')
 			if err != nil {
-				return err
+				return false, err
 			}
 		}
 
 		for _, dec := range dimElemCounts {
 			if i%dec == 0 {
-				err = pgio.WriteByte(buf, '{')
+				err = pgio.WriteByte(w, '{')
 				if err != nil {
-					return err
+					return false, err
 				}
 			}
 		}
 
-		textElementWriter.Reset()
-		err = elem.EncodeText(textElementWriter)
+		elemBuf := &bytes.Buffer{}
+		null, err := elem.EncodeText(elemBuf)
 		if err != nil {
-			return err
+			return false, err
+		}
+		if null {
+			_, err = io.WriteString(w, `NULL`)
+			if err != nil {
+				return false, err
+			}
+		} else if elemBuf.Len() == 0 {
+			_, err = io.WriteString(w, `""`)
+			if err != nil {
+				return false, err
+			}
+		} else {
+			_, err = elemBuf.WriteTo(w)
+			if err != nil {
+				return false, err
+			}
 		}
 
 		for _, dec := range dimElemCounts {
 			if (i+1)%dec == 0 {
-				err = pgio.WriteByte(buf, '}')
+				err = pgio.WriteByte(w, '}')
 				if err != nil {
-					return err
+					return false, err
 				}
 			}
 		}
 	}
 
-	_, err = pgio.WriteInt32(w, int32(buf.Len()))
-	if err != nil {
-		return err
-	}
-
-	_, err = buf.WriteTo(w)
-	return err
+	return false, nil
 }
 
-func (src *BoolArray) EncodeBinary(w io.Writer) error {
+func (src *BoolArray) EncodeBinary(w io.Writer) (bool, error) {
 	return src.encodeBinary(w, BoolOID)
 }
 
-func (src *BoolArray) encodeBinary(w io.Writer, elementOID int32) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src *BoolArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	var arrayHeader ArrayHeader
+	arrayHeader := ArrayHeader{
+		ElementOID: elementOID,
+		Dimensions: src.Dimensions,
+	}
 
-	// TODO - consider how to avoid having to buffer array before writing length -
-	// or how not pay allocations for the byte order conversions.
+	for i := range src.Elements {
+		if src.Elements[i].Status == Null {
+			arrayHeader.ContainsNull = true
+			break
+		}
+	}
+
+	err := arrayHeader.EncodeBinary(w)
+	if err != nil {
+		return false, err
+	}
+
 	elemBuf := &bytes.Buffer{}
 
 	for i := range src.Elements {
-		err := src.Elements[i].EncodeBinary(elemBuf)
+		elemBuf.Reset()
+
+		null, err := src.Elements[i].EncodeBinary(elemBuf)
 		if err != nil {
-			return err
+			return false, err
 		}
-		if src.Elements[i].Status == Null {
-			arrayHeader.ContainsNull = true
+		if null {
+			_, err = pgio.WriteInt32(w, -1)
+			if err != nil {
+				return false, err
+			}
+		} else {
+			_, err = pgio.WriteInt32(w, int32(elemBuf.Len()))
+			if err != nil {
+				return false, err
+			}
+			_, err = elemBuf.WriteTo(w)
+			if err != nil {
+				return false, err
+			}
 		}
 	}
 
-	arrayHeader.ElementOID = elementOID
-	arrayHeader.Dimensions = src.Dimensions
-
-	// TODO - consider how to avoid having to buffer array before writing length -
-	// or how not pay allocations for the byte order conversions.
-	headerBuf := &bytes.Buffer{}
-	err := arrayHeader.EncodeBinary(headerBuf)
-	if err != nil {
-		return err
-	}
-
-	_, err = pgio.WriteInt32(w, int32(headerBuf.Len()+elemBuf.Len()))
-	if err != nil {
-		return err
-	}
-
-	_, err = headerBuf.WriteTo(w)
-	if err != nil {
-		return err
-	}
-
-	_, err = elemBuf.WriteTo(w)
-	if err != nil {
-		return err
-	}
-
-	return err
+	return false, err
 }

@@ -3,8 +3,6 @@ package pgtype
 import (
 	"errors"
 	"io"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 // PostgreSQL oids for common types
@@ -81,23 +79,24 @@ type TextDecoder interface {
 	DecodeText(src []byte) error
 }
 
+// BinaryEncoder is implemented by types that can encode themselves into the
+// PostgreSQL binary wire format.
 type BinaryEncoder interface {
-	EncodeBinary(w io.Writer) error
+	// EncodeBinary should encode the binary format of self to w. If self is the
+	// SQL value NULL then write nothing and return (true, nil). The caller of
+	// EncodeBinary is responsible for writing the correct NULL value or the
+	// length of the data written.
+	EncodeBinary(w io.Writer) (null bool, err error)
 }
 
+// TextEncoder is implemented by types that can encode themselves into the
+// PostgreSQL text wire format.
 type TextEncoder interface {
-	EncodeText(w io.Writer) error
+	// EncodeText should encode the text format of self to w. If self is the SQL
+	// value NULL then write nothing and return (true, nil). The caller of
+	// EncodeText is responsible for writing the correct NULL value or the length
+	// of the data written.
+	EncodeText(w io.Writer) (null bool, err error)
 }
 
 var errUndefined = errors.New("cannot encode status undefined")
-
-func encodeNotPresent(w io.Writer, status Status) (done bool, err error) {
-	switch status {
-	case Undefined:
-		return true, errUndefined
-	case Null:
-		_, err = pgio.WriteInt32(w, -1)
-		return true, err
-	}
-	return false, nil
-}

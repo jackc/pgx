@@ -127,12 +127,15 @@ func (dst *Timestamp) DecodeBinary(src []byte) error {
 
 // EncodeText writes the text encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src Timestamp) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Timestamp) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
-		return fmt.Errorf("cannot encode non-UTC time into timestamp")
+		return false, fmt.Errorf("cannot encode non-UTC time into timestamp")
 	}
 
 	var s string
@@ -146,28 +149,21 @@ func (src Timestamp) EncodeText(w io.Writer) error {
 		s = "-infinity"
 	}
 
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, s)
+	return false, err
 }
 
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src Timestamp) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Timestamp) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
-		return fmt.Errorf("cannot encode non-UTC time into timestamp")
-	}
-
-	_, err := pgio.WriteInt32(w, 8)
-	if err != nil {
-		return err
+		return false, fmt.Errorf("cannot encode non-UTC time into timestamp")
 	}
 
 	var microsecSinceY2K int64
@@ -181,6 +177,6 @@ func (src Timestamp) EncodeBinary(w io.Writer) error {
 		microsecSinceY2K = negativeInfinityMicrosecondOffset
 	}
 
-	_, err = pgio.WriteInt64(w, microsecSinceY2K)
-	return err
+	_, err := pgio.WriteInt64(w, microsecSinceY2K)
+	return false, err
 }

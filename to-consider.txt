@@ -1,9 +1,0 @@
-DecodeText and DecodeBinary take []byte instead of io.Reader
-EncodeText and EncodeBinary do not write size
-Add Nullable interface with IsNull() and SetNull()
-
-The above would keep types from needing to worry about writing their own size. Could make EncodeText and DecodeText easier to use with sql.Scanner and driver.Valuer. SetNull() could be removed as DecodeText and DecodeBinary could interpret a nil slice as null.
-
-EncodeText and EncodeBinary could return (null bool, err error). That would finish removing Nullable interface.
-
-Also, consider whether arrays and ranges could be represented as generic data types or more common code could be extracted instead of using code generation.
