@@ -22,10 +22,10 @@ func (dst *CidrArray) DecodeBinary(src []byte) error {
 	return (*InetArray)(dst).DecodeBinary(src)
 }
 
-func (src *CidrArray) EncodeText(w io.Writer) error {
+func (src *CidrArray) EncodeText(w io.Writer) (bool, error) {
 	return (*InetArray)(src).EncodeText(w)
 }
 
-func (src *CidrArray) EncodeBinary(w io.Writer) error {
+func (src *CidrArray) EncodeBinary(w io.Writer) (bool, error) {
 	return (*InetArray)(src).encodeBinary(w, CidrOID)
 }

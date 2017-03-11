@@ -131,9 +131,12 @@ func (dst *Timestamptz) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Timestamptz) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Timestamptz) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var s string
@@ -147,23 +150,16 @@ func (src Timestamptz) EncodeText(w io.Writer) error {
 		s = "-infinity"
 	}
 
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, s)
+	return false, err
 }
 
-func (src Timestamptz) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
-	}
-
-	_, err := pgio.WriteInt32(w, 8)
-	if err != nil {
-		return err
+func (src Timestamptz) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
 	var microsecSinceY2K int64
@@ -177,6 +173,6 @@ func (src Timestamptz) EncodeBinary(w io.Writer) error {
 		microsecSinceY2K = negativeInfinityMicrosecondOffset
 	}
 
-	_, err = pgio.WriteInt64(w, microsecSinceY2K)
-	return err
+	_, err := pgio.WriteInt64(w, microsecSinceY2K)
+	return false, err
 }

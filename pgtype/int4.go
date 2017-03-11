@@ -110,30 +110,26 @@ func (dst *Int4) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Int4) EncodeText(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Int4) EncodeText(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	s := strconv.FormatInt(int64(src.Int), 10)
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-	_, err = w.Write([]byte(s))
-	return err
+	_, err := io.WriteString(w, strconv.FormatInt(int64(src.Int), 10))
+	return false, err
 }
 
-func (src Int4) EncodeBinary(w io.Writer) error {
-	if done, err := encodeNotPresent(w, src.Status); done {
-		return err
+func (src Int4) EncodeBinary(w io.Writer) (bool, error) {
+	switch src.Status {
+	case Null:
+		return true, nil
+	case Undefined:
+		return false, errUndefined
 	}
 
-	_, err := pgio.WriteInt32(w, 4)
-	if err != nil {
-		return err
-	}
-
-	_, err = pgio.WriteInt32(w, src.Int)
-	return err
+	_, err := pgio.WriteInt32(w, src.Int)
+	return false, err
 }

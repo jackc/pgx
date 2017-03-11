@@ -38,10 +38,10 @@ func (dst *CID) DecodeBinary(src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(src)
 }
 
-func (src CID) EncodeText(w io.Writer) error {
+func (src CID) EncodeText(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeText(w)
 }
 
-func (src CID) EncodeBinary(w io.Writer) error {
+func (src CID) EncodeBinary(w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeBinary(w)
 }

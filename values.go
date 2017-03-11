@@ -408,7 +408,10 @@ func (n NullInt16) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int2{Int: n.Int16, Status: pgtype.Present}.EncodeBinary(w)
+	w.WriteInt32(2)
+
+	_, err := pgtype.Int2{Int: n.Int16, Status: pgtype.Present}.EncodeBinary(w)
+	return err
 }
 
 // NullInt32 represents an integer that may be null. NullInt32 implements the
@@ -447,7 +450,10 @@ func (n NullInt32) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int4{Int: n.Int32, Status: pgtype.Present}.EncodeBinary(w)
+	w.WriteInt32(4)
+
+	_, err := pgtype.Int4{Int: n.Int32, Status: pgtype.Present}.EncodeBinary(w)
+	return err
 }
 
 // OID (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
@@ -484,24 +490,14 @@ func (dst *OID) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src OID) EncodeText(w io.Writer) error {
-	s := strconv.FormatUint(uint64(src), 10)
-	_, err := pgio.WriteInt32(w, int32(len(s)))
-	if err != nil {
-		return nil
-	}
-	_, err = w.Write([]byte(s))
-	return err
+func (src OID) EncodeText(w io.Writer) (bool, error) {
+	_, err := io.WriteString(w, strconv.FormatUint(uint64(src), 10))
+	return false, err
 }
 
-func (src OID) EncodeBinary(w io.Writer) error {
-	_, err := pgio.WriteInt32(w, 4)
-	if err != nil {
-		return err
-	}
-
-	_, err = pgio.WriteUint32(w, uint32(src))
-	return err
+func (src OID) EncodeBinary(w io.Writer) (bool, error) {
+	_, err := pgio.WriteUint32(w, uint32(src))
+	return false, err
 }
 
 // Tid is PostgreSQL's Tuple Identifier type.
@@ -595,7 +591,10 @@ func (n NullInt64) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return pgtype.Int8{Int: n.Int64, Status: pgtype.Present}.EncodeBinary(w)
+	w.WriteInt32(8)
+
+	_, err := pgtype.Int8{Int: n.Int64, Status: pgtype.Present}.EncodeBinary(w)
+	return err
 }
 
 // NullBool represents an bool that may be null. NullBool implements the Scanner
@@ -634,7 +633,10 @@ func (n NullBool) Encode(w *WriteBuf, oid OID) error {
 		return nil
 	}
 
-	return encodeBool(w, oid, n.Bool)
+	w.WriteInt32(1)
+
+	_, err := pgtype.Bool{Bool: n.Bool, Status: pgtype.Present}.EncodeBinary(w)
+	return err
 }
 
 // NullTime represents an time.Time that may be null. NullTime implements the
@@ -834,9 +836,31 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 	case Encoder:
 		return arg.Encode(wbuf, oid)
 	case pgtype.BinaryEncoder:
-		return arg.EncodeBinary(wbuf)
+		buf := &bytes.Buffer{}
+		null, err := arg.EncodeBinary(buf)
+		if err != nil {
+			return err
+		}
+		if null {
+			wbuf.WriteInt32(-1)
+		} else {
+			wbuf.WriteInt32(int32(buf.Len()))
+			wbuf.WriteBytes(buf.Bytes())
+		}
+		return nil
 	case pgtype.TextEncoder:
-		return arg.EncodeText(wbuf)
+		buf := &bytes.Buffer{}
+		null, err := arg.EncodeText(buf)
+		if err != nil {
+			return err
+		}
+		if null {
+			wbuf.WriteInt32(-1)
+		} else {
+			wbuf.WriteInt32(int32(buf.Len()))
+			wbuf.WriteBytes(buf.Bytes())
+		}
+		return nil
 	case driver.Valuer:
 		v, err := arg.Value()
 		if err != nil {
@@ -876,7 +900,19 @@ func Encode(wbuf *WriteBuf, oid OID, arg interface{}) error {
 		if err != nil {
 			return err
 		}
-		return value.(pgtype.BinaryEncoder).EncodeBinary(wbuf)
+
+		buf := &bytes.Buffer{}
+		null, err := value.(pgtype.BinaryEncoder).EncodeBinary(buf)
+		if err != nil {
+			return err
+		}
+		if null {
+			wbuf.WriteInt32(-1)
+		} else {
+			wbuf.WriteInt32(int32(buf.Len()))
+			wbuf.WriteBytes(buf.Bytes())
+		}
+		return nil
 	}
 
 	switch arg := arg.(type) {
@@ -1024,15 +1060,6 @@ func decodeBool(vr *ValueReader) bool {
 	}
 
 	return b.Bool
-}
-
-func encodeBool(w *WriteBuf, oid OID, value bool) error {
-	if oid != BoolOID {
-		return fmt.Errorf("cannot encode Go %s into oid %d", "bool", oid)
-	}
-
-	b := pgtype.Bool{Bool: value, Status: pgtype.Present}
-	return b.EncodeBinary(w)
 }
 
 func decodeInt(vr *ValueReader) int64 {
@@ -1461,14 +1488,39 @@ func encodeTime(w *WriteBuf, oid OID, value time.Time) error {
 		if err != nil {
 			return err
 		}
-		return d.EncodeBinary(w)
+
+		buf := &bytes.Buffer{}
+		null, err := d.EncodeBinary(buf)
+		if err != nil {
+			return err
+		}
+		if null {
+			w.WriteInt32(-1)
+		} else {
+			w.WriteInt32(int32(buf.Len()))
+			w.WriteBytes(buf.Bytes())
+		}
+		return nil
+
 	case TimestampTzOID, TimestampOID:
 		var t pgtype.Timestamptz
 		err := t.ConvertFrom(value)
 		if err != nil {
 			return err
 		}
-		return t.EncodeBinary(w)
+
+		buf := &bytes.Buffer{}
+		null, err := t.EncodeBinary(buf)
+		if err != nil {
+			return err
+		}
+		if null {
+			w.WriteInt32(-1)
+		} else {
+			w.WriteInt32(int32(buf.Len()))
+			w.WriteBytes(buf.Bytes())
+		}
+		return nil
 	default:
 		return fmt.Errorf("cannot encode %s into oid %v", "time.Time", oid)
 	}

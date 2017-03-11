@@ -60,7 +60,7 @@ type forceTextEncoder struct {
 	e pgtype.TextEncoder
 }
 
-func (f forceTextEncoder) EncodeText(w io.Writer) error {
+func (f forceTextEncoder) EncodeText(w io.Writer) (bool, error) {
 	return f.e.EncodeText(w)
 }
 
@@ -68,7 +68,7 @@ type forceBinaryEncoder struct {
 	e pgtype.BinaryEncoder
 }
 
-func (f forceBinaryEncoder) EncodeBinary(w io.Writer) error {
+func (f forceBinaryEncoder) EncodeBinary(w io.Writer) (bool, error) {
 	return f.e.EncodeBinary(w)
 }
 
