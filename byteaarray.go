@@ -5,54 +5,34 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"net"
 
 	"github.com/jackc/pgx/pgio"
 )
 
-type InetArray struct {
-	Elements   []Inet
+type ByteaArray struct {
+	Elements   []Bytea
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *InetArray) ConvertFrom(src interface{}) error {
+func (dst *ByteaArray) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
-	case InetArray:
+	case ByteaArray:
 		*dst = value
 
-	case []*net.IPNet:
+	case [][]byte:
 		if value == nil {
-			*dst = InetArray{Status: Null}
+			*dst = ByteaArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = ByteaArray{Status: Present}
 		} else {
-			elements := make([]Inet, len(value))
+			elements := make([]Bytea, len(value))
 			for i := range value {
 				if err := elements[i].ConvertFrom(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = InetArray{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []net.IP:
-		if value == nil {
-			*dst = InetArray{Status: Null}
-		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
-		} else {
-			elements := make([]Inet, len(value))
-			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = InetArray{
+			*dst = ByteaArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -63,30 +43,18 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Inet", value)
+		return fmt.Errorf("cannot convert %v to Bytea", value)
 	}
 
 	return nil
 }
 
-func (src *InetArray) AssignTo(dst interface{}) error {
+func (src *ByteaArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 
-	case *[]*net.IPNet:
+	case *[][]byte:
 		if src.Status == Present {
-			*v = make([]*net.IPNet, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-		} else {
-			*v = nil
-		}
-
-	case *[]net.IP:
-		if src.Status == Present {
-			*v = make([]net.IP, len(src.Elements))
+			*v = make([][]byte, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -106,9 +74,9 @@ func (src *InetArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *InetArray) DecodeText(src []byte) error {
+func (dst *ByteaArray) DecodeText(src []byte) error {
 	if src == nil {
-		*dst = InetArray{Status: Null}
+		*dst = ByteaArray{Status: Null}
 		return nil
 	}
 
@@ -117,13 +85,13 @@ func (dst *InetArray) DecodeText(src []byte) error {
 		return err
 	}
 
-	var elements []Inet
+	var elements []Bytea
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Inet, len(uta.Elements))
+		elements = make([]Bytea, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Inet
+			var elem Bytea
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -137,14 +105,14 @@ func (dst *InetArray) DecodeText(src []byte) error {
 		}
 	}
 
-	*dst = InetArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = ByteaArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *InetArray) DecodeBinary(src []byte) error {
+func (dst *ByteaArray) DecodeBinary(src []byte) error {
 	if src == nil {
-		*dst = InetArray{Status: Null}
+		*dst = ByteaArray{Status: Null}
 		return nil
 	}
 
@@ -155,7 +123,7 @@ func (dst *InetArray) DecodeBinary(src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = InetArray{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = ByteaArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -164,7 +132,7 @@ func (dst *InetArray) DecodeBinary(src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Inet, elementCount)
+	elements := make([]Bytea, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -180,11 +148,11 @@ func (dst *InetArray) DecodeBinary(src []byte) error {
 		}
 	}
 
-	*dst = InetArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = ByteaArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *InetArray) EncodeText(w io.Writer) (bool, error) {
+func (src *ByteaArray) EncodeText(w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -260,11 +228,11 @@ func (src *InetArray) EncodeText(w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src *InetArray) EncodeBinary(w io.Writer) (bool, error) {
-	return src.encodeBinary(w, InetOID)
+func (src *ByteaArray) EncodeBinary(w io.Writer) (bool, error) {
+	return src.encodeBinary(w, ByteaOID)
 }
 
-func (src *InetArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) {
+func (src *ByteaArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

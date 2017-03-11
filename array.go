@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/jackc/pgx/pgio"
@@ -370,4 +371,17 @@ func EncodeTextArrayDimensions(w io.Writer, dimensions []ArrayDimension) error {
 	}
 
 	return pgio.WriteByte(w, '=')
+}
+
+var quoteArrayReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
+func quoteArrayElement(src string) string {
+	return `"` + quoteArrayReplacer.Replace(src) + `"`
+}
+
+func QuoteArrayElementIfNeeded(src string) string {
+	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || src[0] == ' ' || src[len(src)-1] == ' ' || strings.ContainsAny(src, `{},"\`) {
+		return quoteArrayElement(src)
+	}
+	return src
 }
