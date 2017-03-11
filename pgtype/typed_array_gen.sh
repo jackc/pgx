@@ -9,3 +9,4 @@ erb pgtype_array_type=Float4Array pgtype_element_type=Float4 go_array_types=[]fl
 erb pgtype_array_type=Float8Array pgtype_element_type=Float8 go_array_types=[]float64 element_oid=Float8OID text_null=NULL typed_array.go.erb > float8array.go
 erb pgtype_array_type=InetArray pgtype_element_type=Inet go_array_types=[]*net.IPNet,[]net.IP element_oid=InetOID text_null=NULL typed_array.go.erb > inetarray.go
 erb pgtype_array_type=TextArray pgtype_element_type=Text go_array_types=[]string element_oid=TextOID text_null='"NULL"' typed_array.go.erb > textarray.go
+erb pgtype_array_type=ByteaArray pgtype_element_type=Bytea go_array_types=[][]byte element_oid=ByteaOID text_null=NULL typed_array.go.erb > byteaarray.go

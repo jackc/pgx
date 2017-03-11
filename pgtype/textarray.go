@@ -208,13 +208,8 @@ func (src *TextArray) EncodeText(w io.Writer) (bool, error) {
 			if err != nil {
 				return false, err
 			}
-		} else if elemBuf.Len() == 0 {
-			_, err = io.WriteString(w, `""`)
-			if err != nil {
-				return false, err
-			}
 		} else {
-			_, err = elemBuf.WriteTo(w)
+			_, err = io.WriteString(w, QuoteArrayElementIfNeeded(elemBuf.String()))
 			if err != nil {
 				return false, err
 			}
