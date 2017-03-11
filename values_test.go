@@ -568,7 +568,6 @@ func TestNullX(t *testing.T) {
 		s   pgx.NullString
 		i16 pgx.NullInt16
 		i32 pgx.NullInt32
-		a   pgx.NullAclItem
 		tid pgx.NullTid
 		i64 pgx.NullInt64
 		f32 pgx.NullFloat32
@@ -591,10 +590,6 @@ func TestNullX(t *testing.T) {
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: false}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 0, Valid: false}}},
-		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: true}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: true}}},
-		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: "postgres=arwdDxt/postgres", Valid: false}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: "", Valid: false}}},
-		// A tricky (and valid) aclitem can still be used, especially with Go's useful backticks
-		{"select $1::aclitem", []interface{}{pgx.NullAclItem{AclItem: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}}, []interface{}{&actual.a}, allTypes{a: pgx.NullAclItem{AclItem: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}}},
 		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: true}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: true}}},
 		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 1, OffsetNumber: 1}, Valid: false}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 0, OffsetNumber: 0}, Valid: false}}},
 		{"select $1::tid", []interface{}{pgx.NullTid{Tid: pgx.Tid{BlockNumber: 4294967295, OffsetNumber: 65535}, Valid: true}}, []interface{}{&actual.tid}, allTypes{tid: pgx.NullTid{Tid: pgx.Tid{BlockNumber: 4294967295, OffsetNumber: 65535}, Valid: true}}},
@@ -627,52 +622,6 @@ func TestNullX(t *testing.T) {
 			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
 		}
 
-		ensureConnValid(t, conn)
-	}
-}
-
-func assertAclItemSlicesEqual(t *testing.T, query, scan []pgx.AclItem) {
-	if !reflect.DeepEqual(query, scan) {
-		t.Errorf("failed to encode aclitem[]\n EXPECTED: %d %v\n ACTUAL:   %d %v", len(query), query, len(scan), scan)
-	}
-}
-
-func TestAclArrayDecoding(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	sql := "select $1::aclitem[]"
-	var scan []pgx.AclItem
-
-	tests := []struct {
-		query []pgx.AclItem
-	}{
-		{
-			[]pgx.AclItem{},
-		},
-		{
-			[]pgx.AclItem{"=r/postgres"},
-		},
-		{
-			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres"},
-		},
-		{
-			[]pgx.AclItem{"=r/postgres", "postgres=arwdDxt/postgres", `postgres=arwdDxt/" tricky, ' } "" \ test user "`},
-		},
-	}
-	for i, tt := range tests {
-		err := conn.QueryRow(sql, tt.query).Scan(&scan)
-		if err != nil {
-			// t.Errorf(`%d. error reading array: %v`, i, err)
-			t.Errorf(`%d. error reading array: %v query: %s`, i, err, tt.query)
-			if pgerr, ok := err.(pgx.PgError); ok {
-				t.Errorf(`%d. error reading array (detail): %s`, i, pgerr.Detail)
-			}
-			continue
-		}
-		assertAclItemSlicesEqual(t, tt.query, scan)
 		ensureConnValid(t, conn)
 	}
 }
