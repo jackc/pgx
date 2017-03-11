@@ -268,6 +268,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.closedChan = make(chan error)
 
 	c.oidPgtypeValues = map[OID]pgtype.Value{
+		ACLItemOID:          &pgtype.ACLItem{},
+		ACLItemArrayOID:     &pgtype.ACLItemArray{},
 		BoolArrayOID:        &pgtype.BoolArray{},
 		BoolOID:             &pgtype.Bool{},
 		ByteaArrayOID:       &pgtype.ByteaArray{},
