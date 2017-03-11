@@ -197,7 +197,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
+	if rows.Err().Error() != "can't scan into dest[0]: Can't convert Oid 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -403,7 +403,7 @@ type coreEncoder struct{}
 
 func (n coreEncoder) FormatCode() int16 { return pgx.TextFormatCode }
 
-func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.OID) error {
+func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
 	w.WriteInt32(int32(2))
 	w.WriteBytes([]byte("42"))
 	return nil
@@ -438,7 +438,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f64 float64
 		b   bool
 		t   time.Time
-		oid pgx.OID
+		oid pgx.Oid
 	}
 
 	var actual, zero allTypes
@@ -456,7 +456,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
 		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
 		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{"select $1::oid", []interface{}{pgx.OID(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::oid", []interface{}{pgx.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {

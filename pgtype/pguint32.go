@@ -10,7 +10,7 @@ import (
 )
 
 // pguint32 is the core type that is used to implement PostgreSQL types such as
-// CID and XID.
+// Cid and Xid.
 type pguint32 struct {
 	Uint   uint32
 	Status Status

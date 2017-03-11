@@ -229,10 +229,10 @@ func (src *ByteaArray) EncodeText(w io.Writer) (bool, error) {
 }
 
 func (src *ByteaArray) EncodeBinary(w io.Writer) (bool, error) {
-	return src.encodeBinary(w, ByteaOID)
+	return src.encodeBinary(w, ByteaOid)
 }
 
-func (src *ByteaArray) encodeBinary(w io.Writer, elementOID int32) (bool, error) {
+func (src *ByteaArray) encodeBinary(w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -241,7 +241,7 @@ func (src *ByteaArray) encodeBinary(w io.Writer, elementOID int32) (bool, error)
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOID: elementOID,
+		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
 	}
 

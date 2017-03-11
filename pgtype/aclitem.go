@@ -6,7 +6,7 @@ import (
 	"reflect"
 )
 
-// ACLItem is used for PostgreSQL's aclitem data type. A sample aclitem
+// Aclitem is used for PostgreSQL's aclitem data type. A sample aclitem
 // might look like this:
 //
 //	postgres=arwdDxt/postgres
@@ -18,34 +18,34 @@ import (
 //
 //	postgres=arwdDxt/"role with spaces"
 //
-type ACLItem struct {
+type Aclitem struct {
 	String string
 	Status Status
 }
 
-func (dst *ACLItem) ConvertFrom(src interface{}) error {
+func (dst *Aclitem) ConvertFrom(src interface{}) error {
 	switch value := src.(type) {
-	case ACLItem:
+	case Aclitem:
 		*dst = value
 	case string:
-		*dst = ACLItem{String: value, Status: Present}
+		*dst = Aclitem{String: value, Status: Present}
 	case *string:
 		if value == nil {
-			*dst = ACLItem{Status: Null}
+			*dst = Aclitem{Status: Null}
 		} else {
-			*dst = ACLItem{String: *value, Status: Present}
+			*dst = Aclitem{String: *value, Status: Present}
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
 			return dst.ConvertFrom(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to ACLItem", value)
+		return fmt.Errorf("cannot convert %v to Aclitem", value)
 	}
 
 	return nil
 }
 
-func (src *ACLItem) AssignTo(dst interface{}) error {
+func (src *Aclitem) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 	case *string:
 		if src.Status != Present {
@@ -81,17 +81,17 @@ func (src *ACLItem) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *ACLItem) DecodeText(src []byte) error {
+func (dst *Aclitem) DecodeText(src []byte) error {
 	if src == nil {
-		*dst = ACLItem{Status: Null}
+		*dst = Aclitem{Status: Null}
 		return nil
 	}
 
-	*dst = ACLItem{String: string(src), Status: Present}
+	*dst = Aclitem{String: string(src), Status: Present}
 	return nil
 }
 
-func (src ACLItem) EncodeText(w io.Writer) (bool, error) {
+func (src Aclitem) EncodeText(w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

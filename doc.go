@@ -169,10 +169,10 @@ there.
 
         pgx.DefaultTypeFormats["point"] = pgx.BinaryFormatCode
 
-Note that the type is referred to by name, not by OID. This is because custom
-PostgreSQL types like hstore will have different OIDs on different servers. When
+Note that the type is referred to by name, not by Oid. This is because custom
+PostgreSQL types like hstore will have different Oids on different servers. When
 pgx establishes a connection it queries the pg_type table for all types. It then
-matches the names in DefaultTypeFormats with the returned OIDs and stores it in
+matches the names in DefaultTypeFormats with the returned Oids and stores it in
 Conn.PgTypes.
 
 See example_custom_type_test.go for an example of a custom type for the

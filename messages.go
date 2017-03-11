@@ -55,9 +55,9 @@ func (s *startupMessage) Bytes() (buf []byte) {
 
 type FieldDescription struct {
 	Name            string
-	Table           OID
+	Table           Oid
 	AttributeNumber int16
-	DataType        OID
+	DataType        Oid
 	DataTypeSize    int16
 	DataTypeName    string
 	Modifier        int32

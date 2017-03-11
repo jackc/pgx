@@ -27,5 +27,5 @@ func (src *CidrArray) EncodeText(w io.Writer) (bool, error) {
 }
 
 func (src *CidrArray) EncodeBinary(w io.Writer) (bool, error) {
-	return (*InetArray)(src).encodeBinary(w, CidrOID)
+	return (*InetArray)(src).encodeBinary(w, CidrOid)
 }

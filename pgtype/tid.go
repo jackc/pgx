@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-// TID is PostgreSQL's Tuple Identifier type.
+// Tid is PostgreSQL's Tuple Identifier type.
 //
 // When one does
 //
@@ -21,15 +21,15 @@ import (
 // It is currently implemented as a pair unsigned two byte integers.
 // Its conversion functions can be found in src/backend/utils/adt/tid.c
 // in the PostgreSQL sources.
-type TID struct {
+type Tid struct {
 	BlockNumber  uint32
 	OffsetNumber uint16
 	Status       Status
 }
 
-func (dst *TID) DecodeText(src []byte) error {
+func (dst *Tid) DecodeText(src []byte) error {
 	if src == nil {
-		*dst = TID{Status: Null}
+		*dst = Tid{Status: Null}
 		return nil
 	}
 
@@ -52,13 +52,13 @@ func (dst *TID) DecodeText(src []byte) error {
 		return err
 	}
 
-	*dst = TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Status: Present}
+	*dst = Tid{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Status: Present}
 	return nil
 }
 
-func (dst *TID) DecodeBinary(src []byte) error {
+func (dst *Tid) DecodeBinary(src []byte) error {
 	if src == nil {
-		*dst = TID{Status: Null}
+		*dst = Tid{Status: Null}
 		return nil
 	}
 
@@ -66,7 +66,7 @@ func (dst *TID) DecodeBinary(src []byte) error {
 		return fmt.Errorf("invalid length for tid: %v", len(src))
 	}
 
-	*dst = TID{
+	*dst = Tid{
 		BlockNumber:  binary.BigEndian.Uint32(src),
 		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
 		Status:       Present,
@@ -74,7 +74,7 @@ func (dst *TID) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src TID) EncodeText(w io.Writer) (bool, error) {
+func (src Tid) EncodeText(w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -86,7 +86,7 @@ func (src TID) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src TID) EncodeBinary(w io.Writer) (bool, error) {
+func (src Tid) EncodeBinary(w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

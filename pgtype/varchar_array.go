@@ -27,5 +27,5 @@ func (src *VarcharArray) EncodeText(w io.Writer) (bool, error) {
 }
 
 func (src *VarcharArray) EncodeBinary(w io.Writer) (bool, error) {
-	return (*TextArray)(src).encodeBinary(w, VarcharOID)
+	return (*TextArray)(src).encodeBinary(w, VarcharOid)
 }

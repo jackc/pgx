@@ -3,9 +3,10 @@ package pgx_test
 import (
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx"
 	"regexp"
 	"strconv"
+
+	"github.com/jackc/pgx"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
@@ -20,7 +21,7 @@ type NullPoint struct {
 
 func (p *NullPoint) ScanPgx(vr *pgx.ValueReader) error {
 	if vr.Type().DataTypeName != "point" {
-		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode %s (OID %d)", vr.Type().DataTypeName, vr.Type().DataType))
+		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode %s (Oid %d)", vr.Type().DataTypeName, vr.Type().DataType))
 	}
 
 	if vr.Len() == -1 {
@@ -57,7 +58,7 @@ func (p *NullPoint) ScanPgx(vr *pgx.ValueReader) error {
 
 func (p NullPoint) FormatCode() int16 { return pgx.BinaryFormatCode }
 
-func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.OID) error {
+func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
 	if !p.Valid {
 		w.WriteInt32(-1)
 		return nil

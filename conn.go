@@ -77,7 +77,7 @@ type Conn struct {
 	pid                int32             // backend pid
 	secretKey          int32             // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
-	PgTypes            map[OID]PgType    // oids to PgTypes
+	PgTypes            map[Oid]PgType    // oids to PgTypes
 	config             ConnConfig        // config used when establishing this connection
 	txStatus           byte
 	preparedStatements map[string]*PreparedStatement
@@ -102,7 +102,7 @@ type Conn struct {
 	doneChan      chan struct{}
 	closedChan    chan error
 
-	oidPgtypeValues map[OID]pgtype.Value
+	oidPgtypeValues map[Oid]pgtype.Value
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -110,12 +110,12 @@ type PreparedStatement struct {
 	Name              string
 	SQL               string
 	FieldDescriptions []FieldDescription
-	ParameterOIDs     []OID
+	ParameterOids     []Oid
 }
 
 // PrepareExOptions is an option struct that can be passed to PrepareEx
 type PrepareExOptions struct {
-	ParameterOIDs []OID
+	ParameterOids []Oid
 }
 
 // Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
@@ -180,13 +180,13 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	return connect(config, nil)
 }
 
-func connect(config ConnConfig, pgTypes map[OID]PgType) (c *Conn, err error) {
+func connect(config ConnConfig, pgTypes map[Oid]PgType) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
 
 	if pgTypes != nil {
-		c.PgTypes = make(map[OID]PgType, len(pgTypes))
+		c.PgTypes = make(map[Oid]PgType, len(pgTypes))
 		for k, v := range pgTypes {
 			c.PgTypes[k] = v
 		}
@@ -267,43 +267,43 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 
-	c.oidPgtypeValues = map[OID]pgtype.Value{
-		ACLItemArrayOID:     &pgtype.ACLItemArray{},
-		ACLItemOID:          &pgtype.ACLItem{},
-		BoolArrayOID:        &pgtype.BoolArray{},
-		BoolOID:             &pgtype.Bool{},
-		ByteaArrayOID:       &pgtype.ByteaArray{},
-		ByteaOID:            &pgtype.Bytea{},
-		CharOID:             &pgtype.QChar{},
-		CIDOID:              &pgtype.CID{},
-		CidrArrayOID:        &pgtype.CidrArray{},
-		CidrOID:             &pgtype.Inet{},
-		DateArrayOID:        &pgtype.DateArray{},
-		DateOID:             &pgtype.Date{},
-		Float4ArrayOID:      &pgtype.Float4Array{},
-		Float4OID:           &pgtype.Float4{},
-		Float8ArrayOID:      &pgtype.Float8Array{},
-		Float8OID:           &pgtype.Float8{},
-		InetArrayOID:        &pgtype.InetArray{},
-		InetOID:             &pgtype.Inet{},
-		Int2ArrayOID:        &pgtype.Int2Array{},
-		Int2OID:             &pgtype.Int2{},
-		Int4ArrayOID:        &pgtype.Int4Array{},
-		Int4OID:             &pgtype.Int4{},
-		Int8ArrayOID:        &pgtype.Int8Array{},
-		Int8OID:             &pgtype.Int8{},
-		NameOID:             &pgtype.Name{},
-		OIDOID:              &pgtype.OID{},
-		TextArrayOID:        &pgtype.TextArray{},
-		TextOID:             &pgtype.Text{},
-		TIDOID:              &pgtype.TID{},
-		TimestampArrayOID:   &pgtype.TimestampArray{},
-		TimestampOID:        &pgtype.Timestamp{},
-		TimestampTzArrayOID: &pgtype.TimestamptzArray{},
-		TimestampTzOID:      &pgtype.Timestamptz{},
-		VarcharArrayOID:     &pgtype.VarcharArray{},
-		VarcharOID:          &pgtype.Text{},
-		XIDOID:              &pgtype.XID{},
+	c.oidPgtypeValues = map[Oid]pgtype.Value{
+		AclitemArrayOid:     &pgtype.AclitemArray{},
+		AclitemOid:          &pgtype.Aclitem{},
+		BoolArrayOid:        &pgtype.BoolArray{},
+		BoolOid:             &pgtype.Bool{},
+		ByteaArrayOid:       &pgtype.ByteaArray{},
+		ByteaOid:            &pgtype.Bytea{},
+		CharOid:             &pgtype.QChar{},
+		CidOid:              &pgtype.Cid{},
+		CidrArrayOid:        &pgtype.CidrArray{},
+		CidrOid:             &pgtype.Inet{},
+		DateArrayOid:        &pgtype.DateArray{},
+		DateOid:             &pgtype.Date{},
+		Float4ArrayOid:      &pgtype.Float4Array{},
+		Float4Oid:           &pgtype.Float4{},
+		Float8ArrayOid:      &pgtype.Float8Array{},
+		Float8Oid:           &pgtype.Float8{},
+		InetArrayOid:        &pgtype.InetArray{},
+		InetOid:             &pgtype.Inet{},
+		Int2ArrayOid:        &pgtype.Int2Array{},
+		Int2Oid:             &pgtype.Int2{},
+		Int4ArrayOid:        &pgtype.Int4Array{},
+		Int4Oid:             &pgtype.Int4{},
+		Int8ArrayOid:        &pgtype.Int8Array{},
+		Int8Oid:             &pgtype.Int8{},
+		NameOid:             &pgtype.Name{},
+		OidOid:              &pgtype.Oid{},
+		TextArrayOid:        &pgtype.TextArray{},
+		TextOid:             &pgtype.Text{},
+		TidOid:              &pgtype.Tid{},
+		TimestampArrayOid:   &pgtype.TimestampArray{},
+		TimestampOid:        &pgtype.Timestamp{},
+		TimestampTzArrayOid: &pgtype.TimestamptzArray{},
+		TimestampTzOid:      &pgtype.Timestamptz{},
+		VarcharArrayOid:     &pgtype.VarcharArray{},
+		VarcharOid:          &pgtype.Text{},
+		XidOid:              &pgtype.Xid{},
 	}
 
 	if tlsConfig != nil {
@@ -397,7 +397,7 @@ where (
 		return err
 	}
 
-	c.PgTypes = make(map[OID]PgType, 128)
+	c.PgTypes = make(map[Oid]PgType, 128)
 
 	for rows.Next() {
 		var oid uint32
@@ -408,7 +408,7 @@ where (
 		// The zero value is text format so we ignore any types without a default type format
 		t.DefaultFormat, _ = DefaultTypeFormats[t.Name]
 
-		c.PgTypes[OID(oid)] = t
+		c.PgTypes[Oid(oid)] = t
 	}
 
 	return rows.Err()
@@ -669,7 +669,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 
 // PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-// It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
+// It defers from Prepare as it allows additional options (such as parameter Oids) to be passed via struct
 //
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
@@ -719,11 +719,11 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	wbuf.WriteCString(sql)
 
 	if opts != nil {
-		if len(opts.ParameterOIDs) > 65535 {
-			return nil, fmt.Errorf("Number of PrepareExOptions ParameterOIDs must be between 0 and 65535, received %d", len(opts.ParameterOIDs))
+		if len(opts.ParameterOids) > 65535 {
+			return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
 		}
-		wbuf.WriteInt16(int16(len(opts.ParameterOIDs)))
-		for _, oid := range opts.ParameterOIDs {
+		wbuf.WriteInt16(int16(len(opts.ParameterOids)))
+		for _, oid := range opts.ParameterOids {
 			wbuf.WriteInt32(int32(oid))
 		}
 	} else {
@@ -760,10 +760,10 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 
 		switch t {
 		case parameterDescription:
-			ps.ParameterOIDs = c.rxParameterDescription(r)
+			ps.ParameterOids = c.rxParameterDescription(r)
 
-			if len(ps.ParameterOIDs) > 65535 && softErr == nil {
-				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOIDs))
+			if len(ps.ParameterOids) > 65535 && softErr == nil {
+				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOids))
 			}
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
@@ -970,8 +970,8 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 }
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
-	if len(ps.ParameterOIDs) != len(arguments) {
-		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
+	if len(ps.ParameterOids) != len(arguments) {
+		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
 	}
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
@@ -983,8 +983,8 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	wbuf.WriteByte(0)
 	wbuf.WriteCString(ps.Name)
 
-	wbuf.WriteInt16(int16(len(ps.ParameterOIDs)))
-	for i, oid := range ps.ParameterOIDs {
+	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
+	for i, oid := range ps.ParameterOids {
 		switch arg := arguments[i].(type) {
 		case Encoder:
 			wbuf.WriteInt16(arg.FormatCode())
@@ -1000,7 +1000,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	}
 
 	wbuf.WriteInt16(int16(len(arguments)))
-	for i, oid := range ps.ParameterOIDs {
+	for i, oid := range ps.ParameterOids {
 		if err := Encode(wbuf, oid, arguments[i]); err != nil {
 			return err
 		}
@@ -1188,9 +1188,9 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
 		f.Name = r.readCString()
-		f.Table = OID(r.readUint32())
+		f.Table = Oid(r.readUint32())
 		f.AttributeNumber = r.readInt16()
-		f.DataType = OID(r.readUint32())
+		f.DataType = Oid(r.readUint32())
 		f.DataTypeSize = r.readInt16()
 		f.Modifier = r.readInt32()
 		f.FormatCode = r.readInt16()
@@ -1198,7 +1198,7 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	return
 }
 
-func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
+func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
 	// Internally, PostgreSQL supports greater than 64k parameters to a prepared
 	// statement. But the parameter description uses a 16-bit integer for the
 	// count of parameters. If there are more than 64K parameters, this count is
@@ -1207,10 +1207,10 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []OID) {
 	r.readInt16()
 	parameterCount := len(r.msgBody[r.rp:]) / 4
 
-	parameters = make([]OID, 0, parameterCount)
+	parameters = make([]Oid, 0, parameterCount)
 
 	for i := 0; i < parameterCount; i++ {
-		parameters = append(parameters, OID(r.readUint32()))
+		parameters = append(parameters, Oid(r.readUint32()))
 	}
 	return
 }
