@@ -20,7 +20,6 @@ func TestAclitemSet(t *testing.T) {
 		source interface{}
 		result pgtype.Aclitem
 	}{
-		{source: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, result: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
 		{source: "postgres=arwdDxt/postgres", result: pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
 		{source: (*string)(nil), result: pgtype.Aclitem{Status: pgtype.Null}},
 	}

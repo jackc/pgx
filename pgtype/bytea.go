@@ -14,8 +14,6 @@ type Bytea struct {
 
 func (dst *Bytea) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Bytea:
-		*dst = value
 	case []byte:
 		if value != nil {
 			*dst = Bytea{Bytes: value, Status: Present}

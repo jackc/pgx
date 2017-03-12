@@ -17,8 +17,6 @@ type TextArray struct {
 
 func (dst *TextArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case TextArray:
-		*dst = value
 
 	case []string:
 		if value == nil {

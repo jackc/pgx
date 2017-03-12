@@ -28,8 +28,6 @@ type Timestamptz struct {
 
 func (dst *Timestamptz) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Timestamptz:
-		*dst = value
 	case time.Time:
 		*dst = Timestamptz{Time: value, Status: Present}
 	default:

@@ -16,8 +16,6 @@ type <%= pgtype_array_type %> struct {
 
 func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 	switch value := src.(type) {
-	case <%= pgtype_array_type %>:
-		*dst = value
 	<% go_array_types.split(",").each do |t| %>
 	case <%= t %>:
 		if value == nil {

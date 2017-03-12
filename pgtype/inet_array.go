@@ -18,8 +18,6 @@ type InetArray struct {
 
 func (dst *InetArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case InetArray:
-		*dst = value
 
 	case []*net.IPNet:
 		if value == nil {

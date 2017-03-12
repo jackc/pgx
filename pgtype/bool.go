@@ -14,8 +14,6 @@ type Bool struct {
 
 func (dst *Bool) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Bool:
-		*dst = value
 	case bool:
 		*dst = Bool{Bool: value, Status: Present}
 	case string:

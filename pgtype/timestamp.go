@@ -27,8 +27,6 @@ type Timestamp struct {
 // time.Time in a non-UTC time zone, the time zone is discarded.
 func (dst *Timestamp) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Timestamp:
-		*dst = value
 	case time.Time:
 		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}
 	default:

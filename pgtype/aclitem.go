@@ -25,8 +25,6 @@ type Aclitem struct {
 
 func (dst *Aclitem) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Aclitem:
-		*dst = value
 	case string:
 		*dst = Aclitem{String: value, Status: Present}
 	case *string:

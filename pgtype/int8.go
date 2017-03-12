@@ -17,8 +17,6 @@ type Int8 struct {
 
 func (dst *Int8) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Int8:
-		*dst = value
 	case int8:
 		*dst = Int8{Int: int64(value), Status: Present}
 	case uint8:
