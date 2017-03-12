@@ -17,8 +17,6 @@ type Int4Array struct {
 
 func (dst *Int4Array) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Int4Array:
-		*dst = value
 
 	case []int32:
 		if value == nil {

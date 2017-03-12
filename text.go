@@ -13,8 +13,6 @@ type Text struct {
 
 func (dst *Text) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Text:
-		*dst = value
 	case string:
 		*dst = Text{String: value, Status: Present}
 	case *string:

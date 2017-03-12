@@ -18,8 +18,6 @@ type TimestamptzArray struct {
 
 func (dst *TimestamptzArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case TimestamptzArray:
-		*dst = value
 
 	case []time.Time:
 		if value == nil {

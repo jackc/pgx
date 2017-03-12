@@ -18,8 +18,6 @@ type DateArray struct {
 
 func (dst *DateArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case DateArray:
-		*dst = value
 
 	case []time.Time:
 		if value == nil {

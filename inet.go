@@ -25,8 +25,6 @@ type Inet struct {
 
 func (dst *Inet) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Inet:
-		*dst = value
 	case net.IPNet:
 		*dst = Inet{IPNet: &value, Status: Present}
 	case *net.IPNet:

@@ -23,8 +23,6 @@ const (
 
 func (dst *Date) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Date:
-		*dst = value
 	case time.Time:
 		*dst = Date{Time: value, Status: Present}
 	default:
