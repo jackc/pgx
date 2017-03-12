@@ -23,7 +23,7 @@ type QChar struct {
 	Status Status
 }
 
-func (dst *QChar) ConvertFrom(src interface{}) error {
+func (dst *QChar) Set(src interface{}) error {
 	switch value := src.(type) {
 	case QChar:
 		*dst = value
@@ -94,12 +94,23 @@ func (dst *QChar) ConvertFrom(src interface{}) error {
 		*dst = QChar{Int: int8(num), Status: Present}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to QChar", value)
 	}
 
 	return nil
+}
+
+func (dst *QChar) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Int
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *QChar) AssignTo(dst interface{}) error {

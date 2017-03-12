@@ -14,7 +14,7 @@ func TestXidTranscode(t *testing.T) {
 	})
 }
 
-func TestXidConvertFrom(t *testing.T) {
+func TestXidSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Xid
@@ -24,7 +24,7 @@ func TestXidConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Xid
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

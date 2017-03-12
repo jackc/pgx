@@ -16,10 +16,10 @@ type pguint32 struct {
 	Status Status
 }
 
-// ConvertFrom converts from src to dst. Note that as pguint32 is not a general
-// number type ConvertFrom does not do automatic type conversion as other number
+// Set converts from src to dst. Note that as pguint32 is not a general
+// number type Set does not do automatic type conversion as other number
 // types do.
-func (dst *pguint32) ConvertFrom(src interface{}) error {
+func (dst *pguint32) Set(src interface{}) error {
 	switch value := src.(type) {
 	case uint32:
 		*dst = pguint32{Uint: value, Status: Present}
@@ -28,6 +28,17 @@ func (dst *pguint32) ConvertFrom(src interface{}) error {
 	}
 
 	return nil
+}
+
+func (dst *pguint32) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Uint
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 // AssignTo assigns from src to dst. Note that as pguint32 is not a general number

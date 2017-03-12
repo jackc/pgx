@@ -10,7 +10,7 @@ type Json struct {
 	Status Status
 }
 
-func (dst *Json) ConvertFrom(src interface{}) error {
+func (dst *Json) Set(src interface{}) error {
 	switch value := src.(type) {
 	case string:
 		*dst = Json{Bytes: []byte(value), Status: Present}
@@ -35,6 +35,22 @@ func (dst *Json) ConvertFrom(src interface{}) error {
 	}
 
 	return nil
+}
+
+func (dst *Json) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		var i interface{}
+		err := json.Unmarshal(dst.Bytes, &i)
+		if err != nil {
+			return dst
+		}
+		return i
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Json) AssignTo(dst interface{}) error {

@@ -16,7 +16,7 @@ type InetArray struct {
 	Status     Status
 }
 
-func (dst *InetArray) ConvertFrom(src interface{}) error {
+func (dst *InetArray) Set(src interface{}) error {
 	switch value := src.(type) {
 	case InetArray:
 		*dst = value
@@ -29,7 +29,7 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Inet, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -48,7 +48,7 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Inet, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -61,12 +61,23 @@ func (dst *InetArray) ConvertFrom(src interface{}) error {
 
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Inet", value)
 	}
 
 	return nil
+}
+
+func (dst *InetArray) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *InetArray) AssignTo(dst interface{}) error {

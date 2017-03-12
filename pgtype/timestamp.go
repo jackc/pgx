@@ -23,9 +23,9 @@ type Timestamp struct {
 	InfinityModifier
 }
 
-// ConvertFrom converts src into a Timestamp and stores in dst. If src is a
+// Set converts src into a Timestamp and stores in dst. If src is a
 // time.Time in a non-UTC time zone, the time zone is discarded.
-func (dst *Timestamp) ConvertFrom(src interface{}) error {
+func (dst *Timestamp) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Timestamp:
 		*dst = value
@@ -33,12 +33,26 @@ func (dst *Timestamp) ConvertFrom(src interface{}) error {
 		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Timestamp", value)
 	}
 
 	return nil
+}
+
+func (dst *Timestamp) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		if dst.InfinityModifier != None {
+			return dst.InfinityModifier
+		}
+		return dst.Time
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Timestamp) AssignTo(dst interface{}) error {

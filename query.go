@@ -288,12 +288,8 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					vr.Fatal(fmt.Errorf("unknown format code: %v", vr.Type().FormatCode))
 				}
 
-				if assignerTo, ok := pgVal.(pgtype.AssignerTo); ok {
-					if err := assignerTo.AssignTo(d); err != nil {
-						vr.Fatal(err)
-					}
-				} else {
-					vr.Fatal(fmt.Errorf("cannot assign %T", pgVal))
+				if err := pgVal.AssignTo(d); err != nil {
+					vr.Fatal(err)
 				}
 			} else {
 				if err := Decode(vr, d); err != nil {

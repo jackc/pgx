@@ -14,7 +14,7 @@ func TestOidTranscode(t *testing.T) {
 	})
 }
 
-func TestOidConvertFrom(t *testing.T) {
+func TestOidSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Oid
@@ -24,7 +24,7 @@ func TestOidConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Oid
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

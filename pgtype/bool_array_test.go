@@ -51,7 +51,7 @@ func TestBoolArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestBoolArrayConvertFrom(t *testing.T) {
+func TestBoolArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.BoolArray
@@ -71,7 +71,7 @@ func TestBoolArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.BoolArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

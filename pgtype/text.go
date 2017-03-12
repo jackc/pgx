@@ -11,7 +11,7 @@ type Text struct {
 	Status Status
 }
 
-func (dst *Text) ConvertFrom(src interface{}) error {
+func (dst *Text) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Text:
 		*dst = value
@@ -25,12 +25,23 @@ func (dst *Text) ConvertFrom(src interface{}) error {
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Text", value)
 	}
 
 	return nil
+}
+
+func (dst *Text) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.String
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Text) AssignTo(dst interface{}) error {

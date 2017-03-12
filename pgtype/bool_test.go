@@ -15,7 +15,7 @@ func TestBoolTranscode(t *testing.T) {
 	})
 }
 
-func TestBoolConvertFrom(t *testing.T) {
+func TestBoolSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Bool
@@ -33,7 +33,7 @@ func TestBoolConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Bool
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

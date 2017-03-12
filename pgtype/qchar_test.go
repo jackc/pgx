@@ -19,7 +19,7 @@ func TestQCharTranscode(t *testing.T) {
 	})
 }
 
-func TestQCharConvertFrom(t *testing.T) {
+func TestQCharSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.QChar
@@ -42,7 +42,7 @@ func TestQCharConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.QChar
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

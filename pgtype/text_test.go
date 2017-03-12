@@ -17,7 +17,7 @@ func TestTextTranscode(t *testing.T) {
 	}
 }
 
-func TestTextConvertFrom(t *testing.T) {
+func TestTextSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Text
@@ -30,7 +30,7 @@ func TestTextConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var d pgtype.Text
-		err := d.ConvertFrom(tt.source)
+		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

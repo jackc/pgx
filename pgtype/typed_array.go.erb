@@ -14,7 +14,7 @@ type <%= pgtype_array_type %> struct {
 	Status     Status
 }
 
-func (dst *<%= pgtype_array_type %>) ConvertFrom(src interface{}) error {
+func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 	switch value := src.(type) {
 	case <%= pgtype_array_type %>:
 		*dst = value
@@ -27,7 +27,7 @@ func (dst *<%= pgtype_array_type %>) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]<%= pgtype_element_type %>, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -40,12 +40,23 @@ func (dst *<%= pgtype_array_type %>) ConvertFrom(src interface{}) error {
 	<% end %>
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to <%= pgtype_element_type %>", value)
 	}
 
 	return nil
+}
+
+func (dst *<%= pgtype_array_type %>) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {

@@ -12,7 +12,7 @@ type Bytea struct {
 	Status Status
 }
 
-func (dst *Bytea) ConvertFrom(src interface{}) error {
+func (dst *Bytea) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Bytea:
 		*dst = value
@@ -24,12 +24,23 @@ func (dst *Bytea) ConvertFrom(src interface{}) error {
 		}
 	default:
 		if originalSrc, ok := underlyingBytesType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Bytea", value)
 	}
 
 	return nil
+}
+
+func (dst *Bytea) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Bytes
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Bytea) AssignTo(dst interface{}) error {

@@ -20,11 +20,15 @@ import (
 // in the PostgreSQL sources.
 type Xid pguint32
 
-// ConvertFrom converts from src to dst. Note that as Xid is not a general
-// number type ConvertFrom does not do automatic type conversion as other number
+// Set converts from src to dst. Note that as Xid is not a general
+// number type Set does not do automatic type conversion as other number
 // types do.
-func (dst *Xid) ConvertFrom(src interface{}) error {
-	return (*pguint32)(dst).ConvertFrom(src)
+func (dst *Xid) Set(src interface{}) error {
+	return (*pguint32)(dst).Set(src)
+}
+
+func (dst *Xid) Get() interface{} {
+	return (*pguint32)(dst).Get()
 }
 
 // AssignTo assigns from src to dst. Note that as Xid is not a general number

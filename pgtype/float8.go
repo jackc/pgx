@@ -15,7 +15,7 @@ type Float8 struct {
 	Status Status
 }
 
-func (dst *Float8) ConvertFrom(src interface{}) error {
+func (dst *Float8) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Float8:
 		*dst = value
@@ -71,12 +71,23 @@ func (dst *Float8) ConvertFrom(src interface{}) error {
 		*dst = Float8{Float: float64(num), Status: Present}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Float8", value)
 	}
 
 	return nil
+}
+
+func (dst *Float8) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Float
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Float8) AssignTo(dst interface{}) error {

@@ -15,7 +15,7 @@ type ByteaArray struct {
 	Status     Status
 }
 
-func (dst *ByteaArray) ConvertFrom(src interface{}) error {
+func (dst *ByteaArray) Set(src interface{}) error {
 	switch value := src.(type) {
 	case ByteaArray:
 		*dst = value
@@ -28,7 +28,7 @@ func (dst *ByteaArray) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Bytea, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -41,12 +41,23 @@ func (dst *ByteaArray) ConvertFrom(src interface{}) error {
 
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Bytea", value)
 	}
 
 	return nil
+}
+
+func (dst *ByteaArray) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *ByteaArray) AssignTo(dst interface{}) error {
