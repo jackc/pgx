@@ -246,11 +246,7 @@ func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
 		if e != nil {
 			t.Error(e)
 		}
-		timeline, e := strconv.Atoi(values[1].(string))
-		if e != nil {
-			t.Error(e)
-		}
-		return timeline
+		return int(values[1].(int32))
 	}
 	t.Fatal("Failed to read timeline")
 	return -1
