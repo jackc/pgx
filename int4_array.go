@@ -15,7 +15,7 @@ type Int4Array struct {
 	Status     Status
 }
 
-func (dst *Int4Array) ConvertFrom(src interface{}) error {
+func (dst *Int4Array) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Int4Array:
 		*dst = value
@@ -28,7 +28,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Int4, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -47,7 +47,7 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Int4, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -60,12 +60,23 @@ func (dst *Int4Array) ConvertFrom(src interface{}) error {
 
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int4", value)
 	}
 
 	return nil
+}
+
+func (dst *Int4Array) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Int4Array) AssignTo(dst interface{}) error {

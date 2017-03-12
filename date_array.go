@@ -16,7 +16,7 @@ type DateArray struct {
 	Status     Status
 }
 
-func (dst *DateArray) ConvertFrom(src interface{}) error {
+func (dst *DateArray) Set(src interface{}) error {
 	switch value := src.(type) {
 	case DateArray:
 		*dst = value
@@ -29,7 +29,7 @@ func (dst *DateArray) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Date, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -42,12 +42,23 @@ func (dst *DateArray) ConvertFrom(src interface{}) error {
 
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Date", value)
 	}
 
 	return nil
+}
+
+func (dst *DateArray) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *DateArray) AssignTo(dst interface{}) error {

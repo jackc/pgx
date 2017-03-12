@@ -18,7 +18,7 @@ func TestJsonbTranscode(t *testing.T) {
 	})
 }
 
-func TestJsonbConvertFrom(t *testing.T) {
+func TestJsonbSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Jsonb
@@ -33,7 +33,7 @@ func TestJsonbConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var d pgtype.Jsonb
-		err := d.ConvertFrom(tt.source)
+		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

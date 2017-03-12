@@ -15,7 +15,7 @@ type Float8Array struct {
 	Status     Status
 }
 
-func (dst *Float8Array) ConvertFrom(src interface{}) error {
+func (dst *Float8Array) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Float8Array:
 		*dst = value
@@ -28,7 +28,7 @@ func (dst *Float8Array) ConvertFrom(src interface{}) error {
 		} else {
 			elements := make([]Float8, len(value))
 			for i := range value {
-				if err := elements[i].ConvertFrom(value[i]); err != nil {
+				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
@@ -41,12 +41,23 @@ func (dst *Float8Array) ConvertFrom(src interface{}) error {
 
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Float8", value)
 	}
 
 	return nil
+}
+
+func (dst *Float8Array) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Float8Array) AssignTo(dst interface{}) error {

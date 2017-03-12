@@ -15,7 +15,7 @@ type Int8 struct {
 	Status Status
 }
 
-func (dst *Int8) ConvertFrom(src interface{}) error {
+func (dst *Int8) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Int8:
 		*dst = value
@@ -59,12 +59,23 @@ func (dst *Int8) ConvertFrom(src interface{}) error {
 		*dst = Int8{Int: num, Status: Present}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
 
 	return nil
+}
+
+func (dst *Int8) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Int
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Int8) AssignTo(dst interface{}) error {

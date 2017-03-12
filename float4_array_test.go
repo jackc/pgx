@@ -51,7 +51,7 @@ func TestFloat4ArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestFloat4ArrayConvertFrom(t *testing.T) {
+func TestFloat4ArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Float4Array
@@ -71,7 +71,7 @@ func TestFloat4ArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Float4Array
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

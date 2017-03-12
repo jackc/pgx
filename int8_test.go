@@ -19,7 +19,7 @@ func TestInt8Transcode(t *testing.T) {
 	})
 }
 
-func TestInt8ConvertFrom(t *testing.T) {
+func TestInt8Set(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Int8
@@ -42,7 +42,7 @@ func TestInt8ConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Int8
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

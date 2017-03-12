@@ -52,7 +52,7 @@ func TestInetArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestInetArrayConvertFrom(t *testing.T) {
+func TestInetArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.InetArray
@@ -83,7 +83,7 @@ func TestInetArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.InetArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

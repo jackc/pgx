@@ -23,7 +23,7 @@ type Aclitem struct {
 	Status Status
 }
 
-func (dst *Aclitem) ConvertFrom(src interface{}) error {
+func (dst *Aclitem) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Aclitem:
 		*dst = value
@@ -37,12 +37,23 @@ func (dst *Aclitem) ConvertFrom(src interface{}) error {
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Aclitem", value)
 	}
 
 	return nil
+}
+
+func (dst *Aclitem) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.String
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Aclitem) AssignTo(dst interface{}) error {

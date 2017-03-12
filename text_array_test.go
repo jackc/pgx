@@ -51,7 +51,7 @@ func TestTextArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestTextArrayConvertFrom(t *testing.T) {
+func TestTextArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.TextArray
@@ -71,7 +71,7 @@ func TestTextArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.TextArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

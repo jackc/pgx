@@ -7,8 +7,12 @@ import (
 
 type Jsonb Json
 
-func (dst *Jsonb) ConvertFrom(src interface{}) error {
-	return (*Json)(dst).ConvertFrom(src)
+func (dst *Jsonb) Set(src interface{}) error {
+	return (*Json)(dst).Set(src)
+}
+
+func (dst *Jsonb) Get() interface{} {
+	return (*Json)(dst).Get()
 }
 
 func (src *Jsonb) AssignTo(dst interface{}) error {
