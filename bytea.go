@@ -106,7 +106,10 @@ func (dst *Bytea) DecodeBinary(src []byte) error {
 		return nil
 	}
 
-	*dst = Bytea{Bytes: src, Status: Present}
+	buf := make([]byte, len(src))
+	copy(buf, src)
+
+	*dst = Bytea{Bytes: buf, Status: Present}
 	return nil
 }
 
