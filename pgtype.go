@@ -80,10 +80,16 @@ type Value interface {
 }
 
 type BinaryDecoder interface {
+	// DecodeBinary decodes src into BinaryDecoder. If src is nil then the
+	// original SQL value is NULL. BinaryDecoder MUST not retain a reference to
+	// src. It MUST make a copy if it needs to retain the raw bytes.
 	DecodeBinary(src []byte) error
 }
 
 type TextDecoder interface {
+	// DecodeText decodes src into TextDecoder. If src is nil then the original
+	// SQL value is NULL. TextDecoder MUST not retain a reference to src. It MUST
+	// make a copy if it needs to retain the raw bytes.
 	DecodeText(src []byte) error
 }
 
