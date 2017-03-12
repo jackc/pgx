@@ -16,8 +16,6 @@ type AclitemArray struct {
 
 func (dst *AclitemArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case AclitemArray:
-		*dst = value
 
 	case []string:
 		if value == nil {

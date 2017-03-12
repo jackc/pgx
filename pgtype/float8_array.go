@@ -17,8 +17,6 @@ type Float8Array struct {
 
 func (dst *Float8Array) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Float8Array:
-		*dst = value
 
 	case []float64:
 		if value == nil {

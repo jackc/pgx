@@ -17,8 +17,6 @@ type BoolArray struct {
 
 func (dst *BoolArray) Set(src interface{}) error {
 	switch value := src.(type) {
-	case BoolArray:
-		*dst = value
 
 	case []bool:
 		if value == nil {
