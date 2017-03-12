@@ -772,13 +772,6 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 		return Encode(wbuf, oid, arg)
 	}
 
-	if oid == JsonOid {
-		return encodeJSON(wbuf, oid, arg)
-	}
-	if oid == JsonbOid {
-		return encodeJSONB(wbuf, oid, arg)
-	}
-
 	if value, ok := wbuf.conn.oidPgtypeValues[oid]; ok {
 		if converterFrom, ok := value.(pgtype.ConverterFrom); ok {
 			err := converterFrom.ConvertFrom(arg)

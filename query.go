@@ -263,17 +263,6 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if vr.Type().DataType == JsonOid {
-			// Because the argument passed to decodeJSON will escape the heap.
-			// This allows d to be stack allocated and only copied to the heap when
-			// we actually are decoding JSON. This saves one memory allocation per
-			// row.
-			d2 := d
-			decodeJSON(vr, &d2)
-		} else if vr.Type().DataType == JsonbOid {
-			// Same trick as above for getting stack allocation
-			d2 := d
-			decodeJSONB(vr, &d2)
 		} else {
 			if pgVal, present := rows.conn.oidPgtypeValues[vr.Type().DataType]; present {
 				switch vr.Type().FormatCode {
