@@ -324,59 +324,33 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			values = append(values, nil)
 			continue
 		}
-		// TODO - consider what are the implications of returning complex types since database/sql uses this method
-		switch vr.Type().FormatCode {
-		// All intrinsic types (except string) are encoded with binary
-		// encoding so anything else should be treated as a string
-		case TextFormatCode:
-			switch vr.Type().DataType {
-			case JsonOid:
-				var d interface{}
-				decodeJSON(vr, &d)
-				values = append(values, d)
-			case JsonbOid:
-				var d interface{}
-				decodeJSONB(vr, &d)
-				values = append(values, d)
-			default:
-				values = append(values, vr.ReadString(vr.Len()))
-			}
 
-		case BinaryFormatCode:
-			switch vr.Type().DataType {
-			case TextOid, VarcharOid:
-				values = append(values, decodeText(vr))
-			case BoolOid:
-				values = append(values, decodeBool(vr))
-			case ByteaOid:
-				values = append(values, decodeBytea(vr))
-			case Int8Oid:
-				values = append(values, decodeInt8(vr))
-			case Int2Oid:
-				values = append(values, decodeInt2(vr))
-			case Int4Oid:
-				values = append(values, decodeInt4(vr))
-			case Float4Oid:
-				values = append(values, decodeFloat4(vr))
-			case Float8Oid:
-				values = append(values, decodeFloat8(vr))
-			case DateOid:
-				values = append(values, decodeDate(vr))
-			case TimestampTzOid:
-				values = append(values, decodeTimestampTz(vr))
-			case TimestampOid:
-				values = append(values, decodeTimestamp(vr))
-			case JsonOid:
-				var d interface{}
-				decodeJSON(vr, &d)
-				values = append(values, d)
-			case JsonbOid:
-				var d interface{}
-				decodeJSONB(vr, &d)
-				values = append(values, d)
-			default:
-				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
+		pgVal := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.TextDecoder)
+		if pgVal == nil {
+			panic("need GenericText or GenericBinary")
+		}
+
+		switch vr.Type().FormatCode {
+		case TextFormatCode:
+			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.TextDecoder)
+			if decoder == nil {
+				panic("need GenericText")
 			}
+			err := decoder.DecodeText(vr.bytes())
+			if err != nil {
+				rows.Fatal(err)
+			}
+			values = append(values, decoder.(pgtype.Value).Get())
+		case BinaryFormatCode:
+			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.BinaryDecoder)
+			if decoder == nil {
+				panic("need GenericBinary")
+			}
+			err := decoder.DecodeBinary(vr.bytes())
+			if err != nil {
+				rows.Fatal(err)
+			}
+			values = append(values, decoder.(pgtype.Value).Get())
 		default:
 			rows.Fatal(errors.New("Unknown format code"))
 		}
