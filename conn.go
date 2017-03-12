@@ -267,47 +267,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 
-	c.oidPgtypeValues = map[Oid]pgtype.Value{
-		AclitemArrayOid:     &pgtype.AclitemArray{},
-		AclitemOid:          &pgtype.Aclitem{},
-		BoolArrayOid:        &pgtype.BoolArray{},
-		BoolOid:             &pgtype.Bool{},
-		ByteaArrayOid:       &pgtype.ByteaArray{},
-		ByteaOid:            &pgtype.Bytea{},
-		CharOid:             &pgtype.QChar{},
-		CidOid:              &pgtype.Cid{},
-		CidrArrayOid:        &pgtype.CidrArray{},
-		CidrOid:             &pgtype.Inet{},
-		DateArrayOid:        &pgtype.DateArray{},
-		DateOid:             &pgtype.Date{},
-		Float4ArrayOid:      &pgtype.Float4Array{},
-		Float4Oid:           &pgtype.Float4{},
-		Float8ArrayOid:      &pgtype.Float8Array{},
-		Float8Oid:           &pgtype.Float8{},
-		InetArrayOid:        &pgtype.InetArray{},
-		InetOid:             &pgtype.Inet{},
-		Int2ArrayOid:        &pgtype.Int2Array{},
-		Int2Oid:             &pgtype.Int2{},
-		Int4ArrayOid:        &pgtype.Int4Array{},
-		Int4Oid:             &pgtype.Int4{},
-		Int8ArrayOid:        &pgtype.Int8Array{},
-		Int8Oid:             &pgtype.Int8{},
-		JsonbOid:            &pgtype.Jsonb{},
-		JsonOid:             &pgtype.Json{},
-		NameOid:             &pgtype.Name{},
-		OidOid:              &pgtype.Oid{},
-		TextArrayOid:        &pgtype.TextArray{},
-		TextOid:             &pgtype.Text{},
-		TidOid:              &pgtype.Tid{},
-		TimestampArrayOid:   &pgtype.TimestampArray{},
-		TimestampOid:        &pgtype.Timestamp{},
-		TimestampTzArrayOid: &pgtype.TimestamptzArray{},
-		TimestampTzOid:      &pgtype.Timestamptz{},
-		VarcharArrayOid:     &pgtype.VarcharArray{},
-		VarcharOid:          &pgtype.Text{},
-		XidOid:              &pgtype.Xid{},
-	}
-
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
 			c.log(LogLevelDebug, "Starting TLS handshake")
@@ -316,6 +275,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			return err
 		}
 	}
+
+	c.loadStaticOidPgtypeValues()
 
 	c.mr.cr = chunkreader.NewChunkReader(c.conn)
 
@@ -376,6 +337,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 					return err
 				}
 			}
+			c.loadDynamicOidPgtypeValues()
 
 			return nil
 		default:
@@ -414,6 +376,60 @@ where (
 	}
 
 	return rows.Err()
+}
+
+func (c *Conn) loadStaticOidPgtypeValues() {
+	c.oidPgtypeValues = map[Oid]pgtype.Value{
+		AclitemArrayOid:     &pgtype.AclitemArray{},
+		AclitemOid:          &pgtype.Aclitem{},
+		BoolArrayOid:        &pgtype.BoolArray{},
+		BoolOid:             &pgtype.Bool{},
+		ByteaArrayOid:       &pgtype.ByteaArray{},
+		ByteaOid:            &pgtype.Bytea{},
+		CharOid:             &pgtype.QChar{},
+		CidOid:              &pgtype.Cid{},
+		CidrArrayOid:        &pgtype.CidrArray{},
+		CidrOid:             &pgtype.Inet{},
+		DateArrayOid:        &pgtype.DateArray{},
+		DateOid:             &pgtype.Date{},
+		Float4ArrayOid:      &pgtype.Float4Array{},
+		Float4Oid:           &pgtype.Float4{},
+		Float8ArrayOid:      &pgtype.Float8Array{},
+		Float8Oid:           &pgtype.Float8{},
+		InetArrayOid:        &pgtype.InetArray{},
+		InetOid:             &pgtype.Inet{},
+		Int2ArrayOid:        &pgtype.Int2Array{},
+		Int2Oid:             &pgtype.Int2{},
+		Int4ArrayOid:        &pgtype.Int4Array{},
+		Int4Oid:             &pgtype.Int4{},
+		Int8ArrayOid:        &pgtype.Int8Array{},
+		Int8Oid:             &pgtype.Int8{},
+		JsonbOid:            &pgtype.Jsonb{},
+		JsonOid:             &pgtype.Json{},
+		NameOid:             &pgtype.Name{},
+		OidOid:              &pgtype.Oid{},
+		TextArrayOid:        &pgtype.TextArray{},
+		TextOid:             &pgtype.Text{},
+		TidOid:              &pgtype.Tid{},
+		TimestampArrayOid:   &pgtype.TimestampArray{},
+		TimestampOid:        &pgtype.Timestamp{},
+		TimestampTzArrayOid: &pgtype.TimestamptzArray{},
+		TimestampTzOid:      &pgtype.Timestamptz{},
+		VarcharArrayOid:     &pgtype.VarcharArray{},
+		VarcharOid:          &pgtype.Text{},
+		XidOid:              &pgtype.Xid{},
+	}
+}
+
+func (c *Conn) loadDynamicOidPgtypeValues() {
+	nameOids := make(map[string]Oid, len(c.PgTypes))
+	for k, v := range c.PgTypes {
+		nameOids[v.Name] = k
+	}
+
+	if oid, ok := nameOids["hstore"]; ok {
+		c.oidPgtypeValues[oid] = &pgtype.Hstore{}
+	}
 }
 
 // PID returns the backend PID for this connection.
