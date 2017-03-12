@@ -1003,9 +1003,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
 	for i, oid := range ps.ParameterOids {
-		switch arg := arguments[i].(type) {
-		case Encoder:
-			wbuf.WriteInt16(arg.FormatCode())
+		switch arguments[i].(type) {
 		case pgtype.BinaryEncoder:
 			wbuf.WriteInt16(BinaryFormatCode)
 		case pgtype.TextEncoder:

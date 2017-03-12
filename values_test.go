@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -558,70 +557,6 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 }
 
-func TestNullX(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	type allTypes struct {
-		s   pgx.NullString
-		i16 pgx.NullInt16
-		i32 pgx.NullInt32
-		i64 pgx.NullInt64
-		f32 pgx.NullFloat32
-		f64 pgx.NullFloat64
-		b   pgx.NullBool
-		t   pgx.NullTime
-	}
-
-	var actual, zero allTypes
-
-	tests := []struct {
-		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
-		expected  allTypes
-	}{
-		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "foo", Valid: true}}},
-		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: false}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "", Valid: false}}},
-		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 1, Valid: true}}},
-		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
-		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
-		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: false}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 0, Valid: false}}},
-		{"select $1::int8", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 1, Valid: true}}},
-		{"select $1::int8", []interface{}{pgx.NullInt64{Int64: 1, Valid: false}}, []interface{}{&actual.i64}, allTypes{i64: pgx.NullInt64{Int64: 0, Valid: false}}},
-		{"select $1::float4", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, allTypes{f32: pgx.NullFloat32{Float32: 1.23, Valid: true}}},
-		{"select $1::float4", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: false}}, []interface{}{&actual.f32}, allTypes{f32: pgx.NullFloat32{Float32: 0, Valid: false}}},
-		{"select $1::float8", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.f64}, allTypes{f64: pgx.NullFloat64{Float64: 1.23, Valid: true}}},
-		{"select $1::float8", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: false}}, []interface{}{&actual.f64}, allTypes{f64: pgx.NullFloat64{Float64: 0, Valid: false}}},
-		{"select $1::bool", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, allTypes{b: pgx.NullBool{Bool: true, Valid: true}}},
-		{"select $1::bool", []interface{}{pgx.NullBool{Bool: true, Valid: false}}, []interface{}{&actual.b}, allTypes{b: pgx.NullBool{Bool: false, Valid: false}}},
-		{"select $1::timestamptz", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}},
-		{"select $1::timestamptz", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
-		{"select $1::timestamp", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}},
-		{"select $1::timestamp", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
-		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}}},
-		{"select $1::date", []interface{}{pgx.NullTime{Time: time.Date(1990, 1, 1, 0, 0, 0, 0, time.UTC), Valid: false}}, []interface{}{&actual.t}, allTypes{t: pgx.NullTime{Time: time.Time{}, Valid: false}}},
-		{"select 42::int4, $1::float8", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.i32, &actual.f64}, allTypes{i32: pgx.NullInt32{Int32: 42, Valid: true}, f64: pgx.NullFloat64{Float64: 1.23, Valid: true}}},
-	}
-
-	for i, tt := range tests {
-		actual = zero
-
-		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
-		}
-
-		if actual != tt.expected {
-			t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
-		}
-
-		ensureConnValid(t, conn)
-	}
-}
-
 func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
@@ -736,36 +671,6 @@ func TestArrayDecoding(t *testing.T) {
 	}
 }
 
-type shortScanner struct{}
-
-func (*shortScanner) Scan(r *pgx.ValueReader) error {
-	r.ReadByte()
-	return nil
-}
-
-func TestShortScanner(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query("select 'ab', 'cd' union select 'cd', 'ef'")
-	if err != nil {
-		t.Error(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var s1, s2 shortScanner
-		err = rows.Scan(&s1, &s2)
-		if err != nil {
-			t.Error(err)
-		}
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestEmptyArrayDecoding(t *testing.T) {
 	t.Parallel()
 
@@ -812,53 +717,6 @@ func TestEmptyArrayDecoding(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
-}
-
-func TestNullXMismatch(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	type allTypes struct {
-		s   pgx.NullString
-		i16 pgx.NullInt16
-		i32 pgx.NullInt32
-		i64 pgx.NullInt64
-		f32 pgx.NullFloat32
-		f64 pgx.NullFloat64
-		b   pgx.NullBool
-		t   pgx.NullTime
-	}
-
-	var actual, zero allTypes
-
-	tests := []struct {
-		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
-		err       string
-	}{
-		{"select $1::date", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, "invalid input syntax for type date"},
-		{"select $1::date", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, "cannot encode into Oid 1082"},
-		{"select $1::date", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, "cannot encode into Oid 1082"},
-		{"select $1::date", []interface{}{pgx.NullInt64{Int64: 1, Valid: true}}, []interface{}{&actual.i64}, "cannot encode into Oid 1082"},
-		{"select $1::date", []interface{}{pgx.NullFloat32{Float32: 1.23, Valid: true}}, []interface{}{&actual.f32}, "cannot encode into Oid 1082"},
-		{"select $1::date", []interface{}{pgx.NullFloat64{Float64: 1.23, Valid: true}}, []interface{}{&actual.f64}, "cannot encode into Oid 1082"},
-		{"select $1::date", []interface{}{pgx.NullBool{Bool: true, Valid: true}}, []interface{}{&actual.b}, "cannot encode into Oid 1082"},
-		{"select $1::int4", []interface{}{pgx.NullTime{Time: time.Unix(123, 5000), Valid: true}}, []interface{}{&actual.t}, "cannot encode into Oid 23"},
-	}
-
-	for i, tt := range tests {
-		actual = zero
-
-		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
-		if err == nil || !strings.Contains(err.Error(), tt.err) {
-			t.Errorf(`%d. Expected error to contain "%s", but it didn't: %v`, i, tt.err, err)
-		}
-
-		ensureConnValid(t, conn)
-	}
 }
 
 func TestPointerPointer(t *testing.T) {
