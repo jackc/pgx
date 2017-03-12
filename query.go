@@ -325,16 +325,11 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		pgVal := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.TextDecoder)
-		if pgVal == nil {
-			panic("need GenericText or GenericBinary")
-		}
-
 		switch vr.Type().FormatCode {
 		case TextFormatCode:
 			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.TextDecoder)
 			if decoder == nil {
-				panic("need GenericText")
+				decoder = &pgtype.GenericText{}
 			}
 			err := decoder.DecodeText(vr.bytes())
 			if err != nil {
@@ -344,7 +339,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 		case BinaryFormatCode:
 			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.BinaryDecoder)
 			if decoder == nil {
-				panic("need GenericBinary")
+				decoder = &pgtype.GenericBinary{}
 			}
 			err := decoder.DecodeBinary(vr.bytes())
 			if err != nil {
