@@ -270,44 +270,6 @@ func TestConnQueryScanIgnoreColumn(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnQueryScanner(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query("select null::int8, 1::int8")
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var n, m pgx.NullInt64
-	err = rows.Scan(&n, &m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if n.Valid {
-		t.Error("Null should not be valid, but it was")
-	}
-
-	if !m.Valid {
-		t.Error("1 should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	t.Parallel()
 
@@ -339,42 +301,6 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 }
 
-func TestConnQueryEncoder(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	n := pgx.NullInt64{Int64: 1, Valid: true}
-
-	rows, err := conn.Query("select $1::int8", &n)
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var m pgx.NullInt64
-	err = rows.Scan(&m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if !m.Valid {
-		t.Error("m should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryEncodeError(t *testing.T) {
 	t.Parallel()
 
@@ -394,35 +320,6 @@ func TestQueryEncodeError(t *testing.T) {
 	}
 	if rows.Err().Error() != `ERROR: invalid input syntax for integer: "wrong" (SQLSTATE 22P02)` {
 		t.Error("Expected rows.Err() to return different error:", rows.Err())
-	}
-}
-
-// Ensure that an argument that implements Encoder works when the parameter type
-// is a core type.
-type coreEncoder struct{}
-
-func (n coreEncoder) FormatCode() int16 { return pgx.TextFormatCode }
-
-func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
-	w.WriteInt32(int32(2))
-	w.WriteBytes([]byte("42"))
-	return nil
-}
-
-func TestQueryEncodeCoreTextFormatError(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var n int32
-	err := conn.QueryRow("select $1::integer", &coreEncoder{}).Scan(&n)
-	if err != nil {
-		t.Fatalf("Unexpected conn.QueryRow error: %v", err)
-	}
-
-	if n != 42 {
-		t.Errorf("Expected 42, got %v", n)
 	}
 }
 
