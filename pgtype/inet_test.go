@@ -26,7 +26,7 @@ func TestInetTranscode(t *testing.T) {
 	}
 }
 
-func TestInetConvertFrom(t *testing.T) {
+func TestInetSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Inet
@@ -39,7 +39,7 @@ func TestInetConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Inet
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

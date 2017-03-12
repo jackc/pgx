@@ -52,7 +52,7 @@ func TestDateArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestDateArrayConvertFrom(t *testing.T) {
+func TestDateArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.DateArray
@@ -72,7 +72,7 @@ func TestDateArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.DateArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

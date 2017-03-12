@@ -773,13 +773,9 @@ func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
 	}
 
 	if value, ok := wbuf.conn.oidPgtypeValues[oid]; ok {
-		if converterFrom, ok := value.(pgtype.ConverterFrom); ok {
-			err := converterFrom.ConvertFrom(arg)
-			if err != nil {
-				return err
-			}
-		} else {
-			return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+		err := value.Set(arg)
+		if err != nil {
+			return err
 		}
 
 		buf := &bytes.Buffer{}
@@ -1275,7 +1271,7 @@ func encodeTime(w *WriteBuf, oid Oid, value time.Time) error {
 	switch oid {
 	case DateOid:
 		var d pgtype.Date
-		err := d.ConvertFrom(value)
+		err := d.Set(value)
 		if err != nil {
 			return err
 		}
@@ -1295,7 +1291,7 @@ func encodeTime(w *WriteBuf, oid Oid, value time.Time) error {
 
 	case TimestampTzOid, TimestampOid:
 		var t pgtype.Timestamptz
-		err := t.ConvertFrom(value)
+		err := t.Set(value)
 		if err != nil {
 			return err
 		}

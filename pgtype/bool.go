@@ -12,7 +12,7 @@ type Bool struct {
 	Status Status
 }
 
-func (dst *Bool) ConvertFrom(src interface{}) error {
+func (dst *Bool) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Bool:
 		*dst = value
@@ -26,12 +26,23 @@ func (dst *Bool) ConvertFrom(src interface{}) error {
 		*dst = Bool{Bool: bb, Status: Present}
 	default:
 		if originalSrc, ok := underlyingBoolType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Bool", value)
 	}
 
 	return nil
+}
+
+func (dst *Bool) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Bool
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Bool) AssignTo(dst interface{}) error {

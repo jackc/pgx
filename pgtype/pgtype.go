@@ -66,13 +66,16 @@ const (
 	NegativeInfinity InfinityModifier = -Infinity
 )
 
-type Value interface{}
+type Value interface {
+	// Set converts and assigns src to itself.
+	Set(src interface{}) error
 
-type ConverterFrom interface {
-	ConvertFrom(src interface{}) error
-}
+	// Get returns the simplest representation of Value. If the Value is Null or
+	// Undefined that is the return value. If no simpler representation is
+	// possible, then Get() returns Value.
+	Get() interface{}
 
-type AssignerTo interface {
+	// AssignTo converts and assigns the Value to dst.
 	AssignTo(dst interface{}) error
 }
 

@@ -51,7 +51,7 @@ func TestAclitemArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestAclitemArrayConvertFrom(t *testing.T) {
+func TestAclitemArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.AclitemArray
@@ -71,7 +71,7 @@ func TestAclitemArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.AclitemArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

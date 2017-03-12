@@ -6,8 +6,12 @@ import (
 
 type VarcharArray TextArray
 
-func (dst *VarcharArray) ConvertFrom(src interface{}) error {
-	return (*TextArray)(dst).ConvertFrom(src)
+func (dst *VarcharArray) Set(src interface{}) error {
+	return (*TextArray)(dst).Set(src)
+}
+
+func (dst *VarcharArray) Get() interface{} {
+	return (*TextArray)(dst).Get()
 }
 
 func (src *VarcharArray) AssignTo(dst interface{}) error {

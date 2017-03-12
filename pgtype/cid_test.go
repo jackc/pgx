@@ -14,7 +14,7 @@ func TestCidTranscode(t *testing.T) {
 	})
 }
 
-func TestCidConvertFrom(t *testing.T) {
+func TestCidSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Cid
@@ -24,7 +24,7 @@ func TestCidConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Cid
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

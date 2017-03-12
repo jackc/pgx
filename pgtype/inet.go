@@ -23,7 +23,7 @@ type Inet struct {
 	Status Status
 }
 
-func (dst *Inet) ConvertFrom(src interface{}) error {
+func (dst *Inet) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Inet:
 		*dst = value
@@ -43,12 +43,23 @@ func (dst *Inet) ConvertFrom(src interface{}) error {
 		*dst = Inet{IPNet: ipnet, Status: Present}
 	default:
 		if originalSrc, ok := underlyingPtrType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Inet", value)
 	}
 
 	return nil
+}
+
+func (dst *Inet) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.IPNet
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Inet) AssignTo(dst interface{}) error {

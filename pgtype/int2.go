@@ -15,7 +15,7 @@ type Int2 struct {
 	Status Status
 }
 
-func (dst *Int2) ConvertFrom(src interface{}) error {
+func (dst *Int2) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Int2:
 		*dst = value
@@ -77,12 +77,23 @@ func (dst *Int2) ConvertFrom(src interface{}) error {
 		*dst = Int2{Int: int16(num), Status: Present}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Int2", value)
 	}
 
 	return nil
+}
+
+func (dst *Int2) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Int
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Int2) AssignTo(dst interface{}) error {
