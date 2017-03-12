@@ -31,7 +31,7 @@ func TestTimestamptzTranscode(t *testing.T) {
 	})
 }
 
-func TestTimestamptzConvertFrom(t *testing.T) {
+func TestTimestamptzSet(t *testing.T) {
 	type _time time.Time
 
 	successfulTests := []struct {
@@ -50,7 +50,7 @@ func TestTimestamptzConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Timestamptz
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

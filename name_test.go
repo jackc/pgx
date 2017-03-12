@@ -15,7 +15,7 @@ func TestNameTranscode(t *testing.T) {
 	})
 }
 
-func TestNameConvertFrom(t *testing.T) {
+func TestNameSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Name
@@ -27,7 +27,7 @@ func TestNameConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var d pgtype.Name
-		err := d.ConvertFrom(tt.source)
+		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

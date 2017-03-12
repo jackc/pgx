@@ -6,8 +6,12 @@ import (
 
 type CidrArray InetArray
 
-func (dst *CidrArray) ConvertFrom(src interface{}) error {
-	return (*InetArray)(dst).ConvertFrom(src)
+func (dst *CidrArray) Set(src interface{}) error {
+	return (*InetArray)(dst).Set(src)
+}
+
+func (dst *CidrArray) Get() interface{} {
+	return (*InetArray)(dst).Get()
 }
 
 func (src *CidrArray) AssignTo(dst interface{}) error {

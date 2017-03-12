@@ -26,7 +26,7 @@ type Timestamptz struct {
 	InfinityModifier
 }
 
-func (dst *Timestamptz) ConvertFrom(src interface{}) error {
+func (dst *Timestamptz) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Timestamptz:
 		*dst = value
@@ -34,12 +34,26 @@ func (dst *Timestamptz) ConvertFrom(src interface{}) error {
 		*dst = Timestamptz{Time: value, Status: Present}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Timestamptz", value)
 	}
 
 	return nil
+}
+
+func (dst *Timestamptz) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		if dst.InfinityModifier != None {
+			return dst.InfinityModifier
+		}
+		return dst.Time
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Timestamptz) AssignTo(dst interface{}) error {

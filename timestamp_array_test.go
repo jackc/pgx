@@ -68,7 +68,7 @@ func TestTimestampArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestTimestampArrayConvertFrom(t *testing.T) {
+func TestTimestampArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.TimestampArray
@@ -88,7 +88,7 @@ func TestTimestampArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.TimestampArray
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

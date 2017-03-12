@@ -21,7 +21,7 @@ const (
 	infinityDayOffset         = 2147483647
 )
 
-func (dst *Date) ConvertFrom(src interface{}) error {
+func (dst *Date) Set(src interface{}) error {
 	switch value := src.(type) {
 	case Date:
 		*dst = value
@@ -29,12 +29,23 @@ func (dst *Date) ConvertFrom(src interface{}) error {
 		*dst = Date{Time: value, Status: Present}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
-			return dst.ConvertFrom(originalSrc)
+			return dst.Set(originalSrc)
 		}
 		return fmt.Errorf("cannot convert %v to Date", value)
 	}
 
 	return nil
+}
+
+func (dst *Date) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst.Time
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
 }
 
 func (src *Date) AssignTo(dst interface{}) error {

@@ -22,7 +22,7 @@ func TestDateTranscode(t *testing.T) {
 	})
 }
 
-func TestDateConvertFrom(t *testing.T) {
+func TestDateSet(t *testing.T) {
 	type _time time.Time
 
 	successfulTests := []struct {
@@ -41,7 +41,7 @@ func TestDateConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var d pgtype.Date
-		err := d.ConvertFrom(tt.source)
+		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

@@ -51,7 +51,7 @@ func TestFloat8ArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestFloat8ArrayConvertFrom(t *testing.T) {
+func TestFloat8ArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Float8Array
@@ -71,7 +71,7 @@ func TestFloat8ArrayConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Float8Array
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}

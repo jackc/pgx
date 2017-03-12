@@ -27,6 +27,25 @@ type Tid struct {
 	Status       Status
 }
 
+func (dst *Tid) Set(src interface{}) error {
+	return fmt.Errorf("cannot convert %v to Tid", src)
+}
+
+func (dst *Tid) Get() interface{} {
+	switch dst.Status {
+	case Present:
+		return dst
+	case Null:
+		return nil
+	default:
+		return dst.Status
+	}
+}
+
+func (src *Tid) AssignTo(dst interface{}) error {
+	return fmt.Errorf("cannot assign %v to %T", src, dst)
+}
+
 func (dst *Tid) DecodeText(src []byte) error {
 	if src == nil {
 		*dst = Tid{Status: Null}

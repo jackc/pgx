@@ -15,7 +15,7 @@ func TestByteaTranscode(t *testing.T) {
 	})
 }
 
-func TestByteaConvertFrom(t *testing.T) {
+func TestByteaSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
 		result pgtype.Bytea
@@ -30,7 +30,7 @@ func TestByteaConvertFrom(t *testing.T) {
 
 	for i, tt := range successfulTests {
 		var r pgtype.Bytea
-		err := r.ConvertFrom(tt.source)
+		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
 		}
