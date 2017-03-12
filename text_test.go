@@ -22,7 +22,6 @@ func TestTextSet(t *testing.T) {
 		source interface{}
 		result pgtype.Text
 	}{
-		{source: pgtype.Text{String: "foo", Status: pgtype.Present}, result: pgtype.Text{String: "foo", Status: pgtype.Present}},
 		{source: "foo", result: pgtype.Text{String: "foo", Status: pgtype.Present}},
 		{source: _string("bar"), result: pgtype.Text{String: "bar", Status: pgtype.Present}},
 		{source: (*string)(nil), result: pgtype.Text{Status: pgtype.Null}},

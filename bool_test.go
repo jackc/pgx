@@ -20,7 +20,6 @@ func TestBoolSet(t *testing.T) {
 		source interface{}
 		result pgtype.Bool
 	}{
-		{source: pgtype.Bool{Bool: false, Status: pgtype.Null}, result: pgtype.Bool{Bool: false, Status: pgtype.Null}},
 		{source: true, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
 		{source: false, result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
 		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},

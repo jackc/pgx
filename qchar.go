@@ -25,8 +25,6 @@ type QChar struct {
 
 func (dst *QChar) Set(src interface{}) error {
 	switch value := src.(type) {
-	case QChar:
-		*dst = value
 	case int8:
 		*dst = QChar{Int: value, Status: Present}
 	case uint8:

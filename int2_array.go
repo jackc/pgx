@@ -17,8 +17,6 @@ type Int2Array struct {
 
 func (dst *Int2Array) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Int2Array:
-		*dst = value
 
 	case []int16:
 		if value == nil {

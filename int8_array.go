@@ -17,8 +17,6 @@ type Int8Array struct {
 
 func (dst *Int8Array) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Int8Array:
-		*dst = value
 
 	case []int64:
 		if value == nil {

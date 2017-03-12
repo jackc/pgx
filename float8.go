@@ -17,8 +17,6 @@ type Float8 struct {
 
 func (dst *Float8) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Float8:
-		*dst = value
 	case float32:
 		*dst = Float8{Float: float64(value), Status: Present}
 	case float64:

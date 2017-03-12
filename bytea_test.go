@@ -20,7 +20,6 @@ func TestByteaSet(t *testing.T) {
 		source interface{}
 		result pgtype.Bytea
 	}{
-		{source: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Null}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Null}},
 		{source: []byte{1, 2, 3}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}},
 		{source: []byte{}, result: pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present}},
 		{source: []byte(nil), result: pgtype.Bytea{Status: pgtype.Null}},

@@ -17,8 +17,6 @@ type Float4Array struct {
 
 func (dst *Float4Array) Set(src interface{}) error {
 	switch value := src.(type) {
-	case Float4Array:
-		*dst = value
 
 	case []float32:
 		if value == nil {
