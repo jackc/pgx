@@ -2,6 +2,8 @@ package pgx
 
 import (
 	"errors"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 // ValueReader is used by the Scanner interface to decode values.
@@ -116,8 +118,8 @@ func (r *ValueReader) ReadInt64() int64 {
 	return r.mr.readInt64()
 }
 
-func (r *ValueReader) ReadOid() Oid {
-	return Oid(r.ReadUint32())
+func (r *ValueReader) ReadOid() pgtype.Oid {
+	return pgtype.Oid(r.ReadUint32())
 }
 
 // ReadString reads count bytes and returns as string

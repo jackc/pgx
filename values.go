@@ -3,16 +3,12 @@ package pgx
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io"
 	"math"
 	"reflect"
-	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -80,7 +76,7 @@ const minInt = -maxInt - 1
 var DefaultTypeFormats map[string]int16
 
 // internalNativeGoTypeFormats lists the encoding type for native Go types (not handled with Encoder interface)
-var internalNativeGoTypeFormats map[Oid]int16
+var internalNativeGoTypeFormats map[pgtype.Oid]int16
 
 func init() {
 	DefaultTypeFormats = map[string]int16{
@@ -119,7 +115,7 @@ func init() {
 		"xid":          BinaryFormatCode,
 	}
 
-	internalNativeGoTypeFormats = map[Oid]int16{
+	internalNativeGoTypeFormats = map[pgtype.Oid]int16{
 		BoolArrayOid:        BinaryFormatCode,
 		BoolOid:             BinaryFormatCode,
 		ByteaArrayOid:       BinaryFormatCode,
@@ -159,54 +155,10 @@ func (e SerializationError) Error() string {
 	return string(e)
 }
 
-// Oid (Object Identifier Type) is, according to https://www.postgresql.org/docs/current/static/datatype-oid.html,
-// used internally by PostgreSQL as a primary key for various system tables. It is currently implemented
-// as an unsigned four-byte integer. Its definition can be found in src/include/postgres_ext.h
-// in the PostgreSQL sources. Oid cannot be NULL. To allow for NULL Oids use pgtype.Oid.
-type Oid uint32
-
-func (dst *Oid) DecodeText(src []byte) error {
-	if src == nil {
-		return fmt.Errorf("cannot decode nil into Oid")
-	}
-
-	n, err := strconv.ParseUint(string(src), 10, 32)
-	if err != nil {
-		return err
-	}
-
-	*dst = Oid(n)
-	return nil
-}
-
-func (dst *Oid) DecodeBinary(src []byte) error {
-	if src == nil {
-		return fmt.Errorf("cannot decode nil into Oid")
-	}
-
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length: %v", len(src))
-	}
-
-	n := binary.BigEndian.Uint32(src)
-	*dst = Oid(n)
-	return nil
-}
-
-func (src Oid) EncodeText(w io.Writer) (bool, error) {
-	_, err := io.WriteString(w, strconv.FormatUint(uint64(src), 10))
-	return false, err
-}
-
-func (src Oid) EncodeBinary(w io.Writer) (bool, error) {
-	_, err := pgio.WriteUint32(w, uint32(src))
-	return false, err
-}
-
 // Encode encodes arg into wbuf as the type oid. This allows implementations
 // of the Encoder interface to delegate the actual work of encoding to the
 // built-in functionality.
-func Encode(wbuf *WriteBuf, oid Oid, arg interface{}) error {
+func Encode(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
 	if arg == nil {
 		wbuf.WriteInt32(-1)
 		return nil
@@ -542,7 +494,7 @@ func decodeFloat4(vr *ValueReader) float32 {
 	return math.Float32frombits(uint32(i))
 }
 
-func encodeFloat32(w *WriteBuf, oid Oid, value float32) error {
+func encodeFloat32(w *WriteBuf, oid pgtype.Oid, value float32) error {
 	switch oid {
 	case Float4Oid:
 		w.WriteInt32(4)
@@ -582,7 +534,7 @@ func decodeFloat8(vr *ValueReader) float64 {
 	return math.Float64frombits(uint64(i))
 }
 
-func encodeFloat64(w *WriteBuf, oid Oid, value float64) error {
+func encodeFloat64(w *WriteBuf, oid pgtype.Oid, value float64) error {
 	switch oid {
 	case Float8Oid:
 		w.WriteInt32(8)
@@ -617,7 +569,7 @@ func decodeTextAllowBinary(vr *ValueReader) string {
 	return vr.ReadString(vr.Len())
 }
 
-func encodeString(w *WriteBuf, oid Oid, value string) error {
+func encodeString(w *WriteBuf, oid pgtype.Oid, value string) error {
 	w.WriteInt32(int32(len(value)))
 	w.WriteBytes([]byte(value))
 	return nil
@@ -641,7 +593,7 @@ func decodeBytea(vr *ValueReader) []byte {
 	return vr.ReadBytes(vr.Len())
 }
 
-func encodeByteSlice(w *WriteBuf, oid Oid, value []byte) error {
+func encodeByteSlice(w *WriteBuf, oid pgtype.Oid, value []byte) error {
 	w.WriteInt32(int32(len(value)))
 	w.WriteBytes(value)
 
@@ -665,7 +617,7 @@ func decodeJSON(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func encodeJSON(w *WriteBuf, oid Oid, value interface{}) error {
+func encodeJSON(w *WriteBuf, oid pgtype.Oid, value interface{}) error {
 	if oid != JsonOid {
 		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}
@@ -709,7 +661,7 @@ func decodeJSONB(vr *ValueReader, d interface{}) error {
 	return err
 }
 
-func encodeJSONB(w *WriteBuf, oid Oid, value interface{}) error {
+func encodeJSONB(w *WriteBuf, oid pgtype.Oid, value interface{}) error {
 	if oid != JsonbOid {
 		return fmt.Errorf("cannot encode JSON into oid %v", oid)
 	}
@@ -757,7 +709,7 @@ func decodeDate(vr *ValueReader) time.Time {
 	return d.Time
 }
 
-func encodeTime(w *WriteBuf, oid Oid, value time.Time) error {
+func encodeTime(w *WriteBuf, oid pgtype.Oid, value time.Time) error {
 	switch oid {
 	case DateOid:
 		var d pgtype.Date

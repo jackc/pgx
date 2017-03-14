@@ -52,19 +52,20 @@ import (
 	"io"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 var openFromConnPoolCount int
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
 // binary, anything else will be forced to text format
-var databaseSqlOids map[pgx.Oid]bool
+var databaseSqlOids map[pgtype.Oid]bool
 
 func init() {
 	d := &Driver{}
 	sql.Register("pgx", d)
 
-	databaseSqlOids = make(map[pgx.Oid]bool)
+	databaseSqlOids = make(map[pgtype.Oid]bool)
 	databaseSqlOids[pgx.BoolOid] = true
 	databaseSqlOids[pgx.ByteaOid] = true
 	databaseSqlOids[pgx.Int2Oid] = true

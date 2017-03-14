@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 	"github.com/shopspring/decimal"
 )
 
@@ -335,7 +336,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f64 float64
 		b   bool
 		t   time.Time
-		oid pgx.Oid
+		oid pgtype.Oid
 	}
 
 	var actual, zero allTypes
@@ -353,7 +354,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
 		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
 		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{"select $1::oid", []interface{}{pgx.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::oid", []interface{}{pgtype.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {

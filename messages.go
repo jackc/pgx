@@ -2,6 +2,8 @@ package pgx
 
 import (
 	"encoding/binary"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 const (
@@ -55,9 +57,9 @@ func (s *startupMessage) Bytes() (buf []byte) {
 
 type FieldDescription struct {
 	Name            string
-	Table           Oid
+	Table           pgtype.Oid
 	AttributeNumber int16
-	DataType        Oid
+	DataType        pgtype.Oid
 	DataTypeSize    int16
 	DataTypeName    string
 	Modifier        int32
