@@ -29,7 +29,7 @@ func (dst *Hstore) Set(src interface{}) error {
 		}
 		*dst = Hstore{Map: m, Status: Present}
 	default:
-		return fmt.Errorf("cannot convert %v to Tid", src)
+		return fmt.Errorf("cannot convert %v to Hstore", src)
 	}
 
 	return nil
