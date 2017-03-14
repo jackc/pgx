@@ -5,6 +5,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 type ConnPoolConfig struct {
@@ -28,7 +30,7 @@ type ConnPool struct {
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
-	pgTypes              map[Oid]PgType
+	pgTypes              map[pgtype.Oid]PgType
 	txAfterClose         func(tx *Tx)
 	rowsAfterClose       func(rows *Rows)
 }

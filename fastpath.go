@@ -2,29 +2,31 @@ package pgx
 
 import (
 	"encoding/binary"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 func newFastpath(cn *Conn) *fastpath {
-	return &fastpath{cn: cn, fns: make(map[string]Oid)}
+	return &fastpath{cn: cn, fns: make(map[string]pgtype.Oid)}
 }
 
 type fastpath struct {
 	cn  *Conn
-	fns map[string]Oid
+	fns map[string]pgtype.Oid
 }
 
-func (f *fastpath) functionOid(name string) Oid {
+func (f *fastpath) functionOid(name string) pgtype.Oid {
 	return f.fns[name]
 }
 
-func (f *fastpath) addFunction(name string, oid Oid) {
+func (f *fastpath) addFunction(name string, oid pgtype.Oid) {
 	f.fns[name] = oid
 }
 
 func (f *fastpath) addFunctions(rows *Rows) error {
 	for rows.Next() {
 		var name string
-		var oid Oid
+		var oid pgtype.Oid
 		if err := rows.Scan(&name, &oid); err != nil {
 			return err
 		}
@@ -47,7 +49,7 @@ func fpInt64Arg(n int64) fpArg {
 	return res
 }
 
-func (f *fastpath) Call(oid Oid, args []fpArg) (res []byte, err error) {
+func (f *fastpath) Call(oid pgtype.Oid, args []fpArg) (res []byte, err error) {
 	if err := f.cn.ensureConnectionReadyForQuery(); err != nil {
 		return nil, err
 	}

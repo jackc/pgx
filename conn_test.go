@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 func TestConnect(t *testing.T) {
@@ -1042,7 +1043,7 @@ func TestPrepareEx(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgx.Oid{pgx.TextOid}})
+	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgtype.Oid{pgx.TextOid}})
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return

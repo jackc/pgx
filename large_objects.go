@@ -2,6 +2,8 @@ package pgx
 
 import (
 	"io"
+
+	"github.com/jackc/pgx/pgtype"
 )
 
 // LargeObjects is a structure used to access the large objects API. It is only
@@ -60,19 +62,19 @@ const (
 
 // Create creates a new large object. If id is zero, the server assigns an
 // unused Oid.
-func (o *LargeObjects) Create(id Oid) (Oid, error) {
+func (o *LargeObjects) Create(id pgtype.Oid) (pgtype.Oid, error) {
 	newOid, err := fpInt32(o.fp.CallFn("lo_create", []fpArg{fpIntArg(int32(id))}))
-	return Oid(newOid), err
+	return pgtype.Oid(newOid), err
 }
 
 // Open opens an existing large object with the given mode.
-func (o *LargeObjects) Open(oid Oid, mode LargeObjectMode) (*LargeObject, error) {
+func (o *LargeObjects) Open(oid pgtype.Oid, mode LargeObjectMode) (*LargeObject, error) {
 	fd, err := fpInt32(o.fp.CallFn("lo_open", []fpArg{fpIntArg(int32(oid)), fpIntArg(int32(mode))}))
 	return &LargeObject{fd: fd, lo: o}, err
 }
 
 // Unlink removes a large object from the database.
-func (o *LargeObjects) Unlink(oid Oid) error {
+func (o *LargeObjects) Unlink(oid pgtype.Oid) error {
 	_, err := o.fp.CallFn("lo_unlink", []fpArg{fpIntArg(int32(oid))})
 	return err
 }

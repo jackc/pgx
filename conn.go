@@ -74,11 +74,11 @@ type Conn struct {
 	lastActivityTime   time.Time // the last time the connection was used
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
-	pid                int32             // backend pid
-	secretKey          int32             // key to use to send a cancel query message to the server
-	RuntimeParams      map[string]string // parameters that have been reported by the server
-	PgTypes            map[Oid]PgType    // oids to PgTypes
-	config             ConnConfig        // config used when establishing this connection
+	pid                int32                 // backend pid
+	secretKey          int32                 // key to use to send a cancel query message to the server
+	RuntimeParams      map[string]string     // parameters that have been reported by the server
+	PgTypes            map[pgtype.Oid]PgType // oids to PgTypes
+	config             ConnConfig            // config used when establishing this connection
 	txStatus           byte
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
@@ -102,7 +102,7 @@ type Conn struct {
 	doneChan      chan struct{}
 	closedChan    chan error
 
-	oidPgtypeValues map[Oid]pgtype.Value
+	oidPgtypeValues map[pgtype.Oid]pgtype.Value
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -110,12 +110,12 @@ type PreparedStatement struct {
 	Name              string
 	SQL               string
 	FieldDescriptions []FieldDescription
-	ParameterOids     []Oid
+	ParameterOids     []pgtype.Oid
 }
 
 // PrepareExOptions is an option struct that can be passed to PrepareEx
 type PrepareExOptions struct {
-	ParameterOids []Oid
+	ParameterOids []pgtype.Oid
 }
 
 // Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
@@ -180,13 +180,13 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	return connect(config, nil)
 }
 
-func connect(config ConnConfig, pgTypes map[Oid]PgType) (c *Conn, err error) {
+func connect(config ConnConfig, pgTypes map[pgtype.Oid]PgType) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
 
 	if pgTypes != nil {
-		c.PgTypes = make(map[Oid]PgType, len(pgTypes))
+		c.PgTypes = make(map[pgtype.Oid]PgType, len(pgTypes))
 		for k, v := range pgTypes {
 			c.PgTypes[k] = v
 		}
@@ -361,7 +361,7 @@ where (
 		return err
 	}
 
-	c.PgTypes = make(map[Oid]PgType, 128)
+	c.PgTypes = make(map[pgtype.Oid]PgType, 128)
 
 	for rows.Next() {
 		var oid uint32
@@ -372,14 +372,14 @@ where (
 		// The zero value is text format so we ignore any types without a default type format
 		t.DefaultFormat, _ = DefaultTypeFormats[t.Name]
 
-		c.PgTypes[Oid(oid)] = t
+		c.PgTypes[pgtype.Oid(oid)] = t
 	}
 
 	return rows.Err()
 }
 
 func (c *Conn) loadStaticOidPgtypeValues() {
-	c.oidPgtypeValues = map[Oid]pgtype.Value{
+	c.oidPgtypeValues = map[pgtype.Oid]pgtype.Value{
 		AclitemArrayOid:     &pgtype.AclitemArray{},
 		AclitemOid:          &pgtype.Aclitem{},
 		BoolArrayOid:        &pgtype.BoolArray{},
@@ -407,7 +407,7 @@ func (c *Conn) loadStaticOidPgtypeValues() {
 		JsonbOid:            &pgtype.Jsonb{},
 		JsonOid:             &pgtype.Json{},
 		NameOid:             &pgtype.Name{},
-		OidOid:              &pgtype.Oid{},
+		OidOid:              &pgtype.OidValue{},
 		TextArrayOid:        &pgtype.TextArray{},
 		TextOid:             &pgtype.Text{},
 		TidOid:              &pgtype.Tid{},
@@ -422,7 +422,7 @@ func (c *Conn) loadStaticOidPgtypeValues() {
 }
 
 func (c *Conn) loadDynamicOidPgtypeValues() {
-	nameOids := make(map[string]Oid, len(c.PgTypes))
+	nameOids := make(map[string]pgtype.Oid, len(c.PgTypes))
 	for k, v := range c.PgTypes {
 		nameOids[v.Name] = k
 	}
@@ -1204,9 +1204,9 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	for i := int16(0); i < fieldCount; i++ {
 		f := &fields[i]
 		f.Name = r.readCString()
-		f.Table = Oid(r.readUint32())
+		f.Table = pgtype.Oid(r.readUint32())
 		f.AttributeNumber = r.readInt16()
-		f.DataType = Oid(r.readUint32())
+		f.DataType = pgtype.Oid(r.readUint32())
 		f.DataTypeSize = r.readInt16()
 		f.Modifier = r.readInt32()
 		f.FormatCode = r.readInt16()
@@ -1214,7 +1214,7 @@ func (c *Conn) rxRowDescription(r *msgReader) (fields []FieldDescription) {
 	return
 }
 
-func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
+func (c *Conn) rxParameterDescription(r *msgReader) (parameters []pgtype.Oid) {
 	// Internally, PostgreSQL supports greater than 64k parameters to a prepared
 	// statement. But the parameter description uses a 16-bit integer for the
 	// count of parameters. If there are more than 64K parameters, this count is
@@ -1223,10 +1223,10 @@ func (c *Conn) rxParameterDescription(r *msgReader) (parameters []Oid) {
 	r.readInt16()
 	parameterCount := len(r.msgBody[r.rp:]) / 4
 
-	parameters = make([]Oid, 0, parameterCount)
+	parameters = make([]pgtype.Oid, 0, parameterCount)
 
 	for i := 0; i < parameterCount; i++ {
-		parameters = append(parameters, Oid(r.readUint32()))
+		parameters = append(parameters, pgtype.Oid(r.readUint32()))
 	}
 	return
 }

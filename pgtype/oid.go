@@ -1,45 +1,57 @@
 package pgtype
 
 import (
+	"encoding/binary"
+	"fmt"
 	"io"
+	"strconv"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 // Oid (Object Identifier Type) is, according to
 // https://www.postgresql.org/docs/current/static/datatype-oid.html, used
 // internally by PostgreSQL as a primary key for various system tables. It is
 // currently implemented as an unsigned four-byte integer. Its definition can be
-// found in src/include/postgres_ext.h in the PostgreSQL sources.
-type Oid pguint32
-
-// Set converts from src to dst. Note that as Oid is not a general
-// number type Set does not do automatic type conversion as other number
-// types do.
-func (dst *Oid) Set(src interface{}) error {
-	return (*pguint32)(dst).Set(src)
-}
-
-func (dst *Oid) Get() interface{} {
-	return (*pguint32)(dst).Get()
-}
-
-// AssignTo assigns from src to dst. Note that as Oid is not a general number
-// type AssignTo does not do automatic type conversion as other number types do.
-func (src *Oid) AssignTo(dst interface{}) error {
-	return (*pguint32)(src).AssignTo(dst)
-}
+// found in src/include/postgres_ext.h in the PostgreSQL sources. Because it is
+// so frequently required to be in a NOT NULL condition Oid cannot be NULL. To
+// allow for NULL Oids use OidValue.
+type Oid uint32
 
 func (dst *Oid) DecodeText(src []byte) error {
-	return (*pguint32)(dst).DecodeText(src)
+	if src == nil {
+		return fmt.Errorf("cannot decode nil into Oid")
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 32)
+	if err != nil {
+		return err
+	}
+
+	*dst = Oid(n)
+	return nil
 }
 
 func (dst *Oid) DecodeBinary(src []byte) error {
-	return (*pguint32)(dst).DecodeBinary(src)
+	if src == nil {
+		return fmt.Errorf("cannot decode nil into Oid")
+	}
+
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length: %v", len(src))
+	}
+
+	n := binary.BigEndian.Uint32(src)
+	*dst = Oid(n)
+	return nil
 }
 
 func (src Oid) EncodeText(w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeText(w)
+	_, err := io.WriteString(w, strconv.FormatUint(uint64(src), 10))
+	return false, err
 }
 
 func (src Oid) EncodeBinary(w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeBinary(w)
+	_, err := pgio.WriteUint32(w, uint32(src))
+	return false, err
 }
