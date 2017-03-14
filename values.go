@@ -937,26 +937,3 @@ func decodeRecord(vr *ValueReader) []interface{} {
 
 	return record
 }
-
-func decode1dArrayHeader(vr *ValueReader) (length int32, err error) {
-	numDims := vr.ReadInt32()
-	if numDims > 1 {
-		return 0, ProtocolError(fmt.Sprintf("Expected array to have 0 or 1 dimension, but it had %v", numDims))
-	}
-
-	vr.ReadInt32() // 0 if no nulls / 1 if there is one or more nulls -- but we don't care
-	vr.ReadInt32() // element oid
-
-	if numDims == 0 {
-		return 0, nil
-	}
-
-	length = vr.ReadInt32()
-
-	idxFirstElem := vr.ReadInt32()
-	if idxFirstElem != 1 {
-		return 0, ProtocolError(fmt.Sprintf("Expected array's first element to start a index 1, but it is %d", idxFirstElem))
-	}
-
-	return length, nil
-}
