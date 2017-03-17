@@ -331,27 +331,27 @@ const benchmarkWriteTableInsertSQL = `insert into t(
 	$13::bool
 )`
 
-type benchmarkWriteTableCopyToSrc struct {
+type benchmarkWriteTableCopyFromSrc struct {
 	count int
 	idx   int
 	row   []interface{}
 }
 
-func (s *benchmarkWriteTableCopyToSrc) Next() bool {
+func (s *benchmarkWriteTableCopyFromSrc) Next() bool {
 	s.idx++
 	return s.idx < s.count
 }
 
-func (s *benchmarkWriteTableCopyToSrc) Values() ([]interface{}, error) {
+func (s *benchmarkWriteTableCopyFromSrc) Values() ([]interface{}, error) {
 	return s.row, nil
 }
 
-func (s *benchmarkWriteTableCopyToSrc) Err() error {
+func (s *benchmarkWriteTableCopyFromSrc) Err() error {
 	return nil
 }
 
-func newBenchmarkWriteTableCopyToSrc(count int) pgx.CopyToSource {
-	return &benchmarkWriteTableCopyToSrc{
+func newBenchmarkWriteTableCopyFromSrc(count int) pgx.CopyFromSource {
+	return &benchmarkWriteTableCopyFromSrc{
 		count: count,
 		row: []interface{}{
 			"varchar_1",
@@ -384,7 +384,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		src := newBenchmarkWriteTableCopyToSrc(n)
+		src := newBenchmarkWriteTableCopyFromSrc(n)
 
 		tx, err := conn.Begin()
 		if err != nil {
@@ -407,7 +407,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 
 // note this function is only used for benchmarks -- it doesn't escape tableName
 // or columnNames
-func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc pgx.CopyToSource) (int, error) {
+func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc pgx.CopyFromSource) (int, error) {
 	maxRowsPerInsert := 65535 / len(columnNames)
 	rowsThisInsert := 0
 	rowCount := 0
@@ -495,7 +495,7 @@ func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		src := newBenchmarkWriteTableCopyToSrc(n)
+		src := newBenchmarkWriteTableCopyFromSrc(n)
 
 		_, err := multiInsert(conn, "t",
 			[]string{"varchar_1",
@@ -527,9 +527,9 @@ func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		src := newBenchmarkWriteTableCopyToSrc(n)
+		src := newBenchmarkWriteTableCopyFromSrc(n)
 
-		_, err := conn.CopyTo("t",
+		_, err := conn.CopyFrom(pgx.Identifier{"t"},
 			[]string{"varchar_1",
 				"varchar_2",
 				"varchar_null_1",
