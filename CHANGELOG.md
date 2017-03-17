@@ -1,3 +1,10 @@
+# Unreleased
+
+## Features
+
+* .pgpass support (j7b)
+* Add missing CopyFrom delegators to Tx and ConnPool (Jack Christensen)
+
 # 2.10.0 (March 17, 2017)
 
 ## Fixes
