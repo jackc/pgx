@@ -1,4 +1,4 @@
-# Unreleased
+# 2.10.0 (March 17, 2017)
 
 ## Fixes
 
@@ -16,10 +16,12 @@
 * Add named error ErrAcquireTimeout (Alexander Staubo)
 * Add logical replication decoding (Kris Wehner)
 * Add PgxScanner interface to allow types to simultaneously support database/sql and pgx (Jack Christensen)
+* Add CopyFrom with schema support (Jack Christensen)
 
 ## Compatibility
 
 * jsonb now defaults to binary format. This means passing a []byte to a jsonb column will no longer work.
+* CopyTo is now deprecated but will continue to work.
 
 # 2.9.0 (August 26, 2016)
 
