@@ -48,6 +48,7 @@ type CopyToSource interface {
 type copyTo struct {
 	conn          *Conn
 	tableName     string
+	schemaName    string
 	columnNames   []string
 	rowSrc        CopyToSource
 	readerErrChan chan error
@@ -87,7 +88,15 @@ func (ct *copyTo) waitForReaderDone() error {
 }
 
 func (ct *copyTo) run() (int, error) {
-	quotedTableName := quoteIdentifier(ct.tableName)
+
+	var quotedTableName string
+
+	if ct.schemaName != "" {
+		quotedTableName = quoteIdentifier(ct.schemaName) + "." + quoteIdentifier(ct.tableName)
+	} else {
+		quotedTableName = quoteIdentifier(ct.tableName)
+	}
+
 	buf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
 		if i != 0 {
@@ -209,9 +218,10 @@ func (ct *copyTo) cancelCopyIn() error {
 // CopyTo requires all values use the binary format. Almost all types
 // implemented by pgx use the binary format by default. Types implementing
 // Encoder can only be used if they encode to the binary format.
-func (c *Conn) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
+func (c *Conn) CopyTo(schemaName string, tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
 	ct := &copyTo{
 		conn:          c,
+		schemaName:    schemaName,
 		tableName:     tableName,
 		columnNames:   columnNames,
 		rowSrc:        rowSrc,
