@@ -504,7 +504,8 @@ func (p *ConnPool) BeginIso(iso string) (*Tx, error) {
 	}
 }
 
-// CopyTo acquires a connection, delegates the call to that connection, and releases the connection
+// Deprecated. Use CopyFrom instead. CopyTo acquires a connection, delegates the
+// call to that connection, and releases the connection.
 func (p *ConnPool) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
 	c, err := p.Acquire()
 	if err != nil {
@@ -513,4 +514,16 @@ func (p *ConnPool) CopyTo(tableName string, columnNames []string, rowSrc CopyToS
 	defer p.Release(c)
 
 	return c.CopyTo(tableName, columnNames, rowSrc)
+}
+
+// CopyFrom acquires a connection, delegates the call to that connection, and
+// releases the connection.
+func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyToSource) (int, error) {
+	c, err := p.Acquire()
+	if err != nil {
+		return 0, err
+	}
+	defer p.Release(c)
+
+	return c.CopyFrom(tableName, columnNames, rowSrc)
 }

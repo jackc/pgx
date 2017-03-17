@@ -158,13 +158,22 @@ func (tx *Tx) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
-// CopyTo delegates to the underlying *Conn
+// Deprecated. Use CopyFrom instead. CopyTo delegates to the underlying *Conn
 func (tx *Tx) CopyTo(tableName string, columnNames []string, rowSrc CopyToSource) (int, error) {
 	if tx.status != TxStatusInProgress {
 		return 0, ErrTxClosed
 	}
 
 	return tx.conn.CopyTo(tableName, columnNames, rowSrc)
+}
+
+// CopyFrom delegates to the underlying *Conn
+func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyToSource) (int, error) {
+	if tx.status != TxStatusInProgress {
+		return 0, ErrTxClosed
+	}
+
+	return tx.conn.CopyFrom(tableName, columnNames, rowSrc)
 }
 
 // Conn returns the *Conn this transaction is using.
