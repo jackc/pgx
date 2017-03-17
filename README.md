@@ -15,7 +15,7 @@ Pgx supports many additional features beyond what is available through database/
 * Transaction isolation level control
 * Full TLS connection control
 * Binary format support for custom types (can be much faster)
-* Copy protocol support for faster bulk data loads
+* Copy from protocol support for faster bulk data loads
 * Logging support
 * Configurable connection pool with after connect hooks to do arbitrary connection setup
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
