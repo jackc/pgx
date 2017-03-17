@@ -458,7 +458,9 @@ func ParseURI(uri string) (ConnConfig, error) {
 
 		cp.RuntimeParams[k] = v[0]
 	}
-
+	if cp.Password == "" {
+		pgpass(&cp)
+	}
 	return cp, nil
 }
 
@@ -511,7 +513,9 @@ func ParseDSN(s string) (ConnConfig, error) {
 	if err != nil {
 		return cp, err
 	}
-
+	if cp.Password == "" {
+		pgpass(&cp)
+	}
 	return cp, nil
 }
 
@@ -574,7 +578,9 @@ func ParseEnvLibpq() (ConnConfig, error) {
 	if appname := os.Getenv("PGAPPNAME"); appname != "" {
 		cc.RuntimeParams["application_name"] = appname
 	}
-
+	if cc.Password == "" {
+		pgpass(&cc)
+	}
 	return cc, nil
 }
 
