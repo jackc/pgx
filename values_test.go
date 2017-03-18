@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 )
 
 func TestDateTranscode(t *testing.T) {
@@ -77,159 +79,151 @@ func TestTimestampTzTranscode(t *testing.T) {
 
 // TODO - move these tests to pgtype
 
-// func TestJSONAndJSONBTranscode(t *testing.T) {
-// 	t.Parallel()
+func TestJSONAndJSONBTranscode(t *testing.T) {
+	t.Parallel()
 
-// 	conn := mustConnect(t, *defaultConnConfig)
-// 	defer closeConn(t, conn)
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
 
-// 	for _, oid := range []pgtype.Oid{pgx.JsonOid, pgx.JsonbOid} {
-// 		if _, ok := conn.ConnInfo.DataTypeForOid(oid); !ok {
-// 			return // No JSON/JSONB type -- must be running against old PostgreSQL
-// 		}
+	for _, typename := range []string{"json", "jsonb"} {
+		if _, ok := conn.ConnInfo.DataTypeForName(typename); !ok {
+			continue // No JSON/JSONB type -- must be running against old PostgreSQL
+		}
 
-// 		for _, format := range []int16{pgx.TextFormatCode, pgx.BinaryFormatCode} {
-// 			pgtype := conn.PgTypes[oid]
-// 			pgtype.DefaultFormat = format
-// 			conn.PgTypes[oid] = pgtype
+		testJSONString(t, conn, typename)
+		testJSONStringPointer(t, conn, typename)
+		testJSONSingleLevelStringMap(t, conn, typename)
+		testJSONNestedMap(t, conn, typename)
+		testJSONStringArray(t, conn, typename)
+		testJSONInt64Array(t, conn, typename)
+		testJSONInt16ArrayFailureDueToOverflow(t, conn, typename)
+		testJSONStruct(t, conn, typename)
+	}
+}
 
-// 			typename := conn.PgTypes[oid].Name
+func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
+	input := `{"key": "value"}`
+	expectedOutput := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
 
-// 			testJSONString(t, conn, typename, format)
-// 			testJSONStringPointer(t, conn, typename, format)
-// 			testJSONSingleLevelStringMap(t, conn, typename, format)
-// 			testJSONNestedMap(t, conn, typename, format)
-// 			testJSONStringArray(t, conn, typename, format)
-// 			testJSONInt64Array(t, conn, typename, format)
-// 			testJSONInt16ArrayFailureDueToOverflow(t, conn, typename, format)
-// 			testJSONStruct(t, conn, typename, format)
-// 		}
-// 	}
-// }
+	if !reflect.DeepEqual(expectedOutput, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		return
+	}
+}
 
-// func testJSONString(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := `{"key": "value"}`
-// 	expectedOutput := map[string]string{"key": "value"}
-// 	var output map[string]string
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 		return
-// 	}
+func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+	input := `{"key": "value"}`
+	expectedOutput := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, &input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
 
-// 	if !reflect.DeepEqual(expectedOutput, output) {
-// 		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, expectedOutput, output)
-// 		return
-// 	}
-// }
+	if !reflect.DeepEqual(expectedOutput, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, expectedOutput, output)
+		return
+	}
+}
 
-// func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := `{"key": "value"}`
-// 	expectedOutput := map[string]string{"key": "value"}
-// 	var output map[string]string
-// 	err := conn.QueryRow("select $1::"+typename, &input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 		return
-// 	}
+func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
+	input := map[string]string{"key": "value"}
+	var output map[string]string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
 
-// 	if !reflect.DeepEqual(expectedOutput, output) {
-// 		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, expectedOutput, output)
-// 		return
-// 	}
-// }
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode map[string]string successfully: %v is not %v", typename, input, output)
+		return
+	}
+}
 
-// func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := map[string]string{"key": "value"}
-// 	var output map[string]string
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 		return
-// 	}
+func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
+	input := map[string]interface{}{
+		"name":      "Uncanny",
+		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
+		"inventory": []interface{}{"phone", "key"},
+	}
+	var output map[string]interface{}
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+		return
+	}
 
-// 	if !reflect.DeepEqual(input, output) {
-// 		t.Errorf("%s %d: Did not transcode map[string]string successfully: %v is not %v", typename, format, input, output)
-// 		return
-// 	}
-// }
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, input, output)
+		return
+	}
+}
 
-// func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := map[string]interface{}{
-// 		"name":      "Uncanny",
-// 		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
-// 		"inventory": []interface{}{"phone", "key"},
-// 	}
-// 	var output map[string]interface{}
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 		return
-// 	}
+func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []string{"foo", "bar", "baz"}
+	var output []string
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
 
-// 	if !reflect.DeepEqual(input, output) {
-// 		t.Errorf("%s %d: Did not transcode map[string]interface{} successfully: %v is not %v", typename, format, input, output)
-// 		return
-// 	}
-// }
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode []string successfully: %v is not %v", typename, input, output)
+	}
+}
 
-// func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := []string{"foo", "bar", "baz"}
-// 	var output []string
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 	}
+func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []int64{1, 2, 234432}
+	var output []int64
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
 
-// 	if !reflect.DeepEqual(input, output) {
-// 		t.Errorf("%s %d: Did not transcode []string successfully: %v is not %v", typename, format, input, output)
-// 	}
-// }
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode []int64 successfully: %v is not %v", typename, input, output)
+	}
+}
 
-// func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := []int64{1, 2, 234432}
-// 	var output []int64
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 	}
+func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
+	input := []int{1, 2, 234432}
+	var output []int16
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
+		t.Errorf("%s: Expected *json.UnmarkalTypeError, but got %v", typename, err)
+	}
+}
 
-// 	if !reflect.DeepEqual(input, output) {
-// 		t.Errorf("%s %d: Did not transcode []int64 successfully: %v is not %v", typename, format, input, output)
-// 	}
-// }
+func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
+	type person struct {
+		Name string `json:"name"`
+		Age  int    `json:"age"`
+	}
 
-// func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	input := []int{1, 2, 234432}
-// 	var output []int16
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
-// 		t.Errorf("%s %d: Expected *json.UnmarkalTypeError, but got %v", typename, format, err)
-// 	}
-// }
+	input := person{
+		Name: "John",
+		Age:  42,
+	}
 
-// func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string, format int16) {
-// 	type person struct {
-// 		Name string `json:"name"`
-// 		Age  int    `json:"age"`
-// 	}
+	var output person
 
-// 	input := person{
-// 		Name: "John",
-// 		Age:  42,
-// 	}
+	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	if err != nil {
+		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
+	}
 
-// 	var output person
-
-// 	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
-// 	if err != nil {
-// 		t.Errorf("%s %d: QueryRow Scan failed: %v", typename, format, err)
-// 	}
-
-// 	if !reflect.DeepEqual(input, output) {
-// 		t.Errorf("%s %d: Did not transcode struct successfully: %v is not %v", typename, format, input, output)
-// 	}
-// }
+	if !reflect.DeepEqual(input, output) {
+		t.Errorf("%s: Did not transcode struct successfully: %v is not %v", typename, input, output)
+	}
+}
 
 func mustParseCidr(t *testing.T, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
