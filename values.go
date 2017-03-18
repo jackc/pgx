@@ -111,9 +111,13 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 		}
 		return encodePreparedStatementArgument(wbuf, oid, v)
 	case string:
-		return encodeString(wbuf, oid, arg)
+		wbuf.WriteInt32(int32(len(arg)))
+		wbuf.WriteBytes([]byte(arg))
+		return nil
 	case []byte:
-		return encodeByteSlice(wbuf, oid, arg)
+		wbuf.WriteInt32(int32(len(arg)))
+		wbuf.WriteBytes(arg)
+		return nil
 	}
 
 	refVal := reflect.ValueOf(arg)
@@ -214,26 +218,6 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	return nil, false
 }
 
-func decodeText(vr *ValueReader) string {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into string"))
-		return ""
-	}
-
-	if vr.Type().FormatCode == BinaryFormatCode {
-		vr.Fatal(ProtocolError("cannot decode binary value into string"))
-		return ""
-	}
-
-	return vr.ReadString(vr.Len())
-}
-
-func encodeString(w *WriteBuf, oid pgtype.Oid, value string) error {
-	w.WriteInt32(int32(len(value)))
-	w.WriteBytes([]byte(value))
-	return nil
-}
-
 func decodeBytea(vr *ValueReader) []byte {
 	if vr.Len() == -1 {
 		return nil
@@ -250,11 +234,4 @@ func decodeBytea(vr *ValueReader) []byte {
 	}
 
 	return vr.ReadBytes(vr.Len())
-}
-
-func encodeByteSlice(w *WriteBuf, oid pgtype.Oid, value []byte) error {
-	w.WriteInt32(int32(len(value)))
-	w.WriteBytes(value)
-
-	return nil
 }
