@@ -71,10 +71,7 @@ func (e SerializationError) Error() string {
 	return string(e)
 }
 
-// Encode encodes arg into wbuf as the type oid. This allows implementations
-// of the Encoder interface to delegate the actual work of encoding to the
-// built-in functionality.
-func Encode(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
+func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
 	if arg == nil {
 		wbuf.WriteInt32(-1)
 		return nil
@@ -112,7 +109,7 @@ func Encode(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
 		if err != nil {
 			return err
 		}
-		return Encode(wbuf, oid, v)
+		return encodePreparedStatementArgument(wbuf, oid, v)
 	case string:
 		return encodeString(wbuf, oid, arg)
 	case []byte:
@@ -127,7 +124,7 @@ func Encode(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
 			return nil
 		}
 		arg = refVal.Elem().Interface()
-		return Encode(wbuf, oid, arg)
+		return encodePreparedStatementArgument(wbuf, oid, arg)
 	}
 
 	if dt, ok := wbuf.conn.ConnInfo.DataTypeForOid(oid); ok {
@@ -152,9 +149,29 @@ func Encode(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return Encode(wbuf, oid, strippedArg)
+		return encodePreparedStatementArgument(wbuf, oid, strippedArg)
 	}
 	return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+}
+
+// chooseParameterFormatCode determines the correct format code for an
+// argument to a prepared statement. It defaults to TextFormatCode if no
+// determination can be made.
+func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.Oid, arg interface{}) int16 {
+	switch arg.(type) {
+	case pgtype.BinaryEncoder:
+		return BinaryFormatCode
+	case string, *string, pgtype.TextEncoder:
+		return TextFormatCode
+	}
+
+	if dt, ok := ci.DataTypeForOid(oid); ok {
+		if _, ok := dt.Value.(pgtype.BinaryEncoder); ok {
+			return BinaryFormatCode
+		}
+	}
+
+	return TextFormatCode
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {
