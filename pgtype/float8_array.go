@@ -59,28 +59,29 @@ func (dst *Float8Array) Get() interface{} {
 }
 
 func (src *Float8Array) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
 
-	case *[]float64:
-		if src.Status == Present {
+		case *[]float64:
 			*v = make([]float64, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
 				}
 			}
-		} else {
-			*v = nil
-		}
+			return nil
 
-	default:
-		if originalDst, ok := underlyingPtrSliceType(dst); ok {
-			return src.AssignTo(originalDst)
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Float8Array) DecodeText(ci *ConnInfo, src []byte) error {
