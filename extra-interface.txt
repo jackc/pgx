@@ -1,3 +1,0 @@
-Can pass function to get inet data and function to get oid/name mapping as optional interface with io.Reader or io.Writer
-
-Could be useful for arrays of types without defined Oids like hstore.
