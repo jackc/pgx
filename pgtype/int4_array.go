@@ -269,10 +269,6 @@ func (src *Int4Array) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 func (src *Int4Array) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return src.encodeBinary(ci, w, Int4Oid)
-}
-
-func (src *Int4Array) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -281,8 +277,13 @@ func (src *Int4Array) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) 
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
+	}
+
+	if dt, ok := ci.DataTypeForName("int4"); ok {
+		arrayHeader.ElementOid = int32(dt.Oid)
+	} else {
+		return false, fmt.Errorf("unable to find oid for type name %v", "int4")
 	}
 
 	for i := range src.Elements {

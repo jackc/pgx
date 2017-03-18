@@ -239,10 +239,6 @@ func (src *TimestampArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 func (src *TimestampArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return src.encodeBinary(ci, w, TimestampOid)
-}
-
-func (src *TimestampArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -251,8 +247,13 @@ func (src *TimestampArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid in
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
+	}
+
+	if dt, ok := ci.DataTypeForName("timestamp"); ok {
+		arrayHeader.ElementOid = int32(dt.Oid)
+	} else {
+		return false, fmt.Errorf("unable to find oid for type name %v", "timestamp")
 	}
 
 	for i := range src.Elements {
