@@ -9,47 +9,28 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type Int8Array struct {
-	Elements   []Int8
+type HstoreArray struct {
+	Elements   []Hstore
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *Int8Array) Set(src interface{}) error {
+func (dst *HstoreArray) Set(src interface{}) error {
 	switch value := src.(type) {
 
-	case []int64:
+	case []map[string]string:
 		if value == nil {
-			*dst = Int8Array{Status: Null}
+			*dst = HstoreArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = Int8Array{Status: Present}
+			*dst = HstoreArray{Status: Present}
 		} else {
-			elements := make([]Int8, len(value))
+			elements := make([]Hstore, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = Int8Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint64:
-		if value == nil {
-			*dst = Int8Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int8Array{Status: Present}
-		} else {
-			elements := make([]Int8, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int8Array{
+			*dst = HstoreArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -60,13 +41,13 @@ func (dst *Int8Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Hstore", value)
 	}
 
 	return nil
 }
 
-func (dst *Int8Array) Get() interface{} {
+func (dst *HstoreArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -77,24 +58,12 @@ func (dst *Int8Array) Get() interface{} {
 	}
 }
 
-func (src *Int8Array) AssignTo(dst interface{}) error {
+func (src *HstoreArray) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 
-	case *[]int64:
+	case *[]map[string]string:
 		if src.Status == Present {
-			*v = make([]int64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-		} else {
-			*v = nil
-		}
-
-	case *[]uint64:
-		if src.Status == Present {
-			*v = make([]uint64, len(src.Elements))
+			*v = make([]map[string]string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -114,9 +83,9 @@ func (src *Int8Array) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Int8Array) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *HstoreArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int8Array{Status: Null}
+		*dst = HstoreArray{Status: Null}
 		return nil
 	}
 
@@ -125,13 +94,13 @@ func (dst *Int8Array) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []Int8
+	var elements []Hstore
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Int8, len(uta.Elements))
+		elements = make([]Hstore, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Int8
+			var elem Hstore
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -145,14 +114,14 @@ func (dst *Int8Array) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Int8Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = HstoreArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *Int8Array) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *HstoreArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int8Array{Status: Null}
+		*dst = HstoreArray{Status: Null}
 		return nil
 	}
 
@@ -163,7 +132,7 @@ func (dst *Int8Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = Int8Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = HstoreArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -172,7 +141,7 @@ func (dst *Int8Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Int8, elementCount)
+	elements := make([]Hstore, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -188,11 +157,11 @@ func (dst *Int8Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Int8Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = HstoreArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *Int8Array) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *HstoreArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -268,7 +237,7 @@ func (src *Int8Array) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src *Int8Array) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *HstoreArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -280,10 +249,10 @@ func (src *Int8Array) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		Dimensions: src.Dimensions,
 	}
 
-	if dt, ok := ci.DataTypeForName("int8"); ok {
+	if dt, ok := ci.DataTypeForName("hstore"); ok {
 		arrayHeader.ElementOid = int32(dt.Oid)
 	} else {
-		return false, fmt.Errorf("unable to find oid for type name %v", "int8")
+		return false, fmt.Errorf("unable to find oid for type name %v", "hstore")
 	}
 
 	for i := range src.Elements {

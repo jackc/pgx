@@ -238,10 +238,6 @@ func (src *VarcharArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 func (src *VarcharArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return src.encodeBinary(ci, w, VarcharOid)
-}
-
-func (src *VarcharArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -250,8 +246,13 @@ func (src *VarcharArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int3
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
+	}
+
+	if dt, ok := ci.DataTypeForName("varchar"); ok {
+		arrayHeader.ElementOid = int32(dt.Oid)
+	} else {
+		return false, fmt.Errorf("unable to find oid for type name %v", "varchar")
 	}
 
 	for i := range src.Elements {
