@@ -684,7 +684,6 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}{
 		{"select $1::text", "Jack", []byte("Jack")},
 		{"select $1::text", []byte("Jack"), []byte("Jack")},
-		{"select $1::int4", int32(239023409), []byte{14, 63, 53, 49}},
 		{"select $1::varchar", []byte("Jack"), []byte("Jack")},
 		{"select $1::bytea", []byte{0, 15, 255, 17}, []byte{0, 15, 255, 17}},
 	}

@@ -217,21 +217,3 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 
 	return nil, false
 }
-
-func decodeBytea(vr *ValueReader) []byte {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != ByteaOid {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into []byte", vr.Type().DataType)))
-		return nil
-	}
-
-	if vr.Type().FormatCode != BinaryFormatCode {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Unknown field description format code: %v", vr.Type().FormatCode)))
-		return nil
-	}
-
-	return vr.ReadBytes(vr.Len())
-}
