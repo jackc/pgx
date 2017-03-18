@@ -3,7 +3,6 @@ package pgtype
 import (
 	"fmt"
 	"io"
-	"reflect"
 )
 
 type Text struct {
@@ -43,49 +42,26 @@ func (dst *Text) Get() interface{} {
 }
 
 func (src *Text) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *string:
-		if src.Status != Present {
-			return fmt.Errorf("cannot assign %v to %T", src, dst)
-		}
-		*v = src.String
-	case *[]byte:
-		switch src.Status {
-		case Present:
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *string:
+			*v = src.String
+			return nil
+		case *[]byte:
 			*v = make([]byte, len(src.String))
 			copy(*v, src.String)
-		case Null:
-			*v = nil
+			return nil
 		default:
-			return fmt.Errorf("unknown status")
-		}
-	default:
-		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-			el := v.Elem()
-			switch el.Kind() {
-			// if dst is a pointer to pointer, strip the pointer and try again
-			case reflect.Ptr:
-				if src.Status == Null {
-					el.Set(reflect.Zero(el.Type()))
-					return nil
-				}
-				if el.IsNil() {
-					// allocate destination
-					el.Set(reflect.New(el.Type().Elem()))
-				}
-				return src.AssignTo(el.Interface())
-			case reflect.String:
-				if src.Status != Present {
-					return fmt.Errorf("cannot assign %v to %T", src, dst)
-				}
-				el.SetString(src.String)
-				return nil
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
 			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Text) DecodeText(ci *ConnInfo, src []byte) error {
