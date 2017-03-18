@@ -115,7 +115,7 @@ func (src *QChar) AssignTo(dst interface{}) error {
 	return int64AssignTo(int64(src.Int), src.Status, dst)
 }
 
-func (dst *QChar) DecodeBinary(src []byte) error {
+func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = QChar{Status: Null}
 		return nil
@@ -129,7 +129,7 @@ func (dst *QChar) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src QChar) EncodeBinary(w io.Writer) (bool, error) {
+func (src QChar) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

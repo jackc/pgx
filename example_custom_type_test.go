@@ -18,7 +18,7 @@ type Point struct {
 	Status pgtype.Status
 }
 
-func (dst *Point) DecodeText(src []byte) error {
+func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Point{Status: pgtype.Null}
 		return nil
@@ -44,7 +44,7 @@ func (dst *Point) DecodeText(src []byte) error {
 	return nil
 }
 
-func (src Point) EncodeText(w io.Writer) (bool, error) {
+func (src Point) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return true, nil

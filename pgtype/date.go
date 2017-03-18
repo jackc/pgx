@@ -38,6 +38,9 @@ func (dst *Date) Set(src interface{}) error {
 func (dst *Date) Get() interface{} {
 	switch dst.Status {
 	case Present:
+		if dst.InfinityModifier != None {
+			return dst.InfinityModifier
+		}
 		return dst.Time
 	case Null:
 		return nil
@@ -76,7 +79,7 @@ func (src *Date) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Date) DecodeText(src []byte) error {
+func (dst *Date) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Date{Status: Null}
 		return nil
@@ -100,7 +103,7 @@ func (dst *Date) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Date) DecodeBinary(src []byte) error {
+func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Date{Status: Null}
 		return nil
@@ -125,7 +128,7 @@ func (dst *Date) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Date) EncodeText(w io.Writer) (bool, error) {
+func (src Date) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -148,7 +151,7 @@ func (src Date) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Date) EncodeBinary(w io.Writer) (bool, error) {
+func (src Date) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

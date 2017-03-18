@@ -212,74 +212,86 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				}
 			}
 		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
-			err = s.DecodeBinary(vr.bytes())
+			err = s.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if s, ok := d.(pgtype.TextDecoder); ok && vr.Type().FormatCode == TextFormatCode {
-			err = s.DecodeText(vr.bytes())
+			err = s.DecodeText(rows.conn.ConnInfo, vr.bytes())
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else if s, ok := d.(sql.Scanner); ok {
-			var val interface{}
+			var sqlSrc interface{}
 			if 0 <= vr.Len() {
-				switch vr.Type().DataType {
-				case BoolOid:
-					val = decodeBool(vr)
-				case Int8Oid:
-					val = int64(decodeInt8(vr))
-				case Int2Oid:
-					val = int64(decodeInt2(vr))
-				case Int4Oid:
-					val = int64(decodeInt4(vr))
-				case TextOid, VarcharOid:
-					val = decodeText(vr)
-				case Float4Oid:
-					val = float64(decodeFloat4(vr))
-				case Float8Oid:
-					val = decodeFloat8(vr)
-				case DateOid:
-					val = decodeDate(vr)
-				case TimestampOid:
-					val = decodeTimestamp(vr)
-				case TimestampTzOid:
-					val = decodeTimestampTz(vr)
-				default:
-					val = vr.ReadBytes(vr.Len())
+				if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+					value := dt.Value
+
+					switch vr.Type().FormatCode {
+					case TextFormatCode:
+						decoder := value.(pgtype.TextDecoder)
+						if decoder == nil {
+							decoder = &pgtype.GenericText{}
+						}
+						err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
+						if err != nil {
+							rows.Fatal(err)
+						}
+					case BinaryFormatCode:
+						decoder := value.(pgtype.BinaryDecoder)
+						if decoder == nil {
+							decoder = &pgtype.GenericBinary{}
+						}
+						err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+						if err != nil {
+							rows.Fatal(err)
+						}
+					default:
+						rows.Fatal(errors.New("Unknown format code"))
+					}
+
+					sqlSrc, err = pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
+					if err != nil {
+						rows.Fatal(err)
+					}
+				} else {
+					rows.Fatal(errors.New("Unknown type"))
 				}
 			}
-			err = s.Scan(val)
+			err = s.Scan(sqlSrc)
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else {
-			if pgVal, present := rows.conn.oidPgtypeValues[vr.Type().DataType]; present {
+			if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+				value := dt.Value
 				switch vr.Type().FormatCode {
 				case TextFormatCode:
-					if textDecoder, ok := pgVal.(pgtype.TextDecoder); ok {
-						err = textDecoder.DecodeText(vr.bytes())
+					if textDecoder, ok := value.(pgtype.TextDecoder); ok {
+						err = textDecoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
 						if err != nil {
 							vr.Fatal(err)
 						}
 					} else {
-						vr.Fatal(fmt.Errorf("%T is not a pgtype.TextDecoder", pgVal))
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.TextDecoder", value))
 					}
 				case BinaryFormatCode:
-					if binaryDecoder, ok := pgVal.(pgtype.BinaryDecoder); ok {
-						err = binaryDecoder.DecodeBinary(vr.bytes())
+					if binaryDecoder, ok := value.(pgtype.BinaryDecoder); ok {
+						err = binaryDecoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
 						if err != nil {
 							vr.Fatal(err)
 						}
 					} else {
-						vr.Fatal(fmt.Errorf("%T is not a pgtype.BinaryDecoder", pgVal))
+						vr.Fatal(fmt.Errorf("%T is not a pgtype.BinaryDecoder", value))
 					}
 				default:
 					vr.Fatal(fmt.Errorf("unknown format code: %v", vr.Type().FormatCode))
 				}
 
-				if err := pgVal.AssignTo(d); err != nil {
-					vr.Fatal(err)
+				if vr.Err() == nil {
+					if err := value.AssignTo(d); err != nil {
+						vr.Fatal(err)
+					}
 				}
 			} else {
 				if err := Decode(vr, d); err != nil {
@@ -315,29 +327,35 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		switch vr.Type().FormatCode {
-		case TextFormatCode:
-			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.TextDecoder)
-			if decoder == nil {
-				decoder = &pgtype.GenericText{}
+		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+			value := dt.Value
+
+			switch vr.Type().FormatCode {
+			case TextFormatCode:
+				decoder := value.(pgtype.TextDecoder)
+				if decoder == nil {
+					decoder = &pgtype.GenericText{}
+				}
+				err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
+				if err != nil {
+					rows.Fatal(err)
+				}
+				values = append(values, decoder.(pgtype.Value).Get())
+			case BinaryFormatCode:
+				decoder := value.(pgtype.BinaryDecoder)
+				if decoder == nil {
+					decoder = &pgtype.GenericBinary{}
+				}
+				err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+				if err != nil {
+					rows.Fatal(err)
+				}
+				values = append(values, value.Get())
+			default:
+				rows.Fatal(errors.New("Unknown format code"))
 			}
-			err := decoder.DecodeText(vr.bytes())
-			if err != nil {
-				rows.Fatal(err)
-			}
-			values = append(values, decoder.(pgtype.Value).Get())
-		case BinaryFormatCode:
-			decoder := rows.conn.oidPgtypeValues[vr.Type().DataType].(pgtype.BinaryDecoder)
-			if decoder == nil {
-				decoder = &pgtype.GenericBinary{}
-			}
-			err := decoder.DecodeBinary(vr.bytes())
-			if err != nil {
-				rows.Fatal(err)
-			}
-			values = append(values, decoder.(pgtype.Value).Get())
-		default:
-			rows.Fatal(errors.New("Unknown format code"))
+		} else {
+			rows.Fatal(errors.New("Unknown type"))
 		}
 
 		if vr.Err() != nil {
@@ -368,49 +386,41 @@ func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
 			values = append(values, nil)
 			continue
 		}
-		// TODO - consider what are the implications of returning complex types since database/sql uses this method
-		switch vr.Type().FormatCode {
-		// All intrinsic types (except string) are encoded with binary
-		// encoding so anything else should be treated as a string
-		case TextFormatCode:
-			values = append(values, vr.ReadString(vr.Len()))
-		case BinaryFormatCode:
-			switch vr.Type().DataType {
-			case TextOid, VarcharOid:
-				values = append(values, decodeText(vr))
-			case BoolOid:
-				values = append(values, decodeBool(vr))
-			case ByteaOid:
-				values = append(values, decodeBytea(vr))
-			case Int8Oid:
-				values = append(values, decodeInt8(vr))
-			case Int2Oid:
-				values = append(values, decodeInt2(vr))
-			case Int4Oid:
-				values = append(values, decodeInt4(vr))
-			case Float4Oid:
-				values = append(values, decodeFloat4(vr))
-			case Float8Oid:
-				values = append(values, decodeFloat8(vr))
-			case DateOid:
-				values = append(values, decodeDate(vr))
-			case TimestampTzOid:
-				values = append(values, decodeTimestampTz(vr))
-			case TimestampOid:
-				values = append(values, decodeTimestamp(vr))
-			case JsonOid:
-				var d interface{}
-				decodeJSON(vr, &d)
-				values = append(values, d)
-			case JsonbOid:
-				var d interface{}
-				decodeJSONB(vr, &d)
-				values = append(values, d)
+
+		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+			value := dt.Value
+
+			switch vr.Type().FormatCode {
+			case TextFormatCode:
+				decoder := value.(pgtype.TextDecoder)
+				if decoder == nil {
+					decoder = &pgtype.GenericText{}
+				}
+				err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
+				if err != nil {
+					rows.Fatal(err)
+				}
+			case BinaryFormatCode:
+				decoder := value.(pgtype.BinaryDecoder)
+				if decoder == nil {
+					decoder = &pgtype.GenericBinary{}
+				}
+				err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+				if err != nil {
+					rows.Fatal(err)
+				}
 			default:
-				rows.Fatal(errors.New("Values cannot handle binary format non-intrinsic types"))
+				rows.Fatal(errors.New("Unknown format code"))
 			}
-		default:
-			rows.Fatal(errors.New("Unknown format code"))
+
+			sqlSrc, err := pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
+			if err != nil {
+				rows.Fatal(err)
+			}
+
+			values = append(values, sqlSrc)
+		} else {
+			rows.Fatal(errors.New("Unknown type"))
 		}
 
 		if vr.Err() != nil {

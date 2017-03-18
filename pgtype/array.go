@@ -27,7 +27,7 @@ type ArrayDimension struct {
 	LowerBound int32
 }
 
-func (dst *ArrayHeader) DecodeBinary(src []byte) (int, error) {
+func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	if len(src) < 12 {
 		return 0, fmt.Errorf("array header too short: %d", len(src))
 	}
@@ -60,7 +60,7 @@ func (dst *ArrayHeader) DecodeBinary(src []byte) (int, error) {
 	return rp, nil
 }
 
-func (src *ArrayHeader) EncodeBinary(w io.Writer) error {
+func (src *ArrayHeader) EncodeBinary(ci *ConnInfo, w io.Writer) error {
 	_, err := pgio.WriteInt32(w, int32(len(src.Dimensions)))
 	if err != nil {
 		return err

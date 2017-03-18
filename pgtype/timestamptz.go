@@ -84,7 +84,7 @@ func (src *Timestamptz) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Timestamptz) DecodeText(src []byte) error {
+func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Timestamptz{Status: Null}
 		return nil
@@ -117,7 +117,7 @@ func (dst *Timestamptz) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Timestamptz) DecodeBinary(src []byte) error {
+func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Timestamptz{Status: Null}
 		return nil
@@ -143,7 +143,7 @@ func (dst *Timestamptz) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Timestamptz) EncodeText(w io.Writer) (bool, error) {
+func (src Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -166,7 +166,7 @@ func (src Timestamptz) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Timestamptz) EncodeBinary(w io.Writer) (bool, error) {
+func (src Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

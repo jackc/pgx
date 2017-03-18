@@ -84,7 +84,7 @@ func (src *DateArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *DateArray) DecodeText(src []byte) error {
+func (dst *DateArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = DateArray{Status: Null}
 		return nil
@@ -106,7 +106,7 @@ func (dst *DateArray) DecodeText(src []byte) error {
 			if s != "NULL" {
 				elemSrc = []byte(s)
 			}
-			err = elem.DecodeText(elemSrc)
+			err = elem.DecodeText(ci, elemSrc)
 			if err != nil {
 				return err
 			}
@@ -120,14 +120,14 @@ func (dst *DateArray) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *DateArray) DecodeBinary(src []byte) error {
+func (dst *DateArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = DateArray{Status: Null}
 		return nil
 	}
 
 	var arrayHeader ArrayHeader
-	rp, err := arrayHeader.DecodeBinary(src)
+	rp, err := arrayHeader.DecodeBinary(ci, src)
 	if err != nil {
 		return err
 	}
@@ -152,7 +152,7 @@ func (dst *DateArray) DecodeBinary(src []byte) error {
 			elemSrc = src[rp : rp+elemLen]
 			rp += elemLen
 		}
-		err = elements[i].DecodeBinary(elemSrc)
+		err = elements[i].DecodeBinary(ci, elemSrc)
 		if err != nil {
 			return err
 		}
@@ -162,7 +162,7 @@ func (dst *DateArray) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src *DateArray) EncodeText(w io.Writer) (bool, error) {
+func (src *DateArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -209,7 +209,7 @@ func (src *DateArray) EncodeText(w io.Writer) (bool, error) {
 		}
 
 		elemBuf := &bytes.Buffer{}
-		null, err := elem.EncodeText(elemBuf)
+		null, err := elem.EncodeText(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}
@@ -238,11 +238,11 @@ func (src *DateArray) EncodeText(w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src *DateArray) EncodeBinary(w io.Writer) (bool, error) {
-	return src.encodeBinary(w, DateOid)
+func (src *DateArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return src.encodeBinary(ci, w, DateOid)
 }
 
-func (src *DateArray) encodeBinary(w io.Writer, elementOid int32) (bool, error) {
+func (src *DateArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -262,7 +262,7 @@ func (src *DateArray) encodeBinary(w io.Writer, elementOid int32) (bool, error) 
 		}
 	}
 
-	err := arrayHeader.EncodeBinary(w)
+	err := arrayHeader.EncodeBinary(ci, w)
 	if err != nil {
 		return false, err
 	}
@@ -272,7 +272,7 @@ func (src *DateArray) encodeBinary(w io.Writer, elementOid int32) (bool, error) 
 	for i := range src.Elements {
 		elemBuf.Reset()
 
-		null, err := src.Elements[i].EncodeBinary(elemBuf)
+		null, err := src.Elements[i].EncodeBinary(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
 )
 
 func TestConnCopyFromSmall(t *testing.T) {
@@ -126,8 +125,8 @@ func TestConnCopyFromJSON(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgtype.Oid{pgx.JsonOid, pgx.JsonbOid} {
-		if _, ok := conn.PgTypes[oid]; !ok {
+	for _, typeName := range []string{"json", "jsonb"} {
+		if _, ok := conn.ConnInfo.DataTypeForName(typeName); !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 	}

@@ -31,6 +31,20 @@ const (
 	connStatusBusy
 )
 
+// minimalConnInfo has just enough static type information to establish the
+// connection and retrieve the type data.
+var minimalConnInfo *pgtype.ConnInfo
+
+func init() {
+	minimalConnInfo = pgtype.NewConnInfo()
+	minimalConnInfo.InitializeDataTypes(map[string]pgtype.Oid{
+		"int4": Int4Oid,
+		"name": NameOid,
+		"oid":  OidOid,
+		"text": TextOid,
+	})
+}
+
 // DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(network, addr string) (net.Conn, error)
 
@@ -74,11 +88,10 @@ type Conn struct {
 	lastActivityTime   time.Time // the last time the connection was used
 	wbuf               [1024]byte
 	writeBuf           WriteBuf
-	pid                int32                 // backend pid
-	secretKey          int32                 // key to use to send a cancel query message to the server
-	RuntimeParams      map[string]string     // parameters that have been reported by the server
-	PgTypes            map[pgtype.Oid]PgType // oids to PgTypes
-	config             ConnConfig            // config used when establishing this connection
+	pid                int32             // backend pid
+	secretKey          int32             // key to use to send a cancel query message to the server
+	RuntimeParams      map[string]string // parameters that have been reported by the server
+	config             ConnConfig        // config used when establishing this connection
 	txStatus           byte
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
@@ -102,7 +115,7 @@ type Conn struct {
 	doneChan      chan struct{}
 	closedChan    chan error
 
-	oidPgtypeValues map[pgtype.Oid]pgtype.Value
+	ConnInfo *pgtype.ConnInfo
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -123,12 +136,6 @@ type Notification struct {
 	PID     int32  // backend pid that sent the notification
 	Channel string // channel from which notification was received
 	Payload string
-}
-
-// PgType is information about PostgreSQL type and how to encode and decode it
-type PgType struct {
-	Name          string // name of type e.g. int4, text, date
-	DefaultFormat int16  // default format (text or binary) this type will be requested in
 }
 
 // CommandTag is the result of an Exec function
@@ -190,20 +197,14 @@ func (e ProtocolError) Error() string {
 // config.Host must be specified. config.User will default to the OS user name.
 // Other config fields are optional.
 func Connect(config ConnConfig) (c *Conn, err error) {
-	return connect(config, nil)
+	return connect(config, minimalConnInfo)
 }
 
-func connect(config ConnConfig, pgTypes map[pgtype.Oid]PgType) (c *Conn, err error) {
+func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
-
-	if pgTypes != nil {
-		c.PgTypes = make(map[pgtype.Oid]PgType, len(pgTypes))
-		for k, v := range pgTypes {
-			c.PgTypes[k] = v
-		}
-	}
+	c.ConnInfo = connInfo
 
 	if c.config.LogLevel != 0 {
 		c.logLevel = c.config.LogLevel
@@ -289,8 +290,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.loadStaticOidPgtypeValues()
-
 	c.mr.cr = chunkreader.NewChunkReader(c.conn)
 
 	msg := newStartupMessage()
@@ -344,13 +343,12 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 				return nil
 			}
 
-			if c.PgTypes == nil {
-				err = c.loadPgTypes()
+			if c.ConnInfo == minimalConnInfo {
+				err = c.initConnInfo()
 				if err != nil {
 					return err
 				}
 			}
-			c.loadDynamicOidPgtypeValues()
 
 			return nil
 		default:
@@ -361,88 +359,37 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	}
 }
 
-func (c *Conn) loadPgTypes() error {
+func (c *Conn) initConnInfo() error {
+	nameOids := make(map[string]pgtype.Oid, 256)
+
 	rows, err := c.Query(`select t.oid, t.typname
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
 where (
-	  t.typtype='b'
-	  and (base_type.oid is null or base_type.typtype='b')
-	)
-  or t.typname in('record');`)
+	  t.typtype in('b', 'p')
+	  and (base_type.oid is null or base_type.typtype in('b', 'p'))
+	)`)
 	if err != nil {
 		return err
 	}
 
-	c.PgTypes = make(map[pgtype.Oid]PgType, 128)
-
 	for rows.Next() {
-		var oid uint32
-		var t PgType
+		var oid pgtype.Oid
+		var name pgtype.Text
+		if err := rows.Scan(&oid, &name); err != nil {
+			return err
+		}
 
-		rows.Scan(&oid, &t.Name)
-
-		// The zero value is text format so we ignore any types without a default type format
-		t.DefaultFormat, _ = DefaultTypeFormats[t.Name]
-
-		c.PgTypes[pgtype.Oid(oid)] = t
+		nameOids[name.String] = oid
 	}
 
-	return rows.Err()
-}
-
-func (c *Conn) loadStaticOidPgtypeValues() {
-	c.oidPgtypeValues = map[pgtype.Oid]pgtype.Value{
-		AclitemArrayOid:     &pgtype.AclitemArray{},
-		AclitemOid:          &pgtype.Aclitem{},
-		BoolArrayOid:        &pgtype.BoolArray{},
-		BoolOid:             &pgtype.Bool{},
-		ByteaArrayOid:       &pgtype.ByteaArray{},
-		ByteaOid:            &pgtype.Bytea{},
-		CharOid:             &pgtype.QChar{},
-		CidOid:              &pgtype.Cid{},
-		CidrArrayOid:        &pgtype.CidrArray{},
-		CidrOid:             &pgtype.Inet{},
-		DateArrayOid:        &pgtype.DateArray{},
-		DateOid:             &pgtype.Date{},
-		Float4ArrayOid:      &pgtype.Float4Array{},
-		Float4Oid:           &pgtype.Float4{},
-		Float8ArrayOid:      &pgtype.Float8Array{},
-		Float8Oid:           &pgtype.Float8{},
-		InetArrayOid:        &pgtype.InetArray{},
-		InetOid:             &pgtype.Inet{},
-		Int2ArrayOid:        &pgtype.Int2Array{},
-		Int2Oid:             &pgtype.Int2{},
-		Int4ArrayOid:        &pgtype.Int4Array{},
-		Int4Oid:             &pgtype.Int4{},
-		Int8ArrayOid:        &pgtype.Int8Array{},
-		Int8Oid:             &pgtype.Int8{},
-		JsonbOid:            &pgtype.Jsonb{},
-		JsonOid:             &pgtype.Json{},
-		NameOid:             &pgtype.Name{},
-		OidOid:              &pgtype.OidValue{},
-		TextArrayOid:        &pgtype.TextArray{},
-		TextOid:             &pgtype.Text{},
-		TidOid:              &pgtype.Tid{},
-		TimestampArrayOid:   &pgtype.TimestampArray{},
-		TimestampOid:        &pgtype.Timestamp{},
-		TimestampTzArrayOid: &pgtype.TimestamptzArray{},
-		TimestampTzOid:      &pgtype.Timestamptz{},
-		VarcharArrayOid:     &pgtype.VarcharArray{},
-		VarcharOid:          &pgtype.Text{},
-		XidOid:              &pgtype.Xid{},
-	}
-}
-
-func (c *Conn) loadDynamicOidPgtypeValues() {
-	nameOids := make(map[string]pgtype.Oid, len(c.PgTypes))
-	for k, v := range c.PgTypes {
-		nameOids[v.Name] = k
+	if rows.Err() != nil {
+		return rows.Err()
 	}
 
-	if oid, ok := nameOids["hstore"]; ok {
-		c.oidPgtypeValues[oid] = &pgtype.Hstore{}
-	}
+	c.ConnInfo = pgtype.NewConnInfo()
+	c.ConnInfo.InitializeDataTypes(nameOids)
+	return nil
 }
 
 // PID returns the backend PID for this connection.
@@ -805,9 +752,16 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		case rowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(r)
 			for i := range ps.FieldDescriptions {
-				t, _ := c.PgTypes[ps.FieldDescriptions[i].DataType]
-				ps.FieldDescriptions[i].DataTypeName = t.Name
-				ps.FieldDescriptions[i].FormatCode = t.DefaultFormat
+				if dt, ok := c.ConnInfo.DataTypeForOid(ps.FieldDescriptions[i].DataType); ok {
+					ps.FieldDescriptions[i].DataTypeName = dt.Name
+					if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+						ps.FieldDescriptions[i].FormatCode = BinaryFormatCode
+					} else {
+						ps.FieldDescriptions[i].FormatCode = TextFormatCode
+					}
+				} else {
+					return nil, fmt.Errorf("unknown oid: %d", ps.FieldDescriptions[i].DataType)
+				}
 			}
 		case readyForQuery:
 			c.rxReadyForQuery(r)

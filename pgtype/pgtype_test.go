@@ -60,16 +60,16 @@ type forceTextEncoder struct {
 	e pgtype.TextEncoder
 }
 
-func (f forceTextEncoder) EncodeText(w io.Writer) (bool, error) {
-	return f.e.EncodeText(w)
+func (f forceTextEncoder) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+	return f.e.EncodeText(ci, w)
 }
 
 type forceBinaryEncoder struct {
 	e pgtype.BinaryEncoder
 }
 
-func (f forceBinaryEncoder) EncodeBinary(w io.Writer) (bool, error) {
-	return f.e.EncodeBinary(w)
+func (f forceBinaryEncoder) EncodeBinary(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+	return f.e.EncodeBinary(ci, w)
 }
 
 func forceEncoder(e interface{}, formatCode int16) interface{} {
@@ -114,7 +114,7 @@ func testSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []int
 			ps.FieldDescriptions[0].FormatCode = fc.formatCode
 			vEncoder := forceEncoder(v, fc.formatCode)
 			if vEncoder == nil {
-				t.Logf("%v does not implement %v", fc.name)
+				t.Logf("%#v does not implement %v", v, fc.name)
 				continue
 			}
 			// Derefence value if it is a pointer

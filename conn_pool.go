@@ -30,7 +30,7 @@ type ConnPool struct {
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
-	pgTypes              map[pgtype.Oid]PgType
+	connInfo             *pgtype.ConnInfo
 	txAfterClose         func(tx *Tx)
 	rowsAfterClose       func(rows *Rows)
 }
@@ -49,6 +49,7 @@ var ErrAcquireTimeout = errors.New("timeout acquiring connection from pool")
 func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
 	p.config = config.ConnConfig
+	p.connInfo = minimalConnInfo
 	p.maxConnections = config.MaxConnections
 	if p.maxConnections == 0 {
 		p.maxConnections = 5
@@ -95,6 +96,7 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	}
 	p.allConnections = append(p.allConnections, c)
 	p.availableConnections = append(p.availableConnections, c)
+	p.connInfo = c.ConnInfo.DeepCopy()
 
 	return
 }
@@ -294,7 +296,7 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 }
 
 func (p *ConnPool) createConnection() (*Conn, error) {
-	c, err := connect(p.config, p.pgTypes)
+	c, err := connect(p.config, p.connInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -329,8 +331,6 @@ func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
 // afterConnectionCreated executes (if it is) afterConnect() callback and prepares
 // all the known statements for the new connection.
 func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
-	p.pgTypes = c.PgTypes
-
 	if p.afterConnect != nil {
 		err := p.afterConnect(c)
 		if err != nil {

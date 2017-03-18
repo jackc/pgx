@@ -19,11 +19,11 @@ func (src *Jsonb) AssignTo(dst interface{}) error {
 	return (*Json)(src).AssignTo(dst)
 }
 
-func (dst *Jsonb) DecodeText(src []byte) error {
-	return (*Json)(dst).DecodeText(src)
+func (dst *Jsonb) DecodeText(ci *ConnInfo, src []byte) error {
+	return (*Json)(dst).DecodeText(ci, src)
 }
 
-func (dst *Jsonb) DecodeBinary(src []byte) error {
+func (dst *Jsonb) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Jsonb{Status: Null}
 		return nil
@@ -46,11 +46,11 @@ func (dst *Jsonb) DecodeBinary(src []byte) error {
 
 }
 
-func (src Jsonb) EncodeText(w io.Writer) (bool, error) {
-	return (Json)(src).EncodeText(w)
+func (src Jsonb) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (Json)(src).EncodeText(ci, w)
 }
 
-func (src Jsonb) EncodeBinary(w io.Writer) (bool, error) {
+func (src Jsonb) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
