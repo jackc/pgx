@@ -72,9 +72,6 @@ const minInt = -maxInt - 1
 // set here.
 var DefaultTypeFormats map[string]int16
 
-// internalNativeGoTypeFormats lists the encoding type for native Go types (not handled with Encoder interface)
-var internalNativeGoTypeFormats map[pgtype.Oid]int16
-
 func init() {
 	DefaultTypeFormats = map[string]int16{
 		"_aclitem":     TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
@@ -110,38 +107,6 @@ func init() {
 		"timestamp":    BinaryFormatCode,
 		"timestamptz":  BinaryFormatCode,
 		"xid":          BinaryFormatCode,
-	}
-
-	internalNativeGoTypeFormats = map[pgtype.Oid]int16{
-		BoolArrayOid:        BinaryFormatCode,
-		BoolOid:             BinaryFormatCode,
-		ByteaArrayOid:       BinaryFormatCode,
-		ByteaOid:            BinaryFormatCode,
-		CidrArrayOid:        BinaryFormatCode,
-		CidrOid:             BinaryFormatCode,
-		DateOid:             BinaryFormatCode,
-		Float4ArrayOid:      BinaryFormatCode,
-		Float4Oid:           BinaryFormatCode,
-		Float8ArrayOid:      BinaryFormatCode,
-		Float8Oid:           BinaryFormatCode,
-		InetArrayOid:        BinaryFormatCode,
-		InetOid:             BinaryFormatCode,
-		Int2ArrayOid:        BinaryFormatCode,
-		Int2Oid:             BinaryFormatCode,
-		Int4ArrayOid:        BinaryFormatCode,
-		Int4Oid:             BinaryFormatCode,
-		Int8ArrayOid:        BinaryFormatCode,
-		Int8Oid:             BinaryFormatCode,
-		JsonbOid:            BinaryFormatCode,
-		JsonOid:             BinaryFormatCode,
-		OidOid:              BinaryFormatCode,
-		RecordOid:           BinaryFormatCode,
-		TextArrayOid:        BinaryFormatCode,
-		TimestampArrayOid:   BinaryFormatCode,
-		TimestampOid:        BinaryFormatCode,
-		TimestampTzArrayOid: BinaryFormatCode,
-		TimestampTzOid:      BinaryFormatCode,
-		VarcharArrayOid:     BinaryFormatCode,
 	}
 }
 
