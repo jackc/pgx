@@ -984,7 +984,18 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		case string, *string:
 			wbuf.WriteInt16(TextFormatCode)
 		default:
-			wbuf.WriteInt16(internalNativeGoTypeFormats[oid])
+			if dt, ok := c.ConnInfo.DataTypeForOid(oid); ok {
+				switch dt.Value.(type) {
+				case pgtype.BinaryEncoder:
+					wbuf.WriteInt16(BinaryFormatCode)
+				case pgtype.TextEncoder:
+					wbuf.WriteInt16(TextFormatCode)
+				default:
+					return fmt.Errorf("value for oid %v does not implement pgtype.BinaryEncoder or pgtype.TextEncoder", oid)
+				}
+			} else {
+				return fmt.Errorf("unknown type for oid %v", oid)
+			}
 		}
 	}
 
