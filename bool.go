@@ -3,7 +3,6 @@ package pgtype
 import (
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 )
 
@@ -44,39 +43,22 @@ func (dst *Bool) Get() interface{} {
 }
 
 func (src *Bool) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *bool:
-		if src.Status != Present {
-			return fmt.Errorf("cannot assign %v to %T", src, dst)
-		}
-		*v = src.Bool
-	default:
-		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-			el := v.Elem()
-			switch el.Kind() {
-			// if dst is a pointer to pointer, strip the pointer and try again
-			case reflect.Ptr:
-				if src.Status == Null {
-					el.Set(reflect.Zero(el.Type()))
-					return nil
-				}
-				if el.IsNil() {
-					// allocate destination
-					el.Set(reflect.New(el.Type().Elem()))
-				}
-				return src.AssignTo(el.Interface())
-			case reflect.Bool:
-				if src.Status != Present {
-					return fmt.Errorf("cannot assign %v to %T", src, dst)
-				}
-				el.SetBool(src.Bool)
-				return nil
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *bool:
+			*v = src.Bool
+			return nil
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
 			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {

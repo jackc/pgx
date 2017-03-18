@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"reflect"
 
 	"github.com/jackc/pgx/pgio"
 )
@@ -61,43 +60,28 @@ func (dst *Inet) Get() interface{} {
 }
 
 func (src *Inet) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *net.IPNet:
-		if src.Status != Present {
-			return fmt.Errorf("cannot assign %v to %T", src, dst)
-		}
-		*v = *src.IPNet
-	case *net.IP:
-		if src.Status == Present {
-
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *net.IPNet:
+			*v = *src.IPNet
+			return nil
+		case *net.IP:
 			if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
 				return fmt.Errorf("cannot assign %v to %T", src, dst)
 			}
 			*v = src.IPNet.IP
-		} else {
-			*v = nil
-		}
-	default:
-		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-			el := v.Elem()
-			switch el.Kind() {
-			// if dst is a pointer to pointer, strip the pointer and try again
-			case reflect.Ptr:
-				if src.Status == Null {
-					el.Set(reflect.Zero(el.Type()))
-					return nil
-				}
-				if el.IsNil() {
-					// allocate destination
-					el.Set(reflect.New(el.Type().Elem()))
-				}
-				return src.AssignTo(el.Interface())
+			return nil
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
 			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {

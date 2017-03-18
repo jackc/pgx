@@ -38,34 +38,29 @@ func (dst *Record) Get() interface{} {
 }
 
 func (src *Record) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *[]Value:
-		switch src.Status {
-		case Present:
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *[]Value:
 			*v = make([]Value, len(src.Fields))
 			copy(*v, src.Fields)
-		case Null:
-			*v = nil
-		default:
-			return fmt.Errorf("cannot decode %v into %T", src, dst)
-		}
-	case *[]interface{}:
-		switch src.Status {
-		case Present:
+			return nil
+		case *[]interface{}:
 			*v = make([]interface{}, len(src.Fields))
 			for i := range *v {
 				(*v)[i] = src.Fields[i].Get()
 			}
-		case Null:
-			*v = nil
+			return nil
 		default:
-			return fmt.Errorf("cannot decode %v into %T", src, dst)
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
 		}
-	default:
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {

@@ -184,28 +184,6 @@ func underlyingSliceType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-func underlyingPtrSliceType(val interface{}) (interface{}, bool) {
-	refVal := reflect.ValueOf(val)
-
-	if refVal.Kind() != reflect.Ptr {
-		return nil, false
-	}
-	if refVal.IsNil() {
-		return nil, false
-	}
-
-	sliceVal := refVal.Elem().Interface()
-	baseSliceType := reflect.SliceOf(reflect.TypeOf(sliceVal).Elem())
-	ptrBaseSliceType := reflect.PtrTo(baseSliceType)
-
-	if refVal.Type().ConvertibleTo(ptrBaseSliceType) {
-		convVal := refVal.Convert(ptrBaseSliceType)
-		return convVal.Interface(), reflect.TypeOf(convVal.Interface()) != refVal.Type()
-	}
-
-	return nil, false
-}
-
 func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 	if srcStatus == Present {
 		switch v := dst.(type) {
@@ -362,4 +340,84 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 	}
 
 	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+}
+
+func nullAssignTo(dst interface{}) error {
+	dstPtr := reflect.ValueOf(dst)
+
+	// AssignTo dst must always be a pointer
+	if dstPtr.Kind() != reflect.Ptr {
+		return fmt.Errorf("cannot assign NULL to %T", dst)
+	}
+
+	dstVal := dstPtr.Elem()
+
+	switch dstVal.Kind() {
+	case reflect.Ptr, reflect.Slice, reflect.Map:
+		dstVal.Set(reflect.Zero(dstVal.Type()))
+		return nil
+	}
+
+	return fmt.Errorf("cannot assign NULL to %T", dst)
+}
+
+var kindTypes map[reflect.Kind]reflect.Type
+
+// GetAssignToDstType attempts to convert dst to something AssignTo can assign
+// to. If dst is a pointer to pointer it allocates a value and returns the
+// dereferences pointer. If dst is a named type such as *Foo where Foo is type
+// Foo int16, it converts dst to *int16.
+//
+// GetAssignToDstType returns the converted dst and a bool representing if any
+// change was made.
+func GetAssignToDstType(dst interface{}) (interface{}, bool) {
+	dstPtr := reflect.ValueOf(dst)
+
+	// AssignTo dst must always be a pointer
+	if dstPtr.Kind() != reflect.Ptr {
+		return nil, false
+	}
+
+	dstVal := dstPtr.Elem()
+
+	// if dst is a pointer to pointer, allocate space try again with the dereferenced pointer
+	if dstVal.Kind() == reflect.Ptr {
+		dstVal.Set(reflect.New(dstVal.Type().Elem()))
+		return dstVal.Interface(), true
+	}
+
+	// if dst is pointer to a base type that has been renamed
+	if baseValType, ok := kindTypes[dstVal.Kind()]; ok {
+		nextDst := dstPtr.Convert(reflect.PtrTo(baseValType))
+		return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
+	}
+
+	if dstVal.Kind() == reflect.Slice {
+		if baseElemType, ok := kindTypes[dstVal.Type().Elem().Kind()]; ok {
+			baseSliceType := reflect.PtrTo(reflect.SliceOf(baseElemType))
+			nextDst := dstPtr.Convert(baseSliceType)
+			return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
+		}
+	}
+
+	return nil, false
+}
+
+func init() {
+	kindTypes = map[reflect.Kind]reflect.Type{
+		reflect.Bool:    reflect.TypeOf(false),
+		reflect.Float32: reflect.TypeOf(float32(0)),
+		reflect.Float64: reflect.TypeOf(float64(0)),
+		reflect.Int:     reflect.TypeOf(int(0)),
+		reflect.Int8:    reflect.TypeOf(int8(0)),
+		reflect.Int16:   reflect.TypeOf(int16(0)),
+		reflect.Int32:   reflect.TypeOf(int32(0)),
+		reflect.Int64:   reflect.TypeOf(int64(0)),
+		reflect.Uint:    reflect.TypeOf(uint(0)),
+		reflect.Uint8:   reflect.TypeOf(uint8(0)),
+		reflect.Uint16:  reflect.TypeOf(uint16(0)),
+		reflect.Uint32:  reflect.TypeOf(uint32(0)),
+		reflect.Uint64:  reflect.TypeOf(uint64(0)),
+		reflect.String:  reflect.TypeOf(""),
+	}
 }
