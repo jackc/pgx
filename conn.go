@@ -38,10 +38,10 @@ var minimalConnInfo *pgtype.ConnInfo
 func init() {
 	minimalConnInfo = pgtype.NewConnInfo()
 	minimalConnInfo.InitializeDataTypes(map[string]pgtype.Oid{
-		"int4": Int4Oid,
-		"name": NameOid,
-		"oid":  OidOid,
-		"text": TextOid,
+		"int4": pgtype.Int4Oid,
+		"name": pgtype.NameOid,
+		"oid":  pgtype.OidOid,
+		"text": pgtype.TextOid,
 	})
 }
 
