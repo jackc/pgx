@@ -270,10 +270,6 @@ func (src *CidrArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 func (src *CidrArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return src.encodeBinary(ci, w, CidrOid)
-}
-
-func (src *CidrArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -282,8 +278,13 @@ func (src *CidrArray) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) 
 	}
 
 	arrayHeader := ArrayHeader{
-		ElementOid: elementOid,
 		Dimensions: src.Dimensions,
+	}
+
+	if dt, ok := ci.DataTypeForName("cidr"); ok {
+		arrayHeader.ElementOid = int32(dt.Oid)
+	} else {
+		return false, fmt.Errorf("unable to find oid for type name %v", "cidr")
 	}
 
 	for i := range src.Elements {
