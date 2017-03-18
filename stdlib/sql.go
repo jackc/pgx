@@ -66,16 +66,16 @@ func init() {
 	sql.Register("pgx", d)
 
 	databaseSqlOids = make(map[pgtype.Oid]bool)
-	databaseSqlOids[pgx.BoolOid] = true
-	databaseSqlOids[pgx.ByteaOid] = true
-	databaseSqlOids[pgx.Int2Oid] = true
-	databaseSqlOids[pgx.Int4Oid] = true
-	databaseSqlOids[pgx.Int8Oid] = true
-	databaseSqlOids[pgx.Float4Oid] = true
-	databaseSqlOids[pgx.Float8Oid] = true
-	databaseSqlOids[pgx.DateOid] = true
-	databaseSqlOids[pgx.TimestampTzOid] = true
-	databaseSqlOids[pgx.TimestampOid] = true
+	databaseSqlOids[pgtype.BoolOid] = true
+	databaseSqlOids[pgtype.ByteaOid] = true
+	databaseSqlOids[pgtype.Int2Oid] = true
+	databaseSqlOids[pgtype.Int4Oid] = true
+	databaseSqlOids[pgtype.Int8Oid] = true
+	databaseSqlOids[pgtype.Float4Oid] = true
+	databaseSqlOids[pgtype.Float8Oid] = true
+	databaseSqlOids[pgtype.DateOid] = true
+	databaseSqlOids[pgtype.TimestamptzOid] = true
+	databaseSqlOids[pgtype.TimestampOid] = true
 }
 
 type Driver struct {
