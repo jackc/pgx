@@ -64,52 +64,6 @@ const maxUint = ^uint(0)
 const maxInt = int(maxUint >> 1)
 const minInt = -maxInt - 1
 
-// DefaultTypeFormats maps type names to their default requested format (text
-// or binary). In theory the Scanner interface should be the one to determine
-// the format of the returned values. However, the query has already been
-// executed by the time Scan is called so it has no chance to set the format.
-// So for types that should always be returned in binary the format should be
-// set here.
-var DefaultTypeFormats map[string]int16
-
-func init() {
-	DefaultTypeFormats = map[string]int16{
-		"_aclitem":     TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
-		"_bool":        BinaryFormatCode,
-		"_bytea":       BinaryFormatCode,
-		"_cidr":        BinaryFormatCode,
-		"_float4":      BinaryFormatCode,
-		"_float8":      BinaryFormatCode,
-		"_inet":        BinaryFormatCode,
-		"_int2":        BinaryFormatCode,
-		"_int4":        BinaryFormatCode,
-		"_int8":        BinaryFormatCode,
-		"_text":        BinaryFormatCode,
-		"_timestamp":   BinaryFormatCode,
-		"_timestamptz": BinaryFormatCode,
-		"_varchar":     BinaryFormatCode,
-		"aclitem":      TextFormatCode, // Pg's src/backend/utils/adt/acl.c has only in/out (text) not send/recv (bin)
-		"bool":         BinaryFormatCode,
-		"bytea":        BinaryFormatCode,
-		"char":         BinaryFormatCode,
-		"cid":          BinaryFormatCode,
-		"cidr":         BinaryFormatCode,
-		"date":         BinaryFormatCode,
-		"float4":       BinaryFormatCode,
-		"float8":       BinaryFormatCode,
-		"inet":         BinaryFormatCode,
-		"int2":         BinaryFormatCode,
-		"int4":         BinaryFormatCode,
-		"int8":         BinaryFormatCode,
-		"oid":          BinaryFormatCode,
-		"record":       BinaryFormatCode,
-		"tid":          BinaryFormatCode,
-		"timestamp":    BinaryFormatCode,
-		"timestamptz":  BinaryFormatCode,
-		"xid":          BinaryFormatCode,
-	}
-}
-
 // SerializationError occurs on failure to encode or decode a value
 type SerializationError string
 
