@@ -49,6 +49,16 @@ func (src *Text) AssignTo(dst interface{}) error {
 			return fmt.Errorf("cannot assign %v to %T", src, dst)
 		}
 		*v = src.String
+	case *[]byte:
+		switch src.Status {
+		case Present:
+			*v = make([]byte, len(src.String))
+			copy(*v, src.String)
+		case Null:
+			*v = nil
+		default:
+			return fmt.Errorf("unknown status")
+		}
 	default:
 		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 			el := v.Elem()
