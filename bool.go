@@ -79,7 +79,7 @@ func (src *Bool) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Bool) DecodeText(src []byte) error {
+func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Bool{Status: Null}
 		return nil
@@ -93,7 +93,7 @@ func (dst *Bool) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Bool) DecodeBinary(src []byte) error {
+func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Bool{Status: Null}
 		return nil
@@ -107,7 +107,7 @@ func (dst *Bool) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Bool) EncodeText(w io.Writer) (bool, error) {
+func (src Bool) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -126,7 +126,7 @@ func (src Bool) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Bool) EncodeBinary(w io.Writer) (bool, error) {
+func (src Bool) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

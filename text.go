@@ -78,7 +78,7 @@ func (src *Text) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Text) DecodeText(src []byte) error {
+func (dst *Text) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Text{Status: Null}
 		return nil
@@ -88,11 +88,11 @@ func (dst *Text) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Text) DecodeBinary(src []byte) error {
-	return dst.DecodeText(src)
+func (dst *Text) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return dst.DecodeText(ci, src)
 }
 
-func (src Text) EncodeText(w io.Writer) (bool, error) {
+func (src Text) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -104,6 +104,6 @@ func (src Text) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Text) EncodeBinary(w io.Writer) (bool, error) {
-	return src.EncodeText(w)
+func (src Text) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return src.EncodeText(ci, w)
 }

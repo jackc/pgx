@@ -20,10 +20,10 @@ func (src *GenericText) AssignTo(dst interface{}) error {
 	return (*Text)(src).AssignTo(dst)
 }
 
-func (dst *GenericText) DecodeText(src []byte) error {
-	return (*Text)(dst).DecodeText(src)
+func (dst *GenericText) DecodeText(ci *ConnInfo, src []byte) error {
+	return (*Text)(dst).DecodeText(ci, src)
 }
 
-func (src GenericText) EncodeText(w io.Writer) (bool, error) {
-	return (Text)(src).EncodeText(w)
+func (src GenericText) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (Text)(src).EncodeText(ci, w)
 }

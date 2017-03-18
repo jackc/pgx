@@ -70,7 +70,7 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Hstore) DecodeText(src []byte) error {
+func (dst *Hstore) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Hstore{Status: Null}
 		return nil
@@ -90,7 +90,7 @@ func (dst *Hstore) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Hstore) DecodeBinary(src []byte) error {
+func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Hstore{Status: Null}
 		return nil
@@ -132,7 +132,7 @@ func (dst *Hstore) DecodeBinary(src []byte) error {
 		rp += valueLen
 
 		var value Text
-		err := value.DecodeBinary(valueBuf)
+		err := value.DecodeBinary(ci, valueBuf)
 		if err != nil {
 			return err
 		}
@@ -144,7 +144,7 @@ func (dst *Hstore) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Hstore) EncodeText(w io.Writer) (bool, error) {
+func (src Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -175,7 +175,7 @@ func (src Hstore) EncodeText(w io.Writer) (bool, error) {
 		}
 
 		elemBuf := &bytes.Buffer{}
-		null, err := v.EncodeText(elemBuf)
+		null, err := v.EncodeText(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}
@@ -196,7 +196,7 @@ func (src Hstore) EncodeText(w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src Hstore) EncodeBinary(w io.Writer) (bool, error) {
+func (src Hstore) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -220,7 +220,7 @@ func (src Hstore) EncodeBinary(w io.Writer) (bool, error) {
 			return false, err
 		}
 
-		null, err := v.EncodeText(elemBuf)
+		null, err := v.EncodeText(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}

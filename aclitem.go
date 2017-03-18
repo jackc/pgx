@@ -90,7 +90,7 @@ func (src *Aclitem) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Aclitem) DecodeText(src []byte) error {
+func (dst *Aclitem) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Aclitem{Status: Null}
 		return nil
@@ -100,7 +100,7 @@ func (dst *Aclitem) DecodeText(src []byte) error {
 	return nil
 }
 
-func (src Aclitem) EncodeText(w io.Writer) (bool, error) {
+func (src Aclitem) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
