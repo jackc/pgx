@@ -83,7 +83,7 @@ func (src *Float4Array) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Float4Array) DecodeText(src []byte) error {
+func (dst *Float4Array) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Float4Array{Status: Null}
 		return nil
@@ -105,7 +105,7 @@ func (dst *Float4Array) DecodeText(src []byte) error {
 			if s != "NULL" {
 				elemSrc = []byte(s)
 			}
-			err = elem.DecodeText(elemSrc)
+			err = elem.DecodeText(ci, elemSrc)
 			if err != nil {
 				return err
 			}
@@ -119,14 +119,14 @@ func (dst *Float4Array) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Float4Array) DecodeBinary(src []byte) error {
+func (dst *Float4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Float4Array{Status: Null}
 		return nil
 	}
 
 	var arrayHeader ArrayHeader
-	rp, err := arrayHeader.DecodeBinary(src)
+	rp, err := arrayHeader.DecodeBinary(ci, src)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func (dst *Float4Array) DecodeBinary(src []byte) error {
 			elemSrc = src[rp : rp+elemLen]
 			rp += elemLen
 		}
-		err = elements[i].DecodeBinary(elemSrc)
+		err = elements[i].DecodeBinary(ci, elemSrc)
 		if err != nil {
 			return err
 		}
@@ -161,7 +161,7 @@ func (dst *Float4Array) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src *Float4Array) EncodeText(w io.Writer) (bool, error) {
+func (src *Float4Array) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -208,7 +208,7 @@ func (src *Float4Array) EncodeText(w io.Writer) (bool, error) {
 		}
 
 		elemBuf := &bytes.Buffer{}
-		null, err := elem.EncodeText(elemBuf)
+		null, err := elem.EncodeText(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}
@@ -237,11 +237,11 @@ func (src *Float4Array) EncodeText(w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src *Float4Array) EncodeBinary(w io.Writer) (bool, error) {
-	return src.encodeBinary(w, Float4Oid)
+func (src *Float4Array) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return src.encodeBinary(ci, w, Float4Oid)
 }
 
-func (src *Float4Array) encodeBinary(w io.Writer, elementOid int32) (bool, error) {
+func (src *Float4Array) encodeBinary(ci *ConnInfo, w io.Writer, elementOid int32) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -261,7 +261,7 @@ func (src *Float4Array) encodeBinary(w io.Writer, elementOid int32) (bool, error
 		}
 	}
 
-	err := arrayHeader.EncodeBinary(w)
+	err := arrayHeader.EncodeBinary(ci, w)
 	if err != nil {
 		return false, err
 	}
@@ -271,7 +271,7 @@ func (src *Float4Array) encodeBinary(w io.Writer, elementOid int32) (bool, error
 	for i := range src.Elements {
 		elemBuf.Reset()
 
-		null, err := src.Elements[i].EncodeBinary(elemBuf)
+		null, err := src.Elements[i].EncodeBinary(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}

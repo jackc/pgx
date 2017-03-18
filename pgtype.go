@@ -3,6 +3,7 @@ package pgtype
 import (
 	"errors"
 	"io"
+	"reflect"
 )
 
 // PostgreSQL oids for common types
@@ -83,14 +84,14 @@ type BinaryDecoder interface {
 	// DecodeBinary decodes src into BinaryDecoder. If src is nil then the
 	// original SQL value is NULL. BinaryDecoder MUST not retain a reference to
 	// src. It MUST make a copy if it needs to retain the raw bytes.
-	DecodeBinary(src []byte) error
+	DecodeBinary(ci *ConnInfo, src []byte) error
 }
 
 type TextDecoder interface {
 	// DecodeText decodes src into TextDecoder. If src is nil then the original
 	// SQL value is NULL. TextDecoder MUST not retain a reference to src. It MUST
 	// make a copy if it needs to retain the raw bytes.
-	DecodeText(src []byte) error
+	DecodeText(ci *ConnInfo, src []byte) error
 }
 
 // BinaryEncoder is implemented by types that can encode themselves into the
@@ -100,7 +101,7 @@ type BinaryEncoder interface {
 	// SQL value NULL then write nothing and return (true, nil). The caller of
 	// EncodeBinary is responsible for writing the correct NULL value or the
 	// length of the data written.
-	EncodeBinary(w io.Writer) (null bool, err error)
+	EncodeBinary(ci *ConnInfo, w io.Writer) (null bool, err error)
 }
 
 // TextEncoder is implemented by types that can encode themselves into the
@@ -110,7 +111,127 @@ type TextEncoder interface {
 	// value NULL then write nothing and return (true, nil). The caller of
 	// EncodeText is responsible for writing the correct NULL value or the length
 	// of the data written.
-	EncodeText(w io.Writer) (null bool, err error)
+	EncodeText(ci *ConnInfo, w io.Writer) (null bool, err error)
 }
 
 var errUndefined = errors.New("cannot encode status undefined")
+
+type DataType struct {
+	Value Value
+	Name  string
+	Oid   Oid
+}
+
+type ConnInfo struct {
+	oidToDataType         map[Oid]*DataType
+	nameToDataType        map[string]*DataType
+	reflectTypeToDataType map[reflect.Type]*DataType
+}
+
+func NewConnInfo() *ConnInfo {
+	return &ConnInfo{
+		oidToDataType:         make(map[Oid]*DataType, 256),
+		nameToDataType:        make(map[string]*DataType, 256),
+		reflectTypeToDataType: make(map[reflect.Type]*DataType, 256),
+	}
+}
+
+func (ci *ConnInfo) InitializeDataTypes(nameOids map[string]Oid) {
+	for name, oid := range nameOids {
+		var value Value
+		if t, ok := nameValues[name]; ok {
+			value = reflect.New(reflect.ValueOf(t).Elem().Type()).Interface().(Value)
+		} else {
+			value = &GenericText{}
+		}
+		ci.RegisterDataType(DataType{Value: value, Name: name, Oid: oid})
+	}
+}
+
+func (ci *ConnInfo) RegisterDataType(t DataType) {
+	ci.oidToDataType[t.Oid] = &t
+	ci.nameToDataType[t.Name] = &t
+	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
+}
+
+func (ci *ConnInfo) DataTypeForOid(oid Oid) (*DataType, bool) {
+	dt, ok := ci.oidToDataType[oid]
+	return dt, ok
+}
+
+func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
+	dt, ok := ci.nameToDataType[name]
+	return dt, ok
+}
+
+func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
+	dt, ok := ci.reflectTypeToDataType[reflect.ValueOf(v).Type()]
+	return dt, ok
+}
+
+// DeepCopy makes a deep copy of the ConnInfo.
+func (ci *ConnInfo) DeepCopy() *ConnInfo {
+	ci2 := &ConnInfo{
+		oidToDataType:         make(map[Oid]*DataType, len(ci.oidToDataType)),
+		nameToDataType:        make(map[string]*DataType, len(ci.nameToDataType)),
+		reflectTypeToDataType: make(map[reflect.Type]*DataType, len(ci.reflectTypeToDataType)),
+	}
+
+	for _, dt := range ci.oidToDataType {
+		ci2.RegisterDataType(DataType{
+			Value: reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
+			Name:  dt.Name,
+			Oid:   dt.Oid,
+		})
+	}
+
+	return ci2
+}
+
+var nameValues map[string]Value
+
+func init() {
+	nameValues = map[string]Value{
+		"_aclitem":     &AclitemArray{},
+		"_bool":        &BoolArray{},
+		"_bytea":       &ByteaArray{},
+		"_cidr":        &CidrArray{},
+		"_date":        &DateArray{},
+		"_float4":      &Float4Array{},
+		"_float8":      &Float8Array{},
+		"_inet":        &InetArray{},
+		"_int2":        &Int2Array{},
+		"_int4":        &Int4Array{},
+		"_int8":        &Int8Array{},
+		"_text":        &TextArray{},
+		"_timestamp":   &TimestampArray{},
+		"_timestamptz": &TimestamptzArray{},
+		"_varchar":     &VarcharArray{},
+		"aclitem":      &Aclitem{},
+		"bool":         &Bool{},
+		"bytea":        &Bytea{},
+		"char":         &QChar{},
+		"cid":          &Cid{},
+		"cidr":         &Cidr{},
+		"date":         &Date{},
+		"float4":       &Float4{},
+		"float8":       &Float8{},
+		"hstore":       &Hstore{},
+		"inet":         &Inet{},
+		"int2":         &Int2{},
+		"int4":         &Int4{},
+		"int8":         &Int8{},
+		"json":         &Json{},
+		"jsonb":        &Jsonb{},
+		"name":         &Name{},
+		"oid":          &OidValue{},
+		"record":       &Record{},
+		"text":         &Text{},
+		"tid":          &Tid{},
+		"timestamp":    &Timestamp{},
+		"timestamptz":  &Timestamptz{},
+		"unknown":      &Unknown{},
+		"varchar":      &Varchar{},
+		"xid":          &Xid{},
+	}
+}

@@ -92,7 +92,7 @@ func (src *Float8) AssignTo(dst interface{}) error {
 	return float64AssignTo(src.Float, src.Status, dst)
 }
 
-func (dst *Float8) DecodeText(src []byte) error {
+func (dst *Float8) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Float8{Status: Null}
 		return nil
@@ -107,7 +107,7 @@ func (dst *Float8) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Float8) DecodeBinary(src []byte) error {
+func (dst *Float8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Float8{Status: Null}
 		return nil
@@ -123,7 +123,7 @@ func (dst *Float8) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Float8) EncodeText(w io.Writer) (bool, error) {
+func (src Float8) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -135,7 +135,7 @@ func (src Float8) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Float8) EncodeBinary(w io.Writer) (bool, error) {
+func (src Float8) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

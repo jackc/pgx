@@ -85,7 +85,7 @@ func (src *Timestamp) AssignTo(dst interface{}) error {
 
 // DecodeText decodes from src into dst. The decoded time is considered to
 // be in UTC.
-func (dst *Timestamp) DecodeText(src []byte) error {
+func (dst *Timestamp) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Timestamp{Status: Null}
 		return nil
@@ -111,7 +111,7 @@ func (dst *Timestamp) DecodeText(src []byte) error {
 
 // DecodeBinary decodes from src into dst. The decoded time is considered to
 // be in UTC.
-func (dst *Timestamp) DecodeBinary(src []byte) error {
+func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Timestamp{Status: Null}
 		return nil
@@ -139,7 +139,7 @@ func (dst *Timestamp) DecodeBinary(src []byte) error {
 
 // EncodeText writes the text encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src Timestamp) EncodeText(w io.Writer) (bool, error) {
+func (src Timestamp) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -167,7 +167,7 @@ func (src Timestamp) EncodeText(w io.Writer) (bool, error) {
 
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src Timestamp) EncodeBinary(w io.Writer) (bool, error) {
+func (src Timestamp) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

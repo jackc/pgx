@@ -78,7 +78,7 @@ func (src *Bytea) AssignTo(dst interface{}) error {
 
 // DecodeText only supports the hex format. This has been the default since
 // PostgreSQL 9.0.
-func (dst *Bytea) DecodeText(src []byte) error {
+func (dst *Bytea) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Bytea{Status: Null}
 		return nil
@@ -98,7 +98,7 @@ func (dst *Bytea) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Bytea) DecodeBinary(src []byte) error {
+func (dst *Bytea) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Bytea{Status: Null}
 		return nil
@@ -111,7 +111,7 @@ func (dst *Bytea) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Bytea) EncodeText(w io.Writer) (bool, error) {
+func (src Bytea) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -128,7 +128,7 @@ func (src Bytea) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Bytea) EncodeBinary(w io.Writer) (bool, error) {
+func (src Bytea) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

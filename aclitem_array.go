@@ -82,7 +82,7 @@ func (src *AclitemArray) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *AclitemArray) DecodeText(src []byte) error {
+func (dst *AclitemArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = AclitemArray{Status: Null}
 		return nil
@@ -104,7 +104,7 @@ func (dst *AclitemArray) DecodeText(src []byte) error {
 			if s != "NULL" {
 				elemSrc = []byte(s)
 			}
-			err = elem.DecodeText(elemSrc)
+			err = elem.DecodeText(ci, elemSrc)
 			if err != nil {
 				return err
 			}
@@ -118,7 +118,7 @@ func (dst *AclitemArray) DecodeText(src []byte) error {
 	return nil
 }
 
-func (src *AclitemArray) EncodeText(w io.Writer) (bool, error) {
+func (src *AclitemArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -165,7 +165,7 @@ func (src *AclitemArray) EncodeText(w io.Writer) (bool, error) {
 		}
 
 		elemBuf := &bytes.Buffer{}
-		null, err := elem.EncodeText(elemBuf)
+		null, err := elem.EncodeText(ci, elemBuf)
 		if err != nil {
 			return false, err
 		}

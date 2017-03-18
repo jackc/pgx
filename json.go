@@ -84,7 +84,7 @@ func (src *Json) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *Json) DecodeText(src []byte) error {
+func (dst *Json) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Json{Status: Null}
 		return nil
@@ -97,11 +97,11 @@ func (dst *Json) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Json) DecodeBinary(src []byte) error {
-	return dst.DecodeText(src)
+func (dst *Json) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return dst.DecodeText(ci, src)
 }
 
-func (src Json) EncodeText(w io.Writer) (bool, error) {
+func (src Json) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -113,6 +113,6 @@ func (src Json) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Json) EncodeBinary(w io.Writer) (bool, error) {
-	return src.EncodeText(w)
+func (src Json) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return src.EncodeText(ci, w)
 }
