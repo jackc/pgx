@@ -78,40 +78,38 @@ func (dst *Int2Array) Get() interface{} {
 }
 
 func (src *Int2Array) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
 
-	case *[]int16:
-		if src.Status == Present {
+		case *[]int16:
 			*v = make([]int16, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
 				}
 			}
-		} else {
-			*v = nil
-		}
+			return nil
 
-	case *[]uint16:
-		if src.Status == Present {
+		case *[]uint16:
 			*v = make([]uint16, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
 				}
 			}
-		} else {
-			*v = nil
-		}
+			return nil
 
-	default:
-		if originalDst, ok := underlyingPtrSliceType(dst); ok {
-			return src.AssignTo(originalDst)
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Int2Array) DecodeText(ci *ConnInfo, src []byte) error {

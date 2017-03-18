@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"reflect"
 )
 
 type Bytea struct {
@@ -42,38 +41,24 @@ func (dst *Bytea) Get() interface{} {
 }
 
 func (src *Bytea) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *[]byte:
-		if src.Status == Present {
-			*v = src.Bytes
-		} else {
-			*v = nil
-		}
-	default:
-		if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-			el := v.Elem()
-			switch el.Kind() {
-			// if dst is a pointer to pointer, strip the pointer and try again
-			case reflect.Ptr:
-				if src.Status == Null {
-					el.Set(reflect.Zero(el.Type()))
-					return nil
-				}
-				if el.IsNil() {
-					// allocate destination
-					el.Set(reflect.New(el.Type().Elem()))
-				}
-				return src.AssignTo(el.Interface())
-			default:
-				if originalDst, ok := underlyingPtrSliceType(dst); ok {
-					return src.AssignTo(originalDst)
-				}
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *[]byte:
+			buf := make([]byte, len(src.Bytes))
+			copy(buf, src.Bytes)
+			*v = buf
+			return nil
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
 			}
 		}
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 // DecodeText only supports the hex format. This has been the default since

@@ -47,10 +47,10 @@ func (dst *Hstore) Get() interface{} {
 }
 
 func (src *Hstore) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
-	case *map[string]string:
-		switch src.Status {
-		case Present:
+	switch src.Status {
+	case Present:
+		switch v := dst.(type) {
+		case *map[string]string:
 			*v = make(map[string]string, len(src.Map))
 			for k, val := range src.Map {
 				if val.Status != Present {
@@ -58,16 +58,17 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 				}
 				(*v)[k] = val.String
 			}
-		case Null:
-			*v = nil
+			return nil
 		default:
-			return fmt.Errorf("cannot decode %v into %T", src, dst)
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
 		}
-	default:
-		return fmt.Errorf("cannot decode %v into %T", src, dst)
+	case Null:
+		return nullAssignTo(dst)
 	}
 
-	return nil
+	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Hstore) DecodeText(ci *ConnInfo, src []byte) error {
