@@ -119,6 +119,7 @@ func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error 
 	return nil
 }
 
+<% if binary_format == "true" %>
 func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = <%= pgtype_array_type %>{Status: Null}
@@ -160,6 +161,7 @@ func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) erro
 	*dst = <%= pgtype_array_type %>{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
+<% end %>
 
 func (src *<%= pgtype_array_type %>) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
@@ -237,61 +239,63 @@ func (src *<%= pgtype_array_type %>) EncodeText(ci *ConnInfo, w io.Writer) (bool
 	return false, nil
 }
 
-func (src *<%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	switch src.Status {
-	case Null:
-		return true, nil
-	case Undefined:
-		return false, errUndefined
-	}
-
-	arrayHeader := ArrayHeader{
-		Dimensions: src.Dimensions,
-	}
-
-	if dt, ok := ci.DataTypeForName("<%= element_type_name %>"); ok {
-		arrayHeader.ElementOid = int32(dt.Oid)
-	} else {
-		return false, fmt.Errorf("unable to find oid for type name %v", "<%= element_type_name %>")
-	}
-
-	for i := range src.Elements {
-		if src.Elements[i].Status == Null {
-			arrayHeader.ContainsNull = true
-			break
+<% if binary_format == "true" %>
+	func (src *<%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+		switch src.Status {
+		case Null:
+			return true, nil
+		case Undefined:
+			return false, errUndefined
 		}
-	}
 
-	err := arrayHeader.EncodeBinary(ci, w)
-	if err != nil {
-		return false, err
-	}
+		arrayHeader := ArrayHeader{
+			Dimensions: src.Dimensions,
+		}
 
-	elemBuf := &bytes.Buffer{}
+		if dt, ok := ci.DataTypeForName("<%= element_type_name %>"); ok {
+			arrayHeader.ElementOid = int32(dt.Oid)
+		} else {
+			return false, fmt.Errorf("unable to find oid for type name %v", "<%= element_type_name %>")
+		}
 
-	for i := range src.Elements {
-		elemBuf.Reset()
+		for i := range src.Elements {
+			if src.Elements[i].Status == Null {
+				arrayHeader.ContainsNull = true
+				break
+			}
+		}
 
-		null, err := src.Elements[i].EncodeBinary(ci, elemBuf)
+		err := arrayHeader.EncodeBinary(ci, w)
 		if err != nil {
 			return false, err
 		}
-		if null {
-			_, err = pgio.WriteInt32(w, -1)
+
+		elemBuf := &bytes.Buffer{}
+
+		for i := range src.Elements {
+			elemBuf.Reset()
+
+			null, err := src.Elements[i].EncodeBinary(ci, elemBuf)
 			if err != nil {
 				return false, err
 			}
-		} else {
-			_, err = pgio.WriteInt32(w, int32(elemBuf.Len()))
-			if err != nil {
-				return false, err
-			}
-			_, err = elemBuf.WriteTo(w)
-			if err != nil {
-				return false, err
+			if null {
+				_, err = pgio.WriteInt32(w, -1)
+				if err != nil {
+					return false, err
+				}
+			} else {
+				_, err = pgio.WriteInt32(w, int32(elemBuf.Len()))
+				if err != nil {
+					return false, err
+				}
+				_, err = elemBuf.WriteTo(w)
+				if err != nil {
+					return false, err
+				}
 			}
 		}
-	}
 
-	return false, err
-}
+		return false, err
+	}
+<% end %>
