@@ -34,18 +34,18 @@ func (src *Cid) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *Cid) DecodeText(src []byte) error {
-	return (*pguint32)(dst).DecodeText(src)
+func (dst *Cid) DecodeText(ci *ConnInfo, src []byte) error {
+	return (*pguint32)(dst).DecodeText(ci, src)
 }
 
-func (dst *Cid) DecodeBinary(src []byte) error {
-	return (*pguint32)(dst).DecodeBinary(src)
+func (dst *Cid) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return (*pguint32)(dst).DecodeBinary(ci, src)
 }
 
-func (src Cid) EncodeText(w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeText(w)
+func (src Cid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (pguint32)(src).EncodeText(ci, w)
 }
 
-func (src Cid) EncodeBinary(w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeBinary(w)
+func (src Cid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (pguint32)(src).EncodeBinary(ci, w)
 }

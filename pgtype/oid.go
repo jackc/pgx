@@ -18,7 +18,7 @@ import (
 // allow for NULL Oids use OidValue.
 type Oid uint32
 
-func (dst *Oid) DecodeText(src []byte) error {
+func (dst *Oid) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		return fmt.Errorf("cannot decode nil into Oid")
 	}
@@ -32,7 +32,7 @@ func (dst *Oid) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Oid) DecodeBinary(src []byte) error {
+func (dst *Oid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		return fmt.Errorf("cannot decode nil into Oid")
 	}
@@ -46,12 +46,12 @@ func (dst *Oid) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Oid) EncodeText(w io.Writer) (bool, error) {
+func (src Oid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	_, err := io.WriteString(w, strconv.FormatUint(uint64(src), 10))
 	return false, err
 }
 
-func (src Oid) EncodeBinary(w io.Writer) (bool, error) {
+func (src Oid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	_, err := pgio.WriteUint32(w, uint32(src))
 	return false, err
 }

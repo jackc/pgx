@@ -20,10 +20,10 @@ func (src *GenericBinary) AssignTo(dst interface{}) error {
 	return (*Bytea)(src).AssignTo(dst)
 }
 
-func (dst *GenericBinary) DecodeBinary(src []byte) error {
-	return (*Bytea)(dst).DecodeBinary(src)
+func (dst *GenericBinary) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return (*Bytea)(dst).DecodeBinary(ci, src)
 }
 
-func (src GenericBinary) EncodeBinary(w io.Writer) (bool, error) {
-	return (Bytea)(src).EncodeBinary(w)
+func (src GenericBinary) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (Bytea)(src).EncodeBinary(ci, w)
 }

@@ -31,18 +31,18 @@ func (src *Name) AssignTo(dst interface{}) error {
 	return (*Text)(src).AssignTo(dst)
 }
 
-func (dst *Name) DecodeText(src []byte) error {
-	return (*Text)(dst).DecodeText(src)
+func (dst *Name) DecodeText(ci *ConnInfo, src []byte) error {
+	return (*Text)(dst).DecodeText(ci, src)
 }
 
-func (dst *Name) DecodeBinary(src []byte) error {
-	return (*Text)(dst).DecodeBinary(src)
+func (dst *Name) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src Name) EncodeText(w io.Writer) (bool, error) {
-	return (Text)(src).EncodeText(w)
+func (src Name) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (Text)(src).EncodeText(ci, w)
 }
 
-func (src Name) EncodeBinary(w io.Writer) (bool, error) {
-	return (Text)(src).EncodeBinary(w)
+func (src Name) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (Text)(src).EncodeBinary(ci, w)
 }

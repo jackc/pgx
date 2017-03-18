@@ -63,7 +63,7 @@ func (src *pguint32) AssignTo(dst interface{}) error {
 	return nil
 }
 
-func (dst *pguint32) DecodeText(src []byte) error {
+func (dst *pguint32) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = pguint32{Status: Null}
 		return nil
@@ -78,7 +78,7 @@ func (dst *pguint32) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *pguint32) DecodeBinary(src []byte) error {
+func (dst *pguint32) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = pguint32{Status: Null}
 		return nil
@@ -93,7 +93,7 @@ func (dst *pguint32) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src pguint32) EncodeText(w io.Writer) (bool, error) {
+func (src pguint32) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -105,7 +105,7 @@ func (src pguint32) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src pguint32) EncodeBinary(w io.Writer) (bool, error) {
+func (src pguint32) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil

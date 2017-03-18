@@ -46,7 +46,7 @@ func (src *Tid) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
-func (dst *Tid) DecodeText(src []byte) error {
+func (dst *Tid) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Tid{Status: Null}
 		return nil
@@ -75,7 +75,7 @@ func (dst *Tid) DecodeText(src []byte) error {
 	return nil
 }
 
-func (dst *Tid) DecodeBinary(src []byte) error {
+func (dst *Tid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Tid{Status: Null}
 		return nil
@@ -93,7 +93,7 @@ func (dst *Tid) DecodeBinary(src []byte) error {
 	return nil
 }
 
-func (src Tid) EncodeText(w io.Writer) (bool, error) {
+func (src Tid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -105,7 +105,7 @@ func (src Tid) EncodeText(w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Tid) EncodeBinary(w io.Writer) (bool, error) {
+func (src Tid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
