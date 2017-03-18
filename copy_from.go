@@ -157,7 +157,7 @@ func (ct *copyFrom) run() (int, error) {
 
 		wbuf.WriteInt16(int16(len(ct.columnNames)))
 		for i, val := range values {
-			err = Encode(wbuf, ps.FieldDescriptions[i].DataType, val)
+			err = encodePreparedStatementArgument(wbuf, ps.FieldDescriptions[i].DataType, val)
 			if err != nil {
 				ct.cancelCopyIn()
 				return 0, err

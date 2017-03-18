@@ -976,32 +976,12 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 
 	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
 	for i, oid := range ps.ParameterOids {
-		switch arguments[i].(type) {
-		case pgtype.BinaryEncoder:
-			wbuf.WriteInt16(BinaryFormatCode)
-		case pgtype.TextEncoder:
-			wbuf.WriteInt16(TextFormatCode)
-		case string, *string:
-			wbuf.WriteInt16(TextFormatCode)
-		default:
-			if dt, ok := c.ConnInfo.DataTypeForOid(oid); ok {
-				switch dt.Value.(type) {
-				case pgtype.BinaryEncoder:
-					wbuf.WriteInt16(BinaryFormatCode)
-				case pgtype.TextEncoder:
-					wbuf.WriteInt16(TextFormatCode)
-				default:
-					return fmt.Errorf("value for oid %v does not implement pgtype.BinaryEncoder or pgtype.TextEncoder", oid)
-				}
-			} else {
-				return fmt.Errorf("unknown type for oid %v", oid)
-			}
-		}
+		wbuf.WriteInt16(chooseParameterFormatCode(c.ConnInfo, oid, arguments[i]))
 	}
 
 	wbuf.WriteInt16(int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		if err := Encode(wbuf, oid, arguments[i]); err != nil {
+		if err := encodePreparedStatementArgument(wbuf, oid, arguments[i]); err != nil {
 			return err
 		}
 	}
