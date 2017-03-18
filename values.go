@@ -15,10 +15,6 @@ const (
 	BinaryFormatCode = 1
 )
 
-const maxUint = ^uint(0)
-const maxInt = int(maxUint >> 1)
-const minInt = -maxInt - 1
-
 // SerializationError occurs on failure to encode or decode a value
 type SerializationError string
 
