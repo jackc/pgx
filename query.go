@@ -198,20 +198,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			continue
 		}
 
-		// Check for []byte first as we allow sidestepping the decoding process and retrieving the raw bytes
-		if b, ok := d.(*[]byte); ok {
-			// If it actually is a bytea then pass it through decodeBytea (so it can be decoded if it is in text format)
-			// Otherwise read the bytes directly regardless of what the actual type is.
-			if vr.Type().DataType == ByteaOid {
-				*b = decodeBytea(vr)
-			} else {
-				if vr.Len() != -1 {
-					*b = vr.ReadBytes(vr.Len())
-				} else {
-					*b = nil
-				}
-			}
-		} else if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
+		if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
 			err = s.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})

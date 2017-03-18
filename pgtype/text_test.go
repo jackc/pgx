@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"bytes"
 	"reflect"
 	"testing"
 
@@ -44,7 +45,7 @@ func TestTextAssignTo(t *testing.T) {
 	var s string
 	var ps *string
 
-	simpleTests := []struct {
+	stringTests := []struct {
 		src      pgtype.Text
 		dst      interface{}
 		expected interface{}
@@ -53,7 +54,7 @@ func TestTextAssignTo(t *testing.T) {
 		{src: pgtype.Text{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
 	}
 
-	for i, tt := range simpleTests {
+	for i, tt := range stringTests {
 		err := tt.src.AssignTo(tt.dst)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -61,6 +62,28 @@ func TestTextAssignTo(t *testing.T) {
 
 		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
 			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+		}
+	}
+
+	var buf []byte
+
+	bytesTests := []struct {
+		src      pgtype.Text
+		dst      *[]byte
+		expected []byte
+	}{
+		{src: pgtype.Text{String: "foo", Status: pgtype.Present}, dst: &buf, expected: []byte("foo")},
+		{src: pgtype.Text{Status: pgtype.Null}, dst: &buf, expected: nil},
+	}
+
+	for i, tt := range bytesTests {
+		err := tt.src.AssignTo(tt.dst)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if bytes.Compare(*tt.dst, tt.expected) != 0 {
+			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, tt.dst)
 		}
 	}
 

@@ -169,10 +169,7 @@ and database/sql/driver.Valuer interfaces.
 Raw Bytes Mapping
 
 []byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
-to PostgreSQL. In like manner, a *[]byte passed to Scan will be filled with
-the raw bytes returned by PostgreSQL. This can be especially useful for reading
-varchar, text, json, and jsonb values directly into a []byte and avoiding the
-type conversion from string.
+to PostgreSQL.
 
 Transactions
 
