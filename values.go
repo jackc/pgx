@@ -3,7 +3,6 @@ package pgx
 import (
 	"bytes"
 	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -279,44 +278,6 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	return nil, false
 }
 
-// Decode decodes from vr into d. d must be a pointer. This allows
-// implementations of the Decoder interface to delegate the actual work of
-// decoding to the built-in functionality.
-func Decode(vr *ValueReader, d interface{}) error {
-	switch v := d.(type) {
-	case *string:
-		*v = decodeText(vr)
-	default:
-		if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
-			el := v.Elem()
-			switch el.Kind() {
-			// if d is a pointer to pointer, strip the pointer and try again
-			case reflect.Ptr:
-				// -1 is a null value
-				if vr.Len() == -1 {
-					if !el.IsNil() {
-						// if the destination pointer is not nil, nil it out
-						el.Set(reflect.Zero(el.Type()))
-					}
-					return nil
-				}
-				if el.IsNil() {
-					// allocate destination
-					el.Set(reflect.New(el.Type().Elem()))
-				}
-				d = el.Interface()
-				return Decode(vr, d)
-			case reflect.String:
-				el.SetString(decodeText(vr))
-				return nil
-			}
-		}
-		return fmt.Errorf("Scan cannot decode into %T", d)
-	}
-
-	return nil
-}
-
 func decodeText(vr *ValueReader) string {
 	if vr.Len() == -1 {
 		vr.Fatal(ProtocolError("Cannot decode null into string"))
@@ -325,15 +286,6 @@ func decodeText(vr *ValueReader) string {
 
 	if vr.Type().FormatCode == BinaryFormatCode {
 		vr.Fatal(ProtocolError("cannot decode binary value into string"))
-		return ""
-	}
-
-	return vr.ReadString(vr.Len())
-}
-
-func decodeTextAllowBinary(vr *ValueReader) string {
-	if vr.Len() == -1 {
-		vr.Fatal(ProtocolError("Cannot decode null into string"))
 		return ""
 	}
 
@@ -367,84 +319,6 @@ func decodeBytea(vr *ValueReader) []byte {
 func encodeByteSlice(w *WriteBuf, oid pgtype.Oid, value []byte) error {
 	w.WriteInt32(int32(len(value)))
 	w.WriteBytes(value)
-
-	return nil
-}
-
-func decodeJSON(vr *ValueReader, d interface{}) error {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != JsonOid {
-		vr.Fatal(ProtocolError(fmt.Sprintf("Cannot decode oid %v into json", vr.Type().DataType)))
-	}
-
-	bytes := vr.ReadBytes(vr.Len())
-	err := json.Unmarshal(bytes, d)
-	if err != nil {
-		vr.Fatal(err)
-	}
-	return err
-}
-
-func encodeJSON(w *WriteBuf, oid pgtype.Oid, value interface{}) error {
-	if oid != JsonOid {
-		return fmt.Errorf("cannot encode JSON into oid %v", oid)
-	}
-
-	s, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("Failed to encode json from type: %T", value)
-	}
-
-	w.WriteInt32(int32(len(s)))
-	w.WriteBytes(s)
-
-	return nil
-}
-
-func decodeJSONB(vr *ValueReader, d interface{}) error {
-	if vr.Len() == -1 {
-		return nil
-	}
-
-	if vr.Type().DataType != JsonbOid {
-		err := ProtocolError(fmt.Sprintf("Cannot decode oid %v into jsonb", vr.Type().DataType))
-		vr.Fatal(err)
-		return err
-	}
-
-	bytes := vr.ReadBytes(vr.Len())
-	if vr.Type().FormatCode == BinaryFormatCode {
-		if bytes[0] != 1 {
-			err := ProtocolError(fmt.Sprintf("Unknown jsonb format byte: %x", bytes[0]))
-			vr.Fatal(err)
-			return err
-		}
-		bytes = bytes[1:]
-	}
-
-	err := json.Unmarshal(bytes, d)
-	if err != nil {
-		vr.Fatal(err)
-	}
-	return err
-}
-
-func encodeJSONB(w *WriteBuf, oid pgtype.Oid, value interface{}) error {
-	if oid != JsonbOid {
-		return fmt.Errorf("cannot encode JSON into oid %v", oid)
-	}
-
-	s, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("Failed to encode json from type: %T", value)
-	}
-
-	w.WriteInt32(int32(len(s) + 1))
-	w.WriteByte(1) // JSONB format header
-	w.WriteBytes(s)
 
 	return nil
 }

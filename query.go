@@ -294,9 +294,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					}
 				}
 			} else {
-				if err := Decode(vr, d); err != nil {
-					rows.Fatal(scanArgError{col: i, err: err})
-				}
+				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("unknown oid: %v", vr.Type().DataType)})
 			}
 		}
 		if vr.Err() != nil {
