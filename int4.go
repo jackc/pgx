@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,6 +17,11 @@ type Int4 struct {
 }
 
 func (dst *Int4) Set(src interface{}) error {
+	if src == nil {
+		*dst = Int4{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case int8:
 		*dst = Int4{Int: int32(value), Status: Present}
@@ -68,7 +74,7 @@ func (dst *Int4) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Int4", value)
 	}
 
 	return nil
@@ -141,4 +147,42 @@ func (src Int4) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt32(w, src.Int)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Int4) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Int4{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case int64:
+		if src < math.MinInt32 {
+			return fmt.Errorf("%d is greater than maximum value for Int4", src)
+		}
+		if src > math.MaxInt32 {
+			return fmt.Errorf("%d is greater than maximum value for Int4", src)
+		}
+		*dst = Int4{Int: int32(src), Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Int4) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return int64(src.Int), nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

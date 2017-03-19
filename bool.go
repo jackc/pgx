@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"io"
 	"strconv"
@@ -125,4 +126,36 @@ func (src Bool) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := w.Write(buf)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Bool) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Bool{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case bool:
+		*dst = Bool{Bool: src, Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Bool) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return src.Bool, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,6 +17,11 @@ type Float4 struct {
 }
 
 func (dst *Float4) Set(src interface{}) error {
+	if src == nil {
+		*dst = Float4{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case float32:
 		*dst = Float4{Float: value, Status: Present}
@@ -155,4 +161,36 @@ func (src Float4) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt32(w, int32(math.Float32bits(src.Float)))
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Float4) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Float4{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case float64:
+		*dst = Float4{Float: float32(src), Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Float4) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return float64(src.Float), nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

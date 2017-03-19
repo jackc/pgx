@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"io"
 )
@@ -92,4 +93,33 @@ func (src Aclitem) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := io.WriteString(w, src.String)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Aclitem) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Aclitem{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Aclitem) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return src.String, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }
