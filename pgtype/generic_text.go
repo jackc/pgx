@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"io"
 )
 
@@ -26,4 +27,14 @@ func (dst *GenericText) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (src GenericText) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return (Text)(src).EncodeText(ci, w)
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *GenericText) Scan(src interface{}) error {
+	return (*Text)(dst).Scan(src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src GenericText) Value() (driver.Value, error) {
+	return (Text)(src).Value()
 }

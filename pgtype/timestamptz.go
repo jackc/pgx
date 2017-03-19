@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -20,12 +21,17 @@ const (
 )
 
 type Timestamptz struct {
-	Time   time.Time
-	Status Status
-	InfinityModifier
+	Time             time.Time
+	Status           Status
+	InfinityModifier InfinityModifier
 }
 
 func (dst *Timestamptz) Set(src interface{}) error {
+	if src == nil {
+		*dst = Timestamptz{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Timestamptz{Time: value, Status: Present}
@@ -178,4 +184,39 @@ func (src Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt64(w, microsecSinceY2K)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Timestamptz) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Timestamptz{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	case time.Time:
+		*dst = Timestamptz{Time: src, Status: Present}
+		return nil
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Timestamptz) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		if src.InfinityModifier != None {
+			return src.InfinityModifier.String(), nil
+		}
+		return src.Time, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -21,6 +22,11 @@ type Hstore struct {
 }
 
 func (dst *Hstore) Set(src interface{}) error {
+	if src == nil {
+		*dst = Hstore{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case map[string]string:
 		m := make(map[string]Text, len(value))
@@ -436,4 +442,26 @@ func parseHstore(s string) (k []string, v []Text, err error) {
 	k = keys
 	v = values
 	return
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Hstore) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Hstore{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Hstore) Value() (driver.Value, error) {
+	return encodeValueText(src)
 }

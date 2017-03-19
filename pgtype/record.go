@@ -16,6 +16,11 @@ type Record struct {
 }
 
 func (dst *Record) Set(src interface{}) error {
+	if src == nil {
+		*dst = Record{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case []Value:
 		*dst = Record{Fields: value, Status: Present}

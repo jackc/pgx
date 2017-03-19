@@ -17,13 +17,20 @@ import (
 // standard type char.
 //
 // Not all possible values of QChar are representable in the text format.
-// Therefore, QChar does not implement TextEncoder and TextDecoder.
+// Therefore, QChar does not implement TextEncoder and TextDecoder. In
+// addition, database/sql Scanner and database/sql/driver Value are not
+// implemented.
 type QChar struct {
 	Int    int8
 	Status Status
 }
 
 func (dst *QChar) Set(src interface{}) error {
+	if src == nil {
+		*dst = QChar{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case int8:
 		*dst = QChar{Int: value, Status: Present}

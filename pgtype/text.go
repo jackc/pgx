@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"io"
 )
@@ -11,6 +12,11 @@ type Text struct {
 }
 
 func (dst *Text) Set(src interface{}) error {
+	if src == nil {
+		*dst = Text{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case string:
 		*dst = Text{String: value, Status: Present}
@@ -19,6 +25,12 @@ func (dst *Text) Set(src interface{}) error {
 			*dst = Text{Status: Null}
 		} else {
 			*dst = Text{String: *value, Status: Present}
+		}
+	case []byte:
+		if value == nil {
+			*dst = Text{Status: Null}
+		} else {
+			*dst = Text{String: string(value), Status: Present}
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
@@ -92,4 +104,33 @@ func (src Text) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 
 func (src Text) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	return src.EncodeText(ci, w)
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Text) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Text{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Text) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return src.String, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }
