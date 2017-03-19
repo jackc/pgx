@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -10,9 +11,9 @@ import (
 )
 
 type Date struct {
-	Time   time.Time
-	Status Status
-	InfinityModifier
+	Time             time.Time
+	Status           Status
+	InfinityModifier InfinityModifier
 }
 
 const (
@@ -21,6 +22,11 @@ const (
 )
 
 func (dst *Date) Set(src interface{}) error {
+	if src == nil {
+		*dst = Date{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Date{Time: value, Status: Present}
@@ -166,4 +172,39 @@ func (src Date) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt32(w, daysSinceDateEpoch)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Date) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Date{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	case time.Time:
+		*dst = Date{Time: src, Status: Present}
+		return nil
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Date) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		if src.InfinityModifier != None {
+			return src.InfinityModifier.String(), nil
+		}
+		return src.Time, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

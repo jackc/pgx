@@ -1,9 +1,11 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
@@ -21,6 +23,14 @@ type pguint32 struct {
 // types do.
 func (dst *pguint32) Set(src interface{}) error {
 	switch value := src.(type) {
+	case int64:
+		if value < 0 {
+			return fmt.Errorf("%d is less than minimum value for pguint32", value)
+		}
+		if value > math.MaxUint32 {
+			return fmt.Errorf("%d is greater than maximum value for pguint32", value)
+		}
+		*dst = pguint32{Uint: uint32(value), Status: Present}
 	case uint32:
 		*dst = pguint32{Uint: value, Status: Present}
 	default:
@@ -115,4 +125,39 @@ func (src pguint32) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteUint32(w, src.Uint)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *pguint32) Scan(src interface{}) error {
+	if src == nil {
+		*dst = pguint32{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case uint32:
+		*dst = pguint32{Uint: src, Status: Present}
+		return nil
+	case int64:
+		*dst = pguint32{Uint: uint32(src), Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src pguint32) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return int64(src.Uint), nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

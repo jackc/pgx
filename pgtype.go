@@ -67,6 +67,19 @@ const (
 	NegativeInfinity InfinityModifier = -Infinity
 )
 
+func (im InfinityModifier) String() string {
+	switch im {
+	case None:
+		return "none"
+	case Infinity:
+		return "infinity"
+	case NegativeInfinity:
+		return "-infinity"
+	default:
+		return "invalid"
+	}
+}
+
 type Value interface {
 	// Set converts and assigns src to itself.
 	Set(src interface{}) error

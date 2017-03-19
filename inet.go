@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"io"
 	"net"
@@ -23,6 +24,11 @@ type Inet struct {
 }
 
 func (dst *Inet) Set(src interface{}) error {
+	if src == nil {
+		*dst = Inet{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case net.IPNet:
 		*dst = Inet{IPNet: &value, Status: Present}
@@ -188,4 +194,26 @@ func (src Inet) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := w.Write(src.IPNet.IP)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Inet) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Inet{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Inet) Value() (driver.Value, error) {
+	return encodeValueText(src)
 }

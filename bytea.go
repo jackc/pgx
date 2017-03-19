@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -12,6 +13,11 @@ type Bytea struct {
 }
 
 func (dst *Bytea) Set(src interface{}) error {
+	if src == nil {
+		*dst = Bytea{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case []byte:
 		if value != nil {
@@ -123,4 +129,36 @@ func (src Bytea) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := w.Write(src.Bytes)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Bytea) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Bytea{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		buf := make([]byte, len(src))
+		copy(buf, src)
+		*dst = Bytea{Bytes: buf, Status: Present}
+		return nil
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Bytea) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return src.Bytes, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

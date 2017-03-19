@@ -9,13 +9,15 @@ import (
 )
 
 func TestQCharTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, `"char"`, []interface{}{
+	testPgxSuccessfulTranscodeEqFunc(t, `"char"`, []interface{}{
 		pgtype.QChar{Int: math.MinInt8, Status: pgtype.Present},
 		pgtype.QChar{Int: -1, Status: pgtype.Present},
 		pgtype.QChar{Int: 0, Status: pgtype.Present},
 		pgtype.QChar{Int: 1, Status: pgtype.Present},
 		pgtype.QChar{Int: math.MaxInt8, Status: pgtype.Present},
 		pgtype.QChar{Int: 0, Status: pgtype.Null},
+	}, func(a, b interface{}) bool {
+		return reflect.DeepEqual(a, b)
 	})
 }
 

@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -296,4 +297,34 @@ func (src *TimestampArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error)
 	}
 
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *TimestampArray) Scan(src interface{}) error {
+	if src == nil {
+		return dst.DecodeText(nil, nil)
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src *TimestampArray) Value() (driver.Value, error) {
+	buf := &bytes.Buffer{}
+	null, err := src.EncodeText(nil, buf)
+	if err != nil {
+		return nil, err
+	}
+	if null {
+		return nil, nil
+	}
+
+	return buf.String(), nil
 }
