@@ -65,10 +65,6 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 		wbuf.WriteInt32(int32(len(arg)))
 		wbuf.WriteBytes([]byte(arg))
 		return nil
-	case []byte:
-		wbuf.WriteInt32(int32(len(arg)))
-		wbuf.WriteBytes(arg)
-		return nil
 	}
 
 	refVal := reflect.ValueOf(arg)

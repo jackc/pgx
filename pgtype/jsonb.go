@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"io"
 )
@@ -65,4 +66,14 @@ func (src Jsonb) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err = w.Write(src.Bytes)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Jsonb) Scan(src interface{}) error {
+	return (*Json)(dst).Scan(src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Jsonb) Value() (driver.Value, error) {
+	return (Json)(src).Value()
 }

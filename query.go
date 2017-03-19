@@ -208,47 +208,6 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if s, ok := d.(sql.Scanner); ok {
-			var sqlSrc interface{}
-			if 0 <= vr.Len() {
-				if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
-					value := dt.Value
-
-					switch vr.Type().FormatCode {
-					case TextFormatCode:
-						decoder := value.(pgtype.TextDecoder)
-						if decoder == nil {
-							decoder = &pgtype.GenericText{}
-						}
-						err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
-						if err != nil {
-							rows.Fatal(err)
-						}
-					case BinaryFormatCode:
-						decoder := value.(pgtype.BinaryDecoder)
-						if decoder == nil {
-							decoder = &pgtype.GenericBinary{}
-						}
-						err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
-						if err != nil {
-							rows.Fatal(err)
-						}
-					default:
-						rows.Fatal(errors.New("Unknown format code"))
-					}
-
-					sqlSrc, err = pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
-					if err != nil {
-						rows.Fatal(err)
-					}
-				} else {
-					rows.Fatal(errors.New("Unknown type"))
-				}
-			}
-			err = s.Scan(sqlSrc)
-			if err != nil {
-				rows.Fatal(scanArgError{col: i, err: err})
-			}
 		} else {
 			if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
 				value := dt.Value
@@ -276,7 +235,16 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				}
 
 				if vr.Err() == nil {
-					if err := value.AssignTo(d); err != nil {
+					if scanner, ok := d.(sql.Scanner); ok {
+						sqlSrc, err := pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
+						if err != nil {
+							rows.Fatal(err)
+						}
+						err = scanner.Scan(sqlSrc)
+						if err != nil {
+							rows.Fatal(scanArgError{col: i, err: err})
+						}
+					} else if err := value.AssignTo(d); err != nil {
 						vr.Fatal(err)
 					}
 				}
@@ -339,71 +307,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			default:
 				rows.Fatal(errors.New("Unknown format code"))
 			}
-		} else {
-			rows.Fatal(errors.New("Unknown type"))
-		}
-
-		if vr.Err() != nil {
-			rows.Fatal(vr.Err())
-		}
-
-		if rows.Err() != nil {
-			return nil, rows.Err()
-		}
-	}
-
-	return values, rows.Err()
-}
-
-// ValuesForStdlib is a temporary function to keep all systems operational
-// while refactoring. Do not use.
-func (rows *Rows) ValuesForStdlib() ([]interface{}, error) {
-	if rows.closed {
-		return nil, errors.New("rows is closed")
-	}
-
-	values := make([]interface{}, 0, len(rows.fields))
-
-	for range rows.fields {
-		vr, _ := rows.nextColumn()
-
-		if vr.Len() == -1 {
-			values = append(values, nil)
-			continue
-		}
-
-		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
-			value := dt.Value
-
-			switch vr.Type().FormatCode {
-			case TextFormatCode:
-				decoder := value.(pgtype.TextDecoder)
-				if decoder == nil {
-					decoder = &pgtype.GenericText{}
-				}
-				err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
-				if err != nil {
-					rows.Fatal(err)
-				}
-			case BinaryFormatCode:
-				decoder := value.(pgtype.BinaryDecoder)
-				if decoder == nil {
-					decoder = &pgtype.GenericBinary{}
-				}
-				err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
-				if err != nil {
-					rows.Fatal(err)
-				}
-			default:
-				rows.Fatal(errors.New("Unknown format code"))
-			}
-
-			sqlSrc, err := pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
-			if err != nil {
-				rows.Fatal(err)
-			}
-
-			values = append(values, sqlSrc)
 		} else {
 			rows.Fatal(errors.New("Unknown type"))
 		}

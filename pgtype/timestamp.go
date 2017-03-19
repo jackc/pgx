@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -17,14 +18,19 @@ const pgTimestampFormat = "2006-01-02 15:04:05.999999999"
 // recommended to use timestamptz whenever possible. Timestamp methods either
 // convert to UTC or return an error on non-UTC times.
 type Timestamp struct {
-	Time   time.Time // Time must always be in UTC.
-	Status Status
-	InfinityModifier
+	Time             time.Time // Time must always be in UTC.
+	Status           Status
+	InfinityModifier InfinityModifier
 }
 
 // Set converts src into a Timestamp and stores in dst. If src is a
 // time.Time in a non-UTC time zone, the time zone is discarded.
 func (dst *Timestamp) Set(src interface{}) error {
+	if src == nil {
+		*dst = Timestamp{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}
@@ -182,4 +188,39 @@ func (src Timestamp) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt64(w, microsecSinceY2K)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Timestamp) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Timestamp{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	case time.Time:
+		*dst = Timestamp{Time: src, Status: Present}
+		return nil
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Timestamp) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		if src.InfinityModifier != None {
+			return src.InfinityModifier.String(), nil
+		}
+		return src.Time, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

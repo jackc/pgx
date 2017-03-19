@@ -704,30 +704,6 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}
 }
 
-func TestQueryRowByteSliceArgument(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	sql := "select $1::int4"
-	queryArg := []byte{14, 63, 53, 49}
-	expected := int32(239023409)
-
-	var actual int32
-
-	err := conn.QueryRow(sql, queryArg).Scan(&actual)
-	if err != nil {
-		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
-	}
-
-	if expected != actual {
-		t.Errorf("Expected %v, got %v (sql -> %v)", expected, actual, sql)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryRowUnknownType(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"io"
 )
 
@@ -51,4 +52,14 @@ func (src Xid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 
 func (src Xid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	return (pguint32)(src).EncodeBinary(ci, w)
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Xid) Scan(src interface{}) error {
+	return (*pguint32)(dst).Scan(src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Xid) Value() (driver.Value, error) {
+	return (pguint32)(src).Value()
 }

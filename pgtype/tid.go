@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -120,4 +121,26 @@ func (src Tid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err = pgio.WriteUint16(w, src.OffsetNumber)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Tid) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Tid{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Tid) Value() (driver.Value, error) {
+	return encodeValueText(src)
 }

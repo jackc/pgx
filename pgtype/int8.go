@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,6 +17,11 @@ type Int8 struct {
 }
 
 func (dst *Int8) Set(src interface{}) error {
+	if src == nil {
+		*dst = Int8{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case int8:
 		*dst = Int8{Int: int64(value), Status: Present}
@@ -133,4 +139,36 @@ func (src Int8) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt64(w, src.Int)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Int8) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Int8{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case int64:
+		*dst = Int8{Int: src, Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Int8) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return int64(src.Int), nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }

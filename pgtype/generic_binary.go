@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"io"
 )
 
@@ -26,4 +27,14 @@ func (dst *GenericBinary) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 func (src GenericBinary) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	return (Bytea)(src).EncodeBinary(ci, w)
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *GenericBinary) Scan(src interface{}) error {
+	return (*Bytea)(dst).Scan(src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src GenericBinary) Value() (driver.Value, error) {
+	return (Bytea)(src).Value()
 }

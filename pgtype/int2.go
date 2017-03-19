@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -16,6 +17,11 @@ type Int2 struct {
 }
 
 func (dst *Int2) Set(src interface{}) error {
+	if src == nil {
+		*dst = Int2{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case int8:
 		*dst = Int2{Int: int16(value), Status: Present}
@@ -150,4 +156,42 @@ func (src Int2) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 
 	_, err := pgio.WriteInt16(w, src.Int)
 	return false, err
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Int2) Scan(src interface{}) error {
+	if src == nil {
+		*dst = Int2{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case int64:
+		if src < math.MinInt16 {
+			return fmt.Errorf("%d is greater than maximum value for Int2", src)
+		}
+		if src > math.MaxInt16 {
+			return fmt.Errorf("%d is greater than maximum value for Int2", src)
+		}
+		*dst = Int2{Int: int16(src), Status: Present}
+		return nil
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		return dst.DecodeText(nil, src)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Int2) Value() (driver.Value, error) {
+	switch src.Status {
+	case Present:
+		return int64(src.Int), nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
 }
