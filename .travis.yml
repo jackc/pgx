@@ -53,6 +53,7 @@ install:
   - go get -u gopkg.in/inconshreveable/log15.v2
   - go get -u github.com/jackc/fake
   - go get -u github.com/jackc/pgmock/pgmsg
+  - go get -u github.com/lib/pq
 
 script:
   - go test -v -race ./...
