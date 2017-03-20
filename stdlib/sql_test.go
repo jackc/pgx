@@ -3,6 +3,7 @@ package stdlib_test
 import (
 	"bytes"
 	"database/sql"
+	"sync"
 	"testing"
 
 	"github.com/jackc/pgx"
@@ -162,6 +163,43 @@ func TestOpenFromConnPool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
 	}
+}
+
+func TestOpenFromConnPoolRace(t *testing.T) {
+	wg := &sync.WaitGroup{}
+	connConfig := pgx.ConnConfig{
+		Host:     "127.0.0.1",
+		User:     "pgx_md5",
+		Password: "secret",
+		Database: "pgx_test",
+	}
+
+	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	wg.Add(10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			defer wg.Done()
+			db, err := stdlib.OpenFromConnPool(pool)
+			if err != nil {
+				t.Fatalf("Unable to create connection pool: %v", err)
+			}
+			defer closeDB(t, db)
+
+			// Can get pgx.ConnPool from driver
+			driver := db.Driver().(*stdlib.Driver)
+			if driver.Pool == nil {
+				t.Fatal("Expected driver opened through OpenFromConnPool to have Pool, but it did not")
+			}
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestStmtExec(t *testing.T) {
