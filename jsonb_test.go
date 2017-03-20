@@ -9,6 +9,12 @@ import (
 )
 
 func TestJsonbTranscode(t *testing.T) {
+	conn := mustConnectPgx(t)
+	defer mustClose(t, conn)
+	if _, ok := conn.ConnInfo.DataTypeForName("jsonb"); !ok {
+		t.Skip("Skipping due to no jsonb type")
+	}
+
 	testSuccessfulTranscode(t, "jsonb", []interface{}{
 		pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present},
 		pgtype.Jsonb{Bytes: []byte("null"), Status: pgtype.Present},
