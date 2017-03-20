@@ -50,12 +50,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 )
 
-var openFromConnPoolCount int
+var (
+	openFromConnPoolCountMu sync.Mutex
+	openFromConnPoolCount   int
+)
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
 // binary, anything else will be forced to text format
@@ -120,8 +124,12 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 // pool connection size must be at least 2.
 func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
 	d := &Driver{Pool: pool}
+
+	openFromConnPoolCountMu.Lock()
 	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
 	openFromConnPoolCount++
+	openFromConnPoolCountMu.Unlock()
+
 	sql.Register(name, d)
 	db, err := sql.Open(name, "")
 	if err != nil {
