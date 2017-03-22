@@ -1,5 +1,9 @@
 # Unreleased
 
+## Fixes
+
+* Fix race with concurrent execution of stdlib.OpenFromConnPool (Terin Stock)
+
 ## Features
 
 * .pgpass support (j7b)
