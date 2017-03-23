@@ -193,5 +193,98 @@ func testDatabaseSQLSuccessfulTranscodeEqFunc(t testing.TB, driverName, pgTypeNa
 			t.Errorf("%v %d: expected %v, got %v", driverName, i, derefV, result.Elem().Interface())
 		}
 	}
+}
+
+type normalizeTest struct {
+	sql   string
+	value interface{}
+}
+
+func testSuccessfulNormalize(t testing.TB, tests []normalizeTest) {
+	testSuccessfulNormalizeEqFunc(t, tests, func(a, b interface{}) bool {
+		return reflect.DeepEqual(a, b)
+	})
+}
+
+func testSuccessfulNormalizeEqFunc(t testing.TB, tests []normalizeTest, eqFunc func(a, b interface{}) bool) {
+	testPgxSuccessfulNormalizeEqFunc(t, tests, eqFunc)
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+		testDatabaseSQLSuccessfulNormalizeEqFunc(t, driverName, tests, eqFunc)
+	}
+}
+
+func testPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []normalizeTest, eqFunc func(a, b interface{}) bool) {
+	conn := mustConnectPgx(t)
+	defer mustClose(t, conn)
+
+	formats := []struct {
+		name       string
+		formatCode int16
+	}{
+		{name: "TextFormat", formatCode: pgx.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+	}
+
+	for i, tt := range tests {
+		for _, fc := range formats {
+			psName := fmt.Sprintf("test%d", i)
+			ps, err := conn.Prepare(psName, tt.sql)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			ps.FieldDescriptions[0].FormatCode = fc.formatCode
+			if forceEncoder(tt.value, fc.formatCode) == nil {
+				t.Logf("Skipping: %#v does not implement %v", tt.value, fc.name)
+				continue
+			}
+			// Derefence value if it is a pointer
+			derefV := tt.value
+			refVal := reflect.ValueOf(tt.value)
+			if refVal.Kind() == reflect.Ptr {
+				derefV = refVal.Elem().Interface()
+			}
+
+			result := reflect.New(reflect.TypeOf(derefV))
+			err = conn.QueryRow(psName).Scan(result.Interface())
+			if err != nil {
+				t.Errorf("%v %d: %v", fc.name, i, err)
+			}
+
+			if !eqFunc(result.Elem().Interface(), derefV) {
+				t.Errorf("%v %d: expected %v, got %v", fc.name, i, derefV, result.Elem().Interface())
+			}
+		}
+	}
+}
+
+func testDatabaseSQLSuccessfulNormalizeEqFunc(t testing.TB, driverName string, tests []normalizeTest, eqFunc func(a, b interface{}) bool) {
+	conn := mustConnectDatabaseSQL(t, driverName)
+	defer mustClose(t, conn)
+
+	for i, tt := range tests {
+		ps, err := conn.Prepare(tt.sql)
+		if err != nil {
+			t.Errorf("%d. %v", i, err)
+			continue
+		}
+
+		// Derefence value if it is a pointer
+		derefV := tt.value
+		refVal := reflect.ValueOf(tt.value)
+		if refVal.Kind() == reflect.Ptr {
+			derefV = refVal.Elem().Interface()
+		}
+
+		result := reflect.New(reflect.TypeOf(derefV))
+		err = ps.QueryRow().Scan(result.Interface())
+		if err != nil {
+			t.Errorf("%v %d: %v", driverName, i, err)
+		}
+
+		if !eqFunc(result.Elem().Interface(), derefV) {
+			t.Errorf("%v %d: expected %v, got %v", driverName, i, derefV, result.Elem().Interface())
+		}
+	}
 
 }
