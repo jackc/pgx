@@ -233,6 +233,7 @@ func init() {
 		"inet":         &Inet{},
 		"int2":         &Int2{},
 		"int4":         &Int4{},
+		"int4range":    &Int4range{},
 		"int8":         &Int8{},
 		"json":         &Json{},
 		"jsonb":        &Jsonb{},
