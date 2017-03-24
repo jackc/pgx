@@ -531,7 +531,7 @@ func TestParseDSN(t *testing.T) {
 }
 
 func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
