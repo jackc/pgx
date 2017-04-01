@@ -7,6 +7,13 @@
 //		return err
 //	}
 //
+// Or from a DSN string.
+//
+//	db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
+//	if err != nil {
+//		return err
+//	}
+//
 // Or a normal pgx connection pool can be established and the database/sql
 // connection can be created through stdlib.OpenFromConnPool(). This allows
 // more control over the connection process (such as TLS), more control
@@ -99,7 +106,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 		return &Conn{conn: conn, pool: d.Pool}, nil
 	}
 
-	connConfig, err := pgx.ParseURI(name)
+	connConfig, err := pgx.ParseConnectionString(name)
 	if err != nil {
 		return nil, err
 	}
