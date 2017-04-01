@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
@@ -9,22 +10,42 @@ import (
 func TestNumericNormalize(t *testing.T) {
 	testSuccessfulNormalize(t, []normalizeTest{
 		{
+			sql:   "select '1'::numeric",
+			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+		},
+		{
 			sql:   "select '10.00'::numeric",
+			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '1e-3'::numeric",
+			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '-1'::numeric",
+			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '10000'::numeric",
+			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '3.14'::numeric",
 			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
 		},
 	})
 }
 
-// func TestNumericTranscode(t *testing.T) {
-// 	testSuccessfulTranscode(t, "numeric", []interface{}{
-// 		pgtype.Numeric{Float: -1, Status: pgtype.Present},
-// 		pgtype.Numeric{Float: 0, Status: pgtype.Present},
-// 		pgtype.Numeric{Float: 0.00001, Status: pgtype.Present},
-// 		pgtype.Numeric{Float: 1, Status: pgtype.Present},
-// 		pgtype.Numeric{Float: 9999.99, Status: pgtype.Present},
-// 		pgtype.Numeric{Float: 0, Status: pgtype.Null},
-// 	})
-// }
+func TestNumericTranscode(t *testing.T) {
+	testSuccessfulTranscode(t, "numeric", []interface{}{
+		pgtype.Numeric{Int: *big.NewInt(0), Exp: 0, Status: pgtype.Present},
+		pgtype.Numeric{Int: *big.NewInt(1), Exp: 0, Status: pgtype.Present},
+		pgtype.Numeric{Int: *big.NewInt(314), Exp: -2, Status: pgtype.Present},
+		pgtype.Numeric{Int: *big.NewInt(100), Exp: -2, Status: pgtype.Present},
+		pgtype.Numeric{Int: *big.NewInt(123), Exp: -1500, Status: pgtype.Present},
+		pgtype.Numeric{Status: pgtype.Null},
+	})
+}
 
 // func TestNumericSet(t *testing.T) {
 // 	successfulTests := []struct {
