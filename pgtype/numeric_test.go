@@ -7,43 +7,124 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
+func mustParseBigInt(t *testing.T, src string) *big.Int {
+	i := &big.Int{}
+	if _, ok := i.SetString(src, 10); !ok {
+		t.Fatalf("could not parse big.Int: %s", src)
+	}
+	return i
+}
+
 func TestNumericNormalize(t *testing.T) {
 	testSuccessfulNormalize(t, []normalizeTest{
 		{
+			sql:   "select '0'::numeric",
+			value: pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
+		},
+		{
 			sql:   "select '1'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			sql:   "select '10.00'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Status: pgtype.Present},
 		},
 		{
 			sql:   "select '1e-3'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(1), Exp: -3, Status: pgtype.Present},
 		},
 		{
 			sql:   "select '-1'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			sql:   "select '10000'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(1), Exp: 4, Status: pgtype.Present},
 		},
 		{
 			sql:   "select '3.14'::numeric",
-			value: pgtype.GenericBinary{Bytes: nil, Status: pgtype.Present},
+			value: pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '1.1'::numeric",
+			value: pgtype.Numeric{Int: big.NewInt(11), Exp: -1, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '100010001'::numeric",
+			value: pgtype.Numeric{Int: big.NewInt(100010001), Exp: 0, Status: pgtype.Present},
+		},
+		{
+			sql:   "select '100010001.0001'::numeric",
+			value: pgtype.Numeric{Int: big.NewInt(1000100010001), Exp: -4, Status: pgtype.Present},
+		},
+		{
+			sql: "select '4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981'::numeric",
+			value: pgtype.Numeric{
+				Int:    mustParseBigInt(t, "423723478923478928934789237432487213832189417894318904389012483210893443219085471578891547854892438945012347981"),
+				Exp:    -41,
+				Status: pgtype.Present,
+			},
+		},
+		{
+			sql: "select '0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234'::numeric",
+			value: pgtype.Numeric{
+				Int:    mustParseBigInt(t, "8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234"),
+				Exp:    -196,
+				Status: pgtype.Present,
+			},
+		},
+		{
+			sql: "select '0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123'::numeric",
+			value: pgtype.Numeric{
+				Int:    mustParseBigInt(t, "123"),
+				Exp:    -186,
+				Status: pgtype.Present,
+			},
 		},
 	})
 }
 
 func TestNumericTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "numeric", []interface{}{
-		pgtype.Numeric{Int: *big.NewInt(0), Exp: 0, Status: pgtype.Present},
-		pgtype.Numeric{Int: *big.NewInt(1), Exp: 0, Status: pgtype.Present},
-		pgtype.Numeric{Int: *big.NewInt(314), Exp: -2, Status: pgtype.Present},
-		pgtype.Numeric{Int: *big.NewInt(100), Exp: -2, Status: pgtype.Present},
-		pgtype.Numeric{Int: *big.NewInt(123), Exp: -1500, Status: pgtype.Present},
+	testSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
+		pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(1), Exp: 6, Status: pgtype.Present},
+
+		// preserves significant zeroes
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -1, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -2, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -3, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -4, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -5, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(10000000), Exp: -6, Status: pgtype.Present},
+
+		pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(123), Exp: -7, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(123), Exp: -8, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(123), Exp: -9, Status: pgtype.Present},
+		pgtype.Numeric{Int: big.NewInt(123), Exp: -1500, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "2437"), Exp: 23790, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "243723409723490243842378942378901237502734019231380123"), Exp: 23790, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "43723409723490243842378942378901237502734019231380123"), Exp: 80, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "3723409723490243842378942378901237502734019231380123"), Exp: 81, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "723409723490243842378942378901237502734019231380123"), Exp: 82, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "23409723490243842378942378901237502734019231380123"), Exp: 83, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "3409723490243842378942378901237502734019231380123"), Exp: 84, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "913423409823409243892349028349023482934092340892390101"), Exp: -14021, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "13423409823409243892349028349023482934092340892390101"), Exp: -90, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "3423409823409243892349028349023482934092340892390101"), Exp: -91, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "423409823409243892349028349023482934092340892390101"), Exp: -92, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "23409823409243892349028349023482934092340892390101"), Exp: -93, Status: pgtype.Present},
+		pgtype.Numeric{Int: mustParseBigInt(t, "3409823409243892349028349023482934092340892390101"), Exp: -94, Status: pgtype.Present},
 		pgtype.Numeric{Status: pgtype.Null},
+	}, func(aa, bb interface{}) bool {
+		a := aa.(pgtype.Numeric)
+		b := bb.(pgtype.Numeric)
+
+		return a.Status == a.Status &&
+			a.Exp == b.Exp &&
+			((a.Int == nil && b.Int == nil) || (a.Int != nil && b.Int != nil && a.Int.Cmp(b.Int) == 0))
 	})
 }
 
