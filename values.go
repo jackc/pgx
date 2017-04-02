@@ -118,6 +118,16 @@ func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.Oid, arg interfac
 
 	if dt, ok := ci.DataTypeForOid(oid); ok {
 		if _, ok := dt.Value.(pgtype.BinaryEncoder); ok {
+			if arg, ok := arg.(driver.Valuer); ok {
+				if err := dt.Value.Set(arg); err != nil {
+					if value, err := arg.Value(); err == nil {
+						if _, ok := value.(string); ok {
+							return TextFormatCode
+						}
+					}
+				}
+			}
+
 			return BinaryFormatCode
 		}
 	}
