@@ -2,7 +2,6 @@ package pgx_test
 
 import (
 	"fmt"
-	"io"
 	"regexp"
 	"strconv"
 
@@ -16,6 +15,25 @@ var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 type Point struct {
 	X, Y   float64 // Coordinates of point
 	Status pgtype.Status
+}
+
+func (dst *Point) Set(src interface{}) error {
+	return fmt.Errorf("cannot convert %v to Point", src)
+}
+
+func (dst *Point) Get() interface{} {
+	switch dst.Status {
+	case pgtype.Present:
+		return dst
+	case pgtype.Null:
+		return nil
+	default:
+		return dst.Status
+	}
+}
+
+func (src *Point) AssignTo(dst interface{}) error {
+	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
@@ -44,23 +62,12 @@ func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Point) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
-	switch src.Status {
-	case pgtype.Null:
-		return true, nil
-	case pgtype.Undefined:
-		return false, fmt.Errorf("undefined")
+func (src *Point) String() string {
+	if src.Status == pgtype.Null {
+		return "null point"
 	}
 
-	_, err := io.WriteString(w, fmt.Sprintf("point(%v,%v)", src.X, src.Y))
-	return false, err
-}
-
-func (p Point) String() string {
-	if p.Status == pgtype.Present {
-		return fmt.Sprintf("%v, %v", p.X, p.Y)
-	}
-	return "null point"
+	return fmt.Sprintf("%.1f, %.1f", src.X, src.Y)
 }
 
 func Example_CustomType() {
@@ -70,15 +77,22 @@ func Example_CustomType() {
 		return
 	}
 
-	var p Point
-	err = conn.QueryRow("select null::point").Scan(&p)
+	// Override registered handler for point
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &Point{},
+		Name:  "point",
+		Oid:   600,
+	})
+
+	p := &Point{}
+	err = conn.QueryRow("select null::point").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(p)
 
-	err = conn.QueryRow("select point(1.5,2.5)").Scan(&p)
+	err = conn.QueryRow("select point(1.5,2.5)").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return
