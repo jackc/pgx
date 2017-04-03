@@ -242,6 +242,7 @@ func init() {
 		"jsonb":        &Jsonb{},
 		"name":         &Name{},
 		"numeric":      &Numeric{},
+		"numrange":     &Numrange{},
 		"oid":          &OidValue{},
 		"record":       &Record{},
 		"text":         &Text{},
