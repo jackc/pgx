@@ -216,6 +216,7 @@ func init() {
 		"_int2":        &Int2Array{},
 		"_int4":        &Int4Array{},
 		"_int8":        &Int8Array{},
+		"_numeric":     &NumericArray{},
 		"_text":        &TextArray{},
 		"_timestamp":   &TimestampArray{},
 		"_timestamptz": &TimestamptzArray{},
