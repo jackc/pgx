@@ -710,6 +710,19 @@ func TestQueryRowUnknownType(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
+	// Clear existing type mappings
+	conn.ConnInfo = pgtype.NewConnInfo()
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &pgtype.GenericText{},
+		Name:  "point",
+		Oid:   600,
+	})
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &pgtype.Int4{},
+		Name:  "int4",
+		Oid:   pgtype.Int4Oid,
+	})
+
 	sql := "select $1::point"
 	expected := "(1,0)"
 	var actual string
@@ -751,7 +764,7 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
 		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot decode"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Text"},
+		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
 	}
 
 	for i, tt := range tests {
