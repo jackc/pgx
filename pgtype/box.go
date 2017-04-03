@@ -12,21 +12,16 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type Vec2 struct {
-	X float64
-	Y float64
+type Box struct {
+	Corners [2]Vec2
+	Status  Status
 }
 
-type Point struct {
-	Vec2
-	Status Status
+func (dst *Box) Set(src interface{}) error {
+	return fmt.Errorf("cannot convert %v to Box", src)
 }
 
-func (dst *Point) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Point", src)
-}
-
-func (dst *Point) Get() interface{} {
+func (dst *Box) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -37,23 +32,23 @@ func (dst *Point) Get() interface{} {
 	}
 }
 
-func (src *Point) AssignTo(dst interface{}) error {
+func (src *Box) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
-func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Box{Status: Null}
 		return nil
 	}
 
 	if len(src) < 5 {
-		return fmt.Errorf("invalid length for point: %v", len(src))
+		return fmt.Errorf("invalid length for Box: %v", len(src))
 	}
 
 	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
 	if len(parts) < 2 {
-		return fmt.Errorf("invalid format for point")
+		return fmt.Errorf("invalid format for Box")
 	}
 
 	x, err := strconv.ParseFloat(parts[0], 64)
@@ -66,24 +61,24 @@ func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Point{X: x, Y: y, Status: Present}
+	*dst = Box{X: x, Y: y, Status: Present}
 	return nil
 }
 
-func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Box{Status: Null}
 		return nil
 	}
 
 	if len(src) != 16 {
-		return fmt.Errorf("invalid length for point: %v", len(src))
+		return fmt.Errorf("invalid length for Box: %v", len(src))
 	}
 
 	x := binary.BigEndian.Uint64(src)
 	y := binary.BigEndian.Uint64(src[8:])
 
-	*dst = Point{
+	*dst = Box{
 		X:      math.Float64frombits(x),
 		Y:      math.Float64frombits(y),
 		Status: Present,
@@ -91,7 +86,7 @@ func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Point) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Box) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -103,7 +98,7 @@ func (src *Point) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src *Point) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Box) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -121,9 +116,9 @@ func (src *Point) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Point) Scan(src interface{}) error {
+func (dst *Box) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Box{Status: Null}
 		return nil
 	}
 
@@ -138,6 +133,6 @@ func (dst *Point) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Point) Value() (driver.Value, error) {
+func (src *Box) Value() (driver.Value, error) {
 	return encodeValueText(src)
 }
