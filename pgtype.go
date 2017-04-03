@@ -245,6 +245,7 @@ func init() {
 		"numeric":      &Numeric{},
 		"numrange":     &Numrange{},
 		"oid":          &OidValue{},
+		"point":        &Point{},
 		"record":       &Record{},
 		"text":         &Text{},
 		"tid":          &Tid{},
