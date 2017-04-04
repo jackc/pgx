@@ -223,6 +223,7 @@ func init() {
 		"_varchar":     &VarcharArray{},
 		"aclitem":      &Aclitem{},
 		"bool":         &Bool{},
+		"box":          &Box{},
 		"bytea":        &Bytea{},
 		"char":         &QChar{},
 		"cid":          &Cid{},
