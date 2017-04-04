@@ -12,16 +12,16 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type Box struct {
+type Lseg struct {
 	P      [2]Vec2
 	Status Status
 }
 
-func (dst *Box) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Box", src)
+func (dst *Lseg) Set(src interface{}) error {
+	return fmt.Errorf("cannot convert %v to Lseg", src)
 }
 
-func (dst *Box) Get() interface{} {
+func (dst *Lseg) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -32,21 +32,21 @@ func (dst *Box) Get() interface{} {
 	}
 }
 
-func (src *Box) AssignTo(dst interface{}) error {
+func (src *Lseg) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
-func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *Lseg) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Box{Status: Null}
+		*dst = Lseg{Status: Null}
 		return nil
 	}
 
 	if len(src) < 11 {
-		return fmt.Errorf("invalid length for Box: %v", len(src))
+		return fmt.Errorf("invalid length for Lseg: %v", len(src))
 	}
 
-	str := string(src[1:])
+	str := string(src[2:])
 
 	var end int
 	end = strings.IndexByte(str, ',')
@@ -72,25 +72,25 @@ func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	str = str[end+1 : len(str)-1]
+	str = str[end+1 : len(str)-2]
 
 	y2, err := strconv.ParseFloat(str, 64)
 	if err != nil {
 		return err
 	}
 
-	*dst = Box{P: [2]Vec2{{x1, y1}, {x2, y2}}, Status: Present}
+	*dst = Lseg{P: [2]Vec2{{x1, y1}, {x2, y2}}, Status: Present}
 	return nil
 }
 
-func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *Lseg) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Box{Status: Null}
+		*dst = Lseg{Status: Null}
 		return nil
 	}
 
 	if len(src) != 32 {
-		return fmt.Errorf("invalid length for Box: %v", len(src))
+		return fmt.Errorf("invalid length for Lseg: %v", len(src))
 	}
 
 	x1 := binary.BigEndian.Uint64(src)
@@ -98,7 +98,7 @@ func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
 	x2 := binary.BigEndian.Uint64(src[16:])
 	y2 := binary.BigEndian.Uint64(src[24:])
 
-	*dst = Box{
+	*dst = Lseg{
 		P: [2]Vec2{
 			{math.Float64frombits(x1), math.Float64frombits(y1)},
 			{math.Float64frombits(x2), math.Float64frombits(y2)},
@@ -108,7 +108,7 @@ func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Box) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Lseg) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -121,7 +121,7 @@ func (src *Box) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src *Box) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Lseg) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -146,9 +146,9 @@ func (src *Box) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Box) Scan(src interface{}) error {
+func (dst *Lseg) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Box{Status: Null}
+		*dst = Lseg{Status: Null}
 		return nil
 	}
 
@@ -163,6 +163,6 @@ func (dst *Box) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Box) Value() (driver.Value, error) {
+func (src *Lseg) Value() (driver.Value, error) {
 	return encodeValueText(src)
 }

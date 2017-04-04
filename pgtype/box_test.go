@@ -9,12 +9,12 @@ import (
 func TestBoxTranscode(t *testing.T) {
 	testSuccessfulTranscode(t, "box", []interface{}{
 		&pgtype.Box{
-			Corners: [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
-			Status:  pgtype.Present,
+			P:      [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
+			Status: pgtype.Present,
 		},
 		&pgtype.Box{
-			Corners: [2]pgtype.Vec2{{7.1, 1.678}, {-13.14, -5.234}},
-			Status:  pgtype.Present,
+			P:      [2]pgtype.Vec2{{7.1, 1.678}, {-13.14, -5.234}},
+			Status: pgtype.Present,
 		},
 		&pgtype.Box{Status: pgtype.Null},
 	})
@@ -25,8 +25,8 @@ func TestBoxNormalize(t *testing.T) {
 		{
 			sql: "select '3.14, 1.678, 7.1, 5.234'::box",
 			value: &pgtype.Box{
-				Corners: [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
-				Status:  pgtype.Present,
+				P:      [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
+				Status: pgtype.Present,
 			},
 		},
 	})
