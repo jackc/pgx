@@ -13,8 +13,8 @@ import (
 )
 
 type Box struct {
-	Corners [2]Vec2
-	Status  Status
+	P      [2]Vec2
+	Status Status
 }
 
 func (dst *Box) Set(src interface{}) error {
@@ -79,7 +79,7 @@ func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Box{Corners: [2]Vec2{{x1, y1}, {x2, y2}}, Status: Present}
+	*dst = Box{P: [2]Vec2{{x1, y1}, {x2, y2}}, Status: Present}
 	return nil
 }
 
@@ -99,7 +99,7 @@ func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
 	y2 := binary.BigEndian.Uint64(src[24:])
 
 	*dst = Box{
-		Corners: [2]Vec2{
+		P: [2]Vec2{
 			{math.Float64frombits(x1), math.Float64frombits(y1)},
 			{math.Float64frombits(x2), math.Float64frombits(y2)},
 		},
@@ -117,7 +117,7 @@ func (src *Box) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	}
 
 	_, err := io.WriteString(w, fmt.Sprintf(`(%f,%f),(%f,%f)`,
-		src.Corners[0].X, src.Corners[0].Y, src.Corners[1].X, src.Corners[1].Y))
+		src.P[0].X, src.P[0].Y, src.P[1].X, src.P[1].Y))
 	return false, err
 }
 
@@ -129,19 +129,19 @@ func (src *Box) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		return false, errUndefined
 	}
 
-	if _, err := pgio.WriteUint64(w, math.Float64bits(src.Corners[0].X)); err != nil {
+	if _, err := pgio.WriteUint64(w, math.Float64bits(src.P[0].X)); err != nil {
 		return false, err
 	}
 
-	if _, err := pgio.WriteUint64(w, math.Float64bits(src.Corners[0].Y)); err != nil {
+	if _, err := pgio.WriteUint64(w, math.Float64bits(src.P[0].Y)); err != nil {
 		return false, err
 	}
 
-	if _, err := pgio.WriteUint64(w, math.Float64bits(src.Corners[1].X)); err != nil {
+	if _, err := pgio.WriteUint64(w, math.Float64bits(src.P[1].X)); err != nil {
 		return false, err
 	}
 
-	_, err := pgio.WriteUint64(w, math.Float64bits(src.Corners[1].Y))
+	_, err := pgio.WriteUint64(w, math.Float64bits(src.P[1].Y))
 	return false, err
 }
 
