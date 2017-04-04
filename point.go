@@ -12,9 +12,13 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
+type Vec2 struct {
+	X float64
+	Y float64
+}
+
 type Point struct {
-	X      float64
-	Y      float64
+	Vec2
 	Status Status
 }
 
@@ -62,7 +66,7 @@ func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Point{X: x, Y: y, Status: Present}
+	*dst = Point{Vec2: Vec2{x, y}, Status: Present}
 	return nil
 }
 
@@ -80,8 +84,7 @@ func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	y := binary.BigEndian.Uint64(src[8:])
 
 	*dst = Point{
-		X:      math.Float64frombits(x),
-		Y:      math.Float64frombits(y),
+		Vec2:   Vec2{math.Float64frombits(x), math.Float64frombits(y)},
 		Status: Present,
 	}
 	return nil
