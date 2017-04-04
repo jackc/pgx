@@ -242,6 +242,7 @@ func init() {
 		"int8range":    &Int8range{},
 		"json":         &Json{},
 		"jsonb":        &Jsonb{},
+		"line":         &Line{},
 		"name":         &Name{},
 		"numeric":      &Numeric{},
 		"numrange":     &Numrange{},
