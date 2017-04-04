@@ -243,6 +243,7 @@ func init() {
 		"json":         &Json{},
 		"jsonb":        &Jsonb{},
 		"line":         &Line{},
+		"lseg":         &Lseg{},
 		"name":         &Name{},
 		"numeric":      &Numeric{},
 		"numrange":     &Numrange{},
