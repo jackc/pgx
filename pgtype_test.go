@@ -78,6 +78,15 @@ func mustParseCidr(t testing.TB, s string) *net.IPNet {
 	return ipnet
 }
 
+func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
+	addr, err := net.ParseMAC(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return addr
+}
+
 type forceTextEncoder struct {
 	e pgtype.TextEncoder
 }

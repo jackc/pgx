@@ -245,6 +245,7 @@ func init() {
 		"jsonb":        &Jsonb{},
 		"line":         &Line{},
 		"lseg":         &Lseg{},
+		"macaddr":      &Macaddr{},
 		"name":         &Name{},
 		"numeric":      &Numeric{},
 		"numrange":     &Numrange{},
