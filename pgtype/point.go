@@ -18,7 +18,7 @@ type Vec2 struct {
 }
 
 type Point struct {
-	Vec2
+	P      Vec2
 	Status Status
 }
 
@@ -66,7 +66,7 @@ func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Point{Vec2: Vec2{x, y}, Status: Present}
+	*dst = Point{P: Vec2{x, y}, Status: Present}
 	return nil
 }
 
@@ -84,7 +84,7 @@ func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	y := binary.BigEndian.Uint64(src[8:])
 
 	*dst = Point{
-		Vec2:   Vec2{math.Float64frombits(x), math.Float64frombits(y)},
+		P:      Vec2{math.Float64frombits(x), math.Float64frombits(y)},
 		Status: Present,
 	}
 	return nil
@@ -98,7 +98,7 @@ func (src *Point) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		return false, errUndefined
 	}
 
-	_, err := io.WriteString(w, fmt.Sprintf(`(%f,%f)`, src.X, src.Y))
+	_, err := io.WriteString(w, fmt.Sprintf(`(%f,%f)`, src.P.X, src.P.Y))
 	return false, err
 }
 
@@ -110,12 +110,12 @@ func (src *Point) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		return false, errUndefined
 	}
 
-	_, err := pgio.WriteUint64(w, math.Float64bits(src.X))
+	_, err := pgio.WriteUint64(w, math.Float64bits(src.P.X))
 	if err != nil {
 		return false, err
 	}
 
-	_, err = pgio.WriteUint64(w, math.Float64bits(src.Y))
+	_, err = pgio.WriteUint64(w, math.Float64bits(src.P.Y))
 	return false, err
 }
 
