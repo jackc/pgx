@@ -70,13 +70,19 @@ func (src *Inet) AssignTo(dst interface{}) error {
 	case Present:
 		switch v := dst.(type) {
 		case *net.IPNet:
-			*v = *src.IPNet
+			*v = net.IPNet{
+				IP:   make(net.IP, len(src.IPNet.IP)),
+				Mask: make(net.IPMask, len(src.IPNet.Mask)),
+			}
+			copy(v.IP, src.IPNet.IP)
+			copy(v.Mask, src.IPNet.Mask)
 			return nil
 		case *net.IP:
 			if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
 				return fmt.Errorf("cannot assign %v to %T", src, dst)
 			}
-			*v = src.IPNet.IP
+			*v = make(net.IP, len(src.IPNet.IP))
+			copy(*v, src.IPNet.IP)
 			return nil
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {

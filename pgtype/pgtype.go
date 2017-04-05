@@ -89,7 +89,8 @@ type Value interface {
 	// possible, then Get() returns Value.
 	Get() interface{}
 
-	// AssignTo converts and assigns the Value to dst.
+	// AssignTo converts and assigns the Value to dst. It MUST make a deep copy of
+	// any reference types.
 	AssignTo(dst interface{}) error
 }
 
