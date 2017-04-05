@@ -228,6 +228,7 @@ func init() {
 		"char":         &QChar{},
 		"cid":          &Cid{},
 		"cidr":         &Cidr{},
+		"circle":       &Circle{},
 		"date":         &Date{},
 		"daterange":    &Daterange{},
 		"decimal":      &Decimal{},
