@@ -250,6 +250,7 @@ func init() {
 		"oid":          &OidValue{},
 		"path":         &Path{},
 		"point":        &Point{},
+		"polygon":      &Polygon{},
 		"record":       &Record{},
 		"text":         &Text{},
 		"tid":          &Tid{},
