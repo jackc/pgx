@@ -263,6 +263,7 @@ func init() {
 		"tstzrange":    &Tstzrange{},
 		"unknown":      &Unknown{},
 		"uuid":         &Uuid{},
+		"varbit":       &Varbit{},
 		"varchar":      &Varchar{},
 		"xid":          &Xid{},
 	}
