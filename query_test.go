@@ -1128,3 +1128,42 @@ func TestQueryRowContextCancelationCancelsQuery(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestConnQueryRowExSimpleProtocolStringQuoting(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var sum, rowCount int32
+
+	rows, err := conn.QueryEx(
+		context.Background(),
+		"select generate_series(1,$1)",
+
+		10)
+	if err != nil {
+		t.Fatalf("conn.QueryEx failed: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var n int32
+		rows.Scan(&n)
+		sum += n
+		rowCount++
+	}
+
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+
+	if rowCount != 10 {
+		t.Error("Select called onDataRow wrong number of times")
+	}
+	if sum != 55 {
+		t.Error("Wrong values returned")
+	}
+
+	ensureConnValid(t, conn)
+}

@@ -411,7 +411,63 @@ func (c *Conn) QueryContext(ctx context.Context, sql string, args ...interface{}
 	return rows, err
 }
 
+type QueryExOptions struct {
+	SimpleProtocol bool
+}
+
+func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	err = c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c.lastActivityTime = time.Now()
+
+	rows = c.getRows(sql, args)
+
+	if err := c.lock(); err != nil {
+		rows.Fatal(err)
+		return rows, err
+	}
+	rows.unlockConn = true
+
+	if options.SimpleProtocol {
+		c.sendSimpleQuery(sql, args...)
+	}
+
+	ps, ok := c.preparedStatements[sql]
+	if !ok {
+		var err error
+		ps, err = c.PrepareExContext(ctx, "", sql, nil)
+		if err != nil {
+			rows.Fatal(err)
+			return rows, rows.err
+		}
+	}
+	rows.sql = ps.SQL
+	rows.fields = ps.FieldDescriptions
+
+	err = c.initContext(ctx)
+	if err != nil {
+		rows.Fatal(err)
+		return rows, err
+	}
+
+	err = c.sendPreparedQuery(ps, args...)
+	if err != nil {
+		rows.Fatal(err)
+		err = c.termContext(err)
+	}
+
+	return rows, err
+}
+
 func (c *Conn) QueryRowContext(ctx context.Context, sql string, args ...interface{}) *Row {
 	rows, _ := c.QueryContext(ctx, sql, args...)
+	return (*Row)(rows)
+}
+
+func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
+	rows, _ := c.QueryEx(ctx, sql, options, args...)
 	return (*Row)(rows)
 }
