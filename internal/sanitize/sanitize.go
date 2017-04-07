@@ -1,6 +1,10 @@
 package sanitize
 
 import (
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -13,7 +17,33 @@ type Query struct {
 }
 
 func (q *Query) Sanitize(args ...interface{}) (string, error) {
-	return "", nil
+	buf := &bytes.Buffer{}
+
+	for _, part := range q.Parts {
+		var str string
+		switch part := part.(type) {
+		case string:
+			str = part
+		case int:
+			argIdx := part - 1
+			if argIdx >= len(args) {
+				return "", fmt.Errorf("insufficient arguments")
+			}
+			arg := args[argIdx]
+			switch arg := arg.(type) {
+			case nil:
+				str = "null"
+			case int:
+				str = strconv.FormatInt(int64(arg), 10)
+			case string:
+				str = QuoteString(arg)
+			}
+		default:
+			return "", fmt.Errorf("invalid Part type: %T", part)
+		}
+		buf.WriteString(str)
+	}
+	return buf.String(), nil
 }
 
 func NewQuery(sql string) (*Query, error) {
@@ -29,6 +59,10 @@ func NewQuery(sql string) (*Query, error) {
 	query := &Query{Parts: l.parts}
 
 	return query, nil
+}
+
+func QuoteString(str string) string {
+	return "'" + strings.Replace(str, "'", "''", -1) + "'"
 }
 
 type sqlLexer struct {
@@ -47,6 +81,12 @@ func rawState(l *sqlLexer) stateFn {
 		l.pos += width
 
 		switch r {
+		case 'e', 'E':
+			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
+			if nextRune == '\'' {
+				l.pos += width
+				return escapeStringState
+			}
 		case '\'':
 			return singleQuoteState
 		case '"':
@@ -131,6 +171,31 @@ func placeholderState(l *sqlLexer) stateFn {
 			l.pos -= width
 			l.start = l.pos
 			return rawState
+		}
+	}
+}
+
+func escapeStringState(l *sqlLexer) stateFn {
+	for {
+		r, width := utf8.DecodeRuneInString(l.src[l.pos:])
+		l.pos += width
+
+		switch r {
+		case '\\':
+			_, width = utf8.DecodeRuneInString(l.src[l.pos:])
+			l.pos += width
+		case '\'':
+			nextRune, width := utf8.DecodeRuneInString(l.src[l.pos:])
+			if nextRune != '\'' {
+				return rawState
+			}
+			l.pos += width
+		case utf8.RuneError:
+			if l.pos-l.start > 0 {
+				l.parts = append(l.parts, l.src[l.start:l.pos])
+				l.start = l.pos
+			}
+			return nil
 		}
 	}
 }
