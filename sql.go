@@ -2,7 +2,6 @@ package pgx
 
 import (
 	"strconv"
-	"strings"
 )
 
 // QueryArgs is a container for arguments to an SQL query. It is helpful when
@@ -27,10 +26,4 @@ func (qa *QueryArgs) Append(v interface{}) string {
 		return placeholders[len(*qa)]
 	}
 	return "$" + strconv.Itoa(len(*qa))
-}
-
-// quoteString sanitizes and quotes a string for interpolation into a SQL
-// string. This is only safe when standard_conforming_strings is on.
-func quoteString(str string) string {
-	return strings.Replace(str, `'`, `''`, -1)
 }

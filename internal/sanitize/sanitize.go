@@ -2,6 +2,7 @@ package sanitize
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,6 +18,7 @@ type Query struct {
 }
 
 func (q *Query) Sanitize(args ...interface{}) (string, error) {
+	argUse := make([]bool, len(args))
 	buf := &bytes.Buffer{}
 
 	for _, part := range q.Parts {
@@ -33,15 +35,30 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 			switch arg := arg.(type) {
 			case nil:
 				str = "null"
-			case int:
-				str = strconv.FormatInt(int64(arg), 10)
+			case int64:
+				str = strconv.FormatInt(arg, 10)
+			case float64:
+				str = strconv.FormatFloat(arg, 'f', -1, 64)
+			case bool:
+				str = strconv.FormatBool(arg)
 			case string:
 				str = QuoteString(arg)
+			case []byte:
+				str = QuoteBytes(arg)
+			default:
+				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}
+			argUse[argIdx] = true
 		default:
 			return "", fmt.Errorf("invalid Part type: %T", part)
 		}
 		buf.WriteString(str)
+	}
+
+	for i, used := range argUse {
+		if !used {
+			return "", fmt.Errorf("unused argument: %d", i)
+		}
 	}
 	return buf.String(), nil
 }
@@ -63,6 +80,10 @@ func NewQuery(sql string) (*Query, error) {
 
 func QuoteString(str string) string {
 	return "'" + strings.Replace(str, "'", "''", -1) + "'"
+}
+
+func QuoteBytes(buf []byte) string {
+	return `'\x` + hex.EncodeToString(buf) + "'"
 }
 
 type sqlLexer struct {

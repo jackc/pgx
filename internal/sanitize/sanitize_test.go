@@ -92,8 +92,23 @@ func TestQuerySanitize(t *testing.T) {
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{42},
+			args:     []interface{}{int64(42)},
 			expected: `select 42`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []interface{}{float64(1.23)},
+			expected: `select 1.23`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []interface{}{true},
+			expected: `select true`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []interface{}{[]byte{0, 1, 2, 3, 255}},
+			expected: `select '\x00010203ff'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
@@ -136,14 +151,24 @@ func TestQuerySanitize(t *testing.T) {
 	}{
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1, ", ", 2}},
-			args:     []interface{}{42},
+			args:     []interface{}{int64(42)},
 			expected: `insufficient arguments`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select 'foo'"}},
+			args:     []interface{}{int64(42)},
+			expected: `unused argument: 0`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []interface{}{42},
+			expected: `invalid arg type: int`,
 		},
 	}
 
 	for i, tt := range errorTests {
 		_, err := tt.query.Sanitize(tt.args...)
-		if err.Error() != tt.expected {
+		if err == nil || err.Error() != tt.expected {
 			t.Errorf("%d. expected error %v, got %v", i, tt.expected, err)
 		}
 	}

@@ -1,0 +1,11 @@
+simple query TODO
+
+extract simple query logic and share with ExecEx
+remove context variants of Exec/Query/QueryRow
+
+remember timestamp and timestamptz support for simple protocol
+
+double check how timestamp would binary encode a time.Time in non-UTC. Since it uses epoch it might shift the time differently than text protocol where postgresql ignores the time zone.
+
+add simple query test to all pgtypes
+

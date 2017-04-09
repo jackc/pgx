@@ -34,22 +34,3 @@ func BenchmarkQueryArgs(b *testing.B) {
 		qa.Append("foo10")
 	}
 }
-
-func TestQuoteString(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"", `''`},
-		{"foo", `'foo'`},
-		{"'", `''''`},
-		{`\`, `'\'`},
-	}
-
-	for i, tt := range tests {
-		actual := quoteString(tt.input)
-		if actual != expected {
-			t.Errorf("%d. expected %v got %v", i, expected, actual)
-		}
-	}
-}

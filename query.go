@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/internal/sanitize"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -123,6 +124,17 @@ func (rows *Rows) Next() bool {
 		}
 
 		switch t {
+		case rowDescription:
+			rows.fields = rows.conn.rxRowDescription(r)
+			for i := range rows.fields {
+				if dt, ok := rows.conn.ConnInfo.DataTypeForOid(rows.fields[i].DataType); ok {
+					rows.fields[i].DataTypeName = dt.Name
+					rows.fields[i].FormatCode = TextFormatCode
+				} else {
+					rows.Fatal(fmt.Errorf("unknown oid: %d", rows.fields[i].DataType))
+					return false
+				}
+			}
 		case dataRow:
 			fieldCount := r.readInt16()
 			if int(fieldCount) != len(rows.fields) {
@@ -432,7 +444,46 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	rows.unlockConn = true
 
 	if options.SimpleProtocol {
-		c.sendSimpleQuery(sql, args...)
+		if rows.conn.RuntimeParams["standard_conforming_strings"] != "on" {
+			err = errors.New("simple protocol queries must be run with standard_conforming_strings=on")
+			rows.Fatal(err)
+			return rows, err
+		}
+
+		if rows.conn.RuntimeParams["client_encoding"] != "UTF8" {
+			err = errors.New("simple protocol queries must be run with client_encoding=UTF8")
+			rows.Fatal(err)
+			return rows, err
+		}
+
+		valueArgs := make([]interface{}, len(args))
+		for i, a := range args {
+			valueArgs[i], err = convertSimpleArgument(rows.conn.ConnInfo, a)
+			if err != nil {
+				rows.Fatal(err)
+				return rows, err
+			}
+		}
+
+		sql, err = sanitize.SanitizeSQL(sql, valueArgs...)
+		if err != nil {
+			rows.Fatal(err)
+			return rows, err
+		}
+
+		err = c.initContext(ctx)
+		if err != nil {
+			rows.Fatal(err)
+			return rows, err
+		}
+
+		err = c.sendSimpleQuery(sql)
+		if err != nil {
+			rows.Fatal(err)
+			return rows, err
+		}
+
+		return rows, nil
 	}
 
 	ps, ok := c.preparedStatements[sql]
