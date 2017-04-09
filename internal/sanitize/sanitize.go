@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -41,10 +42,12 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 				str = strconv.FormatFloat(arg, 'f', -1, 64)
 			case bool:
 				str = strconv.FormatBool(arg)
-			case string:
-				str = QuoteString(arg)
 			case []byte:
 				str = QuoteBytes(arg)
+			case string:
+				str = QuoteString(arg)
+			case time.Time:
+				str = arg.Format("'2006-01-02 15:04:05.999999999Z07:00:00'")
 			default:
 				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}

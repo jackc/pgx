@@ -8,10 +8,23 @@ import (
 )
 
 func TestXidTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "xid", []interface{}{
+	pgTypeName := "xid"
+	values := []interface{}{
 		pgtype.Xid{Uint: 42, Status: pgtype.Present},
 		pgtype.Xid{Status: pgtype.Null},
-	})
+	}
+	eqFunc := func(a, b interface{}) bool {
+		return reflect.DeepEqual(a, b)
+	}
+
+	testPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
+
+	// No direct conversion from int to xid, convert through text
+	testPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
+
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+		testDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
+	}
 }
 
 func TestXidSet(t *testing.T) {
