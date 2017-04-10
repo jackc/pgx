@@ -145,7 +145,7 @@ func (dst *Json) Scan(src interface{}) error {
 func (src Json) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
-		return src.Bytes, nil
+		return string(src.Bytes), nil
 	case Null:
 		return nil, nil
 	default:
