@@ -121,13 +121,13 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 	case Present:
 		switch v := dst.(type) {
 		case *float32:
-			f, err := strconv.ParseFloat(src.Int.String(), 64)
+			f, err := src.toFloat64()
 			if err != nil {
 				return err
 			}
 			return float64AssignTo(f, src.Status, dst)
 		case *float64:
-			f, err := strconv.ParseFloat(src.Int.String(), 64)
+			f, err := src.toFloat64()
 			if err != nil {
 				return err
 			}
@@ -281,6 +281,23 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 		return nil, fmt.Errorf("cannot convert %v to integer", dst)
 	}
 	return num, nil
+}
+
+func (src *Numeric) toFloat64() (float64, error) {
+	f, err := strconv.ParseFloat(src.Int.String(), 64)
+	if err != nil {
+		return 0, err
+	}
+	if src.Exp > 0 {
+		for i := 0; i < int(src.Exp); i++ {
+			f *= 10
+		}
+	} else if src.Exp < 0 {
+		for i := 0; i > int(src.Exp); i-- {
+			f /= 10
+		}
+	}
+	return f, nil
 }
 
 func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
