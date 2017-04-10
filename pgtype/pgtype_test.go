@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"io"
@@ -125,6 +126,7 @@ func testSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface
 
 func testSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	testPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
+	testPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
 	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
 		testDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
@@ -171,6 +173,35 @@ func testPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 			if !eqFunc(result.Elem().Interface(), derefV) {
 				t.Errorf("%v %d: expected %v, got %v", fc.name, i, derefV, result.Elem().Interface())
 			}
+		}
+	}
+}
+
+func testPgxSimpleProtocolSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
+	conn := mustConnectPgx(t)
+	defer mustClose(t, conn)
+
+	for i, v := range values {
+		// Derefence value if it is a pointer
+		derefV := v
+		refVal := reflect.ValueOf(v)
+		if refVal.Kind() == reflect.Ptr {
+			derefV = refVal.Elem().Interface()
+		}
+
+		result := reflect.New(reflect.TypeOf(derefV))
+		err := conn.QueryRowEx(
+			context.Background(),
+			fmt.Sprintf("select ($1)::%s", pgTypeName),
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			v,
+		).Scan(result.Interface())
+		if err != nil {
+			t.Errorf("Simple protocol %d: %v", i, err)
+		}
+
+		if !eqFunc(result.Elem().Interface(), derefV) {
+			t.Errorf("Simple protocol %d: expected %v, got %v", i, derefV, result.Elem().Interface())
 		}
 	}
 }

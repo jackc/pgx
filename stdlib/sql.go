@@ -268,7 +268,7 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 
 	args := namedValueToInterface(argsV)
 
-	rows, err := c.conn.QueryContext(ctx, name, args...)
+	rows, err := c.conn.QueryEx(ctx, name, nil, args...)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err

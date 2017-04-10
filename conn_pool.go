@@ -360,14 +360,14 @@ func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag Comman
 	return c.Exec(sql, arguments...)
 }
 
-func (p *ConnPool) ExecContext(ctx context.Context, sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (p *ConnPool) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
 	}
 	defer p.Release(c)
 
-	return c.ExecContext(ctx, sql, arguments...)
+	return c.ExecEx(ctx, sql, options, arguments...)
 }
 
 // Query acquires a connection and delegates the call to that connection. When
@@ -390,14 +390,14 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	return rows, nil
 }
 
-func (p *ConnPool) QueryContext(ctx context.Context, sql string, args ...interface{}) (*Rows, error) {
+func (p *ConnPool) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (*Rows, error) {
 	c, err := p.Acquire()
 	if err != nil {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		return &Rows{closed: true, err: err}, err
 	}
 
-	rows, err := c.QueryContext(ctx, sql, args...)
+	rows, err := c.QueryEx(ctx, sql, options, args...)
 	if err != nil {
 		p.Release(c)
 		return rows, err
@@ -416,8 +416,8 @@ func (p *ConnPool) QueryRow(sql string, args ...interface{}) *Row {
 	return (*Row)(rows)
 }
 
-func (p *ConnPool) QueryRowContext(ctx context.Context, sql string, args ...interface{}) *Row {
-	rows, _ := p.QueryContext(ctx, sql, args...)
+func (p *ConnPool) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
+	rows, _ := p.QueryEx(ctx, sql, options, args...)
 	return (*Row)(rows)
 }
 

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"fmt"
+	"math"
 	"reflect"
+	"time"
 
 	"github.com/jackc/pgx/pgtype"
 )
@@ -20,6 +22,80 @@ type SerializationError string
 
 func (e SerializationError) Error() string {
 	return string(e)
+}
+
+func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, error) {
+	if arg == nil {
+		return nil, nil
+	}
+
+	switch arg := arg.(type) {
+	case driver.Valuer:
+		return arg.Value()
+	case pgtype.TextEncoder:
+		buf := &bytes.Buffer{}
+		null, err := arg.EncodeText(ci, buf)
+		if err != nil {
+			return nil, err
+		}
+		if null {
+			return nil, nil
+		}
+		return buf.String(), nil
+	case int64:
+		return arg, nil
+	case float64:
+		return arg, nil
+	case bool:
+		return arg, nil
+	case time.Time:
+		return arg, nil
+	case string:
+		return arg, nil
+	case []byte:
+		return arg, nil
+	case int8:
+		return int64(arg), nil
+	case int16:
+		return int64(arg), nil
+	case int32:
+		return int64(arg), nil
+	case int:
+		return int64(arg), nil
+	case uint8:
+		return int64(arg), nil
+	case uint16:
+		return int64(arg), nil
+	case uint32:
+		return int64(arg), nil
+	case uint64:
+		if arg > math.MaxInt64 {
+			return nil, fmt.Errorf("arg too big for int64: %v", arg)
+		}
+		return int64(arg), nil
+	case uint:
+		if arg > math.MaxInt64 {
+			return nil, fmt.Errorf("arg too big for int64: %v", arg)
+		}
+		return int64(arg), nil
+	case float32:
+		return float64(arg), nil
+	}
+
+	refVal := reflect.ValueOf(arg)
+
+	if refVal.Kind() == reflect.Ptr {
+		if refVal.IsNil() {
+			return nil, nil
+		}
+		arg = refVal.Elem().Interface()
+		return convertSimpleArgument(ci, arg)
+	}
+
+	if strippedArg, ok := stripNamedType(&refVal); ok {
+		return convertSimpleArgument(ci, strippedArg)
+	}
+	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
 func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
