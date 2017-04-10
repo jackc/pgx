@@ -8,10 +8,23 @@ import (
 )
 
 func TestCidTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "cid", []interface{}{
+	pgTypeName := "cid"
+	values := []interface{}{
 		pgtype.Cid{Uint: 42, Status: pgtype.Present},
 		pgtype.Cid{Status: pgtype.Null},
-	})
+	}
+	eqFunc := func(a, b interface{}) bool {
+		return reflect.DeepEqual(a, b)
+	}
+
+	testPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
+
+	// No direct conversion from int to cid, convert through text
+	testPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
+
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+		testDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
+	}
 }
 
 func TestCidSet(t *testing.T) {

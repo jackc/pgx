@@ -1033,7 +1033,7 @@ func TestExecFailure(t *testing.T) {
 	}
 }
 
-func TestExecContextWithoutCancelation(t *testing.T) {
+func TestExecExContextWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -1042,16 +1042,16 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	commandTag, err := conn.ExecContext(ctx, "create temporary table foo(id integer primary key);")
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(id integer primary key);", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if commandTag != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from ExecContext: %v", commandTag)
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 }
 
-func TestExecContextFailureWithoutCancelation(t *testing.T) {
+func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -1060,18 +1060,18 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	if _, err := conn.ExecContext(ctx, "selct;"); err == nil {
+	if _, err := conn.ExecEx(ctx, "selct;", nil); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 
 	rows, _ := conn.Query("select 1")
 	rows.Close()
 	if rows.Err() != nil {
-		t.Fatalf("ExecContext failure appears to have broken connection: %v", rows.Err())
+		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
 	}
 }
 
-func TestExecContextCancelationCancelsQuery(t *testing.T) {
+func TestExecExContextCancelationCancelsQuery(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -1083,12 +1083,76 @@ func TestExecContextCancelationCancelsQuery(t *testing.T) {
 		cancelFunc()
 	}()
 
-	_, err := conn.ExecContext(ctx, "select pg_sleep(60)")
+	_, err := conn.ExecEx(ctx, "select pg_sleep(60)", nil)
 	if err != context.Canceled {
 		t.Fatalf("Expected context.Canceled err, got %v", err)
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestExecExExtendedProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	commandTag, err = conn.ExecEx(
+		ctx,
+		"insert into foo(name) values($1);",
+		nil,
+		"bar",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestExecExSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	commandTag, err = conn.ExecEx(
+		ctx,
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{SimpleProtocol: true},
+		"bar'; drop table foo;--",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
 }
 
 func TestPrepare(t *testing.T) {

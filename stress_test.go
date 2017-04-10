@@ -49,8 +49,8 @@ func TestStressConnPool(t *testing.T) {
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
 		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
 		{"poolPrepareUseAndDeallocate", poolPrepareUseAndDeallocate},
-		{"canceledQueryContext", canceledQueryContext},
-		{"canceledExecContext", canceledExecContext},
+		{"canceledQueryExContext", canceledQueryExContext},
+		{"canceledExecExContext", canceledExecExContext},
 	}
 
 	actionCount := 1000
@@ -317,14 +317,14 @@ func txMultipleQueries(pool *pgx.ConnPool, actionNum int) error {
 	return tx.Commit()
 }
 
-func canceledQueryContext(pool *pgx.ConnPool, actionNum int) error {
+func canceledQueryExContext(pool *pgx.ConnPool, actionNum int) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
 		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
 		cancelFunc()
 	}()
 
-	rows, err := pool.QueryContext(ctx, "select pg_sleep(2)")
+	rows, err := pool.QueryEx(ctx, "select pg_sleep(2)", nil)
 	if err == context.Canceled {
 		return nil
 	} else if err != nil {
@@ -342,14 +342,14 @@ func canceledQueryContext(pool *pgx.ConnPool, actionNum int) error {
 	return nil
 }
 
-func canceledExecContext(pool *pgx.ConnPool, actionNum int) error {
+func canceledExecExContext(pool *pgx.ConnPool, actionNum int) error {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	go func() {
 		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
 		cancelFunc()
 	}()
 
-	_, err := pool.ExecContext(ctx, "select pg_sleep(2)")
+	_, err := pool.ExecEx(ctx, "select pg_sleep(2)", nil)
 	if err != context.Canceled {
 		return fmt.Errorf("Expected context.Canceled error, got %v", err)
 	}

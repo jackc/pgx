@@ -1021,7 +1021,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
-	return c.ExecContext(context.Background(), sql, arguments...)
+	return c.ExecEx(context.Background(), sql, nil, arguments...)
 }
 
 // Processes messages that are not exclusive to one context such as
@@ -1364,23 +1364,15 @@ func (c *Conn) Ping() error {
 }
 
 func (c *Conn) PingContext(ctx context.Context) error {
-	_, err := c.ExecContext(ctx, ";")
+	_, err := c.ExecEx(ctx, ";", nil)
 	return err
 }
 
-func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
 	err = c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
 		return "", err
 	}
-
-	err = c.initContext(ctx)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		err = c.termContext(err)
-	}()
 
 	if err = c.lock(); err != nil {
 		return commandTag, err
@@ -1406,8 +1398,56 @@ func (c *Conn) ExecContext(ctx context.Context, sql string, arguments ...interfa
 		}
 	}()
 
-	if err = c.sendQuery(sql, arguments...); err != nil {
-		return
+	if options != nil && options.SimpleProtocol {
+		err = c.initContext(ctx)
+		if err != nil {
+			return "", err
+		}
+		defer func() {
+			err = c.termContext(err)
+		}()
+
+		err = c.sanitizeAndSendSimpleQuery(sql, arguments...)
+		if err != nil {
+			return "", err
+
+		}
+	} else {
+		if len(arguments) > 0 {
+			ps, ok := c.preparedStatements[sql]
+			if !ok {
+				var err error
+				ps, err = c.PrepareExContext(ctx, "", sql, nil)
+				if err != nil {
+					return "", err
+				}
+			}
+
+			err = c.initContext(ctx)
+			if err != nil {
+				return "", err
+			}
+			defer func() {
+				err = c.termContext(err)
+			}()
+
+			err = c.sendPreparedQuery(ps, arguments...)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			err = c.initContext(ctx)
+			if err != nil {
+				return "", err
+			}
+			defer func() {
+				err = c.termContext(err)
+			}()
+
+			if err = c.sendQuery(sql, arguments...); err != nil {
+				return
+			}
+		}
 	}
 
 	var softErr error
