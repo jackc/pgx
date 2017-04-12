@@ -54,6 +54,7 @@ install:
   - go get -u github.com/jackc/fake
   - go get -u github.com/jackc/pgmock/pgmsg
   - go get -u github.com/lib/pq
+  - go get -u github.com/hashicorp/go-version
 
 script:
   - go test -v -race ./...
