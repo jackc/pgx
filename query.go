@@ -43,7 +43,6 @@ type Rows struct {
 	conn       *Conn
 	mr         *msgReader
 	fields     []FieldDescription
-	vr         ValueReader
 	rowCount   int
 	columnIdx  int
 	err        error
@@ -114,7 +113,6 @@ func (rows *Rows) Next() bool {
 
 	rows.rowCount++
 	rows.columnIdx = 0
-	rows.vr = ValueReader{}
 
 	for {
 		t, r, err := rows.conn.rxMsg()
@@ -163,24 +161,23 @@ func (rows *Rows) Conn() *Conn {
 	return rows.conn
 }
 
-func (rows *Rows) nextColumn() (*ValueReader, bool) {
+func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
 	if rows.closed {
-		return nil, false
+		return nil, nil, false
 	}
 	if len(rows.fields) <= rows.columnIdx {
 		rows.Fatal(ProtocolError("No next column available"))
-		return nil, false
-	}
-
-	if rows.vr.Len() > 0 {
-		rows.mr.readBytes(rows.vr.Len())
+		return nil, nil, false
 	}
 
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
 	size := rows.mr.readInt32()
-	rows.vr = ValueReader{mr: rows.mr, fd: fd, valueBytesRemaining: size}
-	return &rows.vr, true
+	var buf []byte
+	if size >= 0 {
+		buf = rows.mr.readBytes(size)
+	}
+	return buf, fd, true
 }
 
 type scanArgError struct {
@@ -204,49 +201,49 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	}
 
 	for i, d := range dest {
-		vr, _ := rows.nextColumn()
+		buf, fd, _ := rows.nextColumn()
 
 		if d == nil {
 			continue
 		}
 
-		if s, ok := d.(pgtype.BinaryDecoder); ok && vr.Type().FormatCode == BinaryFormatCode {
-			err = s.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+		if s, ok := d.(pgtype.BinaryDecoder); ok && fd.FormatCode == BinaryFormatCode {
+			err = s.DecodeBinary(rows.conn.ConnInfo, buf)
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
-		} else if s, ok := d.(pgtype.TextDecoder); ok && vr.Type().FormatCode == TextFormatCode {
-			err = s.DecodeText(rows.conn.ConnInfo, vr.bytes())
+		} else if s, ok := d.(pgtype.TextDecoder); ok && fd.FormatCode == TextFormatCode {
+			err = s.DecodeText(rows.conn.ConnInfo, buf)
 			if err != nil {
 				rows.Fatal(scanArgError{col: i, err: err})
 			}
 		} else {
-			if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+			if dt, ok := rows.conn.ConnInfo.DataTypeForOid(fd.DataType); ok {
 				value := dt.Value
-				switch vr.Type().FormatCode {
+				switch fd.FormatCode {
 				case TextFormatCode:
 					if textDecoder, ok := value.(pgtype.TextDecoder); ok {
-						err = textDecoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
+						err = textDecoder.DecodeText(rows.conn.ConnInfo, buf)
 						if err != nil {
-							vr.Fatal(err)
+							rows.Fatal(scanArgError{col: i, err: err})
 						}
 					} else {
-						vr.Fatal(fmt.Errorf("%T is not a pgtype.TextDecoder", value))
+						rows.Fatal(scanArgError{col: i, err: fmt.Errorf("%T is not a pgtype.TextDecoder", value)})
 					}
 				case BinaryFormatCode:
 					if binaryDecoder, ok := value.(pgtype.BinaryDecoder); ok {
-						err = binaryDecoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+						err = binaryDecoder.DecodeBinary(rows.conn.ConnInfo, buf)
 						if err != nil {
-							vr.Fatal(err)
+							rows.Fatal(scanArgError{col: i, err: err})
 						}
 					} else {
-						vr.Fatal(fmt.Errorf("%T is not a pgtype.BinaryDecoder", value))
+						rows.Fatal(scanArgError{col: i, err: fmt.Errorf("%T is not a pgtype.BinaryDecoder", value)})
 					}
 				default:
-					vr.Fatal(fmt.Errorf("unknown format code: %v", vr.Type().FormatCode))
+					rows.Fatal(scanArgError{col: i, err: fmt.Errorf("unknown format code: %v", fd.FormatCode)})
 				}
 
-				if vr.Err() == nil {
+				if rows.Err() == nil {
 					if scanner, ok := d.(sql.Scanner); ok {
 						sqlSrc, err := pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
 						if err != nil {
@@ -257,15 +254,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 							rows.Fatal(scanArgError{col: i, err: err})
 						}
 					} else if err := value.AssignTo(d); err != nil {
-						vr.Fatal(err)
+						rows.Fatal(scanArgError{col: i, err: err})
 					}
 				}
 			} else {
-				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("unknown oid: %v", vr.Type().DataType)})
+				rows.Fatal(scanArgError{col: i, err: fmt.Errorf("unknown oid: %v", fd.DataType)})
 			}
-		}
-		if vr.Err() != nil {
-			rows.Fatal(scanArgError{col: i, err: vr.Err()})
 		}
 
 		if rows.Err() != nil {
@@ -285,23 +279,23 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	values := make([]interface{}, 0, len(rows.fields))
 
 	for range rows.fields {
-		vr, _ := rows.nextColumn()
+		buf, fd, _ := rows.nextColumn()
 
-		if vr.Len() == -1 {
+		if buf == nil {
 			values = append(values, nil)
 			continue
 		}
 
-		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(vr.Type().DataType); ok {
+		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(fd.DataType); ok {
 			value := dt.Value
 
-			switch vr.Type().FormatCode {
+			switch fd.FormatCode {
 			case TextFormatCode:
 				decoder := value.(pgtype.TextDecoder)
 				if decoder == nil {
 					decoder = &pgtype.GenericText{}
 				}
-				err := decoder.DecodeText(rows.conn.ConnInfo, vr.bytes())
+				err := decoder.DecodeText(rows.conn.ConnInfo, buf)
 				if err != nil {
 					rows.Fatal(err)
 				}
@@ -311,7 +305,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 				if decoder == nil {
 					decoder = &pgtype.GenericBinary{}
 				}
-				err := decoder.DecodeBinary(rows.conn.ConnInfo, vr.bytes())
+				err := decoder.DecodeBinary(rows.conn.ConnInfo, buf)
 				if err != nil {
 					rows.Fatal(err)
 				}
@@ -321,10 +315,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			}
 		} else {
 			rows.Fatal(errors.New("Unknown type"))
-		}
-
-		if vr.Err() != nil {
-			rows.Fatal(vr.Err())
 		}
 
 		if rows.Err() != nil {
