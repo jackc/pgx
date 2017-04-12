@@ -297,7 +297,7 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 	// ... then try to consume 1 more. It should hang forever.
 	// To unblock it we release the previously taken connection in a goroutine.
 	stopDeadWaitTimeout := 5 * time.Second
-	timer := time.AfterFunc(stopDeadWaitTimeout, func() {
+	timer := time.AfterFunc(stopDeadWaitTimeout+100*time.Millisecond, func() {
 		releaseAllConnections(pool, allConnections)
 	})
 	defer timer.Stop()
