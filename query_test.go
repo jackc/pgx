@@ -1225,11 +1225,11 @@ func TestConnSimpleProtocol(t *testing.T) {
 	// Test high-level type
 
 	{
-		expected := pgtype.Line{A: 1, B: 2, C: 1.5, Status: pgtype.Present}
+		expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
 		actual := expected
 		err := conn.QueryRowEx(
 			context.Background(),
-			"select $1::line",
+			"select $1::circle",
 			&pgx.QueryExOptions{SimpleProtocol: true},
 			&expected,
 		).Scan(&actual)
