@@ -518,7 +518,7 @@ func (p *ConnPool) CopyTo(tableName string, columnNames []string, rowSrc CopyToS
 
 // CopyFrom acquires a connection, delegates the call to that connection, and
 // releases the connection.
-func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyToSource) (int, error) {
+func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
 	c, err := p.Acquire()
 	if err != nil {
 		return 0, err
