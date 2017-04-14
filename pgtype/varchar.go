@@ -49,3 +49,7 @@ func (dst *Varchar) Scan(src interface{}) error {
 func (src Varchar) Value() (driver.Value, error) {
 	return (Text)(src).Value()
 }
+
+func (src Varchar) MarshalJSON() ([]byte, error) {
+	return (Text)(src).MarshalJSON()
+}

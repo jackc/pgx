@@ -129,6 +129,7 @@ type TextEncoder interface {
 }
 
 var errUndefined = errors.New("cannot encode status undefined")
+var errBadStatus = errors.New("invalid status")
 
 type DataType struct {
 	Value Value
