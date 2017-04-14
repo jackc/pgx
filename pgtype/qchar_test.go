@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestQCharTranscode(t *testing.T) {
-	testPgxSuccessfulTranscodeEqFunc(t, `"char"`, []interface{}{
+	testutil.TestPgxSuccessfulTranscodeEqFunc(t, `"char"`, []interface{}{
 		pgtype.QChar{Int: math.MinInt8, Status: pgtype.Present},
 		pgtype.QChar{Int: -1, Status: pgtype.Present},
 		pgtype.QChar{Int: 0, Status: pgtype.Present},

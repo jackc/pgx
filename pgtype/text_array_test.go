@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestTextArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "text[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "text[]", []interface{}{
 		&pgtype.TextArray{
 			Elements:   nil,
 			Dimensions: nil,

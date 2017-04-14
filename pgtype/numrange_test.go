@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestNumrangeTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "numrange", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "numrange", []interface{}{
 		pgtype.Numrange{
 			LowerType: pgtype.Empty,
 			UpperType: pgtype.Empty,

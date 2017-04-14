@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestBoolTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "bool", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "bool", []interface{}{
 		pgtype.Bool{Bool: false, Status: pgtype.Present},
 		pgtype.Bool{Bool: true, Status: pgtype.Present},
 		pgtype.Bool{Bool: false, Status: pgtype.Null},

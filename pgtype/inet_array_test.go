@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInetArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "inet[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "inet[]", []interface{}{
 		&pgtype.InetArray{
 			Elements:   nil,
 			Dimensions: nil,

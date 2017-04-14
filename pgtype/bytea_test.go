@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestByteaTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "bytea", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "bytea", []interface{}{
 		pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
 		pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
 		pgtype.Bytea{Bytes: nil, Status: pgtype.Null},

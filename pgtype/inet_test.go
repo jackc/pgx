@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInetTranscode(t *testing.T) {
 	for _, pgTypeName := range []string{"inet", "cidr"} {
-		testSuccessfulTranscode(t, pgTypeName, []interface{}{
+		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
 			pgtype.Inet{IPNet: mustParseCidr(t, "0.0.0.0/32"), Status: pgtype.Present},
 			pgtype.Inet{IPNet: mustParseCidr(t, "127.0.0.1/32"), Status: pgtype.Present},
 			pgtype.Inet{IPNet: mustParseCidr(t, "12.34.56.0/32"), Status: pgtype.Present},

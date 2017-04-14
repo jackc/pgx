@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInt2ArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "int2[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "int2[]", []interface{}{
 		&pgtype.Int2Array{
 			Elements:   nil,
 			Dimensions: nil,
