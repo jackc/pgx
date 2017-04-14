@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -133,4 +134,17 @@ func (src Text) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func (src Text) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		return json.Marshal(src.String)
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return []byte("undefined"), nil
+	}
+
+	return nil, errBadStatus
 }
