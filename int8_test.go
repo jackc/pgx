@@ -11,12 +11,12 @@ import (
 
 func TestInt8Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "int8", []interface{}{
-		pgtype.Int8{Int: math.MinInt64, Status: pgtype.Present},
-		pgtype.Int8{Int: -1, Status: pgtype.Present},
-		pgtype.Int8{Int: 0, Status: pgtype.Present},
-		pgtype.Int8{Int: 1, Status: pgtype.Present},
-		pgtype.Int8{Int: math.MaxInt64, Status: pgtype.Present},
-		pgtype.Int8{Int: 0, Status: pgtype.Null},
+		&pgtype.Int8{Int: math.MinInt64, Status: pgtype.Present},
+		&pgtype.Int8{Int: -1, Status: pgtype.Present},
+		&pgtype.Int8{Int: 0, Status: pgtype.Present},
+		&pgtype.Int8{Int: 1, Status: pgtype.Present},
+		&pgtype.Int8{Int: math.MaxInt64, Status: pgtype.Present},
+		&pgtype.Int8{Int: 0, Status: pgtype.Null},
 	})
 }
 

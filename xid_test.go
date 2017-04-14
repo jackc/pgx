@@ -11,8 +11,8 @@ import (
 func TestXidTranscode(t *testing.T) {
 	pgTypeName := "xid"
 	values := []interface{}{
-		pgtype.Xid{Uint: 42, Status: pgtype.Present},
-		pgtype.Xid{Status: pgtype.Null},
+		&pgtype.Xid{Uint: 42, Status: pgtype.Present},
+		&pgtype.Xid{Status: pgtype.Null},
 	}
 	eqFunc := func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)

@@ -11,11 +11,11 @@ import (
 
 func TestJsonTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "json", []interface{}{
-		pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present},
-		pgtype.Json{Bytes: []byte("null"), Status: pgtype.Present},
-		pgtype.Json{Bytes: []byte("42"), Status: pgtype.Present},
-		pgtype.Json{Bytes: []byte(`"hello"`), Status: pgtype.Present},
-		pgtype.Json{Status: pgtype.Null},
+		&pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present},
+		&pgtype.Json{Bytes: []byte("null"), Status: pgtype.Present},
+		&pgtype.Json{Bytes: []byte("42"), Status: pgtype.Present},
+		&pgtype.Json{Bytes: []byte(`"hello"`), Status: pgtype.Present},
+		&pgtype.Json{Status: pgtype.Null},
 	})
 }
 

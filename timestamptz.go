@@ -140,7 +140,7 @@ func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -163,7 +163,7 @@ func (src Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -207,7 +207,7 @@ func (dst *Timestamptz) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Timestamptz) Value() (driver.Value, error) {
+func (src *Timestamptz) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		if src.InfinityModifier != None {

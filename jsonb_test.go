@@ -17,11 +17,11 @@ func TestJsonbTranscode(t *testing.T) {
 	}
 
 	testutil.TestSuccessfulTranscode(t, "jsonb", []interface{}{
-		pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present},
-		pgtype.Jsonb{Bytes: []byte("null"), Status: pgtype.Present},
-		pgtype.Jsonb{Bytes: []byte("42"), Status: pgtype.Present},
-		pgtype.Jsonb{Bytes: []byte(`"hello"`), Status: pgtype.Present},
-		pgtype.Jsonb{Status: pgtype.Null},
+		&pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present},
+		&pgtype.Jsonb{Bytes: []byte("null"), Status: pgtype.Present},
+		&pgtype.Jsonb{Bytes: []byte("42"), Status: pgtype.Present},
+		&pgtype.Jsonb{Bytes: []byte(`"hello"`), Status: pgtype.Present},
+		&pgtype.Jsonb{Status: pgtype.Null},
 	})
 }
 

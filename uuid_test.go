@@ -10,8 +10,8 @@ import (
 
 func TestUuidTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "uuid", []interface{}{
-		pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
-		pgtype.Uuid{Status: pgtype.Null},
+		&pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+		&pgtype.Uuid{Status: pgtype.Null},
 	})
 }
 

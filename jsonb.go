@@ -47,11 +47,11 @@ func (dst *Jsonb) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 }
 
-func (src Jsonb) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (Json)(src).EncodeText(ci, w)
+func (src *Jsonb) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (*Json)(src).EncodeText(ci, w)
 }
 
-func (src Jsonb) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Jsonb) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -74,6 +74,6 @@ func (dst *Jsonb) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Jsonb) Value() (driver.Value, error) {
-	return (Json)(src).Value()
+func (src *Jsonb) Value() (driver.Value, error) {
+	return (*Json)(src).Value()
 }

@@ -11,15 +11,15 @@ import (
 
 func TestDateTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "date", []interface{}{
-		pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		pgtype.Date{Status: pgtype.Null},
-		pgtype.Date{Status: pgtype.Present, InfinityModifier: pgtype.Infinity},
-		pgtype.Date{Status: pgtype.Present, InfinityModifier: -pgtype.Infinity},
+		&pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+		&pgtype.Date{Status: pgtype.Null},
+		&pgtype.Date{Status: pgtype.Present, InfinityModifier: pgtype.Infinity},
+		&pgtype.Date{Status: pgtype.Present, InfinityModifier: -pgtype.Infinity},
 	}, func(a, b interface{}) bool {
 		at := a.(pgtype.Date)
 		bt := b.(pgtype.Date)
