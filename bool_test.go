@@ -10,9 +10,9 @@ import (
 
 func TestBoolTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "bool", []interface{}{
-		pgtype.Bool{Bool: false, Status: pgtype.Present},
-		pgtype.Bool{Bool: true, Status: pgtype.Present},
-		pgtype.Bool{Bool: false, Status: pgtype.Null},
+		&pgtype.Bool{Bool: false, Status: pgtype.Present},
+		&pgtype.Bool{Bool: true, Status: pgtype.Present},
+		&pgtype.Bool{Bool: false, Status: pgtype.Null},
 	})
 }
 

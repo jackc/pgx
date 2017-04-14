@@ -10,9 +10,9 @@ import (
 
 func TestByteaTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "bytea", []interface{}{
-		pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-		pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
-		pgtype.Bytea{Bytes: nil, Status: pgtype.Null},
+		&pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+		&pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
+		&pgtype.Bytea{Bytes: nil, Status: pgtype.Null},
 	})
 }
 

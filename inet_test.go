@@ -12,17 +12,17 @@ import (
 func TestInetTranscode(t *testing.T) {
 	for _, pgTypeName := range []string{"inet", "cidr"} {
 		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
-			pgtype.Inet{IPNet: mustParseCidr(t, "0.0.0.0/32"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "127.0.0.1/32"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "12.34.56.0/32"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "192.168.1.0/24"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "255.0.0.0/8"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "255.255.255.255/32"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "::/128"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "::/0"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "::1/128"), Status: pgtype.Present},
-			pgtype.Inet{IPNet: mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
-			pgtype.Inet{Status: pgtype.Null},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "0.0.0.0/32"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "127.0.0.1/32"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "12.34.56.0/32"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "192.168.1.0/24"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "255.0.0.0/8"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "255.255.255.255/32"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "::/128"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "::/0"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "::1/128"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
+			&pgtype.Inet{Status: pgtype.Null},
 		})
 	}
 }

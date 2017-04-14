@@ -10,9 +10,9 @@ import (
 
 func TestAclitemTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "aclitem", []interface{}{
-		pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-		pgtype.Aclitem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-		pgtype.Aclitem{Status: pgtype.Null},
+		&pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+		&pgtype.Aclitem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
+		&pgtype.Aclitem{Status: pgtype.Null},
 	})
 }
 

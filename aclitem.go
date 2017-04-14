@@ -83,7 +83,7 @@ func (dst *Aclitem) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Aclitem) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Aclitem) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -113,7 +113,7 @@ func (dst *Aclitem) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Aclitem) Value() (driver.Value, error) {
+func (src *Aclitem) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		return src.String, nil

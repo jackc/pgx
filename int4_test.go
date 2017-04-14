@@ -11,12 +11,12 @@ import (
 
 func TestInt4Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "int4", []interface{}{
-		pgtype.Int4{Int: math.MinInt32, Status: pgtype.Present},
-		pgtype.Int4{Int: -1, Status: pgtype.Present},
-		pgtype.Int4{Int: 0, Status: pgtype.Present},
-		pgtype.Int4{Int: 1, Status: pgtype.Present},
-		pgtype.Int4{Int: math.MaxInt32, Status: pgtype.Present},
-		pgtype.Int4{Int: 0, Status: pgtype.Null},
+		&pgtype.Int4{Int: math.MinInt32, Status: pgtype.Present},
+		&pgtype.Int4{Int: -1, Status: pgtype.Present},
+		&pgtype.Int4{Int: 0, Status: pgtype.Present},
+		&pgtype.Int4{Int: 1, Status: pgtype.Present},
+		&pgtype.Int4{Int: math.MaxInt32, Status: pgtype.Present},
+		&pgtype.Int4{Int: 0, Status: pgtype.Null},
 	})
 }
 

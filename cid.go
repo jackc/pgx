@@ -43,12 +43,12 @@ func (dst *Cid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(ci, src)
 }
 
-func (src Cid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeText(ci, w)
+func (src *Cid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (*pguint32)(src).EncodeText(ci, w)
 }
 
-func (src Cid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (pguint32)(src).EncodeBinary(ci, w)
+func (src *Cid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (*pguint32)(src).EncodeBinary(ci, w)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -57,6 +57,6 @@ func (dst *Cid) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Cid) Value() (driver.Value, error) {
-	return (pguint32)(src).Value()
+func (src *Cid) Value() (driver.Value, error) {
+	return (*pguint32)(src).Value()
 }

@@ -11,8 +11,8 @@ import (
 func TestCidTranscode(t *testing.T) {
 	pgTypeName := "cid"
 	values := []interface{}{
-		pgtype.Cid{Uint: 42, Status: pgtype.Present},
-		pgtype.Cid{Status: pgtype.Null},
+		&pgtype.Cid{Uint: 42, Status: pgtype.Present},
+		&pgtype.Cid{Status: pgtype.Null},
 	}
 	eqFunc := func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)
