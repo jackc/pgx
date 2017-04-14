@@ -35,7 +35,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 }
 
 func MustConnectPgx(t testing.TB) *pgx.Conn {
-	config, err := pgx.ParseURI(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgx.ParseConnectionString(os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
