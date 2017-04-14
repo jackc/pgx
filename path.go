@@ -203,5 +203,5 @@ func (dst *Path) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Path) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

@@ -264,5 +264,5 @@ func (dst *Daterange) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Daterange) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

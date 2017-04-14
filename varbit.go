@@ -137,5 +137,5 @@ func (dst *Varbit) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Varbit) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }
