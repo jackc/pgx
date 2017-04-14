@@ -264,5 +264,5 @@ func (dst *Int8range) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Int8range) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

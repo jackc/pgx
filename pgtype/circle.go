@@ -146,5 +146,5 @@ func (dst *Circle) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Circle) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

@@ -463,5 +463,5 @@ func (dst *Hstore) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Hstore) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }
