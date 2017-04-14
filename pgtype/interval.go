@@ -267,5 +267,5 @@ func (dst *Interval) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Interval) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

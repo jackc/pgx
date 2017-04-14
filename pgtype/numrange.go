@@ -264,5 +264,5 @@ func (dst *Numrange) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Numrange) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }
