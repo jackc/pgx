@@ -26,7 +26,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 		t.Fatalf("Unknown driver %v", driverName)
 	}
 
-	db, err := sql.Open(sqlDriverName, os.Getenv("DATABASE_URL"))
+	db, err := sql.Open(sqlDriverName, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 }
 
 func MustConnectPgx(t testing.TB) *pgx.Conn {
-	config, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+	config, err := pgx.ParseURI(os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
