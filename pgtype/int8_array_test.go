@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInt8ArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "int8[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "int8[]", []interface{}{
 		&pgtype.Int8Array{
 			Elements:   nil,
 			Dimensions: nil,

@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestNumericArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "numeric[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "numeric[]", []interface{}{
 		&pgtype.NumericArray{
 			Elements:   nil,
 			Dimensions: nil,

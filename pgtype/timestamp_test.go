@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestTimestampTranscode(t *testing.T) {
-	testSuccessfulTranscodeEqFunc(t, "timestamp", []interface{}{
+	testutil.TestSuccessfulTranscodeEqFunc(t, "timestamp", []interface{}{
 		pgtype.Timestamp{Time: time.Date(1800, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 		pgtype.Timestamp{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 		pgtype.Timestamp{Time: time.Date(1905, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},

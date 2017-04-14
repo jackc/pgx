@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestAclitemArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "aclitem[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "aclitem[]", []interface{}{
 		&pgtype.AclitemArray{
 			Elements:   nil,
 			Dimensions: nil,

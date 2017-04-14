@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestJsonTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "json", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "json", []interface{}{
 		pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present},
 		pgtype.Json{Bytes: []byte("null"), Status: pgtype.Present},
 		pgtype.Json{Bytes: []byte("42"), Status: pgtype.Present},

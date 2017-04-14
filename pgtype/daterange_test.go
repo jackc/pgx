@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestDaterangeTranscode(t *testing.T) {
-	testSuccessfulTranscodeEqFunc(t, "daterange", []interface{}{
+	testutil.TestSuccessfulTranscodeEqFunc(t, "daterange", []interface{}{
 		pgtype.Daterange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
 		pgtype.Daterange{
 			Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
@@ -40,10 +41,10 @@ func TestDaterangeTranscode(t *testing.T) {
 }
 
 func TestDaterangeNormalize(t *testing.T) {
-	testSuccessfulNormalizeEqFunc(t, []normalizeTest{
+	testutil.TestSuccessfulNormalizeEqFunc(t, []testutil.NormalizeTest{
 		{
-			sql: "select daterange('2010-01-01', '2010-01-11', '(]')",
-			value: pgtype.Daterange{
+			SQL: "select daterange('2010-01-01', '2010-01-11', '(]')",
+			Value: pgtype.Daterange{
 				Lower:     pgtype.Date{Time: time.Date(2010, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 				Upper:     pgtype.Date{Time: time.Date(2010, 1, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 				LowerType: pgtype.Inclusive,

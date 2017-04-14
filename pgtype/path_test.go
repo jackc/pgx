@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestPathTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "path", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "path", []interface{}{
 		&pgtype.Path{
 			P:      []pgtype.Vec2{{3.14, 1.678}, {7.1, 5.234}},
 			Closed: false,

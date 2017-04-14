@@ -6,11 +6,12 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestHstoreArrayTranscode(t *testing.T) {
-	conn := mustConnectPgx(t)
-	defer mustClose(t, conn)
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustClose(t, conn)
 
 	text := func(s string) pgtype.Text {
 		return pgtype.Text{String: s, Status: pgtype.Present}
@@ -69,7 +70,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 
 	for _, fc := range formats {
 		ps.FieldDescriptions[0].FormatCode = fc.formatCode
-		vEncoder := forceEncoder(src, fc.formatCode)
+		vEncoder := testutil.ForceEncoder(src, fc.formatCode)
 		if vEncoder == nil {
 			t.Logf("%#v does not implement %v", src, fc.name)
 			continue

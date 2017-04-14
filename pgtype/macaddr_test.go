@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestMacaddrTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "macaddr", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "macaddr", []interface{}{
 		pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
 		pgtype.Macaddr{Status: pgtype.Null},
 	})

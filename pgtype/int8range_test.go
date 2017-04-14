@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInt8rangeTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "Int8range", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "Int8range", []interface{}{
 		pgtype.Int8range{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
 		pgtype.Int8range{Lower: pgtype.Int8{Int: 1, Status: pgtype.Present}, Upper: pgtype.Int8{Int: 10, Status: pgtype.Present}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Status: pgtype.Present},
 		pgtype.Int8range{Lower: pgtype.Int8{Int: -42, Status: pgtype.Present}, Upper: pgtype.Int8{Int: -5, Status: pgtype.Present}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Status: pgtype.Present},
@@ -16,10 +17,10 @@ func TestInt8rangeTranscode(t *testing.T) {
 }
 
 func TestInt8rangeNormalize(t *testing.T) {
-	testSuccessfulNormalize(t, []normalizeTest{
+	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
-			sql:   "select Int8range(1, 10, '(]')",
-			value: pgtype.Int8range{Lower: pgtype.Int8{Int: 2, Status: pgtype.Present}, Upper: pgtype.Int8{Int: 11, Status: pgtype.Present}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Status: pgtype.Present},
+			SQL:   "select Int8range(1, 10, '(]')",
+			Value: pgtype.Int8range{Lower: pgtype.Int8{Int: 2, Status: pgtype.Present}, Upper: pgtype.Int8{Int: 11, Status: pgtype.Present}, LowerType: pgtype.Inclusive, UpperType: pgtype.Exclusive, Status: pgtype.Present},
 		},
 	})
 }

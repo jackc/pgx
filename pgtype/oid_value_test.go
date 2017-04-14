@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestOidValueTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "oid", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "oid", []interface{}{
 		pgtype.OidValue{Uint: 42, Status: pgtype.Present},
 		pgtype.OidValue{Status: pgtype.Null},
 	})

@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestFloat8Transcode(t *testing.T) {
-	testSuccessfulTranscode(t, "float8", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "float8", []interface{}{
 		pgtype.Float8{Float: -1, Status: pgtype.Present},
 		pgtype.Float8{Float: 0, Status: pgtype.Present},
 		pgtype.Float8{Float: 0.00001, Status: pgtype.Present},

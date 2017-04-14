@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestHstoreTranscode(t *testing.T) {
@@ -44,7 +45,7 @@ func TestHstoreTranscode(t *testing.T) {
 		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
 	}
 
-	testSuccessfulTranscodeEqFunc(t, "hstore", values, func(ai, bi interface{}) bool {
+	testutil.TestSuccessfulTranscodeEqFunc(t, "hstore", values, func(ai, bi interface{}) bool {
 		a := ai.(pgtype.Hstore)
 		b := bi.(pgtype.Hstore)
 
