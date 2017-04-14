@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestIntervalTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "interval", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "interval", []interface{}{
 		pgtype.Interval{Microseconds: 1, Status: pgtype.Present},
 		pgtype.Interval{Microseconds: 1000000, Status: pgtype.Present},
 		pgtype.Interval{Microseconds: 1000001, Status: pgtype.Present},
@@ -29,34 +30,34 @@ func TestIntervalTranscode(t *testing.T) {
 }
 
 func TestIntervalNormalize(t *testing.T) {
-	testSuccessfulNormalize(t, []normalizeTest{
+	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
-			sql:   "select '1 second'::interval",
-			value: pgtype.Interval{Microseconds: 1000000, Status: pgtype.Present},
+			SQL:   "select '1 second'::interval",
+			Value: pgtype.Interval{Microseconds: 1000000, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1.000001 second'::interval",
-			value: pgtype.Interval{Microseconds: 1000001, Status: pgtype.Present},
+			SQL:   "select '1.000001 second'::interval",
+			Value: pgtype.Interval{Microseconds: 1000001, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '34223 hours'::interval",
-			value: pgtype.Interval{Microseconds: 123202800000000, Status: pgtype.Present},
+			SQL:   "select '34223 hours'::interval",
+			Value: pgtype.Interval{Microseconds: 123202800000000, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1 day'::interval",
-			value: pgtype.Interval{Days: 1, Status: pgtype.Present},
+			SQL:   "select '1 day'::interval",
+			Value: pgtype.Interval{Days: 1, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1 month'::interval",
-			value: pgtype.Interval{Months: 1, Status: pgtype.Present},
+			SQL:   "select '1 month'::interval",
+			Value: pgtype.Interval{Months: 1, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1 year'::interval",
-			value: pgtype.Interval{Months: 12, Status: pgtype.Present},
+			SQL:   "select '1 year'::interval",
+			Value: pgtype.Interval{Months: 12, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '-13 mon'::interval",
-			value: pgtype.Interval{Months: -13, Status: pgtype.Present},
+			SQL:   "select '-13 mon'::interval",
+			Value: pgtype.Interval{Months: -13, Status: pgtype.Present},
 		},
 	})
 }

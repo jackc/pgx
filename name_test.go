@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestNameTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "name", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "name", []interface{}{
 		pgtype.Name{String: "", Status: pgtype.Present},
 		pgtype.Name{String: "foo", Status: pgtype.Present},
 		pgtype.Name{Status: pgtype.Null},

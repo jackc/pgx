@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestFloat4ArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "float4[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "float4[]", []interface{}{
 		&pgtype.Float4Array{
 			Elements:   nil,
 			Dimensions: nil,

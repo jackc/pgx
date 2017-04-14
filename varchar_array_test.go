@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestVarcharArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "varchar[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "varchar[]", []interface{}{
 		&pgtype.VarcharArray{
 			Elements:   nil,
 			Dimensions: nil,

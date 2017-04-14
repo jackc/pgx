@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 // For test purposes only. Note that it does not normalize values. e.g. (Int: 1, Exp: 3) will not equal (Int: 1000, Exp: 0)
@@ -45,66 +46,66 @@ func mustParseBigInt(t *testing.T, src string) *big.Int {
 }
 
 func TestNumericNormalize(t *testing.T) {
-	testSuccessfulNormalize(t, []normalizeTest{
+	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
-			sql:   "select '0'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
+			SQL:   "select '0'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
+			SQL:   "select '1'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '10.00'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Status: pgtype.Present},
+			SQL:   "select '10.00'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1e-3'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(1), Exp: -3, Status: pgtype.Present},
+			SQL:   "select '1e-3'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: -3, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '-1'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
+			SQL:   "select '-1'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '10000'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(1), Exp: 4, Status: pgtype.Present},
+			SQL:   "select '10000'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: 4, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '3.14'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
+			SQL:   "select '3.14'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '1.1'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(11), Exp: -1, Status: pgtype.Present},
+			SQL:   "select '1.1'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(11), Exp: -1, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '100010001'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(100010001), Exp: 0, Status: pgtype.Present},
+			SQL:   "select '100010001'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(100010001), Exp: 0, Status: pgtype.Present},
 		},
 		{
-			sql:   "select '100010001.0001'::numeric",
-			value: pgtype.Numeric{Int: big.NewInt(1000100010001), Exp: -4, Status: pgtype.Present},
+			SQL:   "select '100010001.0001'::numeric",
+			Value: pgtype.Numeric{Int: big.NewInt(1000100010001), Exp: -4, Status: pgtype.Present},
 		},
 		{
-			sql: "select '4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981'::numeric",
-			value: pgtype.Numeric{
+			SQL: "select '4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981'::numeric",
+			Value: pgtype.Numeric{
 				Int:    mustParseBigInt(t, "423723478923478928934789237432487213832189417894318904389012483210893443219085471578891547854892438945012347981"),
 				Exp:    -41,
 				Status: pgtype.Present,
 			},
 		},
 		{
-			sql: "select '0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234'::numeric",
-			value: pgtype.Numeric{
+			SQL: "select '0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234'::numeric",
+			Value: pgtype.Numeric{
 				Int:    mustParseBigInt(t, "8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234"),
 				Exp:    -196,
 				Status: pgtype.Present,
 			},
 		},
 		{
-			sql: "select '0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123'::numeric",
-			value: pgtype.Numeric{
+			SQL: "select '0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123'::numeric",
+			Value: pgtype.Numeric{
 				Int:    mustParseBigInt(t, "123"),
 				Exp:    -186,
 				Status: pgtype.Present,
@@ -114,7 +115,7 @@ func TestNumericNormalize(t *testing.T) {
 }
 
 func TestNumericTranscode(t *testing.T) {
-	testSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
+	testutil.TestSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
 		&pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
 		&pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
 		&pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
@@ -172,7 +173,7 @@ func TestNumericTranscodeFuzz(t *testing.T) {
 		}
 	}
 
-	testSuccessfulTranscodeEqFunc(t, "numeric", values,
+	testutil.TestSuccessfulTranscodeEqFunc(t, "numeric", values,
 		func(aa, bb interface{}) bool {
 			a := aa.(pgtype.Numeric)
 			b := bb.(pgtype.Numeric)

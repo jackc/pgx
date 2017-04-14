@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestBoolArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "bool[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "bool[]", []interface{}{
 		&pgtype.BoolArray{
 			Elements:   nil,
 			Dimensions: nil,
