@@ -12,9 +12,9 @@ import (
 func TestTextTranscode(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
 		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
-			pgtype.Text{String: "", Status: pgtype.Present},
-			pgtype.Text{String: "foo", Status: pgtype.Present},
-			pgtype.Text{Status: pgtype.Null},
+			&pgtype.Text{String: "", Status: pgtype.Present},
+			&pgtype.Text{String: "foo", Status: pgtype.Present},
+			&pgtype.Text{Status: pgtype.Null},
 		})
 	}
 }

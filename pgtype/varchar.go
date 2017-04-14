@@ -32,12 +32,12 @@ func (dst *Varchar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src Varchar) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (Text)(src).EncodeText(ci, w)
+func (src *Varchar) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (*Text)(src).EncodeText(ci, w)
 }
 
-func (src Varchar) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (Text)(src).EncodeBinary(ci, w)
+func (src *Varchar) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+	return (*Text)(src).EncodeBinary(ci, w)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -46,10 +46,10 @@ func (dst *Varchar) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Varchar) Value() (driver.Value, error) {
-	return (Text)(src).Value()
+func (src *Varchar) Value() (driver.Value, error) {
+	return (*Text)(src).Value()
 }
 
-func (src Varchar) MarshalJSON() ([]byte, error) {
-	return (Text)(src).MarshalJSON()
+func (src *Varchar) MarshalJSON() ([]byte, error) {
+	return (*Text)(src).MarshalJSON()
 }

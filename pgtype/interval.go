@@ -178,7 +178,7 @@ func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Interval) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Interval) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -227,7 +227,7 @@ func (src Interval) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 }
 
 // EncodeBinary encodes src into w.
-func (src Interval) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Interval) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -266,6 +266,6 @@ func (dst *Interval) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Interval) Value() (driver.Value, error) {
+func (src *Interval) Value() (driver.Value, error) {
 	return encodeValueText(src)
 }
