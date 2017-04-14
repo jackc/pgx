@@ -186,3 +186,16 @@ func (src Int4) Value() (driver.Value, error) {
 		return nil, errUndefined
 	}
 }
+
+func (src Int4) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return []byte("undefined"), nil
+	}
+
+	return nil, errBadStatus
+}
