@@ -253,7 +253,7 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 			}
 		}
 	case Null:
-		return nullAssignTo(dst)
+		return NullAssignTo(dst)
 	}
 
 	return nil

@@ -107,7 +107,7 @@ func (src *Int4Array) AssignTo(dst interface{}) error {
 			}
 		}
 	case Null:
-		return nullAssignTo(dst)
+		return NullAssignTo(dst)
 	}
 
 	return fmt.Errorf("cannot decode %v into %T", src, dst)

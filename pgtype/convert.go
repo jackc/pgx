@@ -342,7 +342,7 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
 }
 
-func nullAssignTo(dst interface{}) error {
+func NullAssignTo(dst interface{}) error {
 	dstPtr := reflect.ValueOf(dst)
 
 	// AssignTo dst must always be a pointer
