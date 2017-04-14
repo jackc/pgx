@@ -151,7 +151,7 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -203,7 +203,7 @@ func (src Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src Hstore) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Hstore) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -462,6 +462,6 @@ func (dst *Hstore) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Hstore) Value() (driver.Value, error) {
+func (src *Hstore) Value() (driver.Value, error) {
 	return encodeValueText(src)
 }

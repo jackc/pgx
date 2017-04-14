@@ -10,12 +10,12 @@ import (
 
 func TestFloat8Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "float8", []interface{}{
-		pgtype.Float8{Float: -1, Status: pgtype.Present},
-		pgtype.Float8{Float: 0, Status: pgtype.Present},
-		pgtype.Float8{Float: 0.00001, Status: pgtype.Present},
-		pgtype.Float8{Float: 1, Status: pgtype.Present},
-		pgtype.Float8{Float: 9999.99, Status: pgtype.Present},
-		pgtype.Float8{Float: 0, Status: pgtype.Null},
+		&pgtype.Float8{Float: -1, Status: pgtype.Present},
+		&pgtype.Float8{Float: 0, Status: pgtype.Present},
+		&pgtype.Float8{Float: 0.00001, Status: pgtype.Present},
+		&pgtype.Float8{Float: 1, Status: pgtype.Present},
+		&pgtype.Float8{Float: 9999.99, Status: pgtype.Present},
+		&pgtype.Float8{Float: 0, Status: pgtype.Null},
 	})
 }
 

@@ -106,7 +106,7 @@ func (dst *Tstzrange) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Tstzrange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Tstzrange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -166,7 +166,7 @@ func (src Tstzrange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src Tstzrange) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Tstzrange) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -263,6 +263,6 @@ func (dst *Tstzrange) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Tstzrange) Value() (driver.Value, error) {
+func (src *Tstzrange) Value() (driver.Value, error) {
 	return encodeValueText(src)
 }

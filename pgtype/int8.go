@@ -117,7 +117,7 @@ func (dst *Int8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Int8) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Int8) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -129,7 +129,7 @@ func (src Int8) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, err
 }
 
-func (src Int8) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Int8) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -162,7 +162,7 @@ func (dst *Int8) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Int8) Value() (driver.Value, error) {
+func (src *Int8) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		return int64(src.Int), nil
@@ -173,7 +173,7 @@ func (src Int8) Value() (driver.Value, error) {
 	}
 }
 
-func (src Int8) MarshalJSON() ([]byte, error) {
+func (src *Int8) MarshalJSON() ([]byte, error) {
 	switch src.Status {
 	case Present:
 		return []byte(strconv.FormatInt(src.Int, 10)), nil

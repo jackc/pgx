@@ -10,22 +10,22 @@ import (
 
 func TestDaterangeTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "daterange", []interface{}{
-		pgtype.Daterange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
-		pgtype.Daterange{
+		&pgtype.Daterange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
+		&pgtype.Daterange{
 			Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 			Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Exclusive,
 			Status:    pgtype.Present,
 		},
-		pgtype.Daterange{
+		&pgtype.Daterange{
 			Lower:     pgtype.Date{Time: time.Date(1800, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 			Upper:     pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Exclusive,
 			Status:    pgtype.Present,
 		},
-		pgtype.Daterange{Status: pgtype.Null},
+		&pgtype.Daterange{Status: pgtype.Null},
 	}, func(aa, bb interface{}) bool {
 		a := aa.(pgtype.Daterange)
 		b := bb.(pgtype.Daterange)

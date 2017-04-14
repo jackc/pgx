@@ -10,8 +10,8 @@ import (
 
 func TestOidValueTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "oid", []interface{}{
-		pgtype.OidValue{Uint: 42, Status: pgtype.Present},
-		pgtype.OidValue{Status: pgtype.Null},
+		&pgtype.OidValue{Uint: 42, Status: pgtype.Present},
+		&pgtype.OidValue{Status: pgtype.Null},
 	})
 }
 

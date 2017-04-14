@@ -11,12 +11,12 @@ import (
 
 func TestInt2Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "int2", []interface{}{
-		pgtype.Int2{Int: math.MinInt16, Status: pgtype.Present},
-		pgtype.Int2{Int: -1, Status: pgtype.Present},
-		pgtype.Int2{Int: 0, Status: pgtype.Present},
-		pgtype.Int2{Int: 1, Status: pgtype.Present},
-		pgtype.Int2{Int: math.MaxInt16, Status: pgtype.Present},
-		pgtype.Int2{Int: 0, Status: pgtype.Null},
+		&pgtype.Int2{Int: math.MinInt16, Status: pgtype.Present},
+		&pgtype.Int2{Int: -1, Status: pgtype.Present},
+		&pgtype.Int2{Int: 0, Status: pgtype.Present},
+		&pgtype.Int2{Int: 1, Status: pgtype.Present},
+		&pgtype.Int2{Int: math.MaxInt16, Status: pgtype.Present},
+		&pgtype.Int2{Int: 0, Status: pgtype.Null},
 	})
 }
 

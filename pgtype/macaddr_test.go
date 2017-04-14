@@ -12,8 +12,8 @@ import (
 
 func TestMacaddrTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "macaddr", []interface{}{
-		pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-		pgtype.Macaddr{Status: pgtype.Null},
+		&pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
+		&pgtype.Macaddr{Status: pgtype.Null},
 	})
 }
 

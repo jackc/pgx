@@ -10,9 +10,9 @@ import (
 
 func TestNameTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "name", []interface{}{
-		pgtype.Name{String: "", Status: pgtype.Present},
-		pgtype.Name{String: "foo", Status: pgtype.Present},
-		pgtype.Name{Status: pgtype.Null},
+		&pgtype.Name{String: "", Status: pgtype.Present},
+		&pgtype.Name{String: "foo", Status: pgtype.Present},
+		&pgtype.Name{Status: pgtype.Null},
 	})
 }
 
