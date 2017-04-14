@@ -7,11 +7,12 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestRecordTranscode(t *testing.T) {
-	conn := mustConnectPgx(t)
-	defer mustClose(t, conn)
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustClose(t, conn)
 
 	tests := []struct {
 		sql      string

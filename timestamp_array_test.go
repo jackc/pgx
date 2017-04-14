@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestTimestampArrayTranscode(t *testing.T) {
-	testSuccessfulTranscodeEqFunc(t, "timestamp[]", []interface{}{
+	testutil.TestSuccessfulTranscodeEqFunc(t, "timestamp[]", []interface{}{
 		&pgtype.TimestampArray{
 			Elements:   nil,
 			Dimensions: nil,

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestCidTranscode(t *testing.T) {
@@ -17,13 +18,13 @@ func TestCidTranscode(t *testing.T) {
 		return reflect.DeepEqual(a, b)
 	}
 
-	testPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
+	testutil.TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
 
 	// No direct conversion from int to cid, convert through text
-	testPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
+	testutil.TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
 
 	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		testDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
+		testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
 }
 

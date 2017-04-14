@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestCidrArrayTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "cidr[]", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "cidr[]", []interface{}{
 		&pgtype.CidrArray{
 			Elements:   nil,
 			Dimensions: nil,

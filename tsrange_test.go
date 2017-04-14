@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestTsrangeTranscode(t *testing.T) {
-	testSuccessfulTranscodeEqFunc(t, "tsrange", []interface{}{
+	testutil.TestSuccessfulTranscodeEqFunc(t, "tsrange", []interface{}{
 		pgtype.Tsrange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
 		pgtype.Tsrange{
 			Lower:     pgtype.Timestamp{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},

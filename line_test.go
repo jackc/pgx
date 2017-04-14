@@ -5,15 +5,16 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestLineTranscode(t *testing.T) {
-	conn := mustConnectPgx(t)
+	conn := testutil.MustConnectPgx(t)
 	serverVersion, err := version.NewVersion(conn.RuntimeParams["server_version"])
 	if err != nil {
 		t.Fatalf("cannot get server version: %v", err)
 	}
-	mustClose(t, conn)
+	testutil.MustClose(t, conn)
 
 	minVersion := version.Must(version.NewVersion("9.4"))
 
@@ -21,7 +22,7 @@ func TestLineTranscode(t *testing.T) {
 		t.Skipf("Skipping line test for server version %v", serverVersion)
 	}
 
-	testSuccessfulTranscode(t, "line", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "line", []interface{}{
 		&pgtype.Line{
 			A: 1.23, B: 4.56, C: 7.89,
 			Status: pgtype.Present,

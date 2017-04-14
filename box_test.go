@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestBoxTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "box", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "box", []interface{}{
 		&pgtype.Box{
 			P:      [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
 			Status: pgtype.Present,
@@ -21,10 +22,10 @@ func TestBoxTranscode(t *testing.T) {
 }
 
 func TestBoxNormalize(t *testing.T) {
-	testSuccessfulNormalize(t, []normalizeTest{
+	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
-			sql: "select '3.14, 1.678, 7.1, 5.234'::box",
-			value: &pgtype.Box{
+			SQL: "select '3.14, 1.678, 7.1, 5.234'::box",
+			Value: &pgtype.Box{
 				P:      [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
 				Status: pgtype.Present,
 			},

@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestAclitemTranscode(t *testing.T) {
-	testSuccessfulTranscode(t, "aclitem", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "aclitem", []interface{}{
 		pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
 		pgtype.Aclitem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
 		pgtype.Aclitem{Status: pgtype.Null},

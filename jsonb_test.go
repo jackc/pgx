@@ -6,16 +6,17 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestJsonbTranscode(t *testing.T) {
-	conn := mustConnectPgx(t)
-	defer mustClose(t, conn)
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustClose(t, conn)
 	if _, ok := conn.ConnInfo.DataTypeForName("jsonb"); !ok {
 		t.Skip("Skipping due to no jsonb type")
 	}
 
-	testSuccessfulTranscode(t, "jsonb", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "jsonb", []interface{}{
 		pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present},
 		pgtype.Jsonb{Bytes: []byte("null"), Status: pgtype.Present},
 		pgtype.Jsonb{Bytes: []byte("42"), Status: pgtype.Present},

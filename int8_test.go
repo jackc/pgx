@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestInt8Transcode(t *testing.T) {
-	testSuccessfulTranscode(t, "int8", []interface{}{
+	testutil.TestSuccessfulTranscode(t, "int8", []interface{}{
 		pgtype.Int8{Int: math.MinInt64, Status: pgtype.Present},
 		pgtype.Int8{Int: -1, Status: pgtype.Present},
 		pgtype.Int8{Int: 0, Status: pgtype.Present},

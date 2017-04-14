@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/pgtype/testutil"
 )
 
 func TestTextTranscode(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
-		testSuccessfulTranscode(t, pgTypeName, []interface{}{
+		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
 			pgtype.Text{String: "", Status: pgtype.Present},
 			pgtype.Text{String: "foo", Status: pgtype.Present},
 			pgtype.Text{Status: pgtype.Null},
