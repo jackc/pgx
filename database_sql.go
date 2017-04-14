@@ -31,7 +31,7 @@ func DatabaseSQLValue(ci *ConnInfo, src Value) (interface{}, error) {
 	return nil, errors.New("cannot convert to database/sql compatible value")
 }
 
-func encodeValueText(src TextEncoder) (interface{}, error) {
+func EncodeValueText(src TextEncoder) (interface{}, error) {
 	buf := &bytes.Buffer{}
 	null, err := src.EncodeText(nil, buf)
 	if err != nil {

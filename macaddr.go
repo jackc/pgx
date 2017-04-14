@@ -150,5 +150,5 @@ func (dst *Macaddr) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Macaddr) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }

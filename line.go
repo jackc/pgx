@@ -144,5 +144,5 @@ func (dst *Line) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *Line) Value() (driver.Value, error) {
-	return encodeValueText(src)
+	return EncodeValueText(src)
 }
