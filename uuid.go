@@ -69,7 +69,7 @@ func (src *Uuid) AssignTo(dst interface{}) error {
 			}
 		}
 	case Null:
-		return nullAssignTo(dst)
+		return NullAssignTo(dst)
 	}
 
 	return fmt.Errorf("cannot assign %v into %T", src, dst)
