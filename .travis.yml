@@ -55,6 +55,7 @@ install:
   - go get -u github.com/jackc/pgmock/pgmsg
   - go get -u github.com/lib/pq
   - go get -u github.com/hashicorp/go-version
+  - go get -u github.com/satori/go.uuid
 
 script:
   - go test -v -race ./...
