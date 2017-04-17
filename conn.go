@@ -36,7 +36,8 @@ type ConnConfig struct {
 	Logger            Logger
 	LogLevel          int
 	Dial              DialFunc
-	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	RuntimeParams     map[string]string  // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	OnError           func(*Conn, error) // function to run on error
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -1013,6 +1014,7 @@ func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag
 	}()
 
 	if err = c.sendQuery(sql, arguments...); err != nil {
+		c.runOnError(err)
 		return
 	}
 
@@ -1250,6 +1252,12 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	_, err = c.conn.Write(wbuf.buf)
 
 	return err
+}
+
+func (c *Conn) runOnError(err error) {
+	if c.config.OnError != nil {
+		c.config.OnError(c, err)
+	}
 }
 
 func (c *Conn) die(err error) {

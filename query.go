@@ -464,6 +464,7 @@ func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
 	rows.fields = ps.FieldDescriptions
 	err := c.sendPreparedQuery(ps, args...)
 	if err != nil {
+		c.runOnError(err)
 		rows.abort(err)
 	}
 	return rows, rows.err
