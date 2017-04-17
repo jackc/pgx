@@ -893,7 +893,11 @@ func (h Hstore) Encode(w *WriteBuf, oid Oid) error {
 		ks = strings.Replace(ks, `"`, `\"`, -1)
 		vs := strings.Replace(v, `\`, `\\`, -1)
 		vs = strings.Replace(vs, `"`, `\"`, -1)
-		buf.WriteString(fmt.Sprintf(`"%s"=>"%s"`, ks, vs))
+		buf.WriteString(`"`)
+		buf.WriteString(ks)
+		buf.WriteString(`"=>"`)
+		buf.WriteString(vs)
+		buf.WriteString(`"`)
 		if i < len(h) {
 			buf.WriteString(", ")
 		}
