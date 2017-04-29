@@ -12,7 +12,7 @@ type ParameterDescription struct {
 
 func (*ParameterDescription) Backend() {}
 
-func (dst *ParameterDescription) UnmarshalBinary(src []byte) error {
+func (dst *ParameterDescription) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	if buf.Len() < 2 {

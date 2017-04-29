@@ -30,7 +30,7 @@ type ErrorResponse struct {
 
 func (*ErrorResponse) Backend() {}
 
-func (dst *ErrorResponse) UnmarshalBinary(src []byte) error {
+func (dst *ErrorResponse) Decode(src []byte) error {
 	*dst = ErrorResponse{}
 
 	buf := bytes.NewBuffer(src)

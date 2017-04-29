@@ -8,7 +8,7 @@ type ParseComplete struct{}
 
 func (*ParseComplete) Backend() {}
 
-func (dst *ParseComplete) UnmarshalBinary(src []byte) error {
+func (dst *ParseComplete) Decode(src []byte) error {
 	if len(src) != 0 {
 		return &invalidMessageLenErr{messageType: "ParseComplete", expectedLen: 0, actualLen: len(src)}
 	}

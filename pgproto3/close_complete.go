@@ -8,7 +8,7 @@ type CloseComplete struct{}
 
 func (*CloseComplete) Backend() {}
 
-func (dst *CloseComplete) UnmarshalBinary(src []byte) error {
+func (dst *CloseComplete) Decode(src []byte) error {
 	if len(src) != 0 {
 		return &invalidMessageLenErr{messageType: "CloseComplete", expectedLen: 0, actualLen: len(src)}
 	}

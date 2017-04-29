@@ -13,7 +13,7 @@ type BackendKeyData struct {
 
 func (*BackendKeyData) Backend() {}
 
-func (dst *BackendKeyData) UnmarshalBinary(src []byte) error {
+func (dst *BackendKeyData) Decode(src []byte) error {
 	if len(src) != 8 {
 		return &invalidMessageLenErr{messageType: "BackendKeyData", expectedLen: 8, actualLen: len(src)}
 	}

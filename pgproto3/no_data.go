@@ -8,7 +8,7 @@ type NoData struct{}
 
 func (*NoData) Backend() {}
 
-func (dst *NoData) UnmarshalBinary(src []byte) error {
+func (dst *NoData) Decode(src []byte) error {
 	if len(src) != 0 {
 		return &invalidMessageLenErr{messageType: "NoData", expectedLen: 0, actualLen: len(src)}
 	}

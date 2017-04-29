@@ -9,14 +9,12 @@ type ChunkReader struct {
 
 	buf    []byte
 	rp, wp int // buf read position and write position
-	taken  bool
 
 	options Options
 }
 
 type Options struct {
 	MinBufLen int // Minimum buffer length
-	BlockLen  int // Increments to expand buffer (e.g. a 8000 byte request with a BlockLen of 1024 would yield a buffer len of 8192)
 }
 
 func NewChunkReader(r io.Reader) *ChunkReader {
@@ -32,9 +30,6 @@ func NewChunkReaderEx(r io.Reader, options Options) (*ChunkReader, error) {
 	if options.MinBufLen == 0 {
 		options.MinBufLen = 4096
 	}
-	if options.BlockLen == 0 {
-		options.BlockLen = 512
-	}
 
 	return &ChunkReader{
 		r:       r,
@@ -43,8 +38,8 @@ func NewChunkReaderEx(r io.Reader, options Options) (*ChunkReader, error) {
 	}, nil
 }
 
-// Next returns buf filled with the next n bytes. buf is only valid until the
-// next call to Next. If an error occurs, buf will be nil.
+// Next returns buf filled with the next n bytes. If an error occurs, buf will
+// be nil.
 func (r *ChunkReader) Next(n int) (buf []byte, err error) {
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
@@ -56,17 +51,12 @@ func (r *ChunkReader) Next(n int) (buf []byte, err error) {
 	// available space in buf is less than n
 	if len(r.buf) < n {
 		r.copyBufContents(r.newBuf(n))
-		r.taken = false
 	}
 
 	// buf is large enough, but need to shift filled area to start to make enough contiguous space
 	minReadCount := n - (r.wp - r.rp)
 	if (len(r.buf) - r.wp) < minReadCount {
-		newBuf := r.buf
-		if r.taken {
-			newBuf = r.newBuf(n)
-			r.taken = false
-		}
+		newBuf := r.newBuf(n)
 		r.copyBufContents(newBuf)
 	}
 
@@ -79,20 +69,13 @@ func (r *ChunkReader) Next(n int) (buf []byte, err error) {
 	return buf, nil
 }
 
-// KeepLast prevents the last data retrieved by Next from being reused by the
-// ChunkReader.
-func (r *ChunkReader) KeepLast() {
-	r.taken = true
-}
-
 func (r *ChunkReader) appendAtLeast(fillLen int) error {
 	n, err := io.ReadAtLeast(r.r, r.buf[r.wp:], fillLen)
 	r.wp += n
 	return err
 }
 
-func (r *ChunkReader) newBuf(min int) []byte {
-	size := ((min / r.options.BlockLen) + 1) * r.options.BlockLen
+func (r *ChunkReader) newBuf(size int) []byte {
 	if size < r.options.MinBufLen {
 		size = r.options.MinBufLen
 	}

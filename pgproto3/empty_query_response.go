@@ -8,7 +8,7 @@ type EmptyQueryResponse struct{}
 
 func (*EmptyQueryResponse) Backend() {}
 
-func (dst *EmptyQueryResponse) UnmarshalBinary(src []byte) error {
+func (dst *EmptyQueryResponse) Decode(src []byte) error {
 	if len(src) != 0 {
 		return &invalidMessageLenErr{messageType: "EmptyQueryResponse", expectedLen: 0, actualLen: len(src)}
 	}

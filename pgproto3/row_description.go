@@ -27,7 +27,7 @@ type RowDescription struct {
 
 func (*RowDescription) Backend() {}
 
-func (dst *RowDescription) UnmarshalBinary(src []byte) error {
+func (dst *RowDescription) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	if buf.Len() < 2 {

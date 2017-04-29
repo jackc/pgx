@@ -13,9 +13,8 @@ type CopyData struct {
 func (*CopyData) Backend()  {}
 func (*CopyData) Frontend() {}
 
-func (dst *CopyData) UnmarshalBinary(src []byte) error {
-	dst.Data = make([]byte, len(src))
-	copy(dst.Data, src)
+func (dst *CopyData) Decode(src []byte) error {
+	dst.Data = src
 	return nil
 }
 

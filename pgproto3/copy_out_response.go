@@ -13,7 +13,7 @@ type CopyOutResponse struct {
 
 func (*CopyOutResponse) Backend() {}
 
-func (dst *CopyOutResponse) UnmarshalBinary(src []byte) error {
+func (dst *CopyOutResponse) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	if buf.Len() < 3 {

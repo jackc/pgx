@@ -11,14 +11,13 @@ type CommandComplete struct {
 
 func (*CommandComplete) Backend() {}
 
-func (dst *CommandComplete) UnmarshalBinary(src []byte) error {
-	buf := bytes.NewBuffer(src)
-
-	b, err := buf.ReadBytes(0)
-	if err != nil {
-		return err
+func (dst *CommandComplete) Decode(src []byte) error {
+	idx := bytes.IndexByte(src, 0)
+	if idx != len(src)-1 {
+		return &invalidMessageFormatErr{messageType: "CommandComplete"}
 	}
-	dst.CommandTag = string(b[:len(b)-1])
+
+	dst.CommandTag = string(src[:idx])
 
 	return nil
 }

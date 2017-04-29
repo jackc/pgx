@@ -13,7 +13,7 @@ type ParameterStatus struct {
 
 func (*ParameterStatus) Backend() {}
 
-func (dst *ParameterStatus) UnmarshalBinary(src []byte) error {
+func (dst *ParameterStatus) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	b, err := buf.ReadBytes(0)
