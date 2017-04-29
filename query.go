@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/internal/sanitize"
+	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -41,7 +42,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
 	conn       *Conn
-	mr         *msgReader
+	values     [][]byte
 	fields     []FieldDescription
 	rowCount   int
 	columnIdx  int
@@ -115,15 +116,15 @@ func (rows *Rows) Next() bool {
 	rows.columnIdx = 0
 
 	for {
-		t, r, err := rows.conn.rxMsg()
+		msg, err := rows.conn.rxMsg()
 		if err != nil {
 			rows.Fatal(err)
 			return false
 		}
 
-		switch t {
-		case rowDescription:
-			rows.fields = rows.conn.rxRowDescription(r)
+		switch msg := msg.(type) {
+		case *pgproto3.RowDescription:
+			rows.fields = rows.conn.rxRowDescription(msg)
 			for i := range rows.fields {
 				if dt, ok := rows.conn.ConnInfo.DataTypeForOid(rows.fields[i].DataType); ok {
 					rows.fields[i].DataTypeName = dt.Name
@@ -133,21 +134,20 @@ func (rows *Rows) Next() bool {
 					return false
 				}
 			}
-		case dataRow:
-			fieldCount := r.readInt16()
-			if int(fieldCount) != len(rows.fields) {
-				rows.Fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(rows.fields), fieldCount)))
+		case *pgproto3.DataRow:
+			if len(msg.Values) != len(rows.fields) {
+				rows.Fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(rows.fields), len(msg.Values))))
 				return false
 			}
 
-			rows.mr = r
+			rows.values = msg.Values
 			return true
-		case commandComplete:
+		case *pgproto3.CommandComplete:
 			rows.Close()
 			return false
 
 		default:
-			err = rows.conn.processContextFreeMsg(t, r)
+			err = rows.conn.processContextFreeMsg(msg)
 			if err != nil {
 				rows.Fatal(err)
 				return false
@@ -170,13 +170,9 @@ func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
 		return nil, nil, false
 	}
 
+	buf := rows.values[rows.columnIdx]
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
-	size := rows.mr.readInt32()
-	var buf []byte
-	if size >= 0 {
-		buf = rows.mr.readBytes(size)
-	}
 	return buf, fd, true
 }
 
