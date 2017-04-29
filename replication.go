@@ -2,9 +2,12 @@ package pgx
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/pgproto3"
 )
 
 const (
@@ -203,59 +206,64 @@ func (rc *ReplicationConn) CauseOfDeath() error {
 }
 
 func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err error) {
-	var t byte
-	var reader *msgReader
-	t, reader, err = rc.c.rxMsg()
+	msg, err := rc.c.rxMsg()
 	if err != nil {
 		return
 	}
 
-	switch t {
-	case noticeResponse:
-		pgError := rc.c.rxErrorResponse(reader)
+	switch msg := msg.(type) {
+	case *pgproto3.NoticeResponse:
+		pgError := rc.c.rxErrorResponse((*pgproto3.ErrorResponse)(msg))
 		if rc.c.shouldLog(LogLevelInfo) {
 			rc.c.log(LogLevelInfo, pgError.Error())
 		}
-	case errorResponse:
-		err = rc.c.rxErrorResponse(reader)
+	case *pgproto3.ErrorResponse:
+		err = rc.c.rxErrorResponse(msg)
 		if rc.c.shouldLog(LogLevelError) {
 			rc.c.log(LogLevelError, err.Error())
 		}
 		return
-	case copyBothResponse:
+	case *pgproto3.CopyBothResponse:
 		// This is the tail end of the replication process start,
 		// and can be safely ignored
 		return
-	case copyData:
-		var msgType byte
-		msgType = reader.readByte()
+	case *pgproto3.CopyData:
+		msgType := msg.Data[0]
+		rp := 1
+
 		switch msgType {
 		case walData:
-			walStart := reader.readInt64()
-			serverWalEnd := reader.readInt64()
-			serverTime := reader.readInt64()
-			walData := reader.readBytes(int32(len(reader.msgBody) - reader.rp))
-			walMessage := WalMessage{WalStart: uint64(walStart),
-				ServerWalEnd: uint64(serverWalEnd),
-				ServerTime:   uint64(serverTime),
+			walStart := binary.BigEndian.Uint64(msg.Data[rp:])
+			rp += 8
+			serverWalEnd := binary.BigEndian.Uint64(msg.Data[rp:])
+			rp += 8
+			serverTime := binary.BigEndian.Uint64(msg.Data[rp:])
+			rp += 8
+			walData := msg.Data[rp:]
+			walMessage := WalMessage{WalStart: walStart,
+				ServerWalEnd: serverWalEnd,
+				ServerTime:   serverTime,
 				WalData:      walData,
 			}
 
 			return &ReplicationMessage{WalMessage: &walMessage}, nil
 		case senderKeepalive:
-			serverWalEnd := reader.readInt64()
-			serverTime := reader.readInt64()
-			replyNow := reader.readByte()
-			h := &ServerHeartbeat{ServerWalEnd: uint64(serverWalEnd), ServerTime: uint64(serverTime), ReplyRequested: replyNow}
+			serverWalEnd := binary.BigEndian.Uint64(msg.Data[rp:])
+			rp += 8
+			serverTime := binary.BigEndian.Uint64(msg.Data[rp:])
+			rp += 8
+			replyNow := msg.Data[rp]
+			rp += 1
+			h := &ServerHeartbeat{ServerWalEnd: serverWalEnd, ServerTime: serverTime, ReplyRequested: replyNow}
 			return &ReplicationMessage{ServerHeartbeat: h}, nil
 		default:
 			if rc.c.shouldLog(LogLevelError) {
-				rc.c.log(LogLevelError, "Unexpected data playload message type %v", t)
+				rc.c.log(LogLevelError, "Unexpected data playload message type %v", msgType)
 			}
 		}
 	default:
 		if rc.c.shouldLog(LogLevelError) {
-			rc.c.log(LogLevelError, "Unexpected replication message type %v", t)
+			rc.c.log(LogLevelError, "Unexpected replication message type %T", msg)
 		}
 	}
 	return
@@ -325,21 +333,19 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 		rows.Fatal(err)
 	}
 
-	var t byte
-	var r *msgReader
-	t, r, err = rc.c.rxMsg()
+	msg, err := rc.c.rxMsg()
 	if err != nil {
 		return nil, err
 	}
 
-	switch t {
-	case rowDescription:
-		rows.fields = rc.c.rxRowDescription(r)
+	switch msg := msg.(type) {
+	case *pgproto3.RowDescription:
+		rows.fields = rc.c.rxRowDescription(msg)
 		// We don't have c.PgTypes here because we're a replication
 		// connection. This means the field descriptions will have
 		// only Oids. Not much we can do about this.
 	default:
-		if e := rc.c.processContextFreeMsg(t, r); e != nil {
+		if e := rc.c.processContextFreeMsg(msg); e != nil {
 			rows.Fatal(e)
 			return rows, e
 		}

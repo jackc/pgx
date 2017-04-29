@@ -686,7 +686,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			}
 			defer tx.Rollback()
 
-			var txPID int32
+			var txPID uint32
 			err = tx.QueryRow("select pg_backend_pid()").Scan(&txPID)
 			if err != nil {
 				t.Fatalf("tx.QueryRow Scan failed: %v", err)

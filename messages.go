@@ -58,11 +58,11 @@ func (s *startupMessage) Bytes() (buf []byte) {
 type FieldDescription struct {
 	Name            string
 	Table           pgtype.Oid
-	AttributeNumber int16
+	AttributeNumber uint16
 	DataType        pgtype.Oid
 	DataTypeSize    int16
 	DataTypeName    string
-	Modifier        int32
+	Modifier        uint32
 	FormatCode      int16
 }
 

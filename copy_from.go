@@ -3,6 +3,8 @@ package pgx
 import (
 	"bytes"
 	"fmt"
+
+	"github.com/jackc/pgx/pgproto3"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
@@ -54,25 +56,25 @@ type copyFrom struct {
 
 func (ct *copyFrom) readUntilReadyForQuery() {
 	for {
-		t, r, err := ct.conn.rxMsg()
+		msg, err := ct.conn.rxMsg()
 		if err != nil {
 			ct.readerErrChan <- err
 			close(ct.readerErrChan)
 			return
 		}
 
-		switch t {
-		case readyForQuery:
-			ct.conn.rxReadyForQuery(r)
+		switch msg := msg.(type) {
+		case *pgproto3.ReadyForQuery:
+			ct.conn.rxReadyForQuery(msg)
 			close(ct.readerErrChan)
 			return
-		case commandComplete:
-		case errorResponse:
-			ct.readerErrChan <- ct.conn.rxErrorResponse(r)
+		case *pgproto3.CommandComplete:
+		case *pgproto3.ErrorResponse:
+			ct.readerErrChan <- ct.conn.rxErrorResponse(msg)
 		default:
-			err = ct.conn.processContextFreeMsg(t, r)
+			err = ct.conn.processContextFreeMsg(msg)
 			if err != nil {
-				ct.readerErrChan <- ct.conn.processContextFreeMsg(t, r)
+				ct.readerErrChan <- ct.conn.processContextFreeMsg(msg)
 			}
 		}
 	}
@@ -190,18 +192,16 @@ func (ct *copyFrom) run() (int, error) {
 
 func (c *Conn) readUntilCopyInResponse() error {
 	for {
-		var t byte
-		var r *msgReader
-		t, r, err := c.rxMsg()
+		msg, err := c.rxMsg()
 		if err != nil {
 			return err
 		}
 
-		switch t {
-		case copyInResponse:
+		switch msg := msg.(type) {
+		case *pgproto3.CopyInResponse:
 			return nil
 		default:
-			err = c.processContextFreeMsg(t, r)
+			err = c.processContextFreeMsg(msg)
 			if err != nil {
 				return err
 			}
