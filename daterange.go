@@ -106,7 +106,7 @@ func (dst *Daterange) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Daterange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src Daterange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -166,7 +166,7 @@ func (src *Daterange) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	return false, nil
 }
 
-func (src *Daterange) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src Daterange) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	switch src.Status {
 	case Null:
 		return true, nil
@@ -256,13 +256,15 @@ func (dst *Daterange) Scan(src interface{}) error {
 	case string:
 		return dst.DecodeText(nil, []byte(src))
 	case []byte:
-		return dst.DecodeText(nil, src)
+		srcCopy := make([]byte, len(src))
+		copy(srcCopy, src)
+		return dst.DecodeText(nil, srcCopy)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Daterange) Value() (driver.Value, error) {
+func (src Daterange) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }

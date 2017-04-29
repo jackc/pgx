@@ -97,10 +97,7 @@ func (dst *Json) DecodeText(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	buf := make([]byte, len(src))
-	copy(buf, src)
-
-	*dst = Json{Bytes: buf, Status: Present}
+	*dst = Json{Bytes: src, Status: Present}
 	return nil
 }
 
@@ -135,7 +132,9 @@ func (dst *Json) Scan(src interface{}) error {
 	case string:
 		return dst.DecodeText(nil, []byte(src))
 	case []byte:
-		return dst.DecodeText(nil, src)
+		srcCopy := make([]byte, len(src))
+		copy(srcCopy, src)
+		return dst.DecodeText(nil, srcCopy)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)

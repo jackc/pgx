@@ -167,7 +167,9 @@ func (dst *Float8) Scan(src interface{}) error {
 	case string:
 		return dst.DecodeText(nil, []byte(src))
 	case []byte:
-		return dst.DecodeText(nil, src)
+		srcCopy := make([]byte, len(src))
+		copy(srcCopy, src)
+		return dst.DecodeText(nil, srcCopy)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
