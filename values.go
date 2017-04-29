@@ -106,29 +106,27 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 
 	switch arg := arg.(type) {
 	case pgtype.BinaryEncoder:
-		buf := &bytes.Buffer{}
-		null, err := arg.EncodeBinary(wbuf.conn.ConnInfo, buf)
+		sp := wbuf.reserveSize()
+		null, err := arg.EncodeBinary(wbuf.conn.ConnInfo, wbuf)
 		if err != nil {
 			return err
 		}
 		if null {
-			wbuf.WriteInt32(-1)
+			wbuf.setSize(sp, -1)
 		} else {
-			wbuf.WriteInt32(int32(buf.Len()))
-			wbuf.WriteBytes(buf.Bytes())
+			wbuf.setComputedSize(sp)
 		}
 		return nil
 	case pgtype.TextEncoder:
-		buf := &bytes.Buffer{}
-		null, err := arg.EncodeText(wbuf.conn.ConnInfo, buf)
+		sp := wbuf.reserveSize()
+		null, err := arg.EncodeText(wbuf.conn.ConnInfo, wbuf)
 		if err != nil {
 			return err
 		}
 		if null {
-			wbuf.WriteInt32(-1)
+			wbuf.setSize(sp, -1)
 		} else {
-			wbuf.WriteInt32(int32(buf.Len()))
-			wbuf.WriteBytes(buf.Bytes())
+			wbuf.setComputedSize(sp)
 		}
 		return nil
 	case driver.Valuer:
@@ -161,16 +159,15 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 			return err
 		}
 
-		buf := &bytes.Buffer{}
-		null, err := value.(pgtype.BinaryEncoder).EncodeBinary(wbuf.conn.ConnInfo, buf)
+		sp := wbuf.reserveSize()
+		null, err := value.(pgtype.BinaryEncoder).EncodeBinary(wbuf.conn.ConnInfo, wbuf)
 		if err != nil {
 			return err
 		}
 		if null {
-			wbuf.WriteInt32(-1)
+			wbuf.setSize(sp, -1)
 		} else {
-			wbuf.WriteInt32(int32(buf.Len()))
-			wbuf.WriteBytes(buf.Bytes())
+			wbuf.setComputedSize(sp)
 		}
 		return nil
 	}

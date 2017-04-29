@@ -118,6 +118,20 @@ func (wb *WriteBuf) closeMsg() {
 	binary.BigEndian.PutUint32(wb.buf[wb.sizeIdx:wb.sizeIdx+4], uint32(len(wb.buf)-wb.sizeIdx))
 }
 
+func (wb *WriteBuf) reserveSize() int {
+	sizePosition := len(wb.buf)
+	wb.buf = append(wb.buf, 0, 0, 0, 0)
+	return sizePosition
+}
+
+func (wb *WriteBuf) setComputedSize(sizePosition int) {
+	binary.BigEndian.PutUint32(wb.buf[sizePosition:], uint32(len(wb.buf)-sizePosition-4))
+}
+
+func (wb *WriteBuf) setSize(sizePosition int, size int32) {
+	binary.BigEndian.PutUint32(wb.buf[sizePosition:], uint32(size))
+}
+
 func (wb *WriteBuf) WriteByte(b byte) {
 	wb.buf = append(wb.buf, b)
 }
