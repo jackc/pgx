@@ -72,10 +72,7 @@ func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	bitLen := int32(binary.BigEndian.Uint32(src))
 	rp := 4
 
-	buf := make([]byte, len(src[rp:]))
-	copy(buf, src[rp:])
-
-	*dst = Varbit{Bytes: buf, Len: bitLen, Status: Present}
+	*dst = Varbit{Bytes: src[rp:], Len: bitLen, Status: Present}
 	return nil
 }
 
@@ -129,7 +126,9 @@ func (dst *Varbit) Scan(src interface{}) error {
 	case string:
 		return dst.DecodeText(nil, []byte(src))
 	case []byte:
-		return dst.DecodeText(nil, src)
+		srcCopy := make([]byte, len(src))
+		copy(srcCopy, src)
+		return dst.DecodeText(nil, srcCopy)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
