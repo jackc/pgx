@@ -37,12 +37,8 @@ func (dst *Jsonb) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src[0] != 1 {
 		return fmt.Errorf("unknown jsonb version number %d", src[0])
 	}
-	src = src[1:]
 
-	buf := make([]byte, len(src))
-	copy(buf, src)
-
-	*dst = Jsonb{Bytes: buf, Status: Present}
+	*dst = Jsonb{Bytes: src[1:], Status: Present}
 	return nil
 
 }
