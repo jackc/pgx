@@ -7,7 +7,7 @@ import (
 
 func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4, BlockLen: 2})
+	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 
 func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4, BlockLen: 2})
+	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,14 +59,14 @@ func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	if bytes.Compare(n1, src[0:5]) != 0 {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:5], n1)
 	}
-	if len(r.buf) != 6 {
-		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", 6, len(r.buf))
+	if len(r.buf) != 5 {
+		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", 5, len(r.buf))
 	}
 }
 
-func TestChunkReaderNextReusesBuf(t *testing.T) {
+func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4, BlockLen: 1})
+	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,38 +81,6 @@ func TestChunkReaderNextReusesBuf(t *testing.T) {
 	if bytes.Compare(n1, src[0:4]) != 0 {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:4], n1)
 	}
-
-	n2, err := r.Next(4)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(n2, src[4:8]) != 0 {
-		t.Fatalf("Expected read bytes to be %v, but they were %v", src[4:8], n2)
-	}
-
-	if bytes.Compare(n1, src[4:8]) != 0 {
-		t.Fatalf("Expected Next to have reused buf, %v found instead of %v", src[4:8], n1)
-	}
-}
-
-func TestChunkReaderKeepLastPreventsBufReuse(t *testing.T) {
-	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Options{MinBufLen: 4, BlockLen: 1})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	src := []byte{1, 2, 3, 4, 5, 6, 7, 8}
-	server.Write(src)
-
-	n1, err := r.Next(4)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(n1, src[0:4]) != 0 {
-		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:4], n1)
-	}
-	r.KeepLast()
 
 	n2, err := r.Next(4)
 	if err != nil {

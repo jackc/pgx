@@ -13,20 +13,24 @@ type FunctionCallResponse struct {
 
 func (*FunctionCallResponse) Backend() {}
 
-func (dst *FunctionCallResponse) UnmarshalBinary(src []byte) error {
-	buf := bytes.NewBuffer(src)
-
-	if buf.Len() < 4 {
+func (dst *FunctionCallResponse) Decode(src []byte) error {
+	if len(src) < 4 {
 		return &invalidMessageFormatErr{messageType: "FunctionCallResponse"}
 	}
-	resultSize := int(binary.BigEndian.Uint32(buf.Next(4)))
-	if buf.Len() != resultSize {
+	rp := 0
+	resultSize := int(binary.BigEndian.Uint32(src[rp:]))
+	rp += 4
+
+	if resultSize == -1 {
+		dst.Result = nil
+		return nil
+	}
+
+	if len(src[rp:]) != resultSize {
 		return &invalidMessageFormatErr{messageType: "FunctionCallResponse"}
 	}
 
-	dst.Result = make([]byte, resultSize)
-	copy(dst.Result, buf.Bytes())
-
+	dst.Result = src[rp:]
 	return nil
 }
 

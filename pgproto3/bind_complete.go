@@ -8,7 +8,7 @@ type BindComplete struct{}
 
 func (*BindComplete) Backend() {}
 
-func (dst *BindComplete) UnmarshalBinary(src []byte) error {
+func (dst *BindComplete) Decode(src []byte) error {
 	if len(src) != 0 {
 		return &invalidMessageLenErr{messageType: "BindComplete", expectedLen: 0, actualLen: len(src)}
 	}

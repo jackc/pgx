@@ -13,35 +13,42 @@ type DataRow struct {
 
 func (*DataRow) Backend() {}
 
-func (dst *DataRow) UnmarshalBinary(src []byte) error {
-	buf := bytes.NewBuffer(src)
-
-	if buf.Len() < 2 {
+func (dst *DataRow) Decode(src []byte) error {
+	if len(src) < 2 {
 		return &invalidMessageFormatErr{messageType: "DataRow"}
 	}
-	fieldCount := int(binary.BigEndian.Uint16(buf.Next(2)))
+	rp := 0
+	fieldCount := int(binary.BigEndian.Uint16(src[rp:]))
+	rp += 2
 
-	dst.Values = make([][]byte, fieldCount)
+	// If the capacity of the values slice is too small OR substantially too
+	// large reallocate. This is too avoid one row with many columns from
+	// permanently allocating memory.
+	if cap(dst.Values) < fieldCount || cap(dst.Values)-fieldCount > 32 {
+		dst.Values = make([][]byte, fieldCount, 32)
+	} else {
+		dst.Values = dst.Values[:fieldCount]
+	}
 
 	for i := 0; i < fieldCount; i++ {
-		if buf.Len() < 4 {
+		if len(src[rp:]) < 4 {
 			return &invalidMessageFormatErr{messageType: "DataRow"}
 		}
 
-		msgSize := int(int32(binary.BigEndian.Uint32(buf.Next(4))))
+		msgSize := int(int32(binary.BigEndian.Uint32(src[rp:])))
+		rp += 4
 
 		// null
 		if msgSize == -1 {
-			continue
-		}
+			dst.Values[i] = nil
+		} else {
+			if len(src[rp:]) < msgSize {
+				return &invalidMessageFormatErr{messageType: "DataRow"}
+			}
 
-		value := make([]byte, msgSize)
-		_, err := buf.Read(value)
-		if err != nil {
-			return err
+			dst.Values[i] = src[rp : rp+msgSize]
+			rp += msgSize
 		}
-
-		dst.Values[i] = value
 	}
 
 	return nil

@@ -14,7 +14,7 @@ type NotificationResponse struct {
 
 func (*NotificationResponse) Backend() {}
 
-func (dst *NotificationResponse) UnmarshalBinary(src []byte) error {
+func (dst *NotificationResponse) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	pid := binary.BigEndian.Uint32(buf.Next(4))

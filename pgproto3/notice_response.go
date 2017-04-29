@@ -4,8 +4,8 @@ type NoticeResponse ErrorResponse
 
 func (*NoticeResponse) Backend() {}
 
-func (dst *NoticeResponse) UnmarshalBinary(src []byte) error {
-	return (*ErrorResponse)(dst).UnmarshalBinary(src)
+func (dst *NoticeResponse) Decode(src []byte) error {
+	return (*ErrorResponse)(dst).Decode(src)
 }
 
 func (src *NoticeResponse) MarshalBinary() ([]byte, error) {

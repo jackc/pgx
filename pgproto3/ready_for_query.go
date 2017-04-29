@@ -10,7 +10,7 @@ type ReadyForQuery struct {
 
 func (*ReadyForQuery) Backend() {}
 
-func (dst *ReadyForQuery) UnmarshalBinary(src []byte) error {
+func (dst *ReadyForQuery) Decode(src []byte) error {
 	if len(src) != 1 {
 		return &invalidMessageLenErr{messageType: "ReadyForQuery", expectedLen: 1, actualLen: len(src)}
 	}

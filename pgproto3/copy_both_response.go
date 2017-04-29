@@ -13,7 +13,7 @@ type CopyBothResponse struct {
 
 func (*CopyBothResponse) Backend() {}
 
-func (dst *CopyBothResponse) UnmarshalBinary(src []byte) error {
+func (dst *CopyBothResponse) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
 	if buf.Len() < 3 {

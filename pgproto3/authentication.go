@@ -21,7 +21,7 @@ type Authentication struct {
 
 func (*Authentication) Backend() {}
 
-func (dst *Authentication) UnmarshalBinary(src []byte) error {
+func (dst *Authentication) Decode(src []byte) error {
 	*dst = Authentication{Type: binary.BigEndian.Uint32(src[:4])}
 
 	switch dst.Type {
