@@ -108,6 +108,6 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 		return nil, err
 	}
 
-	err = msg.UnmarshalBinary(msgBody)
+	err = msg.Decode(msgBody)
 	return msg, err
 }

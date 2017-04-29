@@ -11,7 +11,7 @@ type Query struct {
 
 func (*Query) Frontend() {}
 
-func (dst *Query) UnmarshalBinary(src []byte) error {
+func (dst *Query) Decode(src []byte) error {
 	i := bytes.IndexByte(src, 0)
 	if i != len(src)-1 {
 		return &invalidMessageFormatErr{messageType: "Query"}
