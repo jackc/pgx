@@ -164,7 +164,7 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	}
 	// All connections are in use and we cannot create more
 	if p.logLevel >= LogLevelWarn {
-		p.logger.Log(LogLevelWarn, "All connections in pool are busy - waiting...")
+		p.logger.Log(LogLevelWarn, "waiting for available connection", nil)
 	}
 
 	// Wait until there is an available connection OR room to create a new connection

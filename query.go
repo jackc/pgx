@@ -78,10 +78,10 @@ func (rows *Rows) Close() {
 	if rows.err == nil {
 		if rows.conn.shouldLog(LogLevelInfo) {
 			endTime := time.Now()
-			rows.conn.log(LogLevelInfo, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args), "time", endTime.Sub(rows.startTime), "rowCount", rows.rowCount)
+			rows.conn.log(LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 		}
 	} else if rows.conn.shouldLog(LogLevelError) {
-		rows.conn.log(LogLevelError, "Query", "sql", rows.sql, "args", logQueryArgs(rows.args))
+		rows.conn.log(LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
 	}
 
 	if rows.afterClose != nil {

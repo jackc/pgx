@@ -365,17 +365,17 @@ func TestConnQuery(t *testing.T) {
 }
 
 type testLog struct {
-	lvl pgx.LogLevel
-	msg string
-	ctx []interface{}
+	lvl  pgx.LogLevel
+	msg  string
+	data map[string]interface{}
 }
 
 type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(lvl pgx.LogLevel, msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, ctx: ctx})
+func (l *testLogger) Log(lvl pgx.LogLevel, msg string, data map[string]interface{}) {
+	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
 }
 
 func TestConnQueryLog(t *testing.T) {
@@ -416,7 +416,7 @@ func TestConnQueryLog(t *testing.T) {
 		t.Errorf("Expected to log Query, but got %v", l)
 	}
 
-	if !(l.ctx[0] == "sql" && l.ctx[1] == "select 1") {
+	if l.data["sql"] != "select 1" {
 		t.Errorf("Expected to log Query with sql 'select 1', but got %v", l)
 	}
 }
