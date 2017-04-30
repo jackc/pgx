@@ -222,14 +222,14 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		}
 		c.config.User = user.Username
 		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Using default connection config", "User", c.config.User)
+			c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"User": c.config.User})
 		}
 	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
 		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Using default connection config", "Port", c.config.Port)
+			c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"Port": c.config.Port})
 		}
 	}
 
@@ -239,19 +239,19 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	}
 
 	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, fmt.Sprintf("Dialing PostgreSQL server at %s address: %s", network, address))
+		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"network": network, "address": address})
 	}
 	err = c.connect(config, network, address, config.TLSConfig)
 	if err != nil && config.UseFallbackTLS {
 		if c.shouldLog(LogLevelInfo) {
-			c.log(LogLevelInfo, fmt.Sprintf("Connect with TLSConfig failed, trying FallbackTLSConfig: %v", err))
+			c.log(LogLevelInfo, "connect with TLSConfig failed, trying FallbackTLSConfig", map[string]interface{}{"err": err})
 		}
 		err = c.connect(config, network, address, config.FallbackTLSConfig)
 	}
 
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, fmt.Sprintf("Connect failed: %v", err))
+			c.log(LogLevelError, "connect failed", map[string]interface{}{"err": err})
 		}
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Starting TLS handshake")
+			c.log(LogLevelDebug, "starting TLS handshake", nil)
 		}
 		if err := c.startTLS(tlsConfig); err != nil {
 			return err
@@ -334,7 +334,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		case *pgproto3.ReadyForQuery:
 			c.rxReadyForQuery(msg)
 			if c.shouldLog(LogLevelInfo) {
-				c.log(LogLevelInfo, "Connection established")
+				c.log(LogLevelInfo, "connection established", nil)
 			}
 
 			// Replication connections can't execute the queries to
@@ -414,25 +414,25 @@ func (c *Conn) Close() (err error) {
 		c.conn.Close()
 		c.die(errors.New("Closed"))
 		if c.shouldLog(LogLevelInfo) {
-			c.log(LogLevelInfo, "Closed connection")
+			c.log(LogLevelInfo, "closed connection", nil)
 		}
 	}()
 
 	err = c.conn.SetDeadline(time.Time{})
 	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "Failed to clear deadlines to send close message", "err", err)
+		c.log(LogLevelWarn, "failed to clear deadlines to send close message", map[string]interface{}{"err": err})
 		return err
 	}
 
 	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "Failed to send terminate message", "err", err)
+		c.log(LogLevelWarn, "failed to send terminate message", map[string]interface{}{"err": err})
 		return err
 	}
 
 	err = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "Failed to set read deadline to finish closing", "err", err)
+		c.log(LogLevelWarn, "failed to set read deadline to finish closing", map[string]interface{}{"err": err})
 		return err
 	}
 
@@ -701,7 +701,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
-				c.log(LogLevelError, fmt.Sprintf("Prepare `%s` as `%s` failed: %v", name, sql, err))
+				c.log(LogLevelError, "prepareEx failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
 			}
 		}()
 	}
@@ -1213,12 +1213,15 @@ func (c *Conn) shouldLog(lvl int) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
-func (c *Conn) log(lvl LogLevel, msg string, ctx ...interface{}) {
+func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
+	if data == nil {
+		data = map[string]interface{}{}
+	}
 	if c.pid != 0 {
-		ctx = append(ctx, "pid", c.PID)
+		data["pid"] = c.PID
 	}
 
-	c.logger.Log(lvl, msg, ctx...)
+	c.logger.Log(lvl, msg, data)
 }
 
 // SetLogger replaces the current logger and returns the previous logger.
@@ -1327,11 +1330,11 @@ func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, 
 		if err == nil {
 			if c.shouldLog(LogLevelInfo) {
 				endTime := time.Now()
-				c.log(LogLevelInfo, "Exec", "sql", sql, "args", logQueryArgs(arguments), "time", endTime.Sub(startTime), "commandTag", commandTag)
+				c.log(LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
 			}
 		} else {
 			if c.shouldLog(LogLevelError) {
-				c.log(LogLevelError, "Exec", "sql", sql, "args", logQueryArgs(arguments), "error", err)
+				c.log(LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
 			}
 		}
 

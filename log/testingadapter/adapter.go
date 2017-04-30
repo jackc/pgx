@@ -3,6 +3,8 @@
 package testingadapter
 
 import (
+	"fmt"
+
 	"github.com/jackc/pgx"
 )
 
@@ -20,6 +22,11 @@ func NewLogger(l TestingLogger) *Logger {
 	return &Logger{l: l}
 }
 
-func (l *Logger) Log(level pgx.LogLevel, msg string, ctx ...interface{}) {
-	l.l.Log(level, msg, ctx)
+func (l *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+	logArgs := make([]interface{}, 0, 2+len(data))
+	logArgs = append(logArgs, level, msg)
+	for k, v := range data {
+		logArgs = append(logArgs, fmt.Sprintf("%s=%v", k, v))
+	}
+	l.l.Log(logArgs...)
 }

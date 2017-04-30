@@ -215,12 +215,12 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 	case *pgproto3.NoticeResponse:
 		pgError := rc.c.rxErrorResponse((*pgproto3.ErrorResponse)(msg))
 		if rc.c.shouldLog(LogLevelInfo) {
-			rc.c.log(LogLevelInfo, pgError.Error())
+			rc.c.log(LogLevelInfo, pgError.Error(), nil)
 		}
 	case *pgproto3.ErrorResponse:
 		err = rc.c.rxErrorResponse(msg)
 		if rc.c.shouldLog(LogLevelError) {
-			rc.c.log(LogLevelError, err.Error())
+			rc.c.log(LogLevelError, err.Error(), nil)
 		}
 		return
 	case *pgproto3.CopyBothResponse:
@@ -258,12 +258,12 @@ func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err 
 			return &ReplicationMessage{ServerHeartbeat: h}, nil
 		default:
 			if rc.c.shouldLog(LogLevelError) {
-				rc.c.log(LogLevelError, "Unexpected data playload message type %v", msgType)
+				rc.c.log(LogLevelError, "Unexpected data playload message type", map[string]interface{}{"type": msgType})
 			}
 		}
 	default:
 		if rc.c.shouldLog(LogLevelError) {
-			rc.c.log(LogLevelError, "Unexpected replication message type %T", msg)
+			rc.c.log(LogLevelError, "Unexpected replication message type", map[string]interface{}{"type": msg})
 		}
 	}
 	return
@@ -421,7 +421,7 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 	r, err = rc.WaitForReplicationMessage(ctx)
 	if err != nil && r != nil {
 		if rc.c.shouldLog(LogLevelError) {
-			rc.c.log(LogLevelError, "Unxpected replication message %v", r)
+			rc.c.log(LogLevelError, "Unexpected replication message", map[string]interface{}{"msg": r, "err": err})
 		}
 	}
 
