@@ -365,7 +365,7 @@ func TestConnQuery(t *testing.T) {
 }
 
 type testLog struct {
-	lvl int
+	lvl pgx.LogLevel
 	msg string
 	ctx []interface{}
 }
@@ -374,7 +374,7 @@ type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(lvl int, msg string, ctx ...interface{}) {
+func (l *testLogger) Log(lvl pgx.LogLevel, msg string, ctx ...interface{}) {
 	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, ctx: ctx})
 }
 

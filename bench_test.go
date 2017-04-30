@@ -179,7 +179,7 @@ func BenchmarkSelectWithoutLogging(b *testing.B) {
 
 type discardLogger struct{}
 
-func (dl discardLogger) Log(level int, msg string, ctx ...interface{}) {}
+func (dl discardLogger) Log(level pgx.LogLevel, msg string, ctx ...interface{}) {}
 
 func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
 	conn := mustConnect(b, *defaultConnConfig)

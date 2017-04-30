@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/jackc/pgx"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/log/log15adapter"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var pool *pgx.ConnPool
@@ -98,27 +100,8 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-type log15Adapter struct {
-	logger log.Logger
-}
-
-func (a *log15Adapter) Log(level int, msg string, ctx ...interface{}) {
-	switch level {
-	case pgx.LogLevelTrace, pgx.LogLevelDebug:
-		a.logger.Debug(msg, ctx...)
-	case pgx.LogLevelInfo:
-		a.logger.Info(msg, ctx...)
-	case pgx.LogLevelWarn:
-		a.logger.Warn(msg, ctx...)
-	case pgx.LogLevelError:
-		a.logger.Error(msg, ctx...)
-	default:
-		panic("invalid log level")
-	}
-}
-
 func main() {
-	logger := &log15Adapter{logger: log.New("module", "pgx")}
+	logger := log15adapter.NewLogger(log.New("module", "pgx"))
 
 	var err error
 	connPoolConfig := pgx.ConnPoolConfig{
