@@ -1213,7 +1213,7 @@ func (c *Conn) shouldLog(lvl int) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
-func (c *Conn) log(lvl int, msg string, ctx ...interface{}) {
+func (c *Conn) log(lvl LogLevel, msg string, ctx ...interface{}) {
 	if c.pid != 0 {
 		ctx = append(ctx, "pid", c.PID)
 	}

@@ -17,10 +17,33 @@ const (
 	LogLevelNone  = 1
 )
 
+// LogLevel represents the pgx logging level. See LogLevel* constants for
+// possible values.
+type LogLevel int
+
+func (ll LogLevel) String() string {
+	switch ll {
+	case LogLevelTrace:
+		return "trace"
+	case LogLevelDebug:
+		return "debug"
+	case LogLevelInfo:
+		return "info"
+	case LogLevelWarn:
+		return "warn"
+	case LogLevelError:
+		return "error"
+	case LogLevelNone:
+		return "none"
+	default:
+		return fmt.Sprintf("invalid level %d", ll)
+	}
+}
+
 // Logger is the interface used to get logging from pgx internals.
 type Logger interface {
 	// Log a message at the given level with context key/value pairs
-	Log(level int, msg string, ctx ...interface{})
+	Log(level LogLevel, msg string, ctx ...interface{})
 }
 
 // LogLevelFromString converts log level string to constant
@@ -32,7 +55,7 @@ type Logger interface {
 //	warn
 //	error
 //	none
-func LogLevelFromString(s string) (int, error) {
+func LogLevelFromString(s string) (LogLevel, error) {
 	switch s {
 	case "trace":
 		return LogLevelTrace, nil
