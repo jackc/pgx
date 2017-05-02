@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -43,6 +44,58 @@ func TestConnQueryScan(t *testing.T) {
 	}
 	if sum != 55 {
 		t.Error("Wrong values returned")
+	}
+}
+
+func TestConnQueryScanWithManyColumns(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	columnCount := 1000
+	sql := "select "
+	for i := 0; i < columnCount; i++ {
+		if i > 0 {
+			sql += ","
+		}
+		sql += fmt.Sprintf(" %d", i)
+	}
+	sql += " from generate_series(1,5)"
+
+	dest := make([]int, columnCount)
+
+	var rowCount int
+
+	rows, err := conn.Query(sql)
+	if err != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		destPtrs := make([]interface{}, columnCount)
+		for i := range destPtrs {
+			destPtrs[i] = &dest[i]
+		}
+		if err := rows.Scan(destPtrs...); err != nil {
+			t.Fatalf("rows.Scan failed: %v", err)
+		}
+		rowCount++
+
+		for i := range dest {
+			if dest[i] != i {
+				t.Errorf("dest[%d] => %d, want %d", i, dest[i], i)
+			}
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+
+	if rowCount != 5 {
+		t.Errorf("rowCount => %d, want %d", rowCount, 5)
 	}
 }
 
