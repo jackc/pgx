@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
 )
 
 type Jsonb Json
@@ -43,25 +42,20 @@ func (dst *Jsonb) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 }
 
-func (src *Jsonb) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Json)(src).EncodeText(ci, w)
+func (src *Jsonb) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Json)(src).EncodeText(ci, buf)
 }
 
-func (src *Jsonb) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Jsonb) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write([]byte{1})
-	if err != nil {
-		return false, err
-	}
-
-	_, err = w.Write(src.Bytes)
-	return false, err
+	buf = append(buf, 1)
+	return append(buf, src.Bytes...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

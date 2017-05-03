@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -111,56 +110,42 @@ func (dst *Polygon) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Polygon) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Polygon) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if err := pgio.WriteByte(w, '('); err != nil {
-		return false, err
-	}
+	buf = append(buf, '(')
 
 	for i, p := range src.P {
 		if i > 0 {
-			if err := pgio.WriteByte(w, ','); err != nil {
-				return false, err
-			}
+			buf = append(buf, ',')
 		}
-		if _, err := io.WriteString(w, fmt.Sprintf(`(%f,%f)`, p.X, p.Y)); err != nil {
-			return false, err
-		}
+		buf = append(buf, fmt.Sprintf(`(%f,%f)`, p.X, p.Y)...)
 	}
 
-	err := pgio.WriteByte(w, ')')
-	return false, err
+	return append(buf, ')'), nil
 }
 
-func (src *Polygon) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Polygon) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if _, err := pgio.WriteInt32(w, int32(len(src.P))); err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt32(buf, int32(len(src.P)))
 
 	for _, p := range src.P {
-		if _, err := pgio.WriteUint64(w, math.Float64bits(p.X)); err != nil {
-			return false, err
-		}
-
-		if _, err := pgio.WriteUint64(w, math.Float64bits(p.Y)); err != nil {
-			return false, err
-		}
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
 	}
 
-	return false, nil
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

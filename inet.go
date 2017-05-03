@@ -3,10 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
 	"net"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 // Network address family is dependent on server socket.h value for AF_INET.
@@ -149,25 +146,24 @@ func (dst *Inet) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Inet) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Inet) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, src.IPNet.String())
-	return false, err
+	return append(buf, src.IPNet.String()...), nil
 }
 
 // EncodeBinary encodes src into w.
-func (src *Inet) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Inet) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var family byte
@@ -177,29 +173,20 @@ func (src *Inet) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	case net.IPv6len:
 		family = defaultAFInet6
 	default:
-		return false, fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
+		return nil, fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
 	}
 
-	if err := pgio.WriteByte(w, family); err != nil {
-		return false, err
-	}
+	buf = append(buf, family)
 
 	ones, _ := src.IPNet.Mask.Size()
-	if err := pgio.WriteByte(w, byte(ones)); err != nil {
-		return false, err
-	}
+	buf = append(buf, byte(ones))
 
 	// is_cidr is ignored on server
-	if err := pgio.WriteByte(w, 0); err != nil {
-		return false, err
-	}
+	buf = append(buf, 0)
 
-	if err := pgio.WriteByte(w, byte(len(src.IPNet.IP))); err != nil {
-		return false, err
-	}
+	buf = append(buf, byte(len(src.IPNet.IP)))
 
-	_, err := w.Write(src.IPNet.IP)
-	return false, err
+	return append(buf, src.IPNet.IP...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

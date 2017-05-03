@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
@@ -140,12 +139,12 @@ func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamptz) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var s string
@@ -159,16 +158,15 @@ func (src *Timestamptz) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		s = "-infinity"
 	}
 
-	_, err := io.WriteString(w, s)
-	return false, err
+	return append(buf, s...), nil
 }
 
-func (src *Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamptz) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var microsecSinceY2K int64
@@ -182,8 +180,7 @@ func (src *Timestamptz) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		microsecSinceY2K = negativeInfinityMicrosecondOffset
 	}
 
-	_, err := pgio.WriteInt64(w, microsecSinceY2K)
-	return false, err
+	return pgio.AppendInt64(buf, microsecSinceY2K), nil
 }
 
 // Scan implements the database/sql Scanner interface.

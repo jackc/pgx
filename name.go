@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 // Name is a type used for PostgreSQL's special 63-byte
@@ -40,12 +39,12 @@ func (dst *Name) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Name) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Text)(src).EncodeText(ci, w)
+func (src *Name) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Text)(src).EncodeText(ci, buf)
 }
 
-func (src *Name) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Text)(src).EncodeBinary(ci, w)
+func (src *Name) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Text)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

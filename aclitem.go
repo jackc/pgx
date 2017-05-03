@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
 )
 
 // Aclitem is used for PostgreSQL's aclitem data type. A sample aclitem
@@ -83,16 +82,15 @@ func (dst *Aclitem) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Aclitem) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Aclitem) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, src.String)
-	return false, err
+	return append(buf, src.String...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

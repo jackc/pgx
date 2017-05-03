@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
-	"io"
 )
 
 type Uuid struct {
@@ -126,28 +125,26 @@ func (dst *Uuid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Uuid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Uuid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, encodeUuid(src.Bytes))
-	return false, err
+	return append(buf, encodeUuid(src.Bytes)...), nil
 }
 
-func (src *Uuid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Uuid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write(src.Bytes[:])
-	return false, err
+	return append(buf, src.Bytes[:]...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 // GenericText is a placeholder for text format values that no other type exists
@@ -25,8 +24,8 @@ func (dst *GenericText) DecodeText(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeText(ci, src)
 }
 
-func (src *GenericText) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Text)(src).EncodeText(ci, w)
+func (src *GenericText) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Text)(src).EncodeText(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

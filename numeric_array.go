@@ -1,11 +1,9 @@
 package pgtype
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/jackc/pgx/pgio"
 )
@@ -191,23 +189,19 @@ func (dst *NumericArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *NumericArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *NumericArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
-		_, err := io.WriteString(w, "{}")
-		return false, err
+		return append(buf, '{', '}'), nil
 	}
 
-	err := EncodeTextArrayDimensions(w, src.Dimensions)
-	if err != nil {
-		return false, err
-	}
+	buf = EncodeTextArrayDimensions(buf, src.Dimensions)
 
 	// dimElemCounts is the multiples of elements that each array lies on. For
 	// example, a single dimension array of length 4 would have a dimElemCounts of
@@ -220,59 +214,44 @@ func (src *NumericArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		dimElemCounts[i] = int(src.Dimensions[i].Length) * dimElemCounts[i+1]
 	}
 
+	inElemBuf := make([]byte, 0, 32)
 	for i, elem := range src.Elements {
 		if i > 0 {
-			err = pgio.WriteByte(w, ',')
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, ',')
 		}
 
 		for _, dec := range dimElemCounts {
 			if i%dec == 0 {
-				err = pgio.WriteByte(w, '{')
-				if err != nil {
-					return false, err
-				}
+				buf = append(buf, '{')
 			}
 		}
 
-		elemBuf := &bytes.Buffer{}
-		null, err := elem.EncodeText(ci, elemBuf)
+		elemBuf, err := elem.EncodeText(ci, inElemBuf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			_, err = io.WriteString(w, `NULL`)
-			if err != nil {
-				return false, err
-			}
+		if elemBuf == nil {
+			buf = append(buf, `NULL`...)
 		} else {
-			_, err = io.WriteString(w, QuoteArrayElementIfNeeded(elemBuf.String()))
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
 		}
 
 		for _, dec := range dimElemCounts {
 			if (i+1)%dec == 0 {
-				err = pgio.WriteByte(w, '}')
-				if err != nil {
-					return false, err
-				}
+				buf = append(buf, '}')
 			}
 		}
 	}
 
-	return false, nil
+	return buf, nil
 }
 
-func (src *NumericArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *NumericArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	arrayHeader := ArrayHeader{
@@ -282,7 +261,7 @@ func (src *NumericArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	if dt, ok := ci.DataTypeForName("numeric"); ok {
 		arrayHeader.ElementOid = int32(dt.Oid)
 	} else {
-		return false, fmt.Errorf("unable to find oid for type name %v", "numeric")
+		return nil, fmt.Errorf("unable to find oid for type name %v", "numeric")
 	}
 
 	for i := range src.Elements {
@@ -292,38 +271,23 @@ func (src *NumericArray) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		}
 	}
 
-	err := arrayHeader.EncodeBinary(ci, w)
-	if err != nil {
-		return false, err
-	}
-
-	elemBuf := &bytes.Buffer{}
+	buf = arrayHeader.EncodeBinary(ci, buf)
 
 	for i := range src.Elements {
-		elemBuf.Reset()
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
 
-		null, err := src.Elements[i].EncodeBinary(ci, elemBuf)
+		elemBuf, err := src.Elements[i].EncodeBinary(ci, buf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			_, err = pgio.WriteInt32(w, -1)
-			if err != nil {
-				return false, err
-			}
-		} else {
-			_, err = pgio.WriteInt32(w, int32(elemBuf.Len()))
-			if err != nil {
-				return false, err
-			}
-			_, err = elemBuf.WriteTo(w)
-			if err != nil {
-				return false, err
-			}
+		if elemBuf != nil {
+			buf = elemBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
 	}
 
-	return false, err
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -346,14 +310,13 @@ func (dst *NumericArray) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *NumericArray) Value() (driver.Value, error) {
-	buf := &bytes.Buffer{}
-	null, err := src.EncodeText(nil, buf)
+	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	if null {
+	if buf == nil {
 		return nil, nil
 	}
 
-	return buf.String(), nil
+	return string(buf), nil
 }

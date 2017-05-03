@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
@@ -136,15 +135,15 @@ func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 // EncodeText writes the text encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src *Timestamp) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
-		return false, fmt.Errorf("cannot encode non-UTC time into timestamp")
+		return nil, fmt.Errorf("cannot encode non-UTC time into timestamp")
 	}
 
 	var s string
@@ -158,21 +157,20 @@ func (src *Timestamp) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		s = "-infinity"
 	}
 
-	_, err := io.WriteString(w, s)
-	return false, err
+	return append(buf, s...), nil
 }
 
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src *Timestamp) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Timestamp) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
-		return false, fmt.Errorf("cannot encode non-UTC time into timestamp")
+		return nil, fmt.Errorf("cannot encode non-UTC time into timestamp")
 	}
 
 	var microsecSinceY2K int64
@@ -186,8 +184,7 @@ func (src *Timestamp) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		microsecSinceY2K = negativeInfinityMicrosecondOffset
 	}
 
-	_, err := pgio.WriteInt64(w, microsecSinceY2K)
-	return false, err
+	return pgio.AppendInt64(buf, microsecSinceY2K), nil
 }
 
 // Scan implements the database/sql Scanner interface.

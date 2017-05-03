@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"io"
 )
 
 type Json struct {
@@ -105,20 +104,19 @@ func (dst *Json) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
 }
 
-func (src *Json) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Json) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write(src.Bytes)
-	return false, err
+	return append(buf, src.Bytes...), nil
 }
 
-func (src *Json) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return src.EncodeText(ci, w)
+func (src *Json) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return src.EncodeText(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

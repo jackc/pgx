@@ -1,11 +1,9 @@
 package pgtype
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"math/big"
 	"strconv"
@@ -455,36 +453,26 @@ func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
 	return accum, rp, digits
 }
 
-func (src *Numeric) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if _, err := io.WriteString(w, src.Int.String()); err != nil {
-		return false, err
-	}
-
-	if err := pgio.WriteByte(w, 'e'); err != nil {
-		return false, err
-	}
-
-	if _, err := io.WriteString(w, strconv.FormatInt(int64(src.Exp), 10)); err != nil {
-		return false, err
-	}
-
-	return false, nil
-
+	buf = append(buf, src.Int.String()...)
+	buf = append(buf, 'e')
+	buf = append(buf, strconv.FormatInt(int64(src.Exp), 10)...)
+	return buf, nil
 }
 
-func (src *Numeric) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var sign int16
@@ -535,9 +523,7 @@ func (src *Numeric) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		fracDigits = append(fracDigits, int16(remainder.Int64()))
 	}
 
-	if _, err := pgio.WriteInt16(w, int16(len(wholeDigits)+len(fracDigits))); err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt16(buf, int16(len(wholeDigits)+len(fracDigits)))
 
 	var weight int16
 	if len(wholeDigits) > 0 {
@@ -548,35 +534,25 @@ func (src *Numeric) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 	} else {
 		weight = int16(exp/4) - 1 + int16(len(fracDigits))
 	}
-	if _, err := pgio.WriteInt16(w, weight); err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt16(buf, weight)
 
-	if _, err := pgio.WriteInt16(w, sign); err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt16(buf, sign)
 
 	var dscale int16
 	if src.Exp < 0 {
 		dscale = int16(-src.Exp)
 	}
-	if _, err := pgio.WriteInt16(w, dscale); err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt16(buf, dscale)
 
 	for i := len(wholeDigits) - 1; i >= 0; i-- {
-		if _, err := pgio.WriteInt16(w, wholeDigits[i]); err != nil {
-			return false, err
-		}
+		buf = pgio.AppendInt16(buf, wholeDigits[i])
 	}
 
 	for i := len(fracDigits) - 1; i >= 0; i-- {
-		if _, err := pgio.WriteInt16(w, fracDigits[i]); err != nil {
-			return false, err
-		}
+		buf = pgio.AppendInt16(buf, fracDigits[i])
 	}
 
-	return false, nil
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -606,13 +582,12 @@ func (dst *Numeric) Scan(src interface{}) error {
 func (src *Numeric) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
-		buf := &bytes.Buffer{}
-		_, err := src.EncodeText(nil, buf)
+		buf, err := src.EncodeText(nil, nil)
 		if err != nil {
 			return nil, err
 		}
 
-		return buf.String(), nil
+		return string(buf), nil
 	case Null:
 		return nil, nil
 	default:

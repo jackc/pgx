@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
-	"io"
 )
 
 type Bytea struct {
@@ -99,33 +98,28 @@ func (dst *Bytea) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Bytea) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Bytea) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, `\x`)
-	if err != nil {
-		return false, err
-	}
-
-	_, err = io.WriteString(w, hex.EncodeToString(src.Bytes))
-	return false, err
+	buf = append(buf, `\x`...)
+	buf = append(buf, hex.EncodeToString(src.Bytes)...)
+	return buf, nil
 }
 
-func (src *Bytea) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Bytea) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write(src.Bytes)
-	return false, err
+	return append(buf, src.Bytes...), nil
 }
 
 // Scan implements the database/sql Scanner interface.
