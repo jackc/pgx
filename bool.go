@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
 	"strconv"
 )
 
@@ -90,42 +89,38 @@ func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Bool) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	var buf []byte
 	if src.Bool {
-		buf = []byte{'t'}
+		buf = append(buf, 't')
 	} else {
-		buf = []byte{'f'}
+		buf = append(buf, 'f')
 	}
 
-	_, err := w.Write(buf)
-	return false, err
+	return buf, nil
 }
 
-func (src *Bool) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Bool) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	var buf []byte
 	if src.Bool {
-		buf = []byte{1}
+		buf = append(buf, 1)
 	} else {
-		buf = []byte{0}
+		buf = append(buf, 0)
 	}
 
-	_, err := w.Write(buf)
-	return false, err
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

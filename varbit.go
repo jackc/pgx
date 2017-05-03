@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 
 	"github.com/jackc/pgx/pgio"
 )
@@ -76,43 +75,37 @@ func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Varbit) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	buf := make([]byte, int(src.Len))
-	for i, _ := range buf {
+	for i := int32(0); i < src.Len; i++ {
 		byteIdx := i / 8
 		bitMask := byte(128 >> byte(i%8))
 		char := byte('0')
 		if src.Bytes[byteIdx]&bitMask > 0 {
 			char = '1'
 		}
-		buf[i] = char
+		buf = append(buf, char)
 	}
 
-	_, err := w.Write(buf)
-	return false, err
+	return buf, nil
 }
 
-func (src *Varbit) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Varbit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if _, err := pgio.WriteInt32(w, src.Len); err != nil {
-		return false, err
-	}
-
-	_, err := w.Write(src.Bytes)
-	return false, err
+	buf = pgio.AppendInt32(buf, src.Len)
+	return append(buf, src.Bytes...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

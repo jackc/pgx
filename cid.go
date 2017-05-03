@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 // Cid is PostgreSQL's Command Identifier type.
@@ -43,12 +42,12 @@ func (dst *Cid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Cid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*pguint32)(src).EncodeText(ci, w)
+func (src *Cid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*pguint32)(src).EncodeText(ci, buf)
 }
 
-func (src *Cid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*pguint32)(src).EncodeBinary(ci, w)
+func (src *Cid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*pguint32)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -90,33 +89,28 @@ func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Point) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Point) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, fmt.Sprintf(`(%f,%f)`, src.P.X, src.P.Y))
-	return false, err
+	return append(buf, fmt.Sprintf(`(%f,%f)`, src.P.X, src.P.Y)...), nil
 }
 
-func (src *Point) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Point) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := pgio.WriteUint64(w, math.Float64bits(src.P.X))
-	if err != nil {
-		return false, err
-	}
-
-	_, err = pgio.WriteUint64(w, math.Float64bits(src.P.Y))
-	return false, err
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.P.X))
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.P.Y))
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

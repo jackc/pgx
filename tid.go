@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 
@@ -94,33 +93,29 @@ func (dst *Tid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Tid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Tid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber))
-	return false, err
+	buf = append(buf, fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)...)
+	return buf, nil
 }
 
-func (src *Tid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Tid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := pgio.WriteUint32(w, src.BlockNumber)
-	if err != nil {
-		return false, err
-	}
-
-	_, err = pgio.WriteUint16(w, src.OffsetNumber)
-	return false, err
+	buf = pgio.AppendUint32(buf, src.BlockNumber)
+	buf = pgio.AppendUint16(buf, src.OffsetNumber)
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

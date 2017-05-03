@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
@@ -47,14 +46,12 @@ func (dst *Oid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Oid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	_, err := io.WriteString(w, strconv.FormatUint(uint64(src), 10))
-	return false, err
+func (src Oid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return append(buf, strconv.FormatUint(uint64(src), 10)...), nil
 }
 
-func (src Oid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	_, err := pgio.WriteUint32(w, uint32(src))
-	return false, err
+func (src Oid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return pgio.AppendUint32(buf, uint32(src)), nil
 }
 
 // Scan implements the database/sql Scanner interface.

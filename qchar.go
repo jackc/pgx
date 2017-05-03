@@ -2,11 +2,8 @@ package pgtype
 
 import (
 	"fmt"
-	"io"
 	"math"
 	"strconv"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 // QChar is for PostgreSQL's special 8-bit-only "char" type more akin to the C
@@ -136,13 +133,13 @@ func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *QChar) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	return false, pgio.WriteByte(w, byte(src.Int))
+	return append(buf, byte(src.Int)), nil
 }

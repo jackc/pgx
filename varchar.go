@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 type Varchar Text
@@ -32,12 +31,12 @@ func (dst *Varchar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Varchar) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Text)(src).EncodeText(ci, w)
+func (src *Varchar) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Text)(src).EncodeText(ci, buf)
 }
 
-func (src *Varchar) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Text)(src).EncodeBinary(ci, w)
+func (src *Varchar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Text)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

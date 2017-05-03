@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 	"strings"
@@ -93,36 +92,29 @@ func (dst *Line) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Line) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Line) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, fmt.Sprintf(`{%f,%f,%f}`, src.A, src.B, src.C))
-	return false, err
+	return append(buf, fmt.Sprintf(`{%f,%f,%f}`, src.A, src.B, src.C)...), nil
 }
 
-func (src *Line) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Line) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if _, err := pgio.WriteUint64(w, math.Float64bits(src.A)); err != nil {
-		return false, err
-	}
-
-	if _, err := pgio.WriteUint64(w, math.Float64bits(src.B)); err != nil {
-		return false, err
-	}
-
-	_, err := pgio.WriteUint64(w, math.Float64bits(src.C))
-	return false, err
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.A))
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.B))
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.C))
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.
