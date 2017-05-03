@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 // Xid is PostgreSQL's Transaction ID type.
@@ -46,12 +45,12 @@ func (dst *Xid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Xid) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*pguint32)(src).EncodeText(ci, w)
+func (src *Xid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*pguint32)(src).EncodeText(ci, buf)
 }
 
-func (src *Xid) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*pguint32)(src).EncodeBinary(ci, w)
+func (src *Xid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*pguint32)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

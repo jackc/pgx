@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
@@ -125,12 +124,12 @@ func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Date) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var s string
@@ -144,16 +143,15 @@ func (src *Date) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		s = "-infinity"
 	}
 
-	_, err := io.WriteString(w, s)
-	return false, err
+	return append(buf, s...), nil
 }
 
-func (src *Date) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Date) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var daysSinceDateEpoch int32
@@ -170,8 +168,7 @@ func (src *Date) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		daysSinceDateEpoch = negativeInfinityDayOffset
 	}
 
-	_, err := pgio.WriteInt32(w, daysSinceDateEpoch)
-	return false, err
+	return pgio.AppendInt32(buf, daysSinceDateEpoch), nil
 }
 
 // Scan implements the database/sql Scanner interface.

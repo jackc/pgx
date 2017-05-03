@@ -1,10 +1,8 @@
 package pgtype
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"fmt"
-	"io"
 
 	"github.com/jackc/pgx/pgio"
 )
@@ -106,72 +104,65 @@ func (dst *Int4range) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Int4range) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src Int4range) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	switch src.LowerType {
 	case Exclusive, Unbounded:
-		if err := pgio.WriteByte(w, '('); err != nil {
-			return false, err
-		}
+		buf = append(buf, '(')
 	case Inclusive:
-		if err := pgio.WriteByte(w, '['); err != nil {
-			return false, err
-		}
+		buf = append(buf, '[')
 	case Empty:
-		_, err := io.WriteString(w, "empty")
-		return false, err
+		return append(buf, "empty"...), nil
 	default:
-		return false, fmt.Errorf("unknown lower bound type %v", src.LowerType)
+		return nil, fmt.Errorf("unknown lower bound type %v", src.LowerType)
 	}
+
+	var err error
 
 	if src.LowerType != Unbounded {
-		if null, err := src.Lower.EncodeText(ci, w); err != nil {
-			return false, err
-		} else if null {
-			return false, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
+		buf, err = src.Lower.EncodeText(ci, buf)
+		if err != nil {
+			return nil, err
+		} else if buf == nil {
+			return nil, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
 		}
 	}
 
-	if err := pgio.WriteByte(w, ','); err != nil {
-		return false, err
-	}
+	buf = append(buf, ',')
 
 	if src.UpperType != Unbounded {
-		if null, err := src.Upper.EncodeText(ci, w); err != nil {
-			return false, err
-		} else if null {
-			return false, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
+		buf, err = src.Upper.EncodeText(ci, buf)
+		if err != nil {
+			return nil, err
+		} else if buf == nil {
+			return nil, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
 		}
 	}
 
 	switch src.UpperType {
 	case Exclusive, Unbounded:
-		if err := pgio.WriteByte(w, ')'); err != nil {
-			return false, err
-		}
+		buf = append(buf, ')')
 	case Inclusive:
-		if err := pgio.WriteByte(w, ']'); err != nil {
-			return false, err
-		}
+		buf = append(buf, ']')
 	default:
-		return false, fmt.Errorf("unknown upper bound type %v", src.UpperType)
+		return nil, fmt.Errorf("unknown upper bound type %v", src.UpperType)
 	}
 
-	return false, nil
+	return buf, nil
 }
 
-func (src Int4range) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src Int4range) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	var rangeType byte
@@ -182,10 +173,9 @@ func (src Int4range) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		rangeType |= lowerUnboundedMask
 	case Exclusive:
 	case Empty:
-		err := pgio.WriteByte(w, emptyMask)
-		return false, err
+		return append(buf, emptyMask), nil
 	default:
-		return false, fmt.Errorf("unknown LowerType: %v", src.LowerType)
+		return nil, fmt.Errorf("unknown LowerType: %v", src.LowerType)
 	}
 
 	switch src.UpperType {
@@ -195,54 +185,44 @@ func (src Int4range) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
 		rangeType |= upperUnboundedMask
 	case Exclusive:
 	default:
-		return false, fmt.Errorf("unknown UpperType: %v", src.UpperType)
+		return nil, fmt.Errorf("unknown UpperType: %v", src.UpperType)
 	}
 
-	if err := pgio.WriteByte(w, rangeType); err != nil {
-		return false, err
-	}
+	buf = append(buf, rangeType)
 
-	valBuf := &bytes.Buffer{}
+	var err error
 
 	if src.LowerType != Unbounded {
-		null, err := src.Lower.EncodeBinary(ci, valBuf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+
+		buf, err = src.Lower.EncodeBinary(ci, buf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			return false, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
+		if buf == nil {
+			return nil, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
 		}
 
-		_, err = pgio.WriteInt32(w, int32(valBuf.Len()))
-		if err != nil {
-			return false, err
-		}
-		_, err = valBuf.WriteTo(w)
-		if err != nil {
-			return false, err
-		}
+		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 	}
 
 	if src.UpperType != Unbounded {
-		null, err := src.Upper.EncodeBinary(ci, valBuf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+
+		buf, err = src.Upper.EncodeBinary(ci, buf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			return false, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
+		if buf == nil {
+			return nil, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
 		}
 
-		_, err = pgio.WriteInt32(w, int32(valBuf.Len()))
-		if err != nil {
-			return false, err
-		}
-		_, err = valBuf.WriteTo(w)
-		if err != nil {
-			return false, err
-		}
+		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 	}
 
-	return false, nil
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

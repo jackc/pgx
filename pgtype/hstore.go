@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -151,12 +150,12 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Hstore) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	firstPair := true
@@ -165,90 +164,56 @@ func (src *Hstore) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		if firstPair {
 			firstPair = false
 		} else {
-			err := pgio.WriteByte(w, ',')
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, ',')
 		}
 
-		_, err := io.WriteString(w, quoteHstoreElementIfNeeded(k))
+		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
+		buf = append(buf, "=>"...)
+
+		elemBuf, err := v.EncodeText(ci, nil)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
 
-		_, err = io.WriteString(w, "=>")
-		if err != nil {
-			return false, err
-		}
-
-		elemBuf := &bytes.Buffer{}
-		null, err := v.EncodeText(ci, elemBuf)
-		if err != nil {
-			return false, err
-		}
-
-		if null {
-			_, err = io.WriteString(w, "NULL")
-			if err != nil {
-				return false, err
-			}
+		if elemBuf == nil {
+			buf = append(buf, "NULL"...)
 		} else {
-			_, err := io.WriteString(w, quoteHstoreElementIfNeeded(elemBuf.String()))
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, quoteHstoreElementIfNeeded(string(elemBuf))...)
 		}
 	}
 
-	return false, nil
+	return buf, nil
 }
 
-func (src *Hstore) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Hstore) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := pgio.WriteInt32(w, int32(len(src.Map)))
-	if err != nil {
-		return false, err
-	}
+	buf = pgio.AppendInt32(buf, int32(len(src.Map)))
 
-	elemBuf := &bytes.Buffer{}
+	var err error
 	for k, v := range src.Map {
-		_, err := pgio.WriteInt32(w, int32(len(k)))
-		if err != nil {
-			return false, err
-		}
-		_, err = io.WriteString(w, k)
-		if err != nil {
-			return false, err
-		}
+		buf = pgio.AppendInt32(buf, int32(len(k)))
+		buf = append(buf, k...)
 
-		null, err := v.EncodeText(ci, elemBuf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+
+		elemBuf, err := v.EncodeText(ci, buf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			_, err := pgio.WriteInt32(w, -1)
-			if err != nil {
-				return false, err
-			}
-		} else {
-			_, err := pgio.WriteInt32(w, int32(elemBuf.Len()))
-			if err != nil {
-				return false, err
-			}
-			_, err = elemBuf.WriteTo(w)
-			if err != nil {
-				return false, err
-			}
+		if elemBuf != nil {
+			buf = elemBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
 	}
 
-	return false, err
+	return buf, err
 }
 
 var quoteHstoreReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)

@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"math"
 	"strconv"
 
@@ -129,28 +128,28 @@ func (dst *Float8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Float8) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Float8) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, strconv.FormatFloat(float64(src.Float), 'f', -1, 64))
-	return false, err
+	buf = append(buf, strconv.FormatFloat(float64(src.Float), 'f', -1, 64)...)
+	return buf, nil
 }
 
-func (src *Float8) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Float8) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := pgio.WriteInt64(w, int64(math.Float64bits(src.Float)))
-	return false, err
+	buf = pgio.AppendUint64(buf, math.Float64bits(src.Float))
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.

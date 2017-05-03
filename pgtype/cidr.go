@@ -1,9 +1,5 @@
 package pgtype
 
-import (
-	"io"
-)
-
 type Cidr Inet
 
 func (dst *Cidr) Set(src interface{}) error {
@@ -26,10 +22,10 @@ func (dst *Cidr) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Inet)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Cidr) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Inet)(src).EncodeText(ci, w)
+func (src *Cidr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Inet)(src).EncodeText(ci, buf)
 }
 
-func (src *Cidr) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Inet)(src).EncodeBinary(ci, w)
+func (src *Cidr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Inet)(src).EncodeBinary(ci, buf)
 }

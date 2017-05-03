@@ -1,12 +1,8 @@
 package pgtype
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"fmt"
-	"io"
-
-	"github.com/jackc/pgx/pgio"
 )
 
 type AclitemArray struct {
@@ -120,23 +116,19 @@ func (dst *AclitemArray) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *AclitemArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *AclitemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
-		_, err := io.WriteString(w, "{}")
-		return false, err
+		return append(buf, '{', '}'), nil
 	}
 
-	err := EncodeTextArrayDimensions(w, src.Dimensions)
-	if err != nil {
-		return false, err
-	}
+	buf = EncodeTextArrayDimensions(buf, src.Dimensions)
 
 	// dimElemCounts is the multiples of elements that each array lies on. For
 	// example, a single dimension array of length 4 would have a dimElemCounts of
@@ -149,51 +141,36 @@ func (src *AclitemArray) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 		dimElemCounts[i] = int(src.Dimensions[i].Length) * dimElemCounts[i+1]
 	}
 
+	inElemBuf := make([]byte, 0, 32)
 	for i, elem := range src.Elements {
 		if i > 0 {
-			err = pgio.WriteByte(w, ',')
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, ',')
 		}
 
 		for _, dec := range dimElemCounts {
 			if i%dec == 0 {
-				err = pgio.WriteByte(w, '{')
-				if err != nil {
-					return false, err
-				}
+				buf = append(buf, '{')
 			}
 		}
 
-		elemBuf := &bytes.Buffer{}
-		null, err := elem.EncodeText(ci, elemBuf)
+		elemBuf, err := elem.EncodeText(ci, inElemBuf)
 		if err != nil {
-			return false, err
+			return nil, err
 		}
-		if null {
-			_, err = io.WriteString(w, `NULL`)
-			if err != nil {
-				return false, err
-			}
+		if elemBuf == nil {
+			buf = append(buf, `NULL`...)
 		} else {
-			_, err = io.WriteString(w, QuoteArrayElementIfNeeded(elemBuf.String()))
-			if err != nil {
-				return false, err
-			}
+			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
 		}
 
 		for _, dec := range dimElemCounts {
 			if (i+1)%dec == 0 {
-				err = pgio.WriteByte(w, '}')
-				if err != nil {
-					return false, err
-				}
+				buf = append(buf, '}')
 			}
 		}
 	}
 
-	return false, nil
+	return buf, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -216,14 +193,13 @@ func (dst *AclitemArray) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src *AclitemArray) Value() (driver.Value, error) {
-	buf := &bytes.Buffer{}
-	null, err := src.EncodeText(nil, buf)
+	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	if null {
+	if buf == nil {
 		return nil, nil
 	}
 
-	return buf.String(), nil
+	return string(buf), nil
 }

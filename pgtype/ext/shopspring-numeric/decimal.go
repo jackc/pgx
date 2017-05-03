@@ -1,11 +1,9 @@
 package numeric
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io"
 	"strconv"
 
 	"github.com/jackc/pgx/pgtype"
@@ -75,12 +73,12 @@ func (dst *Numeric) Set(src interface{}) error {
 			return fmt.Errorf("cannot convert %v to Numeric", value)
 		}
 
-		buf := &bytes.Buffer{}
-		if _, err := num.EncodeText(nil, buf); err != nil {
+		buf, err := num.EncodeText(nil, nil)
+		if err != nil {
 			return fmt.Errorf("cannot convert %v to Numeric", value)
 		}
 
-		dec, err := decimal.NewFromString(buf.String())
+		dec, err := decimal.NewFromString(string(buf))
 		if err != nil {
 			return fmt.Errorf("cannot convert %v to Numeric", value)
 		}
@@ -243,12 +241,12 @@ func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	buf := &bytes.Buffer{}
-	if _, err := num.EncodeText(ci, buf); err != nil {
+	buf, err := num.EncodeText(ci, nil)
+	if err != nil {
 		return err
 	}
 
-	dec, err := decimal.NewFromString(buf.String())
+	dec, err := decimal.NewFromString(string(buf))
 	if err != nil {
 		return err
 	}
@@ -258,33 +256,32 @@ func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Numeric) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+func (src *Numeric) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
-		return true, nil
+		return nil, nil
 	case pgtype.Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, src.Decimal.String())
-	return false, err
+	return append(buf, src.Decimal.String()...), nil
 }
 
-func (src *Numeric) EncodeBinary(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+func (src *Numeric) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
-		return true, nil
+		return nil, nil
 	case pgtype.Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	// For now at least, implement this in terms of pgtype.Numeric
 	num := &pgtype.Numeric{}
 	if err := num.DecodeText(ci, []byte(src.Decimal.String())); err != nil {
-		return false, err
+		return nil, err
 	}
 
-	return num.EncodeBinary(ci, w)
+	return num.EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

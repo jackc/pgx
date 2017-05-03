@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -178,41 +177,28 @@ func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Interval) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Interval) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
 	if src.Months != 0 {
-		if _, err := io.WriteString(w, strconv.FormatInt(int64(src.Months), 10)); err != nil {
-			return false, err
-		}
-
-		if _, err := io.WriteString(w, " mon "); err != nil {
-			return false, err
-		}
+		buf = append(buf, strconv.FormatInt(int64(src.Months), 10)...)
+		buf = append(buf, " mon "...)
 	}
 
 	if src.Days != 0 {
-		if _, err := io.WriteString(w, strconv.FormatInt(int64(src.Days), 10)); err != nil {
-			return false, err
-		}
-
-		if _, err := io.WriteString(w, " day "); err != nil {
-			return false, err
-		}
+		buf = append(buf, strconv.FormatInt(int64(src.Days), 10)...)
+		buf = append(buf, " day "...)
 	}
 
 	absMicroseconds := src.Microseconds
 	if absMicroseconds < 0 {
 		absMicroseconds = -absMicroseconds
-
-		if err := pgio.WriteByte(w, '-'); err != nil {
-			return false, err
-		}
+		buf = append(buf, '-')
 	}
 
 	hours := absMicroseconds / microsecondsPerHour
@@ -221,31 +207,21 @@ func (src *Interval) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
 	microseconds := absMicroseconds % microsecondsPerSecond
 
 	timeStr := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, microseconds)
-
-	_, err := io.WriteString(w, timeStr)
-	return false, err
+	return append(buf, timeStr...), nil
 }
 
 // EncodeBinary encodes src into w.
-func (src *Interval) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Interval) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	if _, err := pgio.WriteInt64(w, src.Microseconds); err != nil {
-		return false, err
-	}
-	if _, err := pgio.WriteInt32(w, src.Days); err != nil {
-		return false, err
-	}
-	if _, err := pgio.WriteInt32(w, src.Months); err != nil {
-		return false, err
-	}
-
-	return false, nil
+	buf = pgio.AppendInt64(buf, src.Microseconds)
+	buf = pgio.AppendInt32(buf, src.Days)
+	return pgio.AppendInt32(buf, src.Months), nil
 }
 
 // Scan implements the database/sql Scanner interface.

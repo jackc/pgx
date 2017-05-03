@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
-	"io"
 
 	"github.com/jackc/pgx/pgtype"
 	uuid "github.com/satori/go.uuid"
@@ -117,28 +116,26 @@ func (dst *Uuid) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Uuid) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+func (src *Uuid) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
-		return true, nil
+		return nil, nil
 	case pgtype.Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, src.UUID.String())
-	return false, err
+	return append(buf, src.UUID.String()...), nil
 }
 
-func (src *Uuid) EncodeBinary(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
+func (src *Uuid) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
-		return true, nil
+		return nil, nil
 	case pgtype.Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write(src.UUID[:])
-	return false, err
+	return append(buf, src.UUID[:]...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

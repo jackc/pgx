@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"io"
 )
 
 // GenericBinary is a placeholder for binary format values that no other type exists
@@ -25,8 +24,8 @@ func (dst *GenericBinary) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Bytea)(dst).DecodeBinary(ci, src)
 }
 
-func (src *GenericBinary) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Bytea)(src).EncodeBinary(ci, w)
+func (src *GenericBinary) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Bytea)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.

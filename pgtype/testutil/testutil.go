@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -61,16 +60,16 @@ type forceTextEncoder struct {
 	e pgtype.TextEncoder
 }
 
-func (f forceTextEncoder) EncodeText(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
-	return f.e.EncodeText(ci, w)
+func (f forceTextEncoder) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+	return f.e.EncodeText(ci, buf)
 }
 
 type forceBinaryEncoder struct {
 	e pgtype.BinaryEncoder
 }
 
-func (f forceBinaryEncoder) EncodeBinary(ci *pgtype.ConnInfo, w io.Writer) (bool, error) {
-	return f.e.EncodeBinary(ci, w)
+func (f forceBinaryEncoder) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+	return f.e.EncodeBinary(ci, buf)
 }
 
 func ForceEncoder(e interface{}, formatCode int16) interface{} {

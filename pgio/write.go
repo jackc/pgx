@@ -1,97 +1,40 @@
 package pgio
 
-import (
-	"encoding/binary"
-	"io"
-)
+import "encoding/binary"
 
-type Uint16Writer interface {
-	WriteUint16(uint16) (n int, err error)
+func AppendUint16(buf []byte, n uint16) []byte {
+	wp := len(buf)
+	buf = append(buf, 0, 0)
+	binary.BigEndian.PutUint16(buf[wp:], n)
+	return buf
 }
 
-type Uint32Writer interface {
-	WriteUint32(uint32) (n int, err error)
+func AppendUint32(buf []byte, n uint32) []byte {
+	wp := len(buf)
+	buf = append(buf, 0, 0, 0, 0)
+	binary.BigEndian.PutUint32(buf[wp:], n)
+	return buf
 }
 
-type Uint64Writer interface {
-	WriteUint64(uint64) (n int, err error)
+func AppendUint64(buf []byte, n uint64) []byte {
+	wp := len(buf)
+	buf = append(buf, 0, 0, 0, 0, 0, 0, 0, 0)
+	binary.BigEndian.PutUint64(buf[wp:], n)
+	return buf
 }
 
-// WriteByte writes b to w.
-func WriteByte(w io.Writer, b byte) error {
-	if w, ok := w.(io.ByteWriter); ok {
-		return w.WriteByte(b)
-	}
-	_, err := w.Write([]byte{b})
-	return err
+func AppendInt16(buf []byte, n int16) []byte {
+	return AppendUint16(buf, uint16(n))
 }
 
-// WriteUint16 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint16
-// method.
-func WriteUint16(w io.Writer, n uint16) (int, error) {
-	if w, ok := w.(Uint16Writer); ok {
-		return w.WriteUint16(n)
-	}
-	b := make([]byte, 2)
-	binary.BigEndian.PutUint16(b, n)
-	return w.Write(b)
+func AppendInt32(buf []byte, n int32) []byte {
+	return AppendUint32(buf, uint32(n))
 }
 
-// WriteInt16 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint16
-// method.
-func WriteInt16(w io.Writer, n int16) (int, error) {
-	return WriteUint16(w, uint16(n))
+func AppendInt64(buf []byte, n int64) []byte {
+	return AppendUint64(buf, uint64(n))
 }
 
-// WriteUint32 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint32
-// method.
-func WriteUint32(w io.Writer, n uint32) (int, error) {
-	if w, ok := w.(Uint32Writer); ok {
-		return w.WriteUint32(n)
-	}
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, n)
-	return w.Write(b)
-}
-
-// WriteInt32 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint32
-// method.
-func WriteInt32(w io.Writer, n int32) (int, error) {
-	return WriteUint32(w, uint32(n))
-}
-
-// WriteUint64 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint64
-// method.
-func WriteUint64(w io.Writer, n uint64) (int, error) {
-	if w, ok := w.(Uint64Writer); ok {
-		return w.WriteUint64(n)
-	}
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, n)
-	return w.Write(b)
-}
-
-// WriteInt64 writes n to w in PostgreSQL wire format (network byte order). This
-// may be more efficient than directly using Write if w provides a WriteUint64
-// method.
-func WriteInt64(w io.Writer, n int64) (int, error) {
-	return WriteUint64(w, uint64(n))
-}
-
-// WriteCString writes s to w followed by a null byte.
-func WriteCString(w io.Writer, s string) (int, error) {
-	n, err := io.WriteString(w, s)
-	if err != nil {
-		return n, err
-	}
-	err = WriteByte(w, 0)
-	if err != nil {
-		return n, err
-	}
-	return n + 1, nil
+func SetInt32(buf []byte, n int32) {
+	binary.BigEndian.PutUint32(buf, uint32(n))
 }
