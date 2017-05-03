@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 )
 
@@ -175,17 +176,21 @@ type ReplicationConn struct {
 // message to the server, as well as carries the WAL position of the
 // client, which then updates the server's replication slot position.
 func (rc *ReplicationConn) SendStandbyStatus(k *StandbyStatus) (err error) {
-	writeBuf := newWriteBuf(rc.c, copyData)
-	writeBuf.WriteByte(standbyStatusUpdate)
-	writeBuf.WriteInt64(int64(k.WalWritePosition))
-	writeBuf.WriteInt64(int64(k.WalFlushPosition))
-	writeBuf.WriteInt64(int64(k.WalApplyPosition))
-	writeBuf.WriteInt64(int64(k.ClientTime))
-	writeBuf.WriteByte(k.ReplyRequested)
+	buf := rc.c.wbuf
+	buf = append(buf, copyData)
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
 
-	writeBuf.closeMsg()
+	buf = append(buf, standbyStatusUpdate)
+	buf = pgio.AppendInt64(buf, int64(k.WalWritePosition))
+	buf = pgio.AppendInt64(buf, int64(k.WalFlushPosition))
+	buf = pgio.AppendInt64(buf, int64(k.WalApplyPosition))
+	buf = pgio.AppendInt64(buf, int64(k.ClientTime))
+	buf = append(buf, k.ReplyRequested)
 
-	_, err = rc.c.conn.Write(writeBuf.buf)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+
+	_, err = rc.c.conn.Write(buf)
 	if err != nil {
 		rc.c.die(err)
 	}

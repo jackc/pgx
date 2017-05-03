@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 )
 
@@ -89,14 +90,14 @@ func (ct *copyFrom) waitForReaderDone() error {
 
 func (ct *copyFrom) run() (int, error) {
 	quotedTableName := ct.tableName.Sanitize()
-	buf := &bytes.Buffer{}
+	cbuf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
 		if i != 0 {
-			buf.WriteString(", ")
+			cbuf.WriteString(", ")
 		}
-		buf.WriteString(quoteIdentifier(cn))
+		cbuf.WriteString(quoteIdentifier(cn))
 	}
-	quotedColumnNames := buf.String()
+	quotedColumnNames := cbuf.String()
 
 	ps, err := ct.conn.Prepare("", fmt.Sprintf("select %s from %s", quotedColumnNames, quotedTableName))
 	if err != nil {
@@ -116,11 +117,14 @@ func (ct *copyFrom) run() (int, error) {
 	go ct.readUntilReadyForQuery()
 	defer ct.waitForReaderDone()
 
-	wbuf := newWriteBuf(ct.conn, copyData)
+	buf := ct.conn.wbuf
+	buf = append(buf, copyData)
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
 
-	wbuf.WriteBytes([]byte("PGCOPY\n\377\r\n\000"))
-	wbuf.WriteInt32(0)
-	wbuf.WriteInt32(0)
+	buf = append(buf, "PGCOPY\n\377\r\n\000"...)
+	buf = pgio.AppendInt32(buf, 0)
+	buf = pgio.AppendInt32(buf, 0)
 
 	var sentCount int
 
@@ -131,18 +135,16 @@ func (ct *copyFrom) run() (int, error) {
 		default:
 		}
 
-		if len(wbuf.buf) > 65536 {
-			wbuf.closeMsg()
-			_, err = ct.conn.conn.Write(wbuf.buf)
+		if len(buf) > 65536 {
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+			_, err = ct.conn.conn.Write(buf)
 			if err != nil {
 				ct.conn.die(err)
 				return 0, err
 			}
 
 			// Directly manipulate wbuf to reset to reuse the same buffer
-			wbuf.buf = wbuf.buf[0:5]
-			wbuf.buf[0] = copyData
-			wbuf.sizeIdx = 1
+			buf = buf[0:5]
 		}
 
 		sentCount++
@@ -157,9 +159,9 @@ func (ct *copyFrom) run() (int, error) {
 			return 0, fmt.Errorf("expected %d values, got %d values", len(ct.columnNames), len(values))
 		}
 
-		wbuf.WriteInt16(int16(len(ct.columnNames)))
+		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
 		for i, val := range values {
-			err = encodePreparedStatementArgument(wbuf, ps.FieldDescriptions[i].DataType, val)
+			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, ps.FieldDescriptions[i].DataType, val)
 			if err != nil {
 				ct.cancelCopyIn()
 				return 0, err
@@ -173,11 +175,13 @@ func (ct *copyFrom) run() (int, error) {
 		return 0, ct.rowSrc.Err()
 	}
 
-	wbuf.WriteInt16(-1) // terminate the copy stream
+	buf = pgio.AppendInt16(buf, -1) // terminate the copy stream
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	wbuf.startMsg(copyDone)
-	wbuf.closeMsg()
-	_, err = ct.conn.conn.Write(wbuf.buf)
+	buf = append(buf, copyDone)
+	buf = pgio.AppendInt32(buf, 4)
+
+	_, err = ct.conn.conn.Write(buf)
 	if err != nil {
 		ct.conn.die(err)
 		return 0, err
@@ -210,10 +214,15 @@ func (c *Conn) readUntilCopyInResponse() error {
 }
 
 func (ct *copyFrom) cancelCopyIn() error {
-	wbuf := newWriteBuf(ct.conn, copyFail)
-	wbuf.WriteCString("client error: abort")
-	wbuf.closeMsg()
-	_, err := ct.conn.conn.Write(wbuf.buf)
+	buf := ct.conn.wbuf
+	buf = append(buf, copyFail)
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, "client error: abort"...)
+	buf = append(buf, 0)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+
+	_, err := ct.conn.conn.Write(buf)
 	if err != nil {
 		ct.conn.die(err)
 		return err

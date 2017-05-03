@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -86,8 +87,7 @@ func (cc *ConnConfig) networkAddress() (network, address string) {
 type Conn struct {
 	conn               net.Conn  // the underlying TCP or unix domain socket connection
 	lastActivityTime   time.Time // the last time the connection was used
-	wbuf               [1024]byte
-	writeBuf           WriteBuf
+	wbuf               []byte
 	pid                uint32            // backend pid
 	secretKey          uint32            // key to use to send a cancel query message to the server
 	RuntimeParams      map[string]string // parameters that have been reported by the server
@@ -279,6 +279,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.cancelQueryCompleted = make(chan struct{}, 1)
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
+	c.wbuf = make([]byte, 0, 1024)
 
 	if tlsConfig != nil {
 		if c.shouldLog(LogLevelDebug) {
@@ -707,32 +708,42 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	}
 
 	// parse
-	wbuf := newWriteBuf(c, 'P')
-	wbuf.WriteCString(name)
-	wbuf.WriteCString(sql)
+	buf := c.wbuf
+	buf = append(buf, 'P')
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, name...)
+	buf = append(buf, 0)
+	buf = append(buf, sql...)
+	buf = append(buf, 0)
 
 	if opts != nil {
 		if len(opts.ParameterOids) > 65535 {
 			return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
 		}
-		wbuf.WriteInt16(int16(len(opts.ParameterOids)))
+		buf = pgio.AppendInt16(buf, int16(len(opts.ParameterOids)))
 		for _, oid := range opts.ParameterOids {
-			wbuf.WriteInt32(int32(oid))
+			buf = pgio.AppendInt32(buf, int32(oid))
 		}
 	} else {
-		wbuf.WriteInt16(0)
+		buf = pgio.AppendInt16(buf, 0)
 	}
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	// describe
-	wbuf.startMsg('D')
-	wbuf.WriteByte('S')
-	wbuf.WriteCString(name)
+	buf = append(buf, 'D')
+	sp = len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, 'S')
+	buf = append(buf, name...)
+	buf = append(buf, 0)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	// sync
-	wbuf.startMsg('S')
-	wbuf.closeMsg()
+	buf = append(buf, 'S')
+	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write(buf)
 	if err != nil {
 		c.die(err)
 		return nil, err
@@ -813,15 +824,20 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 	delete(c.preparedStatements, name)
 
 	// close
-	wbuf := newWriteBuf(c, 'C')
-	wbuf.WriteByte('S')
-	wbuf.WriteCString(name)
+	buf := c.wbuf
+	buf = append(buf, 'C')
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, 'S')
+	buf = append(buf, name...)
+	buf = append(buf, 0)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	// flush
-	wbuf.startMsg('H')
-	wbuf.closeMsg()
+	buf = append(buf, 'H')
+	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write(buf)
 	if err != nil {
 		c.die(err)
 		return err
@@ -943,11 +959,15 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	}
 
 	if len(args) == 0 {
-		wbuf := newWriteBuf(c, 'Q')
-		wbuf.WriteCString(sql)
-		wbuf.closeMsg()
+		buf := c.wbuf
+		buf = append(buf, 'Q')
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+		buf = append(buf, sql...)
+		buf = append(buf, 0)
+		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-		_, err := c.conn.Write(wbuf.buf)
+		_, err := c.conn.Write(buf)
 		if err != nil {
 			c.die(err)
 			return err
@@ -975,37 +995,45 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	}
 
 	// bind
-	wbuf := newWriteBuf(c, 'B')
-	wbuf.WriteByte(0)
-	wbuf.WriteCString(ps.Name)
+	buf := c.wbuf
+	buf = append(buf, 'B')
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, 0)
+	buf = append(buf, ps.Name...)
+	buf = append(buf, 0)
 
-	wbuf.WriteInt16(int16(len(ps.ParameterOids)))
+	buf = pgio.AppendInt16(buf, int16(len(ps.ParameterOids)))
 	for i, oid := range ps.ParameterOids {
-		wbuf.WriteInt16(chooseParameterFormatCode(c.ConnInfo, oid, arguments[i]))
+		buf = pgio.AppendInt16(buf, chooseParameterFormatCode(c.ConnInfo, oid, arguments[i]))
 	}
 
-	wbuf.WriteInt16(int16(len(arguments)))
+	buf = pgio.AppendInt16(buf, int16(len(arguments)))
 	for i, oid := range ps.ParameterOids {
-		if err := encodePreparedStatementArgument(wbuf, oid, arguments[i]); err != nil {
+		var err error
+		buf, err = encodePreparedStatementArgument(c.ConnInfo, buf, oid, arguments[i])
+		if err != nil {
 			return err
 		}
 	}
 
-	wbuf.WriteInt16(int16(len(ps.FieldDescriptions)))
+	buf = pgio.AppendInt16(buf, int16(len(ps.FieldDescriptions)))
 	for _, fd := range ps.FieldDescriptions {
-		wbuf.WriteInt16(fd.FormatCode)
+		buf = pgio.AppendInt16(buf, fd.FormatCode)
 	}
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	// execute
-	wbuf.startMsg('E')
-	wbuf.WriteByte(0)
-	wbuf.WriteInt32(0)
+	buf = append(buf, 'E')
+	buf = pgio.AppendInt32(buf, 9)
+	buf = append(buf, 0)
+	buf = pgio.AppendInt32(buf, 0)
 
 	// sync
-	wbuf.startMsg('S')
-	wbuf.closeMsg()
+	buf = append(buf, 'S')
+	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write(buf)
 	if err != nil {
 		c.die(err)
 	}
@@ -1180,11 +1208,15 @@ func (c *Conn) txStartupMessage(msg *startupMessage) error {
 }
 
 func (c *Conn) txPasswordMessage(password string) (err error) {
-	wbuf := newWriteBuf(c, 'p')
-	wbuf.WriteCString(password)
-	wbuf.closeMsg()
+	buf := c.wbuf
+	buf = append(buf, 'p')
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, password...)
+	buf = append(buf, 0)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	_, err = c.conn.Write(wbuf.buf)
+	_, err = c.conn.Write(buf)
 
 	return err
 }

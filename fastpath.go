@@ -3,6 +3,7 @@ package pgx
 import (
 	"encoding/binary"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -55,19 +56,23 @@ func (f *fastpath) Call(oid pgtype.Oid, args []fpArg) (res []byte, err error) {
 		return nil, err
 	}
 
-	wbuf := newWriteBuf(f.cn, 'F')    // function call
-	wbuf.WriteInt32(int32(oid))       // function object id
-	wbuf.WriteInt16(1)                // # of argument format codes
-	wbuf.WriteInt16(1)                // format code: binary
-	wbuf.WriteInt16(int16(len(args))) // # of arguments
-	for _, arg := range args {
-		wbuf.WriteInt32(int32(len(arg))) // length of argument
-		wbuf.WriteBytes(arg)             // argument value
-	}
-	wbuf.WriteInt16(1) // response format code (binary)
-	wbuf.closeMsg()
+	buf := f.cn.wbuf
+	buf = append(buf, 'F') // function call
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
 
-	if _, err := f.cn.conn.Write(wbuf.buf); err != nil {
+	buf = pgio.AppendInt32(buf, int32(oid))       // function object id
+	buf = pgio.AppendInt16(buf, 1)                // # of argument format codes
+	buf = pgio.AppendInt16(buf, 1)                // format code: binary
+	buf = pgio.AppendInt16(buf, int16(len(args))) // # of arguments
+	for _, arg := range args {
+		buf = pgio.AppendInt32(buf, int32(len(arg))) // length of argument
+		buf = append(buf, arg...)                    // argument value
+	}
+	buf = pgio.AppendInt16(buf, 1) // response format code (binary)
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+
+	if _, err := f.cn.conn.Write(buf); err != nil {
 		return nil, err
 	}
 
