@@ -1,7 +1,6 @@
 package pgtype
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"errors"
 )
@@ -11,34 +10,32 @@ func DatabaseSQLValue(ci *ConnInfo, src Value) (interface{}, error) {
 		return valuer.Value()
 	}
 
-	buf := &bytes.Buffer{}
 	if textEncoder, ok := src.(TextEncoder); ok {
-		_, err := textEncoder.EncodeText(ci, buf)
+		buf, err := textEncoder.EncodeText(ci, nil)
 		if err != nil {
 			return nil, err
 		}
-		return buf.String(), nil
+		return string(buf), nil
 	}
 
 	if binaryEncoder, ok := src.(BinaryEncoder); ok {
-		_, err := binaryEncoder.EncodeBinary(ci, buf)
+		buf, err := binaryEncoder.EncodeBinary(ci, nil)
 		if err != nil {
 			return nil, err
 		}
-		return buf.Bytes(), nil
+		return buf, nil
 	}
 
 	return nil, errors.New("cannot convert to database/sql compatible value")
 }
 
 func EncodeValueText(src TextEncoder) (interface{}, error) {
-	buf := &bytes.Buffer{}
-	null, err := src.EncodeText(nil, buf)
+	buf, err := src.EncodeText(nil, make([]byte, 0, 32))
 	if err != nil {
 		return nil, err
 	}
-	if null {
+	if buf == nil {
 		return nil, nil
 	}
-	return buf.String(), err
+	return string(buf), err
 }

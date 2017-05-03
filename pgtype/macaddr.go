@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql/driver"
 	"fmt"
-	"io"
 	"net"
 )
 
@@ -106,29 +105,27 @@ func (dst *Macaddr) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Macaddr) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Macaddr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := io.WriteString(w, src.Addr.String())
-	return false, err
+	return append(buf, src.Addr.String()...), nil
 }
 
 // EncodeBinary encodes src into w.
-func (src *Macaddr) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
+func (src *Macaddr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
-		return true, nil
+		return nil, nil
 	case Undefined:
-		return false, errUndefined
+		return nil, errUndefined
 	}
 
-	_, err := w.Write([]byte(src.Addr))
-	return false, err
+	return append(buf, src.Addr...), nil
 }
 
 // Scan implements the database/sql Scanner interface.

@@ -1,13 +1,13 @@
 package pgx
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"fmt"
 	"math"
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -33,15 +33,14 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	case driver.Valuer:
 		return arg.Value()
 	case pgtype.TextEncoder:
-		buf := &bytes.Buffer{}
-		null, err := arg.EncodeText(ci, buf)
+		buf, err := arg.EncodeText(ci, nil)
 		if err != nil {
 			return nil, err
 		}
-		if null {
+		if buf == nil {
 			return nil, nil
 		}
-		return buf.String(), nil
+		return string(buf), nil
 	case int64:
 		return arg, nil
 	case float64:
@@ -106,27 +105,27 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 
 	switch arg := arg.(type) {
 	case pgtype.BinaryEncoder:
-		sp := wbuf.reserveSize()
-		null, err := arg.EncodeBinary(wbuf.conn.ConnInfo, wbuf)
+		sp := len(wbuf.buf)
+		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
+		argBuf, err := arg.EncodeBinary(wbuf.conn.ConnInfo, wbuf.buf)
 		if err != nil {
 			return err
 		}
-		if null {
-			wbuf.setSize(sp, -1)
-		} else {
-			wbuf.setComputedSize(sp)
+		if argBuf != nil {
+			wbuf.buf = argBuf
+			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
 		}
 		return nil
 	case pgtype.TextEncoder:
-		sp := wbuf.reserveSize()
-		null, err := arg.EncodeText(wbuf.conn.ConnInfo, wbuf)
+		sp := len(wbuf.buf)
+		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
+		argBuf, err := arg.EncodeText(wbuf.conn.ConnInfo, wbuf.buf)
 		if err != nil {
 			return err
 		}
-		if null {
-			wbuf.setSize(sp, -1)
-		} else {
-			wbuf.setComputedSize(sp)
+		if argBuf != nil {
+			wbuf.buf = argBuf
+			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
 		}
 		return nil
 	case driver.Valuer:
@@ -159,15 +158,15 @@ func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interfa
 			return err
 		}
 
-		sp := wbuf.reserveSize()
-		null, err := value.(pgtype.BinaryEncoder).EncodeBinary(wbuf.conn.ConnInfo, wbuf)
+		sp := len(wbuf.buf)
+		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
+		argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(wbuf.conn.ConnInfo, wbuf.buf)
 		if err != nil {
 			return err
 		}
-		if null {
-			wbuf.setSize(sp, -1)
-		} else {
-			wbuf.setComputedSize(sp)
+		if argBuf != nil {
+			wbuf.buf = argBuf
+			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
 		}
 		return nil
 	}

@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"errors"
-	"io"
 	"reflect"
 )
 
@@ -111,21 +110,21 @@ type TextDecoder interface {
 // BinaryEncoder is implemented by types that can encode themselves into the
 // PostgreSQL binary wire format.
 type BinaryEncoder interface {
-	// EncodeBinary should encode the binary format of self to w. If self is the
-	// SQL value NULL then write nothing and return (true, nil). The caller of
+	// EncodeBinary should append the binary format of self to buf. If self is the
+	// SQL value NULL then append nothing and return (nil, nil). The caller of
 	// EncodeBinary is responsible for writing the correct NULL value or the
 	// length of the data written.
-	EncodeBinary(ci *ConnInfo, w io.Writer) (null bool, err error)
+	EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
 }
 
 // TextEncoder is implemented by types that can encode themselves into the
 // PostgreSQL text wire format.
 type TextEncoder interface {
-	// EncodeText should encode the text format of self to w. If self is the SQL
-	// value NULL then write nothing and return (true, nil). The caller of
-	// EncodeText is responsible for writing the correct NULL value or the length
-	// of the data written.
-	EncodeText(ci *ConnInfo, w io.Writer) (null bool, err error)
+	// EncodeText should append the text format of self to buf. If self is the
+	// SQL value NULL then append nothing and return (nil, nil). The caller of
+	// EncodeText is responsible for writing the correct NULL value or the
+	// length of the data written.
+	EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
 }
 
 var errUndefined = errors.New("cannot encode status undefined")

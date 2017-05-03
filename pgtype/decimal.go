@@ -1,9 +1,5 @@
 package pgtype
 
-import (
-	"io"
-)
-
 type Decimal Numeric
 
 func (dst *Decimal) Set(src interface{}) error {
@@ -26,10 +22,10 @@ func (dst *Decimal) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Numeric)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Decimal) EncodeText(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Numeric)(src).EncodeText(ci, w)
+func (src *Decimal) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Numeric)(src).EncodeText(ci, buf)
 }
 
-func (src *Decimal) EncodeBinary(ci *ConnInfo, w io.Writer) (bool, error) {
-	return (*Numeric)(src).EncodeBinary(ci, w)
+func (src *Decimal) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Numeric)(src).EncodeBinary(ci, buf)
 }

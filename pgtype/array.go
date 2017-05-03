@@ -60,39 +60,23 @@ func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	return rp, nil
 }
 
-func (src *ArrayHeader) EncodeBinary(ci *ConnInfo, w io.Writer) error {
-	_, err := pgio.WriteInt32(w, int32(len(src.Dimensions)))
-	if err != nil {
-		return err
-	}
+func (src *ArrayHeader) EncodeBinary(ci *ConnInfo, buf []byte) []byte {
+	buf = pgio.AppendInt32(buf, int32(len(src.Dimensions)))
 
 	var containsNull int32
 	if src.ContainsNull {
 		containsNull = 1
 	}
-	_, err = pgio.WriteInt32(w, containsNull)
-	if err != nil {
-		return err
-	}
+	buf = pgio.AppendInt32(buf, containsNull)
 
-	_, err = pgio.WriteInt32(w, src.ElementOid)
-	if err != nil {
-		return err
-	}
+	buf = pgio.AppendInt32(buf, src.ElementOid)
 
 	for i := range src.Dimensions {
-		_, err = pgio.WriteInt32(w, src.Dimensions[i].Length)
-		if err != nil {
-			return err
-		}
-
-		_, err = pgio.WriteInt32(w, src.Dimensions[i].LowerBound)
-		if err != nil {
-			return err
-		}
+		buf = pgio.AppendInt32(buf, src.Dimensions[i].Length)
+		buf = pgio.AppendInt32(buf, src.Dimensions[i].LowerBound)
 	}
 
-	return nil
+	return buf
 }
 
 type UntypedTextArray struct {
@@ -331,7 +315,7 @@ func arrayParseInteger(buf *bytes.Buffer) (int32, error) {
 	}
 }
 
-func EncodeTextArrayDimensions(w io.Writer, dimensions []ArrayDimension) error {
+func EncodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
 	var customDimensions bool
 	for _, dim := range dimensions {
 		if dim.LowerBound != 1 {
@@ -340,37 +324,18 @@ func EncodeTextArrayDimensions(w io.Writer, dimensions []ArrayDimension) error {
 	}
 
 	if !customDimensions {
-		return nil
+		return buf
 	}
 
 	for _, dim := range dimensions {
-		err := pgio.WriteByte(w, '[')
-		if err != nil {
-			return err
-		}
-
-		_, err = io.WriteString(w, strconv.FormatInt(int64(dim.LowerBound), 10))
-		if err != nil {
-			return err
-		}
-
-		err = pgio.WriteByte(w, ':')
-		if err != nil {
-			return err
-		}
-
-		_, err = io.WriteString(w, strconv.FormatInt(int64(dim.LowerBound+dim.Length-1), 10))
-		if err != nil {
-			return err
-		}
-
-		err = pgio.WriteByte(w, ']')
-		if err != nil {
-			return err
-		}
+		buf = append(buf, '[')
+		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound), 10)...)
+		buf = append(buf, ':')
+		buf = append(buf, strconv.FormatInt(int64(dim.LowerBound+dim.Length-1), 10)...)
+		buf = append(buf, ']')
 	}
 
-	return pgio.WriteByte(w, '=')
+	return append(buf, '=')
 }
 
 var quoteArrayReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
