@@ -97,84 +97,82 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
-func encodePreparedStatementArgument(wbuf *WriteBuf, oid pgtype.Oid, arg interface{}) error {
+func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype.Oid, arg interface{}) ([]byte, error) {
 	if arg == nil {
-		wbuf.WriteInt32(-1)
-		return nil
+		return pgio.AppendInt32(buf, -1), nil
 	}
 
 	switch arg := arg.(type) {
 	case pgtype.BinaryEncoder:
-		sp := len(wbuf.buf)
-		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
-		argBuf, err := arg.EncodeBinary(wbuf.conn.ConnInfo, wbuf.buf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+		argBuf, err := arg.EncodeBinary(ci, buf)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if argBuf != nil {
-			wbuf.buf = argBuf
-			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
+			buf = argBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
-		return nil
+		return buf, nil
 	case pgtype.TextEncoder:
-		sp := len(wbuf.buf)
-		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
-		argBuf, err := arg.EncodeText(wbuf.conn.ConnInfo, wbuf.buf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+		argBuf, err := arg.EncodeText(ci, buf)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if argBuf != nil {
-			wbuf.buf = argBuf
-			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
+			buf = argBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
-		return nil
+		return buf, nil
 	case driver.Valuer:
 		v, err := arg.Value()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return encodePreparedStatementArgument(wbuf, oid, v)
+		return encodePreparedStatementArgument(ci, buf, oid, v)
 	case string:
-		wbuf.WriteInt32(int32(len(arg)))
-		wbuf.WriteBytes([]byte(arg))
-		return nil
+		buf = pgio.AppendInt32(buf, int32(len(arg)))
+		buf = append(buf, arg...)
+		return buf, nil
 	}
 
 	refVal := reflect.ValueOf(arg)
 
 	if refVal.Kind() == reflect.Ptr {
 		if refVal.IsNil() {
-			wbuf.WriteInt32(-1)
-			return nil
+			return pgio.AppendInt32(buf, -1), nil
 		}
 		arg = refVal.Elem().Interface()
-		return encodePreparedStatementArgument(wbuf, oid, arg)
+		return encodePreparedStatementArgument(ci, buf, oid, arg)
 	}
 
-	if dt, ok := wbuf.conn.ConnInfo.DataTypeForOid(oid); ok {
+	if dt, ok := ci.DataTypeForOid(oid); ok {
 		value := dt.Value
 		err := value.Set(arg)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		sp := len(wbuf.buf)
-		wbuf.buf = pgio.AppendInt32(wbuf.buf, -1)
-		argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(wbuf.conn.ConnInfo, wbuf.buf)
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+		argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if argBuf != nil {
-			wbuf.buf = argBuf
-			pgio.SetInt32(wbuf.buf[sp:], int32(len(wbuf.buf[sp:])-4))
+			buf = argBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
-		return nil
+		return buf, nil
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return encodePreparedStatementArgument(wbuf, oid, strippedArg)
+		return encodePreparedStatementArgument(ci, buf, oid, strippedArg)
 	}
-	return SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }
 
 // chooseParameterFormatCode determines the correct format code for an
