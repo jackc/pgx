@@ -42,6 +42,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
 	conn       *Conn
+	connPool   *ConnPool
 	values     [][]byte
 	fields     []FieldDescription
 	rowCount   int
@@ -50,7 +51,6 @@ type Rows struct {
 	startTime  time.Time
 	sql        string
 	args       []interface{}
-	afterClose func(*Rows)
 	unlockConn bool
 	closed     bool
 }
@@ -84,8 +84,8 @@ func (rows *Rows) Close() {
 		rows.conn.log(LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
 	}
 
-	if rows.afterClose != nil {
-		rows.afterClose(rows)
+	if rows.connPool != nil {
+		rows.connPool.Release(rows.conn)
 	}
 }
 
@@ -154,11 +154,6 @@ func (rows *Rows) Next() bool {
 			}
 		}
 	}
-}
-
-// Conn returns the *Conn this *Rows is using.
-func (rows *Rows) Conn() *Conn {
-	return rows.conn
 }
 
 func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
@@ -319,20 +314,6 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	}
 
 	return values, rows.Err()
-}
-
-// AfterClose adds f to a LILO queue of functions that will be called when
-// rows is closed.
-func (rows *Rows) AfterClose(f func(*Rows)) {
-	if rows.afterClose == nil {
-		rows.afterClose = f
-	} else {
-		prevFn := rows.afterClose
-		rows.afterClose = func(rows *Rows) {
-			f(rows)
-			prevFn(rows)
-		}
-	}
 }
 
 // Query executes sql with args. If there is an error the returned *Rows will
