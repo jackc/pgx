@@ -230,25 +230,21 @@ func (p *ConnPool) removeFromAllConnections(conn *Conn) bool {
 	return false
 }
 
-// Close ends the use of a connection pool. It prevents any new connections
-// from being acquired, waits until all acquired connections are released,
-// then closes all underlying connections.
+// Close ends the use of a connection pool. It prevents any new connections from
+// being acquired and closes available underlying connections. Any acquired
+// connections will be closed when they are released.
 func (p *ConnPool) Close() {
 	p.cond.L.Lock()
 	defer p.cond.L.Unlock()
 
 	p.closed = true
 
-	// Wait until all connections are released
-	if len(p.availableConnections) != len(p.allConnections) {
-		for len(p.availableConnections) != len(p.allConnections) {
-			p.cond.Wait()
-		}
-	}
-
-	for _, c := range p.allConnections {
+	for _, c := range p.availableConnections {
 		_ = c.Close()
 	}
+
+	// This will cause any checked out connections to be closed on release
+	p.resetCount++
 }
 
 // Reset closes all open connections, but leaves the pool open. It is intended
