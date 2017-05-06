@@ -2,7 +2,6 @@ package pgproto3
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -43,7 +42,13 @@ func NewFrontend(r io.Reader, w io.Writer) (*Frontend, error) {
 }
 
 func (b *Frontend) Send(msg FrontendMessage) error {
-	return errors.New("not implemented")
+	buf, err := msg.MarshalBinary()
+	if err != nil {
+		return nil
+	}
+
+	_, err = b.w.Write(buf)
+	return err
 }
 
 func (b *Frontend) Receive() (BackendMessage, error) {

@@ -1,6 +1,7 @@
 package pgio
 
 import (
+	"bytes"
 	"encoding/binary"
 )
 
@@ -37,4 +38,14 @@ func NextInt32(buf []byte) ([]byte, int32) {
 func NextInt64(buf []byte) ([]byte, int64) {
 	buf, n := NextUint64(buf)
 	return buf, int64(n)
+}
+
+func NextCString(buf []byte) ([]byte, string, bool) {
+	idx := bytes.IndexByte(buf, 0)
+	if idx < 0 {
+		return buf, "", false
+	}
+	cstring := string(buf[:idx])
+	buf = buf[:idx+1]
+	return buf, cstring, true
 }
