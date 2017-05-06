@@ -2,6 +2,7 @@ package stdlib_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"testing"
 
@@ -599,6 +600,87 @@ func TestTransactionLifeCycle(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("Expected 1 rows due to rollback, instead found %d", n)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnBeginTxIsolation(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	var defaultIsoLevel string
+	err := db.QueryRow("show transaction_isolation").Scan(&defaultIsoLevel)
+	if err != nil {
+		t.Fatalf("QueryRow failed: %v", err)
+	}
+
+	supportedTests := []struct {
+		sqlIso sql.IsolationLevel
+		pgIso  string
+	}{
+		{sqlIso: sql.LevelDefault, pgIso: defaultIsoLevel},
+		{sqlIso: sql.LevelReadUncommitted, pgIso: "read uncommitted"},
+		{sqlIso: sql.LevelReadCommitted, pgIso: "read committed"},
+		{sqlIso: sql.LevelSnapshot, pgIso: "repeatable read"},
+		{sqlIso: sql.LevelSerializable, pgIso: "serializable"},
+	}
+	for i, tt := range supportedTests {
+		func() {
+			tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: tt.sqlIso})
+			if err != nil {
+				t.Errorf("%d. BeginTx failed: %v", i, err)
+				return
+			}
+			defer tx.Rollback()
+
+			var pgIso string
+			err = tx.QueryRow("show transaction_isolation").Scan(&pgIso)
+			if err != nil {
+				t.Errorf("%d. QueryRow failed: %v", i, err)
+			}
+
+			if pgIso != tt.pgIso {
+				t.Errorf("%d. pgIso => %s, want %s", i, pgIso, tt.pgIso)
+			}
+		}()
+	}
+
+	unsupportedTests := []struct {
+		sqlIso sql.IsolationLevel
+	}{
+		{sqlIso: sql.LevelWriteCommitted},
+		{sqlIso: sql.LevelLinearizable},
+	}
+	for i, tt := range unsupportedTests {
+		tx, err := db.BeginTx(context.Background(), &sql.TxOptions{Isolation: tt.sqlIso})
+		if err == nil {
+			t.Errorf("%d. BeginTx should have failed", i)
+			tx.Rollback()
+		}
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnBeginTxReadOnly(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	tx, err := db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		t.Fatalf("BeginTx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	var pgReadOnly string
+	err = tx.QueryRow("show transaction_read_only").Scan(&pgReadOnly)
+	if err != nil {
+		t.Errorf("%d. QueryRow failed: %v", err)
+	}
+
+	if pgReadOnly != "on" {
+		t.Errorf("pgReadOnly => %s, want %s", pgReadOnly, "on")
 	}
 
 	ensureConnValid(t, db)
