@@ -328,14 +328,14 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 	rows := rc.c.getRows(sql, nil)
 
 	if err := rc.c.lock(); err != nil {
-		rows.Fatal(err)
+		rows.fatal(err)
 		return rows, err
 	}
 	rows.unlockConn = true
 
 	err := rc.c.sendSimpleQuery(sql)
 	if err != nil {
-		rows.Fatal(err)
+		rows.fatal(err)
 	}
 
 	msg, err := rc.c.rxMsg()
@@ -351,7 +351,7 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 		// only Oids. Not much we can do about this.
 	default:
 		if e := rc.c.processContextFreeMsg(msg); e != nil {
-			rows.Fatal(e)
+			rows.fatal(e)
 			return rows, e
 		}
 	}
