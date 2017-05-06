@@ -202,6 +202,32 @@ func TestOpenFromConnPoolRace(t *testing.T) {
 	wg.Wait()
 }
 
+func TestOpenWithDriverConfigAfterConnect(t *testing.T) {
+	driverConfig := stdlib.DriverConfig{
+		AfterConnect: func(c *pgx.Conn) error {
+			_, err := c.Exec("create temporary sequence pgx")
+			return err
+		},
+	}
+
+	stdlib.RegisterDriverConfig(&driverConfig)
+	defer stdlib.UnregisterDriverConfig(&driverConfig)
+
+	db, err := sql.Open("pgx", driverConfig.ConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test"))
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+
+	var n int64
+	err = db.QueryRow("select nextval('pgx')").Scan(&n)
+	if err != nil {
+		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("n => %d, want %d", n, 1)
+	}
+}
+
 func TestStmtExec(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
