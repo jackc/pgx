@@ -445,6 +445,58 @@ func (c *Conn) Close() (err error) {
 	return nil
 }
 
+// Merge returns a new ConnConfig with the attributes of old and other
+// combined. When an attribute is set on both, other takes precedence.
+//
+// As a security precaution, if the other TLSConfig is nil, all old TLS
+// attributes will be preserved.
+func (old ConnConfig) Merge(other ConnConfig) ConnConfig {
+	cc := old
+
+	if other.Host != "" {
+		cc.Host = other.Host
+	}
+	if other.Port != 0 {
+		cc.Port = other.Port
+	}
+	if other.Database != "" {
+		cc.Database = other.Database
+	}
+	if other.User != "" {
+		cc.User = other.User
+	}
+	if other.Password != "" {
+		cc.Password = other.Password
+	}
+
+	if other.TLSConfig != nil {
+		cc.TLSConfig = other.TLSConfig
+		cc.UseFallbackTLS = other.UseFallbackTLS
+		cc.FallbackTLSConfig = other.FallbackTLSConfig
+	}
+
+	if other.Logger != nil {
+		cc.Logger = other.Logger
+	}
+	if other.LogLevel != 0 {
+		cc.LogLevel = other.LogLevel
+	}
+
+	if other.Dial != nil {
+		cc.Dial = other.Dial
+	}
+
+	cc.RuntimeParams = make(map[string]string)
+	for k, v := range old.RuntimeParams {
+		cc.RuntimeParams[k] = v
+	}
+	for k, v := range other.RuntimeParams {
+		cc.RuntimeParams[k] = v
+	}
+
+	return cc
+}
+
 // ParseURI parses a database URI into ConnConfig
 //
 // Query parameters not used by the connection process are parsed into ConnConfig.RuntimeParams.
