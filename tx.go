@@ -94,10 +94,10 @@ func (c *Conn) BeginEx(txOptions *TxOptions) (*Tx, error) {
 // All Tx methods return ErrTxClosed if Commit or Rollback has already been
 // called on the Tx.
 type Tx struct {
-	conn       *Conn
-	afterClose func(*Tx)
-	err        error
-	status     int8
+	conn     *Conn
+	connPool *ConnPool
+	err      error
+	status   int8
 }
 
 // Commit commits the transaction
@@ -117,9 +117,10 @@ func (tx *Tx) Commit() error {
 		tx.err = err
 	}
 
-	if tx.afterClose != nil {
-		tx.afterClose(tx)
+	if tx.connPool != nil {
+		tx.connPool.Release(tx.conn)
 	}
+
 	return tx.err
 }
 
@@ -139,9 +140,10 @@ func (tx *Tx) Rollback() error {
 		tx.status = TxStatusRollbackFailure
 	}
 
-	if tx.afterClose != nil {
-		tx.afterClose(tx)
+	if tx.connPool != nil {
+		tx.connPool.Release(tx.conn)
 	}
+
 	return tx.err
 }
 
@@ -194,11 +196,6 @@ func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFr
 	return tx.conn.CopyFrom(tableName, columnNames, rowSrc)
 }
 
-// Conn returns the *Conn this transaction is using.
-func (tx *Tx) Conn() *Conn {
-	return tx.conn
-}
-
 // Status returns the status of the transaction from the set of
 // pgx.TxStatus* constants.
 func (tx *Tx) Status() int8 {
@@ -208,18 +205,4 @@ func (tx *Tx) Status() int8 {
 // Err returns the final error state, if any, of calling Commit or Rollback.
 func (tx *Tx) Err() error {
 	return tx.err
-}
-
-// AfterClose adds f to a LILO queue of functions that will be called when
-// the transaction is closed (either Commit or Rollback).
-func (tx *Tx) AfterClose(f func(*Tx)) {
-	if tx.afterClose == nil {
-		tx.afterClose = f
-	} else {
-		prevFn := tx.afterClose
-		tx.afterClose = func(tx *Tx) {
-			f(tx)
-			prevFn(tx)
-		}
-	}
 }

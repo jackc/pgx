@@ -1,9 +1,9 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
 	"testing"
-	"time"
+
+	"github.com/jackc/pgx"
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {
@@ -223,41 +223,6 @@ func TestBeginExReadOnly(t *testing.T) {
 	_, err = conn.Exec("create table foo(id serial primary key)")
 	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "25006" {
 		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
-	}
-}
-
-func TestTxAfterClose(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	tx, err := conn.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var zeroTime, t1, t2 time.Time
-	tx.AfterClose(func(tx *pgx.Tx) {
-		t1 = time.Now()
-	})
-
-	tx.AfterClose(func(tx *pgx.Tx) {
-		t2 = time.Now()
-	})
-
-	tx.Rollback()
-
-	if t1 == zeroTime {
-		t.Error("First Tx.AfterClose callback not called")
-	}
-
-	if t2 == zeroTime {
-		t.Error("Second Tx.AfterClose callback not called")
-	}
-
-	if t1.Before(t2) {
-		t.Errorf("AfterClose callbacks called out of order: %v, %v", t1, t2)
 	}
 }
 

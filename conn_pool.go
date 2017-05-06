@@ -31,8 +31,6 @@ type ConnPool struct {
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
 	connInfo             *pgtype.ConnInfo
-	txAfterClose         func(tx *Tx)
-	rowsAfterClose       func(rows *Rows)
 }
 
 type ConnPoolStat struct {
@@ -73,14 +71,6 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p.logger = config.Logger
 	if p.logger == nil {
 		p.logLevel = LogLevelNone
-	}
-
-	p.txAfterClose = func(tx *Tx) {
-		p.Release(tx.Conn())
-	}
-
-	p.rowsAfterClose = func(rows *Rows) {
-		p.Release(rows.Conn())
 	}
 
 	p.allConnections = make([]*Conn, 0, p.maxConnections)
@@ -381,7 +371,7 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 		return rows, err
 	}
 
-	rows.AfterClose(p.rowsAfterClose)
+	rows.connPool = p
 
 	return rows, nil
 }
@@ -399,7 +389,7 @@ func (p *ConnPool) QueryEx(ctx context.Context, sql string, options *QueryExOpti
 		return rows, err
 	}
 
-	rows.AfterClose(p.rowsAfterClose)
+	rows.connPool = p
 
 	return rows, nil
 }
@@ -531,7 +521,7 @@ func (p *ConnPool) BeginEx(txOptions *TxOptions) (*Tx, error) {
 			continue
 		}
 
-		tx.AfterClose(p.txAfterClose)
+		tx.connPool = p
 		return tx, nil
 	}
 }
