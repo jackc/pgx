@@ -2,7 +2,6 @@ package pgproto3
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 
@@ -20,6 +19,7 @@ type Backend struct {
 	parse           Parse
 	passwordMessage PasswordMessage
 	query           Query
+	startupMessage  StartupMessage
 	sync            Sync
 	terminate       Terminate
 }
@@ -30,7 +30,33 @@ func NewBackend(r io.Reader, w io.Writer) (*Backend, error) {
 }
 
 func (b *Backend) Send(msg BackendMessage) error {
-	return errors.New("not implemented")
+	buf, err := msg.MarshalBinary()
+	if err != nil {
+		return nil
+	}
+
+	_, err = b.w.Write(buf)
+	return err
+}
+
+func (b *Backend) ReceiveStartupMessage() (*StartupMessage, error) {
+	buf, err := b.cr.Next(4)
+	if err != nil {
+		return nil, err
+	}
+	msgSize := int(binary.BigEndian.Uint32(buf) - 4)
+
+	buf, err = b.cr.Next(msgSize)
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.startupMessage.Decode(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return &b.startupMessage, nil
 }
 
 func (b *Backend) Receive() (FrontendMessage, error) {
