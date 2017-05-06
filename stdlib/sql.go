@@ -170,16 +170,34 @@ func (c *Conn) Close() error {
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
+	return c.BeginTx(context.Background(), driver.TxOptions{})
+}
+
+func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
-	_, err := c.conn.Exec("begin")
-	if err != nil {
-		return nil, err
+	var pgxOpts pgx.TxOptions
+	switch sql.IsolationLevel(opts.Isolation) {
+	case sql.LevelDefault:
+	case sql.LevelReadUncommitted:
+		pgxOpts.IsoLevel = pgx.ReadUncommitted
+	case sql.LevelReadCommitted:
+		pgxOpts.IsoLevel = pgx.ReadCommitted
+	case sql.LevelSnapshot:
+		pgxOpts.IsoLevel = pgx.RepeatableRead
+	case sql.LevelSerializable:
+		pgxOpts.IsoLevel = pgx.Serializable
+	default:
+		return nil, fmt.Errorf("unsupported isolation: %v", opts.Isolation)
 	}
 
-	return &Tx{conn: c.conn}, nil
+	if opts.ReadOnly {
+		pgxOpts.AccessMode = pgx.ReadOnly
+	}
+
+	return c.conn.BeginEx(&pgxOpts)
 }
 
 func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
@@ -388,18 +406,4 @@ func namedValueToInterface(argsV []driver.NamedValue) []interface{} {
 		}
 	}
 	return args
-}
-
-type Tx struct {
-	conn *pgx.Conn
-}
-
-func (t *Tx) Commit() error {
-	_, err := t.conn.Exec("commit")
-	return err
-}
-
-func (t *Tx) Rollback() error {
-	_, err := t.conn.Exec("rollback")
-	return err
 }
