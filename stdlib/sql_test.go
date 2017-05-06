@@ -3,7 +3,6 @@ package stdlib_test
 import (
 	"bytes"
 	"database/sql"
-	"sync"
 	"testing"
 
 	"github.com/jackc/pgx"
@@ -120,88 +119,6 @@ func TestNormalLifeCycle(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
-func TestSqlOpenDoesNotHavePool(t *testing.T) {
-	db := openDB(t)
-	defer closeDB(t, db)
-
-	driver := db.Driver().(*stdlib.Driver)
-	if driver.Pool != nil {
-		t.Fatal("Did not expect driver opened through database/sql to have Pool, but it did")
-	}
-}
-
-func TestOpenFromConnPool(t *testing.T) {
-	connConfig := pgx.ConnConfig{
-		Host:     "127.0.0.1",
-		User:     "pgx_md5",
-		Password: "secret",
-		Database: "pgx_test",
-	}
-
-	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
-
-	db, err := stdlib.OpenFromConnPool(pool)
-	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer closeDB(t, db)
-
-	// Can get pgx.ConnPool from driver
-	driver := db.Driver().(*stdlib.Driver)
-	if driver.Pool == nil {
-		t.Fatal("Expected driver opened through OpenFromConnPool to have Pool, but it did not")
-	}
-
-	// Normal sql/database still works
-	var n int64
-	err = db.QueryRow("select 1").Scan(&n)
-	if err != nil {
-		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
-	}
-}
-
-func TestOpenFromConnPoolRace(t *testing.T) {
-	wg := &sync.WaitGroup{}
-	connConfig := pgx.ConnConfig{
-		Host:     "127.0.0.1",
-		User:     "pgx_md5",
-		Password: "secret",
-		Database: "pgx_test",
-	}
-
-	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
-
-	wg.Add(10)
-	for i := 0; i < 10; i++ {
-		go func() {
-			defer wg.Done()
-			db, err := stdlib.OpenFromConnPool(pool)
-			if err != nil {
-				t.Fatalf("Unable to create connection pool: %v", err)
-			}
-			defer closeDB(t, db)
-
-			// Can get pgx.ConnPool from driver
-			driver := db.Driver().(*stdlib.Driver)
-			if driver.Pool == nil {
-				t.Fatal("Expected driver opened through OpenFromConnPool to have Pool, but it did not")
-			}
-		}()
-	}
-
-	wg.Wait()
-}
-
 func TestOpenWithDriverConfigAfterConnect(t *testing.T) {
 	driverConfig := stdlib.DriverConfig{
 		AfterConnect: func(c *pgx.Conn) error {
@@ -217,6 +134,7 @@ func TestOpenWithDriverConfigAfterConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
+	defer closeDB(t, db)
 
 	var n int64
 	err = db.QueryRow("select nextval('pgx')").Scan(&n)
@@ -407,29 +325,24 @@ func (l *testLogger) Log(lvl pgx.LogLevel, msg string, data map[string]interface
 func TestConnQueryLog(t *testing.T) {
 	logger := &testLogger{}
 
-	connConfig := pgx.ConnConfig{
-		Host:     "127.0.0.1",
-		User:     "pgx_md5",
-		Password: "secret",
-		Database: "pgx_test",
-		Logger:   logger,
+	driverConfig := stdlib.DriverConfig{
+		ConnConfig: pgx.ConnConfig{
+			Host:     "127.0.0.1",
+			User:     "pgx_md5",
+			Password: "secret",
+			Database: "pgx_test",
+			Logger:   logger,
+		},
 	}
 
-	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
+	stdlib.RegisterDriverConfig(&driverConfig)
+	defer stdlib.UnregisterDriverConfig(&driverConfig)
 
-	db, err := stdlib.OpenFromConnPool(pool)
+	db, err := sql.Open("pgx", driverConfig.ConnectionString(""))
 	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
+		t.Fatalf("sql.Open failed: %v", err)
 	}
 	defer closeDB(t, db)
-
-	// clear logs from initial connection
-	logger.logs = []testLog{}
 
 	var n int64
 	err = db.QueryRow("select 1").Scan(&n)
@@ -437,7 +350,7 @@ func TestConnQueryLog(t *testing.T) {
 		t.Fatalf("db.QueryRow unexpectedly failed: %v", err)
 	}
 
-	l := logger.logs[0]
+	l := logger.logs[len(logger.logs)-1]
 	if l.msg != "Query" {
 		t.Errorf("Expected to log Query, but got %v", l)
 	}

@@ -13,41 +13,6 @@
 //	if err != nil {
 //		return err
 //	}
-//
-// Or a normal pgx connection pool can be established and the database/sql
-// connection can be created through stdlib.OpenFromConnPool(). This allows
-// more control over the connection process (such as TLS), more control
-// over the connection pool, setting an AfterConnect hook, and using both
-// database/sql and pgx interfaces as needed.
-//
-//	connConfig := pgx.ConnConfig{
-//		Host:     "localhost",
-//		User:     "pgx_md5",
-// 		Password: "secret",
-// 		Database: "pgx_test",
-// 	}
-//
-//	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-//	pool, err := pgx.NewConnPool(config)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-//	db, err := stdlib.OpenFromConnPool(pool)
-//	if err != nil {
-//		t.Fatalf("Unable to create connection pool: %v", err)
-//	}
-//
-// If the database/sql connection is established through
-// stdlib.OpenFromConnPool then access to a pgx *ConnPool can be regained
-// through db.Driver(). This allows writing a fast path for pgx while
-// preserving compatibility with other drivers and database
-//
-//	if driver, ok := db.Driver().(*stdlib.Driver); ok && driver.Pool != nil {
-//		// fast path with pgx
-//	} else {
-//		// normal path for other drivers and databases
-//	}
 package stdlib
 
 import (
@@ -55,18 +20,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"sync"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
-)
-
-var (
-	openFromConnPoolCountMu sync.Mutex
-	openFromConnPoolCount   int
 )
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
@@ -98,23 +57,12 @@ func init() {
 }
 
 type Driver struct {
-	Pool *pgx.ConnPool
-
 	configMutex sync.Mutex
 	configCount int64
 	configs     map[int64]*DriverConfig
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	if d.Pool != nil {
-		conn, err := d.Pool.Acquire()
-		if err != nil {
-			return nil, err
-		}
-
-		return &Conn{conn: conn, pool: d.Pool}, nil
-	}
-
 	var connConfig pgx.ConnConfig
 	var afterConnect func(*pgx.Conn) error
 	if len(name) >= 9 && name[0] == 0 {
@@ -194,49 +142,8 @@ func UnregisterDriverConfig(c *DriverConfig) {
 	pgxDriver.unregisterDriverConfig(c)
 }
 
-// OpenFromConnPool takes the existing *pgx.ConnPool pool and returns a *sql.DB
-// with pool as the backend. This enables full control over the connection
-// process and configuration while maintaining compatibility with the
-// database/sql interface. In addition, by calling Driver() on the returned
-// *sql.DB and typecasting to *stdlib.Driver a reference to the pgx.ConnPool can
-// be reaquired later. This allows fast paths targeting pgx to be used while
-// still maintaining compatibility with other databases and drivers.
-//
-// pool connection size must be at least 2.
-func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
-	d := &Driver{Pool: pool}
-
-	openFromConnPoolCountMu.Lock()
-	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
-	openFromConnPoolCount++
-	openFromConnPoolCountMu.Unlock()
-
-	sql.Register(name, d)
-	db, err := sql.Open(name, "")
-	if err != nil {
-		return nil, err
-	}
-
-	// Presumably OpenFromConnPool is being used because the user wants to use
-	// database/sql most of the time, but fast path with pgx some of the time.
-	// Allow database/sql to use all the connections, but release 2 idle ones.
-	// Don't have database/sql immediately release all idle connections because
-	// that would mean that prepared statements would be lost (which kills
-	// performance if the prepared statements constantly have to be reprepared)
-	stat := pool.Stat()
-
-	if stat.MaxConnections <= 2 {
-		return nil, errors.New("pool connection size must be at least 3")
-	}
-	db.SetMaxIdleConns(stat.MaxConnections - 2)
-	db.SetMaxOpenConns(stat.MaxConnections)
-
-	return db, nil
-}
-
 type Conn struct {
 	conn    *pgx.Conn
-	pool    *pgx.ConnPool
 	psCount int64 // Counter used for creating unique prepared statement names
 }
 
@@ -259,11 +166,6 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) Close() error {
-	if c.pool != nil {
-		c.pool.Release(c.conn)
-		return nil
-	}
-
 	return c.conn.Close()
 }
 
