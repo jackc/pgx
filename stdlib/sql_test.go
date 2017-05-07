@@ -685,3 +685,42 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 
 	ensureConnValid(t, db)
 }
+
+func TestAcquireConn(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	var conns []*pgx.Conn
+
+	for i := 1; i < 6; i++ {
+		conn, err := stdlib.AcquireConn(db)
+		if err != nil {
+			t.Errorf("%d. AcquireConn failed: %v", i, err)
+			continue
+		}
+
+		var n int32
+		err = conn.QueryRow("select 1").Scan(&n)
+		if err != nil {
+			t.Errorf("%d. QueryRow failed: %v", i, err)
+		}
+		if n != 1 {
+			t.Errorf("%d. n => %d, want %d", i, n, 1)
+		}
+
+		stats := db.Stats()
+		if stats.OpenConnections != i {
+			t.Errorf("%d. stats.OpenConnections => %d, want %d", i, stats.OpenConnections, i)
+		}
+
+		conns = append(conns, conn)
+	}
+
+	for i, conn := range conns {
+		if err := stdlib.ReleaseConn(db, conn); err != nil {
+			t.Errorf("%d. stdlib.ReleaseConn failed: %v", i, err)
+		}
+	}
+
+	ensureConnValid(t, db)
+}
