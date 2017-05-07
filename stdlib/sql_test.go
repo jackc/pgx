@@ -676,7 +676,7 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 	var pgReadOnly string
 	err = tx.QueryRow("show transaction_read_only").Scan(&pgReadOnly)
 	if err != nil {
-		t.Errorf("%d. QueryRow failed: %v", err)
+		t.Errorf("QueryRow failed: %v", err)
 	}
 
 	if pgReadOnly != "on" {
