@@ -118,26 +118,26 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 
 		hours, err := strconv.ParseInt(timeParts[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("bad interval hour format: %s", hours)
+			return fmt.Errorf("bad interval hour format: %s", timeParts[0])
 		}
 
 		minutes, err := strconv.ParseInt(timeParts[1], 10, 64)
 		if err != nil {
-			return fmt.Errorf("bad interval minute format: %s", minutes)
+			return fmt.Errorf("bad interval minute format: %s", timeParts[1])
 		}
 
 		secondParts := strings.SplitN(timeParts[2], ".", 2)
 
 		seconds, err := strconv.ParseInt(secondParts[0], 10, 64)
 		if err != nil {
-			return fmt.Errorf("bad interval second format: %s", seconds)
+			return fmt.Errorf("bad interval second format: %s", secondParts[0])
 		}
 
 		var uSeconds int64
 		if len(secondParts) == 2 {
 			uSeconds, err = strconv.ParseInt(secondParts[1], 10, 64)
 			if err != nil {
-				return fmt.Errorf("bad interval decimal format: %s", seconds)
+				return fmt.Errorf("bad interval decimal format: %s", secondParts[1])
 			}
 
 			for i := 0; i < 6-len(secondParts[1]); i++ {
