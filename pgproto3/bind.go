@@ -52,6 +52,7 @@ func (dst *Bind) Decode(src []byte) error {
 		return &invalidMessageFormatErr{messageType: "Bind"}
 	}
 	parameterCount := int(binary.BigEndian.Uint16(src[rp:]))
+	rp += 2
 
 	dst.Parameters = make([][]byte, parameterCount)
 
