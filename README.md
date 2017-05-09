@@ -1,3 +1,5 @@
+[![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://godoc.org/github.com/jackc/pgx)
+
 # Pgx
 
 ## Experimental Branch
