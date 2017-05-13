@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	protocolVersionNumber = 196608 // 3.0
+	ProtocolVersionNumber = 196608 // 3.0
 	sslRequestNumber      = 80877103
 )
 
@@ -31,8 +31,8 @@ func (dst *StartupMessage) Decode(src []byte) error {
 		return fmt.Errorf("can't handle ssl connection request")
 	}
 
-	if dst.ProtocolVersion != protocolVersionNumber {
-		return fmt.Errorf("Bad startup message version number. Expected %d, got %d", protocolVersionNumber, dst.ProtocolVersion)
+	if dst.ProtocolVersion != ProtocolVersionNumber {
+		return fmt.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
 	}
 
 	dst.Parameters = make(map[string]string)
