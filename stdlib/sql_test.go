@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgmock"
+	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/stdlib"
 )
 
@@ -684,6 +687,106 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
+}
+
+func TestBeginTxContextCancel(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Exec("drop table if exists t")
+	if err != nil {
+		t.Fatalf("db.Exec failed: %v", err)
+	}
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTx failed: %v", err)
+	}
+
+	_, err = tx.Exec("create table t(id serial)")
+	if err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
+	}
+
+	cancelFn()
+
+	err = tx.Commit()
+	if err != context.Canceled {
+		t.Fatalf("err => %v, want %v", err, context.Canceled)
+	}
+
+	var n int
+	err = db.QueryRow("select count(*) from t").Scan(&n)
+	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "42P01" {
+		t.Fatalf(`err => %v, want PgError{Code: "42P01"}`, err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func acceptStandardPgxConn(backend *pgproto3.Backend) error {
+	script := pgmock.Script{
+		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+	}
+
+	err := script.Run(backend)
+	if err != nil {
+		return err
+	}
+
+	typeScript := pgmock.Script{
+		Steps: pgmock.PgxInitSteps(),
+	}
+
+	return typeScript.Run(backend)
+}
+
+func TestBeginTxContextCancelWithDeadConn(t *testing.T) {
+	script := &pgmock.Script{
+		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+	}
+	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
+	script.Steps = append(script.Steps,
+		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
+		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: "BEGIN"}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'T'}),
+	)
+
+	server, err := pgmock.NewServer(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	errChan := make(chan error)
+	go func() {
+		errChan <- server.ServeOne()
+	}()
+
+	db, err := sql.Open("pgx", fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	defer closeDB(t, db)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("BeginTx failed: %v", err)
+	}
+
+	cancelFn()
+
+	err = tx.Commit()
+	if err != context.Canceled {
+		t.Fatalf("err => %v, want %v", err, context.Canceled)
+	}
+
+	if err := <-errChan; err != nil {
+		t.Fatalf("mock server err: %v", err)
+	}
 }
 
 func TestAcquireConn(t *testing.T) {
