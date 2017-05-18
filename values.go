@@ -1306,6 +1306,65 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeInet(vr)
 	case *[]net.IPNet:
 		*v = decodeInetArray(vr)
+	case *interface{}:
+		switch vr.Type().DataType {
+		case BoolArrayOid:
+			*v = decodeBoolArray(vr)
+		case BoolOid:
+			*v = decodeBool(vr)
+		case ByteaOid:
+			*v = decodeBytea(vr)
+		case CidrArrayOid:
+			*v = decodeInetArray(vr)
+		case CidrOid:
+			*v = decodeInet(vr)
+		case DateOid:
+			*v = decodeDate(vr)
+		case Float4ArrayOid:
+			*v = decodeFloat4Array(vr)
+		case Float4Oid:
+			*v = decodeFloat4(vr)
+		case Float8ArrayOid:
+			*v = decodeFloat8Array(vr)
+		case Float8Oid:
+			*v = decodeFloat8(vr)
+		case InetArrayOid:
+			*v = decodeInetArray(vr)
+		case InetOid:
+			*v = decodeInet(vr)
+		case Int2ArrayOid:
+			*v = decodeInt2Array(vr)
+		case Int2Oid:
+			*v = decodeInt2(vr)
+		case Int4ArrayOid:
+			*v = decodeInt4Array(vr)
+		case Int4Oid:
+			*v = decodeInt4(vr)
+		case Int8ArrayOid:
+			*v = decodeInt8Array(vr)
+		case Int8Oid:
+			*v = decodeInt8(vr)
+		case JsonbOid, JsonOid:
+			decodeJson(vr, v)
+		case TextArrayOid:
+			*v = decodeTextArray(vr)
+		case TextOid:
+			*v = decodeText(vr)
+		case TimestampArrayOid, TimestampTzArrayOid:
+			*v = decodeTimestampArray(vr)
+		case TimestampOid:
+			*v = decodeTimestamp(vr)
+		case TimestampTzOid:
+			*v = decodeTimestampTz(vr)
+		case UuidOid:
+			// not sure what to do here
+		case VarcharArrayOid:
+			*v = decodeTextArray(vr)
+		case VarcharOid:
+			*v = decodeText(vr)
+		default:
+			fmt.Errorf("Can't convert OID %v to interface", vr.Type().DataType)
+		}
 	default:
 		if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
 			el := v.Elem()
