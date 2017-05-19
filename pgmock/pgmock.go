@@ -209,9 +209,7 @@ func PgxInitSteps() []Step {
 		}),
 		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 		ExpectMessage(&pgproto3.Bind{
-			ParameterFormatCodes: []int16{},
-			Parameters:           [][]byte{},
-			ResultFormatCodes:    []int16{1, 1},
+			ResultFormatCodes: []int16{1, 1},
 		}),
 		ExpectMessage(&pgproto3.Execute{}),
 		ExpectMessage(&pgproto3.Sync{}),
