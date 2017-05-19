@@ -388,6 +388,10 @@ func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
 	return s.conn.Exec(s.ps.Name, argsV)
 }
 
+func (s *Stmt) ExecContext(ctx context.Context, argsV []driver.NamedValue) (driver.Result, error) {
+	return s.conn.ExecContext(ctx, s.ps.Name, argsV)
+}
+
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	return s.conn.queryPrepared(s.ps.Name, argsV)
 }
