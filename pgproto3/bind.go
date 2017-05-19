@@ -18,6 +18,8 @@ type Bind struct {
 func (*Bind) Frontend() {}
 
 func (dst *Bind) Decode(src []byte) error {
+	*dst = Bind{}
+
 	idx := bytes.IndexByte(src, 0)
 	if idx < 0 {
 		return &invalidMessageFormatErr{messageType: "Bind"}
@@ -38,14 +40,16 @@ func (dst *Bind) Decode(src []byte) error {
 	parameterFormatCodeCount := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 
-	dst.ParameterFormatCodes = make([]int16, parameterFormatCodeCount)
+	if parameterFormatCodeCount > 0 {
+		dst.ParameterFormatCodes = make([]int16, parameterFormatCodeCount)
 
-	if len(src[rp:]) < len(dst.ParameterFormatCodes)*2 {
-		return &invalidMessageFormatErr{messageType: "Bind"}
-	}
-	for i := 0; i < parameterFormatCodeCount; i++ {
-		dst.ParameterFormatCodes[i] = int16(binary.BigEndian.Uint16(src[rp:]))
-		rp += 2
+		if len(src[rp:]) < len(dst.ParameterFormatCodes)*2 {
+			return &invalidMessageFormatErr{messageType: "Bind"}
+		}
+		for i := 0; i < parameterFormatCodeCount; i++ {
+			dst.ParameterFormatCodes[i] = int16(binary.BigEndian.Uint16(src[rp:]))
+			rp += 2
+		}
 	}
 
 	if len(src[rp:]) < 2 {
@@ -54,27 +58,29 @@ func (dst *Bind) Decode(src []byte) error {
 	parameterCount := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 
-	dst.Parameters = make([][]byte, parameterCount)
+	if parameterCount > 0 {
+		dst.Parameters = make([][]byte, parameterCount)
 
-	for i := 0; i < parameterCount; i++ {
-		if len(src[rp:]) < 4 {
-			return &invalidMessageFormatErr{messageType: "Bind"}
+		for i := 0; i < parameterCount; i++ {
+			if len(src[rp:]) < 4 {
+				return &invalidMessageFormatErr{messageType: "Bind"}
+			}
+
+			msgSize := int(int32(binary.BigEndian.Uint32(src[rp:])))
+			rp += 4
+
+			// null
+			if msgSize == -1 {
+				continue
+			}
+
+			if len(src[rp:]) < msgSize {
+				return &invalidMessageFormatErr{messageType: "Bind"}
+			}
+
+			dst.Parameters[i] = src[rp : rp+msgSize]
+			rp += msgSize
 		}
-
-		msgSize := int(int32(binary.BigEndian.Uint32(src[rp:])))
-		rp += 4
-
-		// null
-		if msgSize == -1 {
-			continue
-		}
-
-		if len(src[rp:]) < msgSize {
-			return &invalidMessageFormatErr{messageType: "Bind"}
-		}
-
-		dst.Parameters[i] = src[rp : rp+msgSize]
-		rp += msgSize
 	}
 
 	if len(src[rp:]) < 2 {
