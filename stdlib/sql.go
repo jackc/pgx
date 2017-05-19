@@ -344,7 +344,6 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 
 	rows, err := c.conn.QueryEx(ctx, name, nil, args...)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
