@@ -1073,3 +1073,30 @@ func TestConnQueryContextCancel(t *testing.T) {
 		t.Errorf("mock server err: %v", err)
 	}
 }
+
+func TestRowsColumnTypeDatabaseTypeName(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	rows, err := db.Query("select * from generate_series(1,10) n")
+	if err != nil {
+		t.Fatalf("db.Query failed: %v", err)
+	}
+
+	columnTypes, err := rows.ColumnTypes()
+	if err != nil {
+		t.Fatalf("rows.ColumnTypes failed: %v", err)
+	}
+
+	if len(columnTypes) != 1 {
+		t.Fatalf("len(columnTypes) => %v, want %v", len(columnTypes), 1)
+	}
+
+	if columnTypes[0].DatabaseTypeName() != "INT4" {
+		t.Errorf("columnTypes[0].DatabaseTypeName() => %v, want %v", columnTypes[0].DatabaseTypeName(), "INT4")
+	}
+
+	rows.Close()
+
+	ensureConnValid(t, db)
+}
