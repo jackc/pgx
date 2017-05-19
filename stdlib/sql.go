@@ -279,6 +279,17 @@ func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
+func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Result, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	args := namedValueToInterface(argsV)
+
+	commandTag, err := c.conn.ExecEx(ctx, query, nil, args...)
+	return driver.RowsAffected(commandTag.RowsAffected()), err
+}
+
 func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
