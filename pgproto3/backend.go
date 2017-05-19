@@ -14,8 +14,10 @@ type Backend struct {
 
 	// Frontend message flyweights
 	bind            Bind
+	_close          Close
 	describe        Describe
 	execute         Execute
+	flush           Flush
 	parse           Parse
 	passwordMessage PasswordMessage
 	query           Query
@@ -72,10 +74,14 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	switch msgType {
 	case 'B':
 		msg = &b.bind
+	case 'C':
+		msg = &b._close
 	case 'D':
 		msg = &b.describe
 	case 'E':
 		msg = &b.execute
+	case 'H':
+		msg = &b.flush
 	case 'P':
 		msg = &b.parse
 	case 'p':
