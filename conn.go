@@ -1388,11 +1388,7 @@ func (c *Conn) cancelQuery() {
 	}()
 }
 
-func (c *Conn) Ping() error {
-	return c.PingContext(context.Background())
-}
-
-func (c *Conn) PingContext(ctx context.Context) error {
+func (c *Conn) Ping(ctx context.Context) error {
 	_, err := c.ExecEx(ctx, ";", nil)
 	return err
 }
