@@ -336,6 +336,14 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 	return &Rows{rows: rows}, nil
 }
 
+func (c *Conn) Ping(ctx context.Context) error {
+	if !c.conn.IsAlive() {
+		return driver.ErrBadConn
+	}
+
+	return c.conn.Ping(ctx)
+}
+
 // Anything that isn't a database/sql compatible type needs to be forced to
 // text format so that pgx.Rows.Values doesn't decode it into a native type
 // (e.g. []int32)
