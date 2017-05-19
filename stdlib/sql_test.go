@@ -930,3 +930,53 @@ func TestConnPrepareContextCancel(t *testing.T) {
 		t.Errorf("mock server err: %v", err)
 	}
 }
+
+func TestConnExecContextSuccess(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.ExecContext(context.Background(), "create temporary table exec_context_test(id serial primary key)")
+	if err != nil {
+		t.Fatalf("db.ExecContext failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestConnExecContextCancel(t *testing.T) {
+	script := &pgmock.Script{
+		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+	}
+	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
+	script.Steps = append(script.Steps,
+		pgmock.ExpectMessage(&pgproto3.Query{String: "create temporary table exec_context_test(id serial primary key)"}),
+	)
+
+	server, err := pgmock.NewServer(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	errChan := make(chan error)
+	go func() {
+		errChan <- server.ServeOne()
+	}()
+
+	db, err := sql.Open("pgx", fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	// defer closeDB(t, db) // mock DB doesn't close correctly yet
+
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+
+	_, err = db.ExecContext(ctx, "create temporary table exec_context_test(id serial primary key)")
+	if err != context.DeadlineExceeded {
+		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
+	}
+
+	if err := <-errChan; err != nil {
+		t.Errorf("mock server err: %v", err)
+	}
+}
