@@ -1100,3 +1100,51 @@ func TestRowsColumnTypeDatabaseTypeName(t *testing.T) {
 
 	ensureConnValid(t, db)
 }
+
+func TestStmtExecContextSuccess(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Exec("create temporary table t(id int primary key)")
+	if err != nil {
+		t.Fatalf("db.Exec failed: %v", err)
+	}
+
+	stmt, err := db.Prepare("insert into t(id) values ($1::int4)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(context.Background(), 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+func TestStmtExecContextCancel(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	_, err := db.Exec("create temporary table t(id int primary key)")
+	if err != nil {
+		t.Fatalf("db.Exec failed: %v", err)
+	}
+
+	stmt, err := db.Prepare("insert into t(id) select $1::int4 from pg_sleep(5)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stmt.Close()
+
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+
+	_, err = stmt.ExecContext(ctx, 42)
+	if err != context.DeadlineExceeded {
+		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
+	}
+
+	ensureConnValid(t, db)
+}
