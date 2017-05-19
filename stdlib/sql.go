@@ -71,6 +71,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
 	"github.com/jackc/pgx"
@@ -403,6 +404,10 @@ func (r *Rows) Columns() []string {
 		names = append(names, fd.Name)
 	}
 	return names
+}
+
+func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
+	return strings.ToUpper(r.rows.FieldDescriptions()[index].DataTypeName)
 }
 
 func (r *Rows) Close() error {
