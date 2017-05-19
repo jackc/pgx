@@ -396,6 +396,10 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	return s.conn.queryPrepared(s.ps.Name, argsV)
 }
 
+func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (driver.Rows, error) {
+	return s.conn.queryPreparedContext(ctx, s.ps.Name, argsV)
+}
+
 type Rows struct {
 	rows   *pgx.Rows
 	values []interface{}
