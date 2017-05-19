@@ -208,6 +208,10 @@ type Conn struct {
 }
 
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
+	return c.PrepareContext(context.Background(), query)
+}
+
+func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -215,7 +219,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
-	ps, err := c.conn.Prepare(name, query)
+	ps, err := c.conn.PrepareExContext(ctx, name, query, nil)
 	if err != nil {
 		return nil, err
 	}
