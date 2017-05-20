@@ -1150,13 +1150,8 @@ func TestStmtExecContextCancel(t *testing.T) {
 }
 
 func TestStmtQueryContextSuccess(t *testing.T) {
-	// db := openDB(t)
-	// defer closeDB(t, db)
-
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:15432/pgx_test?sslmode=disable")
-	if err != nil {
-		t.Fatalf("sql.Open failed: %v", err)
-	}
+	db := openDB(t)
+	defer closeDB(t, db)
 
 	stmt, err := db.Prepare("select * from generate_series(1,$1::int4) n")
 	if err != nil {
