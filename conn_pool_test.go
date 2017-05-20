@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -635,7 +636,7 @@ func TestConnPoolTransactionIso(t *testing.T) {
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
-	tx, err := pool.BeginEx(&pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("pool.BeginEx failed: %v", err)
 	}

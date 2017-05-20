@@ -847,6 +847,7 @@ func TestConnPingContextCancel(t *testing.T) {
 	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
 	script.Steps = append(script.Steps,
 		pgmock.ExpectMessage(&pgproto3.Query{String: ";"}),
+		pgmock.WaitForClose(),
 	)
 
 	server, err := pgmock.NewServer(script)
@@ -855,7 +856,7 @@ func TestConnPingContextCancel(t *testing.T) {
 	}
 	defer server.Close()
 
-	errChan := make(chan error)
+	errChan := make(chan error, 1)
 	go func() {
 		errChan <- server.ServeOne()
 	}()
@@ -864,7 +865,7 @@ func TestConnPingContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
-	// defer closeDB(t, db) // mock DB doesn't close correctly yet
+	defer closeDB(t, db)
 
 	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
 
@@ -900,6 +901,7 @@ func TestConnPrepareContextCancel(t *testing.T) {
 		pgmock.ExpectMessage(&pgproto3.Parse{Name: "pgx_0", Query: "select now()"}),
 		pgmock.ExpectMessage(&pgproto3.Describe{ObjectType: 'S', Name: "pgx_0"}),
 		pgmock.ExpectMessage(&pgproto3.Sync{}),
+		pgmock.WaitForClose(),
 	)
 
 	server, err := pgmock.NewServer(script)
@@ -917,7 +919,7 @@ func TestConnPrepareContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
-	// defer closeDB(t, db) // mock DB doesn't close correctly yet
+	defer closeDB(t, db)
 
 	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
 
@@ -950,6 +952,7 @@ func TestConnExecContextCancel(t *testing.T) {
 	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
 	script.Steps = append(script.Steps,
 		pgmock.ExpectMessage(&pgproto3.Query{String: "create temporary table exec_context_test(id serial primary key)"}),
+		pgmock.WaitForClose(),
 	)
 
 	server, err := pgmock.NewServer(script)
@@ -967,7 +970,7 @@ func TestConnExecContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
-	// defer closeDB(t, db) // mock DB doesn't close correctly yet
+	defer closeDB(t, db)
 
 	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
 

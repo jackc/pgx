@@ -267,7 +267,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		pgxOpts.AccessMode = pgx.ReadOnly
 	}
 
-	return c.conn.BeginEx(&pgxOpts)
+	return c.conn.BeginEx(ctx, &pgxOpts)
 }
 
 func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {

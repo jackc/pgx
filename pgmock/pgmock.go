@@ -3,6 +3,7 @@ package pgmock
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"reflect"
 
@@ -38,6 +39,9 @@ func (s *Server) ServeOne() error {
 	if err != nil {
 		return err
 	}
+	defer conn.Close()
+
+	s.Close()
 
 	backend, err := pgproto3.NewBackend(conn, conn)
 	if err != nil {
@@ -165,6 +169,27 @@ func (e *sendMessageStep) Step(backend *pgproto3.Backend) error {
 
 func SendMessage(msg pgproto3.BackendMessage) Step {
 	return &sendMessageStep{msg: msg}
+}
+
+type waitForCloseMessageStep struct{}
+
+func (e *waitForCloseMessageStep) Step(backend *pgproto3.Backend) error {
+	for {
+		msg, err := backend.Receive()
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		if _, ok := msg.(*pgproto3.Terminate); ok {
+			return nil
+		}
+	}
+}
+
+func WaitForClose() Step {
+	return &waitForCloseMessageStep{}
 }
 
 func AcceptUnauthenticatedConnRequestSteps() []Step {

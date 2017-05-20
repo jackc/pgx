@@ -410,7 +410,7 @@ func (p *ConnPool) QueryRowEx(ctx context.Context, sql string, options *QueryExO
 // Begin acquires a connection and begins a transaction on it. When the
 // transaction is closed the connection will be automatically released.
 func (p *ConnPool) Begin() (*Tx, error) {
-	return p.BeginEx(nil)
+	return p.BeginEx(context.Background(), nil)
 }
 
 // Prepare creates a prepared statement on a connection in the pool to test the
@@ -499,14 +499,14 @@ func (p *ConnPool) Deallocate(name string) (err error) {
 // BeginEx acquires a connection and starts a transaction with txOptions
 // determining the transaction mode. When the transaction is closed the
 // connection will be automatically released.
-func (p *ConnPool) BeginEx(txOptions *TxOptions) (*Tx, error) {
+func (p *ConnPool) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
 	for {
 		c, err := p.Acquire()
 		if err != nil {
 			return nil, err
 		}
 
-		tx, err := c.BeginEx(txOptions)
+		tx, err := c.BeginEx(ctx, txOptions)
 		if err != nil {
 			alive := c.IsAlive()
 			p.Release(c)
