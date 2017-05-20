@@ -398,16 +398,15 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	err = c.initContext(ctx)
 	if err != nil {
 		rows.fatal(err)
-		return rows, err
+		return rows, rows.err
 	}
 
 	err = c.sendPreparedQuery(ps, args...)
 	if err != nil {
 		rows.fatal(err)
-		err = c.termContext(err)
 	}
 
-	return rows, err
+	return rows, rows.err
 }
 
 func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {

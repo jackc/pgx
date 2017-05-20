@@ -795,9 +795,11 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	buf = append(buf, 'S')
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(buf)
+	n, err := c.conn.Write(buf)
 	if err != nil {
-		c.die(err)
+		if fatalWriteErr(n, err) {
+			c.die(err)
+		}
 		return nil, err
 	}
 	c.readyForQuery = false
@@ -1085,13 +1087,24 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = append(buf, 'S')
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(buf)
-	if err != nil {
+	n, err := c.conn.Write(buf)
+	if err != nil && fatalWriteErr(n, err) {
 		c.die(err)
 	}
 	c.readyForQuery = false
 
 	return err
+}
+
+// fatalWriteError takes the response of a net.Conn.Write and determines if it is fatal
+func fatalWriteErr(bytesWritten int, err error) bool {
+	// Partial writes break the connection
+	if bytesWritten > 0 {
+		return true
+	}
+
+	netErr, is := err.(net.Error)
+	return !(is && netErr.Timeout())
 }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
