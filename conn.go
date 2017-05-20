@@ -710,7 +710,7 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
-	return c.PrepareEx(name, sql, nil)
+	return c.PrepareEx(context.Background(), name, sql, nil)
 }
 
 // PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
@@ -720,11 +720,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
 // concern for if the statement has already been prepared.
-func (c *Conn) PrepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
-	return c.PrepareExContext(context.Background(), name, sql, opts)
-}
-
-func (c *Conn) PrepareExContext(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
 	err = c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
 		return nil, err
@@ -1455,7 +1451,7 @@ func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, 
 			ps, ok := c.preparedStatements[sql]
 			if !ok {
 				var err error
-				ps, err = c.PrepareExContext(ctx, "", sql, nil)
+				ps, err = c.PrepareEx(ctx, "", sql, nil)
 				if err != nil {
 					return "", err
 				}

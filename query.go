@@ -386,7 +386,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
 		var err error
-		ps, err = c.PrepareExContext(ctx, "", sql, nil)
+		ps, err = c.PrepareEx(ctx, "", sql, nil)
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err

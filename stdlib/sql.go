@@ -220,7 +220,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
-	ps, err := c.conn.PrepareExContext(ctx, name, query, nil)
+	ps, err := c.conn.PrepareEx(ctx, name, query, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 		return nil, driver.ErrBadConn
 	}
 
-	ps, err := c.conn.PrepareExContext(ctx, "", query, nil)
+	ps, err := c.conn.PrepareEx(ctx, "", query, nil)
 	if err != nil {
 		return nil, err
 	}
