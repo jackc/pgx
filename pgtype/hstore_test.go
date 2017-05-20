@@ -9,41 +9,41 @@ import (
 )
 
 func TestHstoreTranscode(t *testing.T) {
-	// text := func(s string) pgtype.Text {
-	// 	return pgtype.Text{String: s, Status: pgtype.Present}
-	// }
+	text := func(s string) pgtype.Text {
+		return pgtype.Text{String: s, Status: pgtype.Present}
+	}
 
 	values := []interface{}{
 		&pgtype.Hstore{Map: map[string]pgtype.Text{}, Status: pgtype.Present},
-		// &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
-		// &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
-		// &pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
-		// &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
-		// &pgtype.Hstore{Status: pgtype.Null},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
+		&pgtype.Hstore{Status: pgtype.Null},
 	}
 
-	// specialStrings := []string{
-	// 	`"`,
-	// 	`'`,
-	// 	`\`,
-	// 	`\\`,
-	// 	`=>`,
-	// 	` `,
-	// 	`\ / / \\ => " ' " '`,
-	// }
-	// for _, s := range specialStrings {
-	// 	// Special key values
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Status: pgtype.Present})         // at beginning
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Status: pgtype.Present}) // in middle
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Status: pgtype.Present})         // at end
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Status: pgtype.Present})                 // is key
+	specialStrings := []string{
+		`"`,
+		`'`,
+		`\`,
+		`\\`,
+		`=>`,
+		` `,
+		`\ / / \\ => " ' " '`,
+	}
+	for _, s := range specialStrings {
+		// Special key values
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Status: pgtype.Present})         // at beginning
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Status: pgtype.Present}) // in middle
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Status: pgtype.Present})         // at end
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Status: pgtype.Present})                 // is key
 
-	// 	// Special value values
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Status: pgtype.Present})         // at beginning
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Status: pgtype.Present}) // in middle
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Status: pgtype.Present})         // at end
-	// 	values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
-	// }
+		// Special value values
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Status: pgtype.Present})         // at beginning
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Status: pgtype.Present}) // in middle
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Status: pgtype.Present})         // at end
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
+	}
 
 	testutil.TestSuccessfulTranscodeEqFunc(t, "hstore", values, func(ai, bi interface{}) bool {
 		a := ai.(pgtype.Hstore)
