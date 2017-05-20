@@ -22,7 +22,7 @@ func mustParseDecimal(t *testing.T, src string) decimal.Decimal {
 }
 
 func TestNumericNormalize(t *testing.T) {
-	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
+	testutil.TestSuccessfulNormalizeEqFunc(t, []testutil.NormalizeTest{
 		{
 			SQL:   "select '0'::numeric",
 			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "0"), Status: pgtype.Present},
@@ -84,6 +84,11 @@ func TestNumericNormalize(t *testing.T) {
 				Status:  pgtype.Present,
 			},
 		},
+	}, func(aa, bb interface{}) bool {
+		a := aa.(shopspring.Numeric)
+		b := bb.(shopspring.Numeric)
+
+		return a.Status == b.Status && a.Decimal.Equal(b.Decimal)
 	})
 }
 
