@@ -49,47 +49,47 @@ func TestNumericNormalize(t *testing.T) {
 	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
 			SQL:   "select '0'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '10.00'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(1000), Exp: -2, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1e-3'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: -3, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(1), Exp: -3, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '-1'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '10000'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(1), Exp: 4, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(1), Exp: 4, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '3.14'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(314), Exp: -2, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1.1'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(11), Exp: -1, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(11), Exp: -1, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '100010001'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(100010001), Exp: 0, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(100010001), Exp: 0, Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '100010001.0001'::numeric",
-			Value: pgtype.Numeric{Int: big.NewInt(1000100010001), Exp: -4, Status: pgtype.Present},
+			Value: &pgtype.Numeric{Int: big.NewInt(1000100010001), Exp: -4, Status: pgtype.Present},
 		},
 		{
 			SQL: "select '4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981'::numeric",
-			Value: pgtype.Numeric{
+			Value: &pgtype.Numeric{
 				Int:    mustParseBigInt(t, "423723478923478928934789237432487213832189417894318904389012483210893443219085471578891547854892438945012347981"),
 				Exp:    -41,
 				Status: pgtype.Present,
@@ -97,7 +97,7 @@ func TestNumericNormalize(t *testing.T) {
 		},
 		{
 			SQL: "select '0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234'::numeric",
-			Value: pgtype.Numeric{
+			Value: &pgtype.Numeric{
 				Int:    mustParseBigInt(t, "8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234"),
 				Exp:    -196,
 				Status: pgtype.Present,
@@ -105,7 +105,7 @@ func TestNumericNormalize(t *testing.T) {
 		},
 		{
 			SQL: "select '0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123'::numeric",
-			Value: pgtype.Numeric{
+			Value: &pgtype.Numeric{
 				Int:    mustParseBigInt(t, "123"),
 				Exp:    -186,
 				Status: pgtype.Present,
