@@ -25,61 +25,61 @@ func TestNumericNormalize(t *testing.T) {
 	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
 			SQL:   "select '0'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "0"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "0"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "1"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "1"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '10.00'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "10.00"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "10.00"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1e-3'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "0.001"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "0.001"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '-1'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "-1"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "-1"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '10000'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "10000"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "10000"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '3.14'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "3.14"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "3.14"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '1.1'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "1.1"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "1.1"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '100010001'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "100010001"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "100010001"), Status: pgtype.Present},
 		},
 		{
 			SQL:   "select '100010001.0001'::numeric",
-			Value: shopspring.Numeric{Decimal: mustParseDecimal(t, "100010001.0001"), Status: pgtype.Present},
+			Value: &shopspring.Numeric{Decimal: mustParseDecimal(t, "100010001.0001"), Status: pgtype.Present},
 		},
 		{
 			SQL: "select '4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981'::numeric",
-			Value: shopspring.Numeric{
+			Value: &shopspring.Numeric{
 				Decimal: mustParseDecimal(t, "4237234789234789289347892374324872138321894178943189043890124832108934.43219085471578891547854892438945012347981"),
 				Status:  pgtype.Present,
 			},
 		},
 		{
 			SQL: "select '0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234'::numeric",
-			Value: shopspring.Numeric{
+			Value: &shopspring.Numeric{
 				Decimal: mustParseDecimal(t, "0.8925092023480223478923478978978937897879595901237890234789243679037419057877231734823098432903527585734549035904590854890345905434578345789347890402348952348905890489054234237489234987723894789234"),
 				Status:  pgtype.Present,
 			},
 		},
 		{
 			SQL: "select '0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123'::numeric",
-			Value: shopspring.Numeric{
+			Value: &shopspring.Numeric{
 				Decimal: mustParseDecimal(t, "0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000123"),
 				Status:  pgtype.Present,
 			},
