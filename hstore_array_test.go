@@ -49,7 +49,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
 	}
 
-	src := pgtype.HstoreArray{
+	src := &pgtype.HstoreArray{
 		Elements:   values,
 		Dimensions: []pgtype.ArrayDimension{{Length: int32(len(values)), LowerBound: 1}},
 		Status:     pgtype.Present,
