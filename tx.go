@@ -2,8 +2,10 @@ package pgx
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"time"
 )
 
 type TxIsoLevel string
@@ -56,12 +58,13 @@ var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 // Begin starts a transaction with the default transaction mode for the
 // current connection. To use a specific transaction mode see BeginEx.
 func (c *Conn) Begin() (*Tx, error) {
-	return c.BeginEx(nil)
+	return c.BeginEx(context.Background(), nil)
 }
 
 // BeginEx starts a transaction with txOptions determining the transaction
-// mode.
-func (c *Conn) BeginEx(txOptions *TxOptions) (*Tx, error) {
+// mode. Unlike database/sql, the context only affects the begin command. i.e.
+// there is no auto-rollback on context cancelation.
+func (c *Conn) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
 	var beginSQL string
 	if txOptions == nil {
 		beginSQL = "begin"
@@ -81,8 +84,11 @@ func (c *Conn) BeginEx(txOptions *TxOptions) (*Tx, error) {
 		beginSQL = buf.String()
 	}
 
-	_, err := c.Exec(beginSQL)
+	_, err := c.ExecEx(ctx, beginSQL, nil)
 	if err != nil {
+		// begin should never fail unless there is an underlying connection issue or
+		// a context timeout. In either case, the connection is possibly broken.
+		c.die(errors.New("failed to begin transaction"))
 		return nil, err
 	}
 
@@ -102,11 +108,16 @@ type Tx struct {
 
 // Commit commits the transaction
 func (tx *Tx) Commit() error {
+	return tx.CommitEx(context.Background())
+}
+
+// CommitEx commits the transaction with a context.
+func (tx *Tx) CommitEx(ctx context.Context) error {
 	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
 
-	commandTag, err := tx.conn.Exec("commit")
+	commandTag, err := tx.conn.ExecEx(ctx, "commit", nil)
 	if err == nil && commandTag == "COMMIT" {
 		tx.status = TxStatusCommitSuccess
 	} else if err == nil && commandTag == "ROLLBACK" {
@@ -115,6 +126,8 @@ func (tx *Tx) Commit() error {
 	} else {
 		tx.status = TxStatusCommitFailure
 		tx.err = err
+		// A commit failure leaves the connection in an undefined state
+		tx.conn.die(errors.New("commit failed"))
 	}
 
 	if tx.connPool != nil {
@@ -133,11 +146,14 @@ func (tx *Tx) Rollback() error {
 		return ErrTxClosed
 	}
 
-	_, tx.err = tx.conn.Exec("rollback")
+	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	_, tx.err = tx.conn.ExecEx(ctx, "rollback", nil)
 	if tx.err == nil {
 		tx.status = TxStatusRollbackSuccess
 	} else {
 		tx.status = TxStatusRollbackFailure
+		// A rollback failure leaves the connection in an undefined state
+		tx.conn.die(errors.New("rollback failed"))
 	}
 
 	if tx.connPool != nil {
