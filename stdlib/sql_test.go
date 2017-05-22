@@ -1036,6 +1036,7 @@ func TestConnQueryContextCancel(t *testing.T) {
 		pgmock.ExpectMessage(&pgproto3.Sync{}),
 
 		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.WaitForClose(),
 	)
 
 	server, err := pgmock.NewServer(script)
@@ -1053,7 +1054,7 @@ func TestConnQueryContextCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
-	// defer closeDB(t, db) // mock DB doesn't close correctly yet
+	defer db.Close()
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 
