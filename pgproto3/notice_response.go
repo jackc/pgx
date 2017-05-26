@@ -8,6 +8,6 @@ func (dst *NoticeResponse) Decode(src []byte) error {
 	return (*ErrorResponse)(dst).Decode(src)
 }
 
-func (src *NoticeResponse) MarshalBinary() ([]byte, error) {
-	return (*ErrorResponse)(src).marshalBinary('N')
+func (src *NoticeResponse) Encode(dst []byte) []byte {
+	return append(dst, (*ErrorResponse)(src).marshalBinary('N')...)
 }

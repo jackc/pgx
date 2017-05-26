@@ -16,8 +16,8 @@ func (dst *Sync) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Sync) MarshalBinary() ([]byte, error) {
-	return []byte{'S', 0, 0, 0, 4}, nil
+func (src *Sync) Encode(dst []byte) []byte {
+	return append(dst, 'S', 0, 0, 0, 4)
 }
 
 func (src *Sync) MarshalJSON() ([]byte, error) {

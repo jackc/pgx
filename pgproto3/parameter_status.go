@@ -2,8 +2,9 @@ package pgproto3
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type ParameterStatus struct {
@@ -32,21 +33,19 @@ func (dst *ParameterStatus) Decode(src []byte) error {
 	return nil
 }
 
-func (src *ParameterStatus) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *ParameterStatus) Encode(dst []byte) []byte {
+	dst = append(dst, 'S')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('S')
-	buf.Write(bigEndian.Uint32(0))
+	dst = append(dst, src.Name...)
+	dst = append(dst, 0)
+	dst = append(dst, src.Value...)
+	dst = append(dst, 0)
 
-	buf.WriteString(src.Name)
-	buf.WriteByte(0)
-	buf.WriteString(src.Value)
-	buf.WriteByte(0)
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
-
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (ps *ParameterStatus) MarshalJSON() ([]byte, error) {

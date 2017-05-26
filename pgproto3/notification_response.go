@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type NotificationResponse struct {
@@ -35,19 +37,19 @@ func (dst *NotificationResponse) Decode(src []byte) error {
 	return nil
 }
 
-func (src *NotificationResponse) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *NotificationResponse) Encode(dst []byte) []byte {
+	dst = append(dst, 'A')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('A')
-	buf.Write(bigEndian.Uint32(uint32(4 + 4 + len(src.Channel) + len(src.Payload))))
+	dst = append(dst, src.Channel...)
+	dst = append(dst, 0)
+	dst = append(dst, src.Payload...)
+	dst = append(dst, 0)
 
-	buf.WriteString(src.Channel)
-	buf.WriteByte(0)
-	buf.WriteString(src.Payload)
-	buf.WriteByte(0)
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *NotificationResponse) MarshalJSON() ([]byte, error) {

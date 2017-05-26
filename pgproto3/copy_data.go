@@ -1,9 +1,10 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type CopyData struct {
@@ -18,15 +19,11 @@ func (dst *CopyData) Decode(src []byte) error {
 	return nil
 }
 
-func (src *CopyData) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-
-	buf.WriteByte('d')
-	buf.Write(bigEndian.Uint32(uint32(4 + len(src.Data))))
-	buf.Write(src.Data)
-
-	return buf.Bytes(), nil
+func (src *CopyData) Encode(dst []byte) []byte {
+	dst = append(dst, 'd')
+	dst = pgio.AppendInt32(dst, int32(4+len(src.Data)))
+	dst = append(dst, src.Data...)
+	return dst
 }
 
 func (src *CopyData) MarshalJSON() ([]byte, error) {

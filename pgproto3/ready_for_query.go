@@ -20,8 +20,8 @@ func (dst *ReadyForQuery) Decode(src []byte) error {
 	return nil
 }
 
-func (src *ReadyForQuery) MarshalBinary() ([]byte, error) {
-	return []byte{'Z', 0, 0, 0, 5, src.TxStatus}, nil
+func (src *ReadyForQuery) Encode(dst []byte) []byte {
+	return append(dst, 'Z', 0, 0, 0, 5, src.TxStatus)
 }
 
 func (src *ReadyForQuery) MarshalJSON() ([]byte, error) {

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type Execute struct {
@@ -30,21 +32,19 @@ func (dst *Execute) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Execute) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *Execute) Encode(dst []byte) []byte {
+	dst = append(dst, 'E')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('E')
-	buf.Write(bigEndian.Uint32(0))
+	dst = append(dst, src.Portal...)
+	dst = append(dst, 0)
 
-	buf.WriteString(src.Portal)
-	buf.WriteByte(0)
+	dst = pgio.AppendUint32(dst, src.MaxRows)
 
-	buf.Write(bigEndian.Uint32(src.MaxRows))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
-
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *Execute) MarshalJSON() ([]byte, error) {

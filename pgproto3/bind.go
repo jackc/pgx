@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type Bind struct {
@@ -101,45 +103,40 @@ func (dst *Bind) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Bind) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *Bind) Encode(dst []byte) []byte {
+	dst = append(dst, 'B')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('B')
-	buf.Write(bigEndian.Uint32(0))
+	dst = append(dst, src.DestinationPortal...)
+	dst = append(dst, 0)
+	dst = append(dst, src.PreparedStatement...)
+	dst = append(dst, 0)
 
-	buf.WriteString(src.DestinationPortal)
-	buf.WriteByte(0)
-	buf.WriteString(src.PreparedStatement)
-	buf.WriteByte(0)
-
-	buf.Write(bigEndian.Uint16(uint16(len(src.ParameterFormatCodes))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterFormatCodes)))
 	for _, fc := range src.ParameterFormatCodes {
-		buf.Write(bigEndian.Int16(fc))
+		dst = pgio.AppendInt16(dst, fc)
 	}
 
-	buf.Write(bigEndian.Uint16(uint16(len(src.Parameters))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.Parameters)))
 	for _, p := range src.Parameters {
 		if p == nil {
-			buf.Write(bigEndian.Int32(-1))
+			dst = pgio.AppendInt32(dst, -1)
 			continue
 		}
 
-		buf.Write(bigEndian.Int32(int32(len(p))))
-		buf.Write(p)
+		dst = pgio.AppendInt32(dst, int32(len(p)))
+		dst = append(dst, p...)
 	}
 
-	buf.Write(bigEndian.Uint16(uint16(len(src.ResultFormatCodes))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.ResultFormatCodes)))
 	for _, fc := range src.ResultFormatCodes {
-		buf.Write(bigEndian.Int16(fc))
+		dst = pgio.AppendInt16(dst, fc)
 	}
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *Bind) MarshalJSON() ([]byte, error) {

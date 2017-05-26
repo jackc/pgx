@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type ParameterDescription struct {
@@ -33,20 +35,19 @@ func (dst *ParameterDescription) Decode(src []byte) error {
 	return nil
 }
 
-func (src *ParameterDescription) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *ParameterDescription) Encode(dst []byte) []byte {
+	dst = append(dst, 't')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('t')
-	buf.Write(bigEndian.Uint32(uint32(4 + 2 + 4*len(src.ParameterOIDs))))
-
-	buf.Write(bigEndian.Uint16(uint16(len(src.ParameterOIDs))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterOIDs)))
 	for _, oid := range src.ParameterOIDs {
-		buf.Write(bigEndian.Uint32(oid))
+		dst = pgio.AppendUint32(dst, oid)
 	}
 
-	return buf.Bytes(), nil
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
+
+	return dst
 }
 
 func (src *ParameterDescription) MarshalJSON() ([]byte, error) {

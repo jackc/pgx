@@ -16,8 +16,8 @@ func (dst *CloseComplete) Decode(src []byte) error {
 	return nil
 }
 
-func (src *CloseComplete) MarshalBinary() ([]byte, error) {
-	return []byte{'3', 0, 0, 0, 4}, nil
+func (src *CloseComplete) Encode(dst []byte) []byte {
+	return append(dst, '3', 0, 0, 0, 4)
 }
 
 func (src *CloseComplete) MarshalJSON() ([]byte, error) {

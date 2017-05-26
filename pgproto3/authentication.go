@@ -1,9 +1,10 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 const (
@@ -36,19 +37,18 @@ func (dst *Authentication) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Authentication) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-	buf.WriteByte('R')
-	buf.Write(bigEndian.Uint32(0))
-	buf.Write(bigEndian.Uint32(src.Type))
+func (src *Authentication) Encode(dst []byte) []byte {
+	dst = append(dst, 'R')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
+	dst = pgio.AppendUint32(dst, src.Type)
 
 	switch src.Type {
 	case AuthTypeMD5Password:
-		buf.Write(src.Salt[:])
+		dst = append(dst, src.Salt[:]...)
 	}
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }

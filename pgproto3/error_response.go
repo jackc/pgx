@@ -103,11 +103,11 @@ func (dst *ErrorResponse) Decode(src []byte) error {
 	return nil
 }
 
-func (src *ErrorResponse) MarshalBinary() ([]byte, error) {
-	return src.marshalBinary('E')
+func (src *ErrorResponse) Encode(dst []byte) []byte {
+	return append(dst, src.marshalBinary('E')...)
 }
 
-func (src *ErrorResponse) marshalBinary(typeByte byte) ([]byte, error) {
+func (src *ErrorResponse) marshalBinary(typeByte byte) []byte {
 	var bigEndian BigEndianBuf
 	buf := &bytes.Buffer{}
 
@@ -193,5 +193,5 @@ func (src *ErrorResponse) marshalBinary(typeByte byte) ([]byte, error) {
 
 	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }

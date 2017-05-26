@@ -3,6 +3,8 @@ package pgproto3
 import (
 	"bytes"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type Query struct {
@@ -22,14 +24,14 @@ func (dst *Query) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Query) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-	buf.WriteByte('Q')
-	buf.Write(bigEndian.Uint32(uint32(4 + len(src.String) + 1)))
-	buf.WriteString(src.String)
-	buf.WriteByte(0)
-	return buf.Bytes(), nil
+func (src *Query) Encode(dst []byte) []byte {
+	dst = append(dst, 'Q')
+	dst = pgio.AppendInt32(dst, int32(4+len(src.String)+1))
+
+	dst = append(dst, src.String...)
+	dst = append(dst, 0)
+
+	return dst
 }
 
 func (src *Query) MarshalJSON() ([]byte, error) {
