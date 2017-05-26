@@ -1,9 +1,10 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type BackendKeyData struct {
@@ -24,14 +25,12 @@ func (dst *BackendKeyData) Decode(src []byte) error {
 	return nil
 }
 
-func (src *BackendKeyData) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-	buf.WriteByte('K')
-	buf.Write(bigEndian.Uint32(12))
-	buf.Write(bigEndian.Uint32(src.ProcessID))
-	buf.Write(bigEndian.Uint32(src.SecretKey))
-	return buf.Bytes(), nil
+func (src *BackendKeyData) Encode(dst []byte) []byte {
+	dst = append(dst, 'K')
+	dst = pgio.AppendUint32(dst, 12)
+	dst = pgio.AppendUint32(dst, src.ProcessID)
+	dst = pgio.AppendUint32(dst, src.SecretKey)
+	return dst
 }
 
 func (src *BackendKeyData) MarshalJSON() ([]byte, error) {

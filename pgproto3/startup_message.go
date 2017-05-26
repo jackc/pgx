@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 const (
@@ -64,22 +66,22 @@ func (dst *StartupMessage) Decode(src []byte) error {
 	return nil
 }
 
-func (src *StartupMessage) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-	buf.Write(bigEndian.Uint32(0))
-	buf.Write(bigEndian.Uint32(src.ProtocolVersion))
+func (src *StartupMessage) Encode(dst []byte) []byte {
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
+
+	dst = pgio.AppendUint32(dst, src.ProtocolVersion)
 	for k, v := range src.Parameters {
-		buf.WriteString(k)
-		buf.WriteByte(0)
-		buf.WriteString(v)
-		buf.WriteByte(0)
+		dst = append(dst, k...)
+		dst = append(dst, 0)
+		dst = append(dst, v...)
+		dst = append(dst, 0)
 	}
-	buf.WriteByte(0)
+	dst = append(dst, 0)
 
-	binary.BigEndian.PutUint32(buf.Bytes()[0:4], uint32(buf.Len()))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *StartupMessage) MarshalJSON() ([]byte, error) {

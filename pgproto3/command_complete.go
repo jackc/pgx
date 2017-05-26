@@ -3,6 +3,8 @@ package pgproto3
 import (
 	"bytes"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type CommandComplete struct {
@@ -22,17 +24,17 @@ func (dst *CommandComplete) Decode(src []byte) error {
 	return nil
 }
 
-func (src *CommandComplete) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *CommandComplete) Encode(dst []byte) []byte {
+	dst = append(dst, 'C')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('C')
-	buf.Write(bigEndian.Uint32(uint32(4 + len(src.CommandTag) + 1)))
+	dst = append(dst, src.CommandTag...)
+	dst = append(dst, 0)
 
-	buf.WriteString(src.CommandTag)
-	buf.WriteByte(0)
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *CommandComplete) MarshalJSON() ([]byte, error) {

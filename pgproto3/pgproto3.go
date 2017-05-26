@@ -4,12 +4,13 @@ import "fmt"
 
 // Message is the interface implemented by an object that can decode and encode
 // a particular PostgreSQL message.
-//
-// Decode is allowed and expected to retain a reference to data after
-// returning (unlike encoding.BinaryUnmarshaler).
 type Message interface {
+	// Decode is allowed and expected to retain a reference to data after
+	// returning (unlike encoding.BinaryUnmarshaler).
 	Decode(data []byte) error
-	MarshalBinary() (data []byte, err error)
+
+	// Encode appends itself to dst and returns the new buffer.
+	Encode(dst []byte) []byte
 }
 
 type FrontendMessage interface {

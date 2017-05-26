@@ -1,10 +1,11 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type FunctionCallResponse struct {
@@ -34,21 +35,21 @@ func (dst *FunctionCallResponse) Decode(src []byte) error {
 	return nil
 }
 
-func (src *FunctionCallResponse) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
-
-	buf.WriteByte('V')
-	buf.Write(bigEndian.Uint32(uint32(4 + 4 + len(src.Result))))
+func (src *FunctionCallResponse) Encode(dst []byte) []byte {
+	dst = append(dst, 'V')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
 	if src.Result == nil {
-		buf.Write(bigEndian.Int32(-1))
+		dst = pgio.AppendInt32(dst, -1)
 	} else {
-		buf.Write(bigEndian.Int32(int32(len(src.Result))))
-		buf.Write(src.Result)
+		dst = pgio.AppendInt32(dst, int32(len(src.Result)))
+		dst = append(dst, src.Result...)
 	}
 
-	return buf.Bytes(), nil
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
+
+	return dst
 }
 
 func (src *FunctionCallResponse) MarshalJSON() ([]byte, error) {
