@@ -32,12 +32,7 @@ func NewBackend(r io.Reader, w io.Writer) (*Backend, error) {
 }
 
 func (b *Backend) Send(msg BackendMessage) error {
-	buf, err := msg.MarshalBinary()
-	if err != nil {
-		return nil
-	}
-
-	_, err = b.w.Write(buf)
+	_, err := b.w.Write(msg.Encode(nil))
 	return err
 }
 

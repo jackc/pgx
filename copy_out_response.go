@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type CopyOutResponse struct {
@@ -37,20 +39,19 @@ func (dst *CopyOutResponse) Decode(src []byte) error {
 	return nil
 }
 
-func (src *CopyOutResponse) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *CopyOutResponse) Encode(dst []byte) []byte {
+	dst = append(dst, 'H')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('H')
-	buf.Write(bigEndian.Uint32(uint32(4 + 1 + 2 + 2*len(src.ColumnFormatCodes))))
-
-	buf.Write(bigEndian.Uint16(uint16(len(src.ColumnFormatCodes))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.ColumnFormatCodes)))
 	for _, fc := range src.ColumnFormatCodes {
-		buf.Write(bigEndian.Uint16(fc))
+		dst = pgio.AppendUint16(dst, fc)
 	}
 
-	return buf.Bytes(), nil
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
+
+	return dst
 }
 
 func (src *CopyOutResponse) MarshalJSON() ([]byte, error) {

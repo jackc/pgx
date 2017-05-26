@@ -42,12 +42,7 @@ func NewFrontend(r io.Reader, w io.Writer) (*Frontend, error) {
 }
 
 func (b *Frontend) Send(msg FrontendMessage) error {
-	buf, err := msg.MarshalBinary()
-	if err != nil {
-		return nil
-	}
-
-	_, err = b.w.Write(buf)
+	_, err := b.w.Write(msg.Encode(nil))
 	return err
 }
 

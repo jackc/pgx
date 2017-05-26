@@ -16,8 +16,8 @@ func (dst *EmptyQueryResponse) Decode(src []byte) error {
 	return nil
 }
 
-func (src *EmptyQueryResponse) MarshalBinary() ([]byte, error) {
-	return []byte{'I', 0, 0, 0, 4}, nil
+func (src *EmptyQueryResponse) Encode(dst []byte) []byte {
+	return append(dst, 'I', 0, 0, 0, 4)
 }
 
 func (src *EmptyQueryResponse) MarshalJSON() ([]byte, error) {

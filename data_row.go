@@ -1,10 +1,11 @@
 package pgproto3
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 type DataRow struct {
@@ -58,28 +59,25 @@ func (dst *DataRow) Decode(src []byte) error {
 	return nil
 }
 
-func (src *DataRow) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *DataRow) Encode(dst []byte) []byte {
+	dst = append(dst, 'D')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('D')
-	buf.Write(bigEndian.Uint32(0))
-
-	buf.Write(bigEndian.Uint16(uint16(len(src.Values))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.Values)))
 	for _, v := range src.Values {
 		if v == nil {
-			buf.Write(bigEndian.Int32(-1))
+			dst = pgio.AppendInt32(dst, -1)
 			continue
 		}
 
-		buf.Write(bigEndian.Int32(int32(len(v))))
-		buf.Write(v)
+		dst = pgio.AppendInt32(dst, int32(len(v)))
+		dst = append(dst, v...)
 	}
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *DataRow) MarshalJSON() ([]byte, error) {

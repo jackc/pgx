@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+
+	"github.com/jackc/pgx/pgio"
 )
 
 const (
@@ -64,30 +66,27 @@ func (dst *RowDescription) Decode(src []byte) error {
 	return nil
 }
 
-func (src *RowDescription) MarshalBinary() ([]byte, error) {
-	var bigEndian BigEndianBuf
-	buf := &bytes.Buffer{}
+func (src *RowDescription) Encode(dst []byte) []byte {
+	dst = append(dst, 'T')
+	sp := len(dst)
+	dst = pgio.AppendInt32(dst, -1)
 
-	buf.WriteByte('T')
-	buf.Write(bigEndian.Uint32(0))
-
-	buf.Write(bigEndian.Uint16(uint16(len(src.Fields))))
-
+	dst = pgio.AppendUint16(dst, uint16(len(src.Fields)))
 	for _, fd := range src.Fields {
-		buf.WriteString(fd.Name)
-		buf.WriteByte(0)
+		dst = append(dst, fd.Name...)
+		dst = append(dst, 0)
 
-		buf.Write(bigEndian.Uint32(fd.TableOID))
-		buf.Write(bigEndian.Uint16(fd.TableAttributeNumber))
-		buf.Write(bigEndian.Uint32(fd.DataTypeOID))
-		buf.Write(bigEndian.Uint16(uint16(fd.DataTypeSize)))
-		buf.Write(bigEndian.Uint32(fd.TypeModifier))
-		buf.Write(bigEndian.Uint16(uint16(fd.Format)))
+		dst = pgio.AppendUint32(dst, fd.TableOID)
+		dst = pgio.AppendUint16(dst, fd.TableAttributeNumber)
+		dst = pgio.AppendUint32(dst, fd.DataTypeOID)
+		dst = pgio.AppendInt16(dst, fd.DataTypeSize)
+		dst = pgio.AppendUint32(dst, fd.TypeModifier)
+		dst = pgio.AppendInt16(dst, fd.Format)
 	}
 
-	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
+	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
-	return buf.Bytes(), nil
+	return dst
 }
 
 func (src *RowDescription) MarshalJSON() ([]byte, error) {

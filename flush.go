@@ -16,8 +16,8 @@ func (dst *Flush) Decode(src []byte) error {
 	return nil
 }
 
-func (src *Flush) MarshalBinary() ([]byte, error) {
-	return []byte{'H', 0, 0, 0, 4}, nil
+func (src *Flush) Encode(dst []byte) []byte {
+	return append(dst, 'H', 0, 0, 0, 4)
 }
 
 func (src *Flush) MarshalJSON() ([]byte, error) {
