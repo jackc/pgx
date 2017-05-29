@@ -1155,6 +1155,47 @@ func TestExecExSimpleProtocol(t *testing.T) {
 	}
 }
 
+func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
+
+	commandTag, err := conn.ExecEx(
+		context.Background(),
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{ParameterOids: []pgtype.Oid{pgtype.VarcharOid}},
+		"bar'; drop table foo;--",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+}
+
+func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
+
+	_, err := conn.ExecEx(
+		context.Background(),
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{ParameterOids: []pgtype.Oid{pgtype.Int4Oid}},
+		"bar'; drop table foo;--",
+	)
+	if err == nil {
+		t.Fatal("expected error but got none")
+	}
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
