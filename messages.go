@@ -11,26 +11,9 @@ const (
 )
 
 const (
-	backendKeyData       = 'K'
-	authenticationX      = 'R'
-	readyForQuery        = 'Z'
-	rowDescription       = 'T'
-	dataRow              = 'D'
-	commandComplete      = 'C'
-	errorResponse        = 'E'
-	noticeResponse       = 'N'
-	parseComplete        = '1'
-	parameterDescription = 't'
-	bindComplete         = '2'
-	notificationResponse = 'A'
-	emptyQueryResponse   = 'I'
-	noData               = 'n'
-	closeComplete        = '3'
-	flush                = 'H'
-	copyInResponse       = 'G'
-	copyData             = 'd'
-	copyFail             = 'f'
-	copyDone             = 'c'
+	copyData = 'd'
+	copyFail = 'f'
+	copyDone = 'c'
 )
 
 type startupMessage struct {
