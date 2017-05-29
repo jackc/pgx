@@ -348,6 +348,7 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 type QueryExOptions struct {
+	ParameterOids  []pgtype.Oid
 	SimpleProtocol bool
 }
 
