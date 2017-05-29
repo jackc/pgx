@@ -1182,6 +1182,32 @@ func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var result int32
+	err := conn.QueryRowEx(
+		context.Background(),
+		"select $1 + $2",
+		&pgx.QueryExOptions{
+			ParameterOids:     []pgtype.Oid{pgtype.Int4Oid, pgtype.Int4Oid},
+			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
+		},
+		1, 2,
+	).Scan(&result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != 3 {
+		t.Fatal("result => %d, want %d", result, 3)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
