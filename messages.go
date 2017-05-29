@@ -1,13 +1,7 @@
 package pgx
 
 import (
-	"encoding/binary"
-
 	"github.com/jackc/pgx/pgtype"
-)
-
-const (
-	protocolVersionNumber = 196608 // 3.0
 )
 
 const (
@@ -15,28 +9,6 @@ const (
 	copyFail = 'f'
 	copyDone = 'c'
 )
-
-type startupMessage struct {
-	options map[string]string
-}
-
-func newStartupMessage() *startupMessage {
-	return &startupMessage{map[string]string{}}
-}
-
-func (s *startupMessage) Bytes() (buf []byte) {
-	buf = make([]byte, 8, 128)
-	binary.BigEndian.PutUint32(buf[4:8], uint32(protocolVersionNumber))
-	for key, value := range s.options {
-		buf = append(buf, key...)
-		buf = append(buf, 0)
-		buf = append(buf, value...)
-		buf = append(buf, 0)
-	}
-	buf = append(buf, ("\000")...)
-	binary.BigEndian.PutUint32(buf[0:4], uint32(len(buf)))
-	return buf
-}
 
 type FieldDescription struct {
 	Name            string

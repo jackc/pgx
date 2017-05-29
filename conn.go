@@ -302,27 +302,30 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		return err
 	}
 
-	msg := newStartupMessage()
+	startupMsg := pgproto3.StartupMessage{
+		ProtocolVersion: pgproto3.ProtocolVersionNumber,
+		Parameters:      make(map[string]string),
+	}
 
 	// Default to disabling TLS renegotiation.
 	//
 	// Go does not support (https://github.com/golang/go/issues/5742)
 	// PostgreSQL recommends disabling (http://www.postgresql.org/docs/9.4/static/runtime-config-connection.html#GUC-SSL-RENEGOTIATION-LIMIT)
 	if tlsConfig != nil {
-		msg.options["ssl_renegotiation_limit"] = "0"
+		startupMsg.Parameters["ssl_renegotiation_limit"] = "0"
 	}
 
 	// Copy default run-time params
 	for k, v := range config.RuntimeParams {
-		msg.options[k] = v
+		startupMsg.Parameters[k] = v
 	}
 
-	msg.options["user"] = c.config.User
+	startupMsg.Parameters["user"] = c.config.User
 	if c.config.Database != "" {
-		msg.options["database"] = c.config.Database
+		startupMsg.Parameters["database"] = c.config.Database
 	}
 
-	if err = c.txStartupMessage(msg); err != nil {
+	if _, err := c.conn.Write(startupMsg.Encode(nil)); err != nil {
 		return err
 	}
 
@@ -1270,11 +1273,6 @@ func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
 	c.conn = tls.Client(c.conn, tlsConfig)
 
 	return nil
-}
-
-func (c *Conn) txStartupMessage(msg *startupMessage) error {
-	_, err := c.conn.Write(msg.Bytes())
-	return err
 }
 
 func (c *Conn) txPasswordMessage(password string) (err error) {
