@@ -17,6 +17,8 @@ type Parse struct {
 func (*Parse) Frontend() {}
 
 func (dst *Parse) Decode(src []byte) error {
+	*dst = Parse{}
+
 	buf := bytes.NewBuffer(src)
 
 	b, err := buf.ReadBytes(0)
