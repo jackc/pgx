@@ -763,41 +763,17 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}()
 	}
 
-	// parse
-	buf := c.wbuf
-	buf = append(buf, 'P')
-	sp := len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, name...)
-	buf = append(buf, 0)
-	buf = append(buf, sql...)
-	buf = append(buf, 0)
-
-	if opts != nil {
-		if len(opts.ParameterOids) > 65535 {
-			return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
-		}
-		buf = pgio.AppendInt16(buf, int16(len(opts.ParameterOids)))
-		for _, oid := range opts.ParameterOids {
-			buf = pgio.AppendInt32(buf, int32(oid))
-		}
-	} else {
-		buf = pgio.AppendInt16(buf, 0)
+	if opts == nil {
+		opts = &PrepareExOptions{}
 	}
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	// describe
-	buf = append(buf, 'D')
-	sp = len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, 'S')
-	buf = append(buf, name...)
-	buf = append(buf, 0)
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+	if len(opts.ParameterOids) > 65535 {
+		return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
+	}
 
-	// sync
-	buf = append(buf, 'S')
-	buf = pgio.AppendInt32(buf, 4)
+	buf := appendParse(c.wbuf, name, sql, opts.ParameterOids)
+	buf = appendDescribe(buf, 'S', name)
+	buf = appendSync(buf)
 
 	n, err := c.conn.Write(buf)
 	if err != nil {
@@ -1021,13 +997,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	}
 
 	if len(args) == 0 {
-		buf := c.wbuf
-		buf = append(buf, 'Q')
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		buf = append(buf, sql...)
-		buf = append(buf, 0)
-		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+		buf := appendQuery(c.wbuf, sql)
 
 		_, err := c.conn.Write(buf)
 		if err != nil {
@@ -1056,44 +1026,17 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		return err
 	}
 
-	// bind
-	buf := c.wbuf
-	buf = append(buf, 'B')
-	sp := len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, 0)
-	buf = append(buf, ps.Name...)
-	buf = append(buf, 0)
-
-	buf = pgio.AppendInt16(buf, int16(len(ps.ParameterOids)))
-	for i, oid := range ps.ParameterOids {
-		buf = pgio.AppendInt16(buf, chooseParameterFormatCode(c.ConnInfo, oid, arguments[i]))
+	resultFormatCodes := make([]int16, len(ps.FieldDescriptions))
+	for i, fd := range ps.FieldDescriptions {
+		resultFormatCodes[i] = fd.FormatCode
+	}
+	buf, err := appendBind(c.wbuf, "", ps.Name, c.ConnInfo, ps.ParameterOids, arguments, resultFormatCodes)
+	if err != nil {
+		return err
 	}
 
-	buf = pgio.AppendInt16(buf, int16(len(arguments)))
-	for i, oid := range ps.ParameterOids {
-		var err error
-		buf, err = encodePreparedStatementArgument(c.ConnInfo, buf, oid, arguments[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	buf = pgio.AppendInt16(buf, int16(len(ps.FieldDescriptions)))
-	for _, fd := range ps.FieldDescriptions {
-		buf = pgio.AppendInt16(buf, fd.FormatCode)
-	}
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
-
-	// execute
-	buf = append(buf, 'E')
-	buf = pgio.AppendInt32(buf, 9)
-	buf = append(buf, 0)
-	buf = pgio.AppendInt32(buf, 0)
-
-	// sync
-	buf = append(buf, 'S')
-	buf = pgio.AppendInt32(buf, 4)
+	buf = appendExecute(buf, "", 0)
+	buf = appendSync(buf)
 
 	n, err := c.conn.Write(buf)
 	if err != nil && fatalWriteErr(n, err) {
@@ -1476,9 +1419,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 			return "", err
 		}
 
-		// sync
-		buf = append(buf, 'S')
-		buf = pgio.AppendInt32(buf, 4)
+		buf = appendSync(buf)
 
 		n, err := c.conn.Write(buf)
 		if err != nil && fatalWriteErr(n, err) {
@@ -1539,51 +1480,12 @@ func (c *Conn) buildOneRoundTripExec(buf []byte, sql string, options *QueryExOpt
 		return nil, fmt.Errorf("Number of QueryExOptions ParameterOids must be between 0 and 65535, received %d", len(options.ParameterOids))
 	}
 
-	// parse
-	buf = append(buf, 'P')
-	sp := len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, 0)
-	buf = append(buf, sql...)
-	buf = append(buf, 0)
-
-	buf = pgio.AppendInt16(buf, int16(len(options.ParameterOids)))
-	for _, oid := range options.ParameterOids {
-		buf = pgio.AppendUint32(buf, uint32(oid))
+	buf = appendParse(buf, "", sql, options.ParameterOids)
+	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOids, arguments, nil)
+	if err != nil {
+		return nil, err
 	}
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
-
-	// bind
-	buf = append(buf, 'B')
-	sp = len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, 0)
-	buf = append(buf, 0)
-
-	buf = pgio.AppendInt16(buf, int16(len(options.ParameterOids)))
-	for i, oid := range options.ParameterOids {
-		buf = pgio.AppendInt16(buf, chooseParameterFormatCode(c.ConnInfo, oid, arguments[i]))
-	}
-
-	buf = pgio.AppendInt16(buf, int16(len(arguments)))
-	for i, oid := range options.ParameterOids {
-		var err error
-		buf, err = encodePreparedStatementArgument(c.ConnInfo, buf, oid, arguments[i])
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// No result values for an exec
-	buf = pgio.AppendInt16(buf, 0)
-
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
-
-	// execute
-	buf = append(buf, 'E')
-	buf = pgio.AppendInt32(buf, 9)
-	buf = append(buf, 0)
-	buf = pgio.AppendInt32(buf, 0)
+	buf = appendExecute(buf, "", 0)
 
 	return buf, nil
 }
