@@ -107,9 +107,9 @@ type Conn struct {
 	status       byte // One of connStatus* constants
 	causeOfDeath error
 
-	readyForQuery         bool // connection has received ReadyForQuery message since last query was sent
-	cancelQueryInProgress int32
-	cancelQueryCompleted  chan struct{}
+	pendingReadyForQueryCount int // numer of ReadyForQuery messages expected
+	cancelQueryInProgress     int32
+	cancelQueryCompleted      chan struct{}
 
 	// context support
 	ctxInProgress bool
@@ -328,6 +328,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	if _, err := c.conn.Write(startupMsg.Encode(nil)); err != nil {
 		return err
 	}
+
+	c.pendingReadyForQueryCount = 1
 
 	for {
 		msg, err := c.rxMsg()
@@ -782,7 +784,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		}
 		return nil, err
 	}
-	c.readyForQuery = false
+	c.pendingReadyForQueryCount++
 
 	ps = &PreparedStatement{Name: name, SQL: sql}
 
@@ -1004,7 +1006,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 			c.die(err)
 			return err
 		}
-		c.readyForQuery = false
+		c.pendingReadyForQueryCount++
 
 		return nil
 	}
@@ -1045,7 +1047,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 		}
 		return err
 	}
-	c.readyForQuery = false
+	c.pendingReadyForQueryCount++
 
 	return nil
 }
@@ -1167,7 +1169,7 @@ func (c *Conn) rxBackendKeyData(msg *pgproto3.BackendKeyData) {
 }
 
 func (c *Conn) rxReadyForQuery(msg *pgproto3.ReadyForQuery) {
-	c.readyForQuery = true
+	c.pendingReadyForQueryCount--
 	c.txStatus = msg.TxStatus
 }
 
@@ -1429,7 +1431,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 			c.die(err)
 			return "", err
 		}
-		c.readyForQuery = false
+		c.pendingReadyForQueryCount++
 	} else {
 		if len(arguments) > 0 {
 			ps, ok := c.preparedStatements[sql]
@@ -1563,7 +1565,7 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 }
 
 func (c *Conn) ensureConnectionReadyForQuery() error {
-	for !c.readyForQuery {
+	for c.pendingReadyForQueryCount > 0 {
 		msg, err := c.rxMsg()
 		if err != nil {
 			return err

@@ -409,7 +409,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 			c.die(err)
 			return nil, err
 		}
-		c.readyForQuery = false
+		c.pendingReadyForQueryCount++
 
 		fieldDescriptions, err := c.readUntilRowDescription()
 		if err != nil {
