@@ -48,6 +48,26 @@ type TxOptions struct {
 	DeferrableMode TxDeferrableMode
 }
 
+func (txOptions *TxOptions) beginSQL() string {
+	if txOptions == nil {
+		return "begin"
+	}
+
+	buf := &bytes.Buffer{}
+	buf.WriteString("begin")
+	if txOptions.IsoLevel != "" {
+		fmt.Fprintf(buf, " isolation level %s", txOptions.IsoLevel)
+	}
+	if txOptions.AccessMode != "" {
+		fmt.Fprintf(buf, " %s", txOptions.AccessMode)
+	}
+	if txOptions.DeferrableMode != "" {
+		fmt.Fprintf(buf, " %s", txOptions.DeferrableMode)
+	}
+
+	return buf.String()
+}
+
 var ErrTxClosed = errors.New("tx is closed")
 
 // ErrTxCommitRollback occurs when an error has occurred in a transaction and
@@ -65,26 +85,7 @@ func (c *Conn) Begin() (*Tx, error) {
 // mode. Unlike database/sql, the context only affects the begin command. i.e.
 // there is no auto-rollback on context cancelation.
 func (c *Conn) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
-	var beginSQL string
-	if txOptions == nil {
-		beginSQL = "begin"
-	} else {
-		buf := &bytes.Buffer{}
-		buf.WriteString("begin")
-		if txOptions.IsoLevel != "" {
-			fmt.Fprintf(buf, " isolation level %s", txOptions.IsoLevel)
-		}
-		if txOptions.AccessMode != "" {
-			fmt.Fprintf(buf, " %s", txOptions.AccessMode)
-		}
-		if txOptions.DeferrableMode != "" {
-			fmt.Fprintf(buf, " %s", txOptions.DeferrableMode)
-		}
-
-		beginSQL = buf.String()
-	}
-
-	_, err := c.ExecEx(ctx, beginSQL, nil)
+	_, err := c.ExecEx(ctx, txOptions.beginSQL(), nil)
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or
 		// a context timeout. In either case, the connection is possibly broken.
