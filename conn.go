@@ -1039,12 +1039,15 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = appendSync(buf)
 
 	n, err := c.conn.Write(buf)
-	if err != nil && fatalWriteErr(n, err) {
-		c.die(err)
+	if err != nil {
+		if fatalWriteErr(n, err) {
+			c.die(err)
+		}
+		return err
 	}
 	c.readyForQuery = false
 
-	return err
+	return nil
 }
 
 // fatalWriteError takes the response of a net.Conn.Write and determines if it is fatal
