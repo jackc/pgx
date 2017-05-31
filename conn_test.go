@@ -1543,13 +1543,9 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		}
 	}()
 
-	notifierDone := make(chan bool)
 	go func() {
 		conn := mustConnect(t, *defaultConnConfig)
 		defer closeConn(t, conn)
-		defer func() {
-			notifierDone <- true
-		}()
 
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
