@@ -714,8 +714,8 @@ func TestBeginTxContextCancel(t *testing.T) {
 	cancelFn()
 
 	err = tx.Commit()
-	if err != context.Canceled {
-		t.Fatalf("err => %v, want %v", err, context.Canceled)
+	if err != context.Canceled && err != sql.ErrTxDone {
+		t.Fatalf("err => %v, want %v or %v", err, context.Canceled, sql.ErrTxDone)
 	}
 
 	var n int
