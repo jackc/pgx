@@ -348,7 +348,7 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 		rows.fields = rc.c.rxRowDescription(msg)
 		// We don't have c.PgTypes here because we're a replication
 		// connection. This means the field descriptions will have
-		// only Oids. Not much we can do about this.
+		// only OIDs. Not much we can do about this.
 	default:
 		if e := rc.c.processContextFreeMsg(msg); e != nil {
 			rows.fatal(e)
@@ -368,7 +368,7 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 //
 // NOTE: Because this is a replication mode connection, we don't have
 // type names, so the field descriptions in the result will have only
-// Oids and no DataTypeName values
+// OIDs and no DataTypeName values
 func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
 	return rc.sendReplicationModeQuery("IDENTIFY_SYSTEM")
 }
@@ -383,7 +383,7 @@ func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
 //
 // NOTE: Because this is a replication mode connection, we don't have
 // type names, so the field descriptions in the result will have only
-// Oids and no DataTypeName values
+// OIDs and no DataTypeName values
 func (rc *ReplicationConn) TimelineHistory(timeline int) (r *Rows, err error) {
 	return rc.sendReplicationModeQuery(fmt.Sprintf("TIMELINE_HISTORY %d", timeline))
 }

@@ -1166,7 +1166,7 @@ func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
 	commandTag, err := conn.ExecEx(
 		context.Background(),
 		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{ParameterOids: []pgtype.Oid{pgtype.VarcharOid}},
+		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.VarcharOID}},
 		"bar'; drop table foo;--",
 	)
 	if err != nil {
@@ -1188,7 +1188,7 @@ func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
 	_, err := conn.ExecEx(
 		context.Background(),
 		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{ParameterOids: []pgtype.Oid{pgtype.Int4Oid}},
+		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.Int4OID}},
 		"bar'; drop table foo;--",
 	)
 	if err == nil {
@@ -1367,7 +1367,7 @@ func TestPrepareEx(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.PrepareEx(context.Background(), "test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgtype.Oid{pgtype.TextOid}})
+	_, err := conn.PrepareEx(context.Background(), "test", "select $1", &pgx.PrepareExOptions{ParameterOIDs: []pgtype.OID{pgtype.TextOID}})
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return

@@ -251,7 +251,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert Oid 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
+	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -389,7 +389,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f64 float64
 		b   bool
 		t   time.Time
-		oid pgtype.Oid
+		oid pgtype.OID
 	}
 
 	var actual, zero allTypes
@@ -407,7 +407,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
 		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
 		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{"select $1::oid", []interface{}{pgtype.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::oid", []interface{}{pgtype.OID(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {
@@ -768,12 +768,12 @@ func TestQueryRowUnknownType(t *testing.T) {
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{
 		Value: &pgtype.GenericText{},
 		Name:  "point",
-		Oid:   600,
+		OID:   600,
 	})
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{
 		Value: &pgtype.Int4{},
 		Name:  "int4",
-		Oid:   pgtype.Int4Oid,
+		OID:   pgtype.Int4OID,
 	})
 
 	sql := "select $1::point"
@@ -1193,7 +1193,7 @@ func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
 		context.Background(),
 		"select $1 + $2",
 		&pgx.QueryExOptions{
-			ParameterOids:     []pgtype.Oid{pgtype.Int4Oid, pgtype.Int4Oid},
+			ParameterOIDs:     []pgtype.OID{pgtype.Int4OID, pgtype.Int4OID},
 			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
 		},
 		1, 2,

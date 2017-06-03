@@ -80,7 +80,7 @@ import (
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
 // binary, anything else will be forced to text format
-var databaseSqlOids map[pgtype.Oid]bool
+var databaseSqlOIDs map[pgtype.OID]bool
 
 var pgxDriver *Driver
 
@@ -97,20 +97,20 @@ func init() {
 	}
 	sql.Register("pgx", pgxDriver)
 
-	databaseSqlOids = make(map[pgtype.Oid]bool)
-	databaseSqlOids[pgtype.BoolOid] = true
-	databaseSqlOids[pgtype.ByteaOid] = true
-	databaseSqlOids[pgtype.CidOid] = true
-	databaseSqlOids[pgtype.DateOid] = true
-	databaseSqlOids[pgtype.Float4Oid] = true
-	databaseSqlOids[pgtype.Float8Oid] = true
-	databaseSqlOids[pgtype.Int2Oid] = true
-	databaseSqlOids[pgtype.Int4Oid] = true
-	databaseSqlOids[pgtype.Int8Oid] = true
-	databaseSqlOids[pgtype.OidOid] = true
-	databaseSqlOids[pgtype.TimestampOid] = true
-	databaseSqlOids[pgtype.TimestamptzOid] = true
-	databaseSqlOids[pgtype.XidOid] = true
+	databaseSqlOIDs = make(map[pgtype.OID]bool)
+	databaseSqlOIDs[pgtype.BoolOID] = true
+	databaseSqlOIDs[pgtype.ByteaOID] = true
+	databaseSqlOIDs[pgtype.CidOID] = true
+	databaseSqlOIDs[pgtype.DateOID] = true
+	databaseSqlOIDs[pgtype.Float4OID] = true
+	databaseSqlOIDs[pgtype.Float8OID] = true
+	databaseSqlOIDs[pgtype.Int2OID] = true
+	databaseSqlOIDs[pgtype.Int4OID] = true
+	databaseSqlOIDs[pgtype.Int8OID] = true
+	databaseSqlOIDs[pgtype.OIDOID] = true
+	databaseSqlOIDs[pgtype.TimestampOID] = true
+	databaseSqlOIDs[pgtype.TimestamptzOID] = true
+	databaseSqlOIDs[pgtype.XidOID] = true
 }
 
 type Driver struct {
@@ -364,7 +364,7 @@ func (c *Conn) Ping(ctx context.Context) error {
 // (e.g. []int32)
 func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
 	for i, _ := range ps.FieldDescriptions {
-		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
+		intrinsic, _ := databaseSqlOIDs[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
 		}
@@ -381,7 +381,7 @@ func (s *Stmt) Close() error {
 }
 
 func (s *Stmt) NumInput() int {
-	return len(s.ps.ParameterOids)
+	return len(s.ps.ParameterOIDs)
 }
 
 func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
@@ -428,31 +428,31 @@ func (r *Rows) Next(dest []driver.Value) error {
 		r.values = make([]interface{}, len(r.rows.FieldDescriptions()))
 		for i, fd := range r.rows.FieldDescriptions() {
 			switch fd.DataType {
-			case pgtype.BoolOid:
+			case pgtype.BoolOID:
 				r.values[i] = &pgtype.Bool{}
-			case pgtype.ByteaOid:
+			case pgtype.ByteaOID:
 				r.values[i] = &pgtype.Bytea{}
-			case pgtype.CidOid:
+			case pgtype.CidOID:
 				r.values[i] = &pgtype.Cid{}
-			case pgtype.DateOid:
+			case pgtype.DateOID:
 				r.values[i] = &pgtype.Date{}
-			case pgtype.Float4Oid:
+			case pgtype.Float4OID:
 				r.values[i] = &pgtype.Float4{}
-			case pgtype.Float8Oid:
+			case pgtype.Float8OID:
 				r.values[i] = &pgtype.Float8{}
-			case pgtype.Int2Oid:
+			case pgtype.Int2OID:
 				r.values[i] = &pgtype.Int2{}
-			case pgtype.Int4Oid:
+			case pgtype.Int4OID:
 				r.values[i] = &pgtype.Int4{}
-			case pgtype.Int8Oid:
+			case pgtype.Int8OID:
 				r.values[i] = &pgtype.Int8{}
-			case pgtype.OidOid:
-				r.values[i] = &pgtype.OidValue{}
-			case pgtype.TimestampOid:
+			case pgtype.OIDOID:
+				r.values[i] = &pgtype.OIDValue{}
+			case pgtype.TimestampOID:
 				r.values[i] = &pgtype.Timestamp{}
-			case pgtype.TimestamptzOid:
+			case pgtype.TimestamptzOID:
 				r.values[i] = &pgtype.Timestamptz{}
-			case pgtype.XidOid:
+			case pgtype.XidOID:
 				r.values[i] = &pgtype.Xid{}
 			default:
 				r.values[i] = &pgtype.GenericText{}

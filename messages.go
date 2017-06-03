@@ -13,9 +13,9 @@ const (
 
 type FieldDescription struct {
 	Name            string
-	Table           pgtype.Oid
+	Table           pgtype.OID
 	AttributeNumber uint16
-	DataType        pgtype.Oid
+	DataType        pgtype.OID
 	DataTypeSize    int16
 	DataTypeName    string
 	Modifier        uint32
@@ -50,7 +50,7 @@ func (pe PgError) Error() string {
 }
 
 // appendParse appends a PostgreSQL wire protocol parse message to buf and returns it.
-func appendParse(buf []byte, name string, query string, parameterOIDs []pgtype.Oid) []byte {
+func appendParse(buf []byte, name string, query string, parameterOIDs []pgtype.OID) []byte {
 	buf = append(buf, 'P')
 	sp := len(buf)
 	buf = pgio.AppendInt32(buf, -1)
@@ -95,7 +95,7 @@ func appendBind(
 	destinationPortal,
 	preparedStatement string,
 	connInfo *pgtype.ConnInfo,
-	parameterOIDs []pgtype.Oid,
+	parameterOIDs []pgtype.OID,
 	arguments []interface{},
 	resultFormatCodes []int16,
 ) ([]byte, error) {

@@ -61,20 +61,20 @@ const (
 )
 
 // Create creates a new large object. If id is zero, the server assigns an
-// unused Oid.
-func (o *LargeObjects) Create(id pgtype.Oid) (pgtype.Oid, error) {
-	newOid, err := fpInt32(o.fp.CallFn("lo_create", []fpArg{fpIntArg(int32(id))}))
-	return pgtype.Oid(newOid), err
+// unused OID.
+func (o *LargeObjects) Create(id pgtype.OID) (pgtype.OID, error) {
+	newOID, err := fpInt32(o.fp.CallFn("lo_create", []fpArg{fpIntArg(int32(id))}))
+	return pgtype.OID(newOID), err
 }
 
 // Open opens an existing large object with the given mode.
-func (o *LargeObjects) Open(oid pgtype.Oid, mode LargeObjectMode) (*LargeObject, error) {
+func (o *LargeObjects) Open(oid pgtype.OID, mode LargeObjectMode) (*LargeObject, error) {
 	fd, err := fpInt32(o.fp.CallFn("lo_open", []fpArg{fpIntArg(int32(oid)), fpIntArg(int32(mode))}))
 	return &LargeObject{fd: fd, lo: o}, err
 }
 
 // Unlink removes a large object from the database.
-func (o *LargeObjects) Unlink(oid pgtype.Oid) error {
+func (o *LargeObjects) Unlink(oid pgtype.OID) error {
 	_, err := o.fp.CallFn("lo_unlink", []fpArg{fpIntArg(int32(oid))})
 	return err
 }

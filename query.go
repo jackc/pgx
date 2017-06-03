@@ -131,7 +131,7 @@ func (rows *Rows) Next() bool {
 		case *pgproto3.RowDescription:
 			rows.fields = rows.conn.rxRowDescription(msg)
 			for i := range rows.fields {
-				if dt, ok := rows.conn.ConnInfo.DataTypeForOid(rows.fields[i].DataType); ok {
+				if dt, ok := rows.conn.ConnInfo.DataTypeForOID(rows.fields[i].DataType); ok {
 					rows.fields[i].DataTypeName = dt.Name
 					rows.fields[i].FormatCode = TextFormatCode
 				} else {
@@ -214,7 +214,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 				rows.fatal(scanArgError{col: i, err: err})
 			}
 		} else {
-			if dt, ok := rows.conn.ConnInfo.DataTypeForOid(fd.DataType); ok {
+			if dt, ok := rows.conn.ConnInfo.DataTypeForOID(fd.DataType); ok {
 				value := dt.Value
 				switch fd.FormatCode {
 				case TextFormatCode:
@@ -282,7 +282,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		if dt, ok := rows.conn.ConnInfo.DataTypeForOid(fd.DataType); ok {
+		if dt, ok := rows.conn.ConnInfo.DataTypeForOID(fd.DataType); ok {
 			value := dt.Value
 
 			switch fd.FormatCode {
@@ -353,10 +353,10 @@ func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
 }
 
 type QueryExOptions struct {
-	// When ParameterOids are present and the query is not a prepared statement,
-	// then ParameterOids and ResultFormatCodes will be used to avoid an extra
+	// When ParameterOIDs are present and the query is not a prepared statement,
+	// then ParameterOIDs and ResultFormatCodes will be used to avoid an extra
 	// network round-trip.
-	ParameterOids     []pgtype.Oid
+	ParameterOIDs     []pgtype.OID
 	ResultFormatCodes []int16
 
 	SimpleProtocol bool
@@ -398,7 +398,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, nil
 	}
 
-	if options != nil && len(options.ParameterOids) > 0 {
+	if options != nil && len(options.ParameterOIDs) > 0 {
 
 		buf, err := c.buildOneRoundTripQueryEx(c.wbuf, sql, options, args)
 		if err != nil {
@@ -463,17 +463,17 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 }
 
 func (c *Conn) buildOneRoundTripQueryEx(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
-	if len(arguments) != len(options.ParameterOids) {
-		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOids (%d)", len(arguments), len(options.ParameterOids))
+	if len(arguments) != len(options.ParameterOIDs) {
+		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
 	}
 
-	if len(options.ParameterOids) > 65535 {
-		return nil, fmt.Errorf("Number of QueryExOptions ParameterOids must be between 0 and 65535, received %d", len(options.ParameterOids))
+	if len(options.ParameterOIDs) > 65535 {
+		return nil, fmt.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
 	}
 
-	buf = appendParse(buf, "", sql, options.ParameterOids)
+	buf = appendParse(buf, "", sql, options.ParameterOIDs)
 	buf = appendDescribe(buf, 'S', "")
-	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOids, arguments, options.ResultFormatCodes)
+	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOIDs, arguments, options.ResultFormatCodes)
 	if err != nil {
 		return nil, err
 	}
@@ -494,7 +494,7 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 		case *pgproto3.RowDescription:
 			fieldDescriptions := c.rxRowDescription(msg)
 			for i := range fieldDescriptions {
-				if dt, ok := c.ConnInfo.DataTypeForOid(fieldDescriptions[i].DataType); ok {
+				if dt, ok := c.ConnInfo.DataTypeForOID(fieldDescriptions[i].DataType); ok {
 					fieldDescriptions[i].DataTypeName = dt.Name
 				} else {
 					return nil, fmt.Errorf("unknown oid: %d", fieldDescriptions[i].DataType)

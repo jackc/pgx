@@ -10,7 +10,7 @@ import (
 type batchItem struct {
 	query             string
 	arguments         []interface{}
-	parameterOids     []pgtype.Oid
+	parameterOIDs     []pgtype.OID
 	resultFormatCodes []int16
 }
 
@@ -36,14 +36,14 @@ func (b *Batch) Conn() *Conn {
 	return b.conn
 }
 
-// Queue queues a query to batch b. parameterOids are required if there are
+// Queue queues a query to batch b. parameterOIDs are required if there are
 // parameters and query is not the name of a prepared statement.
 // resultFormatCodes are required if there is a result.
-func (b *Batch) Queue(query string, arguments []interface{}, parameterOids []pgtype.Oid, resultFormatCodes []int16) {
+func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []pgtype.OID, resultFormatCodes []int16) {
 	b.items = append(b.items, &batchItem{
 		query:             query,
 		arguments:         arguments,
-		parameterOids:     parameterOids,
+		parameterOIDs:     parameterOIDs,
 		resultFormatCodes: resultFormatCodes,
 	})
 }
@@ -76,18 +76,18 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 
 	for _, bi := range b.items {
 		var psName string
-		var psParameterOids []pgtype.Oid
+		var psParameterOIDs []pgtype.OID
 
 		if ps, ok := b.conn.preparedStatements[bi.query]; ok {
 			psName = ps.Name
-			psParameterOids = ps.ParameterOids
+			psParameterOIDs = ps.ParameterOIDs
 		} else {
-			psParameterOids = bi.parameterOids
-			buf = appendParse(buf, "", bi.query, psParameterOids)
+			psParameterOIDs = bi.parameterOIDs
+			buf = appendParse(buf, "", bi.query, psParameterOIDs)
 		}
 
 		var err error
-		buf, err = appendBind(buf, "", psName, b.conn.ConnInfo, psParameterOids, bi.arguments, bi.resultFormatCodes)
+		buf, err = appendBind(buf, "", psName, b.conn.ConnInfo, psParameterOIDs, bi.arguments, bi.resultFormatCodes)
 		if err != nil {
 			return err
 		}

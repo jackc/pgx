@@ -39,11 +39,11 @@ var minimalConnInfo *pgtype.ConnInfo
 
 func init() {
 	minimalConnInfo = pgtype.NewConnInfo()
-	minimalConnInfo.InitializeDataTypes(map[string]pgtype.Oid{
-		"int4": pgtype.Int4Oid,
-		"name": pgtype.NameOid,
-		"oid":  pgtype.OidOid,
-		"text": pgtype.TextOid,
+	minimalConnInfo.InitializeDataTypes(map[string]pgtype.OID{
+		"int4": pgtype.Int4OID,
+		"name": pgtype.NameOID,
+		"oid":  pgtype.OIDOID,
+		"text": pgtype.TextOID,
 	})
 }
 
@@ -126,12 +126,12 @@ type PreparedStatement struct {
 	Name              string
 	SQL               string
 	FieldDescriptions []FieldDescription
-	ParameterOids     []pgtype.Oid
+	ParameterOIDs     []pgtype.OID
 }
 
 // PrepareExOptions is an option struct that can be passed to PrepareEx
 type PrepareExOptions struct {
-	ParameterOids []pgtype.Oid
+	ParameterOIDs []pgtype.OID
 }
 
 // Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
@@ -373,7 +373,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 }
 
 func (c *Conn) initConnInfo() error {
-	nameOids := make(map[string]pgtype.Oid, 256)
+	nameOIDs := make(map[string]pgtype.OID, 256)
 
 	rows, err := c.Query(`select t.oid, t.typname
 from pg_type t
@@ -387,13 +387,13 @@ where (
 	}
 
 	for rows.Next() {
-		var oid pgtype.Oid
+		var oid pgtype.OID
 		var name pgtype.Text
 		if err := rows.Scan(&oid, &name); err != nil {
 			return err
 		}
 
-		nameOids[name.String] = oid
+		nameOIDs[name.String] = oid
 	}
 
 	if rows.Err() != nil {
@@ -401,7 +401,7 @@ where (
 	}
 
 	c.ConnInfo = pgtype.NewConnInfo()
-	c.ConnInfo.InitializeDataTypes(nameOids)
+	c.ConnInfo.InitializeDataTypes(nameOIDs)
 	return nil
 }
 
@@ -725,7 +725,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 
 // PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-// It defers from Prepare as it allows additional options (such as parameter Oids) to be passed via struct
+// It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
 //
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
@@ -769,11 +769,11 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		opts = &PrepareExOptions{}
 	}
 
-	if len(opts.ParameterOids) > 65535 {
-		return nil, fmt.Errorf("Number of PrepareExOptions ParameterOids must be between 0 and 65535, received %d", len(opts.ParameterOids))
+	if len(opts.ParameterOIDs) > 65535 {
+		return nil, fmt.Errorf("Number of PrepareExOptions ParameterOIDs must be between 0 and 65535, received %d", len(opts.ParameterOIDs))
 	}
 
-	buf := appendParse(c.wbuf, name, sql, opts.ParameterOids)
+	buf := appendParse(c.wbuf, name, sql, opts.ParameterOIDs)
 	buf = appendDescribe(buf, 'S', name)
 	buf = appendSync(buf)
 
@@ -798,15 +798,15 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 
 		switch msg := msg.(type) {
 		case *pgproto3.ParameterDescription:
-			ps.ParameterOids = c.rxParameterDescription(msg)
+			ps.ParameterOIDs = c.rxParameterDescription(msg)
 
-			if len(ps.ParameterOids) > 65535 && softErr == nil {
-				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOids))
+			if len(ps.ParameterOIDs) > 65535 && softErr == nil {
+				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOIDs))
 			}
 		case *pgproto3.RowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(msg)
 			for i := range ps.FieldDescriptions {
-				if dt, ok := c.ConnInfo.DataTypeForOid(ps.FieldDescriptions[i].DataType); ok {
+				if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
 					ps.FieldDescriptions[i].DataTypeName = dt.Name
 					if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 						ps.FieldDescriptions[i].FormatCode = BinaryFormatCode
@@ -1020,8 +1020,8 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 }
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
-	if len(ps.ParameterOids) != len(arguments) {
-		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOids), len(arguments))
+	if len(ps.ParameterOIDs) != len(arguments) {
+		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
 	}
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
@@ -1032,7 +1032,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	for i, fd := range ps.FieldDescriptions {
 		resultFormatCodes[i] = fd.FormatCode
 	}
-	buf, err := appendBind(c.wbuf, "", ps.Name, c.ConnInfo, ps.ParameterOids, arguments, resultFormatCodes)
+	buf, err := appendBind(c.wbuf, "", ps.Name, c.ConnInfo, ps.ParameterOIDs, arguments, resultFormatCodes)
 	if err != nil {
 		return err
 	}
@@ -1177,9 +1177,9 @@ func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription
 	fields := make([]FieldDescription, len(msg.Fields))
 	for i := 0; i < len(fields); i++ {
 		fields[i].Name = msg.Fields[i].Name
-		fields[i].Table = pgtype.Oid(msg.Fields[i].TableOID)
+		fields[i].Table = pgtype.OID(msg.Fields[i].TableOID)
 		fields[i].AttributeNumber = msg.Fields[i].TableAttributeNumber
-		fields[i].DataType = pgtype.Oid(msg.Fields[i].DataTypeOID)
+		fields[i].DataType = pgtype.OID(msg.Fields[i].DataTypeOID)
 		fields[i].DataTypeSize = msg.Fields[i].DataTypeSize
 		fields[i].Modifier = msg.Fields[i].TypeModifier
 		fields[i].FormatCode = msg.Fields[i].Format
@@ -1187,10 +1187,10 @@ func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription
 	return fields
 }
 
-func (c *Conn) rxParameterDescription(msg *pgproto3.ParameterDescription) []pgtype.Oid {
-	parameters := make([]pgtype.Oid, len(msg.ParameterOIDs))
+func (c *Conn) rxParameterDescription(msg *pgproto3.ParameterDescription) []pgtype.OID {
+	parameters := make([]pgtype.OID, len(msg.ParameterOIDs))
 	for i := 0; i < len(parameters); i++ {
-		parameters[i] = pgtype.Oid(msg.ParameterOIDs[i])
+		parameters[i] = pgtype.OID(msg.ParameterOIDs[i])
 	}
 	return parameters
 }
@@ -1418,7 +1418,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 		if err != nil {
 			return "", err
 		}
-	} else if options != nil && len(options.ParameterOids) > 0 {
+	} else if options != nil && len(options.ParameterOIDs) > 0 {
 		buf, err := c.buildOneRoundTripExec(c.wbuf, sql, options, arguments)
 		if err != nil {
 			return "", err
@@ -1477,16 +1477,16 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 }
 
 func (c *Conn) buildOneRoundTripExec(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
-	if len(arguments) != len(options.ParameterOids) {
-		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOids (%d)", len(arguments), len(options.ParameterOids))
+	if len(arguments) != len(options.ParameterOIDs) {
+		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
 	}
 
-	if len(options.ParameterOids) > 65535 {
-		return nil, fmt.Errorf("Number of QueryExOptions ParameterOids must be between 0 and 65535, received %d", len(options.ParameterOids))
+	if len(options.ParameterOIDs) > 65535 {
+		return nil, fmt.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
 	}
 
-	buf = appendParse(buf, "", sql, options.ParameterOids)
-	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOids, arguments, nil)
+	buf = appendParse(buf, "", sql, options.ParameterOIDs)
+	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOIDs, arguments, nil)
 	if err != nil {
 		return nil, err
 	}
