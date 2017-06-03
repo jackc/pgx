@@ -88,16 +88,16 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		if len(src[rp:]) < 8 {
 			return fmt.Errorf("Record incomplete %v", src)
 		}
-		fieldOid := Oid(binary.BigEndian.Uint32(src[rp:]))
+		fieldOID := OID(binary.BigEndian.Uint32(src[rp:]))
 		rp += 4
 
 		fieldLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 
 		var binaryDecoder BinaryDecoder
-		if dt, ok := ci.DataTypeForOid(fieldOid); ok {
+		if dt, ok := ci.DataTypeForOID(fieldOID); ok {
 			if binaryDecoder, ok = dt.Value.(BinaryDecoder); !ok {
-				return fmt.Errorf("unknown oid while decoding record: %v", fieldOid)
+				return fmt.Errorf("unknown oid while decoding record: %v", fieldOID)
 			}
 		}
 
