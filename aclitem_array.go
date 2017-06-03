@@ -5,28 +5,28 @@ import (
 	"fmt"
 )
 
-type AclitemArray struct {
-	Elements   []Aclitem
+type ACLItemArray struct {
+	Elements   []ACLItem
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *AclitemArray) Set(src interface{}) error {
+func (dst *ACLItemArray) Set(src interface{}) error {
 	switch value := src.(type) {
 
 	case []string:
 		if value == nil {
-			*dst = AclitemArray{Status: Null}
+			*dst = ACLItemArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = AclitemArray{Status: Present}
+			*dst = ACLItemArray{Status: Present}
 		} else {
-			elements := make([]Aclitem, len(value))
+			elements := make([]ACLItem, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = AclitemArray{
+			*dst = ACLItemArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -37,13 +37,13 @@ func (dst *AclitemArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Aclitem", value)
+		return fmt.Errorf("cannot convert %v to ACLItem", value)
 	}
 
 	return nil
 }
 
-func (dst *AclitemArray) Get() interface{} {
+func (dst *ACLItemArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -54,7 +54,7 @@ func (dst *AclitemArray) Get() interface{} {
 	}
 }
 
-func (src *AclitemArray) AssignTo(dst interface{}) error {
+func (src *ACLItemArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
 		switch v := dst.(type) {
@@ -80,9 +80,9 @@ func (src *AclitemArray) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
-func (dst *AclitemArray) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *ACLItemArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = AclitemArray{Status: Null}
+		*dst = ACLItemArray{Status: Null}
 		return nil
 	}
 
@@ -91,13 +91,13 @@ func (dst *AclitemArray) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []Aclitem
+	var elements []ACLItem
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Aclitem, len(uta.Elements))
+		elements = make([]ACLItem, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Aclitem
+			var elem ACLItem
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -111,12 +111,12 @@ func (dst *AclitemArray) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = AclitemArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = ACLItemArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (src *AclitemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *ACLItemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -174,7 +174,7 @@ func (src *AclitemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *AclitemArray) Scan(src interface{}) error {
+func (dst *ACLItemArray) Scan(src interface{}) error {
 	if src == nil {
 		return dst.DecodeText(nil, nil)
 	}
@@ -192,7 +192,7 @@ func (dst *AclitemArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *AclitemArray) Value() (driver.Value, error) {
+func (src *ACLItemArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

@@ -35,8 +35,8 @@ const (
 	Int8ArrayOID        = 1016
 	Float4ArrayOID      = 1021
 	Float8ArrayOID      = 1022
-	AclitemOID          = 1033
-	AclitemArrayOID     = 1034
+	ACLItemOID          = 1033
+	ACLItemArrayOID     = 1034
 	InetArrayOID        = 1041
 	VarcharOID          = 1043
 	DateOID             = 1082
@@ -206,7 +206,7 @@ var nameValues map[string]Value
 
 func init() {
 	nameValues = map[string]Value{
-		"_aclitem":     &AclitemArray{},
+		"_aclitem":     &ACLItemArray{},
 		"_bool":        &BoolArray{},
 		"_bytea":       &ByteaArray{},
 		"_cidr":        &CidrArray{},
@@ -222,7 +222,7 @@ func init() {
 		"_timestamp":   &TimestampArray{},
 		"_timestamptz": &TimestamptzArray{},
 		"_varchar":     &VarcharArray{},
-		"aclitem":      &Aclitem{},
+		"aclitem":      &ACLItem{},
 		"bool":         &Bool{},
 		"box":          &Box{},
 		"bytea":        &Bytea{},
