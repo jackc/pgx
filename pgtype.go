@@ -46,7 +46,7 @@ const (
 	TimestamptzOID      = 1184
 	TimestamptzArrayOID = 1185
 	RecordOID           = 2249
-	UuidOID             = 2950
+	UUIDOID             = 2950
 	JsonbOID            = 3802
 )
 
@@ -262,7 +262,7 @@ func init() {
 		"tsrange":      &Tsrange{},
 		"tstzrange":    &Tstzrange{},
 		"unknown":      &Unknown{},
-		"uuid":         &Uuid{},
+		"uuid":         &UUID{},
 		"varbit":       &Varbit{},
 		"varchar":      &Varchar{},
 		"xid":          &Xid{},

@@ -8,34 +8,34 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestUuidTranscode(t *testing.T) {
+func TestUUIDTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "uuid", []interface{}{
-		&pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
-		&pgtype.Uuid{Status: pgtype.Null},
+		&pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+		&pgtype.UUID{Status: pgtype.Null},
 	})
 }
 
-func TestUuidSet(t *testing.T) {
+func TestUUIDSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.Uuid
+		result pgtype.UUID
 	}{
 		{
 			source: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
 		},
 		{
 			source: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
 		},
 		{
 			source: "00010203-0405-0607-0809-0a0b0c0d0e0f",
-			result: pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
 		},
 	}
 
 	for i, tt := range successfulTests {
-		var r pgtype.Uuid
+		var r pgtype.UUID
 		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -47,9 +47,9 @@ func TestUuidSet(t *testing.T) {
 	}
 }
 
-func TestUuidAssignTo(t *testing.T) {
+func TestUUIDAssignTo(t *testing.T) {
 	{
-		src := pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
 		var dst [16]byte
 		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -64,7 +64,7 @@ func TestUuidAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
 		var dst []byte
 		expected := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -79,7 +79,7 @@ func TestUuidAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.Uuid{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
 		var dst string
 		expected := "00010203-0405-0607-0809-0a0b0c0d0e0f"
 
