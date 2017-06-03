@@ -11,43 +11,43 @@ import (
 
 var errUndefined = errors.New("cannot encode status undefined")
 
-type Uuid struct {
+type UUID struct {
 	UUID   uuid.UUID
 	Status pgtype.Status
 }
 
-func (dst *Uuid) Set(src interface{}) error {
+func (dst *UUID) Set(src interface{}) error {
 	switch value := src.(type) {
 	case uuid.UUID:
-		*dst = Uuid{UUID: value, Status: pgtype.Present}
+		*dst = UUID{UUID: value, Status: pgtype.Present}
 	case [16]byte:
-		*dst = Uuid{UUID: uuid.UUID(value), Status: pgtype.Present}
+		*dst = UUID{UUID: uuid.UUID(value), Status: pgtype.Present}
 	case []byte:
 		if len(value) != 16 {
-			return fmt.Errorf("[]byte must be 16 bytes to convert to Uuid: %d", len(value))
+			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
 		}
-		*dst = Uuid{Status: pgtype.Present}
+		*dst = UUID{Status: pgtype.Present}
 		copy(dst.UUID[:], value)
 	case string:
 		uuid, err := uuid.FromString(value)
 		if err != nil {
 			return err
 		}
-		*dst = Uuid{UUID: uuid, Status: pgtype.Present}
+		*dst = UUID{UUID: uuid, Status: pgtype.Present}
 	default:
-		// If all else fails see if pgtype.Uuid can handle it. If so, translate through that.
-		pgUuid := &pgtype.Uuid{}
-		if err := pgUuid.Set(value); err != nil {
-			return fmt.Errorf("cannot convert %v to Uuid", value)
+		// If all else fails see if pgtype.UUID can handle it. If so, translate through that.
+		pgUUID := &pgtype.UUID{}
+		if err := pgUUID.Set(value); err != nil {
+			return fmt.Errorf("cannot convert %v to UUID", value)
 		}
 
-		*dst = Uuid{UUID: uuid.UUID(pgUuid.Bytes), Status: pgUuid.Status}
+		*dst = UUID{UUID: uuid.UUID(pgUUID.Bytes), Status: pgUUID.Status}
 	}
 
 	return nil
 }
 
-func (dst *Uuid) Get() interface{} {
+func (dst *UUID) Get() interface{} {
 	switch dst.Status {
 	case pgtype.Present:
 		return dst.UUID
@@ -58,7 +58,7 @@ func (dst *Uuid) Get() interface{} {
 	}
 }
 
-func (src *Uuid) AssignTo(dst interface{}) error {
+func (src *UUID) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case pgtype.Present:
 		switch v := dst.(type) {
@@ -86,9 +86,9 @@ func (src *Uuid) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v into %T", src, dst)
 }
 
-func (dst *Uuid) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
+func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Uuid{Status: pgtype.Null}
+		*dst = UUID{Status: pgtype.Null}
 		return nil
 	}
 
@@ -97,26 +97,26 @@ func (dst *Uuid) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Uuid{UUID: u, Status: pgtype.Present}
+	*dst = UUID{UUID: u, Status: pgtype.Present}
 	return nil
 }
 
-func (dst *Uuid) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
+func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Uuid{Status: pgtype.Null}
+		*dst = UUID{Status: pgtype.Null}
 		return nil
 	}
 
 	if len(src) != 16 {
-		return fmt.Errorf("invalid length for Uuid: %v", len(src))
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
-	*dst = Uuid{Status: pgtype.Present}
+	*dst = UUID{Status: pgtype.Present}
 	copy(dst.UUID[:], src)
 	return nil
 }
 
-func (src *Uuid) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -127,7 +127,7 @@ func (src *Uuid) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, src.UUID.String()...), nil
 }
 
-func (src *Uuid) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -139,9 +139,9 @@ func (src *Uuid) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Uuid) Scan(src interface{}) error {
+func (dst *UUID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Uuid{Status: pgtype.Null}
+		*dst = UUID{Status: pgtype.Null}
 		return nil
 	}
 
@@ -156,6 +156,6 @@ func (dst *Uuid) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Uuid) Value() (driver.Value, error) {
+func (src *UUID) Value() (driver.Value, error) {
 	return pgtype.EncodeValueText(src)
 }
