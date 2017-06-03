@@ -8,11 +8,11 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestCidTranscode(t *testing.T) {
+func TestCIDTranscode(t *testing.T) {
 	pgTypeName := "cid"
 	values := []interface{}{
-		&pgtype.Cid{Uint: 42, Status: pgtype.Present},
-		&pgtype.Cid{Status: pgtype.Null},
+		&pgtype.CID{Uint: 42, Status: pgtype.Present},
+		&pgtype.CID{Status: pgtype.Null},
 	}
 	eqFunc := func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)
@@ -28,16 +28,16 @@ func TestCidTranscode(t *testing.T) {
 	}
 }
 
-func TestCidSet(t *testing.T) {
+func TestCIDSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.Cid
+		result pgtype.CID
 	}{
-		{source: uint32(1), result: pgtype.Cid{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.CID{Uint: 1, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
-		var r pgtype.Cid
+		var r pgtype.CID
 		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -49,17 +49,17 @@ func TestCidSet(t *testing.T) {
 	}
 }
 
-func TestCidAssignTo(t *testing.T) {
+func TestCIDAssignTo(t *testing.T) {
 	var ui32 uint32
 	var pui32 *uint32
 
 	simpleTests := []struct {
-		src      pgtype.Cid
+		src      pgtype.CID
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Cid{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.Cid{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.CID{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.CID{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -74,11 +74,11 @@ func TestCidAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.Cid
+		src      pgtype.CID
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Cid{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.CID{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -93,10 +93,10 @@ func TestCidAssignTo(t *testing.T) {
 	}
 
 	errorTests := []struct {
-		src pgtype.Cid
+		src pgtype.CID
 		dst interface{}
 	}{
-		{src: pgtype.Cid{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.CID{Status: pgtype.Null}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {
