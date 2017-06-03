@@ -100,7 +100,7 @@ func init() {
 	databaseSqlOIDs = make(map[pgtype.OID]bool)
 	databaseSqlOIDs[pgtype.BoolOID] = true
 	databaseSqlOIDs[pgtype.ByteaOID] = true
-	databaseSqlOIDs[pgtype.CidOID] = true
+	databaseSqlOIDs[pgtype.CIDOID] = true
 	databaseSqlOIDs[pgtype.DateOID] = true
 	databaseSqlOIDs[pgtype.Float4OID] = true
 	databaseSqlOIDs[pgtype.Float8OID] = true
@@ -110,7 +110,7 @@ func init() {
 	databaseSqlOIDs[pgtype.OIDOID] = true
 	databaseSqlOIDs[pgtype.TimestampOID] = true
 	databaseSqlOIDs[pgtype.TimestamptzOID] = true
-	databaseSqlOIDs[pgtype.XidOID] = true
+	databaseSqlOIDs[pgtype.XIDOID] = true
 }
 
 type Driver struct {
@@ -432,8 +432,8 @@ func (r *Rows) Next(dest []driver.Value) error {
 				r.values[i] = &pgtype.Bool{}
 			case pgtype.ByteaOID:
 				r.values[i] = &pgtype.Bytea{}
-			case pgtype.CidOID:
-				r.values[i] = &pgtype.Cid{}
+			case pgtype.CIDOID:
+				r.values[i] = &pgtype.CID{}
 			case pgtype.DateOID:
 				r.values[i] = &pgtype.Date{}
 			case pgtype.Float4OID:
@@ -452,8 +452,8 @@ func (r *Rows) Next(dest []driver.Value) error {
 				r.values[i] = &pgtype.Timestamp{}
 			case pgtype.TimestamptzOID:
 				r.values[i] = &pgtype.Timestamptz{}
-			case pgtype.XidOID:
-				r.values[i] = &pgtype.Xid{}
+			case pgtype.XIDOID:
+				r.values[i] = &pgtype.XID{}
 			default:
 				r.values[i] = &pgtype.GenericText{}
 			}

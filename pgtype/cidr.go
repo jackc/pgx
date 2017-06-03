@@ -1,31 +1,31 @@
 package pgtype
 
-type Cidr Inet
+type CIDR Inet
 
-func (dst *Cidr) Set(src interface{}) error {
+func (dst *CIDR) Set(src interface{}) error {
 	return (*Inet)(dst).Set(src)
 }
 
-func (dst *Cidr) Get() interface{} {
+func (dst *CIDR) Get() interface{} {
 	return (*Inet)(dst).Get()
 }
 
-func (src *Cidr) AssignTo(dst interface{}) error {
+func (src *CIDR) AssignTo(dst interface{}) error {
 	return (*Inet)(src).AssignTo(dst)
 }
 
-func (dst *Cidr) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *CIDR) DecodeText(ci *ConnInfo, src []byte) error {
 	return (*Inet)(dst).DecodeText(ci, src)
 }
 
-func (dst *Cidr) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *CIDR) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Inet)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Cidr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDR) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return (*Inet)(src).EncodeText(ci, buf)
 }
 
-func (src *Cidr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDR) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return (*Inet)(src).EncodeBinary(ci, buf)
 }

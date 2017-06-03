@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 )
 
-// Cid is PostgreSQL's Command Identifier type.
+// CID is PostgreSQL's Command Identifier type.
 //
 // When one does
 //
@@ -15,47 +15,47 @@ import (
 // It is currently implemented as an unsigned four byte integer.
 // Its definition can be found in src/include/c.h as CommandId
 // in the PostgreSQL sources.
-type Cid pguint32
+type CID pguint32
 
-// Set converts from src to dst. Note that as Cid is not a general
+// Set converts from src to dst. Note that as CID is not a general
 // number type Set does not do automatic type conversion as other number
 // types do.
-func (dst *Cid) Set(src interface{}) error {
+func (dst *CID) Set(src interface{}) error {
 	return (*pguint32)(dst).Set(src)
 }
 
-func (dst *Cid) Get() interface{} {
+func (dst *CID) Get() interface{} {
 	return (*pguint32)(dst).Get()
 }
 
-// AssignTo assigns from src to dst. Note that as Cid is not a general number
+// AssignTo assigns from src to dst. Note that as CID is not a general number
 // type AssignTo does not do automatic type conversion as other number types do.
-func (src *Cid) AssignTo(dst interface{}) error {
+func (src *CID) AssignTo(dst interface{}) error {
 	return (*pguint32)(src).AssignTo(dst)
 }
 
-func (dst *Cid) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *CID) DecodeText(ci *ConnInfo, src []byte) error {
 	return (*pguint32)(dst).DecodeText(ci, src)
 }
 
-func (dst *Cid) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *CID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*pguint32)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Cid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return (*pguint32)(src).EncodeText(ci, buf)
 }
 
-func (src *Cid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return (*pguint32)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Cid) Scan(src interface{}) error {
+func (dst *CID) Scan(src interface{}) error {
 	return (*pguint32)(dst).Scan(src)
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Cid) Value() (driver.Value, error) {
+func (src *CID) Value() (driver.Value, error) {
 	return (*pguint32)(src).Value()
 }

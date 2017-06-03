@@ -9,28 +9,28 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-type CidrArray struct {
-	Elements   []Cidr
+type CIDRArray struct {
+	Elements   []CIDR
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *CidrArray) Set(src interface{}) error {
+func (dst *CIDRArray) Set(src interface{}) error {
 	switch value := src.(type) {
 
 	case []*net.IPNet:
 		if value == nil {
-			*dst = CidrArray{Status: Null}
+			*dst = CIDRArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = CidrArray{Status: Present}
+			*dst = CIDRArray{Status: Present}
 		} else {
-			elements := make([]Cidr, len(value))
+			elements := make([]CIDR, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = CidrArray{
+			*dst = CIDRArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -39,17 +39,17 @@ func (dst *CidrArray) Set(src interface{}) error {
 
 	case []net.IP:
 		if value == nil {
-			*dst = CidrArray{Status: Null}
+			*dst = CIDRArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = CidrArray{Status: Present}
+			*dst = CIDRArray{Status: Present}
 		} else {
-			elements := make([]Cidr, len(value))
+			elements := make([]CIDR, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = CidrArray{
+			*dst = CIDRArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -60,13 +60,13 @@ func (dst *CidrArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Cidr", value)
+		return fmt.Errorf("cannot convert %v to CIDR", value)
 	}
 
 	return nil
 }
 
-func (dst *CidrArray) Get() interface{} {
+func (dst *CIDRArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -77,7 +77,7 @@ func (dst *CidrArray) Get() interface{} {
 	}
 }
 
-func (src *CidrArray) AssignTo(dst interface{}) error {
+func (src *CIDRArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
 		switch v := dst.(type) {
@@ -112,9 +112,9 @@ func (src *CidrArray) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot decode %v into %T", src, dst)
 }
 
-func (dst *CidrArray) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *CIDRArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = CidrArray{Status: Null}
+		*dst = CIDRArray{Status: Null}
 		return nil
 	}
 
@@ -123,13 +123,13 @@ func (dst *CidrArray) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []Cidr
+	var elements []CIDR
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Cidr, len(uta.Elements))
+		elements = make([]CIDR, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Cidr
+			var elem CIDR
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -143,14 +143,14 @@ func (dst *CidrArray) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = CidrArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = CIDRArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *CidrArray) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *CIDRArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = CidrArray{Status: Null}
+		*dst = CIDRArray{Status: Null}
 		return nil
 	}
 
@@ -161,7 +161,7 @@ func (dst *CidrArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = CidrArray{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = CIDRArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -170,7 +170,7 @@ func (dst *CidrArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Cidr, elementCount)
+	elements := make([]CIDR, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -186,11 +186,11 @@ func (dst *CidrArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = CidrArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = CIDRArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *CidrArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -247,7 +247,7 @@ func (src *CidrArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *CidrArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDRArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -292,7 +292,7 @@ func (src *CidrArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *CidrArray) Scan(src interface{}) error {
+func (dst *CIDRArray) Scan(src interface{}) error {
 	if src == nil {
 		return dst.DecodeText(nil, nil)
 	}
@@ -310,7 +310,7 @@ func (dst *CidrArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *CidrArray) Value() (driver.Value, error) {
+func (src *CIDRArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

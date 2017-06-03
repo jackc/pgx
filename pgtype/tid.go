@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/pgio"
 )
 
-// Tid is PostgreSQL's Tuple Identifier type.
+// TID is PostgreSQL's Tuple Identifier type.
 //
 // When one does
 //
@@ -21,17 +21,17 @@ import (
 // It is currently implemented as a pair unsigned two byte integers.
 // Its conversion functions can be found in src/backend/utils/adt/tid.c
 // in the PostgreSQL sources.
-type Tid struct {
+type TID struct {
 	BlockNumber  uint32
 	OffsetNumber uint16
 	Status       Status
 }
 
-func (dst *Tid) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Tid", src)
+func (dst *TID) Set(src interface{}) error {
+	return fmt.Errorf("cannot convert %v to TID", src)
 }
 
-func (dst *Tid) Get() interface{} {
+func (dst *TID) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -42,13 +42,13 @@ func (dst *Tid) Get() interface{} {
 	}
 }
 
-func (src *Tid) AssignTo(dst interface{}) error {
+func (src *TID) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
-func (dst *Tid) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Tid{Status: Null}
+		*dst = TID{Status: Null}
 		return nil
 	}
 
@@ -71,13 +71,13 @@ func (dst *Tid) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Tid{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Status: Present}
+	*dst = TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Status: Present}
 	return nil
 }
 
-func (dst *Tid) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *TID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Tid{Status: Null}
+		*dst = TID{Status: Null}
 		return nil
 	}
 
@@ -85,7 +85,7 @@ func (dst *Tid) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("invalid length for tid: %v", len(src))
 	}
 
-	*dst = Tid{
+	*dst = TID{
 		BlockNumber:  binary.BigEndian.Uint32(src),
 		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
 		Status:       Present,
@@ -93,7 +93,7 @@ func (dst *Tid) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Tid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *TID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -105,7 +105,7 @@ func (src *Tid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Tid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *TID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -119,9 +119,9 @@ func (src *Tid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Tid) Scan(src interface{}) error {
+func (dst *TID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Tid{Status: Null}
+		*dst = TID{Status: Null}
 		return nil
 	}
 
@@ -138,6 +138,6 @@ func (dst *Tid) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Tid) Value() (driver.Value, error) {
+func (src *TID) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }
