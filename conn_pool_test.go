@@ -981,3 +981,70 @@ func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
 		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
 	}
 }
+
+func TestConnPoolBeginBatch(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	batch := pool.BeginBatch()
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Error(rows.Err())
+	}
+
+	rows, err = batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Error(rows.Err())
+	}
+
+	err = batch.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}

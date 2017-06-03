@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -608,4 +609,93 @@ func BenchmarkWrite10000RowsViaMultiInsert(b *testing.B) {
 
 func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
 	benchmarkWriteNRowsViaCopy(b, 10000)
+}
+
+func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
+	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		b.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	queryCount := 3
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < queryCount; j++ {
+			rows, err := pool.Query("select n from generate_series(0, 5) n")
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			for k := 0; rows.Next(); k++ {
+				var n int
+				if err := rows.Scan(&n); err != nil {
+					b.Fatal(err)
+				}
+				if n != k {
+					b.Fatalf("n => %v, want %v", n, k)
+				}
+			}
+
+			if rows.Err() != nil {
+				b.Fatal(rows.Err())
+			}
+		}
+	}
+}
+
+func BenchmarkMultipleQueriesBatch(b *testing.B) {
+	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		b.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	queryCount := 3
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		batch := pool.BeginBatch()
+		for j := 0; j < queryCount; j++ {
+			batch.Queue("select n from generate_series(0,5) n",
+				nil,
+				nil,
+				[]int16{pgx.BinaryFormatCode},
+			)
+		}
+
+		err := batch.Send(context.Background(), nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for j := 0; j < queryCount; j++ {
+			rows, err := batch.QueryResults()
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			for k := 0; rows.Next(); k++ {
+				var n int
+				if err := rows.Scan(&n); err != nil {
+					b.Fatal(err)
+				}
+				if n != k {
+					b.Fatalf("n => %v, want %v", n, k)
+				}
+			}
+
+			if rows.Err() != nil {
+				b.Fatal(rows.Err())
+			}
+		}
+
+		err = batch.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

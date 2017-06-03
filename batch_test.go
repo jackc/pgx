@@ -141,10 +141,304 @@ func TestConnBeginBatch(t *testing.T) {
 		t.Errorf("amount => %v, want %v", amount, 6)
 	}
 
-	err = batch.Finish()
+	err = batch.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.Prepare("ps1", "select n from generate_series(0,$1::int) n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	batch := conn.BeginBatch()
+
+	queryCount := 3
+	for i := 0; i < queryCount; i++ {
+		batch.Queue("ps1",
+			[]interface{}{5},
+			nil,
+			[]int16{pgx.BinaryFormatCode},
+		)
+	}
+
+	err = batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < queryCount; i++ {
+		rows, err := batch.QueryResults()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for k := 0; rows.Next(); k++ {
+			var n int
+			if err := rows.Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			if n != k {
+				t.Fatalf("n => %v, want %v", n, k)
+			}
+		}
+
+		if rows.Err() != nil {
+			t.Fatal(rows.Err())
+		}
+	}
+
+	err = batch.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+
+	sql := `create temporary table ledger(
+  id serial primary key,
+  description varchar not null,
+  amount int not null
+);`
+	mustExec(t, conn, sql)
+
+	batch := conn.BeginBatch()
+	batch.Queue("insert into ledger(description, amount) values($1, $2)",
+		[]interface{}{"q1", 1},
+		[]pgtype.Oid{pgtype.VarcharOid, pgtype.Int4Oid},
+		nil,
+	)
+	batch.Queue("select pg_sleep(2)",
+		nil,
+		nil,
+		nil,
+	)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	err := batch.Send(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cancelFn()
+
+	_, err = batch.ExecResults()
+	if err != context.Canceled {
+		t.Errorf("err => %v, want %v", err, context.Canceled)
+	}
+
+	if conn.IsAlive() {
+		t.Error("conn should be dead, but was alive")
+	}
+}
+
+func TestConnBeginBatchContextCancelBeforeQueryResults(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select pg_sleep(2)",
+		nil,
+		nil,
+		nil,
+	)
+	batch.Queue("select pg_sleep(2)",
+		nil,
+		nil,
+		nil,
+	)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	err := batch.Send(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cancelFn()
+
+	_, err = batch.QueryResults()
+	if err != context.Canceled {
+		t.Errorf("err => %v, want %v", err, context.Canceled)
+	}
+
+	if conn.IsAlive() {
+		t.Error("conn should be dead, but was alive")
+	}
+}
+
+func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select pg_sleep(2)",
+		nil,
+		nil,
+		nil,
+	)
+	batch.Queue("select pg_sleep(2)",
+		nil,
+		nil,
+		nil,
+	)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	err := batch.Send(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cancelFn()
+
+	err = batch.Close()
+	if err != context.Canceled {
+		t.Errorf("err => %v, want %v", err, context.Canceled)
+	}
+
+	if conn.IsAlive() {
+		t.Error("conn should be dead, but was alive")
+	}
+}
+
+func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; i < 3; i++ {
+		if !rows.Next() {
+			t.Error("expected a row to be available")
+		}
+
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	rows.Close()
+
+	rows, err = batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Error(rows.Err())
+	}
+
+	err = batch.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnBeginBatchQueryError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if pgErr, ok := rows.Err().(pgx.PgError); !(ok && pgErr.Code == "22012") {
+		t.Errorf("rows.Err() => %v, want error code %v", rows.Err(), 22012)
+	}
+
+	err = batch.Close()
+	if pgErr, ok := err.(pgx.PgError); !(ok && pgErr.Code == "22012") {
+		t.Errorf("rows.Err() => %v, want error code %v", err, 22012)
+	}
+
+	if conn.IsAlive() {
+		t.Error("conn should be dead, but was alive")
+	}
 }

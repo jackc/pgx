@@ -536,3 +536,10 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 
 	return c.CopyFrom(tableName, columnNames, rowSrc)
 }
+
+// BeginBatch acquires a connection and begins a batch on that connection. When
+// *Batch is finished, the connection is released automatically.
+func (p *ConnPool) BeginBatch() *Batch {
+	c, err := p.Acquire()
+	return &Batch{conn: c, connPool: p, err: err}
+}
