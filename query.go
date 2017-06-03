@@ -43,6 +43,7 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 type Rows struct {
 	conn       *Conn
 	connPool   *ConnPool
+	batch      *Batch
 	values     [][]byte
 	fields     []FieldDescription
 	rowCount   int
@@ -82,6 +83,10 @@ func (rows *Rows) Close() {
 		}
 	} else if rows.conn.shouldLog(LogLevelError) {
 		rows.conn.log(LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
+	}
+
+	if rows.batch != nil && rows.err != nil {
+		rows.batch.die(rows.err)
 	}
 
 	if rows.connPool != nil {
