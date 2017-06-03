@@ -19,7 +19,7 @@ const (
 	TidOID              = 27
 	XidOID              = 28
 	CidOID              = 29
-	JsonOID             = 114
+	JSONOID             = 114
 	CidrOID             = 650
 	CidrArrayOID        = 651
 	Float4OID           = 700
@@ -47,7 +47,7 @@ const (
 	TimestamptzArrayOID = 1185
 	RecordOID           = 2249
 	UUIDOID             = 2950
-	JsonbOID            = 3802
+	JSONBOID            = 3802
 )
 
 type Status byte
@@ -242,8 +242,8 @@ func init() {
 		"int4range":    &Int4range{},
 		"int8":         &Int8{},
 		"int8range":    &Int8range{},
-		"json":         &Json{},
-		"jsonb":        &Jsonb{},
+		"json":         &JSON{},
+		"jsonb":        &JSONB{},
 		"line":         &Line{},
 		"lseg":         &Lseg{},
 		"macaddr":      &Macaddr{},

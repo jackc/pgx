@@ -9,31 +9,31 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestJsonTranscode(t *testing.T) {
+func TestJSONTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "json", []interface{}{
-		&pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present},
-		&pgtype.Json{Bytes: []byte("null"), Status: pgtype.Present},
-		&pgtype.Json{Bytes: []byte("42"), Status: pgtype.Present},
-		&pgtype.Json{Bytes: []byte(`"hello"`), Status: pgtype.Present},
-		&pgtype.Json{Status: pgtype.Null},
+		&pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present},
+		&pgtype.JSON{Bytes: []byte("null"), Status: pgtype.Present},
+		&pgtype.JSON{Bytes: []byte("42"), Status: pgtype.Present},
+		&pgtype.JSON{Bytes: []byte(`"hello"`), Status: pgtype.Present},
+		&pgtype.JSON{Status: pgtype.Null},
 	})
 }
 
-func TestJsonSet(t *testing.T) {
+func TestJSONSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.Json
+		result pgtype.JSON
 	}{
-		{source: "{}", result: pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: []byte("{}"), result: pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: ([]byte)(nil), result: pgtype.Json{Status: pgtype.Null}},
-		{source: (*string)(nil), result: pgtype.Json{Status: pgtype.Null}},
-		{source: []int{1, 2, 3}, result: pgtype.Json{Bytes: []byte("[1,2,3]"), Status: pgtype.Present}},
-		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.Json{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}},
+		{source: "{}", result: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}},
+		{source: []byte("{}"), result: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}},
+		{source: ([]byte)(nil), result: pgtype.JSON{Status: pgtype.Null}},
+		{source: (*string)(nil), result: pgtype.JSON{Status: pgtype.Null}},
+		{source: []int{1, 2, 3}, result: pgtype.JSON{Bytes: []byte("[1,2,3]"), Status: pgtype.Present}},
+		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
-		var d pgtype.Json
+		var d pgtype.JSON
 		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -45,17 +45,17 @@ func TestJsonSet(t *testing.T) {
 	}
 }
 
-func TestJsonAssignTo(t *testing.T) {
+func TestJSONAssignTo(t *testing.T) {
 	var s string
 	var ps *string
 	var b []byte
 
 	rawStringTests := []struct {
-		src      pgtype.Json
+		src      pgtype.JSON
 		dst      *string
 		expected string
 	}{
-		{src: pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &s, expected: "{}"},
+		{src: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &s, expected: "{}"},
 	}
 
 	for i, tt := range rawStringTests {
@@ -70,12 +70,12 @@ func TestJsonAssignTo(t *testing.T) {
 	}
 
 	rawBytesTests := []struct {
-		src      pgtype.Json
+		src      pgtype.JSON
 		dst      *[]byte
 		expected []byte
 	}{
-		{src: pgtype.Json{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &b, expected: []byte("{}")},
-		{src: pgtype.Json{Status: pgtype.Null}, dst: &b, expected: (([]byte)(nil))},
+		{src: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &b, expected: []byte("{}")},
+		{src: pgtype.JSON{Status: pgtype.Null}, dst: &b, expected: (([]byte)(nil))},
 	}
 
 	for i, tt := range rawBytesTests {
@@ -97,12 +97,12 @@ func TestJsonAssignTo(t *testing.T) {
 	var strDst structDst
 
 	unmarshalTests := []struct {
-		src      pgtype.Json
+		src      pgtype.JSON
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Json{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
-		{src: pgtype.Json{Bytes: []byte(`{"name":"John","age":42}`), Status: pgtype.Present}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
+		{src: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
+		{src: pgtype.JSON{Bytes: []byte(`{"name":"John","age":42}`), Status: pgtype.Present}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
 	}
 	for i, tt := range unmarshalTests {
 		err := tt.src.AssignTo(tt.dst)
@@ -116,11 +116,11 @@ func TestJsonAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.Json
+		src      pgtype.JSON
 		dst      **string
 		expected *string
 	}{
-		{src: pgtype.Json{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.JSON{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range pointerAllocTests {
