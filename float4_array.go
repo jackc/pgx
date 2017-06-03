@@ -231,7 +231,7 @@ func (src *Float4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	if dt, ok := ci.DataTypeForName("float4"); ok {
-		arrayHeader.ElementOid = int32(dt.Oid)
+		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
 		return nil, fmt.Errorf("unable to find oid for type name %v", "float4")
 	}
