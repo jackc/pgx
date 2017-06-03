@@ -16,12 +16,12 @@ const (
 	Int4OID             = 23
 	TextOID             = 25
 	OIDOID              = 26
-	TidOID              = 27
-	XidOID              = 28
-	CidOID              = 29
+	TIDOID              = 27
+	XIDOID              = 28
+	CIDOID              = 29
 	JSONOID             = 114
-	CidrOID             = 650
-	CidrArrayOID        = 651
+	CIDROID             = 650
+	CIDRArrayOID        = 651
 	Float4OID           = 700
 	Float8OID           = 701
 	UnknownOID          = 705
@@ -209,7 +209,7 @@ func init() {
 		"_aclitem":     &ACLItemArray{},
 		"_bool":        &BoolArray{},
 		"_bytea":       &ByteaArray{},
-		"_cidr":        &CidrArray{},
+		"_cidr":        &CIDRArray{},
 		"_date":        &DateArray{},
 		"_float4":      &Float4Array{},
 		"_float8":      &Float8Array{},
@@ -227,8 +227,8 @@ func init() {
 		"box":          &Box{},
 		"bytea":        &Bytea{},
 		"char":         &QChar{},
-		"cid":          &Cid{},
-		"cidr":         &Cidr{},
+		"cid":          &CID{},
+		"cidr":         &CIDR{},
 		"circle":       &Circle{},
 		"date":         &Date{},
 		"daterange":    &Daterange{},
@@ -256,7 +256,7 @@ func init() {
 		"polygon":      &Polygon{},
 		"record":       &Record{},
 		"text":         &Text{},
-		"tid":          &Tid{},
+		"tid":          &TID{},
 		"timestamp":    &Timestamp{},
 		"timestamptz":  &Timestamptz{},
 		"tsrange":      &Tsrange{},
@@ -265,6 +265,6 @@ func init() {
 		"uuid":         &UUID{},
 		"varbit":       &Varbit{},
 		"varchar":      &Varchar{},
-		"xid":          &Xid{},
+		"xid":          &XID{},
 	}
 }
