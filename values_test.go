@@ -225,7 +225,7 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func mustParseCidr(t *testing.T, s string) *net.IPNet {
+func mustParseCIDR(t *testing.T, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
@@ -260,7 +260,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 	}
 }
 
-func TestInetCidrTranscodeIPNet(t *testing.T) {
+func TestInetCIDRTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -270,26 +270,26 @@ func TestInetCidrTranscodeIPNet(t *testing.T) {
 		sql   string
 		value *net.IPNet
 	}{
-		{"select $1::inet", mustParseCidr(t, "0.0.0.0/32")},
-		{"select $1::inet", mustParseCidr(t, "127.0.0.1/32")},
-		{"select $1::inet", mustParseCidr(t, "12.34.56.0/32")},
-		{"select $1::inet", mustParseCidr(t, "192.168.1.0/24")},
-		{"select $1::inet", mustParseCidr(t, "255.0.0.0/8")},
-		{"select $1::inet", mustParseCidr(t, "255.255.255.255/32")},
-		{"select $1::inet", mustParseCidr(t, "::/128")},
-		{"select $1::inet", mustParseCidr(t, "::/0")},
-		{"select $1::inet", mustParseCidr(t, "::1/128")},
-		{"select $1::inet", mustParseCidr(t, "2607:f8b0:4009:80b::200e/128")},
-		{"select $1::cidr", mustParseCidr(t, "0.0.0.0/32")},
-		{"select $1::cidr", mustParseCidr(t, "127.0.0.1/32")},
-		{"select $1::cidr", mustParseCidr(t, "12.34.56.0/32")},
-		{"select $1::cidr", mustParseCidr(t, "192.168.1.0/24")},
-		{"select $1::cidr", mustParseCidr(t, "255.0.0.0/8")},
-		{"select $1::cidr", mustParseCidr(t, "255.255.255.255/32")},
-		{"select $1::cidr", mustParseCidr(t, "::/128")},
-		{"select $1::cidr", mustParseCidr(t, "::/0")},
-		{"select $1::cidr", mustParseCidr(t, "::1/128")},
-		{"select $1::cidr", mustParseCidr(t, "2607:f8b0:4009:80b::200e/128")},
+		{"select $1::inet", mustParseCIDR(t, "0.0.0.0/32")},
+		{"select $1::inet", mustParseCIDR(t, "127.0.0.1/32")},
+		{"select $1::inet", mustParseCIDR(t, "12.34.56.0/32")},
+		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::inet", mustParseCIDR(t, "255.0.0.0/8")},
+		{"select $1::inet", mustParseCIDR(t, "255.255.255.255/32")},
+		{"select $1::inet", mustParseCIDR(t, "::/128")},
+		{"select $1::inet", mustParseCIDR(t, "::/0")},
+		{"select $1::inet", mustParseCIDR(t, "::1/128")},
+		{"select $1::inet", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
+		{"select $1::cidr", mustParseCIDR(t, "0.0.0.0/32")},
+		{"select $1::cidr", mustParseCIDR(t, "127.0.0.1/32")},
+		{"select $1::cidr", mustParseCIDR(t, "12.34.56.0/32")},
+		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCIDR(t, "255.0.0.0/8")},
+		{"select $1::cidr", mustParseCIDR(t, "255.255.255.255/32")},
+		{"select $1::cidr", mustParseCIDR(t, "::/128")},
+		{"select $1::cidr", mustParseCIDR(t, "::/0")},
+		{"select $1::cidr", mustParseCIDR(t, "::1/128")},
+		{"select $1::cidr", mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128")},
 	}
 
 	for i, tt := range tests {
@@ -309,7 +309,7 @@ func TestInetCidrTranscodeIPNet(t *testing.T) {
 	}
 }
 
-func TestInetCidrTranscodeIP(t *testing.T) {
+func TestInetCIDRTranscodeIP(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -353,8 +353,8 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 		sql   string
 		value *net.IPNet
 	}{
-		{"select $1::inet", mustParseCidr(t, "192.168.1.0/24")},
-		{"select $1::cidr", mustParseCidr(t, "192.168.1.0/24")},
+		{"select $1::inet", mustParseCIDR(t, "192.168.1.0/24")},
+		{"select $1::cidr", mustParseCIDR(t, "192.168.1.0/24")},
 	}
 	for i, tt := range failTests {
 		var actual net.IP
@@ -369,7 +369,7 @@ func TestInetCidrTranscodeIP(t *testing.T) {
 	}
 }
 
-func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
+func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -382,31 +382,31 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 		{
 			"select $1::inet[]",
 			[]*net.IPNet{
-				mustParseCidr(t, "0.0.0.0/32"),
-				mustParseCidr(t, "127.0.0.1/32"),
-				mustParseCidr(t, "12.34.56.0/32"),
-				mustParseCidr(t, "192.168.1.0/24"),
-				mustParseCidr(t, "255.0.0.0/8"),
-				mustParseCidr(t, "255.255.255.255/32"),
-				mustParseCidr(t, "::/128"),
-				mustParseCidr(t, "::/0"),
-				mustParseCidr(t, "::1/128"),
-				mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"),
+				mustParseCIDR(t, "0.0.0.0/32"),
+				mustParseCIDR(t, "127.0.0.1/32"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "255.0.0.0/8"),
+				mustParseCIDR(t, "255.255.255.255/32"),
+				mustParseCIDR(t, "::/128"),
+				mustParseCIDR(t, "::/0"),
+				mustParseCIDR(t, "::1/128"),
+				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
 			},
 		},
 		{
 			"select $1::cidr[]",
 			[]*net.IPNet{
-				mustParseCidr(t, "0.0.0.0/32"),
-				mustParseCidr(t, "127.0.0.1/32"),
-				mustParseCidr(t, "12.34.56.0/32"),
-				mustParseCidr(t, "192.168.1.0/24"),
-				mustParseCidr(t, "255.0.0.0/8"),
-				mustParseCidr(t, "255.255.255.255/32"),
-				mustParseCidr(t, "::/128"),
-				mustParseCidr(t, "::/0"),
-				mustParseCidr(t, "::1/128"),
-				mustParseCidr(t, "2607:f8b0:4009:80b::200e/128"),
+				mustParseCIDR(t, "0.0.0.0/32"),
+				mustParseCIDR(t, "127.0.0.1/32"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "255.0.0.0/8"),
+				mustParseCIDR(t, "255.255.255.255/32"),
+				mustParseCIDR(t, "::/128"),
+				mustParseCIDR(t, "::/0"),
+				mustParseCIDR(t, "::1/128"),
+				mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"),
 			},
 		},
 	}
@@ -428,7 +428,7 @@ func TestInetCidrArrayTranscodeIPNet(t *testing.T) {
 	}
 }
 
-func TestInetCidrArrayTranscodeIP(t *testing.T) {
+func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -483,15 +483,15 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 		{
 			"select $1::inet[]",
 			[]*net.IPNet{
-				mustParseCidr(t, "12.34.56.0/32"),
-				mustParseCidr(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
 			},
 		},
 		{
 			"select $1::cidr[]",
 			[]*net.IPNet{
-				mustParseCidr(t, "12.34.56.0/32"),
-				mustParseCidr(t, "192.168.1.0/24"),
+				mustParseCIDR(t, "12.34.56.0/32"),
+				mustParseCIDR(t, "192.168.1.0/24"),
 			},
 		},
 	}
@@ -509,7 +509,7 @@ func TestInetCidrArrayTranscodeIP(t *testing.T) {
 	}
 }
 
-func TestInetCidrTranscodeWithJustIP(t *testing.T) {
+func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -534,7 +534,7 @@ func TestInetCidrTranscodeWithJustIP(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		expected := mustParseCidr(t, tt.value)
+		expected := mustParseCIDR(t, tt.value)
 		var actual net.IPNet
 
 		err := conn.QueryRow(tt.sql, expected.IP).Scan(&actual)

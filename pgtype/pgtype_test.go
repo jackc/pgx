@@ -20,7 +20,7 @@ type _float32Slice []float32
 type _float64Slice []float64
 type _byteSlice []byte
 
-func mustParseCidr(t testing.TB, s string) *net.IPNet {
+func mustParseCIDR(t testing.TB, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
