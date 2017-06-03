@@ -8,40 +8,40 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestAclitemArrayTranscode(t *testing.T) {
+func TestACLItemArrayTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "aclitem[]", []interface{}{
-		&pgtype.AclitemArray{
+		&pgtype.ACLItemArray{
 			Elements:   nil,
 			Dimensions: nil,
 			Status:     pgtype.Present,
 		},
-		&pgtype.AclitemArray{
-			Elements: []pgtype.Aclitem{
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{Status: pgtype.Null},
+		&pgtype.ACLItemArray{
+			Elements: []pgtype.ACLItem{
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
-		&pgtype.AclitemArray{Status: pgtype.Null},
-		&pgtype.AclitemArray{
-			Elements: []pgtype.Aclitem{
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{Status: pgtype.Null},
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
+		&pgtype.ACLItemArray{Status: pgtype.Null},
+		&pgtype.ACLItemArray{
+			Elements: []pgtype.ACLItem{
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{Status: pgtype.Null},
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
-		&pgtype.AclitemArray{
-			Elements: []pgtype.Aclitem{
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.Aclitem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+		&pgtype.ACLItemArray{
+			Elements: []pgtype.ACLItem{
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
@@ -52,26 +52,26 @@ func TestAclitemArrayTranscode(t *testing.T) {
 	})
 }
 
-func TestAclitemArraySet(t *testing.T) {
+func TestACLItemArraySet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.AclitemArray
+		result pgtype.ACLItemArray
 	}{
 		{
 			source: []string{"=r/postgres"},
-			result: pgtype.AclitemArray{
-				Elements:   []pgtype.Aclitem{{String: "=r/postgres", Status: pgtype.Present}},
+			result: pgtype.ACLItemArray{
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present},
 		},
 		{
 			source: (([]string)(nil)),
-			result: pgtype.AclitemArray{Status: pgtype.Null},
+			result: pgtype.ACLItemArray{Status: pgtype.Null},
 		},
 	}
 
 	for i, tt := range successfulTests {
-		var r pgtype.AclitemArray
+		var r pgtype.ACLItemArray
 		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -83,19 +83,19 @@ func TestAclitemArraySet(t *testing.T) {
 	}
 }
 
-func TestAclitemArrayAssignTo(t *testing.T) {
+func TestACLItemArrayAssignTo(t *testing.T) {
 	var stringSlice []string
 	type _stringSlice []string
 	var namedStringSlice _stringSlice
 
 	simpleTests := []struct {
-		src      pgtype.AclitemArray
+		src      pgtype.ACLItemArray
 		dst      interface{}
 		expected interface{}
 	}{
 		{
-			src: pgtype.AclitemArray{
-				Elements:   []pgtype.Aclitem{{String: "=r/postgres", Status: pgtype.Present}},
+			src: pgtype.ACLItemArray{
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present,
 			},
@@ -103,8 +103,8 @@ func TestAclitemArrayAssignTo(t *testing.T) {
 			expected: []string{"=r/postgres"},
 		},
 		{
-			src: pgtype.AclitemArray{
-				Elements:   []pgtype.Aclitem{{String: "=r/postgres", Status: pgtype.Present}},
+			src: pgtype.ACLItemArray{
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present,
 			},
@@ -112,7 +112,7 @@ func TestAclitemArrayAssignTo(t *testing.T) {
 			expected: _stringSlice{"=r/postgres"},
 		},
 		{
-			src:      pgtype.AclitemArray{Status: pgtype.Null},
+			src:      pgtype.ACLItemArray{Status: pgtype.Null},
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
@@ -130,12 +130,12 @@ func TestAclitemArrayAssignTo(t *testing.T) {
 	}
 
 	errorTests := []struct {
-		src pgtype.AclitemArray
+		src pgtype.ACLItemArray
 		dst interface{}
 	}{
 		{
-			src: pgtype.AclitemArray{
-				Elements:   []pgtype.Aclitem{{Status: pgtype.Null}},
+			src: pgtype.ACLItemArray{
+				Elements:   []pgtype.ACLItem{{Status: pgtype.Null}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present,
 			},
