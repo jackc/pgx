@@ -81,7 +81,7 @@ func Example_CustomType() {
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{
 		Value: &Point{},
 		Name:  "point",
-		Oid:   600,
+		OID:   600,
 	})
 
 	p := &Point{}

@@ -259,7 +259,7 @@ func (src *Int2Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	if dt, ok := ci.DataTypeForName("int2"); ok {
-		arrayHeader.ElementOid = int32(dt.Oid)
+		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
 		return nil, fmt.Errorf("unable to find oid for type name %v", "int2")
 	}

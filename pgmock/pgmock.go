@@ -242,7 +242,7 @@ func PgxInitSteps() []Step {
 	}
 
 	rowVals := []struct {
-		oid  pgtype.Oid
+		oid  pgtype.OID
 		name string
 	}{
 		{16, "bool"},

@@ -9,26 +9,26 @@ import (
 )
 
 func newFastpath(cn *Conn) *fastpath {
-	return &fastpath{cn: cn, fns: make(map[string]pgtype.Oid)}
+	return &fastpath{cn: cn, fns: make(map[string]pgtype.OID)}
 }
 
 type fastpath struct {
 	cn  *Conn
-	fns map[string]pgtype.Oid
+	fns map[string]pgtype.OID
 }
 
-func (f *fastpath) functionOid(name string) pgtype.Oid {
+func (f *fastpath) functionOID(name string) pgtype.OID {
 	return f.fns[name]
 }
 
-func (f *fastpath) addFunction(name string, oid pgtype.Oid) {
+func (f *fastpath) addFunction(name string, oid pgtype.OID) {
 	f.fns[name] = oid
 }
 
 func (f *fastpath) addFunctions(rows *Rows) error {
 	for rows.Next() {
 		var name string
-		var oid pgtype.Oid
+		var oid pgtype.OID
 		if err := rows.Scan(&name, &oid); err != nil {
 			return err
 		}
@@ -51,7 +51,7 @@ func fpInt64Arg(n int64) fpArg {
 	return res
 }
 
-func (f *fastpath) Call(oid pgtype.Oid, args []fpArg) (res []byte, err error) {
+func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 	if err := f.cn.ensureConnectionReadyForQuery(); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (f *fastpath) Call(oid pgtype.Oid, args []fpArg) (res []byte, err error) {
 }
 
 func (f *fastpath) CallFn(fn string, args []fpArg) ([]byte, error) {
-	return f.Call(f.functionOid(fn), args)
+	return f.Call(f.functionOID(fn), args)
 }
 
 func fpInt32(data []byte, err error) (int32, error) {

@@ -8,23 +8,23 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestOidValueTranscode(t *testing.T) {
+func TestOIDValueTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "oid", []interface{}{
-		&pgtype.OidValue{Uint: 42, Status: pgtype.Present},
-		&pgtype.OidValue{Status: pgtype.Null},
+		&pgtype.OIDValue{Uint: 42, Status: pgtype.Present},
+		&pgtype.OIDValue{Status: pgtype.Null},
 	})
 }
 
-func TestOidValueSet(t *testing.T) {
+func TestOIDValueSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.OidValue
+		result pgtype.OIDValue
 	}{
-		{source: uint32(1), result: pgtype.OidValue{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.OIDValue{Uint: 1, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
-		var r pgtype.OidValue
+		var r pgtype.OIDValue
 		err := r.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -36,17 +36,17 @@ func TestOidValueSet(t *testing.T) {
 	}
 }
 
-func TestOidValueAssignTo(t *testing.T) {
+func TestOIDValueAssignTo(t *testing.T) {
 	var ui32 uint32
 	var pui32 *uint32
 
 	simpleTests := []struct {
-		src      pgtype.OidValue
+		src      pgtype.OIDValue
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.OidValue{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.OidValue{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.OIDValue{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.OIDValue{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -61,11 +61,11 @@ func TestOidValueAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.OidValue
+		src      pgtype.OIDValue
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.OidValue{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.OIDValue{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -80,10 +80,10 @@ func TestOidValueAssignTo(t *testing.T) {
 	}
 
 	errorTests := []struct {
-		src pgtype.OidValue
+		src pgtype.OIDValue
 		dst interface{}
 	}{
-		{src: pgtype.OidValue{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.OIDValue{Status: pgtype.Null}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {

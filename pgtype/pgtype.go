@@ -7,47 +7,47 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOid             = 16
-	ByteaOid            = 17
-	CharOid             = 18
-	NameOid             = 19
-	Int8Oid             = 20
-	Int2Oid             = 21
-	Int4Oid             = 23
-	TextOid             = 25
-	OidOid              = 26
-	TidOid              = 27
-	XidOid              = 28
-	CidOid              = 29
-	JsonOid             = 114
-	CidrOid             = 650
-	CidrArrayOid        = 651
-	Float4Oid           = 700
-	Float8Oid           = 701
-	UnknownOid          = 705
-	InetOid             = 869
-	BoolArrayOid        = 1000
-	Int2ArrayOid        = 1005
-	Int4ArrayOid        = 1007
-	TextArrayOid        = 1009
-	ByteaArrayOid       = 1001
-	VarcharArrayOid     = 1015
-	Int8ArrayOid        = 1016
-	Float4ArrayOid      = 1021
-	Float8ArrayOid      = 1022
-	AclitemOid          = 1033
-	AclitemArrayOid     = 1034
-	InetArrayOid        = 1041
-	VarcharOid          = 1043
-	DateOid             = 1082
-	TimestampOid        = 1114
-	TimestampArrayOid   = 1115
-	DateArrayOid        = 1182
-	TimestamptzOid      = 1184
-	TimestamptzArrayOid = 1185
-	RecordOid           = 2249
-	UuidOid             = 2950
-	JsonbOid            = 3802
+	BoolOID             = 16
+	ByteaOID            = 17
+	CharOID             = 18
+	NameOID             = 19
+	Int8OID             = 20
+	Int2OID             = 21
+	Int4OID             = 23
+	TextOID             = 25
+	OIDOID              = 26
+	TidOID              = 27
+	XidOID              = 28
+	CidOID              = 29
+	JsonOID             = 114
+	CidrOID             = 650
+	CidrArrayOID        = 651
+	Float4OID           = 700
+	Float8OID           = 701
+	UnknownOID          = 705
+	InetOID             = 869
+	BoolArrayOID        = 1000
+	Int2ArrayOID        = 1005
+	Int4ArrayOID        = 1007
+	TextArrayOID        = 1009
+	ByteaArrayOID       = 1001
+	VarcharArrayOID     = 1015
+	Int8ArrayOID        = 1016
+	Float4ArrayOID      = 1021
+	Float8ArrayOID      = 1022
+	AclitemOID          = 1033
+	AclitemArrayOID     = 1034
+	InetArrayOID        = 1041
+	VarcharOID          = 1043
+	DateOID             = 1082
+	TimestampOID        = 1114
+	TimestampArrayOID   = 1115
+	DateArrayOID        = 1182
+	TimestamptzOID      = 1184
+	TimestamptzArrayOID = 1185
+	RecordOID           = 2249
+	UuidOID             = 2950
+	JsonbOID            = 3802
 )
 
 type Status byte
@@ -133,42 +133,42 @@ var errBadStatus = errors.New("invalid status")
 type DataType struct {
 	Value Value
 	Name  string
-	Oid   Oid
+	OID   OID
 }
 
 type ConnInfo struct {
-	oidToDataType         map[Oid]*DataType
+	oidToDataType         map[OID]*DataType
 	nameToDataType        map[string]*DataType
 	reflectTypeToDataType map[reflect.Type]*DataType
 }
 
 func NewConnInfo() *ConnInfo {
 	return &ConnInfo{
-		oidToDataType:         make(map[Oid]*DataType, 256),
+		oidToDataType:         make(map[OID]*DataType, 256),
 		nameToDataType:        make(map[string]*DataType, 256),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, 256),
 	}
 }
 
-func (ci *ConnInfo) InitializeDataTypes(nameOids map[string]Oid) {
-	for name, oid := range nameOids {
+func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
+	for name, oid := range nameOIDs {
 		var value Value
 		if t, ok := nameValues[name]; ok {
 			value = reflect.New(reflect.ValueOf(t).Elem().Type()).Interface().(Value)
 		} else {
 			value = &GenericText{}
 		}
-		ci.RegisterDataType(DataType{Value: value, Name: name, Oid: oid})
+		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid})
 	}
 }
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
-	ci.oidToDataType[t.Oid] = &t
+	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
 	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
 }
 
-func (ci *ConnInfo) DataTypeForOid(oid Oid) (*DataType, bool) {
+func (ci *ConnInfo) DataTypeForOID(oid OID) (*DataType, bool) {
 	dt, ok := ci.oidToDataType[oid]
 	return dt, ok
 }
@@ -186,7 +186,7 @@ func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
 // DeepCopy makes a deep copy of the ConnInfo.
 func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	ci2 := &ConnInfo{
-		oidToDataType:         make(map[Oid]*DataType, len(ci.oidToDataType)),
+		oidToDataType:         make(map[OID]*DataType, len(ci.oidToDataType)),
 		nameToDataType:        make(map[string]*DataType, len(ci.nameToDataType)),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, len(ci.reflectTypeToDataType)),
 	}
@@ -195,7 +195,7 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 		ci2.RegisterDataType(DataType{
 			Value: reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
 			Name:  dt.Name,
-			Oid:   dt.Oid,
+			OID:   dt.OID,
 		})
 	}
 
@@ -250,7 +250,7 @@ func init() {
 		"name":         &Name{},
 		"numeric":      &Numeric{},
 		"numrange":     &Numrange{},
-		"oid":          &OidValue{},
+		"oid":          &OIDValue{},
 		"path":         &Path{},
 		"point":        &Point{},
 		"polygon":      &Polygon{},

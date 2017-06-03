@@ -24,17 +24,17 @@ func TestConnBeginBatch(t *testing.T) {
 	batch := conn.BeginBatch()
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q1", 1},
-		[]pgtype.Oid{pgtype.VarcharOid, pgtype.Int4Oid},
+		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q2", 2},
-		[]pgtype.Oid{pgtype.VarcharOid, pgtype.Int4Oid},
+		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q3", 3},
-		[]pgtype.Oid{pgtype.VarcharOid, pgtype.Int4Oid},
+		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("select id, description, amount from ledger order by id",
@@ -220,7 +220,7 @@ func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
 	batch := conn.BeginBatch()
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q1", 1},
-		[]pgtype.Oid{pgtype.VarcharOid, pgtype.Int4Oid},
+		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("select pg_sleep(2)",
