@@ -6,38 +6,38 @@ import (
 	"fmt"
 )
 
-type Uuid struct {
+type UUID struct {
 	Bytes  [16]byte
 	Status Status
 }
 
-func (dst *Uuid) Set(src interface{}) error {
+func (dst *UUID) Set(src interface{}) error {
 	switch value := src.(type) {
 	case [16]byte:
-		*dst = Uuid{Bytes: value, Status: Present}
+		*dst = UUID{Bytes: value, Status: Present}
 	case []byte:
 		if len(value) != 16 {
-			return fmt.Errorf("[]byte must be 16 bytes to convert to Uuid: %d", len(value))
+			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
 		}
-		*dst = Uuid{Status: Present}
+		*dst = UUID{Status: Present}
 		copy(dst.Bytes[:], value)
 	case string:
-		uuid, err := parseUuid(value)
+		uuid, err := parseUUID(value)
 		if err != nil {
 			return err
 		}
-		*dst = Uuid{Bytes: uuid, Status: Present}
+		*dst = UUID{Bytes: uuid, Status: Present}
 	default:
 		if originalSrc, ok := underlyingPtrType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Uuid", value)
+		return fmt.Errorf("cannot convert %v to UUID", value)
 	}
 
 	return nil
 }
 
-func (dst *Uuid) Get() interface{} {
+func (dst *UUID) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Bytes
@@ -48,7 +48,7 @@ func (dst *Uuid) Get() interface{} {
 	}
 }
 
-func (src *Uuid) AssignTo(dst interface{}) error {
+func (src *UUID) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
 		switch v := dst.(type) {
@@ -60,7 +60,7 @@ func (src *Uuid) AssignTo(dst interface{}) error {
 			copy(*v, src.Bytes[:])
 			return nil
 		case *string:
-			*v = encodeUuid(src.Bytes)
+			*v = encodeUUID(src.Bytes)
 			return nil
 		default:
 			if nextDst, retry := GetAssignToDstType(v); retry {
@@ -74,8 +74,8 @@ func (src *Uuid) AssignTo(dst interface{}) error {
 	return fmt.Errorf("cannot assign %v into %T", src, dst)
 }
 
-// parseUuid converts a string UUID in standard form to a byte array.
-func parseUuid(src string) (dst [16]byte, err error) {
+// parseUUID converts a string UUID in standard form to a byte array.
+func parseUUID(src string) (dst [16]byte, err error) {
 	src = src[0:8] + src[9:13] + src[14:18] + src[19:23] + src[24:]
 	buf, err := hex.DecodeString(src)
 	if err != nil {
@@ -86,46 +86,46 @@ func parseUuid(src string) (dst [16]byte, err error) {
 	return dst, err
 }
 
-// encodeUuid converts a uuid byte array to UUID standard string form.
-func encodeUuid(src [16]byte) string {
+// encodeUUID converts a uuid byte array to UUID standard string form.
+func encodeUUID(src [16]byte) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", src[0:4], src[4:6], src[6:8], src[8:10], src[10:16])
 }
 
-func (dst *Uuid) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *UUID) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Uuid{Status: Null}
+		*dst = UUID{Status: Null}
 		return nil
 	}
 
 	if len(src) != 36 {
-		return fmt.Errorf("invalid length for Uuid: %v", len(src))
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
-	buf, err := parseUuid(string(src))
+	buf, err := parseUUID(string(src))
 	if err != nil {
 		return err
 	}
 
-	*dst = Uuid{Bytes: buf, Status: Present}
+	*dst = UUID{Bytes: buf, Status: Present}
 	return nil
 }
 
-func (dst *Uuid) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *UUID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Uuid{Status: Null}
+		*dst = UUID{Status: Null}
 		return nil
 	}
 
 	if len(src) != 16 {
-		return fmt.Errorf("invalid length for Uuid: %v", len(src))
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
-	*dst = Uuid{Status: Present}
+	*dst = UUID{Status: Present}
 	copy(dst.Bytes[:], src)
 	return nil
 }
 
-func (src *Uuid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -133,10 +133,10 @@ func (src *Uuid) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, errUndefined
 	}
 
-	return append(buf, encodeUuid(src.Bytes)...), nil
+	return append(buf, encodeUUID(src.Bytes)...), nil
 }
 
-func (src *Uuid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -148,9 +148,9 @@ func (src *Uuid) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Uuid) Scan(src interface{}) error {
+func (dst *UUID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Uuid{Status: Null}
+		*dst = UUID{Status: Null}
 		return nil
 	}
 
@@ -167,6 +167,6 @@ func (dst *Uuid) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Uuid) Value() (driver.Value, error) {
+func (src *UUID) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }
