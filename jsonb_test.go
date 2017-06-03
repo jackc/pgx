@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/pgtype/testutil"
 )
 
-func TestJsonbTranscode(t *testing.T) {
+func TestJSONBTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustClose(t, conn)
 	if _, ok := conn.ConnInfo.DataTypeForName("jsonb"); !ok {
@@ -17,29 +17,29 @@ func TestJsonbTranscode(t *testing.T) {
 	}
 
 	testutil.TestSuccessfulTranscode(t, "jsonb", []interface{}{
-		&pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present},
-		&pgtype.Jsonb{Bytes: []byte("null"), Status: pgtype.Present},
-		&pgtype.Jsonb{Bytes: []byte("42"), Status: pgtype.Present},
-		&pgtype.Jsonb{Bytes: []byte(`"hello"`), Status: pgtype.Present},
-		&pgtype.Jsonb{Status: pgtype.Null},
+		&pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present},
+		&pgtype.JSONB{Bytes: []byte("null"), Status: pgtype.Present},
+		&pgtype.JSONB{Bytes: []byte("42"), Status: pgtype.Present},
+		&pgtype.JSONB{Bytes: []byte(`"hello"`), Status: pgtype.Present},
+		&pgtype.JSONB{Status: pgtype.Null},
 	})
 }
 
-func TestJsonbSet(t *testing.T) {
+func TestJSONBSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
-		result pgtype.Jsonb
+		result pgtype.JSONB
 	}{
-		{source: "{}", result: pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: []byte("{}"), result: pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: ([]byte)(nil), result: pgtype.Jsonb{Status: pgtype.Null}},
-		{source: (*string)(nil), result: pgtype.Jsonb{Status: pgtype.Null}},
-		{source: []int{1, 2, 3}, result: pgtype.Jsonb{Bytes: []byte("[1,2,3]"), Status: pgtype.Present}},
-		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.Jsonb{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}},
+		{source: "{}", result: pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present}},
+		{source: []byte("{}"), result: pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present}},
+		{source: ([]byte)(nil), result: pgtype.JSONB{Status: pgtype.Null}},
+		{source: (*string)(nil), result: pgtype.JSONB{Status: pgtype.Null}},
+		{source: []int{1, 2, 3}, result: pgtype.JSONB{Bytes: []byte("[1,2,3]"), Status: pgtype.Present}},
+		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.JSONB{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
-		var d pgtype.Jsonb
+		var d pgtype.JSONB
 		err := d.Set(tt.source)
 		if err != nil {
 			t.Errorf("%d: %v", i, err)
@@ -51,17 +51,17 @@ func TestJsonbSet(t *testing.T) {
 	}
 }
 
-func TestJsonbAssignTo(t *testing.T) {
+func TestJSONBAssignTo(t *testing.T) {
 	var s string
 	var ps *string
 	var b []byte
 
 	rawStringTests := []struct {
-		src      pgtype.Jsonb
+		src      pgtype.JSONB
 		dst      *string
 		expected string
 	}{
-		{src: pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &s, expected: "{}"},
+		{src: pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &s, expected: "{}"},
 	}
 
 	for i, tt := range rawStringTests {
@@ -76,12 +76,12 @@ func TestJsonbAssignTo(t *testing.T) {
 	}
 
 	rawBytesTests := []struct {
-		src      pgtype.Jsonb
+		src      pgtype.JSONB
 		dst      *[]byte
 		expected []byte
 	}{
-		{src: pgtype.Jsonb{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &b, expected: []byte("{}")},
-		{src: pgtype.Jsonb{Status: pgtype.Null}, dst: &b, expected: (([]byte)(nil))},
+		{src: pgtype.JSONB{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &b, expected: []byte("{}")},
+		{src: pgtype.JSONB{Status: pgtype.Null}, dst: &b, expected: (([]byte)(nil))},
 	}
 
 	for i, tt := range rawBytesTests {
@@ -103,12 +103,12 @@ func TestJsonbAssignTo(t *testing.T) {
 	var strDst structDst
 
 	unmarshalTests := []struct {
-		src      pgtype.Jsonb
+		src      pgtype.JSONB
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Jsonb{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
-		{src: pgtype.Jsonb{Bytes: []byte(`{"name":"John","age":42}`), Status: pgtype.Present}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
+		{src: pgtype.JSONB{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
+		{src: pgtype.JSONB{Bytes: []byte(`{"name":"John","age":42}`), Status: pgtype.Present}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
 	}
 	for i, tt := range unmarshalTests {
 		err := tt.src.AssignTo(tt.dst)
@@ -122,11 +122,11 @@ func TestJsonbAssignTo(t *testing.T) {
 	}
 
 	pointerAllocTests := []struct {
-		src      pgtype.Jsonb
+		src      pgtype.JSONB
 		dst      **string
 		expected *string
 	}{
-		{src: pgtype.Jsonb{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.JSONB{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range pointerAllocTests {
