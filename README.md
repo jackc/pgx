@@ -2,9 +2,14 @@
 
 # Pgx
 
-## Experimental Branch
+## Version 3 Beta Branch
 
-This is the experimental v3 branch. v2 is the stable branch.
+This is the `v3` branch which is currently in beta. General release is planned
+for July. `v2` is the current release branch. `v3` is considered to be stable in
+the sense of lack of known bugs, but the API is not considered stable until
+general release. No further changes are planned, but the beta process may
+surface desirable changes. If possible API changes are acceptable, then `v3` is
+the recommented branch for new development.
 
 Pgx is a pure Go database connection library designed specifically for
 PostgreSQL. Pgx is different from other drivers such as
@@ -32,6 +37,10 @@ Pgx supports many additional features beyond what is available through database/
 * Null mapping to Null* struct or pointer to pointer.
 * Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
 * Logical replication connections, including receiving WAL and sending standby status updates
+* Notice response handling (this is different than listen / notify)
+* Batch queries
+* Single-round trip query mode
+* pgtype package includes support for approximately 60 different PostgreSQL types - these are usable in pgx native and any database/sql PostgreSQL adapter
 
 ## Performance
 
