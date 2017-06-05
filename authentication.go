@@ -2,9 +2,9 @@ package pgproto3
 
 import (
 	"encoding/binary"
-	"fmt"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -31,7 +31,7 @@ func (dst *Authentication) Decode(src []byte) error {
 	case AuthTypeMD5Password:
 		copy(dst.Salt[:], src[4:8])
 	default:
-		return fmt.Errorf("unknown authentication type: %d", dst.Type)
+		return errors.Errorf("unknown authentication type: %d", dst.Type)
 	}
 
 	return nil
