@@ -181,9 +181,6 @@ func (ident Identifier) Sanitize() string {
 // ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
 
-// ErrNotificationTimeout occurs when WaitForNotification times out.
-var ErrNotificationTimeout = errors.New("notification timeout")
-
 // ErrDeadConn occurs on an attempt to use a dead connection
 var ErrDeadConn = errors.New("conn is dead")
 
