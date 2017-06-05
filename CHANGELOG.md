@@ -1,4 +1,4 @@
-# Unreleased
+# 2.11.0 (June 5, 2017)
 
 ## Fixes
 
@@ -9,6 +9,10 @@
 * .pgpass support (j7b)
 * Add missing CopyFrom delegators to Tx and ConnPool (Jack Christensen)
 * Add ParseConnectionString (James Lawrence)
+
+## Performance
+
+* Optimize HStore encoding (René Kroon)
 
 # 2.10.0 (March 17, 2017)
 
