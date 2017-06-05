@@ -2,13 +2,14 @@ package pgx_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/fake"
 	"github.com/jackc/pgx"
@@ -73,7 +74,7 @@ func TestStressConnPool(t *testing.T) {
 			action := actions[rand.Intn(len(actions))]
 			err := action.fn(pool, n)
 			if err != nil {
-				errChan <- fmt.Errorf("%s: %v", action.name, err)
+				errChan <- errors.Errorf("%s: %v", action.name, err)
 				break
 			}
 		}
@@ -235,7 +236,7 @@ func poolPrepareUseAndDeallocate(pool *pgx.ConnPool, actionNum int) error {
 	}
 
 	if s != "hello" {
-		return fmt.Errorf("Prepared statement did not return expected value: %v", s)
+		return errors.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
 	return pool.Deallocate(psName)
@@ -328,7 +329,7 @@ func canceledQueryExContext(pool *pgx.ConnPool, actionNum int) error {
 	if err == context.Canceled {
 		return nil
 	} else if err != nil {
-		return fmt.Errorf("Only allowed error is context.Canceled, got %v", err)
+		return errors.Errorf("Only allowed error is context.Canceled, got %v", err)
 	}
 
 	for rows.Next() {
@@ -336,7 +337,7 @@ func canceledQueryExContext(pool *pgx.ConnPool, actionNum int) error {
 	}
 
 	if rows.Err() != context.Canceled {
-		return fmt.Errorf("Expected context.Canceled error, got %v", rows.Err())
+		return errors.Errorf("Expected context.Canceled error, got %v", rows.Err())
 	}
 
 	return nil
@@ -351,7 +352,7 @@ func canceledExecExContext(pool *pgx.ConnPool, actionNum int) error {
 
 	_, err := pool.ExecEx(ctx, "select pg_sleep(2)", nil)
 	if err != context.Canceled {
-		return fmt.Errorf("Expected context.Canceled error, got %v", err)
+		return errors.Errorf("Expected context.Canceled error, got %v", err)
 	}
 
 	return nil

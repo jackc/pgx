@@ -2,8 +2,9 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
 type Bool struct {
@@ -25,7 +26,7 @@ func (dst *Bool) Set(src interface{}) error {
 		if originalSrc, ok := underlyingBoolType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Bool", value)
+		return errors.Errorf("cannot convert %v to Bool", value)
 	}
 
 	return nil
@@ -58,7 +59,7 @@ func (src *Bool) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {
@@ -68,7 +69,7 @@ func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 1 {
-		return fmt.Errorf("invalid length for bool: %v", len(src))
+		return errors.Errorf("invalid length for bool: %v", len(src))
 	}
 
 	*dst = Bool{Bool: src[0] == 't', Status: Present}
@@ -82,7 +83,7 @@ func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 1 {
-		return fmt.Errorf("invalid length for bool: %v", len(src))
+		return errors.Errorf("invalid length for bool: %v", len(src))
 	}
 
 	*dst = Bool{Bool: src[0] == 1, Status: Present}
@@ -142,7 +143,7 @@ func (dst *Bool) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

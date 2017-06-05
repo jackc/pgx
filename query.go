@@ -3,9 +3,10 @@ package pgx
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/internal/sanitize"
 	"github.com/jackc/pgx/pgproto3"
@@ -135,7 +136,7 @@ func (rows *Rows) Next() bool {
 					rows.fields[i].DataTypeName = dt.Name
 					rows.fields[i].FormatCode = TextFormatCode
 				} else {
-					rows.fatal(fmt.Errorf("unknown oid: %d", rows.fields[i].DataType))
+					rows.fatal(errors.Errorf("unknown oid: %d", rows.fields[i].DataType))
 					return false
 				}
 			}
@@ -191,7 +192,7 @@ func (e scanArgError) Error() string {
 // copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
 func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
-		err = fmt.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
+		err = errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
 		rows.fatal(err)
 		return err
 	}
@@ -224,7 +225,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 							rows.fatal(scanArgError{col: i, err: err})
 						}
 					} else {
-						rows.fatal(scanArgError{col: i, err: fmt.Errorf("%T is not a pgtype.TextDecoder", value)})
+						rows.fatal(scanArgError{col: i, err: errors.Errorf("%T is not a pgtype.TextDecoder", value)})
 					}
 				case BinaryFormatCode:
 					if binaryDecoder, ok := value.(pgtype.BinaryDecoder); ok {
@@ -233,10 +234,10 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 							rows.fatal(scanArgError{col: i, err: err})
 						}
 					} else {
-						rows.fatal(scanArgError{col: i, err: fmt.Errorf("%T is not a pgtype.BinaryDecoder", value)})
+						rows.fatal(scanArgError{col: i, err: errors.Errorf("%T is not a pgtype.BinaryDecoder", value)})
 					}
 				default:
-					rows.fatal(scanArgError{col: i, err: fmt.Errorf("unknown format code: %v", fd.FormatCode)})
+					rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown format code: %v", fd.FormatCode)})
 				}
 
 				if rows.Err() == nil {
@@ -254,7 +255,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					}
 				}
 			} else {
-				rows.fatal(scanArgError{col: i, err: fmt.Errorf("unknown oid: %v", fd.DataType)})
+				rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown oid: %v", fd.DataType)})
 			}
 		}
 
@@ -464,11 +465,11 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 
 func (c *Conn) buildOneRoundTripQueryEx(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
 	if len(arguments) != len(options.ParameterOIDs) {
-		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
+		return nil, errors.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
 	}
 
 	if len(options.ParameterOIDs) > 65535 {
-		return nil, fmt.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
+		return nil, errors.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
 	}
 
 	buf = appendParse(buf, "", sql, options.ParameterOIDs)
@@ -497,7 +498,7 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 				if dt, ok := c.ConnInfo.DataTypeForOID(fieldDescriptions[i].DataType); ok {
 					fieldDescriptions[i].DataTypeName = dt.Name
 				} else {
-					return nil, fmt.Errorf("unknown oid: %d", fieldDescriptions[i].DataType)
+					return nil, errors.Errorf("unknown oid: %d", fieldDescriptions[i].DataType)
 				}
 			}
 			return fieldDescriptions, nil

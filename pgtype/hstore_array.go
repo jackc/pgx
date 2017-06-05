@@ -3,9 +3,9 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type HstoreArray struct {
@@ -40,7 +40,7 @@ func (dst *HstoreArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Hstore", value)
+		return errors.Errorf("cannot convert %v to Hstore", value)
 	}
 
 	return nil
@@ -80,7 +80,7 @@ func (src *HstoreArray) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *HstoreArray) DecodeText(ci *ConnInfo, src []byte) error {
@@ -233,7 +233,7 @@ func (src *HstoreArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	if dt, ok := ci.DataTypeForName("hstore"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, fmt.Errorf("unable to find oid for type name %v", "hstore")
+		return nil, errors.Errorf("unable to find oid for type name %v", "hstore")
 	}
 
 	for i := range src.Elements {
@@ -277,7 +277,7 @@ func (dst *HstoreArray) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

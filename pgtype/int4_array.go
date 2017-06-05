@@ -3,9 +3,9 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Int4Array struct {
@@ -59,7 +59,7 @@ func (dst *Int4Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int4", value)
+		return errors.Errorf("cannot convert %v to Int4", value)
 	}
 
 	return nil
@@ -108,7 +108,7 @@ func (src *Int4Array) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Int4Array) DecodeText(ci *ConnInfo, src []byte) error {
@@ -261,7 +261,7 @@ func (src *Int4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	if dt, ok := ci.DataTypeForName("int4"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, fmt.Errorf("unable to find oid for type name %v", "int4")
+		return nil, errors.Errorf("unable to find oid for type name %v", "int4")
 	}
 
 	for i := range src.Elements {
@@ -305,7 +305,7 @@ func (dst *Int4Array) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

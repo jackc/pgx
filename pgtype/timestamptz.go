@@ -3,10 +3,10 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 const pgTimestamptzHourFormat = "2006-01-02 15:04:05.999999999Z07"
@@ -38,7 +38,7 @@ func (dst *Timestamptz) Set(src interface{}) error {
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Timestamptz", value)
+		return errors.Errorf("cannot convert %v to Timestamptz", value)
 	}
 
 	return nil
@@ -64,7 +64,7 @@ func (src *Timestamptz) AssignTo(dst interface{}) error {
 		switch v := dst.(type) {
 		case *time.Time:
 			if src.InfinityModifier != None {
-				return fmt.Errorf("cannot assign %v to %T", src, dst)
+				return errors.Errorf("cannot assign %v to %T", src, dst)
 			}
 			*v = src.Time
 			return nil
@@ -77,7 +77,7 @@ func (src *Timestamptz) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
@@ -120,7 +120,7 @@ func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 8 {
-		return fmt.Errorf("invalid length for timestamptz: %v", len(src))
+		return errors.Errorf("invalid length for timestamptz: %v", len(src))
 	}
 
 	microsecSinceY2K := int64(binary.BigEndian.Uint64(src))
@@ -202,7 +202,7 @@ func (dst *Timestamptz) Scan(src interface{}) error {
 		return nil
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Lseg struct {
@@ -17,7 +18,7 @@ type Lseg struct {
 }
 
 func (dst *Lseg) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Lseg", src)
+	return errors.Errorf("cannot convert %v to Lseg", src)
 }
 
 func (dst *Lseg) Get() interface{} {
@@ -32,7 +33,7 @@ func (dst *Lseg) Get() interface{} {
 }
 
 func (src *Lseg) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Lseg) DecodeText(ci *ConnInfo, src []byte) error {
@@ -42,7 +43,7 @@ func (dst *Lseg) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 11 {
-		return fmt.Errorf("invalid length for Lseg: %v", len(src))
+		return errors.Errorf("invalid length for Lseg: %v", len(src))
 	}
 
 	str := string(src[2:])
@@ -89,7 +90,7 @@ func (dst *Lseg) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 32 {
-		return fmt.Errorf("invalid length for Lseg: %v", len(src))
+		return errors.Errorf("invalid length for Lseg: %v", len(src))
 	}
 
 	x1 := binary.BigEndian.Uint64(src)
@@ -151,7 +152,7 @@ func (dst *Lseg) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

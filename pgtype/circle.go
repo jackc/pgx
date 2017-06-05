@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Circle struct {
@@ -18,7 +19,7 @@ type Circle struct {
 }
 
 func (dst *Circle) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Circle", src)
+	return errors.Errorf("cannot convert %v to Circle", src)
 }
 
 func (dst *Circle) Get() interface{} {
@@ -33,7 +34,7 @@ func (dst *Circle) Get() interface{} {
 }
 
 func (src *Circle) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Circle) DecodeText(ci *ConnInfo, src []byte) error {
@@ -43,7 +44,7 @@ func (dst *Circle) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 9 {
-		return fmt.Errorf("invalid length for Circle: %v", len(src))
+		return errors.Errorf("invalid length for Circle: %v", len(src))
 	}
 
 	str := string(src[2:])
@@ -79,7 +80,7 @@ func (dst *Circle) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 24 {
-		return fmt.Errorf("invalid length for Circle: %v", len(src))
+		return errors.Errorf("invalid length for Circle: %v", len(src))
 	}
 
 	x := binary.BigEndian.Uint64(src)
@@ -136,7 +137,7 @@ func (dst *Circle) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

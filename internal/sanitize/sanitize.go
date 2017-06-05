@@ -3,11 +3,12 @@ package sanitize
 import (
 	"bytes"
 	"encoding/hex"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/pkg/errors"
 )
 
 // Part is either a string or an int. A string is raw SQL. An int is a
@@ -30,7 +31,7 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 		case int:
 			argIdx := part - 1
 			if argIdx >= len(args) {
-				return "", fmt.Errorf("insufficient arguments")
+				return "", errors.Errorf("insufficient arguments")
 			}
 			arg := args[argIdx]
 			switch arg := arg.(type) {
@@ -49,18 +50,18 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 			case time.Time:
 				str = arg.Format("'2006-01-02 15:04:05.999999999Z07:00:00'")
 			default:
-				return "", fmt.Errorf("invalid arg type: %T", arg)
+				return "", errors.Errorf("invalid arg type: %T", arg)
 			}
 			argUse[argIdx] = true
 		default:
-			return "", fmt.Errorf("invalid Part type: %T", part)
+			return "", errors.Errorf("invalid Part type: %T", part)
 		}
 		buf.WriteString(str)
 	}
 
 	for i, used := range argUse {
 		if !used {
-			return "", fmt.Errorf("unused argument: %d", i)
+			return "", errors.Errorf("unused argument: %d", i)
 		}
 	}
 	return buf.String(), nil

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Line struct {
@@ -17,7 +18,7 @@ type Line struct {
 }
 
 func (dst *Line) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Line", src)
+	return errors.Errorf("cannot convert %v to Line", src)
 }
 
 func (dst *Line) Get() interface{} {
@@ -32,7 +33,7 @@ func (dst *Line) Get() interface{} {
 }
 
 func (src *Line) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Line) DecodeText(ci *ConnInfo, src []byte) error {
@@ -42,12 +43,12 @@ func (dst *Line) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 7 {
-		return fmt.Errorf("invalid length for Line: %v", len(src))
+		return errors.Errorf("invalid length for Line: %v", len(src))
 	}
 
 	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 3)
 	if len(parts) < 3 {
-		return fmt.Errorf("invalid format for line")
+		return errors.Errorf("invalid format for line")
 	}
 
 	a, err := strconv.ParseFloat(parts[0], 64)
@@ -76,7 +77,7 @@ func (dst *Line) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 24 {
-		return fmt.Errorf("invalid length for Line: %v", len(src))
+		return errors.Errorf("invalid length for Line: %v", len(src))
 	}
 
 	a := binary.BigEndian.Uint64(src)
@@ -133,7 +134,7 @@ func (dst *Line) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

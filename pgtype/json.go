@@ -3,7 +3,8 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 type JSON struct {
@@ -135,7 +136,7 @@ func (dst *JSON) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

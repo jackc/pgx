@@ -2,9 +2,9 @@ package numeric
 
 import (
 	"database/sql/driver"
-	"errors"
-	"fmt"
 	"strconv"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgtype"
 	"github.com/shopspring/decimal"
@@ -70,17 +70,17 @@ func (dst *Numeric) Set(src interface{}) error {
 		// If all else fails see if pgtype.Numeric can handle it. If so, translate through that.
 		num := &pgtype.Numeric{}
 		if err := num.Set(value); err != nil {
-			return fmt.Errorf("cannot convert %v to Numeric", value)
+			return errors.Errorf("cannot convert %v to Numeric", value)
 		}
 
 		buf, err := num.EncodeText(nil, nil)
 		if err != nil {
-			return fmt.Errorf("cannot convert %v to Numeric", value)
+			return errors.Errorf("cannot convert %v to Numeric", value)
 		}
 
 		dec, err := decimal.NewFromString(string(buf))
 		if err != nil {
-			return fmt.Errorf("cannot convert %v to Numeric", value)
+			return errors.Errorf("cannot convert %v to Numeric", value)
 		}
 		*dst = Numeric{Decimal: dec, Status: pgtype.Present}
 	}
@@ -113,92 +113,92 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 			*v = f
 		case *int:
 			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseInt(src.Decimal.String(), 10, strconv.IntSize)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = int(n)
 		case *int8:
 			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseInt(src.Decimal.String(), 10, 8)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = int8(n)
 		case *int16:
 			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseInt(src.Decimal.String(), 10, 16)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = int16(n)
 		case *int32:
 			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseInt(src.Decimal.String(), 10, 32)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = int32(n)
 		case *int64:
 			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseInt(src.Decimal.String(), 10, 64)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = int64(n)
 		case *uint:
 			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseUint(src.Decimal.String(), 10, strconv.IntSize)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = uint(n)
 		case *uint8:
 			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseUint(src.Decimal.String(), 10, 8)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = uint8(n)
 		case *uint16:
 			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseUint(src.Decimal.String(), 10, 16)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = uint16(n)
 		case *uint32:
 			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseUint(src.Decimal.String(), 10, 32)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = uint32(n)
 		case *uint64:
 			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			n, err := strconv.ParseUint(src.Decimal.String(), 10, 64)
 			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
+				return errors.Errorf("cannot convert %v to %T", dst, *v)
 			}
 			*v = uint64(n)
 		default:
@@ -301,7 +301,7 @@ func (dst *Numeric) Scan(src interface{}) error {
 		return dst.DecodeText(nil, src)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

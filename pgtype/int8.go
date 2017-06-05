@@ -3,11 +3,11 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Int8 struct {
@@ -38,20 +38,20 @@ func (dst *Int8) Set(src interface{}) error {
 		*dst = Int8{Int: int64(value), Status: Present}
 	case uint64:
 		if value > math.MaxInt64 {
-			return fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return errors.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case int:
 		if int64(value) < math.MinInt64 {
-			return fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return errors.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		if int64(value) > math.MaxInt64 {
-			return fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return errors.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case uint:
 		if uint64(value) > math.MaxInt64 {
-			return fmt.Errorf("%d is greater than maximum value for Int8", value)
+			return errors.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case string:
@@ -64,7 +64,7 @@ func (dst *Int8) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Int8", value)
+		return errors.Errorf("cannot convert %v to Int8", value)
 	}
 
 	return nil
@@ -107,7 +107,7 @@ func (dst *Int8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 8 {
-		return fmt.Errorf("invalid length for int8: %v", len(src))
+		return errors.Errorf("invalid length for int8: %v", len(src))
 	}
 
 	n := int64(binary.BigEndian.Uint64(src))
@@ -157,7 +157,7 @@ func (dst *Int8) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

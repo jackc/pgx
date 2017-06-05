@@ -2,9 +2,10 @@ package pgx
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgtype"
 )

@@ -3,9 +3,10 @@ package pgx
 import (
 	"context"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"

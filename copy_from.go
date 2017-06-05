@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
+	"github.com/pkg/errors"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
@@ -156,7 +157,7 @@ func (ct *copyFrom) run() (int, error) {
 		}
 		if len(values) != len(ct.columnNames) {
 			ct.cancelCopyIn()
-			return 0, fmt.Errorf("expected %d values, got %d values", len(ct.columnNames), len(values))
+			return 0, errors.Errorf("expected %d values, got %d values", len(ct.columnNames), len(values))
 		}
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
