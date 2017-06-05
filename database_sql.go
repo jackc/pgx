@@ -2,7 +2,8 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"errors"
+
+	"github.com/pkg/errors"
 )
 
 func DatabaseSQLValue(ci *ConnInfo, src Value) (interface{}, error) {

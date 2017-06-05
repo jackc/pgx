@@ -3,10 +3,10 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type TimestamptzArray struct {
@@ -41,7 +41,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Timestamptz", value)
+		return errors.Errorf("cannot convert %v to Timestamptz", value)
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (src *TimestamptzArray) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *TimestamptzArray) DecodeText(ci *ConnInfo, src []byte) error {
@@ -234,7 +234,7 @@ func (src *TimestamptzArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, err
 	if dt, ok := ci.DataTypeForName("timestamptz"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, fmt.Errorf("unable to find oid for type name %v", "timestamptz")
+		return nil, errors.Errorf("unable to find oid for type name %v", "timestamptz")
 	}
 
 	for i := range src.Elements {
@@ -278,7 +278,7 @@ func (dst *TimestamptzArray) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.
