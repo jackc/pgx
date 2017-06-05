@@ -1,4 +1,62 @@
-# Unreleased
+# Unreleased V3
+
+## Changes
+
+* Pid to PID in accordance with Go naming conventions.
+* Conn.Pid changed to accessor method Conn.PID()
+* Conn.SecretKey removed
+* Remove Conn.TxStatus
+* Logger interface reduced to single Log method.
+* Replace BeginIso with BeginEx. BeginEx adds support for read/write mode and deferrable mode.
+* Transaction isolation level constants are now typed strings instead of bare strings.
+* Conn.WaitForNotification now takes context.Context instead of time.Duration for cancellation support.
+* Conn.WaitForNotification no longer automatically pings internally every 15 seconds.
+* ReplicationConn.WaitForReplicationMessage now takes context.Context instead of time.Duration for cancellation support.
+* Reject scanning binary format values into a string (e.g. binary encoded timestamptz to string). See https://github.com/jackc/pgx/issues/219 and https://github.com/jackc/pgx/issues/228
+* No longer can read raw bytes of any value into a []byte. Use pgtype.GenericBinary if this functionality is needed.
+* Remove CopyTo (functionality is now in CopyFrom)
+* OID constants moved from pgx to pgtype package
+* Replaced Scanner, Encoder, and PgxScanner interfaces with pgtype system
+* Removed ValueReader
+* ConnPool.Close no longer waits for all acquired connections to be released. Instead, it immediately closes all available connections, and closes acquired connections when they are released in the same manner as ConnPool.Reset.
+* Removed Rows.Fatal(error)
+* Removed Rows.AfterClose()
+* Removed Rows.Conn()
+* Removed Tx.AfterClose()
+* Removed Tx.Conn()
+* Use Go casing convention for OID, UUID, JSON(B), ACLItem, CID, TID, XID, and CIDR
+* Replaced stdlib.OpenFromConnPool with DriverConfig system
+
+## Features
+
+* Entirely revamped pluggable type sytem that supports approximately 60 PostgreSQL types.
+* Types support database/sql interfaces and therefore can be used with other drivers
+* Added context methods supporting cancelation where appropriate
+* Added simple query protocol support
+* Added single round-trip query mode
+* Added batch query operations
+* Added OnNotice
+* github.com/pkg/errors used where possible for errors
+* Added stdlib.DriverConfig which allows directly allows full configuration of underlying pgx connections without needing to use a pgx.ConnPool
+* Added AcquireConn and ReleaseConn to stdlib to allow acquiring a connection from a database/sql connection.
+
+# 2.11.0 (June 5, 2017)
+
+## Fixes
+
+* Fix race with concurrent execution of stdlib.OpenFromConnPool (Terin Stock)
+
+## Features
+
+* .pgpass support (j7b)
+* Add missing CopyFrom delegators to Tx and ConnPool (Jack Christensen)
+* Add ParseConnectionString (James Lawrence)
+
+## Performance
+
+* Optimize HStore encoding (René Kroon)
+
+# 2.10.0 (March 17, 2017)
 
 ## Fixes
 
@@ -16,10 +74,12 @@
 * Add named error ErrAcquireTimeout (Alexander Staubo)
 * Add logical replication decoding (Kris Wehner)
 * Add PgxScanner interface to allow types to simultaneously support database/sql and pgx (Jack Christensen)
+* Add CopyFrom with schema support (Jack Christensen)
 
 ## Compatibility
 
 * jsonb now defaults to binary format. This means passing a []byte to a jsonb column will no longer work.
+* CopyTo is now deprecated but will continue to work.
 
 # 2.9.0 (August 26, 2016)
 
