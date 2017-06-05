@@ -29,9 +29,9 @@
 
 ## Features
 
-* Entirely revamped pluggable type sytem that supports approximately 60 PostgreSQL types.
+* Entirely revamped pluggable type system that supports approximately 60 PostgreSQL types.
 * Types support database/sql interfaces and therefore can be used with other drivers
-* Added context methods supporting cancelation where appropriate
+* Added context methods supporting cancellation where appropriate
 * Added simple query protocol support
 * Added single round-trip query mode
 * Added batch query operations
