@@ -3,11 +3,11 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Float4 struct {
@@ -39,42 +39,42 @@ func (dst *Float4) Set(src interface{}) error {
 		if int32(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case uint32:
 		f32 := float32(value)
 		if uint32(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case int64:
 		f32 := float32(value)
 		if int64(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case uint64:
 		f32 := float32(value)
 		if uint64(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case int:
 		f32 := float32(value)
 		if int(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case uint:
 		f32 := float32(value)
 		if uint(f32) == value {
 			*dst = Float4{Float: f32, Status: Present}
 		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
+			return errors.Errorf("%v cannot be exactly represented as float32", value)
 		}
 	case string:
 		num, err := strconv.ParseFloat(value, 32)
@@ -86,7 +86,7 @@ func (dst *Float4) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to Float8", value)
+		return errors.Errorf("cannot convert %v to Float8", value)
 	}
 
 	return nil
@@ -129,7 +129,7 @@ func (dst *Float4) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 4 {
-		return fmt.Errorf("invalid length for float4: %v", len(src))
+		return errors.Errorf("invalid length for float4: %v", len(src))
 	}
 
 	n := int32(binary.BigEndian.Uint32(src))
@@ -181,7 +181,7 @@ func (dst *Float4) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

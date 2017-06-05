@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Box struct {
@@ -17,7 +18,7 @@ type Box struct {
 }
 
 func (dst *Box) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Box", src)
+	return errors.Errorf("cannot convert %v to Box", src)
 }
 
 func (dst *Box) Get() interface{} {
@@ -32,7 +33,7 @@ func (dst *Box) Get() interface{} {
 }
 
 func (src *Box) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
@@ -42,7 +43,7 @@ func (dst *Box) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 11 {
-		return fmt.Errorf("invalid length for Box: %v", len(src))
+		return errors.Errorf("invalid length for Box: %v", len(src))
 	}
 
 	str := string(src[1:])
@@ -89,7 +90,7 @@ func (dst *Box) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 32 {
-		return fmt.Errorf("invalid length for Box: %v", len(src))
+		return errors.Errorf("invalid length for Box: %v", len(src))
 	}
 
 	x1 := binary.BigEndian.Uint64(src)
@@ -152,7 +153,7 @@ func (dst *Box) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

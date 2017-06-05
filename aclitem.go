@@ -2,7 +2,8 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // ACLItem is used for PostgreSQL's aclitem data type. A sample aclitem
@@ -36,7 +37,7 @@ func (dst *ACLItem) Set(src interface{}) error {
 		if originalSrc, ok := underlyingStringType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to ACLItem", value)
+		return errors.Errorf("cannot convert %v to ACLItem", value)
 	}
 
 	return nil
@@ -69,7 +70,7 @@ func (src *ACLItem) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *ACLItem) DecodeText(ci *ConnInfo, src []byte) error {
@@ -109,7 +110,7 @@ func (dst *ACLItem) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.
