@@ -2,12 +2,13 @@ package pgx_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx"
 )

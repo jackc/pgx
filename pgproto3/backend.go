@@ -2,10 +2,10 @@ package pgproto3
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 
 	"github.com/jackc/pgx/chunkreader"
+	"github.com/pkg/errors"
 )
 
 type Backend struct {
@@ -88,7 +88,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	case 'X':
 		msg = &b.terminate
 	default:
-		return nil, fmt.Errorf("unknown message type: %c", msgType)
+		return nil, errors.Errorf("unknown message type: %c", msgType)
 	}
 
 	msgBody, err := b.cr.Next(bodyLen)

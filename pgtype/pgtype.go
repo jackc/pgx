@@ -1,8 +1,9 @@
 package pgtype
 
 import (
-	"errors"
 	"reflect"
+
+	"github.com/pkg/errors"
 )
 
 // PostgreSQL oids for common types

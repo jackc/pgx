@@ -1,12 +1,12 @@
 package pgx_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/pkg/errors"
 )
 
 func TestConnCopyFromSmall(t *testing.T) {
@@ -186,7 +186,7 @@ func (cfs *clientFailSource) Next() bool {
 
 func (cfs *clientFailSource) Values() ([]interface{}, error) {
 	if cfs.count == 3 {
-		cfs.err = fmt.Errorf("client error")
+		cfs.err = errors.Errorf("client error")
 		return nil, cfs.err
 	}
 	return []interface{}{make([]byte, 100000)}, nil
@@ -381,7 +381,7 @@ func (cfs *clientFinalErrSource) Values() ([]interface{}, error) {
 }
 
 func (cfs *clientFinalErrSource) Err() error {
-	return fmt.Errorf("final error")
+	return errors.Errorf("final error")
 }
 
 func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {

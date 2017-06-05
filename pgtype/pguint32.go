@@ -3,11 +3,11 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
-	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 // pguint32 is the core type that is used to implement PostgreSQL types such as
@@ -24,16 +24,16 @@ func (dst *pguint32) Set(src interface{}) error {
 	switch value := src.(type) {
 	case int64:
 		if value < 0 {
-			return fmt.Errorf("%d is less than minimum value for pguint32", value)
+			return errors.Errorf("%d is less than minimum value for pguint32", value)
 		}
 		if value > math.MaxUint32 {
-			return fmt.Errorf("%d is greater than maximum value for pguint32", value)
+			return errors.Errorf("%d is greater than maximum value for pguint32", value)
 		}
 		*dst = pguint32{Uint: uint32(value), Status: Present}
 	case uint32:
 		*dst = pguint32{Uint: value, Status: Present}
 	default:
-		return fmt.Errorf("cannot convert %v to pguint32", value)
+		return errors.Errorf("cannot convert %v to pguint32", value)
 	}
 
 	return nil
@@ -58,7 +58,7 @@ func (src *pguint32) AssignTo(dst interface{}) error {
 		if src.Status == Present {
 			*v = src.Uint
 		} else {
-			return fmt.Errorf("cannot assign %v into %T", src, dst)
+			return errors.Errorf("cannot assign %v into %T", src, dst)
 		}
 	case **uint32:
 		if src.Status == Present {
@@ -94,7 +94,7 @@ func (dst *pguint32) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 4 {
-		return fmt.Errorf("invalid length: %v", len(src))
+		return errors.Errorf("invalid length: %v", len(src))
 	}
 
 	n := binary.BigEndian.Uint32(src)
@@ -146,7 +146,7 @@ func (dst *pguint32) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

@@ -3,9 +3,10 @@ package pgx
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 type TxIsoLevel string

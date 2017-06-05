@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 type Polygon struct {
@@ -17,7 +18,7 @@ type Polygon struct {
 }
 
 func (dst *Polygon) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Polygon", src)
+	return errors.Errorf("cannot convert %v to Polygon", src)
 }
 
 func (dst *Polygon) Get() interface{} {
@@ -32,7 +33,7 @@ func (dst *Polygon) Get() interface{} {
 }
 
 func (src *Polygon) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
@@ -42,7 +43,7 @@ func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 7 {
-		return fmt.Errorf("invalid length for Polygon: %v", len(src))
+		return errors.Errorf("invalid length for Polygon: %v", len(src))
 	}
 
 	points := make([]Vec2, 0)
@@ -84,14 +85,14 @@ func (dst *Polygon) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 5 {
-		return fmt.Errorf("invalid length for Polygon: %v", len(src))
+		return errors.Errorf("invalid length for Polygon: %v", len(src))
 	}
 
 	pointCount := int(binary.BigEndian.Uint32(src))
 	rp := 4
 
 	if 4+pointCount*16 != len(src) {
-		return fmt.Errorf("invalid length for Polygon with %d points: %v", pointCount, len(src))
+		return errors.Errorf("invalid length for Polygon with %d points: %v", pointCount, len(src))
 	}
 
 	points := make([]Vec2, pointCount)
@@ -164,7 +165,7 @@ func (dst *Polygon) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

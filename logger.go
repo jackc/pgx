@@ -2,8 +2,9 @@ package pgx
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // The values for log levels are chosen such that the zero value means that no

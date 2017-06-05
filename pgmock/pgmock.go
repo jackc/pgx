@@ -1,11 +1,11 @@
 package pgmock
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"net"
 	"reflect"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
@@ -115,7 +115,7 @@ func (e *expectMessageStep) Step(backend *pgproto3.Backend) error {
 	}
 
 	if !reflect.DeepEqual(msg, e.want) {
-		return fmt.Errorf("msg => %#v, e.want => %#v", msg, e.want)
+		return errors.Errorf("msg => %#v, e.want => %#v", msg, e.want)
 	}
 
 	return nil
@@ -137,7 +137,7 @@ func (e *expectStartupMessageStep) Step(backend *pgproto3.Backend) error {
 	}
 
 	if !reflect.DeepEqual(msg, e.want) {
-		return fmt.Errorf("msg => %#v, e.want => %#v", msg, e.want)
+		return errors.Errorf("msg => %#v, e.want => %#v", msg, e.want)
 	}
 
 	return nil
@@ -475,22 +475,22 @@ func buildDataRow(values []interface{}, formatCodes []int16) (*pgproto3.DataRow,
 			if e, ok := values[i].(pgtype.TextEncoder); ok {
 				buf, err := e.EncodeText(nil, nil)
 				if err != nil {
-					return nil, fmt.Errorf("failed to encode values[%d]", i)
+					return nil, errors.Errorf("failed to encode values[%d]", i)
 				}
 				dr.Values[i] = buf
 			} else {
-				return nil, fmt.Errorf("values[%d] does not implement TextExcoder", i)
+				return nil, errors.Errorf("values[%d] does not implement TextExcoder", i)
 			}
 
 		case pgproto3.BinaryFormat:
 			if e, ok := values[i].(pgtype.BinaryEncoder); ok {
 				buf, err := e.EncodeBinary(nil, nil)
 				if err != nil {
-					return nil, fmt.Errorf("failed to encode values[%d]", i)
+					return nil, errors.Errorf("failed to encode values[%d]", i)
 				}
 				dr.Values[i] = buf
 			} else {
-				return nil, fmt.Errorf("values[%d] does not implement BinaryEncoder", i)
+				return nil, errors.Errorf("values[%d] does not implement BinaryEncoder", i)
 			}
 		default:
 			return nil, errors.New("unknown FormatCode")

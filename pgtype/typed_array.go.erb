@@ -40,7 +40,7 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return fmt.Errorf("cannot convert %v to <%= pgtype_element_type %>", value)
+		return errors.Errorf("cannot convert %v to <%= pgtype_element_type %>", value)
 	}
 
 	return nil
@@ -80,7 +80,7 @@ func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error {
@@ -236,7 +236,7 @@ func (src *<%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byt
 		if dt, ok := ci.DataTypeForName("<%= element_type_name %>"); ok {
 			arrayHeader.ElementOID = int32(dt.OID)
 		} else {
-			return nil, fmt.Errorf("unable to find oid for type name %v", "<%= element_type_name %>")
+			return nil, errors.Errorf("unable to find oid for type name %v", "<%= element_type_name %>")
 		}
 
 		for i := range src.Elements {
@@ -281,7 +281,7 @@ func (dst *<%= pgtype_array_type %>) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	return errors.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

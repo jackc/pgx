@@ -2,7 +2,8 @@ package pgtype
 
 import (
 	"encoding/binary"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // Record is the generic PostgreSQL record type such as is created with the
@@ -25,7 +26,7 @@ func (dst *Record) Set(src interface{}) error {
 	case []Value:
 		*dst = Record{Fields: value, Status: Present}
 	default:
-		return fmt.Errorf("cannot convert %v to Record", src)
+		return errors.Errorf("cannot convert %v to Record", src)
 	}
 
 	return nil
@@ -65,7 +66,7 @@ func (src *Record) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
@@ -77,7 +78,7 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp := 0
 
 	if len(src[rp:]) < 4 {
-		return fmt.Errorf("Record incomplete %v", src)
+		return errors.Errorf("Record incomplete %v", src)
 	}
 	fieldCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
 	rp += 4
@@ -86,7 +87,7 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	for i := 0; i < fieldCount; i++ {
 		if len(src[rp:]) < 8 {
-			return fmt.Errorf("Record incomplete %v", src)
+			return errors.Errorf("Record incomplete %v", src)
 		}
 		fieldOID := OID(binary.BigEndian.Uint32(src[rp:]))
 		rp += 4
@@ -97,14 +98,14 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		var binaryDecoder BinaryDecoder
 		if dt, ok := ci.DataTypeForOID(fieldOID); ok {
 			if binaryDecoder, ok = dt.Value.(BinaryDecoder); !ok {
-				return fmt.Errorf("unknown oid while decoding record: %v", fieldOID)
+				return errors.Errorf("unknown oid while decoding record: %v", fieldOID)
 			}
 		}
 
 		var fieldBytes []byte
 		if fieldLen >= 0 {
 			if len(src[rp:]) < fieldLen {
-				return fmt.Errorf("Record incomplete %v", src)
+				return errors.Errorf("Record incomplete %v", src)
 			}
 			fieldBytes = src[rp : rp+fieldLen]
 			rp += fieldLen

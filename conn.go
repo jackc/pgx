@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -20,6 +19,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
@@ -778,7 +779,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	}
 
 	if len(opts.ParameterOIDs) > 65535 {
-		return nil, fmt.Errorf("Number of PrepareExOptions ParameterOIDs must be between 0 and 65535, received %d", len(opts.ParameterOIDs))
+		return nil, errors.Errorf("Number of PrepareExOptions ParameterOIDs must be between 0 and 65535, received %d", len(opts.ParameterOIDs))
 	}
 
 	buf := appendParse(c.wbuf, name, sql, opts.ParameterOIDs)
@@ -809,7 +810,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 			ps.ParameterOIDs = c.rxParameterDescription(msg)
 
 			if len(ps.ParameterOIDs) > 65535 && softErr == nil {
-				softErr = fmt.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOIDs))
+				softErr = errors.Errorf("PostgreSQL supports maximum of 65535 parameters, received %d", len(ps.ParameterOIDs))
 			}
 		case *pgproto3.RowDescription:
 			ps.FieldDescriptions = c.rxRowDescription(msg)
@@ -822,7 +823,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 						ps.FieldDescriptions[i].FormatCode = TextFormatCode
 					}
 				} else {
-					return nil, fmt.Errorf("unknown oid: %d", ps.FieldDescriptions[i].DataType)
+					return nil, errors.Errorf("unknown oid: %d", ps.FieldDescriptions[i].DataType)
 				}
 			}
 		case *pgproto3.ReadyForQuery:
@@ -1029,7 +1030,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 
 func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
 	if len(ps.ParameterOIDs) != len(arguments) {
-		return fmt.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
+		return errors.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
 	}
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
@@ -1392,7 +1393,7 @@ func (c *Conn) cancelQuery() {
 
 		_, err = cancelConn.Read(buf)
 		if err != io.EOF {
-			return fmt.Errorf("Server failed to close connection after cancel query request: %v %v", err, buf)
+			return errors.Errorf("Server failed to close connection after cancel query request: %v %v", err, buf)
 		}
 
 		return nil
@@ -1516,11 +1517,11 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 
 func (c *Conn) buildOneRoundTripExec(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
 	if len(arguments) != len(options.ParameterOIDs) {
-		return nil, fmt.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
+		return nil, errors.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
 	}
 
 	if len(options.ParameterOIDs) > 65535 {
-		return nil, fmt.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
+		return nil, errors.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
 	}
 
 	buf = appendParse(buf, "", sql, options.ParameterOIDs)

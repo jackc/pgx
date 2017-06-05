@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 
 	"github.com/jackc/pgx/pgio"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -23,18 +23,18 @@ func (*StartupMessage) Frontend() {}
 
 func (dst *StartupMessage) Decode(src []byte) error {
 	if len(src) < 4 {
-		return fmt.Errorf("startup message too short")
+		return errors.Errorf("startup message too short")
 	}
 
 	dst.ProtocolVersion = binary.BigEndian.Uint32(src)
 	rp := 4
 
 	if dst.ProtocolVersion == sslRequestNumber {
-		return fmt.Errorf("can't handle ssl connection request")
+		return errors.Errorf("can't handle ssl connection request")
 	}
 
 	if dst.ProtocolVersion != ProtocolVersionNumber {
-		return fmt.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
+		return errors.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
 	}
 
 	dst.Parameters = make(map[string]string)
@@ -57,7 +57,7 @@ func (dst *StartupMessage) Decode(src []byte) error {
 
 		if len(src[rp:]) == 1 {
 			if src[rp] != 0 {
-				return fmt.Errorf("Bad startup message last byte. Expected 0, got %d", src[rp])
+				return errors.Errorf("Bad startup message last byte. Expected 0, got %d", src[rp])
 			}
 			break
 		}

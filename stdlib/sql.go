@@ -68,11 +68,12 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
@@ -260,7 +261,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 	case sql.LevelSerializable:
 		pgxOpts.IsoLevel = pgx.Serializable
 	default:
-		return nil, fmt.Errorf("unsupported isolation: %v", opts.Isolation)
+		return nil, errors.Errorf("unsupported isolation: %v", opts.Isolation)
 	}
 
 	if opts.ReadOnly {
@@ -546,7 +547,7 @@ func ReleaseConn(db *sql.DB, conn *pgx.Conn) error {
 		driver.fakeTxMutex.Unlock()
 	} else {
 		driver.fakeTxMutex.Unlock()
-		return fmt.Errorf("can't release conn that is not acquired")
+		return errors.Errorf("can't release conn that is not acquired")
 	}
 
 	return tx.Rollback()
