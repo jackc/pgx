@@ -49,6 +49,10 @@ func (pe PgError) Error() string {
 	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
 }
 
+// Notice represents a notice response message reported by the PostgreSQL
+// server. Be aware that this is distinct from LISTEN/NOTIFY notification.
+type Notice PgError
+
 // appendParse appends a PostgreSQL wire protocol parse message to buf and returns it.
 func appendParse(buf []byte, name string, query string, parameterOIDs []pgtype.OID) []byte {
 	buf = append(buf, 'P')

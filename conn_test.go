@@ -1898,3 +1898,30 @@ func TestIdentifierSanitize(t *testing.T) {
 		}
 	}
 }
+
+func TestConnOnNotice(t *testing.T) {
+	t.Parallel()
+
+	var msg string
+
+	connConfig := *defaultConnConfig
+	connConfig.OnNotice = func(c *pgx.Conn, notice *pgx.Notice) {
+		msg = notice.Message
+	}
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(`do $$
+begin
+  raise notice 'hello, world';
+end$$;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if msg != "hello, world" {
+		t.Errorf("msg => %v, want %v", msg, "hello, world")
+	}
+
+	ensureConnValid(t, conn)
+}
