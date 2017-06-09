@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixes
+
+* database/sql driver created through stdlib.OpenFromConnPool closes connections when requested by database/sql rather than release to underlying connection pool.
+
 # 2.11.0 (June 5, 2017)
 
 ## Fixes
