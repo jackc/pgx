@@ -180,12 +180,12 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) Close() error {
+	err := c.conn.Close()
 	if c.pool != nil {
 		c.pool.Release(c.conn)
-		return nil
 	}
 
-	return c.conn.Close()
+	return err
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
