@@ -181,16 +181,27 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 
 // Release gives up use of a connection.
 func (p *ConnPool) Release(conn *Conn) {
+	go p.release(conn)
+}
+
+func (p *ConnPool) release(conn *Conn) {
+	// Using subset of discard to avoid losing prepared statements and session variables
+	resetSQL := `SET SESSION AUTHORIZATION DEFAULT;
+CLOSE ALL;
+UNLISTEN *;
+SELECT pg_advisory_unlock_all();
+DISCARD PLANS;
+DISCARD SEQUENCES;
+DISCARD TEMP;
+`
 	if conn.TxStatus != 'I' {
-		conn.Exec("rollback")
+		resetSQL = "rollback;\n" + resetSQL
 	}
 
-	if len(conn.channels) > 0 {
-		if err := conn.Unlisten("*"); err != nil {
-			conn.die(err)
-		}
-		conn.channels = make(map[string]struct{})
+	if _, err := conn.Exec(resetSQL); err != nil {
+		conn.die(err)
 	}
+
 	conn.notifications = nil
 
 	p.cond.L.Lock()
