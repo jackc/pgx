@@ -206,8 +206,8 @@ implement CopyToSource to avoid buffering the entire data set in memory.
         {"Jane", "Doe", int32(29)},
     }
 
-    copyCount, err := conn.CopyTo(
-        "people",
+    copyCount, err := conn.CopyFrom(
+        pgx.Identifier{"people"},
         []string{"first_name", "last_name", "age"},
         pgx.CopyToRows(rows),
     )
