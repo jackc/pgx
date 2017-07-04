@@ -204,7 +204,7 @@ func AcceptUnauthenticatedConnRequestSteps() []Step {
 func PgxInitSteps() []Step {
 	steps := []Step{
 		ExpectMessage(&pgproto3.Parse{
-			Query: "select t.oid, t.typname\nfrom pg_type t\nleft join pg_type base_type on t.typelem=base_type.oid\nwhere (\n\t  t.typtype in('b', 'p', 'r')\n\t  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))\n\t)",
+			Query: "select t.oid, t.typname\nfrom pg_type t\nleft join pg_type base_type on t.typelem=base_type.oid\nwhere (\n\t  t.typtype in('b', 'p', 'r', 'e')\n\t  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))\n\t)",
 		}),
 		ExpectMessage(&pgproto3.Describe{
 			ObjectType: 'S',
