@@ -388,7 +388,7 @@ func (c *Conn) initConnInfo() error {
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
 where (
-	  t.typtype in('b', 'p', 'r')
+	  t.typtype in('b', 'p', 'r', 'e')
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
 	)`)
 	if err != nil {
