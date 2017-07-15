@@ -9,7 +9,7 @@ for July. `v2` is the current release branch. `v3` is considered to be stable in
 the sense of lack of known bugs, but the API is not considered stable until
 general release. No further changes are planned, but the beta process may
 surface desirable changes. If possible API changes are acceptable, then `v3` is
-the recommented branch for new development.
+the recommended branch for new development.
 
 Pgx is a pure Go database connection library designed specifically for
 PostgreSQL. Pgx is different from other drivers such as
