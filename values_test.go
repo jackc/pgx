@@ -773,6 +773,14 @@ func TestArrayDecoding(t *testing.T) {
 			},
 		},
 		{
+			"select $1::uuid[]", []string{"01086ee0-4963-4e35-9116-30c173a8d0bd", "01086ee0-4963-4e35-9116-aaaaaaaaaaaa"}, &[]string{},
+			func(t *testing.T, query, scan interface{}) {
+				if !reflect.DeepEqual(query, *(scan.(*[]string))) {
+					t.Fatalf("failed to encode uuid[]")
+				}
+			},
+		},
+		{
 			"select $1::timestamp[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
 			func(t *testing.T, query, scan interface{}) {
 				if !reflect.DeepEqual(query, *(scan.(*[]time.Time))) {
@@ -1179,5 +1187,44 @@ func TestRowDecode(t *testing.T) {
 		}
 
 		ensureConnValid(t, conn)
+	}
+}
+
+func TestUUID(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	f := "01086ee0-4963-4e35-9116-30c173a8d0bd"
+
+	{
+		dest := ""
+		if err := conn.QueryRow("select $1::uuid", f).Scan(&dest); err != nil {
+			t.Errorf("Unexpected failure scanning: %v", err)
+		}
+		if have, want := dest, f; have != want {
+			t.Errorf("have %q, want %q", have, want)
+		}
+	}
+
+	{
+		dest := ""
+		if err := conn.QueryRow("select $1::uuid", &f).Scan(&dest); err != nil {
+			t.Errorf("Unexpected failure scanning: %v", err)
+		}
+		if have, want := dest, f; have != want {
+			t.Errorf("have %q, want %q", have, want)
+		}
+	}
+
+	{
+		dest := pgx.NullString{}
+		if err := conn.QueryRow("select $1::uuid", &f).Scan(&dest); err != nil {
+			t.Errorf("Unexpected failure scanning: %v", err)
+		}
+		if have, want := dest, (pgx.NullString{String: f, Valid: true}); have != want {
+			t.Errorf("have %+v, want %+v", have, want)
+		}
 	}
 }
