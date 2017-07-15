@@ -10,7 +10,7 @@ General release is planned for July. `v3` is considered to be stable in the
 sense of lack of known bugs, but the API is not considered stable until general
 release. No further changes are planned, but the beta process may surface
 desirable changes. If possible API changes are acceptable, then `v3` is the
-recommented branch for new development. Regardless, please lock to the `v2` or
+recommended branch for new development. Regardless, please lock to the `v2` or
 `v3` branch as when `v3` is released breaking changes will be applied to the
 master branch.
 
