@@ -117,11 +117,11 @@ particular:
 
 Null Mapping
 
-pgx can map nulls in two ways. The first is Null* types that have a data field
-and a valid field. They work in a similar fashion to database/sql. The second
-is to use a pointer to a pointer.
+pgx can map nulls in two ways. The first is package pgtype provides types that
+have a data field and a null indicator field. They work in a similar fashion to
+database/sql. The second is to use a pointer to a pointer.
 
-    var foo pgx.NullString
+    var foo pgtype.Varchar
     var bar *string
     err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&a, &b)
     if err != nil {
@@ -133,13 +133,8 @@ Array Mapping
 pgx maps between int16, int32, int64, float32, float64, and string Go slices
 and the equivalent PostgreSQL array type. Go slices of native types do not
 support nulls, so if a PostgreSQL array that contains a null is read into a
-native Go slice an error will occur.
-
-Hstore Mapping
-
-pgx includes an Hstore type and a NullHstore type. Hstore is simply a
-map[string]string and is preferred when the hstore contains no nulls. NullHstore
-follows the Null* pattern and supports null values.
+native Go slice an error will occur. The pgtype package includes many more
+array types for PostgreSQL types that do not directly map to native Go types.
 
 JSON and JSONB Mapping
 
