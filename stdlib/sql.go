@@ -71,7 +71,7 @@ var (
 var databaseSqlOids map[pgx.Oid]bool
 
 func init() {
-	d := &Driver{}
+	d := &Driver{name: "pgx"}
 	sql.Register("pgx", d)
 
 	databaseSqlOids = make(map[pgx.Oid]bool)
@@ -89,6 +89,14 @@ func init() {
 
 type Driver struct {
 	Pool *pgx.ConnPool
+	name string
+}
+
+// Get the name used to register this driver instance with the sql package. Drivers initialized via OpenFromConnPool
+// do not have a stable driver name. The driver name is required when integrating with libraries that are designed for
+// idiomatic use of the sql package.
+func (d *Driver) Name() string {
+	return d.name
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
@@ -125,12 +133,11 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 //
 // pool connection size must be at least 2.
 func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
-	d := &Driver{Pool: pool}
-
 	openFromConnPoolCountMu.Lock()
 	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
 	openFromConnPoolCount++
 	openFromConnPoolCountMu.Unlock()
+	d := &Driver{Pool: pool, name: name}
 
 	sql.Register(name, d)
 	db, err := sql.Open(name, "")
