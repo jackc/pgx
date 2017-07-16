@@ -13,6 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/shopspring/decimal"
 )
 
 // PostgreSQL oids for common types
@@ -1306,6 +1309,22 @@ func Decode(vr *ValueReader, d interface{}) error {
 		*v = decodeInet(vr)
 	case *[]net.IPNet:
 		*v = decodeInetArray(vr)
+	case *uuid.UUID:
+		if vr.Len() >= 0 {
+			u, err := uuid.FromString(vr.ReadString(vr.Len()))
+			if err != nil {
+				return err
+			}
+			*v = u
+		}
+	case *decimal.Decimal:
+		if vr.Len() >= 0 {
+			d, err := decimal.NewFromString(vr.ReadString(vr.Len()))
+			if err != nil {
+				return err
+			}
+			*v = d
+		}
 	default:
 		if v := reflect.ValueOf(d); v.Kind() == reflect.Ptr {
 			el := v.Elem()
