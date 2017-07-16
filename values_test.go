@@ -565,21 +565,22 @@ func TestNullX(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type allTypes struct {
-		s   pgx.NullString
-		i16 pgx.NullInt16
-		i32 pgx.NullInt32
-		c   pgx.NullChar
-		a   pgx.NullAclItem
-		n   pgx.NullName
-		oid pgx.NullOid
-		xid pgx.NullXid
-		cid pgx.NullCid
-		tid pgx.NullTid
-		i64 pgx.NullInt64
-		f32 pgx.NullFloat32
-		f64 pgx.NullFloat64
-		b   pgx.NullBool
-		t   pgx.NullTime
+		s       pgx.NullString
+		regproc pgx.NullRegProc
+		i16     pgx.NullInt16
+		i32     pgx.NullInt32
+		c       pgx.NullChar
+		a       pgx.NullAclItem
+		n       pgx.NullName
+		oid     pgx.NullOid
+		xid     pgx.NullXid
+		cid     pgx.NullCid
+		tid     pgx.NullTid
+		i64     pgx.NullInt64
+		f32     pgx.NullFloat32
+		f64     pgx.NullFloat64
+		b       pgx.NullBool
+		t       pgx.NullTime
 	}
 
 	var actual, zero allTypes
@@ -592,6 +593,9 @@ func TestNullX(t *testing.T) {
 	}{
 		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: true}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "foo", Valid: true}}},
 		{"select $1::text", []interface{}{pgx.NullString{String: "foo", Valid: false}}, []interface{}{&actual.s}, allTypes{s: pgx.NullString{String: "", Valid: false}}},
+		// Not any string will do when testing regproc. The procedure has to actually exist in PostgreSQL and be uniqe in pg_proc.proname
+		{"select $1::regproc", []interface{}{pgx.NullRegProc{RegProc: "xml", Valid: true}}, []interface{}{&actual.regproc}, allTypes{regproc: pgx.NullRegProc{RegProc: "xml", Valid: true}}},
+		{"select $1::regproc", []interface{}{pgx.NullRegProc{RegProc: "xml", Valid: false}}, []interface{}{&actual.regproc}, allTypes{regproc: pgx.NullRegProc{RegProc: "", Valid: false}}},
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: true}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 1, Valid: true}}},
 		{"select $1::int2", []interface{}{pgx.NullInt16{Int16: 1, Valid: false}}, []interface{}{&actual.i16}, allTypes{i16: pgx.NullInt16{Int16: 0, Valid: false}}},
 		{"select $1::int4", []interface{}{pgx.NullInt32{Int32: 1, Valid: true}}, []interface{}{&actual.i32}, allTypes{i32: pgx.NullInt32{Int32: 1, Valid: true}}},
