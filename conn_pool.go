@@ -367,8 +367,8 @@ func (p *ConnPool) Query(sql string, args ...interface{}) (*Rows, error) {
 	}
 
 	rows, err := c.Query(sql, args...)
+	p.Release(c)
 	if err != nil {
-		p.Release(c)
 		return rows, err
 	}
 
