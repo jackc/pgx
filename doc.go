@@ -62,17 +62,15 @@ Use Exec to execute a query that does not return a result set.
 
 Connection Pool
 
-Connection pool usage is explicit and configurable. In pgx, a connection can
-be created and managed directly, or a connection pool with a configurable
-maximum connections can be used. Also, the connection pool offers an after
-connect hook that allows every connection to be automatically setup before
-being made available in the connection pool. This is especially useful to
-ensure all connections have the same prepared statements available or to
-change any other connection settings.
+Connection pool usage is explicit and configurable. In pgx, a connection can be
+created and managed directly, or a connection pool with a configurable maximum
+connections can be used. The connection pool offers an after connect hook that
+allows every connection to be automatically setup before being made available in
+the connection pool.
 
-It delegates Query, QueryRow, Exec, and Begin functions to an automatically
-checked out and released connection so you can avoid manually acquiring and
-releasing connections when you do not need that level of control.
+It delegates methods such as QueryRow to an automatically checked out and
+released connection so you can avoid manually acquiring and releasing
+connections when you do not need that level of control.
 
     var name string
     var weight int64
@@ -118,7 +116,7 @@ particular:
 Null Mapping
 
 pgx can map nulls in two ways. The first is package pgtype provides types that
-have a data field and a null indicator field. They work in a similar fashion to
+have a data field and a status field. They work in a similar fashion to
 database/sql. The second is to use a pointer to a pointer.
 
     var foo pgtype.Varchar
