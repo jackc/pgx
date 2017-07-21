@@ -442,3 +442,37 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 		t.Error("conn should be dead, but was alive")
 	}
 }
+
+func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select 1 1",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var n int32
+	err = batch.QueryRowResults().Scan(&n)
+	if pgErr, ok := err.(pgx.PgError); !(ok && pgErr.Code == "42601") {
+		t.Errorf("rows.Err() => %v, want error code %v", err, 42601)
+	}
+
+	err = batch.Close()
+	if err == nil {
+		t.Error("Expected error")
+	}
+
+	if conn.IsAlive() {
+		t.Error("conn should be dead, but was alive")
+	}
+}
