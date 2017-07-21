@@ -167,25 +167,28 @@ func (b *Batch) ExecResults() (CommandTag, error) {
 // QueryResults reads the results from the next query in the batch as if the
 // query has been sent with Query.
 func (b *Batch) QueryResults() (*Rows, error) {
+	rows := b.conn.getRows("batch query", nil)
+
 	if b.err != nil {
-		return nil, b.err
+		rows.fatal(b.err)
+		return rows, b.err
 	}
 
 	select {
 	case <-b.ctx.Done():
 		b.die(b.ctx.Err())
-		return nil, b.ctx.Err()
+		rows.fatal(b.err)
+		return rows, b.ctx.Err()
 	default:
 	}
 
 	b.resultsRead++
 
-	rows := b.conn.getRows("batch query", nil)
-
 	fieldDescriptions, err := b.conn.readUntilRowDescription()
 	if err != nil {
-		b.die(b.ctx.Err())
-		return nil, err
+		b.die(err)
+		rows.fatal(b.err)
+		return rows, err
 	}
 
 	rows.batch = b
