@@ -1,6 +1,6 @@
 [![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://godoc.org/github.com/jackc/pgx)
 
-# Pgx
+# Pgx - PostgreSQL Driver and Toolkit
 
 ## Version 3 Beta Branch
 
@@ -22,25 +22,26 @@ performance and more features.
 
 Pgx supports many additional features beyond what is available through database/sql.
 
-* Listen / notify
-* Transaction isolation level control
+* pgtype package includes support for approximately 60 different PostgreSQL types - these are usable in pgx native and any database/sql PostgreSQL adapter
+* Batch queries
+* Single-round trip query mode
 * Full TLS connection control
 * Binary format support for custom types (can be much faster)
 * Copy protocol support for faster bulk data loads
 * Extendable logging support including builtin support for log15 and logrus
 * Configurable connection pool with after connect hooks to do arbitrary connection setup
+* Listen / notify
+* Transaction isolation level control
 * PostgreSQL array to Go slice mapping for integers, floats, and strings
 * Hstore support
 * JSON and JSONB support
 * Maps inet and cidr PostgreSQL types to net.IPNet and net.IP
 * Large object support
-* Null mapping to Null* struct or pointer to pointer.
+* NULL mapping to Null* struct or pointer to pointer.
 * Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
 * Logical replication connections, including receiving WAL and sending standby status updates
 * Notice response handling (this is different than listen / notify)
-* Batch queries
-* Single-round trip query mode
-* pgtype package includes support for approximately 60 different PostgreSQL types - these are usable in pgx native and any database/sql PostgreSQL adapter
+* pgproto3 package can encode and decode the PostgreSQL version 3 wire protocol
 
 ## Performance
 
