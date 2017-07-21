@@ -37,7 +37,7 @@
 * Added batch query operations
 * Added OnNotice
 * github.com/pkg/errors used where possible for errors
-* Added stdlib.DriverConfig which allows directly allows full configuration of underlying pgx connections without needing to use a pgx.ConnPool
+* Added stdlib.DriverConfig which directly allows full configuration of underlying pgx connections without needing to use a pgx.ConnPool
 * Added AcquireConn and ReleaseConn to stdlib to allow acquiring a connection from a database/sql connection.
 
 # 2.11.0 (June 5, 2017)
