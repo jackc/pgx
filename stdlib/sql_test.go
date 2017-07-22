@@ -1211,6 +1211,7 @@ func TestStmtQueryContextCancel(t *testing.T) {
 		pgmock.ExpectMessage(&pgproto3.Sync{}),
 
 		pgmock.SendMessage(&pgproto3.BindComplete{}),
+		pgmock.WaitForClose(),
 	)
 
 	server, err := pgmock.NewServer(script)
