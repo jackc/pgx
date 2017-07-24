@@ -1,4 +1,4 @@
-# Unreleased V3
+# 3.0.0 (July 24, 2017)
 
 ## Changes
 
