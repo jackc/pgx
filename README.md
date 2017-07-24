@@ -37,7 +37,7 @@ See this [gist](https://gist.github.com/jackc/4996e8648a0c59839bff644f49d6e434) 
 
 In addition to the native driver, pgx also includes a number of packages that provide additional functionality.
 
-## github.com/jackc/pgxstdlib
+## github.com/jackc/pgx/stdlib
 
 database/sql compatibility layer for pgx. pgx can be used as a normal database/sql driver, but at any time the native interface may be acquired for more performance or PostgreSQL specific functionality.
 
