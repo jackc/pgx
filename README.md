@@ -2,17 +2,9 @@
 
 # Pgx
 
-## Master Branch
+## V2 Previous Stable
 
-This is the `master` branch which tracks the stable release of the current
-version. At the moment this is `v2`. The `v3` branch which is currently in beta.
-General release is planned for July. `v3` is considered to be stable in the
-sense of lack of known bugs, but the API is not considered stable until general
-release. No further changes are planned, but the beta process may surface
-desirable changes. If possible API changes are acceptable, then `v3` is the
-recommended branch for new development. Regardless, please lock to the `v2` or
-`v3` branch as when `v3` is released breaking changes will be applied to the
-master branch.
+This is the `v2` branch which tracks the previous stable release version. At the moment this is `v2`. New development should use the `v3` branch.
 
 Pgx is a pure Go database connection library designed specifically for
 PostgreSQL. Pgx is different from other drivers such as
