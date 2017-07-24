@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/jackc/pgx"
-	log "gopkg.in/inconshreveable/log15.v2"
 	"io/ioutil"
 	"net/http"
 	"os"
+
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/log/log15adapter"
+	log "gopkg.in/inconshreveable/log15.v2"
 )
 
 var pool *pgx.ConnPool
@@ -89,6 +91,8 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	logger := log15adapter.NewLogger(log.New("module", "pgx"))
+
 	var err error
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig: pgx.ConnConfig{
@@ -96,7 +100,7 @@ func main() {
 			User:     "jack",
 			Password: "jack",
 			Database: "url_shortener",
-			Logger:   log.New("module", "pgx"),
+			Logger:   logger,
 		},
 		MaxConnections: 5,
 		AfterConnect:   afterConnect,

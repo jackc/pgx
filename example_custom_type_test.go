@@ -1,81 +1,74 @@
 package pgx_test
 
 import (
-	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
+	"github.com/pkg/errors"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 
-// NullPoint represents a point that may be null.
-//
-// If Valid is false then the value is NULL.
-type NullPoint struct {
-	X, Y  float64 // Coordinates of point
-	Valid bool    // Valid is true if not NULL
+// Point represents a point that may be null.
+type Point struct {
+	X, Y   float64 // Coordinates of point
+	Status pgtype.Status
 }
 
-func (p *NullPoint) ScanPgx(vr *pgx.ValueReader) error {
-	if vr.Type().DataTypeName != "point" {
-		return pgx.SerializationError(fmt.Sprintf("NullPoint.Scan cannot decode %s (OID %d)", vr.Type().DataTypeName, vr.Type().DataType))
-	}
+func (dst *Point) Set(src interface{}) error {
+	return errors.Errorf("cannot convert %v to Point", src)
+}
 
-	if vr.Len() == -1 {
-		p.X, p.Y, p.Valid = 0, 0, false
+func (dst *Point) Get() interface{} {
+	switch dst.Status {
+	case pgtype.Present:
+		return dst
+	case pgtype.Null:
 		return nil
-	}
-
-	switch vr.Type().FormatCode {
-	case pgx.TextFormatCode:
-		s := vr.ReadString(vr.Len())
-		match := pointRegexp.FindStringSubmatch(s)
-		if match == nil {
-			return pgx.SerializationError(fmt.Sprintf("Received invalid point: %v", s))
-		}
-
-		var err error
-		p.X, err = strconv.ParseFloat(match[1], 64)
-		if err != nil {
-			return pgx.SerializationError(fmt.Sprintf("Received invalid point: %v", s))
-		}
-		p.Y, err = strconv.ParseFloat(match[2], 64)
-		if err != nil {
-			return pgx.SerializationError(fmt.Sprintf("Received invalid point: %v", s))
-		}
-	case pgx.BinaryFormatCode:
-		return errors.New("binary format not implemented")
 	default:
-		return fmt.Errorf("unknown format %v", vr.Type().FormatCode)
+		return dst.Status
 	}
-
-	p.Valid = true
-	return vr.Err()
 }
 
-func (p NullPoint) FormatCode() int16 { return pgx.TextFormatCode }
+func (src *Point) AssignTo(dst interface{}) error {
+	return errors.Errorf("cannot assign %v to %T", src, dst)
+}
 
-func (p NullPoint) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
-	if !p.Valid {
-		w.WriteInt32(-1)
+func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
+	if src == nil {
+		*dst = Point{Status: pgtype.Null}
 		return nil
 	}
 
-	s := fmt.Sprintf("(%v,%v)", p.X, p.Y)
-	w.WriteInt32(int32(len(s)))
-	w.WriteBytes([]byte(s))
+	s := string(src)
+	match := pointRegexp.FindStringSubmatch(s)
+	if match == nil {
+		return errors.Errorf("Received invalid point: %v", s)
+	}
+
+	x, err := strconv.ParseFloat(match[1], 64)
+	if err != nil {
+		return errors.Errorf("Received invalid point: %v", s)
+	}
+	y, err := strconv.ParseFloat(match[2], 64)
+	if err != nil {
+		return errors.Errorf("Received invalid point: %v", s)
+	}
+
+	*dst = Point{X: x, Y: y, Status: pgtype.Present}
 
 	return nil
 }
 
-func (p NullPoint) String() string {
-	if p.Valid {
-		return fmt.Sprintf("%v, %v", p.X, p.Y)
+func (src *Point) String() string {
+	if src.Status == pgtype.Null {
+		return "null point"
 	}
-	return "null point"
+
+	return fmt.Sprintf("%.1f, %.1f", src.X, src.Y)
 }
 
 func Example_CustomType() {
@@ -85,22 +78,22 @@ func Example_CustomType() {
 		return
 	}
 
-	var p NullPoint
-	err = conn.QueryRow("select null::point").Scan(&p)
+	// Override registered handler for point
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &Point{},
+		Name:  "point",
+		OID:   600,
+	})
+
+	p := &Point{}
+	err = conn.QueryRow("select null::point").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(p)
 
-	err = conn.QueryRow("select point(1.5,2.5)").Scan(&p)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(p)
-
-	err = conn.QueryRow("select $1::point", &NullPoint{X: 0.5, Y: 0.75, Valid: true}).Scan(&p)
+	err = conn.QueryRow("select point(1.5,2.5)").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -109,5 +102,4 @@ func Example_CustomType() {
 	// Output:
 	// null point
 	// 1.5, 2.5
-	// 0.5, 0.75
 }

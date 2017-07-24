@@ -1,11 +1,15 @@
 package pgx_test
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"math/rand"
+	"os"
+	"strconv"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/fake"
 	"github.com/jackc/pgx"
@@ -22,6 +26,8 @@ type queryRower interface {
 }
 
 func TestStressConnPool(t *testing.T) {
+	t.Parallel()
+
 	maxConnections := 8
 	pool := createConnPool(t, maxConnections)
 	defer pool.Close()
@@ -44,14 +50,19 @@ func TestStressConnPool(t *testing.T) {
 		{"listenAndPoolUnlistens", listenAndPoolUnlistens},
 		{"reset", func(p *pgx.ConnPool, n int) error { p.Reset(); return nil }},
 		{"poolPrepareUseAndDeallocate", poolPrepareUseAndDeallocate},
+		{"canceledQueryExContext", canceledQueryExContext},
+		{"canceledExecExContext", canceledExecExContext},
 	}
 
-	var timer *time.Timer
-	if testing.Short() {
-		timer = time.NewTimer(5 * time.Second)
-	} else {
-		timer = time.NewTimer(60 * time.Second)
+	actionCount := 1000
+	if s := os.Getenv("STRESS_FACTOR"); s != "" {
+		stressFactor, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			t.Fatalf("failed to parse STRESS_FACTOR: %v", s)
+		}
+		actionCount *= int(stressFactor)
 	}
+
 	workerCount := 16
 
 	workChan := make(chan int)
@@ -63,7 +74,7 @@ func TestStressConnPool(t *testing.T) {
 			action := actions[rand.Intn(len(actions))]
 			err := action.fn(pool, n)
 			if err != nil {
-				errChan <- err
+				errChan <- errors.Errorf("%s: %v", action.name, err)
 				break
 			}
 		}
@@ -74,11 +85,8 @@ func TestStressConnPool(t *testing.T) {
 		go work()
 	}
 
-	var stop bool
-	for i := 0; !stop; i++ {
+	for i := 0; i < actionCount; i++ {
 		select {
-		case <-timer.C:
-			stop = true
 		case workChan <- i:
 		case err := <-errChan:
 			close(workChan)
@@ -89,42 +97,6 @@ func TestStressConnPool(t *testing.T) {
 
 	for i := 0; i < workerCount; i++ {
 		<-doneChan
-	}
-}
-
-func TestStressTLSConnection(t *testing.T) {
-	t.Parallel()
-
-	if tlsConnConfig == nil {
-		t.Skip("Skipping due to undefined tlsConnConfig")
-	}
-
-	if testing.Short() {
-		t.Skip("Skipping due to testing -short")
-	}
-
-	conn, err := pgx.Connect(*tlsConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-	defer conn.Close()
-
-	for i := 0; i < 50; i++ {
-		sql := `select * from generate_series(1, $1)`
-
-		rows, err := conn.Query(sql, 2000000)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		var n int32
-		for rows.Next() {
-			rows.Scan(&n)
-		}
-
-		if rows.Err() != nil {
-			t.Fatalf("queryCount: %d, Row number: %d. %v", i, n, rows.Err())
-		}
 	}
 }
 
@@ -241,8 +213,9 @@ func listenAndPoolUnlistens(pool *pgx.ConnPool, actionNum int) error {
 		return err
 	}
 
-	_, err = conn.WaitForNotification(100 * time.Millisecond)
-	if err == pgx.ErrNotificationTimeout {
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	_, err = conn.WaitForNotification(ctx)
+	if err == context.DeadlineExceeded {
 		return nil
 	}
 	return err
@@ -263,7 +236,7 @@ func poolPrepareUseAndDeallocate(pool *pgx.ConnPool, actionNum int) error {
 	}
 
 	if s != "hello" {
-		return fmt.Errorf("Prepared statement did not return expected value: %v", s)
+		return errors.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
 	return pool.Deallocate(psName)
@@ -343,4 +316,44 @@ func txMultipleQueries(pool *pgx.ConnPool, actionNum int) error {
 	}
 
 	return tx.Commit()
+}
+
+func canceledQueryExContext(pool *pgx.ConnPool, actionNum int) error {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
+		cancelFunc()
+	}()
+
+	rows, err := pool.QueryEx(ctx, "select pg_sleep(2)", nil)
+	if err == context.Canceled {
+		return nil
+	} else if err != nil {
+		return errors.Errorf("Only allowed error is context.Canceled, got %v", err)
+	}
+
+	for rows.Next() {
+		return errors.New("should never receive row")
+	}
+
+	if rows.Err() != context.Canceled {
+		return errors.Errorf("Expected context.Canceled error, got %v", rows.Err())
+	}
+
+	return nil
+}
+
+func canceledExecExContext(pool *pgx.ConnPool, actionNum int) error {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
+		cancelFunc()
+	}()
+
+	_, err := pool.ExecEx(ctx, "select pg_sleep(2)", nil)
+	if err != context.Canceled {
+		return errors.Errorf("Expected context.Canceled error, got %v", err)
+	}
+
+	return nil
 }

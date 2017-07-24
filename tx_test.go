@@ -1,9 +1,14 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
+	"context"
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgmock"
+	"github.com/jackc/pgx/pgproto3"
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {
@@ -107,15 +112,15 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer pool.Exec(`drop table tx_serializable_sums`)
 
-	tx1, err := pool.BeginIso(pgx.Serializable)
+	tx1, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginIso failed: %v", err)
+		t.Fatalf("BeginEx failed: %v", err)
 	}
 	defer tx1.Rollback()
 
-	tx2, err := pool.BeginIso(pgx.Serializable)
+	tx2, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginIso failed: %v", err)
+		t.Fatalf("BeginEx failed: %v", err)
 	}
 	defer tx2.Rollback()
 
@@ -182,20 +187,20 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	}
 }
 
-func TestBeginIso(t *testing.T) {
+func TestBeginExIsoLevels(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	isoLevels := []string{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
+	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
-		tx, err := conn.BeginIso(iso)
+		tx, err := conn.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: iso})
 		if err != nil {
-			t.Fatalf("conn.BeginIso failed: %v", err)
+			t.Fatalf("conn.BeginEx failed: %v", err)
 		}
 
-		var level string
+		var level pgx.TxIsoLevel
 		conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
 		if level != iso {
 			t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
@@ -208,38 +213,120 @@ func TestBeginIso(t *testing.T) {
 	}
 }
 
-func TestTxAfterClose(t *testing.T) {
+func TestBeginExReadOnly(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
+
+	tx, err := conn.BeginEx(context.Background(), &pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	if err != nil {
+		t.Fatalf("conn.BeginEx failed: %v", err)
+	}
+	defer tx.Rollback()
+
+	_, err = conn.Exec("create table foo(id serial primary key)")
+	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "25006" {
+		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
+	}
+}
+
+func TestConnBeginExContextCancel(t *testing.T) {
+	t.Parallel()
+
+	script := &pgmock.Script{
+		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+	}
+	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
+	script.Steps = append(script.Steps,
+		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
+		pgmock.WaitForClose(),
+	)
+
+	server, err := pgmock.NewServer(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- server.ServeOne()
+	}()
+
+	mockConfig, err := pgx.ParseURI(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn := mustConnect(t, mockConfig)
+
+	ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+
+	_, err = conn.BeginEx(ctx, nil)
+	if err != context.DeadlineExceeded {
+		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
+	}
+
+	if conn.IsAlive() {
+		t.Error("expected conn to be dead after BeginEx failure")
+	}
+
+	if err := <-errChan; err != nil {
+		t.Errorf("mock server err: %v", err)
+	}
+}
+
+func TestTxCommitExCancel(t *testing.T) {
+	t.Parallel()
+
+	script := &pgmock.Script{
+		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
+	}
+	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
+	script.Steps = append(script.Steps,
+		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
+		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: "BEGIN"}),
+		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'T'}),
+		pgmock.WaitForClose(),
+	)
+
+	server, err := pgmock.NewServer(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- server.ServeOne()
+	}()
+
+	mockConfig, err := pgx.ParseURI(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	conn := mustConnect(t, mockConfig)
+	defer conn.Close()
 
 	tx, err := conn.Begin()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	var zeroTime, t1, t2 time.Time
-	tx.AfterClose(func(tx *pgx.Tx) {
-		t1 = time.Now()
-	})
-
-	tx.AfterClose(func(tx *pgx.Tx) {
-		t2 = time.Now()
-	})
-
-	tx.Rollback()
-
-	if t1 == zeroTime {
-		t.Error("First Tx.AfterClose callback not called")
+	ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	err = tx.CommitEx(ctx)
+	if err != context.DeadlineExceeded {
+		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
 	}
 
-	if t2 == zeroTime {
-		t.Error("Second Tx.AfterClose callback not called")
+	if conn.IsAlive() {
+		t.Error("expected conn to be dead after CommitEx failure")
 	}
 
-	if t1.Before(t2) {
-		t.Errorf("AfterClose callbacks called out of order: %v, %v", t1, t2)
+	if err := <-errChan; err != nil {
+		t.Errorf("mock server err: %v", err)
 	}
 }
 

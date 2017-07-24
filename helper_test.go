@@ -1,8 +1,9 @@
 package pgx_test
 
 import (
-	"github.com/jackc/pgx"
 	"testing"
+
+	"github.com/jackc/pgx"
 )
 
 func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
@@ -20,7 +21,6 @@ func mustReplicationConnect(t testing.TB, config pgx.ConnConfig) *pgx.Replicatio
 	}
 	return conn
 }
-
 
 func closeConn(t testing.TB, conn *pgx.Conn) {
 	err := conn.Close()

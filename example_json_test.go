@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"fmt"
+
 	"github.com/jackc/pgx"
 )
 
@@ -9,13 +10,6 @@ func Example_JSON() {
 	conn, err := pgx.Connect(*defaultConnConfig)
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
-		return
-	}
-
-	if _, ok := conn.PgTypes[pgx.JsonOid]; !ok {
-		// No JSON type -- must be running against very old PostgreSQL
-		// Pretend it works
-		fmt.Println("John", 42)
 		return
 	}
 

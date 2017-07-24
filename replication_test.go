@@ -1,13 +1,15 @@
 package pgx_test
 
 import (
+	"context"
 	"fmt"
-	"github.com/jackc/pgx"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -37,8 +39,6 @@ func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 // - Checks the wal position of the slot on the server to make sure
 //   the update succeeded
 func TestSimpleReplicationConnection(t *testing.T) {
-	t.Parallel()
-
 	var err error
 
 	if replicationConnConfig == nil {
@@ -46,14 +46,19 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	}
 
 	conn := mustConnect(t, *replicationConnConfig)
-	defer closeConn(t, conn)
+	defer func() {
+		// Ensure replication slot is destroyed, but don't check for errors as it
+		// should have already been destroyed.
+		conn.Exec("select pg_drop_replication_slot('pgx_test')")
+		closeConn(t, conn)
+	}()
 
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
 	err = replicationConn.CreateReplicationSlot("pgx_test", "test_decoding")
 	if err != nil {
-		t.Logf("replication slot create failed: %v", err)
+		t.Fatalf("replication slot create failed: %v", err)
 	}
 
 	// Do a simple change so we can get some wal data
@@ -67,71 +72,63 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		t.Fatalf("Failed to start replication: %v", err)
 	}
 
-	var i int32
 	var insertedTimes []int64
-	for i < 5 {
+	currentTime := time.Now().Unix()
+
+	for i := 0; i < 5; i++ {
 		var ct pgx.CommandTag
-		currentTime := time.Now().Unix()
 		insertedTimes = append(insertedTimes, currentTime)
 		ct, err = conn.Exec("insert into replication_test(a) values($1)", currentTime)
 		if err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}
 		t.Logf("Inserted %d rows", ct.RowsAffected())
-		i++
+		currentTime++
 	}
 
-	i = 0
 	var foundTimes []int64
 	var foundCount int
 	var maxWal uint64
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
 	for {
 		var message *pgx.ReplicationMessage
 
-		message, err = replicationConn.WaitForReplicationMessage(time.Duration(1 * time.Second))
+		message, err = replicationConn.WaitForReplicationMessage(ctx)
 		if err != nil {
-			if err != pgx.ErrNotificationTimeout {
-				t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
-			}
+			t.Fatalf("Replication failed: %v %s", err, reflect.TypeOf(err))
 		}
-		if message != nil {
-			if message.WalMessage != nil {
-				// The waldata payload with the test_decoding plugin looks like:
-				// public.replication_test: INSERT: a[integer]:2
-				// What we wanna do here is check that once we find one of our inserted times,
-				// that they occur in the wal stream in the order we executed them.
-				walString := string(message.WalMessage.WalData)
-				if strings.Contains(walString, "public.replication_test: INSERT") {
-					stringParts := strings.Split(walString, ":")
-					offset, err := strconv.ParseInt(stringParts[len(stringParts)-1], 10, 64)
-					if err != nil {
-						t.Fatalf("Failed to parse walString %s", walString)
-					}
-					if foundCount > 0 || offset == insertedTimes[0] {
-						foundTimes = append(foundTimes, offset)
-						foundCount++
-					}
-				}
-				if message.WalMessage.WalStart > maxWal {
-					maxWal = message.WalMessage.WalStart
-				}
 
+		if message.WalMessage != nil {
+			// The waldata payload with the test_decoding plugin looks like:
+			// public.replication_test: INSERT: a[integer]:2
+			// What we wanna do here is check that once we find one of our inserted times,
+			// that they occur in the wal stream in the order we executed them.
+			walString := string(message.WalMessage.WalData)
+			if strings.Contains(walString, "public.replication_test: INSERT") {
+				stringParts := strings.Split(walString, ":")
+				offset, err := strconv.ParseInt(stringParts[len(stringParts)-1], 10, 64)
+				if err != nil {
+					t.Fatalf("Failed to parse walString %s", walString)
+				}
+				if foundCount > 0 || offset == insertedTimes[0] {
+					foundTimes = append(foundTimes, offset)
+					foundCount++
+				}
+				if foundCount == len(insertedTimes) {
+					break
+				}
 			}
-			if message.ServerHeartbeat != nil {
-				t.Logf("Got heartbeat: %s", message.ServerHeartbeat)
+			if message.WalMessage.WalStart > maxWal {
+				maxWal = message.WalMessage.WalStart
 			}
-		} else {
-			t.Log("Timed out waiting for wal message")
-			i++
-		}
-		if i > 3 {
-			t.Log("Actual timeout")
-			break
-		}
-	}
 
-	if foundCount != len(insertedTimes) {
-		t.Fatalf("Failed to find all inserted time values in WAL stream (found %d expected %d)", foundCount, len(insertedTimes))
+		}
+		if message.ServerHeartbeat != nil {
+			t.Logf("Got heartbeat: %s", message.ServerHeartbeat)
+		}
 	}
 
 	for i := range insertedTimes {
@@ -249,11 +246,7 @@ func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
 		if e != nil {
 			t.Error(e)
 		}
-		timeline, e := strconv.Atoi(values[1].(string))
-		if e != nil {
-			t.Error(e)
-		}
-		return timeline
+		return int(values[1].(int32))
 	}
 	t.Fatal("Failed to read timeline")
 	return -1

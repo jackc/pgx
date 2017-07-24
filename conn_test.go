@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 func TestConnect(t *testing.T) {
@@ -27,12 +29,8 @@ func TestConnect(t *testing.T) {
 		t.Error("Runtime parameters not stored")
 	}
 
-	if conn.Pid == 0 {
+	if conn.PID() == 0 {
 		t.Error("Backend PID not stored")
-	}
-
-	if conn.SecretKey == 0 {
-		t.Error("Backend secret key not stored")
 	}
 
 	var currentDB string
@@ -752,7 +750,7 @@ func TestParseConnectionString(t *testing.T) {
 }
 
 func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
@@ -1035,6 +1033,169 @@ func TestExecFailure(t *testing.T) {
 	}
 }
 
+func TestExecExContextWithoutCancelation(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(id integer primary key);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+}
+
+func TestExecExContextFailureWithoutCancelation(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	if _, err := conn.ExecEx(ctx, "selct;", nil); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+
+	rows, _ := conn.Query("select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
+	}
+}
+
+func TestExecExContextCancelationCancelsQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFunc()
+	}()
+
+	_, err := conn.ExecEx(ctx, "select pg_sleep(60)", nil)
+	if err != context.Canceled {
+		t.Fatalf("Expected context.Canceled err, got %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestExecExExtendedProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	commandTag, err = conn.ExecEx(
+		ctx,
+		"insert into foo(name) values($1);",
+		nil,
+		"bar",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestExecExSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+
+	commandTag, err = conn.ExecEx(
+		ctx,
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{SimpleProtocol: true},
+		"bar'; drop table foo;--",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+}
+
+func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
+
+	commandTag, err := conn.ExecEx(
+		context.Background(),
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.VarcharOID}},
+		"bar'; drop table foo;--",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if commandTag != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+}
+
+func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
+
+	_, err := conn.ExecEx(
+		context.Background(),
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.Int4OID}},
+		"bar'; drop table foo;--",
+	)
+	if err == nil {
+		t.Fatal("expected error but got none")
+	}
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
@@ -1206,7 +1367,7 @@ func TestPrepareEx(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.PrepareEx("test", "select $1", &pgx.PrepareExOptions{ParameterOids: []pgx.Oid{pgx.TextOid}})
+	_, err := conn.PrepareEx(context.Background(), "test", "select $1", &pgx.PrepareExOptions{ParameterOIDs: []pgtype.OID{pgtype.TextOID}})
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return
@@ -1244,7 +1405,7 @@ func TestListenNotify(t *testing.T) {
 	mustExec(t, notifier, "notify chat")
 
 	// when notification is waiting on the socket to be read
-	notification, err := listener.WaitForNotification(time.Second)
+	notification, err := listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1259,7 +1420,10 @@ func TestListenNotify(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
-	notification, err = listener.WaitForNotification(0)
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	notification, err = listener.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1268,8 +1432,9 @@ func TestListenNotify(t *testing.T) {
 	}
 
 	// when timeout occurs
-	notification, err = listener.WaitForNotification(time.Millisecond)
-	if err != pgx.ErrNotificationTimeout {
+	ctx, _ = context.WithTimeout(context.Background(), time.Millisecond)
+	notification, err = listener.WaitForNotification(ctx)
+	if err != context.DeadlineExceeded {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 	if notification != nil {
@@ -1278,7 +1443,7 @@ func TestListenNotify(t *testing.T) {
 
 	// listener can listen again after a timeout
 	mustExec(t, notifier, "notify chat")
-	notification, err = listener.WaitForNotification(time.Second)
+	notification, err = listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1303,7 +1468,7 @@ func TestUnlistenSpecificChannel(t *testing.T) {
 	mustExec(t, notifier, "notify unlisten_test")
 
 	// when notification is waiting on the socket to be read
-	notification, err := listener.WaitForNotification(time.Second)
+	notification, err := listener.WaitForNotification(context.Background())
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1323,8 +1488,10 @@ func TestUnlistenSpecificChannel(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
-	notification, err = listener.WaitForNotification(100 * time.Millisecond)
-	if err != pgx.ErrNotificationTimeout {
+
+	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	notification, err = listener.WaitForNotification(ctx)
+	if err != context.DeadlineExceeded {
 		t.Errorf("WaitForNotification returned the wrong kind of error: %v", err)
 	}
 }
@@ -1376,13 +1543,9 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		}
 	}()
 
-	notifierDone := make(chan bool)
 	go func() {
 		conn := mustConnect(t, *defaultConnConfig)
 		defer closeConn(t, conn)
-		defer func() {
-			notifierDone <- true
-		}()
 
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
@@ -1406,7 +1569,8 @@ func TestListenNotifySelfNotification(t *testing.T) {
 	// Notify self and WaitForNotification immediately
 	mustExec(t, conn, "notify self")
 
-	notification, err := conn.WaitForNotification(time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second)
+	notification, err := conn.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1423,7 +1587,8 @@ func TestListenNotifySelfNotification(t *testing.T) {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
 
-	notification, err = conn.WaitForNotification(time.Second)
+	ctx, _ = context.WithTimeout(context.Background(), time.Second)
+	notification, err = conn.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
 	}
@@ -1474,7 +1639,7 @@ func TestFatalRxError(t *testing.T) {
 	}
 	defer otherConn.Close()
 
-	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.Pid); err != nil {
+	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID()); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -1500,7 +1665,7 @@ func TestFatalTxError(t *testing.T) {
 			}
 			defer otherConn.Close()
 
-			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.Pid)
+			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.PID())
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
@@ -1611,26 +1776,17 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 }
 
 type testLog struct {
-	lvl int
-	msg string
-	ctx []interface{}
+	lvl  pgx.LogLevel
+	msg  string
+	data map[string]interface{}
 }
 
 type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Debug(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelDebug, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Info(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelInfo, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Warn(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelWarn, msg: msg, ctx: ctx})
-}
-func (l *testLogger) Error(msg string, ctx ...interface{}) {
-	l.logs = append(l.logs, testLog{lvl: pgx.LogLevelError, msg: msg, ctx: ctx})
+func (l *testLogger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+	l.logs = append(l.logs, testLog{lvl: level, msg: msg, data: data})
 }
 
 func TestSetLogger(t *testing.T) {
@@ -1741,4 +1897,31 @@ func TestIdentifierSanitize(t *testing.T) {
 			t.Errorf("%d. Expected Sanitize %v to return %v but it was %v", i, tt.ident, tt.expected, qval)
 		}
 	}
+}
+
+func TestConnOnNotice(t *testing.T) {
+	t.Parallel()
+
+	var msg string
+
+	connConfig := *defaultConnConfig
+	connConfig.OnNotice = func(c *pgx.Conn, notice *pgx.Notice) {
+		msg = notice.Message
+	}
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(`do $$
+begin
+  raise notice 'hello, world';
+end$$;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if msg != "hello, world" {
+		t.Errorf("msg => %v, want %v", msg, "hello, world")
+	}
+
+	ensureConnValid(t, conn)
 }
