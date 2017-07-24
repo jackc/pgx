@@ -1,12 +1,12 @@
 package pgx_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/pkg/errors"
 )
 
 func TestConnCopyFromSmall(t *testing.T) {
@@ -26,7 +26,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 	)`)
 
 	inputRows := [][]interface{}{
-		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)},
+		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
 
@@ -83,7 +83,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 	inputRows := [][]interface{}{}
 
 	for i := 0; i < 10000; i++ {
-		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local), []byte{111, 111, 111, 111}})
+		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local), []byte{111, 111, 111, 111}})
 	}
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, pgx.CopyFromRows(inputRows))
@@ -125,8 +125,8 @@ func TestConnCopyFromJSON(t *testing.T) {
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
 
-	for _, oid := range []pgx.Oid{pgx.JsonOid, pgx.JsonbOid} {
-		if _, ok := conn.PgTypes[oid]; !ok {
+	for _, typeName := range []string{"json", "jsonb"} {
+		if _, ok := conn.ConnInfo.DataTypeForName(typeName); !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 	}
@@ -172,6 +172,28 @@ func TestConnCopyFromJSON(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+type clientFailSource struct {
+	count int
+	err   error
+}
+
+func (cfs *clientFailSource) Next() bool {
+	cfs.count++
+	return cfs.count < 100
+}
+
+func (cfs *clientFailSource) Values() ([]interface{}, error) {
+	if cfs.count == 3 {
+		cfs.err = errors.Errorf("client error")
+		return nil, cfs.err
+	}
+	return []interface{}{make([]byte, 100000)}, nil
+}
+
+func (cfs *clientFailSource) Err() error {
+	return cfs.err
 }
 
 func TestConnCopyFromFailServerSideMidway(t *testing.T) {
@@ -302,28 +324,6 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-type clientFailSource struct {
-	count int
-	err   error
-}
-
-func (cfs *clientFailSource) Next() bool {
-	cfs.count++
-	return cfs.count < 100
-}
-
-func (cfs *clientFailSource) Values() ([]interface{}, error) {
-	if cfs.count == 3 {
-		cfs.err = fmt.Errorf("client error")
-		return nil, cfs.err
-	}
-	return []interface{}{make([]byte, 100000)}, nil
-}
-
-func (cfs *clientFailSource) Err() error {
-	return cfs.err
-}
-
 func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 	t.Parallel()
 
@@ -381,7 +381,7 @@ func (cfs *clientFinalErrSource) Values() ([]interface{}, error) {
 }
 
 func (cfs *clientFinalErrSource) Err() error {
-	return fmt.Errorf("final error")
+	return errors.Errorf("final error")
 }
 
 func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {

@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -9,7 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
-
+	"github.com/jackc/pgx/pgtype"
 	"github.com/shopspring/decimal"
 )
 
@@ -46,6 +47,58 @@ func TestConnQueryScan(t *testing.T) {
 	}
 }
 
+func TestConnQueryScanWithManyColumns(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	columnCount := 1000
+	sql := "select "
+	for i := 0; i < columnCount; i++ {
+		if i > 0 {
+			sql += ","
+		}
+		sql += fmt.Sprintf(" %d", i)
+	}
+	sql += " from generate_series(1,5)"
+
+	dest := make([]int, columnCount)
+
+	var rowCount int
+
+	rows, err := conn.Query(sql)
+	if err != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		destPtrs := make([]interface{}, columnCount)
+		for i := range destPtrs {
+			destPtrs[i] = &dest[i]
+		}
+		if err := rows.Scan(destPtrs...); err != nil {
+			t.Fatalf("rows.Scan failed: %v", err)
+		}
+		rowCount++
+
+		for i := range dest {
+			if dest[i] != i {
+				t.Errorf("dest[%d] => %d, want %d", i, dest[i], i)
+			}
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+
+	if rowCount != 5 {
+		t.Errorf("rowCount => %d, want %d", rowCount, 5)
+	}
+}
+
 func TestConnQueryValues(t *testing.T) {
 	t.Parallel()
 
@@ -54,7 +107,7 @@ func TestConnQueryValues(t *testing.T) {
 
 	var rowCount int32
 
-	rows, err := conn.Query("select 'foo'::text, 'bar'::varchar, n, null, n::oid from generate_series(1,$1) n", 10)
+	rows, err := conn.Query("select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -85,7 +138,7 @@ func TestConnQueryValues(t *testing.T) {
 			t.Errorf(`Expected values[3] to be %v, but it was %d`, nil, values[3])
 		}
 
-		if values[4] != pgx.Oid(rowCount) {
+		if values[4] != rowCount {
 			t.Errorf(`Expected values[4] to be %d, but it was %d`, rowCount, values[4])
 		}
 	}
@@ -97,6 +150,23 @@ func TestConnQueryValues(t *testing.T) {
 	if rowCount != 10 {
 		t.Error("Select called onDataRow wrong number of times")
 	}
+}
+
+// https://github.com/jackc/pgx/issues/228
+func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var s string
+
+	err := conn.QueryRow("select 1").Scan(&s)
+	if err == nil || !(strings.Contains(err.Error(), "cannot decode binary value into string") || strings.Contains(err.Error(), "cannot assign")) {
+		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
+	}
+
+	ensureConnValid(t, conn)
 }
 
 // Test that a connection stays valid when query results are closed early
@@ -181,7 +251,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" {
+	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -254,105 +324,6 @@ func TestConnQueryScanIgnoreColumn(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnQueryScanner(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query("select null::int8, 1::int8")
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var n, m pgx.NullInt64
-	err = rows.Scan(&n, &m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if n.Valid {
-		t.Error("Null should not be valid, but it was")
-	}
-
-	if !m.Valid {
-		t.Error("1 should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-type pgxNullInt64 struct {
-	Int64 int64
-	Valid bool // Valid is true if Int64 is not NULL
-}
-
-func (n *pgxNullInt64) ScanPgx(vr *pgx.ValueReader) error {
-	if vr.Type().DataType != pgx.Int8Oid {
-		return pgx.SerializationError(fmt.Sprintf("pgxNullInt64.Scan cannot decode OID %d", vr.Type().DataType))
-	}
-
-	if vr.Len() == -1 {
-		n.Int64, n.Valid = 0, false
-		return nil
-	}
-	n.Valid = true
-
-	err := pgx.Decode(vr, &n.Int64)
-	if err != nil {
-		return err
-	}
-	return vr.Err()
-}
-
-func TestConnQueryPgxScanner(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query("select null::int8, 1::int8")
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var n, m pgxNullInt64
-	err = rows.Scan(&n, &m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if n.Valid {
-		t.Error("Null should not be valid, but it was")
-	}
-
-	if !m.Valid {
-		t.Error("1 should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	t.Parallel()
 
@@ -384,42 +355,6 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 }
 
-func TestConnQueryEncoder(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	n := pgx.NullInt64{Int64: 1, Valid: true}
-
-	rows, err := conn.Query("select $1::int8", &n)
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	ok := rows.Next()
-	if !ok {
-		t.Fatal("rows.Next terminated early")
-	}
-
-	var m pgx.NullInt64
-	err = rows.Scan(&m)
-	if err != nil {
-		t.Fatalf("rows.Scan failed: %v", err)
-	}
-	rows.Close()
-
-	if !m.Valid {
-		t.Error("m should be valid, but it wasn't")
-	}
-
-	if m.Int64 != 1 {
-		t.Errorf("m.Int64 should have been 1, but it was %v", m.Int64)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryEncodeError(t *testing.T) {
 	t.Parallel()
 
@@ -442,35 +377,6 @@ func TestQueryEncodeError(t *testing.T) {
 	}
 }
 
-// Ensure that an argument that implements Encoder works when the parameter type
-// is a core type.
-type coreEncoder struct{}
-
-func (n coreEncoder) FormatCode() int16 { return pgx.TextFormatCode }
-
-func (n *coreEncoder) Encode(w *pgx.WriteBuf, oid pgx.Oid) error {
-	w.WriteInt32(int32(2))
-	w.WriteBytes([]byte("42"))
-	return nil
-}
-
-func TestQueryEncodeCoreTextFormatError(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var n int32
-	err := conn.QueryRow("select $1::integer", &coreEncoder{}).Scan(&n)
-	if err != nil {
-		t.Fatalf("Unexpected conn.QueryRow error: %v", err)
-	}
-
-	if n != 42 {
-		t.Errorf("Expected 42, got %v", n)
-	}
-}
-
 func TestQueryRowCoreTypes(t *testing.T) {
 	t.Parallel()
 
@@ -483,7 +389,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		f64 float64
 		b   bool
 		t   time.Time
-		oid pgx.Oid
+		oid pgtype.OID
 	}
 
 	var actual, zero allTypes
@@ -499,9 +405,9 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
 		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
 		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
-		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.Local)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.Local)}},
-		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.Local)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.Local)}},
-		{"select $1::oid", []interface{}{pgx.Oid(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
+		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
+		{"select $1::oid", []interface{}{pgtype.OID(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {
@@ -522,9 +428,6 @@ func TestQueryRowCoreTypes(t *testing.T) {
 		err = conn.QueryRow(tt.sql, nil).Scan(tt.scanArgs...)
 		if err == nil {
 			t.Errorf("%d. Expected null to cause error, but it didn't (sql -> %v)", i, tt.sql)
-		}
-		if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-			t.Errorf(`%d. Expected null to cause error "Cannot decode null..." but it was %v (sql -> %v)`, i, err, tt.sql)
 		}
 
 		ensureConnValid(t, conn)
@@ -834,7 +737,6 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}{
 		{"select $1::text", "Jack", []byte("Jack")},
 		{"select $1::text", []byte("Jack"), []byte("Jack")},
-		{"select $1::int4", int32(239023409), []byte{14, 63, 53, 49}},
 		{"select $1::varchar", []byte("Jack"), []byte("Jack")},
 		{"select $1::bytea", []byte{0, 15, 255, 17}, []byte{0, 15, 255, 17}},
 	}
@@ -855,35 +757,24 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}
 }
 
-func TestQueryRowByteSliceArgument(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	sql := "select $1::int4"
-	queryArg := []byte{14, 63, 53, 49}
-	expected := int32(239023409)
-
-	var actual int32
-
-	err := conn.QueryRow(sql, queryArg).Scan(&actual)
-	if err != nil {
-		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
-	}
-
-	if expected != actual {
-		t.Errorf("Expected %v, got %v (sql -> %v)", expected, actual, sql)
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryRowUnknownType(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
 	defer closeConn(t, conn)
+
+	// Clear existing type mappings
+	conn.ConnInfo = pgtype.NewConnInfo()
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &pgtype.GenericText{},
+		Name:  "point",
+		OID:   600,
+	})
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &pgtype.Int4{},
+		Name:  "int4",
+		OID:   pgtype.Int4OID,
+	})
 
 	sql := "select $1::point"
 	expected := "(1,0)"
@@ -925,8 +816,8 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1", []interface{}{"Jack"}, []interface{}{&actual.i16}, "could not determine data type of parameter $1 (SQLSTATE 42P18)"},
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "Cannot decode oid 25 into any integer type"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot encode int8 into oid 600"},
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot decode"},
+		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
 	}
 
 	for i, tt := range tests {
@@ -954,290 +845,6 @@ func TestQueryRowNoResults(t *testing.T) {
 	err := conn.QueryRow("select 1 where 1=0").Scan(&n)
 	if err != pgx.ErrNoRows {
 		t.Errorf("Expected pgx.ErrNoRows, got %v", err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreInt16Slice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []int16
-
-	tests := []struct {
-		sql      string
-		expected []int16
-	}{
-		{"select $1::int2[]", []int16{1, 2, 3, 4, 5}},
-		{"select $1::int2[]", []int16{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{1, 2, 3, 4, 5, null}'::int2[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreInt32Slice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []int32
-
-	tests := []struct {
-		sql      string
-		expected []int32
-	}{
-		{"select $1::int4[]", []int32{1, 2, 3, 4, 5}},
-		{"select $1::int4[]", []int32{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{1, 2, 3, 4, 5, null}'::int4[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreInt64Slice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []int64
-
-	tests := []struct {
-		sql      string
-		expected []int64
-	}{
-		{"select $1::int8[]", []int64{1, 2, 3, 4, 5}},
-		{"select $1::int8[]", []int64{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{1, 2, 3, 4, 5, null}'::int8[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreFloat32Slice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []float32
-
-	tests := []struct {
-		sql      string
-		expected []float32
-	}{
-		{"select $1::float4[]", []float32{1.5, 2.0, 3.5}},
-		{"select $1::float4[]", []float32{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{1.5, 2.0, 3.5, null}'::float4[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreFloat64Slice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []float64
-
-	tests := []struct {
-		sql      string
-		expected []float64
-	}{
-		{"select $1::float8[]", []float64{1.5, 2.0, 3.5}},
-		{"select $1::float8[]", []float64{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{1.5, 2.0, 3.5, null}'::float8[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowCoreStringSlice(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnect(t, *defaultConnConfig)
-	defer closeConn(t, conn)
-
-	var actual []string
-
-	tests := []struct {
-		sql      string
-		expected []string
-	}{
-		{"select $1::text[]", []string{"Adam", "Eve", "UTF-8 Characters Å Æ Ë Ͽ"}},
-		{"select $1::text[]", []string{}},
-		{"select $1::varchar[]", []string{"Adam", "Eve", "UTF-8 Characters Å Æ Ë Ͽ"}},
-		{"select $1::varchar[]", []string{}},
-	}
-
-	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.expected).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v", i, err)
-		}
-
-		if len(actual) != len(tt.expected) {
-			t.Errorf("%d. Expected %v, got %v", i, tt.expected, actual)
-		}
-
-		for j := 0; j < len(actual); j++ {
-			if actual[j] != tt.expected[j] {
-				t.Errorf("%d. Expected actual[%d] to be %v, got %v", i, j, tt.expected[j], actual[j])
-			}
-		}
-
-		ensureConnValid(t, conn)
-	}
-
-	// Check that Scan errors when an array with a null is scanned into a core slice type
-	err := conn.QueryRow("select '{Adam,Eve,NULL}'::text[];").Scan(&actual)
-	if err == nil {
-		t.Error("Expected null to cause error when scanned into slice, but it didn't")
-	}
-	if err != nil && !strings.Contains(err.Error(), "Cannot decode null") {
-		t.Errorf(`Expected null to cause error "Cannot decode null..." but it was %v`, err)
 	}
 
 	ensureConnValid(t, conn)
@@ -1408,6 +1015,411 @@ func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 
 	if expected != actual {
 		t.Errorf("Expected %v, but got %v", expected, actual)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryExContextSuccess(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	rows, err := conn.QueryEx(ctx, "select 42::integer", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result, rowCount int
+	for rows.Next() {
+		err = rows.Scan(&result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rowCount++
+	}
+
+	if rows.Err() != nil {
+		t.Fatal(rows.Err())
+	}
+
+	if rowCount != 1 {
+		t.Fatalf("Expected 1 row, got %d", rowCount)
+	}
+	if result != 42 {
+		t.Fatalf("Expected result 42, got %d", result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryExContextErrorWhileReceivingRows(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	rows, err := conn.QueryEx(ctx, "select 10/(10-n) from generate_series(1, 100) n", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result, rowCount int
+	for rows.Next() {
+		err = rows.Scan(&result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rowCount++
+	}
+
+	if rows.Err() == nil || rows.Err().Error() != "ERROR: division by zero (SQLSTATE 22012)" {
+		t.Fatalf("Expected division by zero error, but got %v", rows.Err())
+	}
+
+	if rowCount != 9 {
+		t.Fatalf("Expected 9 rows, got %d", rowCount)
+	}
+	if result != 10 {
+		t.Fatalf("Expected result 10, got %d", result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryExContextCancelationCancelsQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFunc()
+	}()
+
+	rows, err := conn.QueryEx(ctx, "select pg_sleep(5)", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for rows.Next() {
+		t.Fatal("No rows should ever be ready -- context cancel apparently did not happen")
+	}
+
+	if rows.Err() != context.Canceled {
+		t.Fatalf("Expected context.Canceled error, got %v", rows.Err())
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryRowExContextSuccess(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	var result int
+	err := conn.QueryRowEx(ctx, "select 42::integer", nil).Scan(&result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != 42 {
+		t.Fatalf("Expected result 42, got %d", result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryRowExContextErrorWhileReceivingRow(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	var result int
+	err := conn.QueryRowEx(ctx, "select 10/0", nil).Scan(&result)
+	if err == nil || err.Error() != "ERROR: division by zero (SQLSTATE 22012)" {
+		t.Fatalf("Expected division by zero error, but got %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		cancelFunc()
+	}()
+
+	var result []byte
+	err := conn.QueryRowEx(ctx, "select pg_sleep(5)", nil).Scan(&result)
+	if err != context.Canceled {
+		t.Fatalf("Expected context.Canceled error, got %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	var result int32
+	err := conn.QueryRowEx(
+		context.Background(),
+		"select $1 + $2",
+		&pgx.QueryExOptions{
+			ParameterOIDs:     []pgtype.OID{pgtype.Int4OID, pgtype.Int4OID},
+			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
+		},
+		1, 2,
+	).Scan(&result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result != 3 {
+		t.Fatal("result => %d, want %d", result, 3)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// Test all supported low-level types
+
+	{
+		expected := int64(42)
+		var actual int64
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::int8",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	{
+		expected := float64(1.23)
+		var actual float64
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::float8",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	{
+		expected := true
+		var actual bool
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	{
+		expected := []byte{0, 1, 20, 35, 64, 80, 120, 3, 255, 240, 128, 95}
+		var actual []byte
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::bytea",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if bytes.Compare(actual, expected) != 0 {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	{
+		expected := "test"
+		var actual string
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::text",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	// Test high-level type
+
+	{
+		expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
+		actual := expected
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::circle",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			&expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	// Test multiple args in single query
+
+	{
+		expectedInt64 := int64(234423)
+		expectedFloat64 := float64(-0.2312)
+		expectedBool := true
+		expectedBytes := []byte{255, 0, 23, 16, 87, 45, 9, 23, 45, 223}
+		expectedString := "test"
+		var actualInt64 int64
+		var actualFloat64 float64
+		var actualBool bool
+		var actualBytes []byte
+		var actualString string
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1::int8, $2::float8, $3, $4::bytea, $5::text",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
+		).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
+		if err != nil {
+			t.Error(err)
+		}
+		if expectedInt64 != actualInt64 {
+			t.Errorf("expected %v got %v", expectedInt64, actualInt64)
+		}
+		if expectedFloat64 != actualFloat64 {
+			t.Errorf("expected %v got %v", expectedFloat64, actualFloat64)
+		}
+		if expectedBool != actualBool {
+			t.Errorf("expected %v got %v", expectedBool, actualBool)
+		}
+		if bytes.Compare(expectedBytes, actualBytes) != 0 {
+			t.Errorf("expected %v got %v", expectedBytes, actualBytes)
+		}
+		if expectedString != actualString {
+			t.Errorf("expected %v got %v", expectedString, actualString)
+		}
+	}
+
+	// Test dangerous cases
+
+	{
+		expected := "foo';drop table users;"
+		var actual string
+		err := conn.QueryRowEx(
+			context.Background(),
+			"select $1",
+			&pgx.QueryExOptions{SimpleProtocol: true},
+			expected,
+		).Scan(&actual)
+		if err != nil {
+			t.Error(err)
+		}
+		if expected != actual {
+			t.Errorf("expected %v got %v", expected, actual)
+		}
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "set client_encoding to 'SQL_ASCII'")
+
+	var expected string
+	err := conn.QueryRowEx(
+		context.Background(),
+		"select $1",
+		&pgx.QueryExOptions{SimpleProtocol: true},
+		"test",
+	).Scan(&expected)
+	if err == nil {
+		t.Error("expected error when client_encoding not UTF8, but no error occurred")
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "set standard_conforming_strings to off")
+
+	var expected string
+	err := conn.QueryRowEx(
+		context.Background(),
+		"select $1",
+		&pgx.QueryExOptions{SimpleProtocol: true},
+		`\'; drop table users; --`,
+	).Scan(&expected)
+	if err == nil {
+		t.Error("expected error when standard_conforming_strings is off, but no error occurred")
 	}
 
 	ensureConnValid(t, conn)

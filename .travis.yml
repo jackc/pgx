@@ -1,8 +1,7 @@
 language: go
 
 go:
-  - 1.7.4
-  - 1.6.4
+  - 1.8
   - tip
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
@@ -28,6 +27,8 @@ before_install:
   - sudo /etc/init.d/postgresql restart
 
 env:
+  global:
+    - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
   matrix:
     - PGVERSION=9.6
     - PGVERSION=9.5
@@ -40,7 +41,7 @@ env:
 before_script:
   - mv conn_config_test.go.travis conn_config_test.go
   - psql -U postgres -c 'create database pgx_test'
-  - "[[ \"${PGVERSION}\" = '9.0' ]] && psql -U postgres -f /usr/share/postgresql/9.0/contrib/hstore.sql pgx_test || psql -U postgres pgx_test -c 'create extension hstore'"
+  - psql -U postgres pgx_test -c 'create extension hstore'
   - psql -U postgres -c "create user pgx_ssl SUPERUSER PASSWORD 'secret'"
   - psql -U postgres -c "create user pgx_md5 SUPERUSER PASSWORD 'secret'"
   - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
@@ -51,9 +52,14 @@ install:
   - go get -u github.com/shopspring/decimal
   - go get -u gopkg.in/inconshreveable/log15.v2
   - go get -u github.com/jackc/fake
+  - go get -u github.com/lib/pq
+  - go get -u github.com/hashicorp/go-version
+  - go get -u github.com/satori/go.uuid
+  - go get -u github.com/Sirupsen/logrus
+  - go get -u github.com/pkg/errors
 
 script:
-  - go test -v -race -short ./...
+  - go test -v -race ./...
 
 matrix:
   allow_failures:

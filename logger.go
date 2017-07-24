@@ -2,13 +2,13 @@ package pgx
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // The values for log levels are chosen such that the zero value means that no
-// log level was specified and we can default to LogLevelDebug to preserve
-// the behavior that existed prior to log level introduction.
+// log level was specified.
 const (
 	LogLevelTrace = 6
 	LogLevelDebug = 5
@@ -18,16 +18,33 @@ const (
 	LogLevelNone  = 1
 )
 
+// LogLevel represents the pgx logging level. See LogLevel* constants for
+// possible values.
+type LogLevel int
+
+func (ll LogLevel) String() string {
+	switch ll {
+	case LogLevelTrace:
+		return "trace"
+	case LogLevelDebug:
+		return "debug"
+	case LogLevelInfo:
+		return "info"
+	case LogLevelWarn:
+		return "warn"
+	case LogLevelError:
+		return "error"
+	case LogLevelNone:
+		return "none"
+	default:
+		return fmt.Sprintf("invalid level %d", ll)
+	}
+}
+
 // Logger is the interface used to get logging from pgx internals.
-// https://github.com/inconshreveable/log15 is the recommended logging package.
-// This logging interface was extracted from there. However, it should be simple
-// to adapt any logger to this interface.
 type Logger interface {
-	// Log a message at the given level with context key/value pairs
-	Debug(msg string, ctx ...interface{})
-	Info(msg string, ctx ...interface{})
-	Warn(msg string, ctx ...interface{})
-	Error(msg string, ctx ...interface{})
+	// Log a message at the given level with data key/value pairs. data may be nil.
+	Log(level LogLevel, msg string, data map[string]interface{})
 }
 
 // LogLevelFromString converts log level string to constant
@@ -39,7 +56,7 @@ type Logger interface {
 //	warn
 //	error
 //	none
-func LogLevelFromString(s string) (int, error) {
+func LogLevelFromString(s string) (LogLevel, error) {
 	switch s {
 	case "trace":
 		return LogLevelTrace, nil

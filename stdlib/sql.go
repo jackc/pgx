@@ -14,154 +14,206 @@
 //		return err
 //	}
 //
-// Or a normal pgx connection pool can be established and the database/sql
-// connection can be created through stdlib.OpenFromConnPool(). This allows
-// more control over the connection process (such as TLS), more control
-// over the connection pool, setting an AfterConnect hook, and using both
-// database/sql and pgx interfaces as needed.
+// A DriverConfig can be used to further configure the connection process. This
+// allows configuring TLS configuration, setting a custom dialer, logging, and
+// setting an AfterConnect hook.
 //
-//	connConfig := pgx.ConnConfig{
-//		Host:     "localhost",
-//		User:     "pgx_md5",
-// 		Password: "secret",
-// 		Database: "pgx_test",
-// 	}
-//
-//	config := pgx.ConnPoolConfig{ConnConfig: connConfig}
-//	pool, err := pgx.NewConnPool(config)
-// 	if err != nil {
-// 		return err
-// 	}
-//
-//	db, err := stdlib.OpenFromConnPool(pool)
-//	if err != nil {
-//		t.Fatalf("Unable to create connection pool: %v", err)
+//	driverConfig := stdlib.DriverConfig{
+// 		ConnConfig: ConnConfig: pgx.ConnConfig{
+//			Logger:   logger,
+//		},
+//		AfterConnect: func(c *pgx.Conn) error {
+//			// Ensure all connections have this temp table available
+//			_, err := c.Exec("create temporary table foo(...)")
+//			return err
+//		},
 //	}
 //
-// If the database/sql connection is established through
-// stdlib.OpenFromConnPool then access to a pgx *ConnPool can be regained
-// through db.Driver(). This allows writing a fast path for pgx while
-// preserving compatibility with other drivers and database
+//	stdlib.RegisterDriverConfig(&driverConfig)
 //
-//	if driver, ok := db.Driver().(*stdlib.Driver); ok && driver.Pool != nil {
+//	db, err := sql.Open("pgx", driverConfig.ConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test"))
+//	if err != nil {
+//		return err
+//	}
+//
+// AcquireConn and ReleaseConn acquire and release a *pgx.Conn from the standard
+// database/sql.DB connection pool. This allows operations that must be
+// performed on a single connection, but should not be run in a transaction or
+// to use pgx specific functionality.
+//
+//	conn, err := stdlib.AcquireConn(db)
+//	if err != nil {
+//		return err
+//	}
+//	defer stdlib.ReleaseConn(db, conn)
+//
+//	// do stuff with pgx.Conn
+//
+// It also can be used to enable a fast path for pgx while preserving
+// compatibility with other drivers and database.
+//
+//	conn, err := stdlib.AcquireConn(db)
+//	if err == nil {
 //		// fast path with pgx
+//		// ...
+//		// release conn when done
+//		stdlib.ReleaseConn(db, conn)
 //	} else {
 //		// normal path for other drivers and databases
 //	}
 package stdlib
 
 import (
+	"context"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
+	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
-	"github.com/jackc/pgx"
-)
+	"github.com/pkg/errors"
 
-var (
-	openFromConnPoolCountMu sync.Mutex
-	openFromConnPoolCount   int
+	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 // oids that map to intrinsic database/sql types. These will be allowed to be
 // binary, anything else will be forced to text format
-var databaseSqlOids map[pgx.Oid]bool
+var databaseSqlOIDs map[pgtype.OID]bool
+
+var pgxDriver *Driver
+
+type ctxKey int
+
+var ctxKeyFakeTx ctxKey = 0
+
+var ErrNotPgx = errors.New("not pgx *sql.DB")
 
 func init() {
-	d := &Driver{}
-	sql.Register("pgx", d)
+	pgxDriver = &Driver{
+		configs:     make(map[int64]*DriverConfig),
+		fakeTxConns: make(map[*pgx.Conn]*sql.Tx),
+	}
+	sql.Register("pgx", pgxDriver)
 
-	databaseSqlOids = make(map[pgx.Oid]bool)
-	databaseSqlOids[pgx.BoolOid] = true
-	databaseSqlOids[pgx.ByteaOid] = true
-	databaseSqlOids[pgx.Int2Oid] = true
-	databaseSqlOids[pgx.Int4Oid] = true
-	databaseSqlOids[pgx.Int8Oid] = true
-	databaseSqlOids[pgx.Float4Oid] = true
-	databaseSqlOids[pgx.Float8Oid] = true
-	databaseSqlOids[pgx.DateOid] = true
-	databaseSqlOids[pgx.TimestampTzOid] = true
-	databaseSqlOids[pgx.TimestampOid] = true
+	databaseSqlOIDs = make(map[pgtype.OID]bool)
+	databaseSqlOIDs[pgtype.BoolOID] = true
+	databaseSqlOIDs[pgtype.ByteaOID] = true
+	databaseSqlOIDs[pgtype.CIDOID] = true
+	databaseSqlOIDs[pgtype.DateOID] = true
+	databaseSqlOIDs[pgtype.Float4OID] = true
+	databaseSqlOIDs[pgtype.Float8OID] = true
+	databaseSqlOIDs[pgtype.Int2OID] = true
+	databaseSqlOIDs[pgtype.Int4OID] = true
+	databaseSqlOIDs[pgtype.Int8OID] = true
+	databaseSqlOIDs[pgtype.OIDOID] = true
+	databaseSqlOIDs[pgtype.TimestampOID] = true
+	databaseSqlOIDs[pgtype.TimestamptzOID] = true
+	databaseSqlOIDs[pgtype.XIDOID] = true
 }
 
 type Driver struct {
-	Pool *pgx.ConnPool
+	configMutex sync.Mutex
+	configCount int64
+	configs     map[int64]*DriverConfig
+
+	fakeTxMutex sync.Mutex
+	fakeTxConns map[*pgx.Conn]*sql.Tx
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	if d.Pool != nil {
-		conn, err := d.Pool.Acquire()
-		if err != nil {
-			return nil, err
-		}
-
-		return &Conn{conn: conn, pool: d.Pool}, nil
+	var connConfig pgx.ConnConfig
+	var afterConnect func(*pgx.Conn) error
+	if len(name) >= 9 && name[0] == 0 {
+		idBuf := []byte(name)[1:9]
+		id := int64(binary.BigEndian.Uint64(idBuf))
+		connConfig = d.configs[id].ConnConfig
+		afterConnect = d.configs[id].AfterConnect
+		name = name[9:]
 	}
 
-	connConfig, err := pgx.ParseConnectionString(name)
+	parsedConfig, err := pgx.ParseConnectionString(name)
 	if err != nil {
 		return nil, err
 	}
+	connConfig = connConfig.Merge(parsedConfig)
 
 	conn, err := pgx.Connect(connConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	c := &Conn{conn: conn}
+	if afterConnect != nil {
+		err = afterConnect(conn)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	c := &Conn{conn: conn, driver: d}
 	return c, nil
 }
 
-// OpenFromConnPool takes the existing *pgx.ConnPool pool and returns a *sql.DB
-// with pool as the backend. This enables full control over the connection
-// process and configuration while maintaining compatibility with the
-// database/sql interface. In addition, by calling Driver() on the returned
-// *sql.DB and typecasting to *stdlib.Driver a reference to the pgx.ConnPool can
-// be reaquired later. This allows fast paths targeting pgx to be used while
-// still maintaining compatibility with other databases and drivers.
-//
-// pool connection size must be at least 2.
-func OpenFromConnPool(pool *pgx.ConnPool) (*sql.DB, error) {
-	d := &Driver{Pool: pool}
+type DriverConfig struct {
+	pgx.ConnConfig
+	AfterConnect func(*pgx.Conn) error // function to call on every new connection
+	driver       *Driver
+	id           int64
+}
 
-	openFromConnPoolCountMu.Lock()
-	name := fmt.Sprintf("pgx-%d", openFromConnPoolCount)
-	openFromConnPoolCount++
-	openFromConnPoolCountMu.Unlock()
-
-	sql.Register(name, d)
-	db, err := sql.Open(name, "")
-	if err != nil {
-		return nil, err
+// ConnectionString encodes the DriverConfig into the original connection
+// string. DriverConfig must be registered before calling ConnectionString.
+func (c *DriverConfig) ConnectionString(original string) string {
+	if c.driver == nil {
+		panic("DriverConfig must be registered before calling ConnectionString")
 	}
 
-	// Presumably OpenFromConnPool is being used because the user wants to use
-	// database/sql most of the time, but fast path with pgx some of the time.
-	// Allow database/sql to use all the connections, but release 2 idle ones.
-	// Don't have database/sql immediately release all idle connections because
-	// that would mean that prepared statements would be lost (which kills
-	// performance if the prepared statements constantly have to be reprepared)
-	stat := pool.Stat()
+	buf := make([]byte, 9)
+	binary.BigEndian.PutUint64(buf[1:], uint64(c.id))
+	buf = append(buf, original...)
+	return string(buf)
+}
 
-	if stat.MaxConnections <= 2 {
-		return nil, errors.New("pool connection size must be at least 3")
-	}
-	db.SetMaxIdleConns(stat.MaxConnections - 2)
-	db.SetMaxOpenConns(stat.MaxConnections)
+func (d *Driver) registerDriverConfig(c *DriverConfig) {
+	d.configMutex.Lock()
 
-	return db, nil
+	c.driver = d
+	c.id = d.configCount
+	d.configs[d.configCount] = c
+	d.configCount++
+
+	d.configMutex.Unlock()
+}
+
+func (d *Driver) unregisterDriverConfig(c *DriverConfig) {
+	d.configMutex.Lock()
+	delete(d.configs, c.id)
+	d.configMutex.Unlock()
+}
+
+// RegisterDriverConfig registers a DriverConfig for use with Open.
+func RegisterDriverConfig(c *DriverConfig) {
+	pgxDriver.registerDriverConfig(c)
+}
+
+// UnregisterDriverConfig removes a DriverConfig registration.
+func UnregisterDriverConfig(c *DriverConfig) {
+	pgxDriver.unregisterDriverConfig(c)
 }
 
 type Conn struct {
 	conn    *pgx.Conn
-	pool    *pgx.ConnPool
 	psCount int64 // Counter used for creating unique prepared statement names
+	driver  *Driver
 }
 
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
+	return c.PrepareContext(context.Background(), query)
+}
+
+func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
@@ -169,7 +221,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
-	ps, err := c.conn.Prepare(name, query)
+	ps, err := c.conn.PrepareEx(ctx, name, query, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -180,25 +232,43 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) Close() error {
-	err := c.conn.Close()
-	if c.pool != nil {
-		c.pool.Release(c.conn)
-	}
-
-	return err
+	return c.conn.Close()
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
+	return c.BeginTx(context.Background(), driver.TxOptions{})
+}
+
+func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
-	_, err := c.conn.Exec("begin")
-	if err != nil {
-		return nil, err
+	if pconn, ok := ctx.Value(ctxKeyFakeTx).(**pgx.Conn); ok {
+		*pconn = c.conn
+		return fakeTx{}, nil
 	}
 
-	return &Tx{conn: c.conn}, nil
+	var pgxOpts pgx.TxOptions
+	switch sql.IsolationLevel(opts.Isolation) {
+	case sql.LevelDefault:
+	case sql.LevelReadUncommitted:
+		pgxOpts.IsoLevel = pgx.ReadUncommitted
+	case sql.LevelReadCommitted:
+		pgxOpts.IsoLevel = pgx.ReadCommitted
+	case sql.LevelSnapshot:
+		pgxOpts.IsoLevel = pgx.RepeatableRead
+	case sql.LevelSerializable:
+		pgxOpts.IsoLevel = pgx.Serializable
+	default:
+		return nil, errors.Errorf("unsupported isolation: %v", opts.Isolation)
+	}
+
+	if opts.ReadOnly {
+		pgxOpts.AccessMode = pgx.ReadOnly
+	}
+
+	return c.conn.BeginEx(ctx, &pgxOpts)
 }
 
 func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
@@ -208,6 +278,17 @@ func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 
 	args := valueToInterface(argsV)
 	commandTag, err := c.conn.Exec(query, args...)
+	return driver.RowsAffected(commandTag.RowsAffected()), err
+}
+
+func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Result, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	args := namedValueToInterface(argsV)
+
+	commandTag, err := c.conn.ExecEx(ctx, query, nil, args...)
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
@@ -226,6 +307,21 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 	return c.queryPrepared("", argsV)
 }
 
+func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	ps, err := c.conn.PrepareEx(ctx, "", query, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	restrictBinaryToDatabaseSqlTypes(ps)
+
+	return c.queryPreparedContext(ctx, "", argsV)
+}
+
 func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
@@ -241,12 +337,35 @@ func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, er
 	return &Rows{rows: rows}, nil
 }
 
+func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []driver.NamedValue) (driver.Rows, error) {
+	if !c.conn.IsAlive() {
+		return nil, driver.ErrBadConn
+	}
+
+	args := namedValueToInterface(argsV)
+
+	rows, err := c.conn.QueryEx(ctx, name, nil, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Rows{rows: rows}, nil
+}
+
+func (c *Conn) Ping(ctx context.Context) error {
+	if !c.conn.IsAlive() {
+		return driver.ErrBadConn
+	}
+
+	return c.conn.Ping(ctx)
+}
+
 // Anything that isn't a database/sql compatible type needs to be forced to
 // text format so that pgx.Rows.Values doesn't decode it into a native type
 // (e.g. []int32)
 func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
-	for i := range ps.FieldDescriptions {
-		intrinsic, _ := databaseSqlOids[ps.FieldDescriptions[i].DataType]
+	for i, _ := range ps.FieldDescriptions {
+		intrinsic, _ := databaseSqlOIDs[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
 		}
@@ -263,20 +382,28 @@ func (s *Stmt) Close() error {
 }
 
 func (s *Stmt) NumInput() int {
-	return len(s.ps.ParameterOids)
+	return len(s.ps.ParameterOIDs)
 }
 
 func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
 	return s.conn.Exec(s.ps.Name, argsV)
 }
 
+func (s *Stmt) ExecContext(ctx context.Context, argsV []driver.NamedValue) (driver.Result, error) {
+	return s.conn.ExecContext(ctx, s.ps.Name, argsV)
+}
+
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 	return s.conn.queryPrepared(s.ps.Name, argsV)
 }
 
-// TODO - rename to avoid alloc
+func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (driver.Rows, error) {
+	return s.conn.queryPreparedContext(ctx, s.ps.Name, argsV)
+}
+
 type Rows struct {
-	rows *pgx.Rows
+	rows   *pgx.Rows
+	values []interface{}
 }
 
 func (r *Rows) Columns() []string {
@@ -288,12 +415,52 @@ func (r *Rows) Columns() []string {
 	return names
 }
 
+func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
+	return strings.ToUpper(r.rows.FieldDescriptions()[index].DataTypeName)
+}
+
 func (r *Rows) Close() error {
 	r.rows.Close()
 	return nil
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
+	if r.values == nil {
+		r.values = make([]interface{}, len(r.rows.FieldDescriptions()))
+		for i, fd := range r.rows.FieldDescriptions() {
+			switch fd.DataType {
+			case pgtype.BoolOID:
+				r.values[i] = &pgtype.Bool{}
+			case pgtype.ByteaOID:
+				r.values[i] = &pgtype.Bytea{}
+			case pgtype.CIDOID:
+				r.values[i] = &pgtype.CID{}
+			case pgtype.DateOID:
+				r.values[i] = &pgtype.Date{}
+			case pgtype.Float4OID:
+				r.values[i] = &pgtype.Float4{}
+			case pgtype.Float8OID:
+				r.values[i] = &pgtype.Float8{}
+			case pgtype.Int2OID:
+				r.values[i] = &pgtype.Int2{}
+			case pgtype.Int4OID:
+				r.values[i] = &pgtype.Int4{}
+			case pgtype.Int8OID:
+				r.values[i] = &pgtype.Int8{}
+			case pgtype.OIDOID:
+				r.values[i] = &pgtype.OIDValue{}
+			case pgtype.TimestampOID:
+				r.values[i] = &pgtype.Timestamp{}
+			case pgtype.TimestamptzOID:
+				r.values[i] = &pgtype.Timestamptz{}
+			case pgtype.XIDOID:
+				r.values[i] = &pgtype.XID{}
+			default:
+				r.values[i] = &pgtype.GenericText{}
+			}
+		}
+	}
+
 	more := r.rows.Next()
 	if !more {
 		if r.rows.Err() == nil {
@@ -303,19 +470,16 @@ func (r *Rows) Next(dest []driver.Value) error {
 		}
 	}
 
-	values, err := r.rows.Values()
+	err := r.rows.Scan(r.values...)
 	if err != nil {
 		return err
 	}
 
-	if len(dest) < len(values) {
-		fmt.Printf("%d: %#v\n", len(dest), dest)
-		fmt.Printf("%d: %#v\n", len(values), values)
-		return errors.New("expected more values than were received")
-	}
-
-	for i, v := range values {
-		dest[i] = driver.Value(v)
+	for i, v := range r.values {
+		dest[i], err = v.(driver.Valuer).Value()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -333,16 +497,58 @@ func valueToInterface(argsV []driver.Value) []interface{} {
 	return args
 }
 
-type Tx struct {
-	conn *pgx.Conn
+func namedValueToInterface(argsV []driver.NamedValue) []interface{} {
+	args := make([]interface{}, 0, len(argsV))
+	for _, v := range argsV {
+		if v.Value != nil {
+			args = append(args, v.Value.(interface{}))
+		} else {
+			args = append(args, nil)
+		}
+	}
+	return args
 }
 
-func (t *Tx) Commit() error {
-	_, err := t.conn.Exec("commit")
-	return err
+type fakeTx struct{}
+
+func (fakeTx) Commit() error { return nil }
+
+func (fakeTx) Rollback() error { return nil }
+
+func AcquireConn(db *sql.DB) (*pgx.Conn, error) {
+	driver, ok := db.Driver().(*Driver)
+	if !ok {
+		return nil, ErrNotPgx
+	}
+
+	var conn *pgx.Conn
+	ctx := context.WithValue(context.Background(), ctxKeyFakeTx, &conn)
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	driver.fakeTxMutex.Lock()
+	driver.fakeTxConns[conn] = tx
+	driver.fakeTxMutex.Unlock()
+
+	return conn, nil
 }
 
-func (t *Tx) Rollback() error {
-	_, err := t.conn.Exec("rollback")
-	return err
+func ReleaseConn(db *sql.DB, conn *pgx.Conn) error {
+	var tx *sql.Tx
+	var ok bool
+
+	driver := db.Driver().(*Driver)
+	driver.fakeTxMutex.Lock()
+	tx, ok = driver.fakeTxConns[conn]
+	if ok {
+		delete(driver.fakeTxConns, conn)
+		driver.fakeTxMutex.Unlock()
+	} else {
+		driver.fakeTxMutex.Unlock()
+		return errors.Errorf("can't release conn that is not acquired")
+	}
+
+	return tx.Rollback()
 }

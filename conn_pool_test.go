@@ -1,12 +1,14 @@
 package pgx_test
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"net"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx"
 )
@@ -297,7 +299,7 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 	// ... then try to consume 1 more. It should hang forever.
 	// To unblock it we release the previously taken connection in a goroutine.
 	stopDeadWaitTimeout := 5 * time.Second
-	timer := time.AfterFunc(stopDeadWaitTimeout, func() {
+	timer := time.AfterFunc(stopDeadWaitTimeout+100*time.Millisecond, func() {
 		releaseAllConnections(pool, allConnections)
 	})
 	defer timer.Stop()
@@ -328,14 +330,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatal("Did not receive expected error")
 	}
 
-	if conn.TxStatus != 'E' {
-		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'E' {
+		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus())
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'I' {
+		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus())
 	}
 
 	conn, err = pool.Acquire()
@@ -343,14 +345,14 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
 	mustExec(t, conn, "begin")
-	if conn.TxStatus != 'T' {
-		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'T' {
+		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus())
 	}
 
 	pool.Release(conn)
 
-	if conn.TxStatus != 'I' {
-		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus)
+	if conn.TxStatus() != 'I' {
+		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus())
 	}
 }
 
@@ -428,7 +430,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 				}
 			}()
 
-			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.Pid); err != nil {
+			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -635,9 +637,9 @@ func TestConnPoolTransactionIso(t *testing.T) {
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
-	tx, err := pool.BeginIso(pgx.Serializable)
+	tx, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("pool.Begin failed: %v", err)
+		t.Fatalf("pool.BeginEx failed: %v", err)
 	}
 	defer tx.Rollback()
 
@@ -674,7 +676,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			pool.Release(victimConn)
 
 			// Terminate connection that was released to pool
-			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.Pid); err != nil {
+			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -686,13 +688,13 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			}
 			defer tx.Rollback()
 
-			var txPid int32
-			err = tx.QueryRow("select pg_backend_pid()").Scan(&txPid)
+			var txPID uint32
+			err = tx.QueryRow("select pg_backend_pid()").Scan(&txPID)
 			if err != nil {
 				t.Fatalf("tx.QueryRow Scan failed: %v", err)
 			}
-			if txPid == victimConn.Pid {
-				t.Error("Expected txPid to defer from killed conn pid, but it didn't")
+			if txPID == victimConn.PID() {
+				t.Error("Expected txPID to defer from killed conn pid, but it didn't")
 			}
 		}()
 	}
@@ -978,5 +980,72 @@ func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
 	err = pool.QueryRow("test", "hello").Scan(&s)
 	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
 		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
+	}
+}
+
+func TestConnPoolBeginBatch(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	batch := pool.BeginBatch()
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+	batch.Queue("select n from generate_series(0,5) n",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Error(rows.Err())
+	}
+
+	rows, err = batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for i := 0; rows.Next(); i++ {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			t.Error(err)
+		}
+		if n != i {
+			t.Errorf("n => %v, want %v", n, i)
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Error(rows.Err())
+	}
+
+	err = batch.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
