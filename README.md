@@ -4,6 +4,16 @@
 
 pgx is a pure Go driver and toolkit for PostgreSQL. pgx is different from other drivers such as [pq](http://godoc.org/github.com/lib/pq) because, while it can operate as a database/sql compatible driver, pgx is also usable directly. It offers a native interface similar to database/sql that offers better performance and more features.
 
+
+```go
+var name string
+var weight int64
+err := conn.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+if err != nil {
+    return err
+}
+```
+
 ## Features
 
 pgx supports many additional features beyond what is available through database/sql.
