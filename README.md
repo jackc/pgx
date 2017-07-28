@@ -1,4 +1,5 @@
 [![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://godoc.org/github.com/jackc/pgx)
+[![Build Status](https://travis-ci.org/jackc/pgx.png)](https://travis-ci.org/jackc/pgx)
 
 # pgx - PostgreSQL Driver and Toolkit
 
