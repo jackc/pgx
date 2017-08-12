@@ -1,3 +1,11 @@
+# 3.0.1 (August 12, 2017)
+
+## Fixes
+
+* Fix compilation on 32-bit platform
+* Fix invalid MarshalJSON of types with status Undefined
+* Fix pid logging
+
 # 3.0.0 (July 24, 2017)
 
 ## Changes
