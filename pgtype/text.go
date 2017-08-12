@@ -144,7 +144,7 @@ func (src *Text) MarshalJSON() ([]byte, error) {
 	case Null:
 		return []byte("null"), nil
 	case Undefined:
-		return []byte("undefined"), nil
+		return nil, errUndefined
 	}
 
 	return nil, errBadStatus
