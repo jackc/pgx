@@ -1322,7 +1322,7 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 		data = map[string]interface{}{}
 	}
 	if c.pid != 0 {
-		data["pid"] = c.PID
+		data["pid"] = c.pid
 	}
 
 	c.logger.Log(lvl, msg, data)
