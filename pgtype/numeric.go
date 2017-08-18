@@ -16,6 +16,7 @@ import (
 const nbase = 10000
 
 var big0 *big.Int = big.NewInt(0)
+var big1 *big.Int = big.NewInt(1)
 var big10 *big.Int = big.NewInt(10)
 var big100 *big.Int = big.NewInt(100)
 var big1000 *big.Int = big.NewInt(1000)
@@ -507,6 +508,7 @@ func (src *Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		divisor := &big.Int{}
 		divisor.Exp(big10, big.NewInt(int64(-exp)), nil)
 		wholePart.DivMod(absInt, divisor, fracPart)
+		fracPart.Add(fracPart, divisor)
 	} else {
 		wholePart = absInt
 	}
@@ -518,9 +520,11 @@ func (src *Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		wholeDigits = append(wholeDigits, int16(remainder.Int64()))
 	}
 
-	for fracPart.Cmp(big0) != 0 {
-		fracPart.DivMod(fracPart, bigNBase, remainder)
-		fracDigits = append(fracDigits, int16(remainder.Int64()))
+	if fracPart.Cmp(big0) != 0 {
+		for fracPart.Cmp(big1) != 0 {
+			fracPart.DivMod(fracPart, bigNBase, remainder)
+			fracDigits = append(fracDigits, int16(remainder.Int64()))
+		}
 	}
 
 	buf = pgio.AppendInt16(buf, int16(len(wholeDigits)+len(fracDigits)))
