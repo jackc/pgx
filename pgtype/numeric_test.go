@@ -317,3 +317,39 @@ func TestNumericAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestNumericEncodeDecodeBinary(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	tests := []interface{}{
+		123,
+		0.000012345,
+		1.00002345,
+	}
+
+	for i, tt := range tests {
+		toString := func(n *pgtype.Numeric) string {
+			ci := pgtype.NewConnInfo()
+			text, err := n.EncodeText(ci, nil)
+			if err != nil {
+				t.Errorf("%d: %v", i, err)
+			}
+			return string(text)
+		}
+		numeric := &pgtype.Numeric{}
+		numeric.Set(tt)
+
+		encoded, err := numeric.EncodeBinary(ci, nil)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+		decoded := &pgtype.Numeric{}
+		decoded.DecodeBinary(ci, encoded)
+
+		text0 := toString(numeric)
+		text1 := toString(decoded)
+
+		if text0 != text1 {
+			t.Errorf("%d: expected %v to equal to %v, but doesn't", i, text0, text1)
+		}
+	}
+}
