@@ -233,7 +233,7 @@ Logging
 
 pgx defines a simple logger interface. Connections optionally accept a logger
 that satisfies this interface. Set LogLevel to control logging verbosity.
-Adapters for github.com/inconshreveable/log15, github.com/Sirupsen/logrus, and
+Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus, and
 the testing log are provided in the log directory.
 */
 package pgx
