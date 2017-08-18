@@ -1,10 +1,10 @@
-// Package logrusadapter provides a logger that writes to a github.com/Sirupsen/logrus.Logger
+// Package logrusadapter provides a logger that writes to a github.com/sirupsen/logrus.Logger
 // log.
 package logrusadapter
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/jackc/pgx"
+	"github.com/sirupsen/logrus"
 )
 
 type Logger struct {

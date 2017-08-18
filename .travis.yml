@@ -55,7 +55,7 @@ install:
   - go get -u github.com/lib/pq
   - go get -u github.com/hashicorp/go-version
   - go get -u github.com/satori/go.uuid
-  - go get -u github.com/Sirupsen/logrus
+  - go get -u github.com/sirupsen/logrus
   - go get -u github.com/pkg/errors
 
 script:
