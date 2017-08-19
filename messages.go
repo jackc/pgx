@@ -1,14 +1,19 @@
 package pgx
 
 import (
+	"math"
+	"reflect"
+	"time"
+
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 
 const (
-	copyData = 'd'
-	copyFail = 'f'
-	copyDone = 'c'
+	copyData      = 'd'
+	copyFail      = 'f'
+	copyDone      = 'c'
+	varHeaderSize = 4
 )
 
 type FieldDescription struct {
@@ -20,6 +25,52 @@ type FieldDescription struct {
 	DataTypeName    string
 	Modifier        uint32
 	FormatCode      int16
+}
+
+func (fd FieldDescription) Length() (int64, bool) {
+	switch fd.DataType {
+	case pgtype.TextOID, pgtype.ByteaOID:
+		return math.MaxInt64, true
+	case pgtype.VarcharOID:
+		return int64(fd.Modifier - varHeaderSize), true
+	default:
+		return 0, false
+	}
+}
+
+func (fd FieldDescription) PrecisionScale() (precision, scale int64, ok bool) {
+	switch fd.DataType {
+	case pgtype.NumericOID:
+		mod := fd.Modifier - varHeaderSize
+		precision = int64((mod >> 16) & 0xffff)
+		scale = int64(mod & 0xffff)
+		return precision, scale, true
+	default:
+		return 0, 0, false
+	}
+}
+
+func (fd FieldDescription) Type() reflect.Type {
+	switch fd.DataType {
+	case pgtype.Int8OID:
+		return reflect.TypeOf(int64(0))
+	case pgtype.Int4OID:
+		return reflect.TypeOf(int32(0))
+	case pgtype.Int2OID:
+		return reflect.TypeOf(int16(0))
+	case pgtype.VarcharOID, pgtype.TextOID:
+		return reflect.TypeOf("")
+	case pgtype.BoolOID:
+		return reflect.TypeOf(false)
+	case pgtype.NumericOID:
+		return reflect.TypeOf(float64(0))
+	case pgtype.DateOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
+		return reflect.TypeOf(time.Time{})
+	case pgtype.ByteaOID:
+		return reflect.TypeOf([]byte(nil))
+	default:
+		return reflect.TypeOf(new(interface{})).Elem()
+	}
 }
 
 // PgError represents an error reported by the PostgreSQL server. See
