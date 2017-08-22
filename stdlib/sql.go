@@ -70,6 +70,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -415,8 +416,27 @@ func (r *Rows) Columns() []string {
 	return names
 }
 
+// ColumnTypeDatabaseTypeName return the database system type name.
 func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
 	return strings.ToUpper(r.rows.FieldDescriptions()[index].DataTypeName)
+}
+
+// ColumnTypeLength returns the length of the column type if the column is a
+// variable length type. If the column is not a variable length type ok
+// should return false.
+func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
+	return r.rows.FieldDescriptions()[index].Length()
+}
+
+// ColumnTypePrecisionScale should return the precision and scale for decimal
+// types. If not applicable, ok should be false.
+func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
+	return r.rows.FieldDescriptions()[index].PrecisionScale()
+}
+
+// ColumnTypeScanType returns the value type that can be used to scan types into.
+func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
+	return r.rows.FieldDescriptions()[index].Type()
 }
 
 func (r *Rows) Close() error {

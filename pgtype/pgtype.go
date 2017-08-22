@@ -46,6 +46,7 @@ const (
 	DateArrayOID        = 1182
 	TimestamptzOID      = 1184
 	TimestamptzArrayOID = 1185
+	NumericOID          = 1700
 	RecordOID           = 2249
 	UUIDOID             = 2950
 	JSONBOID            = 3802
