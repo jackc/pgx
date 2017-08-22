@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
+	"reflect"
 	"testing"
 	"time"
 
@@ -1256,5 +1258,130 @@ func TestStmtQueryContextCancel(t *testing.T) {
 
 	if err := <-errChan; err != nil {
 		t.Errorf("mock server err: %v", err)
+	}
+}
+
+func TestRowsColumnTypes(t *testing.T) {
+	columnTypesTests := []struct {
+		Name     string
+		TypeName string
+		Length   struct {
+			Len int64
+			OK  bool
+		}
+		DecimalSize struct {
+			Precision int64
+			Scale     int64
+			OK        bool
+		}
+		ScanType reflect.Type
+	}{
+		{
+			Name:     "a",
+			TypeName: "INT4",
+			Length: struct {
+				Len int64
+				OK  bool
+			}{
+				Len: 0,
+				OK:  false,
+			},
+			DecimalSize: struct {
+				Precision int64
+				Scale     int64
+				OK        bool
+			}{
+				Precision: 0,
+				Scale:     0,
+				OK:        false,
+			},
+			ScanType: reflect.TypeOf(int32(0)),
+		}, {
+			Name:     "bar",
+			TypeName: "TEXT",
+			Length: struct {
+				Len int64
+				OK  bool
+			}{
+				Len: math.MaxInt64,
+				OK:  true,
+			},
+			DecimalSize: struct {
+				Precision int64
+				Scale     int64
+				OK        bool
+			}{
+				Precision: 0,
+				Scale:     0,
+				OK:        false,
+			},
+			ScanType: reflect.TypeOf(""),
+		}, {
+			Name:     "dec",
+			TypeName: "NUMERIC",
+			Length: struct {
+				Len int64
+				OK  bool
+			}{
+				Len: 0,
+				OK:  false,
+			},
+			DecimalSize: struct {
+				Precision int64
+				Scale     int64
+				OK        bool
+			}{
+				Precision: 9,
+				Scale:     2,
+				OK:        true,
+			},
+			ScanType: reflect.TypeOf(float64(0)),
+		},
+	}
+
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	rows, err := db.Query("SELECT 1 AS a, text 'bar' AS bar, 1.28::numeric(9, 2) AS dec")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	columns, err := rows.ColumnTypes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(columns) != 3 {
+		t.Errorf("expected 3 columns found %d", len(columns))
+	}
+
+	for i, tt := range columnTypesTests {
+		c := columns[i]
+		if c.Name() != tt.Name {
+			t.Errorf("(%d) got: %s, want: %s", i, c.Name(), tt.Name)
+		}
+		if c.DatabaseTypeName() != tt.TypeName {
+			t.Errorf("(%d) got: %s, want: %s", i, c.DatabaseTypeName(), tt.TypeName)
+		}
+		l, ok := c.Length()
+		if l != tt.Length.Len {
+			t.Errorf("(%d) got: %d, want: %d", i, l, tt.Length.Len)
+		}
+		if ok != tt.Length.OK {
+			t.Errorf("(%d) got: %t, want: %t", i, ok, tt.Length.OK)
+		}
+		p, s, ok := c.DecimalSize()
+		if p != tt.DecimalSize.Precision {
+			t.Errorf("(%d) got: %d, want: %d", i, p, tt.DecimalSize.Precision)
+		}
+		if s != tt.DecimalSize.Scale {
+			t.Errorf("(%d) got: %d, want: %d", i, s, tt.DecimalSize.Scale)
+		}
+		if ok != tt.DecimalSize.OK {
+			t.Errorf("(%d) got: %t, want: %t", i, ok, tt.DecimalSize.OK)
+		}
+		if c.ScanType() != tt.ScanType {
+			t.Errorf("(%d) got: %v, want: %v", i, c.ScanType(), tt.ScanType)
+		}
 	}
 }
