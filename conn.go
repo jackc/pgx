@@ -190,7 +190,7 @@ var ErrDeadConn = errors.New("conn is dead")
 var ErrTLSRefused = errors.New("server refused TLS connection")
 
 // ErrConnBusy occurs when the connection is busy (for example, in the middle of
-// reading query results) and another action is attempts.
+// reading query results) and another action is attempted.
 var ErrConnBusy = errors.New("conn is busy")
 
 // ErrInvalidLogLevel occurs on attempt to set an invalid log level.
