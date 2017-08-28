@@ -14,15 +14,24 @@ type UUID struct {
 }
 
 func (dst *UUID) Set(src interface{}) error {
+	if src == nil {
+		*dst = UUID{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case [16]byte:
 		*dst = UUID{Bytes: value, Status: Present}
 	case []byte:
-		if len(value) != 16 {
-			return errors.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
+		if value != nil {
+			if len(value) != 16 {
+				return errors.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
+			}
+			*dst = UUID{Status: Present}
+			copy(dst.Bytes[:], value)
+		} else {
+			*dst = UUID{Status: Null}
 		}
-		*dst = UUID{Status: Present}
-		copy(dst.Bytes[:], value)
 	case string:
 		uuid, err := parseUUID(value)
 		if err != nil {
