@@ -315,6 +315,23 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 	}
 }
 
+func TestPoolErrClosedPool(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 1)
+	// Intentionaly close the pool now so we can test ErrClosedPool
+	pool.Close()
+
+	c, err := pool.Acquire()
+	if c != nil {
+		t.Fatalf("Expected acquired connection to be nil, instead it was '%v'", c)
+	}
+
+	if err == nil || err != pgx.ErrClosedPool {
+		t.Fatalf("Expected error to be pgx.ErrClosedPool, instead it was '%v'", err)
+	}
+}
+
 func TestPoolReleaseWithTransactions(t *testing.T) {
 	t.Parallel()
 
