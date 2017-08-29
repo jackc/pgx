@@ -15,6 +15,12 @@ type Int4Array struct {
 }
 
 func (dst *Int4Array) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Int4Array{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []int32:
@@ -59,7 +65,7 @@ func (dst *Int4Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Int4", value)
+		return errors.Errorf("cannot convert %v to Int4Array", value)
 	}
 
 	return nil

@@ -13,6 +13,12 @@ type ACLItemArray struct {
 }
 
 func (dst *ACLItemArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = ACLItemArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []string:
@@ -38,7 +44,7 @@ func (dst *ACLItemArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to ACLItem", value)
+		return errors.Errorf("cannot convert %v to ACLItemArray", value)
 	}
 
 	return nil

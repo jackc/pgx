@@ -16,6 +16,12 @@ type TimestamptzArray struct {
 }
 
 func (dst *TimestamptzArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = TimestamptzArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []time.Time:
@@ -41,7 +47,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Timestamptz", value)
+		return errors.Errorf("cannot convert %v to TimestamptzArray", value)
 	}
 
 	return nil
