@@ -15,6 +15,12 @@ type Int2Array struct {
 }
 
 func (dst *Int2Array) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Int2Array{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []int16:
@@ -59,7 +65,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Int2", value)
+		return errors.Errorf("cannot convert %v to Int2Array", value)
 	}
 
 	return nil

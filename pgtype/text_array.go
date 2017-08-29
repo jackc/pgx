@@ -15,6 +15,12 @@ type TextArray struct {
 }
 
 func (dst *TextArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = TextArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []string:
@@ -40,7 +46,7 @@ func (dst *TextArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Text", value)
+		return errors.Errorf("cannot convert %v to TextArray", value)
 	}
 
 	return nil

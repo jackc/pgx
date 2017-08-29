@@ -8,34 +8,72 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Float4Array struct {
-	Elements   []Float4
+type UUIDArray struct {
+	Elements   []UUID
 	Dimensions []ArrayDimension
 	Status     Status
 }
 
-func (dst *Float4Array) Set(src interface{}) error {
+func (dst *UUIDArray) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = Float4Array{Status: Null}
+		*dst = UUIDArray{Status: Null}
 		return nil
 	}
 
 	switch value := src.(type) {
 
-	case []float32:
+	case [][16]byte:
 		if value == nil {
-			*dst = Float4Array{Status: Null}
+			*dst = UUIDArray{Status: Null}
 		} else if len(value) == 0 {
-			*dst = Float4Array{Status: Present}
+			*dst = UUIDArray{Status: Present}
 		} else {
-			elements := make([]Float4, len(value))
+			elements := make([]UUID, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
 				}
 			}
-			*dst = Float4Array{
+			*dst = UUIDArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case [][]byte:
+		if value == nil {
+			*dst = UUIDArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = UUIDArray{Status: Present}
+		} else {
+			elements := make([]UUID, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = UUIDArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []string:
+		if value == nil {
+			*dst = UUIDArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = UUIDArray{Status: Present}
+		} else {
+			elements := make([]UUID, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = UUIDArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
 				Status:     Present,
@@ -46,13 +84,13 @@ func (dst *Float4Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Float4Array", value)
+		return errors.Errorf("cannot convert %v to UUIDArray", value)
 	}
 
 	return nil
 }
 
-func (dst *Float4Array) Get() interface{} {
+func (dst *UUIDArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -63,13 +101,31 @@ func (dst *Float4Array) Get() interface{} {
 	}
 }
 
-func (src *Float4Array) AssignTo(dst interface{}) error {
+func (src *UUIDArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
 		switch v := dst.(type) {
 
-		case *[]float32:
-			*v = make([]float32, len(src.Elements))
+		case *[][16]byte:
+			*v = make([][16]byte, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[][]byte:
+			*v = make([][]byte, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]string:
+			*v = make([]string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -89,9 +145,9 @@ func (src *Float4Array) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %v into %T", src, dst)
 }
 
-func (dst *Float4Array) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *UUIDArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Float4Array{Status: Null}
+		*dst = UUIDArray{Status: Null}
 		return nil
 	}
 
@@ -100,13 +156,13 @@ func (dst *Float4Array) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []Float4
+	var elements []UUID
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Float4, len(uta.Elements))
+		elements = make([]UUID, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Float4
+			var elem UUID
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -120,14 +176,14 @@ func (dst *Float4Array) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Float4Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = UUIDArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
 
 	return nil
 }
 
-func (dst *Float4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *UUIDArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Float4Array{Status: Null}
+		*dst = UUIDArray{Status: Null}
 		return nil
 	}
 
@@ -138,7 +194,7 @@ func (dst *Float4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = Float4Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = UUIDArray{Dimensions: arrayHeader.Dimensions, Status: Present}
 		return nil
 	}
 
@@ -147,7 +203,7 @@ func (dst *Float4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Float4, elementCount)
+	elements := make([]UUID, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -163,11 +219,11 @@ func (dst *Float4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Float4Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = UUIDArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
 	return nil
 }
 
-func (src *Float4Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUIDArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -224,7 +280,7 @@ func (src *Float4Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Float4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *UUIDArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -236,10 +292,10 @@ func (src *Float4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		Dimensions: src.Dimensions,
 	}
 
-	if dt, ok := ci.DataTypeForName("float4"); ok {
+	if dt, ok := ci.DataTypeForName("uuid"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, errors.Errorf("unable to find oid for type name %v", "float4")
+		return nil, errors.Errorf("unable to find oid for type name %v", "uuid")
 	}
 
 	for i := range src.Elements {
@@ -269,7 +325,7 @@ func (src *Float4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Float4Array) Scan(src interface{}) error {
+func (dst *UUIDArray) Scan(src interface{}) error {
 	if src == nil {
 		return dst.DecodeText(nil, nil)
 	}
@@ -287,7 +343,7 @@ func (dst *Float4Array) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Float4Array) Value() (driver.Value, error) {
+func (src *UUIDArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
