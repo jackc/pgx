@@ -1196,6 +1196,34 @@ func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
 	}
 }
 
+func TestConnExecExIncorrectParameterOIDsAfterAnotherQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
+
+	var s string
+	err := conn.QueryRow("insert into foo(name) values('baz') returning name;").Scan(&s)
+	if err != nil {
+		t.Errorf("Executing query failed: %v", err)
+	}
+	if s != "baz" {
+		t.Errorf("Query did not return expected value: %v", s)
+	}
+
+	_, err = conn.ExecEx(
+		context.Background(),
+		"insert into foo(name) values($1);",
+		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.Int4OID}},
+		"bar'; drop table foo;--",
+	)
+	if err == nil {
+		t.Fatal("expected error but got none")
+	}
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
