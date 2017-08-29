@@ -1458,6 +1458,10 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 			return "", err
 		}
 	} else if options != nil && len(options.ParameterOIDs) > 0 {
+		if err := c.ensureConnectionReadyForQuery(); err != nil {
+			return "", err
+		}
+
 		buf, err := c.buildOneRoundTripExec(c.wbuf, sql, options, arguments)
 		if err != nil {
 			return "", err
