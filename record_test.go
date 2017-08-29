@@ -36,6 +36,16 @@ func TestRecordTranscode(t *testing.T) {
 			},
 		},
 		{
+			sql: `select row(100.0::float4, 1.09::float4)`,
+			expected: pgtype.Record{
+				Fields: []pgtype.Value{
+					&pgtype.Float4{Float: 100, Status: pgtype.Present},
+					&pgtype.Float4{Float: 1.09, Status: pgtype.Present},
+				},
+				Status: pgtype.Present,
+			},
+		},
+		{
 			sql: `select row('foo'::text, array[1, 2, null, 4]::int4[], 42::int4)`,
 			expected: pgtype.Record{
 				Fields: []pgtype.Value{
@@ -87,7 +97,7 @@ func TestRecordTranscode(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(tt.expected, result) {
-			t.Errorf("%d: expected %v, got %v", i, tt.expected, result)
+			t.Errorf("%d: expected %#v, got %#v", i, tt.expected, result)
 		}
 	}
 }

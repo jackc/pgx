@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"encoding/binary"
+	"reflect"
 
 	"github.com/pkg/errors"
 )
@@ -110,6 +111,9 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 			fieldBytes = src[rp : rp+fieldLen]
 			rp += fieldLen
 		}
+
+		// Duplicate struct to scan into
+		binaryDecoder = reflect.New(reflect.ValueOf(binaryDecoder).Elem().Type()).Interface().(BinaryDecoder)
 
 		if err := binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
 			return err
