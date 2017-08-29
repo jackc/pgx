@@ -931,6 +931,13 @@ func TestRowDecode(t *testing.T) {
 				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
 			},
 		},
+		{
+			"select row(100.0::float, 1.09::float)",
+			[]interface{}{
+				float64(100),
+				float64(1.09),
+			},
+		},
 	}
 
 	for i, tt := range tests {
