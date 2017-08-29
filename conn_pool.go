@@ -43,7 +43,7 @@ type ConnPoolStat struct {
 // ErrAcquireTimeout occurs when an attempt to acquire a connection times out.
 var ErrAcquireTimeout = errors.New("timeout acquiring connection from pool")
 
-// ErrClosedPool occurs when an attempt to acquire a connection times out.
+// ErrClosedPool occurs on an attempt to acquire a connection from a closed pool.
 var ErrClosedPool = errors.New("cannot acquire from closed pool")
 
 // NewConnPool creates a new ConnPool. config.ConnConfig is passed through to
