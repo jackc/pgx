@@ -15,6 +15,7 @@ type UUIDArray struct {
 }
 
 func (dst *UUIDArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
 	if src == nil {
 		*dst = UUIDArray{Status: Null}
 		return nil
@@ -80,7 +81,7 @@ func (dst *UUIDArray) Set(src interface{}) error {
 		}
 
 	default:
-		if originalSrc, ok := underlyingPtrType(src); ok {
+		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
 		return errors.Errorf("cannot convert %v to UUIDArray", value)

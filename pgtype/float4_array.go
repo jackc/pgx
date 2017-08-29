@@ -15,6 +15,12 @@ type Float4Array struct {
 }
 
 func (dst *Float4Array) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Float4Array{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []float32:
@@ -40,7 +46,7 @@ func (dst *Float4Array) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Float4", value)
+		return errors.Errorf("cannot convert %v to Float4Array", value)
 	}
 
 	return nil

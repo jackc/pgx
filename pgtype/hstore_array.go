@@ -15,6 +15,12 @@ type HstoreArray struct {
 }
 
 func (dst *HstoreArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = HstoreArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []map[string]string:
@@ -40,7 +46,7 @@ func (dst *HstoreArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Hstore", value)
+		return errors.Errorf("cannot convert %v to HstoreArray", value)
 	}
 
 	return nil

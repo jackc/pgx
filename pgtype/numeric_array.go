@@ -15,6 +15,12 @@ type NumericArray struct {
 }
 
 func (dst *NumericArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = NumericArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []float32:
@@ -59,7 +65,7 @@ func (dst *NumericArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Numeric", value)
+		return errors.Errorf("cannot convert %v to NumericArray", value)
 	}
 
 	return nil
