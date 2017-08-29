@@ -43,6 +43,9 @@ type ConnPoolStat struct {
 // ErrAcquireTimeout occurs when an attempt to acquire a connection times out.
 var ErrAcquireTimeout = errors.New("timeout acquiring connection from pool")
 
+// ErrClosedPool occurs on an attempt to acquire a connection from a closed pool.
+var ErrClosedPool = errors.New("cannot acquire from closed pool")
+
 // NewConnPool creates a new ConnPool. config.ConnConfig is passed through to
 // Connect directly.
 func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
@@ -108,7 +111,7 @@ func (p *ConnPool) deadlinePassed(deadline *time.Time) bool {
 // acquire performs acquision assuming pool is already locked
 func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	if p.closed {
-		return nil, errors.New("cannot acquire from closed pool")
+		return nil, ErrClosedPool
 	}
 
 	// A connection is available
