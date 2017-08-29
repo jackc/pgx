@@ -16,6 +16,12 @@ type CIDRArray struct {
 }
 
 func (dst *CIDRArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = CIDRArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []*net.IPNet:
@@ -60,7 +66,7 @@ func (dst *CIDRArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to CIDR", value)
+		return errors.Errorf("cannot convert %v to CIDRArray", value)
 	}
 
 	return nil

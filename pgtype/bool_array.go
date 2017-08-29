@@ -15,6 +15,12 @@ type BoolArray struct {
 }
 
 func (dst *BoolArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = BoolArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case []bool:
@@ -40,7 +46,7 @@ func (dst *BoolArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Bool", value)
+		return errors.Errorf("cannot convert %v to BoolArray", value)
 	}
 
 	return nil

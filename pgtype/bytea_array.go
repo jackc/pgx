@@ -15,6 +15,12 @@ type ByteaArray struct {
 }
 
 func (dst *ByteaArray) Set(src interface{}) error {
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = ByteaArray{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 
 	case [][]byte:
@@ -40,7 +46,7 @@ func (dst *ByteaArray) Set(src interface{}) error {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Bytea", value)
+		return errors.Errorf("cannot convert %v to ByteaArray", value)
 	}
 
 	return nil
