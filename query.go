@@ -364,18 +364,20 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	rows = c.getRows(sql, args)
+
 	err = c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
-		return nil, err
+		rows.fatal(err)
+		return rows, err
 	}
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return nil, err
+		rows.fatal(err)
+		return rows, err
 	}
 
 	c.lastActivityTime = time.Now()
-
-	rows = c.getRows(sql, args)
 
 	if err := c.lock(); err != nil {
 		rows.fatal(err)
@@ -413,14 +415,14 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		if err != nil && fatalWriteErr(n, err) {
 			rows.fatal(err)
 			c.die(err)
-			return nil, err
+			return rows, err
 		}
 		c.pendingReadyForQueryCount++
 
 		fieldDescriptions, err := c.readUntilRowDescription()
 		if err != nil {
 			rows.fatal(err)
-			return nil, err
+			return rows, err
 		}
 
 		if len(options.ResultFormatCodes) == 0 {
