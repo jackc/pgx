@@ -835,6 +835,43 @@ func TestQueryRowErrors(t *testing.T) {
 	}
 }
 
+func TestQueryRowExErrorsWrongParameterOIDs(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := `
+		with t as (
+			select 1::int8 as some_int, 'foo'::text as some_text
+		)
+		select some_int from t where some_text = $1`
+	paramOIDs := []pgtype.OID{pgtype.TextArrayOID}
+	queryArgs := []interface{}{"bar"}
+	expectedErr := "operator does not exist: text = text[] (SQLSTATE 42883)"
+	var result int64
+
+	err := conn.QueryRowEx(
+		context.Background(),
+		sql,
+		&pgx.QueryExOptions{
+			ParameterOIDs: paramOIDs,
+			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
+		},
+		queryArgs...,
+	).Scan(&result)
+
+	if err == nil {
+		t.Errorf("Unexpected success (sql -> %v, paramOIDs -> %v, queryArgs -> %v)", sql, paramOIDs, queryArgs)
+	}
+	if err != nil && !strings.Contains(err.Error(), expectedErr) {
+		t.Errorf("Expected error to contain %s, but got %v (sql -> %v, paramOIDs -> %v, queryArgs -> %v)",
+			expectedErr, err, sql, paramOIDs, queryArgs)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestQueryRowNoResults(t *testing.T) {
 	t.Parallel()
 
