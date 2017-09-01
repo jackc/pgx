@@ -12,8 +12,13 @@ import (
 var pool *pgx.ConnPool
 
 func main() {
-	var err error
-	pool, err = pgx.NewConnPool(extractConfig())
+	config, err := pgx.ParseEnvLibpq()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Unable to parse environment:", err)
+		os.Exit(1)
+	}
+
+	pool, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: config})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to connect to database:", err)
 		os.Exit(1)
@@ -67,27 +72,4 @@ func listen() {
 
 		fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
 	}
-}
-
-func extractConfig() pgx.ConnPoolConfig {
-	var config pgx.ConnPoolConfig
-
-	config.Host = os.Getenv("CHAT_DB_HOST")
-	if config.Host == "" {
-		config.Host = "localhost"
-	}
-
-	config.User = os.Getenv("CHAT_DB_USER")
-	if config.User == "" {
-		config.User = os.Getenv("USER")
-	}
-
-	config.Password = os.Getenv("CHAT_DB_PASSWORD")
-
-	config.Database = os.Getenv("CHAT_DB_DATABASE")
-	if config.Database == "" {
-		config.Database = "postgres"
-	}
-
-	return config
 }
