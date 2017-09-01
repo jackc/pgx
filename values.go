@@ -128,12 +128,6 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
 		return buf, nil
-	case driver.Valuer:
-		v, err := arg.Value()
-		if err != nil {
-			return nil, err
-		}
-		return encodePreparedStatementArgument(ci, buf, oid, v)
 	case string:
 		buf = pgio.AppendInt32(buf, int32(len(arg)))
 		buf = append(buf, arg...)
@@ -154,6 +148,16 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 		value := dt.Value
 		err := value.Set(arg)
 		if err != nil {
+			{
+				if arg, ok := arg.(driver.Valuer); ok {
+					v, err := arg.Value()
+					if err != nil {
+						return nil, err
+					}
+					return encodePreparedStatementArgument(ci, buf, oid, v)
+				}
+			}
+
 			return nil, err
 		}
 
@@ -168,6 +172,14 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
 		return buf, nil
+	}
+
+	if arg, ok := arg.(driver.Valuer); ok {
+		v, err := arg.Value()
+		if err != nil {
+			return nil, err
+		}
+		return encodePreparedStatementArgument(ci, buf, oid, v)
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
