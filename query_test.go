@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
+	"github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -855,7 +857,7 @@ func TestQueryRowExErrorsWrongParameterOIDs(t *testing.T) {
 		context.Background(),
 		sql,
 		&pgx.QueryExOptions{
-			ParameterOIDs: paramOIDs,
+			ParameterOIDs:     paramOIDs,
 			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
 		},
 		queryArgs...,
@@ -995,6 +997,36 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 
 	if !num.Equals(expected) {
 		t.Errorf("Expected num to be %v, but it was %v", expected, num)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+		Value: &satori.UUID{},
+		Name:  "uuid",
+		OID:   2950,
+	})
+
+	expected, err := uuid.FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var u2 uuid.UUID
+	err = conn.QueryRow("select $1::uuid", expected).Scan(&u2)
+	if err != nil {
+		t.Fatalf("Scan failed: %v", err)
+	}
+
+	if expected != u2 {
+		t.Errorf("Expected u2 to be %v, but it was %v", expected, u2)
 	}
 
 	ensureConnValid(t, conn)
