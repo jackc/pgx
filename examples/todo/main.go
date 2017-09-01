@@ -10,8 +10,13 @@ import (
 var conn *pgx.Conn
 
 func main() {
-	var err error
-	conn, err = pgx.Connect(extractConfig())
+	config, err := pgx.ParseEnvLibpq()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Unable to parse environment:", err)
+		os.Exit(1)
+	}
+
+	conn, err = pgx.Connect(config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connection to database: %v\n", err)
 		os.Exit(1)
@@ -114,27 +119,4 @@ Example:
   todo add 'Learn Go'
   todo list
 `)
-}
-
-func extractConfig() pgx.ConnConfig {
-	var config pgx.ConnConfig
-
-	config.Host = os.Getenv("TODO_DB_HOST")
-	if config.Host == "" {
-		config.Host = "localhost"
-	}
-
-	config.User = os.Getenv("TODO_DB_USER")
-	if config.User == "" {
-		config.User = os.Getenv("USER")
-	}
-
-	config.Password = os.Getenv("TODO_DB_PASSWORD")
-
-	config.Database = os.Getenv("TODO_DB_DATABASE")
-	if config.Database == "" {
-		config.Database = "todo"
-	}
-
-	return config
 }

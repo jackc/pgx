@@ -21,19 +21,19 @@ Build todo:
 
 The database connection is configured via enviroment variables.
 
-* TODO_DB_HOST - defaults to localhost
-* TODO_DB_USER - defaults to current OS user
-* TODO_DB_PASSWORD - defaults to empty string
-* TODO_DB_DATABASE - defaults to todo
+* PGHOST - defaults to localhost
+* PGUSER - defaults to current OS user
+* PGPASSWORD - defaults to empty string
+* PGDATABASE - defaults to user name
 
 You can either export them then run todo:
 
-    export TODO_DB_HOST=/private/tmp
+    export PGDATABASE=todo
     ./todo list
 
 Or you can prefix the todo execution with the environment variables:
 
-    TODO_DB_HOST=/private/tmp ./todo list
+    PGDATABASE=todo ./todo list
 
 ## Add a todo item
 
@@ -60,7 +60,7 @@ Or you can prefix the todo execution with the environment variables:
     CREATE TABLE
     Time: 6.363 ms
     jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ go build
-    jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ export TODO_DB_HOST=/private/tmp
+    jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ export PGDATABASE=todo
     jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ ./todo list
     jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ ./todo add 'Learn Go'
     jack@hk-47~/dev/go/src/github.com/jackc/pgx/examples/todo$ ./todo list

@@ -8,18 +8,18 @@ between them.
 
 ## Connection configuration
 
-The database connection is configured via enviroment variables.
+The database connection is configured via the standard PostgreSQL environment variables.
 
-* CHAT_DB_HOST - defaults to localhost
-* CHAT_DB_USER - defaults to current OS user
-* CHAT_DB_PASSWORD - defaults to empty string
-* CHAT_DB_DATABASE - defaults to postgres
+* PGHOST - defaults to localhost
+* PGUSER - defaults to current OS user
+* PGPASSWORD - defaults to empty string
+* PGDATABASE - defaults to user name
 
 You can either export them then run chat:
 
-    export CHAT_DB_HOST=/private/tmp
+    export PGHOST=/private/tmp
     ./chat
 
 Or you can prefix the chat execution with the environment variables:
 
-    CHAT_DB_HOST=/private/tmp ./chat
+    PGHOST=/private/tmp ./chat
