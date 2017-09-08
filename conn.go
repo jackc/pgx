@@ -711,7 +711,9 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 		cc.UseFallbackTLS = true
 		cc.FallbackTLSConfig = nil
-	case "require", "verify-ca", "verify-full":
+	case "require":
+		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	case "verify-ca", "verify-full":
 		cc.TLSConfig = &tls.Config{
 			ServerName: cc.Host,
 		}
