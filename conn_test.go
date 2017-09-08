@@ -1953,3 +1953,31 @@ end$$;`)
 
 	ensureConnValid(t, conn)
 }
+
+func TestConnInitConnInfo(t *testing.T) {
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	// spot check that the standard postgres type names aren't qualified
+	nameOIDs := map[string]pgtype.OID{
+		"_int8": pgtype.Int8ArrayOID,
+		"int8": pgtype.Int8OID,
+		"json": pgtype.JSONOID,
+		"text": pgtype.TextOID,
+	}
+	for name, oid := range nameOIDs {
+		dtByName, ok := conn.ConnInfo.DataTypeForName(name)
+		if !ok {
+			t.Fatalf("Expected type named %v to be present", name)
+		}
+		dtByOID, ok := conn.ConnInfo.DataTypeForOID(oid)
+		if !ok {
+			t.Fatalf("Expected type OID %v to be present", oid)
+		}
+		if dtByName != dtByOID {
+			t.Fatalf("Expected type named %v to be the same as type OID %v", name, oid)
+		}
+	}
+
+	ensureConnValid(t, conn)
+}
