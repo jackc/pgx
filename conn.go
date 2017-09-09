@@ -652,10 +652,10 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // See http://www.postgresql.org/docs/9.4/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION
 // for details on what level of security each sslmode provides.
 //
-// "require" and "verify-ca" modes currently are treated as "verify-full". e.g.
-// They have stronger security guarantees than they would with libpq. Do not
-// rely on this behavior as it may be possible to match libpq in the future. If
-// you need full security use "verify-full".
+// "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
+// security guarantees than it would with libpq. Do not rely on this behavior as it
+// may be possible to match libpq in the future. If you need full security use
+// "verify-full".
 //
 // Several of the PGSSLMODE options (including the default behavior of "prefer")
 // will set UseFallbackTLS to true and FallbackTLSConfig to a disabled or
@@ -711,7 +711,9 @@ func configSSL(sslmode string, cc *ConnConfig) error {
 		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 		cc.UseFallbackTLS = true
 		cc.FallbackTLSConfig = nil
-	case "require", "verify-ca", "verify-full":
+	case "require":
+		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	case "verify-ca", "verify-full":
 		cc.TLSConfig = &tls.Config{
 			ServerName: cc.Host,
 		}
