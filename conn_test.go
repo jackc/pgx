@@ -854,7 +854,7 @@ func TestParseEnvLibpq(t *testing.T) {
 				"PGSSLMODE": "require",
 			},
 			config: pgx.ConnConfig{
-				TLSConfig:      &tls.Config{},
+				TLSConfig:      &tls.Config{InsecureSkipVerify: true},
 				UseFallbackTLS: false,
 				RuntimeParams:  map[string]string{},
 			},
