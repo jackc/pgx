@@ -384,9 +384,13 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 func (c *Conn) initConnInfo() error {
 	nameOIDs := make(map[string]pgtype.OID, 256)
 
-	rows, err := c.Query(`select t.oid, t.typname
+	rows, err := c.Query(`select t.oid,
+	case when nsp.nspname in ('pg_catalog', 'public') then t.typname
+		else nsp.nspname||'.'||t.typname
+	end
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
+left join pg_namespace nsp on t.typnamespace=nsp.oid
 where (
 	  t.typtype in('b', 'p', 'r', 'e')
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
