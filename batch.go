@@ -21,14 +21,18 @@ type Batch struct {
 	connPool    *ConnPool
 	items       []*batchItem
 	resultsRead int
-	sent        bool
 	ctx         context.Context
 	err         error
+	inTx        bool
 }
 
 // BeginBatch returns a *Batch query for c.
 func (c *Conn) BeginBatch() *Batch {
 	return &Batch{conn: c}
+}
+
+func (tx *Tx) BeginBatch() *Batch {
+	return &Batch{conn: tx.conn, inTx: true}
 }
 
 // Conn returns the underlying connection that b will or was performed on.
@@ -48,7 +52,8 @@ func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []pgt
 	})
 }
 
-// Send sends all queued queries to the server at once. All queries are wrapped
+// Send sends all queued queries to the server at once.
+// If the batch is created from a conn Object then All queries are wrapped
 // in a transaction. The transaction can optionally be configured with
 // txOptions. The context is in effect until the Batch is closed.
 func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
@@ -67,12 +72,15 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 		return err
 	}
 
+	buf := b.conn.wbuf
+	if !b.inTx {
+		buf = appendQuery(buf, txOptions.beginSQL())
+	}
+
 	err = b.conn.initContext(ctx)
 	if err != nil {
 		return err
 	}
-
-	buf := appendQuery(b.conn.wbuf, txOptions.beginSQL())
 
 	for _, bi := range b.items {
 		var psName string
@@ -97,7 +105,12 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 	}
 
 	buf = appendSync(buf)
-	buf = appendQuery(buf, "commit")
+	b.conn.pendingReadyForQueryCount++
+
+	if !b.inTx {
+		buf = appendQuery(buf, "commit")
+		b.conn.pendingReadyForQueryCount++
+	}
 
 	n, err := b.conn.conn.Write(buf)
 	if err != nil {
@@ -107,12 +120,7 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 		return err
 	}
 
-	// expect ReadyForQuery from sync and from commit
-	b.conn.pendingReadyForQueryCount = b.conn.pendingReadyForQueryCount + 2
-
-	b.sent = true
-
-	for {
+	for !b.inTx {
 		msg, err := b.conn.rxMsg()
 		if err != nil {
 			return err
