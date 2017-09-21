@@ -477,7 +477,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 	}
 }
 
-func TestConnBeginBatchSelectInsert(t *testing.T) {
+func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -512,6 +512,55 @@ func TestConnBeginBatchSelectInsert(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	ct, err := batch.ExecResults()
+	if err != nil {
+		t.Error(err)
+	}
+	if ct.RowsAffected() != 2 {
+		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected, 2)
+	}
+
+	batch.Close()
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := `create temporary table ledger(
+  id serial primary key,
+  description varchar not null,
+  amount int not null
+);`
+	mustExec(t, conn, sql)
+
+	batch := conn.BeginBatch()
+	batch.Queue("select 1 union all select 2 union all select 3",
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
+		[]interface{}{"q1", 1},
+		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		nil,
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+	rows.Close()
 
 	ct, err := batch.ExecResults()
 	if err != nil {
