@@ -34,8 +34,6 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 	}
 
 	rows.Scan(dest...)
-	for rows.Next() {
-	}
 	rows.Close()
 	return rows.Err()
 }
@@ -151,6 +149,9 @@ func (rows *Rows) Next() bool {
 			rows.values = msg.Values
 			return true
 		case *pgproto3.CommandComplete:
+			if rows.batch != nil {
+				rows.batch.pendingCommandComplete = false
+			}
 			rows.Close()
 			return false
 
