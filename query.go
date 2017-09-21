@@ -34,6 +34,8 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 	}
 
 	rows.Scan(dest...)
+	for rows.Next() {
+	}
 	rows.Close()
 	return rows.Err()
 }
