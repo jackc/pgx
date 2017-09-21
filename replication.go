@@ -435,7 +435,13 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 }
 
 // Create the replication slot, using the given name and output plugin.
-func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) (consistentPoint string, snapshotName string, err error) {
+func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) (err error) {
+	_, err = rc.c.Exec(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin))
+	return
+}
+
+// Create the replication slot, using the given name and output plugin, and return the consistent_point and snapshot_name values.
+func (rc *ReplicationConn) CreateReplicationSlotEx(slotName, outputPlugin string) (consistentPoint string, snapshotName string, err error) {
 	var dummy string
 	var rows *Rows
 	rows, err = rc.sendReplicationModeQuery(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin))
