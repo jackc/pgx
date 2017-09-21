@@ -149,6 +149,9 @@ func (rows *Rows) Next() bool {
 			rows.values = msg.Values
 			return true
 		case *pgproto3.CommandComplete:
+			if rows.batch != nil {
+				rows.batch.pendingCommandComplete = false
+			}
 			rows.Close()
 			return false
 
