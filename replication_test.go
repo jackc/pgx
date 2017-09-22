@@ -56,9 +56,17 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
-	err = replicationConn.CreateReplicationSlot("pgx_test", "test_decoding")
+	var cp string
+	var snapshot_name string
+	cp, snapshot_name, err = replicationConn.CreateReplicationSlotEx("pgx_test", "test_decoding")
 	if err != nil {
 		t.Fatalf("replication slot create failed: %v", err)
+	}
+	if cp == "" {
+		t.Logf("consistent_point is empty")
+	}
+	if snapshot_name == "" {
+		t.Logf("snapshot_name is empty")
 	}
 
 	// Do a simple change so we can get some wal data
@@ -178,19 +186,34 @@ func TestReplicationConn_DropReplicationSlot(t *testing.T) {
 	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
-	err := replicationConn.CreateReplicationSlot("pgx_slot_test", "test_decoding")
+	var cp string
+	var snapshot_name string
+	cp, snapshot_name, err := replicationConn.CreateReplicationSlotEx("pgx_slot_test", "test_decoding")
 	if err != nil {
 		t.Logf("replication slot create failed: %v", err)
 	}
+	if cp == "" {
+		t.Logf("consistent_point is empty")
+	}
+	if snapshot_name == "" {
+		t.Logf("snapshot_name is empty")
+	}
+
 	err = replicationConn.DropReplicationSlot("pgx_slot_test")
 	if err != nil {
 		t.Fatalf("Failed to drop replication slot: %v", err)
 	}
 
 	// We re-create to ensure the drop worked.
-	err = replicationConn.CreateReplicationSlot("pgx_slot_test", "test_decoding")
+	cp, snapshot_name, err = replicationConn.CreateReplicationSlotEx("pgx_slot_test", "test_decoding")
 	if err != nil {
 		t.Logf("replication slot create failed: %v", err)
+	}
+	if cp == "" {
+		t.Logf("consistent_point is empty")
+	}
+	if snapshot_name == "" {
+		t.Logf("snapshot_name is empty")
 	}
 
 	// And finally we drop to ensure we don't leave dirty state
