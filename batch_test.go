@@ -574,3 +574,130 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestTxBeginBatch(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := `create temporary table ledger1(
+  id serial primary key,
+  description varchar not null
+);`
+	mustExec(t, conn, sql)
+
+	sql = `create temporary table ledger2(
+  id int primary key,
+  amount int not null
+);`
+	mustExec(t, conn, sql)
+
+	tx, _ := conn.Begin()
+	batch := tx.BeginBatch()
+	batch.Queue("insert into ledger1(description) values($1) returning id",
+		[]interface{}{"q1"},
+		[]pgtype.OID{pgtype.VarcharOID},
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id int
+	err = batch.QueryRowResults().Scan(&id)
+	if err != nil {
+		t.Error(err)
+	}
+	batch.Close()
+
+	batch = tx.BeginBatch()
+	batch.Queue("insert into ledger2(id,amount) values($1, $2)",
+		[]interface{}{id, 2},
+		[]pgtype.OID{pgtype.Int4OID, pgtype.Int4OID},
+		nil,
+	)
+
+	batch.Queue("select amount from ledger2 where id = $1",
+		[]interface{}{id},
+		[]pgtype.OID{pgtype.Int4OID},
+		nil,
+	)
+
+	err = batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ct, err := batch.ExecResults()
+	if err != nil {
+		t.Error(err)
+	}
+	if ct.RowsAffected() != 1 {
+		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
+	}
+
+	var amout int
+	err = batch.QueryRowResults().Scan(&amout)
+	if err != nil {
+		t.Error(err)
+	}
+
+	batch.Close()
+	tx.Commit()
+
+	var count int
+	conn.QueryRow("select count(1) from ledger1 where id = $1", id).Scan(&count)
+	if count != 1 {
+		t.Errorf("count => %v, want %v", count, 1)
+	}
+
+	err = batch.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestTxBeginBatchRollback(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	sql := `create temporary table ledger1(
+  id serial primary key,
+  description varchar not null
+);`
+	mustExec(t, conn, sql)
+
+	tx, _ := conn.Begin()
+	batch := tx.BeginBatch()
+	batch.Queue("insert into ledger1(description) values($1) returning id",
+		[]interface{}{"q1"},
+		[]pgtype.OID{pgtype.VarcharOID},
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id int
+	err = batch.QueryRowResults().Scan(&id)
+	if err != nil {
+		t.Error(err)
+	}
+	batch.Close()
+	tx.Rollback()
+
+	row := conn.QueryRow("select count(1) from ledger1 where id = $1", id)
+	var count int
+	row.Scan(&count)
+	if count != 0 {
+		t.Errorf("count => %v, want %v", count, 0)
+	}
+
+	ensureConnValid(t, conn)
+}
