@@ -24,7 +24,7 @@ type Batch struct {
 	pendingCommandComplete bool
 	ctx                    context.Context
 	err                    error
-  inTx        bool
+	inTx                   bool
 }
 
 // BeginBatch returns a *Batch query for c.
@@ -32,6 +32,8 @@ func (c *Conn) BeginBatch() *Batch {
 	return &Batch{conn: c}
 }
 
+// BeginBatch returns a *Batch query for tx. Since this *Batch is already part
+// of a transaction it will not automatically be wrapped in a transaction.
 func (tx *Tx) BeginBatch() *Batch {
 	return &Batch{conn: tx.conn, inTx: true}
 }
