@@ -67,14 +67,6 @@ func TestTimestampTzTranscode(t *testing.T) {
 	if !inputTime.Equal(outputTime) {
 		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
 	}
-
-	err = conn.QueryRow("select $1::timestamptz", inputTime).Scan(&outputTime)
-	if err != nil {
-		t.Fatalf("QueryRow Scan failed: %v", err)
-	}
-	if !inputTime.Equal(outputTime) {
-		t.Errorf("Did not transcode time successfully: %v is not %v", outputTime, inputTime)
-	}
 }
 
 // TODO - move these tests to pgtype
