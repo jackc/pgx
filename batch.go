@@ -17,13 +17,14 @@ type batchItem struct {
 // Batch queries are a way of bundling multiple queries together to avoid
 // unnecessary network round trips.
 type Batch struct {
-	conn        *Conn
-	connPool    *ConnPool
-	items       []*batchItem
-	resultsRead int
-	ctx         context.Context
-	err         error
-	inTx        bool
+	conn                   *Conn
+	connPool               *ConnPool
+	items                  []*batchItem
+	resultsRead            int
+	pendingCommandComplete bool
+	ctx                    context.Context
+	err                    error
+  inTx        bool
 }
 
 // BeginBatch returns a *Batch query for c.
@@ -153,7 +154,14 @@ func (b *Batch) ExecResults() (CommandTag, error) {
 	default:
 	}
 
+	if err := b.ensureCommandComplete(); err != nil {
+		b.die(err)
+		return "", err
+	}
+
 	b.resultsRead++
+
+	b.pendingCommandComplete = true
 
 	for {
 		msg, err := b.conn.rxMsg()
@@ -163,6 +171,7 @@ func (b *Batch) ExecResults() (CommandTag, error) {
 
 		switch msg := msg.(type) {
 		case *pgproto3.CommandComplete:
+			b.pendingCommandComplete = false
 			return CommandTag(msg.CommandTag), nil
 		default:
 			if err := b.conn.processContextFreeMsg(msg); err != nil {
@@ -190,7 +199,15 @@ func (b *Batch) QueryResults() (*Rows, error) {
 	default:
 	}
 
+	if err := b.ensureCommandComplete(); err != nil {
+		b.die(err)
+		rows.fatal(err)
+		return rows, err
+	}
+
 	b.resultsRead++
+
+	b.pendingCommandComplete = true
 
 	fieldDescriptions, err := b.conn.readUntilRowDescription()
 	if err != nil {
@@ -251,4 +268,26 @@ func (b *Batch) die(err error) {
 	if b.conn != nil && b.connPool != nil {
 		b.connPool.Release(b.conn)
 	}
+}
+
+func (b *Batch) ensureCommandComplete() error {
+	for b.pendingCommandComplete {
+		msg, err := b.conn.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.CommandComplete:
+			b.pendingCommandComplete = false
+			return nil
+		default:
+			err = b.conn.processContextFreeMsg(msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
