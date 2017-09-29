@@ -52,3 +52,7 @@ func (src *Varchar) Value() (driver.Value, error) {
 func (src *Varchar) MarshalJSON() ([]byte, error) {
 	return (*Text)(src).MarshalJSON()
 }
+
+func (dst *Varchar) UnmarshalJSON(b []byte) error {
+	return (*Text)(dst).UnmarshalJSON(b)
+}
