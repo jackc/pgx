@@ -149,3 +149,15 @@ func (src *Text) MarshalJSON() ([]byte, error) {
 
 	return nil, errBadStatus
 }
+
+func (dst *Text) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	*dst = Text{String: s, Status: Present}
+
+	return nil
+}
