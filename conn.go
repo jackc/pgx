@@ -41,10 +41,11 @@ var minimalConnInfo *pgtype.ConnInfo
 func init() {
 	minimalConnInfo = pgtype.NewConnInfo()
 	minimalConnInfo.InitializeDataTypes(map[string]pgtype.OID{
-		"int4": pgtype.Int4OID,
-		"name": pgtype.NameOID,
-		"oid":  pgtype.OIDOID,
-		"text": pgtype.TextOID,
+		"int4":    pgtype.Int4OID,
+		"name":    pgtype.NameOID,
+		"oid":     pgtype.OIDOID,
+		"text":    pgtype.TextOID,
+		"varchar": pgtype.VarcharOID,
 	})
 }
 
@@ -396,7 +397,10 @@ where (
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
 	)`)
 	if err != nil {
-		return err
+		// Check if CrateDB specific approach might still allow us to connect.
+		if rows, err = c.crateDBTypesQuery(err); err != nil {
+			return err
+		}
 	}
 
 	for rows.Next() {
@@ -416,6 +420,64 @@ where (
 	c.ConnInfo = pgtype.NewConnInfo()
 	c.ConnInfo.InitializeDataTypes(nameOIDs)
 	return nil
+}
+
+// crateDBTypesQuery checks if the given err is likely to be the result of
+// CrateDB not implementing the pg_types table correctly. If yes, a CrateDB
+// specific query against pg_types is executed and its results are returned. If
+// not, the original error is returned.
+func (c *Conn) crateDBTypesQuery(err error) (*Rows, error) {
+	// CrateDB 2.1.6 is a database that implements the PostgreSQL wire protocol,
+	// but not perfectly. In particular, the pg_catalog schema containing the
+	// pg_type table is not visible by default and the pg_type.typtype column is
+	// not implemented. Therefor the query above currently returns the following
+	// error:
+	//
+	//   pgx.PgError{Severity:"ERROR", Code:"XX000",
+	//   Message:"TableUnknownException: Table 'test.pg_type' unknown",
+	//   Detail:"", Hint:"", Position:0, InternalPosition:0, InternalQuery:"",
+	//   Where:"", SchemaName:"", TableName:"", ColumnName:"", DataTypeName:"",
+	//   ConstraintName:"", File:"Schemas.java", Line:99, Routine:"getTableInfo"}
+	//
+	// If CrateDB was to fix the pg_type table visbility in the future, we'd
+	// still get this error until typtype column is implemented:
+	//
+	//   pgx.PgError{Severity:"ERROR", Code:"XX000",
+	//   Message:"ColumnUnknownException: Column typtype unknown", Detail:"",
+	//   Hint:"", Position:0, InternalPosition:0, InternalQuery:"", Where:"",
+	//   SchemaName:"", TableName:"", ColumnName:"", DataTypeName:"",
+	//   ConstraintName:"", File:"FullQualifiedNameFieldProvider.java", Line:132,
+	//
+	// Additionally CrateDB doesn't implement Postgres error codes [2], and
+	// instead always returns "XX000" (internal_error). The code below uses all
+	// of this knowledge as a heuristic to detect CrateDB. If CrateDB is
+	// detected, a CrateDB specific pg_type query is executed instead.
+	//
+	// The heuristic is designed to still work even if CrateDB fixes [2] or
+	// renames its internal exception names. If both are changed but pg_types
+	// isn't fixed, this code will need to be changed.
+	//
+	// There is also a small chance the heuristic will yield a false positive for
+	// non-CrateDB databases (e.g. if a real Postgres instance returns a XX000
+	// error), but hopefully there will be no harm in attempting the alternative
+	// query in this case.
+	//
+	// CrateDB also uses the type varchar for the typname column which required
+	// adding varchar to the minimalConnInfo init code.
+	//
+	// Also see the discussion here [3].
+	//
+	// [1] https://crate.io/
+	// [2] https://github.com/crate/crate/issues/5027
+	// [3] https://github.com/jackc/pgx/issues/320
+
+	if pgErr, ok := err.(PgError); ok &&
+		(pgErr.Code == "XX000" ||
+			strings.Contains(pgErr.Message, "TableUnknownException") ||
+			strings.Contains(pgErr.Message, "ColumnUnknownException")) {
+		return c.Query(`select oid, typname from pg_catalog.pg_type`)
+	}
+	return nil, err
 }
 
 // PID returns the backend PID for this connection.
