@@ -438,6 +438,47 @@ where (
 	steps = append(steps, SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 163"}))
 	steps = append(steps, SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}))
 
+	steps = append(steps, []Step{
+		ExpectMessage(&pgproto3.Parse{
+			Query: "select t.oid, t.typname\nfrom pg_type t\n  join pg_type base_type on t.typelem=base_type.oid\nwhere t.typtype = 'b'\n  and base_type.typtype = 'e'",
+		}),
+		ExpectMessage(&pgproto3.Describe{
+			ObjectType: 'S',
+		}),
+		ExpectMessage(&pgproto3.Sync{}),
+		SendMessage(&pgproto3.ParseComplete{}),
+		SendMessage(&pgproto3.ParameterDescription{}),
+		SendMessage(&pgproto3.RowDescription{
+			Fields: []pgproto3.FieldDescription{
+				{Name: "oid",
+					TableOID:             1247,
+					TableAttributeNumber: 65534,
+					DataTypeOID:          26,
+					DataTypeSize:         4,
+					TypeModifier:         4294967295,
+					Format:               0,
+				},
+				{Name: "typname",
+					TableOID:             1247,
+					TableAttributeNumber: 1,
+					DataTypeOID:          19,
+					DataTypeSize:         64,
+					TypeModifier:         4294967295,
+					Format:               0,
+				},
+			},
+		}),
+		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		ExpectMessage(&pgproto3.Bind{
+			ResultFormatCodes: []int16{1, 1},
+		}),
+		ExpectMessage(&pgproto3.Execute{}),
+		ExpectMessage(&pgproto3.Sync{}),
+		SendMessage(&pgproto3.BindComplete{}),
+		SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 0"}),
+		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+	}...)
+
 	return steps
 }
 

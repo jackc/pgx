@@ -16,4 +16,8 @@ erb pgtype_array_type=ACLItemArray pgtype_element_type=ACLItem go_array_types=[]
 erb pgtype_array_type=HstoreArray pgtype_element_type=Hstore go_array_types=[]map[string]string element_type_name=hstore text_null=NULL binary_format=true typed_array.go.erb > hstore_array.go
 erb pgtype_array_type=NumericArray pgtype_element_type=Numeric go_array_types=[]float32,[]float64 element_type_name=numeric text_null=NULL binary_format=true typed_array.go.erb > numeric_array.go
 erb pgtype_array_type=UUIDArray pgtype_element_type=UUID go_array_types=[][16]byte,[][]byte,[]string element_type_name=uuid text_null=NULL binary_format=true typed_array.go.erb > uuid_array.go
+
+# While the binary format is theoretically possible it is only practical to use the text format. In addition, the text format for NULL enums is unquoted so TextArray or a possible GenericTextArray cannot be used.
+erb pgtype_array_type=EnumArray pgtype_element_type=GenericText go_array_types=[]string text_null='NULL' binary_format=false typed_array.go.erb > enum_array.go
+
 goimports -w *_array.go
