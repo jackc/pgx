@@ -8,10 +8,10 @@ import (
 )
 
 type Logger struct {
-	l *logrus.Logger
+	l logrus.FieldLogger
 }
 
-func NewLogger(l *logrus.Logger) *Logger {
+func NewLogger(l logrus.FieldLogger) *Logger {
 	return &Logger{l: l}
 }
 
