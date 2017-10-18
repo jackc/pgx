@@ -419,6 +419,45 @@ where (
 
 	c.ConnInfo = pgtype.NewConnInfo()
 	c.ConnInfo.InitializeDataTypes(nameOIDs)
+
+	return c.initConnInfoEnumArray()
+}
+
+// initConnInfoEnumArray introspects for arrays of enums and registers a data type for them.
+func (c *Conn) initConnInfoEnumArray() error {
+	nameOIDs := make(map[string]pgtype.OID, 16)
+
+	rows, err := c.Query(`select t.oid, t.typname
+from pg_type t
+  join pg_type base_type on t.typelem=base_type.oid
+where t.typtype = 'b'
+  and base_type.typtype = 'e'`)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var oid pgtype.OID
+		var name pgtype.Text
+		if err := rows.Scan(&oid, &name); err != nil {
+			return err
+		}
+
+		nameOIDs[name.String] = oid
+	}
+
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+
+	for name, oid := range nameOIDs {
+		c.ConnInfo.RegisterDataType(pgtype.DataType{
+			&pgtype.EnumArray{},
+			name,
+			oid,
+		})
+	}
+
 	return nil
 }
 
