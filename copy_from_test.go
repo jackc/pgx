@@ -1,7 +1,10 @@
 package pgx_test
 
 import (
+	"bufio"
+	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -422,6 +425,220 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 
 	if len(outputRows) != 0 {
 		t.Errorf("Expected 0 rows, but got %v", outputRows)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnCopyFromStringReader(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		id serial,
+		a int2,
+		b int4,
+		c int8,
+		d varchar,
+		e text,
+		f jsonb,
+		g date,
+		h timestamptz,
+		i bool
+	)`)
+	var sepComma rune = pgx.CommaSeparator
+	var nullPlaceholder string = "![null]"
+
+	inputData := `"12", 1536363341,36427536347546,"Rocky","Rocky vs the world","{"age": 30}","2010-11-23","2010-10-22 23:45:00 EST",f
+22, 5736734 ,"7254745","Bullwinkle","A dubious existence","{"wizard":"oz"}",,"1994-10-22 23:45:00 GMT","true"
+"32", ,36427536347546,"Garibaldi",'Unifier of Italy',,,"2010-10-22 23:45:00 PST","F"
+"42",9483,453,![null],"Stranger than kindness","{"flower":"rose"}","1957-06-12",,"1"
+"52","2619",285723,"","defeated, but not vanquished",,"1998-03-05","2016-10-22 10:45:00.157999592 CET",0
+`
+	var inputRowCount = 5
+
+	inputRows := strings.NewReader(inputData)
+
+	copySourceReader, err := pgx.CopyFromReader(inputRows, sepComma, &nullPlaceholder, "int2", "int4", "int8", "varchar", "text", "jsonb", "date", "timestamptz", "bool")
+	if err != nil {
+		t.Errorf("Unexpected error from CopyFromReader: %v", err)
+	}
+	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}, copySourceReader)
+	if err != nil {
+		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+	if copyCount != inputRowCount {
+		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", inputRowCount, copyCount)
+	}
+
+	rows, err := conn.Query("select a,b,c,d,e,f,g,h,i from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if v, ok := (outputRows[0][0]).(int16); !ok {
+		t.Errorf("Unexpected type for outputRows[0][0] - expected: %s", "int16")
+	} else {
+		if v != int16(12) {
+			t.Errorf("Unexpected value for outputRows[0][0] - expected %s got %d", "12", v)
+		}
+	}
+
+	if v, ok := (outputRows[1][5]).(map[string]interface{}); !ok {
+		t.Errorf("Unexpected type for outputRows[1][5] - expected: %s for value %v", "map[string]interface{}", outputRows[1][5])
+	} else {
+		if v["wizard"] != "oz" {
+			t.Errorf("Unexpected value for outputRows[1][5] - expected %s got %s", "{\"wizard\":\"oz\"}", v)
+		}
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnCopyFromNetworkReaderLarge(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		id serial,
+		a int2,
+		b int4,
+		c int8,
+		d varchar,
+		e text,
+		f jsonb,
+		g date,
+		h timestamptz,
+		i bool
+	)`)
+	var sepComma rune = pgx.CommaSeparator
+	var nullPlaceholder string = "![null]"
+
+	inputData := `"12", 1536363341,36427536347546,"Rocky","Rocky vs the world","{"age": 30}","2010-11-23","2010-10-22 23:45:00 EST",f
+22, 5736734 ,"7254745","Bullwinkle","A dubious existence","{"wizard":"oz"}",,"1994-10-22 23:45:00 GMT","true"
+"32", ,36427536347546,"Garibaldi",'Unifier of Italy',,,"2010-10-22 23:45:00 PST","F"
+"42",9483,453,![null],"Stranger than kindness","{"flower":"rose"}","1957-06-12",,"1"
+"52","2619",285723,"","defeated, but not vanquished",,"1998-03-05","2016-10-22 10:45:00.157999592 CET",0
+`
+	var inputRowCount = 5
+	var repetitions = 20000
+
+	chanStatus := make(chan string, 6)
+	serverAddressAndPort := "127.0.0.1:8368"
+
+	// Start the writer (server)
+	go func(data string, reps int, statusChan chan string) {
+
+		ln, err := net.Listen("tcp", serverAddressAndPort)
+		if err != nil {
+			statusChan <- err.Error()
+			return
+		}
+		statusChan <- "OK"
+
+		conn, err := ln.Accept()
+		if err != nil {
+			statusChan <- err.Error()
+			return
+		}
+
+		for i := 1; i <= reps; i++ {
+			_, err = conn.Write([]byte(inputData))
+			if err != nil {
+				statusChan <- err.Error()
+				return
+			}
+		}
+
+		if err := conn.Close(); err != nil {
+			statusChan <- err.Error()
+			return
+		}
+
+	}(inputData, repetitions, chanStatus)
+
+	// Wait for the server to initialize or time out
+	select {
+	case status := <-chanStatus:
+		if status != "OK" {
+			t.Errorf("Unexpected server error: %s", status)
+		}
+	case <-time.After(time.Second * 3):
+		t.Errorf("Timed out waiting for the server to initialize")
+	}
+
+	// Initialize the network client
+	netConn, err := net.Dial("tcp", serverAddressAndPort)
+	if err != nil {
+		t.Errorf("Unexpected client dial error: %v", err)
+	}
+	defer netConn.Close()
+	netReader := bufio.NewReader(netConn)
+	copySourceReader, err := pgx.CopyFromReader(netReader, sepComma, &nullPlaceholder, "int2", "int4", "int8", "varchar", "text", "jsonb", "date", "timestamptz", "bool")
+	if err != nil {
+		t.Errorf("Unexpected error from CopyFromReader: %v", err)
+	}
+
+	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}, copySourceReader)
+	if err != nil {
+		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+	if copyCount != inputRowCount*repetitions {
+		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", inputRowCount, copyCount)
+	}
+
+	// Based on how many rows were inserted, select 5 rows at "random" with
+	// an offset that is a multiple of 5, so we can do value comparison.
+	// (change the 5000 offset as needed).
+	rows, err := conn.Query("select a,b,c,d,e,f,g,h,i from foo order by id limit 5 offset 5000")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if v, ok := (outputRows[0][0]).(int16); !ok {
+		t.Errorf("Unexpected type for outputRows[0][0] - expected: %s", "int16")
+	} else {
+		if v != int16(12) {
+			t.Errorf("Unexpected value for outputRows[0][0] - expected %s got %d", "12", v)
+		}
+	}
+
+	if v, ok := (outputRows[1][5]).(map[string]interface{}); !ok {
+		t.Errorf("Unexpected type for outputRows[1][5] - expected: %s for value %v", "map[string]interface{}", outputRows[1][5])
+	} else {
+		if v["wizard"] != "oz" {
+			t.Errorf("Unexpected value for outputRows[1][5] - expected %s got %s", "{\"wizard\":\"oz\"}", v)
+		}
 	}
 
 	ensureConnValid(t, conn)
