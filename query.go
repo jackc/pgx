@@ -367,6 +367,7 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	c.lastActivityTime = time.Now()
 	rows = c.getRows(sql, args)
 
 	err = c.waitForPreviousCancelQuery(ctx)
@@ -379,8 +380,6 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		rows.fatal(err)
 		return rows, err
 	}
-
-	c.lastActivityTime = time.Now()
 
 	if err := c.lock(); err != nil {
 		rows.fatal(err)
