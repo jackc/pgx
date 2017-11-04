@@ -16,6 +16,10 @@ const (
 	Empty     = BoundType('E')
 )
 
+func (bt BoundType) String() string {
+	return string(bt)
+}
+
 type UntypedTextRange struct {
 	Lower     string
 	Upper     string
