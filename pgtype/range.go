@@ -26,8 +26,8 @@ type UntypedTextRange struct {
 func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 	utr := &UntypedTextRange{}
 	if src == "empty" {
-		utr.LowerType = 'E'
-		utr.UpperType = 'E'
+		utr.LowerType = Empty
+		utr.UpperType = Empty
 		return utr, nil
 	}
 
