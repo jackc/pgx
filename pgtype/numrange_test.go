@@ -29,6 +29,18 @@ func TestNumrangeTranscode(t *testing.T) {
 			UpperType: pgtype.Exclusive,
 			Status:    pgtype.Present,
 		},
+		&pgtype.Numrange{
+			Lower:     pgtype.Numeric{Int: big.NewInt(-42), Exp: 1, Status: pgtype.Present},
+			LowerType: pgtype.Inclusive,
+			UpperType: pgtype.Unbounded,
+			Status:    pgtype.Present,
+		},
+		&pgtype.Numrange{
+			Upper:     pgtype.Numeric{Int: big.NewInt(-42), Exp: 1, Status: pgtype.Present},
+			LowerType: pgtype.Unbounded,
+			UpperType: pgtype.Exclusive,
+			Status:    pgtype.Present,
+		},
 		&pgtype.Numrange{Status: pgtype.Null},
 	})
 }
