@@ -36,6 +36,11 @@
 //		return err
 //	}
 //
+// pgx uses standard PostgreSQL positional parameters in queries. e.g. $1, $2.
+// It does not support named parameters.
+//
+//	db.QueryRow("select * from users where id=$1", userID)
+//
 // AcquireConn and ReleaseConn acquire and release a *pgx.Conn from the standard
 // database/sql.DB connection pool. This allows operations that must be
 // performed on a single connection, but should not be run in a transaction or
