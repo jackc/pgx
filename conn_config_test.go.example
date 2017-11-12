@@ -15,6 +15,7 @@ var invalidUserConnConfig *pgx.ConnConfig = nil
 var tlsConnConfig *pgx.ConnConfig = nil
 var customDialerConnConfig *pgx.ConnConfig = nil
 var replicationConnConfig *pgx.ConnConfig = nil
+var cratedbConnConfig *pgx.ConnConfig = nil
 
 // var tcpConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 // var unixSocketConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "/private/tmp", User: "pgx_none", Database: "pgx_test"}
