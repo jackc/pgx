@@ -396,13 +396,11 @@ where (
 	  t.typtype in('b', 'p', 'r', 'e')
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
 	)`)
-	isCrateDB := false
 	if err != nil {
 		// Check if CrateDB specific approach might still allow us to connect.
 		if rows, err = c.crateDBTypesQuery(err); err != nil {
 			return err
 		}
-		isCrateDB = true
 	}
 
 	for rows.Next() {
@@ -422,11 +420,6 @@ where (
 	c.ConnInfo = pgtype.NewConnInfo()
 	c.ConnInfo.InitializeDataTypes(nameOIDs)
 
-	if isCrateDB {
-		// CrateDB does not support enums (initConnInfoEnumArray), so we return
-		// early here.
-		return nil
-	}
 	return c.initConnInfoEnumArray()
 }
 
