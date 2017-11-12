@@ -26,9 +26,9 @@ fi
 
 if [ "${CRATEVERSION-}" != "" ]
 then
-  docker run --name cratedb \
+  docker run \
     -p "6543:5432" \
-    -d
+    -d \
     crate:"$CRATEVERSION" \
     crate \
       -Cnetwork.host=0.0.0.0 \
