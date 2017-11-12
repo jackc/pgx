@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eux
 
-if [ "$PGVERSION" != "" ]
+if [ "${PGVERSION-}" != "" ]
 then
   sudo apt-get remove -y --purge postgresql libpq-dev libpq5 postgresql-client-common postgresql-common
   sudo rm -rf /var/lib/postgresql
@@ -24,7 +24,7 @@ then
   sudo /etc/init.d/postgresql restart
 fi
 
-if [ "$CRATEVERSION" != "" ]
+if [ "${CRATEVERSION-}" != "" ]
 then
   docker run --name cratedb \
     -p "6543:5432" \

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -eux
 
-if [ "$PGVERSION" != "" ]
+if [ "${PGVERSION-}" != "" ]
 then
   go test -v -race ./...
-elif [ "$CRATEVERSION" != "" ]
+elif [ "${CRATEVERSION-}" != "" ]
 then
   go test -v -race -run 'TestCrateDBConnect'
 fi
