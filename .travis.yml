@@ -12,14 +12,13 @@ env:
   global:
     - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
   matrix:
+    - CRATEVERSION=2.1
     - PGVERSION=9.6
-    - PGVERSION=9.5
+    #- PGVERSION=9.5
     #- PGVERSION=9.4
     #- PGVERSION=9.3
     #- PGVERSION=9.2
 
-# The tricky test user, below, has to actually exist so that it can be used in a test
-# of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
 before_script:
   - ./travis/before_script.bash
 
@@ -27,7 +26,7 @@ install:
   - ./travis/install.bash
 
 script:
-  - go test -v -race ./...
+  - ./travis/script.bash
 
 #matrix:
   #allow_failures:
