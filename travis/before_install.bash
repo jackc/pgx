@@ -16,7 +16,7 @@ echo "hostssl   all         pgx_ssl     127.0.0.1/32          md5"      >> /etc/
 echo "host      replication pgx_replication 127.0.0.1/32      md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
 echo "host      pgx_test pgx_replication 127.0.0.1/32      md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
 sudo chmod 777 /etc/postgresql/$PGVERSION/main/postgresql.conf
-"[[ $PGVERSION < 9.6 ]] || echo \"wal_level='logical'\"     >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
-"[[ $PGVERSION < 9.6 ]] || echo \"max_wal_senders=5\"       >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
-"[[ $PGVERSION < 9.6 ]] || echo \"max_replication_slots=5\" >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
+[[ $PGVERSION < 9.6 ]] || echo "wal_level='logical'"     >> /etc/postgresql/$PGVERSION/main/postgresql.conf
+[[ $PGVERSION < 9.6 ]] || echo "max_wal_senders=5"       >> /etc/postgresql/$PGVERSION/main/postgresql.conf
+[[ $PGVERSION < 9.6 ]] || echo "max_replication_slots=5" >> /etc/postgresql/$PGVERSION/main/postgresql.conf
 sudo /etc/init.d/postgresql restart
