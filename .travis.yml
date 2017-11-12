@@ -2,7 +2,7 @@ language: go
 
 go:
   - 1.8
-  - tip
+  #- tip
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
 before_install:
@@ -32,9 +32,9 @@ env:
   matrix:
     - PGVERSION=9.6
     - PGVERSION=9.5
-    - PGVERSION=9.4
-    - PGVERSION=9.3
-    - PGVERSION=9.2
+    #- PGVERSION=9.4
+    #- PGVERSION=9.3
+    #- PGVERSION=9.2
 
 # The tricky test user, below, has to actually exist so that it can be used in a test
 # of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
@@ -63,6 +63,6 @@ install:
 script:
   - go test -v -race ./...
 
-matrix:
-  allow_failures:
-    - go: tip
+#matrix:
+  #allow_failures:
+    #- go: tip
