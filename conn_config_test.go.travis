@@ -16,15 +16,21 @@ var invalidUserConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "invalid", 
 var tlsConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_ssl", Password: "secret", Database: "pgx_test", TLSConfig: &tls.Config{InsecureSkipVerify: true}}
 var customDialerConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 var replicationConnConfig *pgx.ConnConfig = nil
+var cratedbConnConfig *pgx.ConnConfig = nil
 
 func init() {
-        version := os.Getenv("PGVERSION")
+        pgVersion := os.Getenv("PGVERSION")
 
-        if len(version) > 0 {
-                v, err := strconv.ParseFloat(version,64)
+        if len(pgVersion) > 0 {
+                v, err := strconv.ParseFloat(pgVersion, 64)
                 if err == nil && v >= 9.6 {
                         replicationConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
                 }
+        }
+
+        crateVersion := os.Getenv("CRATEVERSION")
+        if crateVersion != "" {
+          cratedbConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", Port: 6543, User: "pgx", Password: "", Database: "pgx_test"}
         }
 }
 
