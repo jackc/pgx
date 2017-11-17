@@ -246,6 +246,7 @@ func init() {
 		"int4range":    &Int4range{},
 		"int8":         &Int8{},
 		"int8range":    &Int8range{},
+		"interval":     &Interval{},
 		"json":         &JSON{},
 		"jsonb":        &JSONB{},
 		"line":         &Line{},
