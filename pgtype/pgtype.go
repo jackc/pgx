@@ -227,6 +227,7 @@ func init() {
 		"_uuid":        &UUIDArray{},
 		"_varchar":     &VarcharArray{},
 		"aclitem":      &ACLItem{},
+		"bit":          &Bit{},
 		"bool":         &Bool{},
 		"box":          &Box{},
 		"bytea":        &Bytea{},
