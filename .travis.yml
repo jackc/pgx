@@ -6,62 +6,27 @@ go:
 
 # Derived from https://github.com/lib/pq/blob/master/.travis.yml
 before_install:
-  - sudo apt-get remove -y --purge postgresql libpq-dev libpq5 postgresql-client-common postgresql-common
-  - sudo rm -rf /var/lib/postgresql
-  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-  - sudo sh -c "echo deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVERSION >> /etc/apt/sources.list.d/postgresql.list"
-  - sudo apt-get update -qq
-  - sudo apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::="--force-confnew" install postgresql-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-contrib-$PGVERSION
-  - sudo chmod 777 /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "local     all         postgres                          trust"    >  /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "local     all         all                               trust"    >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "host      all         pgx_md5     127.0.0.1/32          md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "host      all         pgx_pw      127.0.0.1/32          password" >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "hostssl   all         pgx_ssl     127.0.0.1/32          md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "host      replication pgx_replication 127.0.0.1/32      md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - echo "host      pgx_test pgx_replication 127.0.0.1/32      md5"      >> /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  - sudo chmod 777 /etc/postgresql/$PGVERSION/main/postgresql.conf
-  - "[[ $PGVERSION < 9.6 ]] || echo \"wal_level='logical'\"     >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
-  - "[[ $PGVERSION < 9.6 ]] || echo \"max_wal_senders=5\"       >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
-  - "[[ $PGVERSION < 9.6 ]] || echo \"max_replication_slots=5\" >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
-  - sudo /etc/init.d/postgresql restart
+  - ./travis/before_install.bash
 
 env:
   global:
     - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
   matrix:
+    - CRATEVERSION=2.1
     - PGVERSION=9.6
     - PGVERSION=9.5
     - PGVERSION=9.4
     - PGVERSION=9.3
     - PGVERSION=9.2
 
-# The tricky test user, below, has to actually exist so that it can be used in a test
-# of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
 before_script:
-  - mv conn_config_test.go.travis conn_config_test.go
-  - psql -U postgres -c 'create database pgx_test'
-  - psql -U postgres pgx_test -c 'create extension hstore'
-  - psql -U postgres -c "create user pgx_ssl SUPERUSER PASSWORD 'secret'"
-  - psql -U postgres -c "create user pgx_md5 SUPERUSER PASSWORD 'secret'"
-  - psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
-  - psql -U postgres -c "create user pgx_replication with replication password 'secret'"
-  - psql -U postgres -c "create user \" tricky, ' } \"\" \\ test user \" superuser password 'secret'"
+  - ./travis/before_script.bash
 
 install:
-  - go get -u github.com/cockroachdb/apd
-  - go get -u github.com/shopspring/decimal
-  - go get -u gopkg.in/inconshreveable/log15.v2
-  - go get -u github.com/jackc/fake
-  - go get -u github.com/lib/pq
-  - go get -u github.com/hashicorp/go-version
-  - go get -u github.com/satori/go.uuid
-  - go get -u github.com/sirupsen/logrus
-  - go get -u github.com/pkg/errors
-  - go get -u go.uber.org/zap
+  - ./travis/install.bash
 
 script:
-  - go test -v -race ./...
+  - ./travis/script.bash
 
 matrix:
   allow_failures:
