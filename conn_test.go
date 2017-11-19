@@ -17,6 +17,33 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
+func TestCrateDBConnect(t *testing.T) {
+	t.Parallel()
+
+	if cratedbConnConfig == nil {
+		t.Skip("Skipping due to undefined cratedbConnConfig")
+	}
+
+	conn, err := pgx.Connect(*cratedbConnConfig)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	var result int
+	err = conn.QueryRow("select 1 +1").Scan(&result)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if result != 2 {
+		t.Errorf("bad result: %d", result)
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
