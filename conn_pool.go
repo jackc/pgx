@@ -519,7 +519,7 @@ func (p *ConnPool) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, erro
 			// again on a new connection would fix, so just return the error. But
 			// if the connection is dead try to acquire a new connection and try
 			// again.
-			if alive {
+			if alive || ctx.Err() != nil {
 				return nil, err
 			}
 			continue
