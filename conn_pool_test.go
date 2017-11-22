@@ -1066,3 +1066,18 @@ func TestConnPoolBeginBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestConnPoolBeginEx(t *testing.T) {
+	t.Parallel()
+
+	pool := createConnPool(t, 2)
+	defer pool.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	tx, err := pool.BeginEx(ctx, nil)
+	if err == nil || tx != nil {
+		t.Fatal("Should not be able to create a tx")
+	}
+}
