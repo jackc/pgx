@@ -858,7 +858,7 @@ func TestQueryRowExErrorsWrongParameterOIDs(t *testing.T) {
 		sql,
 		&pgx.QueryExOptions{
 			ParameterOIDs:     paramOIDs,
-			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
+			ResultFormatCodes: []int16{pgtype.BinaryFormatCode},
 		},
 		queryArgs...,
 	).Scan(&result)
@@ -1284,7 +1284,7 @@ func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
 		"select $1 + $2",
 		&pgx.QueryExOptions{
 			ParameterOIDs:     []pgtype.OID{pgtype.Int4OID, pgtype.Int4OID},
-			ResultFormatCodes: []int16{pgx.BinaryFormatCode},
+			ResultFormatCodes: []int16{pgtype.BinaryFormatCode},
 		},
 		1, 2,
 	).Scan(&result)

@@ -12,12 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PostgreSQL format codes
-const (
-	TextFormatCode   = 0
-	BinaryFormatCode = 1
-)
-
 // SerializationError occurs on failure to encode or decode a value
 type SerializationError string
 
@@ -194,9 +188,9 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.OID, arg interface{}) int16 {
 	switch arg.(type) {
 	case pgtype.BinaryEncoder:
-		return BinaryFormatCode
+		return pgtype.BinaryFormatCode
 	case string, *string, pgtype.TextEncoder:
-		return TextFormatCode
+		return pgtype.TextFormatCode
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
@@ -205,17 +199,17 @@ func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.OID, arg interfac
 				if err := dt.Value.Set(arg); err != nil {
 					if value, err := callValuerValue(arg); err == nil {
 						if _, ok := value.(string); ok {
-							return TextFormatCode
+							return pgtype.TextFormatCode
 						}
 					}
 				}
 			}
 
-			return BinaryFormatCode
+			return pgtype.BinaryFormatCode
 		}
 	}
 
-	return TextFormatCode
+	return pgtype.TextFormatCode
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {

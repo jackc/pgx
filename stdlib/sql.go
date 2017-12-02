@@ -85,10 +85,6 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-// oids that map to intrinsic database/sql types. These will be allowed to be
-// binary, anything else will be forced to text format
-var databaseSqlOIDs map[pgtype.OID]bool
-
 var pgxDriver *Driver
 
 type ctxKey int
@@ -97,27 +93,30 @@ var ctxKeyFakeTx ctxKey = 0
 
 var ErrNotPgx = errors.New("not pgx *sql.DB")
 
+// oids that map to intrinsic database/sql types. These will be allowed to be
+// binary, anything else will be forced to text format
+var restrictedBinaryOID = []pgtype.OID{
+	pgtype.BoolOID,
+	pgtype.ByteaOID,
+	pgtype.CIDOID,
+	pgtype.DateOID,
+	pgtype.Float4OID,
+	pgtype.Float8OID,
+	pgtype.Int2OID,
+	pgtype.Int4OID,
+	pgtype.Int8OID,
+	pgtype.OIDOID,
+	pgtype.TimestampOID,
+	pgtype.TimestamptzOID,
+	pgtype.XIDOID,
+}
+
 func init() {
 	pgxDriver = &Driver{
 		configs:     make(map[int64]*DriverConfig),
 		fakeTxConns: make(map[*pgx.Conn]*sql.Tx),
 	}
 	sql.Register("pgx", pgxDriver)
-
-	databaseSqlOIDs = make(map[pgtype.OID]bool)
-	databaseSqlOIDs[pgtype.BoolOID] = true
-	databaseSqlOIDs[pgtype.ByteaOID] = true
-	databaseSqlOIDs[pgtype.CIDOID] = true
-	databaseSqlOIDs[pgtype.DateOID] = true
-	databaseSqlOIDs[pgtype.Float4OID] = true
-	databaseSqlOIDs[pgtype.Float8OID] = true
-	databaseSqlOIDs[pgtype.Int2OID] = true
-	databaseSqlOIDs[pgtype.Int4OID] = true
-	databaseSqlOIDs[pgtype.Int8OID] = true
-	databaseSqlOIDs[pgtype.OIDOID] = true
-	databaseSqlOIDs[pgtype.TimestampOID] = true
-	databaseSqlOIDs[pgtype.TimestamptzOID] = true
-	databaseSqlOIDs[pgtype.XIDOID] = true
 }
 
 type Driver struct {
@@ -130,12 +129,17 @@ type Driver struct {
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	var connConfig pgx.ConnConfig
-	var afterConnect func(*pgx.Conn) error
+	var (
+		afterConnect   func(*pgx.Conn) error
+		queryExOptions *pgx.QueryExOptions
+		connConfig     pgx.ConnConfig
+	)
+
 	if len(name) >= 9 && name[0] == 0 {
 		idBuf := []byte(name)[1:9]
 		id := int64(binary.BigEndian.Uint64(idBuf))
 		connConfig = d.configs[id].ConnConfig
+		queryExOptions = d.configs[id].QueryExOptions
 		afterConnect = d.configs[id].AfterConnect
 		name = name[9:]
 	}
@@ -151,6 +155,8 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 		return nil, err
 	}
 
+	conn.ConnInfo = restrictBinary(conn.ConnInfo)
+
 	if afterConnect != nil {
 		err = afterConnect(conn)
 		if err != nil {
@@ -158,12 +164,13 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 		}
 	}
 
-	c := &Conn{conn: conn, driver: d}
+	c := &Conn{conn: conn, driver: d, queryExOptions: queryExOptions}
 	return c, nil
 }
 
 type DriverConfig struct {
 	pgx.ConnConfig
+	*pgx.QueryExOptions
 	AfterConnect func(*pgx.Conn) error // function to call on every new connection
 	driver       *Driver
 	id           int64
@@ -210,9 +217,10 @@ func UnregisterDriverConfig(c *DriverConfig) {
 }
 
 type Conn struct {
-	conn    *pgx.Conn
-	psCount int64 // Counter used for creating unique prepared statement names
-	driver  *Driver
+	conn           *pgx.Conn
+	queryExOptions *pgx.QueryExOptions
+	psCount        int64 // Counter used for creating unique prepared statement names
+	driver         *Driver
 }
 
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
@@ -231,8 +239,6 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	if err != nil {
 		return nil, err
 	}
-
-	restrictBinaryToDatabaseSqlTypes(ps)
 
 	return &Stmt{ps: ps, conn: c}, nil
 }
@@ -299,33 +305,28 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 }
 
 func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
-	if !c.conn.IsAlive() {
-		return nil, driver.ErrBadConn
-	}
-
-	ps, err := c.conn.Prepare("", query)
-	if err != nil {
-		return nil, err
-	}
-
-	restrictBinaryToDatabaseSqlTypes(ps)
-
-	return c.queryPrepared("", argsV)
+	return c.query(context.Background(), query, valueToInterface(argsV))
 }
 
 func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Rows, error) {
+	return c.query(ctx, query, namedValueToInterface(argsV))
+}
+
+func (c *Conn) query(ctx context.Context, query string, args []interface{}) (driver.Rows, error) {
+	var (
+		err  error
+		rows *pgx.Rows
+	)
+
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
-	ps, err := c.conn.PrepareEx(ctx, "", query, nil)
-	if err != nil {
+	if rows, err = c.conn.QueryEx(ctx, query, c.queryExOptions, args...); err != nil {
 		return nil, err
 	}
 
-	restrictBinaryToDatabaseSqlTypes(ps)
-
-	return c.queryPreparedContext(ctx, "", argsV)
+	return &Rows{rows: rows}, nil
 }
 
 func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
@@ -350,7 +351,7 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 
 	args := namedValueToInterface(argsV)
 
-	rows, err := c.conn.QueryEx(ctx, name, nil, args...)
+	rows, err := c.conn.QueryEx(ctx, name, c.queryExOptions, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -369,13 +370,26 @@ func (c *Conn) Ping(ctx context.Context) error {
 // Anything that isn't a database/sql compatible type needs to be forced to
 // text format so that pgx.Rows.Values doesn't decode it into a native type
 // (e.g. []int32)
-func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
-	for i, _ := range ps.FieldDescriptions {
-		intrinsic, _ := databaseSqlOIDs[ps.FieldDescriptions[i].DataType]
-		if !intrinsic {
-			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
+func restrictBinary(in *pgtype.ConnInfo) (out *pgtype.ConnInfo) {
+	out = in.DeepCopy()
+	for oid, dt := range out.DataTypes() {
+		if !restrictedOID(oid) {
+			dt.FormatCode = pgtype.TextFormatCode
+			out.RegisterDataType(dt)
 		}
 	}
+
+	return out
+}
+
+func restrictedOID(oid pgtype.OID) bool {
+	for _, roid := range restrictedBinaryOID {
+		if roid == oid {
+			return true
+		}
+	}
+
+	return false
 }
 
 type Stmt struct {
