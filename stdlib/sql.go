@@ -19,7 +19,7 @@
 // setting an AfterConnect hook.
 //
 //	driverConfig := stdlib.DriverConfig{
-// 		ConnConfig: ConnConfig: pgx.ConnConfig{
+// 		ConnConfig: pgx.ConnConfig{
 //			Logger:   logger,
 //		},
 //		AfterConnect: func(c *pgx.Conn) error {
