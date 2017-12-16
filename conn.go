@@ -424,8 +424,14 @@ func (c *Conn) initConnInfo() (err error) {
 
 	c.ConnInfo, err = initPostgresql(c)
 	if err != nil {
+		var (
+			crateInfo *pgtype.ConnInfo
+		)
+
 		// Check if CrateDB specific approach might still allow us to connect.
-		c.ConnInfo, err = c.crateDBTypesQuery(err)
+		if crateInfo, err = c.crateDBTypesQuery(err); err == nil {
+			c.ConnInfo = crateInfo
+		}
 	}
 
 	return err
