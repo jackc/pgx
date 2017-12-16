@@ -74,6 +74,17 @@ type ConnConfig struct {
 	Dial              DialFunc
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	OnNotice          NoticeHandler     // Callback function called when a notice response is received.
+
+	// PreferSimpleProtocol disables implicit prepared statement usage. By default
+	// pgx automatically uses the unnamed prepared statement for Query and
+	// QueryRow. It also uses a prepared statement when Exec has arguments. This
+	// can improve performance due to being able to use the binary format. It also
+	// does not rely on client side parameter sanitization. However, it does incur
+	// two round-trips per query and may be incompatible proxies such as
+	// PGBouncer. Setting PreferSimpleProtocol causes the simple protocol to be
+	// used by default. The same functionality can be controlled on a per query
+	// basis by setting QueryExOptions.SimpleProtocol.
+	PreferSimpleProtocol bool
 }
 
 func (cc *ConnConfig) networkAddress() (network, address string) {
@@ -1566,7 +1577,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 		err = c.termContext(err)
 	}()
 
-	if options != nil && options.SimpleProtocol {
+	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
 		err = c.sanitizeAndSendSimpleQuery(sql, arguments...)
 		if err != nil {
 			return "", err
