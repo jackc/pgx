@@ -34,6 +34,10 @@ type Frontend struct {
 	parseComplete        ParseComplete
 	readyForQuery        ReadyForQuery
 	rowDescription       RowDescription
+
+	bodyLen    int
+	msgType    byte
+	partialMsg bool
 }
 
 func NewFrontend(r io.Reader, w io.Writer) (*Frontend, error) {
@@ -47,16 +51,19 @@ func (b *Frontend) Send(msg FrontendMessage) error {
 }
 
 func (b *Frontend) Receive() (BackendMessage, error) {
-	header, err := b.cr.Next(5)
-	if err != nil {
-		return nil, err
+	if !b.partialMsg {
+		header, err := b.cr.Next(5)
+		if err != nil {
+			return nil, err
+		}
+
+		b.msgType = header[0]
+		b.bodyLen = int(binary.BigEndian.Uint32(header[1:])) - 4
+		b.partialMsg = true
 	}
 
-	msgType := header[0]
-	bodyLen := int(binary.BigEndian.Uint32(header[1:])) - 4
-
 	var msg BackendMessage
-	switch msgType {
+	switch b.msgType {
 	case '1':
 		msg = &b.parseComplete
 	case '2':
@@ -100,13 +107,15 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 	case 'Z':
 		msg = &b.readyForQuery
 	default:
-		return nil, errors.Errorf("unknown message type: %c", msgType)
+		return nil, errors.Errorf("unknown message type: %c", b.msgType)
 	}
 
-	msgBody, err := b.cr.Next(bodyLen)
+	msgBody, err := b.cr.Next(b.bodyLen)
 	if err != nil {
 		return nil, err
 	}
+
+	b.partialMsg = false
 
 	err = msg.Decode(msgBody)
 	return msg, err
