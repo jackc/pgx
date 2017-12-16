@@ -134,7 +134,7 @@ func (rows *Rows) Next() bool {
 			for i := range rows.fields {
 				if dt, ok := rows.conn.ConnInfo.DataTypeForOID(rows.fields[i].DataType); ok {
 					rows.fields[i].DataTypeName = dt.Name
-					rows.fields[i].FormatCode = TextFormatCode
+					rows.fields[i].FormatCode = pgtype.TextFormatCode
 				} else {
 					rows.fatal(errors.Errorf("unknown oid: %d", rows.fields[i].DataType))
 					return false
@@ -207,12 +207,12 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			continue
 		}
 
-		if s, ok := d.(pgtype.BinaryDecoder); ok && fd.FormatCode == BinaryFormatCode {
+		if s, ok := d.(pgtype.BinaryDecoder); ok && fd.FormatCode == pgtype.BinaryFormatCode {
 			err = s.DecodeBinary(rows.conn.ConnInfo, buf)
 			if err != nil {
 				rows.fatal(scanArgError{col: i, err: err})
 			}
-		} else if s, ok := d.(pgtype.TextDecoder); ok && fd.FormatCode == TextFormatCode {
+		} else if s, ok := d.(pgtype.TextDecoder); ok && fd.FormatCode == pgtype.TextFormatCode {
 			err = s.DecodeText(rows.conn.ConnInfo, buf)
 			if err != nil {
 				rows.fatal(scanArgError{col: i, err: err})
@@ -221,7 +221,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 			if dt, ok := rows.conn.ConnInfo.DataTypeForOID(fd.DataType); ok {
 				value := dt.Value
 				switch fd.FormatCode {
-				case TextFormatCode:
+				case pgtype.TextFormatCode:
 					if textDecoder, ok := value.(pgtype.TextDecoder); ok {
 						err = textDecoder.DecodeText(rows.conn.ConnInfo, buf)
 						if err != nil {
@@ -230,7 +230,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					} else {
 						rows.fatal(scanArgError{col: i, err: errors.Errorf("%T is not a pgtype.TextDecoder", value)})
 					}
-				case BinaryFormatCode:
+				case pgtype.BinaryFormatCode:
 					if binaryDecoder, ok := value.(pgtype.BinaryDecoder); ok {
 						err = binaryDecoder.DecodeBinary(rows.conn.ConnInfo, buf)
 						if err != nil {
@@ -290,7 +290,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 			value := dt.Value
 
 			switch fd.FormatCode {
-			case TextFormatCode:
+			case pgtype.TextFormatCode:
 				decoder := value.(pgtype.TextDecoder)
 				if decoder == nil {
 					decoder = &pgtype.GenericText{}
@@ -300,7 +300,7 @@ func (rows *Rows) Values() ([]interface{}, error) {
 					rows.fatal(err)
 				}
 				values = append(values, decoder.(pgtype.Value).Get())
-			case BinaryFormatCode:
+			case pgtype.BinaryFormatCode:
 				decoder := value.(pgtype.BinaryDecoder)
 				if decoder == nil {
 					decoder = &pgtype.GenericBinary{}
@@ -367,21 +367,23 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	var (
+		fieldDescriptions []FieldDescription
+	)
 	c.lastActivityTime = time.Now()
 	rows = c.getRows(sql, args)
 
-	err = c.waitForPreviousCancelQuery(ctx)
-	if err != nil {
+	if err = c.waitForPreviousCancelQuery(ctx); err != nil {
 		rows.fatal(err)
 		return rows, err
 	}
 
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
+	if err = c.ensureConnectionReadyForQuery(); err != nil {
 		rows.fatal(err)
 		return rows, err
 	}
 
-	if err := c.lock(); err != nil {
+	if err = c.lock(); err != nil {
 		rows.fatal(err)
 		return rows, err
 	}
@@ -394,17 +396,22 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	}
 
 	if options != nil && options.SimpleProtocol {
-		err = c.sanitizeAndSendSimpleQuery(sql, args...)
-		if err != nil {
+		if err = c.sanitizeAndSendSimpleQuery(sql, args...); err != nil {
 			rows.fatal(err)
 			return rows, err
 		}
 
+		if fieldDescriptions, err = c.readFieldDescriptions(*options); err != nil {
+			rows.fatal(err)
+			return rows, err
+		}
+
+		rows.sql = sql
+		rows.fields = fieldDescriptions
 		return rows, nil
 	}
 
 	if options != nil && len(options.ParameterOIDs) > 0 {
-
 		buf, err := c.buildOneRoundTripQueryEx(c.wbuf, sql, options, args)
 		if err != nil {
 			rows.fatal(err)
@@ -421,25 +428,9 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		}
 		c.pendingReadyForQueryCount++
 
-		fieldDescriptions, err := c.readUntilRowDescription()
-		if err != nil {
+		if fieldDescriptions, err = c.readFieldDescriptions(*options); err != nil {
 			rows.fatal(err)
 			return rows, err
-		}
-
-		if len(options.ResultFormatCodes) == 0 {
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = TextFormatCode
-			}
-		} else if len(options.ResultFormatCodes) == 1 {
-			fc := options.ResultFormatCodes[0]
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = fc
-			}
-		} else {
-			for i := range options.ResultFormatCodes {
-				fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
-			}
 		}
 
 		rows.sql = sql
@@ -449,7 +440,6 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
-		var err error
 		ps, err = c.prepareEx("", sql, nil)
 		if err != nil {
 			rows.fatal(err)
@@ -542,4 +532,28 @@ func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err 
 func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
 	rows, _ := c.QueryEx(ctx, sql, options, args...)
 	return (*Row)(rows)
+}
+
+func (c *Conn) readFieldDescriptions(options QueryExOptions) (fieldDescriptions []FieldDescription, err error) {
+	if fieldDescriptions, err = c.readUntilRowDescription(); err != nil {
+		return fieldDescriptions, err
+	}
+
+	switch len(options.ResultFormatCodes) {
+	case 0:
+		for i := range fieldDescriptions {
+			fieldDescriptions[i].FormatCode = pgtype.TextFormatCode
+		}
+	case 1:
+		fc := options.ResultFormatCodes[0]
+		for i := range fieldDescriptions {
+			fieldDescriptions[i].FormatCode = fc
+		}
+	default:
+		for i := range options.ResultFormatCodes {
+			fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
+		}
+	}
+
+	return fieldDescriptions, err
 }

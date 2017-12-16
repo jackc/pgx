@@ -663,7 +663,7 @@ func BenchmarkMultipleQueriesBatch(b *testing.B) {
 			batch.Queue("select n from generate_series(0,5) n",
 				nil,
 				nil,
-				[]int16{pgx.BinaryFormatCode},
+				[]int16{pgtype.BinaryFormatCode},
 			)
 		}
 

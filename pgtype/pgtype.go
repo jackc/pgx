@@ -21,11 +21,20 @@ const (
 	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
+	Unknown115OID       = 115
+	PointOID            = 600
+	LineSegmentOID      = 601
+	PathOID             = 602
+	BoxOID              = 603
+	PolygonOID          = 604
+	LineOID             = 628
 	CIDROID             = 650
 	CIDRArrayOID        = 651
 	Float4OID           = 700
 	Float8OID           = 701
 	UnknownOID          = 705
+	CircleOID           = 718
+	MacaddrOID          = 829
 	InetOID             = 869
 	BoolArrayOID        = 1000
 	Int2ArrayOID        = 1005
@@ -46,11 +55,92 @@ const (
 	DateArrayOID        = 1182
 	TimestamptzOID      = 1184
 	TimestamptzArrayOID = 1185
+	IntervalOID         = 1186
+	BitOID              = 1560
+	VarbitOID           = 1562
 	NumericOID          = 1700
+	NumericArrayOID     = 1231
 	RecordOID           = 2249
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
+	Int4RangeOID        = 3904
+	NumrangeOID         = 3906
+	TsrangeOID          = 3908
+	TstzrangeOID        = 3910
+	DateRangeOID        = 3912
+	Int8RangeOID        = 3926
+)
+
+// list of well known postgresql oid
+var postgresqlDefinedOIDs = []OID{
+	ACLItemArrayOID,
+	BoolArrayOID,
+	ByteaArrayOID,
+	CIDRArrayOID,
+	DateArrayOID,
+	Float4ArrayOID,
+	Float8ArrayOID,
+	InetArrayOID,
+	Int2ArrayOID,
+	Int4ArrayOID,
+	Int8ArrayOID,
+	NumericArrayOID,
+	TextArrayOID,
+	TimestampArrayOID,
+	TimestamptzArrayOID,
+	UUIDArrayOID,
+	VarcharArrayOID,
+	ACLItemOID,
+	BitOID,
+	BoolOID,
+	BoxOID,
+	ByteaOID,
+	CharOID,
+	CIDOID,
+	CIDROID,
+	CircleOID,
+	DateOID,
+	DateRangeOID,
+	Float4OID,
+	Float8OID,
+	InetOID,
+	Int2OID,
+	Int4OID,
+	Int4RangeOID,
+	Int8OID,
+	Int8RangeOID,
+	IntervalOID,
+	JSONOID,
+	JSONBOID,
+	LineOID,
+	LineSegmentOID,
+	MacaddrOID,
+	NameOID,
+	NumericOID,
+	NumrangeOID,
+	OIDOID,
+	PathOID,
+	PointOID,
+	PolygonOID,
+	RecordOID,
+	TextOID,
+	TIDOID,
+	TimestampOID,
+	TimestamptzOID,
+	TsrangeOID,
+	TstzrangeOID,
+	UnknownOID,
+	UUIDOID,
+	VarbitOID,
+	VarcharOID,
+	XIDOID,
+}
+
+// PostgreSQL format codes
+const (
+	TextFormatCode   int16 = 0
+	BinaryFormatCode       = 1
 )
 
 type Status byte
@@ -134,9 +224,10 @@ var errUndefined = errors.New("cannot encode status undefined")
 var errBadStatus = errors.New("invalid status")
 
 type DataType struct {
-	Value Value
-	Name  string
-	OID   OID
+	Value      Value
+	Name       string
+	OID        OID
+	FormatCode int16
 }
 
 type ConnInfo struct {
@@ -153,15 +244,29 @@ func NewConnInfo() *ConnInfo {
 	}
 }
 
+func (ci *ConnInfo) DataTypes() map[OID]DataType {
+	out := make(map[OID]DataType, len(ci.oidToDataType))
+	for _, dt := range ci.oidToDataType {
+		tmp := *dt
+		out[dt.OID] = tmp
+	}
+
+	return out
+}
+
 func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
 	for name, oid := range nameOIDs {
-		var value Value
+		var (
+			value Value
+		)
+
 		if t, ok := nameValues[name]; ok {
 			value = reflect.New(reflect.ValueOf(t).Elem().Type()).Interface().(Value)
 		} else {
 			value = &GenericText{}
 		}
-		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid})
+
+		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid, FormatCode: DetermineFormatCode(value)})
 	}
 }
 
@@ -196,9 +301,10 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 
 	for _, dt := range ci.oidToDataType {
 		ci2.RegisterDataType(DataType{
-			Value: reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
-			Name:  dt.Name,
-			OID:   dt.OID,
+			Value:      reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
+			Name:       dt.Name,
+			OID:        dt.OID,
+			FormatCode: dt.FormatCode,
 		})
 	}
 
@@ -208,69 +314,291 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 var nameValues map[string]Value
 
 func init() {
-	nameValues = map[string]Value{
-		"_aclitem":     &ACLItemArray{},
-		"_bool":        &BoolArray{},
-		"_bytea":       &ByteaArray{},
-		"_cidr":        &CIDRArray{},
-		"_date":        &DateArray{},
-		"_float4":      &Float4Array{},
-		"_float8":      &Float8Array{},
-		"_inet":        &InetArray{},
-		"_int2":        &Int2Array{},
-		"_int4":        &Int4Array{},
-		"_int8":        &Int8Array{},
-		"_numeric":     &NumericArray{},
-		"_text":        &TextArray{},
-		"_timestamp":   &TimestampArray{},
-		"_timestamptz": &TimestamptzArray{},
-		"_uuid":        &UUIDArray{},
-		"_varchar":     &VarcharArray{},
-		"aclitem":      &ACLItem{},
-		"bit":          &Bit{},
-		"bool":         &Bool{},
-		"box":          &Box{},
-		"bytea":        &Bytea{},
-		"char":         &QChar{},
-		"cid":          &CID{},
-		"cidr":         &CIDR{},
-		"circle":       &Circle{},
-		"date":         &Date{},
-		"daterange":    &Daterange{},
-		"decimal":      &Decimal{},
-		"float4":       &Float4{},
-		"float8":       &Float8{},
-		"hstore":       &Hstore{},
-		"inet":         &Inet{},
-		"int2":         &Int2{},
-		"int4":         &Int4{},
-		"int4range":    &Int4range{},
-		"int8":         &Int8{},
-		"int8range":    &Int8range{},
-		"interval":     &Interval{},
-		"json":         &JSON{},
-		"jsonb":        &JSONB{},
-		"line":         &Line{},
-		"lseg":         &Lseg{},
-		"macaddr":      &Macaddr{},
-		"name":         &Name{},
-		"numeric":      &Numeric{},
-		"numrange":     &Numrange{},
-		"oid":          &OIDValue{},
-		"path":         &Path{},
-		"point":        &Point{},
-		"polygon":      &Polygon{},
-		"record":       &Record{},
-		"text":         &Text{},
-		"tid":          &TID{},
-		"timestamp":    &Timestamp{},
-		"timestamptz":  &Timestamptz{},
-		"tsrange":      &Tsrange{},
-		"tstzrange":    &Tstzrange{},
-		"unknown":      &Unknown{},
-		"uuid":         &UUID{},
-		"varbit":       &Varbit{},
-		"varchar":      &Varchar{},
-		"xid":          &XID{},
+	nameValues = make(map[string]Value, len(postgresqlDefinedOIDs))
+	for _, oid := range postgresqlDefinedOIDs {
+		nameValues[oidName(oid)] = oidValue(oid)
 	}
+
+	// well known oid types by name.
+	nameValues["decimal"] = &Decimal{}
+	nameValues["hstore"] = &Hstore{}
+}
+
+func oidValue(oid OID) Value {
+	switch oid {
+	case ACLItemArrayOID:
+		return &ACLItemArray{}
+	case BoolArrayOID:
+		return &BoolArray{}
+	case ByteaArrayOID:
+		return &ByteaArray{}
+	case CIDRArrayOID:
+		return &CIDRArray{}
+	case DateArrayOID:
+		return &DateArray{}
+	case Float4ArrayOID:
+		return &Float4Array{}
+	case Float8ArrayOID:
+		return &Float8Array{}
+	case InetArrayOID:
+		return &InetArray{}
+	case Int2ArrayOID:
+		return &Int2Array{}
+	case Int4ArrayOID:
+		return &Int4Array{}
+	case Int8ArrayOID:
+		return &Int8Array{}
+	case NumericArrayOID:
+		return &NumericArray{}
+	case TextArrayOID:
+		return &TextArray{}
+	case TimestampArrayOID:
+		return &TimestampArray{}
+	case TimestamptzArrayOID:
+		return &TimestamptzArray{}
+	case UUIDArrayOID:
+		return &UUIDArray{}
+	case VarcharArrayOID:
+		return &VarcharArray{}
+	case ACLItemOID:
+		return &ACLItem{}
+	case BitOID:
+		return &Bit{}
+	case BoolOID:
+		return &Bool{}
+	case BoxOID:
+		return &Box{}
+	case ByteaOID:
+		return &Bytea{}
+	case CharOID:
+		return &QChar{}
+	case CIDOID:
+		return &CID{}
+	case CIDROID:
+		return &CIDR{}
+	case CircleOID:
+		return &Circle{}
+	case DateOID:
+		return &Date{}
+	case DateRangeOID:
+		return &Daterange{}
+	case Float4OID:
+		return &Float4{}
+	case Float8OID:
+		return &Float8{}
+	case InetOID:
+		return &Inet{}
+	case Int2OID:
+		return &Int2{}
+	case Int4OID:
+		return &Int4{}
+	case Int4RangeOID:
+		return &Int4range{}
+	case Int8OID:
+		return &Int8{}
+	case Int8RangeOID:
+		return &Int8range{}
+	case IntervalOID:
+		return &Interval{}
+	case JSONOID:
+		return &JSON{}
+	case JSONBOID:
+		return &JSONB{}
+	case LineOID:
+		return &Line{}
+	case LineSegmentOID:
+		return &Lseg{}
+	case MacaddrOID:
+		return &Macaddr{}
+	case NameOID:
+		return &Name{}
+	case NumericOID:
+		return &Numeric{}
+	case NumrangeOID:
+		return &Numrange{}
+	case OIDOID:
+		return &OIDValue{}
+	case PathOID:
+		return &Path{}
+	case PointOID:
+		return &Point{}
+	case PolygonOID:
+		return &Polygon{}
+	case RecordOID:
+		return &Record{}
+	case TextOID:
+		return &Text{}
+	case TIDOID:
+		return &TID{}
+	case TimestampOID:
+		return &Timestamp{}
+	case TimestamptzOID:
+		return &Timestamptz{}
+	case TsrangeOID:
+		return &Tsrange{}
+	case TstzrangeOID:
+		return &Tstzrange{}
+	case UnknownOID:
+		return &Unknown{}
+	case UUIDOID:
+		return &UUID{}
+	case VarbitOID:
+		return &Varbit{}
+	case VarcharOID:
+		return &Varchar{}
+	case XIDOID:
+		return &XID{}
+	default:
+		return &GenericText{}
+	}
+}
+
+// oidName returns well known names for the given oid if known.
+func oidName(oid OID) string {
+	switch oid {
+	case ACLItemArrayOID:
+		return "_aclitem"
+	case BoolArrayOID:
+		return "_bool"
+	case ByteaArrayOID:
+		return "_bytea"
+	case CIDRArrayOID:
+		return "_cidr"
+	case DateArrayOID:
+		return "_date"
+	case Float4ArrayOID:
+		return "_float4"
+	case Float8ArrayOID:
+		return "_float8"
+	case InetArrayOID:
+		return "_inet"
+	case Int2ArrayOID:
+		return "_int2"
+	case Int4ArrayOID:
+		return "_int4"
+	case Int8ArrayOID:
+		return "_int8"
+	case NumericArrayOID:
+		return "_numeric"
+	case TextArrayOID:
+		return "_text"
+	case TimestampArrayOID:
+		return "_timestamp"
+	case TimestamptzArrayOID:
+		return "_timestamptz"
+	case UUIDArrayOID:
+		return "_uuid"
+	case VarcharArrayOID:
+		return "_varchar"
+	case ACLItemOID:
+		return "aclitem"
+	case BitOID:
+		return "bit"
+	case BoolOID:
+		return "bool"
+	case BoxOID:
+		return "box"
+	case ByteaOID:
+		return "bytea"
+	case CharOID:
+		return "char"
+	case CIDOID:
+		return "cid"
+	case CIDROID:
+		return "cidr"
+	case CircleOID:
+		return "circle"
+	case DateOID:
+		return "date"
+	case DateRangeOID:
+		return "daterange"
+	case Float4OID:
+		return "float4"
+	case Float8OID:
+		return "float8"
+	case InetOID:
+		return "inet"
+	case Int2OID:
+		return "int2"
+	case Int4OID:
+		return "int4"
+	case Int4RangeOID:
+		return "int4range"
+	case Int8OID:
+		return "int8"
+	case Int8RangeOID:
+		return "int8range"
+	case IntervalOID:
+		return "interval"
+	case JSONOID:
+		return "json"
+	case JSONBOID:
+		return "jsonb"
+	case LineOID:
+		return "line"
+	case LineSegmentOID:
+		return "lseg"
+	case MacaddrOID:
+		return "macaddr"
+	case NameOID:
+		return "name"
+	case NumericOID:
+		return "numeric"
+	case NumrangeOID:
+		return "numrange"
+	case OIDOID:
+		return "oid"
+	case PathOID:
+		return "path"
+	case PointOID:
+		return "point"
+	case PolygonOID:
+		return "polygon"
+	case RecordOID:
+		return "record"
+	case TextOID:
+		return "text"
+	case TIDOID:
+		return "tid"
+	case TimestampOID:
+		return "timestamp"
+	case TimestamptzOID:
+		return "timestamptz"
+	case TsrangeOID:
+		return "tsrange"
+	case TstzrangeOID:
+		return "tstzrange"
+	case UnknownOID:
+		return "unknown"
+	case UUIDOID:
+		return "uuid"
+	case VarbitOID:
+		return "varbit"
+	case VarcharOID:
+		return "varchar"
+	case XIDOID:
+		return "xid"
+	default:
+		return ""
+	}
+}
+
+// DetermineFormatCode determines the default format code to use
+// for the given value.
+func DetermineFormatCode(v Value) int16 {
+	if _, ok := v.(BinaryDecoder); ok {
+		return BinaryFormatCode
+	}
+
+	return TextFormatCode
+}
+
+func NewPGBouncerConnInfo() *ConnInfo {
+	info := NewConnInfo()
+	nameOIDs := make(map[string]OID, len(postgresqlDefinedOIDs))
+	for _, oid := range postgresqlDefinedOIDs {
+		nameOIDs[oidName(oid)] = oid
+	}
+	info.InitializeDataTypes(nameOIDs)
+	return info
 }

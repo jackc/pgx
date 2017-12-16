@@ -25,7 +25,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 		t.Fatalf("Unknown driver %v", driverName)
 	}
 
-	db, err := sql.Open(sqlDriverName, os.Getenv("PGX_TEST_DATABASE"))
+	db, err := sql.Open(sqlDriverName, os.Getenv("PGX_TEST_DATABASE")+" sslmode=disable")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,11 +74,11 @@ func (f forceBinaryEncoder) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byt
 
 func ForceEncoder(e interface{}, formatCode int16) interface{} {
 	switch formatCode {
-	case pgx.TextFormatCode:
+	case pgtype.TextFormatCode:
 		if e, ok := e.(pgtype.TextEncoder); ok {
 			return forceTextEncoder{e: e}
 		}
-	case pgx.BinaryFormatCode:
+	case pgtype.BinaryFormatCode:
 		if e, ok := e.(pgtype.BinaryEncoder); ok {
 			return forceBinaryEncoder{e: e.(pgtype.BinaryEncoder)}
 		}
@@ -113,8 +113,8 @@ func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 		name       string
 		formatCode int16
 	}{
-		{name: "TextFormat", formatCode: pgx.TextFormatCode},
-		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+		{name: "TextFormat", formatCode: pgtype.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgtype.BinaryFormatCode},
 	}
 
 	for i, v := range values {
@@ -229,8 +229,8 @@ func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFun
 		name       string
 		formatCode int16
 	}{
-		{name: "TextFormat", formatCode: pgx.TextFormatCode},
-		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+		{name: "TextFormat", formatCode: pgtype.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgtype.BinaryFormatCode},
 	}
 
 	for i, tt := range tests {

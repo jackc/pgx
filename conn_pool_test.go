@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgtype"
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
@@ -1010,12 +1011,12 @@ func TestConnPoolBeginBatch(t *testing.T) {
 	batch.Queue("select n from generate_series(0,5) n",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 	batch.Queue("select n from generate_series(0,5) n",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)

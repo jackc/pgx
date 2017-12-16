@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/pgtype/testutil"
 )
@@ -64,8 +63,8 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		name       string
 		formatCode int16
 	}{
-		{name: "TextFormat", formatCode: pgx.TextFormatCode},
-		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+		{name: "TextFormat", formatCode: pgtype.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgtype.BinaryFormatCode},
 	}
 
 	for _, fc := range formats {

@@ -40,12 +40,12 @@ func TestConnBeginBatch(t *testing.T) {
 	batch.Queue("select id, description, amount from ledger order by id",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode, pgtype.TextFormatCode, pgtype.BinaryFormatCode},
 	)
 	batch.Queue("select sum(amount) from ledger",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)
@@ -167,7 +167,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 		batch.Queue("ps1",
 			[]interface{}{5},
 			nil,
-			[]int16{pgx.BinaryFormatCode},
+			[]int16{pgtype.BinaryFormatCode},
 		)
 	}
 
@@ -330,12 +330,12 @@ func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
 	batch.Queue("select n from generate_series(0,5) n",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 	batch.Queue("select n from generate_series(0,5) n",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)
@@ -401,12 +401,12 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 	batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 	batch.Queue("select n from generate_series(0,5) n",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)
@@ -453,7 +453,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 	batch.Queue("select 1 1",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)
@@ -494,7 +494,7 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 	batch.Queue("select 1",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
 		[]interface{}{"q1", 1},
@@ -543,7 +543,7 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 	batch.Queue("select 1 union all select 2 union all select 3",
 		nil,
 		nil,
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
 		[]interface{}{"q1", 1},
@@ -598,7 +598,7 @@ func TestTxBeginBatch(t *testing.T) {
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
 		[]pgtype.OID{pgtype.VarcharOID},
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)
@@ -677,7 +677,7 @@ func TestTxBeginBatchRollback(t *testing.T) {
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
 		[]pgtype.OID{pgtype.VarcharOID},
-		[]int16{pgx.BinaryFormatCode},
+		[]int16{pgtype.BinaryFormatCode},
 	)
 
 	err := batch.Send(context.Background(), nil)

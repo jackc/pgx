@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/pgtype/testutil"
 )
@@ -88,7 +87,7 @@ func TestRecordTranscode(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ps.FieldDescriptions[0].FormatCode = pgx.BinaryFormatCode
+		ps.FieldDescriptions[0].FormatCode = pgtype.BinaryFormatCode
 
 		var result pgtype.Record
 		if err := conn.QueryRow(psName).Scan(&result); err != nil {
