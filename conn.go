@@ -469,10 +469,12 @@ where t.typtype = 'b'
 	}
 
 	for name, oid := range nameOIDs {
+		v := &pgtype.EnumArray{}
 		c.ConnInfo.RegisterDataType(pgtype.DataType{
-			&pgtype.EnumArray{},
-			name,
-			oid,
+			Value:      v,
+			Name:       name,
+			OID:        oid,
+			FormatCode: pgtype.DetermineFormatCode(v),
 		})
 	}
 
@@ -942,11 +944,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 			for i := range ps.FieldDescriptions {
 				if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
 					ps.FieldDescriptions[i].DataTypeName = dt.Name
-					if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-						ps.FieldDescriptions[i].FormatCode = BinaryFormatCode
-					} else {
-						ps.FieldDescriptions[i].FormatCode = TextFormatCode
-					}
+					ps.FieldDescriptions[i].FormatCode = dt.FormatCode
 				} else {
 					return nil, errors.Errorf("unknown oid: %d", ps.FieldDescriptions[i].DataType)
 				}

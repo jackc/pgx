@@ -53,6 +53,12 @@ const (
 	JSONBOID            = 3802
 )
 
+// PostgreSQL format codes
+const (
+	textFormatCode   int16 = 0
+	binaryFormatCode       = 1
+)
+
 type Status byte
 
 const (
@@ -134,9 +140,10 @@ var errUndefined = errors.New("cannot encode status undefined")
 var errBadStatus = errors.New("invalid status")
 
 type DataType struct {
-	Value Value
-	Name  string
-	OID   OID
+	Value      Value
+	Name       string
+	OID        OID
+	FormatCode int16
 }
 
 type ConnInfo struct {
@@ -153,6 +160,16 @@ func NewConnInfo() *ConnInfo {
 	}
 }
 
+func (ci *ConnInfo) DataTypes() map[OID]DataType {
+	out := make(map[OID]DataType, len(ci.oidToDataType))
+	for _, dt := range ci.oidToDataType {
+		tmp := *dt
+		out[dt.OID] = tmp
+	}
+
+	return out
+}
+
 func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
 	for name, oid := range nameOIDs {
 		var value Value
@@ -161,7 +178,7 @@ func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
 		} else {
 			value = &GenericText{}
 		}
-		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid})
+		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid, FormatCode: DetermineFormatCode(value)})
 	}
 }
 
@@ -196,9 +213,10 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 
 	for _, dt := range ci.oidToDataType {
 		ci2.RegisterDataType(DataType{
-			Value: reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
-			Name:  dt.Name,
-			OID:   dt.OID,
+			Value:      reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
+			Name:       dt.Name,
+			OID:        dt.OID,
+			FormatCode: dt.FormatCode,
 		})
 	}
 
@@ -273,4 +291,14 @@ func init() {
 		"varchar":      &Varchar{},
 		"xid":          &XID{},
 	}
+}
+
+// DetermineFormatCode determines the default format code to use
+// for the given value.
+func DetermineFormatCode(v Value) int16 {
+	if _, ok := v.(BinaryDecoder); ok {
+		return binaryFormatCode
+	}
+
+	return textFormatCode
 }
