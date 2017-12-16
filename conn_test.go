@@ -255,6 +255,31 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestConnectWithPreferSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	connConfig := *defaultConnConfig
+	connConfig.PreferSimpleProtocol = true
+
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	// If simple protocol is used we should be able to correctly scan the result
+	// into a pgtype.Text as the integer will have been encoded in text.
+
+	var s pgtype.Text
+	err := conn.QueryRow("select $1::int4", 42).Scan(&s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Get() != "42" {
+		t.Fatalf(`expected "42", got %v`, s)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
