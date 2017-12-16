@@ -393,7 +393,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, rows.err
 	}
 
-	if options != nil && options.SimpleProtocol {
+	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
 		err = c.sanitizeAndSendSimpleQuery(sql, args...)
 		if err != nil {
 			rows.fatal(err)
