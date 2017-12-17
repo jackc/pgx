@@ -72,6 +72,7 @@ type ConnConfig struct {
 	Logger            Logger
 	LogLevel          int
 	Dial              DialFunc
+	Timeout           time.Duration
 	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	OnNotice          NoticeHandler     // Callback function called when a notice response is received.
 }
@@ -247,7 +248,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 
 	network, address := c.config.networkAddress()
 	if c.config.Dial == nil {
-		c.config.Dial = (&net.Dialer{KeepAlive: 5 * time.Minute}).Dial
+		c.config.Dial = (&net.Dialer{Timeout: c.config.Timeout, KeepAlive: 5 * time.Minute}).Dial
 	}
 
 	if c.shouldLog(LogLevelInfo) {
@@ -655,13 +656,22 @@ func ParseURI(uri string) (ConnConfig, error) {
 	}
 	cp.Database = strings.TrimLeft(url.Path, "/")
 
+	if pgtimeout := url.Query().Get("connect_timeout"); pgtimeout != "" {
+		timeout, err := strconv.ParseInt(pgtimeout, 10, 64)
+		if err != nil {
+			return cp, err
+		}
+		cp.Timeout = time.Duration(timeout) * time.Second
+	}
+
 	err = configSSL(url.Query().Get("sslmode"), &cp)
 	if err != nil {
 		return cp, err
 	}
 
 	ignoreKeys := map[string]struct{}{
-		"sslmode": {},
+		"sslmode":         {},
+		"connect_timeout": {},
 	}
 
 	cp.RuntimeParams = make(map[string]string)
@@ -719,6 +729,12 @@ func ParseDSN(s string) (ConnConfig, error) {
 			cp.Database = b[2]
 		case "sslmode":
 			sslmode = b[2]
+		case "connect_timeout":
+			t, err := strconv.ParseInt(b[2], 10, 64)
+			if err != nil {
+				return cp, err
+			}
+			cp.Timeout = time.Duration(t) * time.Second
 		default:
 			cp.RuntimeParams[b[1]] = b[2]
 		}
@@ -756,6 +772,7 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // PGPASSWORD
 // PGSSLMODE
 // PGAPPNAME
+// PGCONNECT_TIMEOUT
 //
 // Important TLS Security Notes:
 // ParseEnvLibpq tries to match libpq behavior with regard to PGSSLMODE. This
@@ -790,6 +807,14 @@ func ParseEnvLibpq() (ConnConfig, error) {
 	cc.Database = os.Getenv("PGDATABASE")
 	cc.User = os.Getenv("PGUSER")
 	cc.Password = os.Getenv("PGPASSWORD")
+
+	if pgtimeout := os.Getenv("PGCONNECT_TIMEOUT"); pgtimeout != "" {
+		if timeout, err := strconv.ParseInt(pgtimeout, 10, 64); err == nil {
+			cc.Timeout = time.Duration(timeout) * time.Second
+		} else {
+			return cc, err
+		}
+	}
 
 	sslmode := os.Getenv("PGSSLMODE")
 
