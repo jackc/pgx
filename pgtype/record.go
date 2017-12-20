@@ -98,9 +98,10 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 		var binaryDecoder BinaryDecoder
 		if dt, ok := ci.DataTypeForOID(fieldOID); ok {
-			if binaryDecoder, ok = dt.Value.(BinaryDecoder); !ok {
-				return errors.Errorf("unknown oid while decoding record: %v", fieldOID)
-			}
+			binaryDecoder, _ = dt.Value.(BinaryDecoder)
+		}
+		if binaryDecoder == nil {
+			return errors.Errorf("unknown oid while decoding record: %v", fieldOID)
 		}
 
 		var fieldBytes []byte
