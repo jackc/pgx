@@ -68,7 +68,7 @@ func TestHstoreSet(t *testing.T) {
 		src    map[string]string
 		result pgtype.Hstore
 	}{
-		{src: map[string]string{"foo": "bar"}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": pgtype.Text{String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}},
+		{src: map[string]string{"foo": "bar"}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
@@ -92,7 +92,7 @@ func TestHstoreAssignTo(t *testing.T) {
 		dst      *map[string]string
 		expected map[string]string
 	}{
-		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": pgtype.Text{String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}, dst: &m, expected: map[string]string{"foo": "bar"}},
+		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}, dst: &m, expected: map[string]string{"foo": "bar"}},
 		{src: pgtype.Hstore{Status: pgtype.Null}, dst: &m, expected: ((map[string]string)(nil))},
 	}
 

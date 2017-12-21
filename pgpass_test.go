@@ -15,11 +15,11 @@ func unescape(s string) string {
 }
 
 var passfile = [][]string{
-	[]string{"test1", "5432", "larrydb", "larry", "whatstheidea"},
-	[]string{"test1", "5432", "moedb", "moe", "imbecile"},
-	[]string{"test1", "5432", "curlydb", "curly", "nyuknyuknyuk"},
-	[]string{"test2", "5432", "*", "shemp", "heymoe"},
-	[]string{"test2", "5432", "*", "*", `test\\ing\:`},
+	{"test1", "5432", "larrydb", "larry", "whatstheidea"},
+	{"test1", "5432", "moedb", "moe", "imbecile"},
+	{"test1", "5432", "curlydb", "curly", "nyuknyuknyuk"},
+	{"test2", "5432", "*", "shemp", "heymoe"},
+	{"test2", "5432", "*", "*", `test\\ing\:`},
 }
 
 func TestPGPass(t *testing.T) {

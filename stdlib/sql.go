@@ -370,7 +370,7 @@ func (c *Conn) Ping(ctx context.Context) error {
 // text format so that pgx.Rows.Values doesn't decode it into a native type
 // (e.g. []int32)
 func restrictBinaryToDatabaseSqlTypes(ps *pgx.PreparedStatement) {
-	for i, _ := range ps.FieldDescriptions {
+	for i := range ps.FieldDescriptions {
 		intrinsic, _ := databaseSqlOIDs[ps.FieldDescriptions[i].DataType]
 		if !intrinsic {
 			ps.FieldDescriptions[i].FormatCode = pgx.TextFormatCode
