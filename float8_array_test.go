@@ -17,8 +17,8 @@ func TestFloat8ArrayTranscode(t *testing.T) {
 		},
 		&pgtype.Float8Array{
 			Elements: []pgtype.Float8{
-				pgtype.Float8{Float: 1, Status: pgtype.Present},
-				pgtype.Float8{Status: pgtype.Null},
+				{Float: 1, Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestFloat8ArrayTranscode(t *testing.T) {
 		&pgtype.Float8Array{Status: pgtype.Null},
 		&pgtype.Float8Array{
 			Elements: []pgtype.Float8{
-				pgtype.Float8{Float: 1, Status: pgtype.Present},
-				pgtype.Float8{Float: 2, Status: pgtype.Present},
-				pgtype.Float8{Float: 3, Status: pgtype.Present},
-				pgtype.Float8{Float: 4, Status: pgtype.Present},
-				pgtype.Float8{Status: pgtype.Null},
-				pgtype.Float8{Float: 6, Status: pgtype.Present},
+				{Float: 1, Status: pgtype.Present},
+				{Float: 2, Status: pgtype.Present},
+				{Float: 3, Status: pgtype.Present},
+				{Float: 4, Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{Float: 6, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.Float8Array{
 			Elements: []pgtype.Float8{
-				pgtype.Float8{Float: 1, Status: pgtype.Present},
-				pgtype.Float8{Float: 2, Status: pgtype.Present},
-				pgtype.Float8{Float: 3, Status: pgtype.Present},
-				pgtype.Float8{Float: 4, Status: pgtype.Present},
+				{Float: 1, Status: pgtype.Present},
+				{Float: 2, Status: pgtype.Present},
+				{Float: 3, Status: pgtype.Present},
+				{Float: 4, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},

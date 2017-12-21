@@ -27,8 +27,8 @@ func TestEnumArrayTranscode(t *testing.T) {
 		},
 		&pgtype.EnumArray{
 			Elements: []pgtype.GenericText{
-				pgtype.GenericText{String: "red", Status: pgtype.Present},
-				pgtype.GenericText{Status: pgtype.Null},
+				{String: "red", Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -36,10 +36,10 @@ func TestEnumArrayTranscode(t *testing.T) {
 		&pgtype.EnumArray{Status: pgtype.Null},
 		&pgtype.EnumArray{
 			Elements: []pgtype.GenericText{
-				pgtype.GenericText{String: "red", Status: pgtype.Present},
-				pgtype.GenericText{String: "green", Status: pgtype.Present},
-				pgtype.GenericText{String: "blue", Status: pgtype.Present},
-				pgtype.GenericText{String: "red", Status: pgtype.Present},
+				{String: "red", Status: pgtype.Present},
+				{String: "green", Status: pgtype.Present},
+				{String: "blue", Status: pgtype.Present},
+				{String: "red", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},

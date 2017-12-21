@@ -18,8 +18,8 @@ func TestInetArrayTranscode(t *testing.T) {
 		},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				pgtype.Inet{Status: pgtype.Null},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -27,22 +27,22 @@ func TestInetArrayTranscode(t *testing.T) {
 		&pgtype.InetArray{Status: pgtype.Null},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
-				pgtype.Inet{Status: pgtype.Null},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
-				pgtype.Inet{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
