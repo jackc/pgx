@@ -17,8 +17,8 @@ func TestTextArrayTranscode(t *testing.T) {
 		},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				pgtype.Text{String: "foo", Status: pgtype.Present},
-				pgtype.Text{Status: pgtype.Null},
+				{String: "foo", Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestTextArrayTranscode(t *testing.T) {
 		&pgtype.TextArray{Status: pgtype.Null},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				pgtype.Text{String: "bar ", Status: pgtype.Present},
-				pgtype.Text{String: "NuLL", Status: pgtype.Present},
-				pgtype.Text{String: `wow"quz\`, Status: pgtype.Present},
-				pgtype.Text{String: "", Status: pgtype.Present},
-				pgtype.Text{Status: pgtype.Null},
-				pgtype.Text{String: "null", Status: pgtype.Present},
+				{String: "bar ", Status: pgtype.Present},
+				{String: "NuLL", Status: pgtype.Present},
+				{String: `wow"quz\`, Status: pgtype.Present},
+				{String: "", Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{String: "null", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				pgtype.Text{String: "bar", Status: pgtype.Present},
-				pgtype.Text{String: "baz", Status: pgtype.Present},
-				pgtype.Text{String: "quz", Status: pgtype.Present},
-				pgtype.Text{String: "foo", Status: pgtype.Present},
+				{String: "bar", Status: pgtype.Present},
+				{String: "baz", Status: pgtype.Present},
+				{String: "quz", Status: pgtype.Present},
+				{String: "foo", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},

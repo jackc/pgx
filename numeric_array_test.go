@@ -18,8 +18,8 @@ func TestNumericArrayTranscode(t *testing.T) {
 		},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present},
-				pgtype.Numeric{Status: pgtype.Null},
+				{Int: big.NewInt(1), Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -27,22 +27,22 @@ func TestNumericArrayTranscode(t *testing.T) {
 		&pgtype.NumericArray{Status: pgtype.Null},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(2), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(3), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(4), Status: pgtype.Present},
-				pgtype.Numeric{Status: pgtype.Null},
-				pgtype.Numeric{Int: big.NewInt(6), Status: pgtype.Present},
+				{Int: big.NewInt(1), Status: pgtype.Present},
+				{Int: big.NewInt(2), Status: pgtype.Present},
+				{Int: big.NewInt(3), Status: pgtype.Present},
+				{Int: big.NewInt(4), Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{Int: big.NewInt(6), Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(2), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(3), Status: pgtype.Present},
-				pgtype.Numeric{Int: big.NewInt(4), Status: pgtype.Present},
+				{Int: big.NewInt(1), Status: pgtype.Present},
+				{Int: big.NewInt(2), Status: pgtype.Present},
+				{Int: big.NewInt(3), Status: pgtype.Present},
+				{Int: big.NewInt(4), Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
