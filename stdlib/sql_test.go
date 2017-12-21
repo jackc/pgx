@@ -1208,7 +1208,7 @@ func TestStmtQueryContextCancel(t *testing.T) {
 		}),
 		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 
-		pgmock.ExpectMessage(&pgproto3.Bind{PreparedStatement: "pgx_0", ParameterFormatCodes: []int16{1}, Parameters: [][]uint8{[]uint8{0x0, 0x0, 0x0, 0x2a}}, ResultFormatCodes: []int16{1}}),
+		pgmock.ExpectMessage(&pgproto3.Bind{PreparedStatement: "pgx_0", ParameterFormatCodes: []int16{1}, Parameters: [][]uint8{{0x0, 0x0, 0x0, 0x2a}}, ResultFormatCodes: []int16{1}}),
 		pgmock.ExpectMessage(&pgproto3.Execute{}),
 		pgmock.ExpectMessage(&pgproto3.Sync{}),
 

@@ -17,8 +17,8 @@ func TestByteaArrayTranscode(t *testing.T) {
 		},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Status: pgtype.Null},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestByteaArrayTranscode(t *testing.T) {
 		&pgtype.ByteaArray{Status: pgtype.Null},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Status: pgtype.Null},
-				pgtype.Bytea{Bytes: []byte{1}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Bytes: []byte{}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{Bytes: []byte{1}, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				pgtype.Bytea{Bytes: []byte{1}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Bytes: []byte{}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
+				{Bytes: []byte{1}, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
