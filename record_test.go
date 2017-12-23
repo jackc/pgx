@@ -102,6 +102,28 @@ func TestRecordTranscode(t *testing.T) {
 	}
 }
 
+func TestRecordWithUnknownOID(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustClose(t, conn)
+
+	_, err := conn.Exec(`drop type if exists floatrange;
+
+create type floatrange as range (
+  subtype = float8,
+  subtype_diff = float8mi
+);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Exec("drop type floatrange")
+
+	var result pgtype.Record
+	err = conn.QueryRow("select row('foo'::text, floatrange(1, 10), 'bar'::text)").Scan(&result)
+	if err == nil {
+		t.Errorf("expected error but none")
+	}
+}
+
 func TestRecordAssignTo(t *testing.T) {
 	var valueSlice []pgtype.Value
 	var interfaceSlice []interface{}
