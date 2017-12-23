@@ -81,6 +81,63 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 	}
 }
 
+func TestSimpleQueryLifeCycle(t *testing.T) {
+	driverConfig := stdlib.DriverConfig{
+		ConnConfig: pgx.ConnConfig{PreferSimpleProtocol: true},
+	}
+
+	stdlib.RegisterDriverConfig(&driverConfig)
+	defer stdlib.UnregisterDriverConfig(&driverConfig)
+
+	db, err := sql.Open("pgx", driverConfig.ConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test"))
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	defer closeDB(t, db)
+
+	rows, err := db.Query("SELECT 'foo', n FROM generate_series($1::int, $2::int) n WHERE 3 = $3", 1, 10, 3)
+	if err != nil {
+		t.Fatalf("stmt.Query unexpectedly failed: %v", err)
+	}
+
+	rowCount := int64(0)
+
+	for rows.Next() {
+		rowCount++
+		var (
+			s string
+			n int64
+		)
+
+		if err := rows.Scan(&s, &n); err != nil {
+			t.Fatalf("rows.Scan unexpectedly failed: %v", err)
+		}
+
+		if s != "foo" {
+			t.Errorf(`Expected "foo", received "%v"`, s)
+		}
+
+		if n != rowCount {
+			t.Errorf("Expected %d, received %d", rowCount, n)
+		}
+	}
+
+	if err = rows.Err(); err != nil {
+		t.Fatalf("rows.Err unexpectedly is: %v", err)
+	}
+
+	if rowCount != 10 {
+		t.Fatalf("Expected to receive 10 rows, instead received %d", rowCount)
+	}
+
+	err = rows.Close()
+	if err != nil {
+		t.Fatalf("rows.Close unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
 func TestNormalLifeCycle(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)

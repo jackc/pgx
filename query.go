@@ -134,7 +134,7 @@ func (rows *Rows) Next() bool {
 			for i := range rows.fields {
 				if dt, ok := rows.conn.ConnInfo.DataTypeForOID(rows.fields[i].DataType); ok {
 					rows.fields[i].DataTypeName = dt.Name
-					rows.fields[i].FormatCode = TextFormatCode
+					rows.fields[i].FormatCode = dt.FormatCode
 				} else {
 					rows.fatal(errors.Errorf("unknown oid: %d", rows.fields[i].DataType))
 					return false
@@ -367,6 +367,9 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	var (
+		fieldDescriptions []FieldDescription
+	)
 	c.lastActivityTime = time.Now()
 	rows = c.getRows(sql, args)
 
@@ -376,12 +379,12 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, err
 	}
 
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
+	if err = c.ensureConnectionReadyForQuery(); err != nil {
 		rows.fatal(err)
 		return rows, err
 	}
 
-	if err := c.lock(); err != nil {
+	if err = c.lock(); err != nil {
 		rows.fatal(err)
 		return rows, err
 	}
@@ -393,13 +396,19 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, rows.err
 	}
 
-	if options != nil && options.SimpleProtocol {
-		err = c.sanitizeAndSendSimpleQuery(sql, args...)
-		if err != nil {
+	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
+		if err = c.sanitizeAndSendSimpleQuery(sql, args...); err != nil {
 			rows.fatal(err)
 			return rows, err
 		}
 
+		if fieldDescriptions, err = c.readFieldDescriptions(QueryExOptions{}); err != nil {
+			rows.fatal(err)
+			return rows, err
+		}
+
+		rows.sql = sql
+		rows.fields = fieldDescriptions
 		return rows, nil
 	}
 
@@ -421,25 +430,9 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		}
 		c.pendingReadyForQueryCount++
 
-		fieldDescriptions, err := c.readUntilRowDescription()
-		if err != nil {
+		if fieldDescriptions, err = c.readFieldDescriptions(*options); err != nil {
 			rows.fatal(err)
 			return rows, err
-		}
-
-		if len(options.ResultFormatCodes) == 0 {
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = TextFormatCode
-			}
-		} else if len(options.ResultFormatCodes) == 1 {
-			fc := options.ResultFormatCodes[0]
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = fc
-			}
-		} else {
-			for i := range options.ResultFormatCodes {
-				fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
-			}
 		}
 
 		rows.sql = sql
@@ -449,7 +442,6 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
-		var err error
 		ps, err = c.prepareEx("", sql, nil)
 		if err != nil {
 			rows.fatal(err)
@@ -542,4 +534,28 @@ func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err 
 func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
 	rows, _ := c.QueryEx(ctx, sql, options, args...)
 	return (*Row)(rows)
+}
+
+func (c *Conn) readFieldDescriptions(options QueryExOptions) (fieldDescriptions []FieldDescription, err error) {
+	if fieldDescriptions, err = c.readUntilRowDescription(); err != nil {
+		return fieldDescriptions, err
+	}
+
+	switch len(options.ResultFormatCodes) {
+	case 0:
+		for i := range fieldDescriptions {
+			fieldDescriptions[i].FormatCode = TextFormatCode
+		}
+	case 1:
+		fc := options.ResultFormatCodes[0]
+		for i := range fieldDescriptions {
+			fieldDescriptions[i].FormatCode = fc
+		}
+	default:
+		for i := range options.ResultFormatCodes {
+			fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
+		}
+	}
+
+	return fieldDescriptions, err
 }
