@@ -17,8 +17,8 @@ func TestACLItemArrayTranscode(t *testing.T) {
 		},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{Status: pgtype.Null},
+				{String: "=r/postgres", Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestACLItemArrayTranscode(t *testing.T) {
 		&pgtype.ACLItemArray{Status: pgtype.Null},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{Status: pgtype.Null},
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
+				{String: "=r/postgres", Status: pgtype.Present},
+				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
+				{String: "=r/postgres", Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{String: "=r/postgres", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{String: "=r/postgres", Status: pgtype.Present},
-				pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				{String: "=r/postgres", Status: pgtype.Present},
+				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				{String: "=r/postgres", Status: pgtype.Present},
+				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},

@@ -17,8 +17,8 @@ func TestInt8ArrayTranscode(t *testing.T) {
 		},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				pgtype.Int8{Int: 1, Status: pgtype.Present},
-				pgtype.Int8{Status: pgtype.Null},
+				{Int: 1, Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestInt8ArrayTranscode(t *testing.T) {
 		&pgtype.Int8Array{Status: pgtype.Null},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				pgtype.Int8{Int: 1, Status: pgtype.Present},
-				pgtype.Int8{Int: 2, Status: pgtype.Present},
-				pgtype.Int8{Int: 3, Status: pgtype.Present},
-				pgtype.Int8{Int: 4, Status: pgtype.Present},
-				pgtype.Int8{Status: pgtype.Null},
-				pgtype.Int8{Int: 6, Status: pgtype.Present},
+				{Int: 1, Status: pgtype.Present},
+				{Int: 2, Status: pgtype.Present},
+				{Int: 3, Status: pgtype.Present},
+				{Int: 4, Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{Int: 6, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				pgtype.Int8{Int: 1, Status: pgtype.Present},
-				pgtype.Int8{Int: 2, Status: pgtype.Present},
-				pgtype.Int8{Int: 3, Status: pgtype.Present},
-				pgtype.Int8{Int: 4, Status: pgtype.Present},
+				{Int: 1, Status: pgtype.Present},
+				{Int: 2, Status: pgtype.Present},
+				{Int: 3, Status: pgtype.Present},
+				{Int: 4, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
