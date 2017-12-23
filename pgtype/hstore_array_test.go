@@ -18,12 +18,12 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	}
 
 	values := []pgtype.Hstore{
-		pgtype.Hstore{Map: map[string]pgtype.Text{}, Status: pgtype.Present},
-		pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
-		pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
-		pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
-		pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
-		pgtype.Hstore{Status: pgtype.Null},
+		{Map: map[string]pgtype.Text{}, Status: pgtype.Present},
+		{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
+		{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
+		{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
+		{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
+		{Status: pgtype.Null},
 	}
 
 	specialStrings := []string{
@@ -120,11 +120,11 @@ func TestHstoreArraySet(t *testing.T) {
 		result pgtype.HstoreArray
 	}{
 		{
-			src: []map[string]string{map[string]string{"foo": "bar"}},
+			src: []map[string]string{{"foo": "bar"}},
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": pgtype.Text{String: "bar", Status: pgtype.Present}},
+						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
 						Status: pgtype.Present,
 					},
 				},
@@ -159,7 +159,7 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": pgtype.Text{String: "bar", Status: pgtype.Present}},
+						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
 						Status: pgtype.Present,
 					},
 				},

@@ -17,8 +17,8 @@ func TestVarcharArrayTranscode(t *testing.T) {
 		},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				pgtype.Varchar{String: "foo", Status: pgtype.Present},
-				pgtype.Varchar{Status: pgtype.Null},
+				{String: "foo", Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestVarcharArrayTranscode(t *testing.T) {
 		&pgtype.VarcharArray{Status: pgtype.Null},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				pgtype.Varchar{String: "bar ", Status: pgtype.Present},
-				pgtype.Varchar{String: "NuLL", Status: pgtype.Present},
-				pgtype.Varchar{String: `wow"quz\`, Status: pgtype.Present},
-				pgtype.Varchar{String: "", Status: pgtype.Present},
-				pgtype.Varchar{Status: pgtype.Null},
-				pgtype.Varchar{String: "null", Status: pgtype.Present},
+				{String: "bar ", Status: pgtype.Present},
+				{String: "NuLL", Status: pgtype.Present},
+				{String: `wow"quz\`, Status: pgtype.Present},
+				{String: "", Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{String: "null", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				pgtype.Varchar{String: "bar", Status: pgtype.Present},
-				pgtype.Varchar{String: "baz", Status: pgtype.Present},
-				pgtype.Varchar{String: "quz", Status: pgtype.Present},
-				pgtype.Varchar{String: "foo", Status: pgtype.Present},
+				{String: "bar", Status: pgtype.Present},
+				{String: "baz", Status: pgtype.Present},
+				{String: "quz", Status: pgtype.Present},
+				{String: "foo", Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
