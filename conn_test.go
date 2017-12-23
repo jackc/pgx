@@ -1988,9 +1988,9 @@ func TestConnInitConnInfo(t *testing.T) {
 	// spot check that the standard postgres type names aren't qualified
 	nameOIDs := map[string]pgtype.OID{
 		"_int8": pgtype.Int8ArrayOID,
-		"int8": pgtype.Int8OID,
-		"json": pgtype.JSONOID,
-		"text": pgtype.TextOID,
+		"int8":  pgtype.Int8OID,
+		"json":  pgtype.JSONOID,
+		"text":  pgtype.TextOID,
 	}
 	for name, oid := range nameOIDs {
 		dtByName, ok := conn.ConnInfo.DataTypeForName(name)

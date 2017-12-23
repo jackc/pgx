@@ -17,8 +17,8 @@ func TestBoolArrayTranscode(t *testing.T) {
 		},
 		&pgtype.BoolArray{
 			Elements: []pgtype.Bool{
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Status: pgtype.Null},
+				{Bool: true, Status: pgtype.Present},
+				{Status: pgtype.Null},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
@@ -26,22 +26,22 @@ func TestBoolArrayTranscode(t *testing.T) {
 		&pgtype.BoolArray{Status: pgtype.Null},
 		&pgtype.BoolArray{
 			Elements: []pgtype.Bool{
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Bool: false, Status: pgtype.Present},
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Status: pgtype.Null},
-				pgtype.Bool{Bool: false, Status: pgtype.Present},
+				{Bool: true, Status: pgtype.Present},
+				{Bool: true, Status: pgtype.Present},
+				{Bool: false, Status: pgtype.Present},
+				{Bool: true, Status: pgtype.Present},
+				{Status: pgtype.Null},
+				{Bool: false, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			Status:     pgtype.Present,
 		},
 		&pgtype.BoolArray{
 			Elements: []pgtype.Bool{
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Bool: false, Status: pgtype.Present},
-				pgtype.Bool{Bool: true, Status: pgtype.Present},
-				pgtype.Bool{Bool: false, Status: pgtype.Present},
+				{Bool: true, Status: pgtype.Present},
+				{Bool: false, Status: pgtype.Present},
+				{Bool: true, Status: pgtype.Present},
+				{Bool: false, Status: pgtype.Present},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
