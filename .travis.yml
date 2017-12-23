@@ -18,7 +18,6 @@ env:
     - PGVERSION=9.5
     - PGVERSION=9.4
     - PGVERSION=9.3
-    - PGVERSION=9.2
 
 before_script:
   - ./travis/before_script.bash
