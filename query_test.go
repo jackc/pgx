@@ -1292,7 +1292,7 @@ func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result != 3 {
-		t.Fatal("result => %d, want %d", result, 3)
+		t.Fatalf("result => %d, want %d", result, 3)
 	}
 
 	ensureConnValid(t, conn)

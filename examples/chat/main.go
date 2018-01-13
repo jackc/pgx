@@ -31,8 +31,7 @@ func main() {
 This message should appear in any other chat instances connected to the same
 database.
 
-Type "exit" to quit.
-`)
+Type "exit" to quit.`)
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
