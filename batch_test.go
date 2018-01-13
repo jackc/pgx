@@ -518,7 +518,7 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 		t.Error(err)
 	}
 	if ct.RowsAffected() != 2 {
-		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected, 2)
+		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 2)
 	}
 
 	batch.Close()
@@ -567,7 +567,7 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 		t.Error(err)
 	}
 	if ct.RowsAffected() != 2 {
-		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected, 2)
+		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 2)
 	}
 
 	batch.Close()
