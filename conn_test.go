@@ -567,6 +567,21 @@ func TestParseDSN(t *testing.T) {
 				},
 			},
 		},
+		{
+			url: "user=jack host=localhost dbname=mydb connect_timeout=10",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				Timeout:           10 * time.Second,
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -698,6 +713,21 @@ func TestParseConnectionString(t *testing.T) {
 			},
 		},
 		{
+			url: "postgres://jack@localhost/mydb?connect_timeout=10",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				Timeout:           10 * time.Second,
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
 			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
 			connParams: pgx.ConnConfig{
 				User:          "jack",
@@ -802,7 +832,7 @@ func TestParseConnectionString(t *testing.T) {
 }
 
 func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
@@ -835,11 +865,12 @@ func TestParseEnvLibpq(t *testing.T) {
 		{
 			name: "Normal PG vars",
 			envvars: map[string]string{
-				"PGHOST":     "123.123.123.123",
-				"PGPORT":     "7777",
-				"PGDATABASE": "foo",
-				"PGUSER":     "bar",
-				"PGPASSWORD": "baz",
+				"PGHOST":            "123.123.123.123",
+				"PGPORT":            "7777",
+				"PGDATABASE":        "foo",
+				"PGUSER":            "bar",
+				"PGPASSWORD":        "baz",
+				"PGCONNECT_TIMEOUT": "10",
 			},
 			config: pgx.ConnConfig{
 				Host:              "123.123.123.123",
@@ -850,6 +881,7 @@ func TestParseEnvLibpq(t *testing.T) {
 				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
+				Timeout:           10 * time.Second,
 				RuntimeParams:     map[string]string{},
 			},
 		},
