@@ -184,3 +184,15 @@ func (src *Int8) MarshalJSON() ([]byte, error) {
 
 	return nil, errBadStatus
 }
+
+func (dst *Int8) UnmarshalJSON(b []byte) error {
+	var n int64
+	err := json.Unmarshal(b, &n)
+	if err != nil {
+		return err
+	}
+
+	*dst = Int8{Int: n, Status: Present}
+
+	return nil
+}
