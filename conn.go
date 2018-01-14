@@ -72,7 +72,6 @@ type ConnConfig struct {
 	Logger            Logger
 	LogLevel          int
 	Dial              DialFunc
-	Timeout           time.Duration
 	RuntimeParams     map[string]string                     // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	OnNotice          NoticeHandler                         // Callback function called when a notice response is received.
 	CustomConnInfo    func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
@@ -224,6 +223,10 @@ func Connect(config ConnConfig) (c *Conn, err error) {
 	return connect(config, minimalConnInfo)
 }
 
+func defaultDialer() *net.Dialer {
+	return &net.Dialer{KeepAlive: 5 * time.Minute}
+}
+
 func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
 	c = new(Conn)
 
@@ -260,7 +263,8 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 
 	network, address := c.config.networkAddress()
 	if c.config.Dial == nil {
-		c.config.Dial = (&net.Dialer{Timeout: c.config.Timeout, KeepAlive: 5 * time.Minute}).Dial
+		d := defaultDialer()
+		c.config.Dial = d.Dial
 	}
 
 	if c.shouldLog(LogLevelInfo) {
@@ -692,7 +696,9 @@ func ParseURI(uri string) (ConnConfig, error) {
 		if err != nil {
 			return cp, err
 		}
-		cp.Timeout = time.Duration(timeout) * time.Second
+		d := defaultDialer()
+		d.Timeout = time.Duration(timeout) * time.Second
+		cp.Dial = d.Dial
 	}
 
 	err = configSSL(url.Query().Get("sslmode"), &cp)
@@ -761,11 +767,13 @@ func ParseDSN(s string) (ConnConfig, error) {
 		case "sslmode":
 			sslmode = b[2]
 		case "connect_timeout":
-			t, err := strconv.ParseInt(b[2], 10, 64)
+			timeout, err := strconv.ParseInt(b[2], 10, 64)
 			if err != nil {
 				return cp, err
 			}
-			cp.Timeout = time.Duration(t) * time.Second
+			d := defaultDialer()
+			d.Timeout = time.Duration(timeout) * time.Second
+			cp.Dial = d.Dial
 		default:
 			cp.RuntimeParams[b[1]] = b[2]
 		}
@@ -841,7 +849,9 @@ func ParseEnvLibpq() (ConnConfig, error) {
 
 	if pgtimeout := os.Getenv("PGCONNECT_TIMEOUT"); pgtimeout != "" {
 		if timeout, err := strconv.ParseInt(pgtimeout, 10, 64); err == nil {
-			cc.Timeout = time.Duration(timeout) * time.Second
+			d := defaultDialer()
+			d.Timeout = time.Duration(timeout) * time.Second
+			cc.Dial = d.Dial
 		} else {
 			return cc, err
 		}
