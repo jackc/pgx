@@ -31,7 +31,7 @@ func (fd FieldDescription) Length() (int64, bool) {
 	switch fd.DataType {
 	case pgtype.TextOID, pgtype.ByteaOID:
 		return math.MaxInt64, true
-	case pgtype.VarcharOID:
+	case pgtype.VarcharOID, pgtype.BPCharArrayOID:
 		return int64(fd.Modifier - varHeaderSize), true
 	default:
 		return 0, false
@@ -58,7 +58,7 @@ func (fd FieldDescription) Type() reflect.Type {
 		return reflect.TypeOf(int32(0))
 	case pgtype.Int2OID:
 		return reflect.TypeOf(int16(0))
-	case pgtype.VarcharOID, pgtype.TextOID:
+	case pgtype.VarcharOID, pgtype.BPCharArrayOID, pgtype.TextOID:
 		return reflect.TypeOf("")
 	case pgtype.BoolOID:
 		return reflect.TypeOf(false)
