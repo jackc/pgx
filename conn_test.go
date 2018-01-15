@@ -831,6 +831,9 @@ func testConnConfigEquals(t *testing.T, expected pgx.ConnConfig, actual pgx.Conn
 	if actual.Host != expected.Host {
 		t.Errorf("%s: expected Host to be %v got %v", testName, expected.Host, actual.Host)
 	}
+	if actual.Database != expected.Database {
+		t.Errorf("%s: expected Database to be %v got %v", testName, expected.Database, actual.Database)
+	}
 	if actual.Port != expected.Port {
 		t.Errorf("%s: expected Port to be %v got %v", testName, expected.Port, actual.Port)
 	}
