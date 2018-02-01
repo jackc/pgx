@@ -701,7 +701,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 		cp.Dial = d.Dial
 	}
 
-	err = configSSL(url.Query().Get("sslmode"), &cp)
+	err = configTLS(url.Query().Get("sslmode"), &cp)
 	if err != nil {
 		return cp, err
 	}
@@ -779,7 +779,7 @@ func ParseDSN(s string) (ConnConfig, error) {
 		}
 	}
 
-	err := configSSL(sslmode, &cp)
+	err := configTLS(sslmode, &cp)
 	if err != nil {
 		return cp, err
 	}
@@ -859,7 +859,7 @@ func ParseEnvLibpq() (ConnConfig, error) {
 
 	sslmode := os.Getenv("PGSSLMODE")
 
-	err := configSSL(sslmode, &cc)
+	err := configTLS(sslmode, &cc)
 	if err != nil {
 		return cc, err
 	}
@@ -874,7 +874,7 @@ func ParseEnvLibpq() (ConnConfig, error) {
 	return cc, nil
 }
 
-func configSSL(sslmode string, cc *ConnConfig) error {
+func configTLS(sslmode string, cc *ConnConfig) error {
 	// Match libpq default behavior
 	if sslmode == "" {
 		sslmode = "prefer"
