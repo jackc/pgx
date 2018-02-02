@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"os"
@@ -706,9 +708,46 @@ func ParseURI(uri string) (ConnConfig, error) {
 		return cp, err
 	}
 
+	// Extract optional TLS parameters and reconstruct a coherent tls.Config based
+	// on the DSN input.  Reuse the same keywords found in github.com/lib/pq.
+	if cp.TLSConfig != nil {
+		{
+			caCertPool := x509.NewCertPool()
+
+			caPath := url.Query().Get("sslrootcert")
+			caCert, err := ioutil.ReadFile(caPath)
+			if err != nil {
+				return cp, errors.Wrapf(err, "unable to read CA file %q", caPath)
+			}
+
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				return cp, errors.Wrap(err, "unable to add CA to cert pool")
+			}
+
+			cp.TLSConfig.RootCAs = caCertPool
+			cp.TLSConfig.ClientCAs = caCertPool
+		}
+
+		sslcert := url.Query().Get("sslcert")
+		sslkey := url.Query().Get("sslkey")
+		if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
+			return cp, fmt.Errorf(`both "sslcert" and "sslkey" are required`)
+		}
+
+		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
+		if err != nil {
+			return cp, errors.Wrap(err, "unable to read cert")
+		}
+
+		cp.TLSConfig.Certificates = []tls.Certificate{cert}
+	}
+
 	ignoreKeys := map[string]struct{}{
-		"sslmode":         {},
 		"connect_timeout": {},
+		"sslcert":         {},
+		"sslkey":          {},
+		"sslmode":         {},
+		"sslrootcert":     {},
 	}
 
 	cp.RuntimeParams = make(map[string]string)
