@@ -953,12 +953,14 @@ func configTLS(args configTLSArgs, cc *ConnConfig) error {
 		return fmt.Errorf(`both "sslcert" and "sslkey" are required`)
 	}
 
-	cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
-	if err != nil {
-		return errors.Wrap(err, "unable to read cert")
-	}
+	if sslcert != "" && sslkey != "" {
+		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
+		if err != nil {
+			return errors.Wrap(err, "unable to read cert")
+		}
 
-	cc.TLSConfig.Certificates = []tls.Certificate{cert}
+		cc.TLSConfig.Certificates = []tls.Certificate{cert}
+	}
 
 	return nil
 }
