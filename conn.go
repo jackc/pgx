@@ -929,7 +929,7 @@ func configTLS(args configTLSArgs, cc *ConnConfig) error {
 		return errors.New("sslmode is invalid")
 	}
 
-	{
+	if args.sslRootCert != "" {
 		caCertPool := x509.NewCertPool()
 
 		caPath := args.sslRootCert
