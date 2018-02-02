@@ -228,7 +228,8 @@ func TestConnectWithTLSFallback(t *testing.T) {
 	}
 
 	connConfig.UseFallbackTLS = true
-	connConfig.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
+	connConfig.FallbackTLSConfig = tlsConnConfig.TLSConfig
+	connConfig.FallbackTLSConfig.InsecureSkipVerify = true
 
 	conn, err = pgx.Connect(connConfig)
 	if err != nil {
