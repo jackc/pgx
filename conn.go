@@ -827,6 +827,9 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // PGUSER
 // PGPASSWORD
 // PGSSLMODE
+// PGSSLCERT
+// PGSSLKEY
+// PGSSLROOTCERT
 // PGAPPNAME
 // PGCONNECT_TIMEOUT
 //
@@ -874,9 +877,14 @@ func ParseEnvLibpq() (ConnConfig, error) {
 		}
 	}
 
-	sslmode := os.Getenv("PGSSLMODE")
+	tlsArgs := configTLSArgs{
+		sslMode:     os.Getenv("PGSSLMODE"),
+		sslKey:      os.Getenv("PGSSLKEY"),
+		sslCert:     os.Getenv("PGSSLCERT"),
+		sslRootCert: os.Getenv("PGSSLROOTCERT"),
+	}
 
-	err := configTLS(configTLSArgs{sslMode: sslmode}, &cc)
+	err := configTLS(tlsArgs, &cc)
 	if err != nil {
 		return cc, err
 	}
