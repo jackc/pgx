@@ -1,3 +1,9 @@
+# Unreleased
+
+## Fixes
+
+* Fix Rows.Values returning same value for multiple columns of same complex type
+
 # 3.1.0 (January 15, 2018)
 
 ## Features
