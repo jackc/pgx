@@ -1,5 +1,9 @@
 # Unreleased
 
+## Features
+
+* Support sslkey, sslcert, and sslrootcert URI params (Sean Chittenden)
+
 ## Fixes
 
 * Fix Rows.Values returning same value for multiple columns of same complex type
