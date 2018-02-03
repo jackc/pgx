@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,68 @@ func TestConnQueryValues(t *testing.T) {
 
 		if values[4] != rowCount {
 			t.Errorf(`Expected values[4] to be %d, but it was %d`, rowCount, values[4])
+		}
+	}
+
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+
+	if rowCount != 10 {
+		t.Error("Select called onDataRow wrong number of times")
+	}
+}
+
+// https://github.com/jackc/pgx/issues/386
+func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	expected0 := &pgtype.Int8Array{
+		Elements: []pgtype.Int8{
+			{Int: 1, Status: pgtype.Present},
+			{Int: 2, Status: pgtype.Present},
+			{Int: 3, Status: pgtype.Present},
+		},
+		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
+		Status:     pgtype.Present,
+	}
+
+	expected1 := &pgtype.Int8Array{
+		Elements: []pgtype.Int8{
+			{Int: 4, Status: pgtype.Present},
+			{Int: 5, Status: pgtype.Present},
+			{Int: 6, Status: pgtype.Present},
+		},
+		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
+		Status:     pgtype.Present,
+	}
+
+	var rowCount int32
+
+	rows, err := conn.Query("select '{1,2,3}'::bigint[], '{4,5,6}'::bigint[] from generate_series(1,$1) n", 10)
+	if err != nil {
+		t.Fatalf("conn.Query failed: %v", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		rowCount++
+
+		values, err := rows.Values()
+		if err != nil {
+			t.Fatalf("rows.Values failed: %v", err)
+		}
+		if len(values) != 2 {
+			t.Errorf("Expected rows.Values to return 2 values, but it returned %d", len(values))
+		}
+		if !reflect.DeepEqual(values[0], expected0) {
+			t.Errorf(`Expected values[0] to be %v, but it was %v`, expected0, values[0])
+		}
+		if !reflect.DeepEqual(values[1], expected1) {
+			t.Errorf(`Expected values[1] to be %v, but it was %v`, expected1, values[1])
 		}
 	}
 
