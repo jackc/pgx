@@ -3,6 +3,7 @@
 ## Features
 
 * Support sslkey, sslcert, and sslrootcert URI params (Sean Chittenden)
+* Allow any scheme in ParseURI (for convenience with cockroachdb) (Sean Chittenden)
 
 ## Fixes
 
