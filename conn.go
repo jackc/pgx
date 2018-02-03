@@ -809,7 +809,7 @@ func ParseDSN(s string) (ConnConfig, error) {
 // ParseConnectionString parses either a URI or a DSN connection string.
 // see ParseURI and ParseDSN for details.
 func ParseConnectionString(s string) (ConnConfig, error) {
-	if strings.HasPrefix(s, "postgres://") || strings.HasPrefix(s, "postgresql://") {
+	if u, err := url.Parse(s); err == nil && u.Scheme != "" {
 		return ParseURI(s)
 	}
 	return ParseDSN(s)
