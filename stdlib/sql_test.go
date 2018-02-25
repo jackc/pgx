@@ -16,15 +16,6 @@ import (
 	"github.com/jackc/pgx/stdlib"
 )
 
-func openDB(t *testing.T) *sql.DB {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
-	if err != nil {
-		t.Fatalf("sql.Open failed: %v", err)
-	}
-
-	return db
-}
-
 func closeDB(t *testing.T, db *sql.DB) {
 	err := db.Close()
 	if err != nil {
@@ -79,6 +70,14 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 	if err != nil {
 		t.Fatalf("stmt.Close unexpectedly failed: %v", err)
 	}
+}
+
+func TestSQLOpen(t *testing.T) {
+	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
+	if err != nil {
+		t.Fatalf("sql.Open failed: %v", err)
+	}
+	closeDB(t, db)
 }
 
 func TestNormalLifeCycle(t *testing.T) {

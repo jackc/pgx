@@ -130,8 +130,11 @@ type Driver struct {
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	var connConfig pgx.ConnConfig
-	var afterConnect func(*pgx.Conn) error
+	var (
+		connConfig   pgx.ConnConfig
+		afterConnect func(*pgx.Conn) error
+	)
+
 	if len(name) >= 9 && name[0] == 0 {
 		idBuf := []byte(name)[1:9]
 		id := int64(binary.BigEndian.Uint64(idBuf))
