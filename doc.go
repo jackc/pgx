@@ -159,6 +159,13 @@ PostgreSQL point type.
 pgx also includes support for custom types implementing the database/sql.Scanner
 and database/sql/driver.Valuer interfaces.
 
+If pgx does cannot natively encode a type and that type is a renamed type (e.g.
+type MyTime time.Time) pgx will attempt to encode the underlying type. While
+this is usually desired behavior it can produce suprising behavior if one the
+underlying type and the renamed type each implement database/sql interfaces and
+the other implements pgx interfaces. It is recommended that this situation be
+avoided by implementing pgx interfaces on the renamed type.
+
 Raw Bytes Mapping
 
 []byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
