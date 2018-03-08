@@ -13,6 +13,16 @@ func TestLineTranscode(t *testing.T) {
 		t.Skip("Skipping due to no line type")
 	}
 
+	// line may exist but not be usable on 9.3 :(
+	var isPG93 bool
+	err := conn.QueryRow("select version() ~ '9.3'").Scan(&isPG93)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if isPG93 {
+		t.Skip("Skipping due to unimplemented line type in PG 9.3")
+	}
+
 	testutil.TestSuccessfulTranscode(t, "line", []interface{}{
 		&pgtype.Line{
 			A: 1.23, B: 4.56, C: 7.89,
