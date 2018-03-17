@@ -116,8 +116,12 @@ func (src *Box) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, errUndefined
 	}
 
-	buf = append(buf, fmt.Sprintf(`(%f,%f),(%f,%f)`,
-		src.P[0].X, src.P[0].Y, src.P[1].X, src.P[1].Y)...)
+	buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
+		strconv.FormatFloat(src.P[0].X, 'f', -1, 64),
+		strconv.FormatFloat(src.P[0].Y, 'f', -1, 64),
+		strconv.FormatFloat(src.P[1].X, 'f', -1, 64),
+		strconv.FormatFloat(src.P[1].Y, 'f', -1, 64),
+	)...)
 	return buf, nil
 }
 
