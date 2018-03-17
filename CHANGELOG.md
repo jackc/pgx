@@ -8,6 +8,8 @@
 ## Fixes
 
 * Fix Rows.Values returning same value for multiple columns of same complex type
+* Fix StartReplication() syntax (steampunkcoder)
+* Fix precision loss for test format geometric types
 
 # 3.1.0 (January 15, 2018)
 
