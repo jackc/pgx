@@ -10,7 +10,7 @@ import (
 func TestPolygonTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "polygon", []interface{}{
 		&pgtype.Polygon{
-			P:      []pgtype.Vec2{{3.14, 1.678}, {7.1, 5.234}, {5.0, 3.234}},
+			P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}, {5.0, 3.234}},
 			Status: pgtype.Present,
 		},
 		&pgtype.Polygon{

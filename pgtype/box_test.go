@@ -10,7 +10,7 @@ import (
 func TestBoxTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "box", []interface{}{
 		&pgtype.Box{
-			P:      [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
+			P:      [2]pgtype.Vec2{{7.1, 5.2345678}, {3.14, 1.678}},
 			Status: pgtype.Present,
 		},
 		&pgtype.Box{

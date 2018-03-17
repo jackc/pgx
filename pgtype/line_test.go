@@ -25,7 +25,7 @@ func TestLineTranscode(t *testing.T) {
 
 	testutil.TestSuccessfulTranscode(t, "line", []interface{}{
 		&pgtype.Line{
-			A: 1.23, B: 4.56, C: 7.89,
+			A: 1.23, B: 4.56, C: 7.89012345,
 			Status: pgtype.Present,
 		},
 		&pgtype.Line{
