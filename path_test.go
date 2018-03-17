@@ -10,7 +10,7 @@ import (
 func TestPathTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "path", []interface{}{
 		&pgtype.Path{
-			P:      []pgtype.Vec2{{3.14, 1.678}, {7.1, 5.234}},
+			P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}},
 			Closed: false,
 			Status: pgtype.Present,
 		},
