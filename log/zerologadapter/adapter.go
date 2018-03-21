@@ -35,6 +35,6 @@ func (pl *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{
 		zlevel = zerolog.DebugLevel
 	}
 
-	pgxlog := l.logger.With().Fields(data).Logger()
+	pgxlog := pl.logger.With().Fields(data).Logger()
 	pgxlog.WithLevel(zlevel).Msg(msg)
 }
