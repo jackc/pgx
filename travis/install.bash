@@ -11,3 +11,4 @@ go get -u github.com/satori/go.uuid
 go get -u github.com/sirupsen/logrus
 go get -u github.com/pkg/errors
 go get -u go.uber.org/zap
+go get -u github.com/rs/zerolog
