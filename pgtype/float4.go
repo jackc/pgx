@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"math"
 	"strconv"
 
@@ -194,4 +195,28 @@ func (src *Float4) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func (src *Float4) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		buf := make([]byte, 4)
+		binary.BigEndian.PutUint32(buf, math.Float32bits(src.Float))
+		return buf, nil
+	case Null:
+		return nil, nil
+	default:
+		return nil, errUndefined
+	}
+}
+
+func (dst *Float4) UnmarshalJSON(b []byte) error {
+	var f float32
+	err := json.Unmarshal(b, &f)
+	if err != nil {
+		return err
+	}
+
+	*dst = Float4{Float: f, Status: Present}
+	return nil
 }

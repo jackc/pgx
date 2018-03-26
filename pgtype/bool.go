@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -156,4 +157,29 @@ func (src *Bool) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func (src *Bool) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		if src.Bool {
+			return []byte("true"), nil
+		}
+		return []byte("false"), nil
+	case Null:
+		return []byte("null"), nil
+	default:
+		return nil, errUndefined
+	}
+}
+
+func (dst *Bool) UnmarshalJSON(data []byte) error {
+	var b bool
+	err := json.Unmarshal(data, &b)
+	if err != nil {
+		return err
+	}
+
+	*dst = Bool{Bool: b, Status: Present}
+	return nil
 }
