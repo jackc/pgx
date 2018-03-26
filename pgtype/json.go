@@ -173,11 +173,10 @@ func (src *JSON) MarshalJSON() ([]byte, error) {
 
 func (dst *JSON) UnmarshalJSON(b []byte) error {
 	if b == nil {
-		dst.Status = Null
+		*dst = JSON{Status: Null}
 		return nil
 	}
 
-	dst.Bytes = b
-	dst.Status = Present
+	*dst = JSON{Bytes: b, Status: Present}
 	return nil
 }
