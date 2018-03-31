@@ -76,6 +76,8 @@ func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 		return nil, err
 	}
 
+	f.cn.pendingReadyForQueryCount++
+
 	for {
 		msg, err := f.cn.rxMsg()
 		if err != nil {
