@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -428,6 +429,10 @@ where (
 		return nil, err
 	}
 
+	if err = c.initConnInfoDomains(cinfo); err != nil {
+		return nil, err
+	}
+
 	return cinfo, nil
 }
 
@@ -489,6 +494,52 @@ where t.typtype = 'b'
 			Name:  name,
 			OID:   oid,
 		})
+	}
+
+	return nil
+}
+
+// initConnInfoDomains introspects for domains and registers a data type for them.
+func (c *Conn) initConnInfoDomains(cinfo *pgtype.ConnInfo) error {
+	type domain struct {
+		oid     pgtype.OID
+		name    string
+		baseOID pgtype.OID
+	}
+
+	domains := make([]*domain, 0, 16)
+
+	rows, err := c.Query(`select t.oid, t.typname, t.typbasetype
+from pg_type t
+  join pg_type base_type on t.typbasetype=base_type.oid
+where t.typtype = 'd'
+  and base_type.typtype = 'b'`)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var d domain
+		if err := rows.Scan(&d.oid, &d.name, &d.baseOID); err != nil {
+			return err
+		}
+
+		domains = append(domains, &d)
+	}
+
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+
+	for _, d := range domains {
+		baseDataType, ok := cinfo.DataTypeForOID(d.baseOID)
+		if ok {
+			cinfo.RegisterDataType(pgtype.DataType{
+				Value: reflect.New(reflect.ValueOf(baseDataType.Value).Elem().Type()).Interface().(pgtype.Value),
+				Name:  d.name,
+				OID:   d.oid,
+			})
+		}
 	}
 
 	return nil
