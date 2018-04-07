@@ -503,7 +503,7 @@ where t.typtype = 'b'
 func (c *Conn) initConnInfoDomains(cinfo *pgtype.ConnInfo) error {
 	type domain struct {
 		oid     pgtype.OID
-		name    string
+		name    pgtype.Text
 		baseOID pgtype.OID
 	}
 
@@ -536,7 +536,7 @@ where t.typtype = 'd'
 		if ok {
 			cinfo.RegisterDataType(pgtype.DataType{
 				Value: reflect.New(reflect.ValueOf(baseDataType.Value).Elem().Type()).Interface().(pgtype.Value),
-				Name:  d.name,
+				Name:  d.name.String,
 				OID:   d.oid,
 			})
 		}
