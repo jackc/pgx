@@ -100,6 +100,7 @@ Then run the following SQL:
 Connect to database pgx_test and run:
 
     create extension hstore;
+    create domain uint64 as numeric(20,0);
 
 Next open conn_config_test.go.example and make a copy without the
 .example. If your PostgreSQL server is accepting connections on 127.0.0.1,
