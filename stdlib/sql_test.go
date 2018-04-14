@@ -1475,7 +1475,7 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 
 	var msg json.RawMessage
 
-	err := db.QueryRow("select '{}'::jsonb").Scan(&msg)
+	err := db.QueryRow("select '{}'::json").Scan(&msg)
 	if err != nil {
 		t.Fatalf("QueryRow / Scan failed: %v", err)
 	}
