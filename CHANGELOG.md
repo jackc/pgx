@@ -12,6 +12,13 @@
 * Fix StartReplication() syntax (steampunkcoder)
 * Fix precision loss for test format geometric types
 
+## Changes
+
+* pgtype.JSON(B).Value now returns []byte instead of string. This allows
+  database/sql to scan json(b) into \*json.RawMessage. This is a tiny behavior
+  change, but database/sql Scan should automatically convert []byte to string, so
+  there shouldn't be any incompatibility.
+
 # 3.1.0 (January 15, 2018)
 
 ## Features
