@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"reflect"
@@ -1462,6 +1463,25 @@ func TestSimpleQueryLifeCycle(t *testing.T) {
 	err = rows.Close()
 	if err != nil {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
+	}
+
+	ensureConnValid(t, db)
+}
+
+// https://github.com/jackc/pgx/issues/409
+func TestScanJSONIntoJSONRawMessage(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	var msg json.RawMessage
+
+	err := db.QueryRow("select '{}'::jsonb").Scan(&msg)
+	if err != nil {
+		t.Fatalf("QueryRow / Scan failed: %v", err)
+	}
+
+	if bytes.Compare([]byte("{}"), []byte(msg)) != 0 {
+		t.Fatalf("Expected %v, got %v", []byte("{}"), msg)
 	}
 
 	ensureConnValid(t, db)

@@ -495,6 +495,10 @@ func (r *Rows) Next(dest []driver.Value) error {
 				r.values[i] = &pgtype.Int4{}
 			case pgtype.Int8OID:
 				r.values[i] = &pgtype.Int8{}
+			case pgtype.JSONOID:
+				r.values[i] = &pgtype.JSON{}
+			case pgtype.JSONBOID:
+				r.values[i] = &pgtype.JSONB{}
 			case pgtype.OIDOID:
 				r.values[i] = &pgtype.OIDValue{}
 			case pgtype.TimestampOID:

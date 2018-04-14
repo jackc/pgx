@@ -31,6 +31,32 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	}
 
 	switch arg := arg.(type) {
+
+	// https://github.com/jackc/pgx/issues/409 Changed JSON and JSONB to surface
+	// []byte to database/sql instead of string. But that caused problems with the
+	// simple protocol because the driver.Valuer case got taken before the
+	// pgtype.TextEncoder case. And driver.Valuer needed to be first in the usual
+	// case because of https://github.com/jackc/pgx/issues/339. So instead we
+	// special case JSON and JSONB.
+	case *pgtype.JSON:
+		buf, err := arg.EncodeText(ci, nil)
+		if err != nil {
+			return nil, err
+		}
+		if buf == nil {
+			return nil, nil
+		}
+		return string(buf), nil
+	case *pgtype.JSONB:
+		buf, err := arg.EncodeText(ci, nil)
+		if err != nil {
+			return nil, err
+		}
+		if buf == nil {
+			return nil, nil
+		}
+		return string(buf), nil
+
 	case driver.Valuer:
 		return callValuerValue(arg)
 	case pgtype.TextEncoder:
