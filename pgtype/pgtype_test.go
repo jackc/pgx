@@ -12,6 +12,7 @@ import (
 type _string string
 type _bool bool
 type _int8 int8
+type _uint8 uint8
 type _int16 int16
 type _int16Slice []int16
 type _int32Slice []int32

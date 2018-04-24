@@ -185,6 +185,98 @@ func underlyingSliceType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+func uint64AssignTo(srcVal uint64, srcStatus Status, dst interface{}) error {
+	if srcStatus == Present {
+		switch v := dst.(type) {
+		case *int:
+			if srcVal > uint64(maxInt) {
+				return errors.Errorf("%d is greater than maximum value for int", srcVal)
+			}
+			*v = int(srcVal)
+		case *int8:
+			if srcVal > math.MaxInt8 {
+				return errors.Errorf("%d is greater than maximum value for int8", srcVal)
+			}
+			*v = int8(srcVal)
+		case *int16:
+			if srcVal > math.MaxInt16 {
+				return errors.Errorf("%d is greater than maximum value for int16", srcVal)
+			}
+			*v = int16(srcVal)
+		case *int32:
+			if srcVal > math.MaxInt32 {
+				return errors.Errorf("%d is greater than maximum value for int32", srcVal)
+			}
+			*v = int32(srcVal)
+		case *int64:
+			if srcVal > math.MaxInt64 {
+				return errors.Errorf("%d is greater than maximum value for int64", srcVal)
+			}
+			*v = int64(srcVal)
+		case *uint:
+			if srcVal > uint64(maxUint) {
+				return errors.Errorf("%d is greater than maximum value for uint", srcVal)
+			}
+			*v = uint(srcVal)
+		case *uint8:
+			if srcVal > math.MaxUint8 {
+				return errors.Errorf("%d is greater than maximum value for uint8", srcVal)
+			}
+			*v = uint8(srcVal)
+		case *uint16:
+			if srcVal > math.MaxUint16 {
+				return errors.Errorf("%d is greater than maximum value for uint16", srcVal)
+			}
+			*v = uint16(srcVal)
+		case *uint32:
+			if srcVal > math.MaxUint32 {
+				return errors.Errorf("%d is greater than maximum value for uint32", srcVal)
+			}
+			*v = uint32(srcVal)
+		case *uint64:
+			*v = uint64(srcVal)
+		default:
+			if vv := reflect.ValueOf(dst); vv.Kind() == reflect.Ptr {
+				el := vv.Elem()
+				switch el.Kind() {
+				// if dst is a pointer to pointer, strip the pointer and try again
+				case reflect.Ptr:
+					if el.IsNil() {
+						// allocate destination
+						el.Set(reflect.New(el.Type().Elem()))
+					}
+					return uint64AssignTo(srcVal, srcStatus, el.Interface())
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+					if el.OverflowInt(int64(srcVal)) {
+						return errors.Errorf("cannot put %d into %T", srcVal, dst)
+					}
+					el.SetInt(int64(srcVal))
+					return nil
+				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+					if el.OverflowUint(uint64(srcVal)) {
+						return errors.Errorf("cannot put %d into %T", srcVal, dst)
+					}
+					el.SetUint(uint64(srcVal))
+					return nil
+				}
+			}
+			return errors.Errorf("cannot assign %v into %T", srcVal, dst)
+		}
+		return nil
+	}
+
+	// if dst is a pointer to pointer and srcStatus is not Present, nil it out
+	if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
+		el := v.Elem()
+		if el.Kind() == reflect.Ptr {
+			el.Set(reflect.Zero(el.Type()))
+			return nil
+		}
+	}
+
+	return errors.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+}
+
 func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 	if srcStatus == Present {
 		switch v := dst.(type) {
@@ -257,8 +349,8 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 			}
 			*v = uint64(srcVal)
 		default:
-			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-				el := v.Elem()
+			if vv := reflect.ValueOf(dst); vv.Kind() == reflect.Ptr {
+				el := vv.Elem()
 				switch el.Kind() {
 				// if dst is a pointer to pointer, strip the pointer and try again
 				case reflect.Ptr:
@@ -309,8 +401,8 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 		case *float64:
 			*v = srcVal
 		default:
-			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
-				el := v.Elem()
+			if vv := reflect.ValueOf(dst); vv.Kind() == reflect.Ptr {
+				el := vv.Elem()
 				switch el.Kind() {
 				// if dst is a pointer to pointer, strip the pointer and try again
 				case reflect.Ptr:
