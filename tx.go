@@ -241,6 +241,9 @@ func (tx *Tx) QueryRowEx(ctx context.Context, sql string, options *QueryExOption
 
 // CopyFrom delegates to the underlying *Conn
 func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
+	if tx.Status() == TxStatusInFailure {
+		return 0, ErrTxInFailure
+	}
 	if tx.Status() != TxStatusInProgress {
 		return 0, ErrTxClosed
 	}
