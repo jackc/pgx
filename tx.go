@@ -117,7 +117,7 @@ func (tx *Tx) Commit() error {
 
 // CommitEx commits the transaction with a context.
 func (tx *Tx) CommitEx(ctx context.Context) error {
-	if !(tx.Status() == TxStatusInProgress || tx.Status() == TxStatusInFailure) {
+	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
 
@@ -152,7 +152,7 @@ func (tx *Tx) Rollback() error {
 
 // RollbackEx is the context version of Rollback
 func (tx *Tx) RollbackEx(ctx context.Context) error {
-	if !(tx.Status() == TxStatusInProgress || tx.Status() == TxStatusInFailure) {
+	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
 
