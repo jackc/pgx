@@ -369,6 +369,11 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
 	}
 
+	_, err = tx.Exec("savepoint s")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = tx.Exec("syntax error")
 	if err == nil {
 		t.Fatal("expected an error but did not get one")
@@ -376,6 +381,15 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 
 	if status := tx.Status(); status != pgx.TxStatusInFailure {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInFailure, status)
+	}
+
+	_, err = tx.Exec("rollback to s")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if status := tx.Status(); status != pgx.TxStatusInProgress {
+		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
 	}
 
 	if err := tx.Rollback(); err != nil {

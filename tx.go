@@ -179,10 +179,7 @@ func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag,
 
 // ExecEx delegates to the underlying *Conn
 func (tx *Tx) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
-	if tx.Status() == TxStatusInFailure {
-		return CommandTag(""), ErrTxInFailure
-	}
-	if tx.Status() != TxStatusInProgress {
+	if tx.status != TxStatusInProgress {
 		return CommandTag(""), ErrTxClosed
 	}
 
@@ -196,10 +193,7 @@ func (tx *Tx) Prepare(name, sql string) (*PreparedStatement, error) {
 
 // PrepareEx delegates to the underlying *Conn
 func (tx *Tx) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (*PreparedStatement, error) {
-	if tx.Status() == TxStatusInFailure {
-		return nil, ErrTxInFailure
-	}
-	if tx.Status() != TxStatusInProgress {
+	if tx.status != TxStatusInProgress {
 		return nil, ErrTxClosed
 	}
 
@@ -213,12 +207,7 @@ func (tx *Tx) Query(sql string, args ...interface{}) (*Rows, error) {
 
 // QueryEx delegates to the underlying *Conn
 func (tx *Tx) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (*Rows, error) {
-	if tx.Status() == TxStatusInFailure {
-		// Because checking for errors can be deferred to the *Rows, build one with the error
-		err := ErrTxInFailure
-		return &Rows{closed: true, err: err}, err
-	}
-	if tx.Status() != TxStatusInProgress {
+	if tx.status != TxStatusInProgress {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
 		return &Rows{closed: true, err: err}, err
@@ -241,10 +230,7 @@ func (tx *Tx) QueryRowEx(ctx context.Context, sql string, options *QueryExOption
 
 // CopyFrom delegates to the underlying *Conn
 func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
-	if tx.Status() == TxStatusInFailure {
-		return 0, ErrTxInFailure
-	}
-	if tx.Status() != TxStatusInProgress {
+	if tx.status != TxStatusInProgress {
 		return 0, ErrTxClosed
 	}
 
@@ -255,7 +241,7 @@ func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFr
 // pgx.TxStatus* constants.
 func (tx *Tx) Status() int8 {
 	if tx.status == TxStatusInProgress && tx.conn.txStatus == 'E' {
-		tx.status = TxStatusInFailure
+		return TxStatusInFailure
 	}
 	return tx.status
 }
