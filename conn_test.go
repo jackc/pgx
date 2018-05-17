@@ -2085,7 +2085,7 @@ func TestDomainType(t *testing.T) {
 		t.Fatal("Expected data type for domain uint64 to be present")
 	}
 	if dt, ok := dt.Value.(*pgtype.Numeric); !ok {
-		t.Fatal("Expected data type value for domain uint64 to be *pgtype.Numeric, but it was %T", dt)
+		t.Fatalf("Expected data type value for domain uint64 to be *pgtype.Numeric, but it was %T", dt)
 	}
 
 	var n uint64
