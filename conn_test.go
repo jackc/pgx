@@ -227,6 +227,8 @@ func TestConnectWithTLSFallback(t *testing.T) {
 		t.Fatal("Expected failed connection, but succeeded")
 	}
 
+	connConfig = *tlsConnConfig
+	connConfig.TLSConfig = &tls.Config{ServerName: "bogus.local"}
 	connConfig.UseFallbackTLS = true
 	connConfig.FallbackTLSConfig = tlsConnConfig.TLSConfig
 	connConfig.FallbackTLSConfig.InsecureSkipVerify = true
