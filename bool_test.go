@@ -29,6 +29,7 @@ func TestBoolSet(t *testing.T) {
 		{source: "f", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
 		{source: _bool(true), result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
 		{source: _bool(false), result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
+		{source: nil, result: pgtype.Bool{Status: pgtype.Null}},
 	}
 
 	for i, tt := range successfulTests {
