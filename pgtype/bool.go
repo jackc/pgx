@@ -13,6 +13,11 @@ type Bool struct {
 }
 
 func (dst *Bool) Set(src interface{}) error {
+	if src == nil {
+		*dst = Bool{Status: Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case bool:
 		*dst = Bool{Bool: value, Status: Present}
