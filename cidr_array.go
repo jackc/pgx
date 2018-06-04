@@ -115,7 +115,7 @@ func (src *CIDRArray) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *CIDRArray) DecodeText(ci *ConnInfo, src []byte) error {

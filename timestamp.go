@@ -76,7 +76,7 @@ func (src *Timestamp) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 // DecodeText decodes from src into dst. The decoded time is considered to
