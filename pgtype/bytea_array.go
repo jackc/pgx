@@ -86,7 +86,7 @@ func (src *ByteaArray) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *ByteaArray) DecodeText(ci *ConnInfo, src []byte) error {
