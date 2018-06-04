@@ -86,7 +86,7 @@ func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error {

@@ -84,7 +84,7 @@ func (src *EnumArray) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *EnumArray) DecodeText(ci *ConnInfo, src []byte) error {

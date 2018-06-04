@@ -64,7 +64,7 @@ func (src *Bytea) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 // DecodeText only supports the hex format. This has been the default since
