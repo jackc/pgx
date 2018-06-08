@@ -230,7 +230,7 @@ func TestConnectWithTLSFallback(t *testing.T) {
 	connConfig = *tlsConnConfig
 	connConfig.TLSConfig = &tls.Config{ServerName: "bogus.local"}
 	connConfig.UseFallbackTLS = true
-	connConfig.FallbackTLSConfig = tlsConnConfig.TLSConfig
+	connConfig.FallbackTLSConfig = connConfig.TLSConfig
 	connConfig.FallbackTLSConfig.InsecureSkipVerify = true
 
 	conn, err = pgx.Connect(connConfig)
