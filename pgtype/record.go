@@ -67,7 +67,7 @@ func (src *Record) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {

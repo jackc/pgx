@@ -59,7 +59,7 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 			*v = make(map[string]string, len(src.Map))
 			for k, val := range src.Map {
 				if val.Status != Present {
-					return errors.Errorf("cannot decode %v into %T", src, dst)
+					return errors.Errorf("cannot decode %#v into %T", src, dst)
 				}
 				(*v)[k] = val.String
 			}
@@ -73,7 +73,7 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %v into %T", src, dst)
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *Hstore) DecodeText(ci *ConnInfo, src []byte) error {
