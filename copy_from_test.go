@@ -464,6 +464,10 @@ func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
 		conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &nextPanicSource{})
 	}()
 
+	if !caughtPanic {
+		t.Error("expected panic but did not")
+	}
+
 	if conn.IsAlive() {
 		t.Error("panic should have killed conn")
 	}
