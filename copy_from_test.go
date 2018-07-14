@@ -426,3 +426,45 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+type nextPanicSource struct {
+}
+
+func (cfs *nextPanicSource) Next() bool {
+	panic("crash")
+}
+
+func (cfs *nextPanicSource) Values() ([]interface{}, error) {
+	return []interface{}{nil}, nil // should never get here
+}
+
+func (cfs *nextPanicSource) Err() error {
+	return nil // should never gets here
+}
+
+func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		a bytea not null
+	)`)
+
+	caughtPanic := false
+
+	func() {
+		defer func() {
+			if x := recover(); x != nil {
+				caughtPanic = true
+			}
+		}()
+
+		conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &nextPanicSource{})
+	}()
+
+	if conn.IsAlive() {
+		t.Error("panic should have killed conn")
+	}
+}
