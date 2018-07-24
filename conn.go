@@ -706,6 +706,8 @@ func (old ConnConfig) Merge(other ConnConfig) ConnConfig {
 		cc.Dial = other.Dial
 	}
 
+	cc.PreferSimpleProtocol = other.PreferSimpleProtocol
+
 	cc.RuntimeParams = make(map[string]string)
 	for k, v := range old.RuntimeParams {
 		cc.RuntimeParams[k] = v
