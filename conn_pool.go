@@ -542,26 +542,26 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 	return c.CopyFrom(tableName, columnNames, rowSrc)
 }
 
-// CopyFromTextual acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) CopyFromTextual(r io.Reader, sql string, args ...interface{}) error {
+// CopyFromReader acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnPool) CopyFromReader(r io.Reader, sql string) error {
 	c, err := p.Acquire()
 	if err != nil {
 		return err
 	}
 	defer p.Release(c)
 
-	return c.CopyFromTextual(r, sql, args...)
+	return c.CopyFromReader(r, sql)
 }
 
-// CopyToTextual acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) CopyToTextual(w io.Writer, sql string, args ...interface{}) error {
+// CopyToWriter acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnPool) CopyToWriter(w io.Writer, sql string, args ...interface{}) error {
 	c, err := p.Acquire()
 	if err != nil {
 		return err
 	}
 	defer p.Release(c)
 
-	return c.CopyToTextual(w, sql, args...)
+	return c.CopyToWriter(w, sql, args...)
 }
 
 // BeginBatch acquires a connection and begins a batch on that connection. When

@@ -283,9 +283,9 @@ func (c *Conn) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyF
 	return ct.run()
 }
 
-// CopyFromTextual uses the PostgreSQL textual format of the copy protocol
-func (c *Conn) CopyFromTextual(r io.Reader, sql string, args ...interface{}) error {
-	if err := c.sendSimpleQuery(sql, args...); err != nil {
+// CopyFromReader uses the PostgreSQL textual format of the copy protocol
+func (c *Conn) CopyFromReader(r io.Reader, sql string) error {
+	if err := c.sendSimpleQuery(sql); err != nil {
 		return err
 	}
 

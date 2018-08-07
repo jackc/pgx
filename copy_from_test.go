@@ -67,8 +67,8 @@ func TestConnCopyFromSmall(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromTextual(inputReader, "copy foo from stdin"); err != nil {
-		t.Errorf("Unexpected error for CopyFromTextual: %v", err)
+	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
+		t.Errorf("Unexpected error for CopyFromReader: %v", err)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -155,8 +155,8 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromTextual(strings.NewReader(inputStringRows), "copy foo from stdin"); err != nil {
-		t.Errorf("Unexpected error for CopyFromTextual: %v", err)
+	if err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin"); err != nil {
+		t.Errorf("Unexpected error for CopyFromReader: %v", err)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -239,7 +239,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromTextual(inputReader, "copy foo from stdin"); err != nil {
+	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
 
@@ -343,12 +343,12 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	err = conn.CopyFromTextual(inputReader, "copy foo from stdin")
+	err = conn.CopyFromReader(inputReader, "copy foo from stdin")
 	if err == nil {
-		t.Errorf("Expected CopyFromTextual return error, but it did not")
+		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 	if _, ok := err.(pgx.PgError); !ok {
-		t.Errorf("Expected CopyFromTextual return pgx.PgError, but instead it returned: %v", err)
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -600,7 +600,7 @@ func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
 	}
 }
 
-func TestConnCopyFromTextualQueryError(t *testing.T) {
+func TestConnCopyFromReaderQueryError(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -608,19 +608,19 @@ func TestConnCopyFromTextualQueryError(t *testing.T) {
 
 	inputReader := strings.NewReader("")
 
-	err := conn.CopyFromTextual(inputReader, "cropy foo from stdin")
+	err := conn.CopyFromReader(inputReader, "cropy foo from stdin")
 	if err == nil {
-		t.Errorf("Expected CopyFromTextual return error, but it did not")
+		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
-		t.Errorf("Expected CopyFromTextual return pgx.PgError, but instead it returned: %v", err)
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 
 	ensureConnValid(t, conn)
 }
 
-func TestConnCopyFromTextualNoTableError(t *testing.T) {
+func TestConnCopyFromReaderNoTableError(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -628,13 +628,13 @@ func TestConnCopyFromTextualNoTableError(t *testing.T) {
 
 	inputReader := strings.NewReader("")
 
-	err := conn.CopyFromTextual(inputReader, "copy foo from stdin")
+	err := conn.CopyFromReader(inputReader, "copy foo from stdin")
 	if err == nil {
-		t.Errorf("Expected CopyFromTextual return error, but it did not")
+		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
-		t.Errorf("Expected CopyFromTextual return pgx.PgError, but instead it returned: %v", err)
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 
 	ensureConnValid(t, conn)

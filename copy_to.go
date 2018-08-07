@@ -25,7 +25,7 @@ func (c *Conn) readUntilCopyOutResponse() error {
 	}
 }
 
-func (c *Conn) CopyToTextual(w io.Writer, sql string, args ...interface{}) error {
+func (c *Conn) CopyToWriter(w io.Writer, sql string, args ...interface{}) error {
 	if err := c.sendSimpleQuery(sql, args...); err != nil {
 		return err
 	}

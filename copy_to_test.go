@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx"
 )
 
-func TestConnCopyToTextualSmall(t *testing.T) {
+func TestConnCopyToWriterSmall(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -30,8 +30,8 @@ func TestConnCopyToTextualSmall(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
-	if err := conn.CopyToTextual(outputWriter, "copy foo to stdout"); err != nil {
-		t.Errorf("Unexpected error for CopyToTextual: %v", err)
+	if err := conn.CopyToWriter(outputWriter, "copy foo to stdout"); err != nil {
+		t.Errorf("Unexpected error for CopyToWriter: %v", err)
 	}
 
 	if i := bytes.Compare(inputBytes, outputWriter.Bytes()); i != 0 {
@@ -41,7 +41,7 @@ func TestConnCopyToTextualSmall(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnCopyToTextualLarge(t *testing.T) {
+func TestConnCopyToWriterLarge(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -66,7 +66,7 @@ func TestConnCopyToTextualLarge(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
-	if err := conn.CopyToTextual(outputWriter, "copy foo to stdout"); err != nil {
+	if err := conn.CopyToWriter(outputWriter, "copy foo to stdout"); err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
 
@@ -77,7 +77,7 @@ func TestConnCopyToTextualLarge(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnCopyToTextualQueryError(t *testing.T) {
+func TestConnCopyToWriterQueryError(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnect(t, *defaultConnConfig)
@@ -85,13 +85,13 @@ func TestConnCopyToTextualQueryError(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0))
 
-	err := conn.CopyToTextual(outputWriter, "cropy foo to stdout")
+	err := conn.CopyToWriter(outputWriter, "cropy foo to stdout")
 	if err == nil {
-		t.Errorf("Expected CopyFromTextual return error, but it did not")
+		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
-		t.Errorf("Expected CopyFromTextual return pgx.PgError, but instead it returned: %v", err)
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 
 	ensureConnValid(t, conn)
