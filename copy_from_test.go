@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,10 +26,14 @@ func TestConnCopyFromSmall(t *testing.T) {
 		g timestamptz
 	)`)
 
+	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
 	inputRows := [][]interface{}{
-		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)},
+		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
+	inputReader := strings.NewReader("0\t1\t2\tabc\tefg\t2000-01-01\t" + tzedTime.Format(time.RFC3339Nano) + "\n" +
+		"\\N\t\\N\t\\N\t\\N\t\\N\t\\N\t\\N\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
@@ -44,6 +49,34 @@ func TestConnCopyFromSmall(t *testing.T) {
 	}
 
 	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	}
+
+	mustExec(t, conn, "truncate foo")
+
+	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
+		t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	}
+
+	rows, err = conn.Query("select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	outputRows = make([][]interface{}, 0)
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -80,10 +113,14 @@ func TestConnCopyFromLarge(t *testing.T) {
 		h bytea
 	)`)
 
+	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
 	inputRows := [][]interface{}{}
+	inputStringRows := ""
 
 	for i := 0; i < 10000; i++ {
-		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local), []byte{111, 111, 111, 111}})
+		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime, []byte{111, 111, 111, 111}})
+		inputStringRows += "0\t1\t2\tabc\tefg\t2000-01-01\t" + tzedTime.Format(time.RFC3339Nano) + "\toooo\n"
 	}
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, pgx.CopyFromRows(inputRows))
@@ -100,6 +137,34 @@ func TestConnCopyFromLarge(t *testing.T) {
 	}
 
 	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal")
+	}
+
+	mustExec(t, conn, "truncate foo")
+
+	if err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin"); err != nil {
+		t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	}
+
+	rows, err = conn.Query("select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	outputRows = make([][]interface{}, 0)
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -140,6 +205,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 		{map[string]interface{}{"foo": "bar"}, map[string]interface{}{"bar": "quz"}},
 		{nil, nil},
 	}
+	inputReader := strings.NewReader("{\"foo\":\"bar\"}\t{\"bar\":\"quz\"}\n\\N\t\\N\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
@@ -155,6 +221,34 @@ func TestConnCopyFromJSON(t *testing.T) {
 	}
 
 	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	}
+
+	mustExec(t, conn, "truncate foo")
+
+	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
+		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+
+	rows, err = conn.Query("select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	outputRows = make([][]interface{}, 0)
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -212,6 +306,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		{int32(2), nil}, // this row should trigger a failure
 		{int32(3), "def"},
 	}
+	inputReader := strings.NewReader("1\tabc\n2\t\\N\n3\tdef\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err == nil {
@@ -230,6 +325,38 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 	}
 
 	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if len(outputRows) != 0 {
+		t.Errorf("Expected 0 rows, but got %v", outputRows)
+	}
+
+	mustExec(t, conn, "truncate foo")
+
+	err = conn.CopyFromReader(inputReader, "copy foo from stdin")
+	if err == nil {
+		t.Errorf("Expected CopyFromReader return error, but it did not")
+	}
+	if _, ok := err.(pgx.PgError); !ok {
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	rows, err = conn.Query("select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	outputRows = make([][]interface{}, 0)
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -471,4 +598,44 @@ func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
 	if conn.IsAlive() {
 		t.Error("panic should have killed conn")
 	}
+}
+
+func TestConnCopyFromReaderQueryError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	inputReader := strings.NewReader("")
+
+	err := conn.CopyFromReader(inputReader, "cropy foo from stdin")
+	if err == nil {
+		t.Errorf("Expected CopyFromReader return error, but it did not")
+	}
+
+	if _, ok := err.(pgx.PgError); !ok {
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnCopyFromReaderNoTableError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	inputReader := strings.NewReader("")
+
+	err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	if err == nil {
+		t.Errorf("Expected CopyFromReader return error, but it did not")
+	}
+
+	if _, ok := err.(pgx.PgError); !ok {
+		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	ensureConnValid(t, conn)
 }

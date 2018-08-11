@@ -3,6 +3,7 @@ package pgx
 import (
 	"bytes"
 	"fmt"
+	"io"
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
@@ -280,4 +281,59 @@ func (c *Conn) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyF
 	}
 
 	return ct.run()
+}
+
+// CopyFromReader uses the PostgreSQL textual format of the copy protocol
+func (c *Conn) CopyFromReader(r io.Reader, sql string) error {
+	if err := c.sendSimpleQuery(sql); err != nil {
+		return err
+	}
+
+	if err := c.readUntilCopyInResponse(); err != nil {
+		return err
+	}
+	buf := c.wbuf
+
+	buf = append(buf, copyData)
+	sp := len(buf)
+	for {
+		n, err := r.Read(buf[5:cap(buf)])
+		if err == io.EOF {
+			break
+		}
+		buf = buf[0 : n+5]
+		pgio.SetInt32(buf[sp:], int32(n+4))
+
+		if _, err := c.conn.Write(buf); err != nil {
+			return err
+		}
+	}
+
+	buf = buf[:0]
+	buf = append(buf, copyDone)
+	buf = pgio.AppendInt32(buf, 4)
+
+	if _, err := c.conn.Write(buf); err != nil {
+		return err
+	}
+
+	for {
+		msg, err := c.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ReadyForQuery:
+			c.rxReadyForQuery(msg)
+			return nil
+		case *pgproto3.CommandComplete:
+		case *pgproto3.ErrorResponse:
+			return c.rxErrorResponse(msg)
+		default:
+			return c.processContextFreeMsg(msg)
+		}
+	}
+
+	return nil
 }
