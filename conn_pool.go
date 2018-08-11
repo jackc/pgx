@@ -2,6 +2,7 @@ package pgx
 
 import (
 	"context"
+	"io"
 	"sync"
 	"time"
 
@@ -539,6 +540,28 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 	defer p.Release(c)
 
 	return c.CopyFrom(tableName, columnNames, rowSrc)
+}
+
+// CopyFromReader acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnPool) CopyFromReader(r io.Reader, sql string) error {
+	c, err := p.Acquire()
+	if err != nil {
+		return err
+	}
+	defer p.Release(c)
+
+	return c.CopyFromReader(r, sql)
+}
+
+// CopyToWriter acquires a connection, delegates the call to that connection, and releases the connection
+func (p *ConnPool) CopyToWriter(w io.Writer, sql string, args ...interface{}) error {
+	c, err := p.Acquire()
+	if err != nil {
+		return err
+	}
+	defer p.Release(c)
+
+	return c.CopyToWriter(w, sql, args...)
 }
 
 // BeginBatch acquires a connection and begins a batch on that connection. When
