@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"database/sql/driver"
 	"math"
 	"reflect"
 	"time"
@@ -162,6 +163,12 @@ func appendBind(
 	buf = append(buf, preparedStatement...)
 	buf = append(buf, 0)
 
+	var err error
+	arguments, err = convertDriverValuers(arguments)
+	if err != nil {
+		return nil, err
+	}
+
 	buf = pgio.AppendInt16(buf, int16(len(parameterOIDs)))
 	for i, oid := range parameterOIDs {
 		buf = pgio.AppendInt16(buf, chooseParameterFormatCode(connInfo, oid, arguments[i]))
@@ -183,6 +190,22 @@ func appendBind(
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	return buf, nil
+}
+
+func convertDriverValuers(args []interface{}) ([]interface{}, error) {
+	for i, arg := range args {
+		switch arg := arg.(type) {
+		case pgtype.BinaryEncoder:
+		case pgtype.TextEncoder:
+		case driver.Valuer:
+			v, err := callValuerValue(arg)
+			if err != nil {
+				return nil, err
+			}
+			args[i] = v
+		}
+	}
+	return args, nil
 }
 
 // appendExecute appends a PostgreSQL wire protocol execute message to buf and returns it.

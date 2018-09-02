@@ -200,14 +200,6 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 		return buf, nil
 	}
 
-	if arg, ok := arg.(driver.Valuer); ok {
-		v, err := callValuerValue(arg)
-		if err != nil {
-			return nil, err
-		}
-		return encodePreparedStatementArgument(ci, buf, oid, v)
-	}
-
 	if strippedArg, ok := stripNamedType(&refVal); ok {
 		return encodePreparedStatementArgument(ci, buf, oid, strippedArg)
 	}
@@ -227,16 +219,6 @@ func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.OID, arg interfac
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
 		if _, ok := dt.Value.(pgtype.BinaryEncoder); ok {
-			if arg, ok := arg.(driver.Valuer); ok {
-				if err := dt.Value.Set(arg); err != nil {
-					if value, err := callValuerValue(arg); err == nil {
-						if _, ok := value.(string); ok {
-							return TextFormatCode
-						}
-					}
-				}
-			}
-
 			return BinaryFormatCode
 		}
 	}
