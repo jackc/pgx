@@ -116,10 +116,14 @@ func (p *ConnPool) acquire(deadline *time.Time) (*Conn, error) {
 	}
 
 	// A connection is available
-	if len(p.availableConnections) > 0 {
-		c := p.availableConnections[len(p.availableConnections)-1]
+	// The pool works like a queue. Available connection will be returned
+	// from the head. A new connection will be added to the tail.
+	numAvailable := len(p.availableConnections)
+	if numAvailable > 0 {
+		c := p.availableConnections[0]
 		c.poolResetCount = p.resetCount
-		p.availableConnections = p.availableConnections[:len(p.availableConnections)-1]
+		copy(p.availableConnections, p.availableConnections[1:])
+		p.availableConnections = p.availableConnections[:numAvailable-1]
 		return c, nil
 	}
 
