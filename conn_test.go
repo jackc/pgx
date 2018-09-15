@@ -1711,8 +1711,8 @@ func TestListenNotifySelfNotification(t *testing.T) {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second)
+	defer cncl()
 	notification, err = conn.WaitForNotification(ctx)
 	if err != nil {
 		t.Fatalf("Unexpected error on WaitForNotification: %v", err)
