@@ -147,7 +147,8 @@ func (tx *Tx) CommitEx(ctx context.Context) error {
 // defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 // non-error condition.
 func (tx *Tx) Rollback() error {
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 	return tx.RollbackEx(ctx)
 }
 
