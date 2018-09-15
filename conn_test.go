@@ -1553,7 +1553,7 @@ func TestListenNotify(t *testing.T) {
 	}
 
 	// when timeout occurs
-	ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 	notification, err = listener.WaitForNotification(ctx)
 	if err != context.DeadlineExceeded {
@@ -1711,7 +1711,7 @@ func TestListenNotifySelfNotification(t *testing.T) {
 		t.Fatalf("Unexpected error on Query: %v", rows.Err())
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	notification, err = conn.WaitForNotification(ctx)
 	if err != nil {
