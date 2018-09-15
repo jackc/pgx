@@ -869,7 +869,8 @@ func TestConnPingContextCancel(t *testing.T) {
 	}
 	defer closeDB(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
 	err = db.PingContext(ctx)
 	if err != context.DeadlineExceeded {
@@ -923,7 +924,8 @@ func TestConnPrepareContextCancel(t *testing.T) {
 	}
 	defer closeDB(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
 	_, err = db.PrepareContext(ctx, "select now()")
 	if err != context.DeadlineExceeded {
@@ -974,7 +976,8 @@ func TestConnExecContextCancel(t *testing.T) {
 	}
 	defer closeDB(t, db)
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
 	_, err = db.ExecContext(ctx, "create temporary table exec_context_test(id serial primary key)")
 	if err != context.DeadlineExceeded {
@@ -1145,7 +1148,8 @@ func TestStmtExecContextCancel(t *testing.T) {
 	}
 	defer stmt.Close()
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 
 	_, err = stmt.ExecContext(ctx, 42)
 	if err != context.DeadlineExceeded {
