@@ -121,7 +121,7 @@ database/sql. The second is to use a pointer to a pointer.
 
     var foo pgtype.Varchar
     var bar *string
-    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&a, &b)
+    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&foo, &bar)
     if err != nil {
         return err
     }
