@@ -24,7 +24,7 @@ type FieldDescription struct {
 	DataType        pgtype.OID
 	DataTypeSize    int16
 	DataTypeName    string
-	Modifier        uint32
+	Modifier        int32
 	FormatCode      int16
 }
 

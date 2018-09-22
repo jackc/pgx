@@ -19,7 +19,7 @@ type FieldDescription struct {
 	TableAttributeNumber uint16
 	DataTypeOID          uint32
 	DataTypeSize         int16
-	TypeModifier         uint32
+	TypeModifier         int32
 	Format               int16
 }
 
@@ -57,7 +57,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 		fd.TableAttributeNumber = binary.BigEndian.Uint16(buf.Next(2))
 		fd.DataTypeOID = binary.BigEndian.Uint32(buf.Next(4))
 		fd.DataTypeSize = int16(binary.BigEndian.Uint16(buf.Next(2)))
-		fd.TypeModifier = binary.BigEndian.Uint32(buf.Next(4))
+		fd.TypeModifier = int32(binary.BigEndian.Uint32(buf.Next(4)))
 		fd.Format = int16(binary.BigEndian.Uint16(buf.Next(2)))
 
 		dst.Fields[i] = fd
@@ -80,7 +80,7 @@ func (src *RowDescription) Encode(dst []byte) []byte {
 		dst = pgio.AppendUint16(dst, fd.TableAttributeNumber)
 		dst = pgio.AppendUint32(dst, fd.DataTypeOID)
 		dst = pgio.AppendInt16(dst, fd.DataTypeSize)
-		dst = pgio.AppendUint32(dst, fd.TypeModifier)
+		dst = pgio.AppendInt32(dst, fd.TypeModifier)
 		dst = pgio.AppendInt16(dst, fd.Format)
 	}
 
