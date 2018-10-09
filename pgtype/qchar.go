@@ -120,6 +120,10 @@ func (src *QChar) AssignTo(dst interface{}) error {
 	return int64AssignTo(int64(src.Int), src.Status, dst)
 }
 
+func (dst *QChar) DecodeText(ci *ConnInfo, src []byte) error {
+	return dst.DecodeBinary(ci, src)
+}
+
 func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = QChar{Status: Null}
