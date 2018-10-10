@@ -13,11 +13,6 @@ import (
 // PostgreSQL's system tables to hold a single ASCII character value (eg
 // pg_class.relkind). It is named Qchar for quoted char to disambiguate from SQL
 // standard type char.
-//
-// Not all possible values of QChar are representable in the text format.
-// Therefore, QChar does not implement TextEncoder and TextDecoder. In
-// addition, database/sql Scanner and database/sql/driver Value are not
-// implemented.
 type QChar struct {
 	Int    int8
 	Status Status
@@ -121,7 +116,21 @@ func (src *QChar) AssignTo(dst interface{}) error {
 }
 
 func (dst *QChar) DecodeText(ci *ConnInfo, src []byte) error {
-	return dst.DecodeBinary(ci, src)
+	if src == nil {
+		*dst = QChar{Status: Null}
+		return nil
+	}
+
+	switch ln := len(src); ln {
+	case 0:
+		*dst = QChar{Int: 0, Status: Present}
+		return nil
+	case 1:
+		*dst = QChar{Int: int8(src[0]), Status: Present}
+		return nil
+	default:
+		return errors.Errorf(`invalid length for "char": %v`, ln)
+	}
 }
 
 func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
@@ -147,4 +156,27 @@ func (src *QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	return append(buf, byte(src.Int)), nil
+}
+
+func (src *QChar) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return src.EncodeBinary(ci, buf)
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *QChar) Scan(src interface{}) error {
+	if src == nil {
+		*dst = QChar{Status: Null}
+		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return dst.DecodeText(nil, []byte(src))
+	case []byte:
+		srcCopy := make([]byte, len(src))
+		copy(srcCopy, src)
+		return dst.DecodeText(nil, srcCopy)
+	}
+
+	return errors.Errorf("cannot scan %T", src)
 }
