@@ -1081,3 +1081,32 @@ func TestConnPoolBeginEx(t *testing.T) {
 		t.Fatal("Should not be able to create a tx")
 	}
 }
+
+func TestConnPoolNewConnConfig(t *testing.T) {
+	t.Parallel()
+
+	config := pgx.ConnPoolConfig{
+		MaxConnections: 2,
+		NewConnConfig:  func() pgx.ConnConfig { return *defaultConnConfig },
+	}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatalf("Unable to create connection pool: %v", err)
+	}
+	defer pool.Close()
+
+	var n int32
+	err = pool.QueryRow("select 40+$1", 2).Scan(&n)
+	if err != nil {
+		t.Fatalf("pool.QueryRow Scan failed: %v", err)
+	}
+
+	if n != 42 {
+		t.Errorf("Expected 42, got %d", n)
+	}
+
+	stats := pool.Stat()
+	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
+		t.Fatalf("Unexpected connection pool stats: %v", stats)
+	}
+}
