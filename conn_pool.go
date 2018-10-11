@@ -16,13 +16,19 @@ type ConnPoolConfig struct {
 	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
 	AfterConnect   func(*Conn) error // function to call on every new connection
 	AcquireTimeout time.Duration     // max wait time when all connections are busy (0 means no timeout)
+
+	// If set, the ConnConfig above is ignored and this function is used to obtain
+	// a ConnConfig every time a new connection is made. This allows using
+	// different targets for different connections (e.g. in round-robin or
+	// randomized fashion), which is useful for distributed databases.
+	NewConnConfig func() ConnConfig
 }
 
 type ConnPool struct {
 	allConnections       []*Conn
 	availableConnections []*Conn
 	cond                 *sync.Cond
-	config               ConnConfig // config used when establishing connection
+	newConfig            func() ConnConfig // config used when establishing connection
 	inProgressConnects   int
 	maxConnections       int
 	resetCount           int
@@ -51,7 +57,11 @@ var ErrClosedPool = errors.New("cannot acquire from closed pool")
 // Connect directly.
 func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p = new(ConnPool)
-	p.config = config.ConnConfig
+	p.newConfig = config.NewConnConfig
+	if p.newConfig == nil {
+		// This is the "normal" path where we use config.ConnConfig.
+		p.newConfig = func() ConnConfig { return config.ConnConfig }
+	}
 	p.connInfo = minimalConnInfo
 	p.maxConnections = config.MaxConnections
 	if p.maxConnections == 0 {
@@ -291,7 +301,7 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 }
 
 func (p *ConnPool) createConnection() (*Conn, error) {
-	c, err := connect(p.config, p.connInfo)
+	c, err := connect(p.newConfig(), p.connInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +323,7 @@ func (p *ConnPool) createConnection() (*Conn, error) {
 func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
 	p.inProgressConnects++
 	p.cond.L.Unlock()
-	c, err := Connect(p.config)
+	c, err := Connect(p.newConfig())
 	p.cond.L.Lock()
 	p.inProgressConnects--
 
