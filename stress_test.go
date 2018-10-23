@@ -213,7 +213,8 @@ func listenAndPoolUnlistens(pool *pgx.ConnPool, actionNum int) error {
 		return err
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 	_, err = conn.WaitForNotification(ctx)
 	if err == context.DeadlineExceeded {
 		return nil
