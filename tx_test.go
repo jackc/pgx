@@ -261,7 +261,8 @@ func TestConnBeginExContextCancel(t *testing.T) {
 
 	conn := mustConnect(t, mockConfig)
 
-	ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
 
 	_, err = conn.BeginEx(ctx, nil)
 	if err != context.DeadlineExceeded {
@@ -315,7 +316,8 @@ func TestTxCommitExCancel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, _ := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
 	err = tx.CommitEx(ctx)
 	if err != context.DeadlineExceeded {
 		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)

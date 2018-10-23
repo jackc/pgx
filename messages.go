@@ -24,7 +24,7 @@ type FieldDescription struct {
 	DataType        pgtype.OID
 	DataTypeSize    int16
 	DataTypeName    string
-	Modifier        uint32
+	Modifier        int32
 	FormatCode      int16
 }
 
@@ -53,6 +53,10 @@ func (fd FieldDescription) PrecisionScale() (precision, scale int64, ok bool) {
 
 func (fd FieldDescription) Type() reflect.Type {
 	switch fd.DataType {
+	case pgtype.Float8OID:
+		return reflect.TypeOf(float64(0))
+	case pgtype.Float4OID:
+		return reflect.TypeOf(float32(0))
 	case pgtype.Int8OID:
 		return reflect.TypeOf(int64(0))
 	case pgtype.Int4OID:
