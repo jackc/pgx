@@ -782,6 +782,11 @@ func ParseURI(uri string) (ConnConfig, error) {
 			continue
 		}
 
+		if k == "host" {
+			cp.Host = v[0]
+			continue
+		}
+
 		cp.RuntimeParams[k] = v[0]
 	}
 	if cp.Password == "" {
