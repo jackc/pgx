@@ -243,16 +243,9 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	}
 	c.logger = c.config.Logger
 
-	//if c.config.User == "" {
-	//	user, err := user.Current()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	c.config.User = user.Username
-	//	if c.shouldLog(LogLevelDebug) {
-	//		c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"User": c.config.User})
-	//	}
-	//}
+	if c.config.User == "" {
+		return nil, errors.New("Must set user in config")
+	}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
