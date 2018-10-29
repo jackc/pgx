@@ -41,6 +41,12 @@ type ConnPoolStat struct {
 	AvailableConnections int // unused live connections
 }
 
+// CheckedOutConnections returns the amount of connections that are currently
+// checked out from the pool.
+func (stat *ConnPoolStat) CheckedOutConnections() int {
+	return stat.CurrentConnections - stat.AvailableConnections
+}
+
 // ErrAcquireTimeout occurs when an attempt to acquire a connection times out.
 var ErrAcquireTimeout = errors.New("timeout acquiring connection from pool")
 
