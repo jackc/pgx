@@ -1,11 +1,7 @@
 package pgx
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"os/user"
-	"path/filepath"
 	"strings"
 )
 
@@ -59,27 +55,27 @@ func parsepgpass(cfg *ConnConfig, line string) *string {
 }
 
 func pgpass(cfg *ConnConfig) (found bool) {
-	passfile := os.Getenv("PGPASSFILE")
-	if passfile == "" {
-		u, err := user.Current()
-		if err != nil {
-			return
-		}
-		passfile = filepath.Join(u.HomeDir, ".pgpass")
-	}
-	f, err := os.Open(passfile)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	scanner := bufio.NewScanner(f)
-	var pw *string
-	for scanner.Scan() {
-		pw = parsepgpass(cfg, scanner.Text())
-		if pw != nil {
-			cfg.Password = *pw
-			return true
-		}
-	}
+	//passfile := os.Getenv("PGPASSFILE")
+	//if passfile == "" {
+	//	u, err := user.Current()
+	//	if err != nil {
+	//		return
+	//	}
+	//	passfile = filepath.Join(u.HomeDir, ".pgpass")
+	//}
+	//f, err := os.Open(passfile)
+	//if err != nil {
+	//	return
+	//}
+	//defer f.Close()
+	//scanner := bufio.NewScanner(f)
+	//var pw *string
+	//for scanner.Scan() {
+	//	pw = parsepgpass(cfg, scanner.Text())
+	//	if pw != nil {
+	//		cfg.Password = *pw
+	//		return true
+	//	}
+	//}
 	return false
 }

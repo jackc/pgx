@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype"
 )
 
 type ConnPoolConfig struct {

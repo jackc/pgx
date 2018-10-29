@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/pgtype/testutil"
+	"weavelab.xyz/pgx"
+	"weavelab.xyz/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype/testutil"
 )
 
 func TestRecordTranscode(t *testing.T) {

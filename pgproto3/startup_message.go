@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"encoding/json"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 func TestQueryArgs(t *testing.T) {

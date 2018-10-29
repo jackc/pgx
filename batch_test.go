@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgtype"
+	"weavelab.xyz/pgx"
+	"weavelab.xyz/pgx/pgtype"
 )
 
 func TestConnBeginBatch(t *testing.T) {

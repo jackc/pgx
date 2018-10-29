@@ -3,8 +3,8 @@ package pgtype_test
 import (
 	"testing"
 
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/pgtype/testutil"
+	"weavelab.xyz/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype/testutil"
 )
 
 func TestInt4rangeTranscode(t *testing.T) {

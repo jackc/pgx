@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/log/log15adapter"
 	log "gopkg.in/inconshreveable/log15.v2"
+	"weavelab.xyz/pgx"
+	"weavelab.xyz/pgx/log/log15adapter"
 )
 
 var pool *pgx.ConnPool

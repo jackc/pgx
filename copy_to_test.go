@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 func TestConnCopyToWriterSmall(t *testing.T) {

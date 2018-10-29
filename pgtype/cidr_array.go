@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"net"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 type CIDRArray struct {

@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/fake"
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 type execer interface {

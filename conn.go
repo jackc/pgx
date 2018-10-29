@@ -13,7 +13,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/user"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -25,9 +24,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgproto3"
-	"github.com/jackc/pgx/pgtype"
+	"weavelab.xyz/pgx/pgio"
+	"weavelab.xyz/pgx/pgproto3"
+	"weavelab.xyz/pgx/pgtype"
 )
 
 const (
@@ -244,16 +243,16 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	}
 	c.logger = c.config.Logger
 
-	if c.config.User == "" {
-		user, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		c.config.User = user.Username
-		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"User": c.config.User})
-		}
-	}
+	//if c.config.User == "" {
+	//	user, err := user.Current()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	c.config.User = user.Username
+	//	if c.shouldLog(LogLevelDebug) {
+	//		c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"User": c.config.User})
+	//	}
+	//}
 
 	if c.config.Port == 0 {
 		c.config.Port = 5432
@@ -592,7 +591,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 	//
 	// [1] https://crate.io/
 	// [2] https://github.com/crate/crate/issues/5027
-	// [3] https://github.com/jackc/pgx/issues/320
+	// [3] https://weavelab.xyz/pgx/issues/320
 
 	if pgErr, ok := err.(PgError); ok &&
 		(pgErr.Code == "XX000" ||

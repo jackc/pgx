@@ -3,7 +3,7 @@
 pgx provides lower level access to PostgreSQL than the standard database/sql.
 It remains as similar to the database/sql interface as possible while
 providing better speed and access to PostgreSQL specific features. Import
-github.com/jackc/pgx/stdlib to use pgx as a database/sql compatible driver.
+weavelab.xyz/pgx/stdlib to use pgx as a database/sql compatible driver.
 
 Query Interface
 
@@ -149,7 +149,7 @@ Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings,
 dates, and times that have direct mappings between Go and SQL. In addition,
-pgx uses the github.com/jackc/pgx/pgtype library to support more types. See
+pgx uses the weavelab.xyz/pgx/pgtype library to support more types. See
 documention for that library for instructions on how to implement custom
 types.
 

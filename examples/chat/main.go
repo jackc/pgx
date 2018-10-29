@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 var pool *pgx.ConnPool

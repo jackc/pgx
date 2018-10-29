@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 
-	"github.com/jackc/pgx/pgio"
+	"weavelab.xyz/pgx/pgio"
 )
 
 type CopyData struct {

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx"
 )
 
 func TestConnCopyFromSmall(t *testing.T) {

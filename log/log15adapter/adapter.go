@@ -3,7 +3,7 @@
 package log15adapter
 
 import (
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 // Log15Logger interface defines the subset of

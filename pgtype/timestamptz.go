@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 const pgTimestamptzHourFormat = "2006-01-02 15:04:05.999999999Z07"

@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgproto3"
-	"github.com/jackc/pgx/pgtype"
+	"weavelab.xyz/pgx/pgproto3"
+	"weavelab.xyz/pgx/pgtype"
 )
 
 type Server struct {

@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 type Line struct {

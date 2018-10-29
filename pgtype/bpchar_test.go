@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/pgtype/testutil"
+	"weavelab.xyz/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype/testutil"
 )
 
 func TestChar3Transcode(t *testing.T) {

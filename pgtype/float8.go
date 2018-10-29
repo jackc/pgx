@@ -6,8 +6,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 type Float8 struct {

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 const (
