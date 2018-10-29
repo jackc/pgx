@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	_ "github.com/jackc/pgx/stdlib"
 	_ "github.com/lib/pq"
+	_ "weavelab.xyz/pgx/stdlib"
 )
 
 // Test for renamed types

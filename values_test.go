@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 func TestDateTranscode(t *testing.T) {

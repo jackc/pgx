@@ -2,8 +2,8 @@
 package zerologadapter
 
 import (
-	"github.com/jackc/pgx"
 	"github.com/rs/zerolog"
+	"weavelab.xyz/pgx"
 )
 
 type Logger struct {

@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/pgtype/testutil"
+	"weavelab.xyz/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype/testutil"
 )
 
 func TestTsrangeTranscode(t *testing.T) {

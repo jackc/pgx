@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 // This function uses a postgresql 9.6 specific column

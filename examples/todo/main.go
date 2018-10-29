@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/jackc/pgx"
 	"os"
 	"strconv"
+
+	"weavelab.xyz/pgx"
 )
 
 var conn *pgx.Conn

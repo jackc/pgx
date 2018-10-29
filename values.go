@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgtype"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
+	"weavelab.xyz/pgx/pgtype"
 )
 
 // PostgreSQL format codes
@@ -32,11 +32,11 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 
 	switch arg := arg.(type) {
 
-	// https://github.com/jackc/pgx/issues/409 Changed JSON and JSONB to surface
+	// https://weavelab.xyz/pgx/issues/409 Changed JSON and JSONB to surface
 	// []byte to database/sql instead of string. But that caused problems with the
 	// simple protocol because the driver.Valuer case got taken before the
 	// pgtype.TextEncoder case. And driver.Valuer needed to be first in the usual
-	// case because of https://github.com/jackc/pgx/issues/339. So instead we
+	// case because of https://weavelab.xyz/pgx/issues/339. So instead we
 	// special case JSON and JSONB.
 	case *pgtype.JSON:
 		buf, err := arg.EncodeText(ci, nil)

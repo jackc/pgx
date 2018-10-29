@@ -8,10 +8,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgproto3"
-	"github.com/jackc/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype"
+	"weavelab.xyz/pgx/pgio"
+	"weavelab.xyz/pgx/pgproto3"
 )
 
 const (

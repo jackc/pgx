@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/jackc/pgx"
+	"weavelab.xyz/pgx"
 )
 
 // OptionOpenDB options for configuring the driver when opening a new db pool.

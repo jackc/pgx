@@ -3,8 +3,8 @@
 package logrusadapter
 
 import (
-	"github.com/jackc/pgx"
 	"github.com/sirupsen/logrus"
+	"weavelab.xyz/pgx"
 )
 
 type Logger struct {

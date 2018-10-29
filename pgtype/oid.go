@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"strconv"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 // OID (Object Identifier Type) is, according to

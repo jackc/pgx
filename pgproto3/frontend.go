@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/jackc/pgx/chunkreader"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/chunkreader"
 )
 
 type Frontend struct {

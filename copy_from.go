@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgproto3"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
+	"weavelab.xyz/pgx/pgproto3"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice

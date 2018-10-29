@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/pgtype/testutil"
+	"weavelab.xyz/pgx/pgtype"
+	"weavelab.xyz/pgx/pgtype/testutil"
 )
 
 func TestXIDTranscode(t *testing.T) {
@@ -23,7 +23,7 @@ func TestXIDTranscode(t *testing.T) {
 	// No direct conversion from int to xid, convert through text
 	testutil.TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
 
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+	for _, driverName := range []string{"github.com/lib/pq", "weavelab.xyz/pgx/stdlib"} {
 		testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
 }

@@ -3,8 +3,8 @@ package pgproto3
 import (
 	"encoding/binary"
 
-	"github.com/jackc/pgx/pgio"
 	"github.com/pkg/errors"
+	"weavelab.xyz/pgx/pgio"
 )
 
 const (
