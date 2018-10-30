@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"github.com/weave-lab/pgx/pgtype"
 )
 
@@ -39,6 +38,12 @@ type ConnPoolStat struct {
 	MaxConnections       int // max simultaneous connections to use
 	CurrentConnections   int // current live connections
 	AvailableConnections int // unused live connections
+}
+
+// CheckedOutConnections returns the amount of connections that are currently
+// checked out from the pool.
+func (stat *ConnPoolStat) CheckedOutConnections() int {
+	return stat.CurrentConnections - stat.AvailableConnections
 }
 
 // ErrAcquireTimeout occurs when an attempt to acquire a connection times out.

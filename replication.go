@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"github.com/weave-lab/pgx/pgio"
 	"github.com/weave-lab/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 const (
@@ -210,6 +210,10 @@ func (rc *ReplicationConn) IsAlive() bool {
 
 func (rc *ReplicationConn) CauseOfDeath() error {
 	return rc.c.CauseOfDeath()
+}
+
+func (rc *ReplicationConn) GetConnInfo() *pgtype.ConnInfo {
+	return rc.c.ConnInfo
 }
 
 func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err error) {
@@ -436,7 +440,7 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 
 // Create the replication slot, using the given name and output plugin.
 func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) (err error) {
-	_, err = rc.c.Exec(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin))
+	_, err = rc.c.Exec(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s NOEXPORT_SNAPSHOT", slotName, outputPlugin))
 	return
 }
 
