@@ -6,8 +6,8 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/pgio"
-	"weavelab.xyz/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgio"
+	"github.com/weave-lab/pgx/pgproto3"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice

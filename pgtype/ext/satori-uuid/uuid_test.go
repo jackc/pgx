@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"weavelab.xyz/pgx/pgtype"
-	satori "weavelab.xyz/pgx/pgtype/ext/satori-uuid"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx/pgtype"
+	satori "github.com/weave-lab/pgx/pgtype/ext/satori-uuid"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 func TestUUIDTranscode(t *testing.T) {

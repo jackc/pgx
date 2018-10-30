@@ -9,9 +9,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx/internal/sanitize"
-	"weavelab.xyz/pgx/pgproto3"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/internal/sanitize"
+	"github.com/weave-lab/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.

@@ -24,9 +24,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx/pgio"
-	"weavelab.xyz/pgx/pgproto3"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgio"
+	"github.com/weave-lab/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 const (
@@ -584,7 +584,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 	//
 	// [1] https://crate.io/
 	// [2] https://github.com/crate/crate/issues/5027
-	// [3] https://weavelab.xyz/pgx/issues/320
+	// [3] https://github.com/weave-lab/pgx/issues/320
 
 	if pgErr, ok := err.(PgError); ok &&
 		(pgErr.Code == "XX000" ||

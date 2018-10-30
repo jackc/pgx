@@ -3,7 +3,7 @@ package pgx_test
 import (
 	"fmt"
 
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 func Example_JSON() {

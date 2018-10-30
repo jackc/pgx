@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/pgtype"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 func TestHstoreArrayTranscode(t *testing.T) {

@@ -3,7 +3,7 @@ package pgx_test
 import (
 	"testing"
 
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {

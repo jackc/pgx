@@ -81,8 +81,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 // oids that map to intrinsic database/sql types. These will be allowed to be

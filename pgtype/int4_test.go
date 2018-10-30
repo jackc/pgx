@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"weavelab.xyz/pgx/pgtype"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 func TestInt4Transcode(t *testing.T) {

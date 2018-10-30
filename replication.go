@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx/pgio"
-	"weavelab.xyz/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgio"
+	"github.com/weave-lab/pgx/pgproto3"
 )
 
 const (

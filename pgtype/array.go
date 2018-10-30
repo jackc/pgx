@@ -9,7 +9,7 @@ import (
 	"unicode"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 // Information on the internals of PostgreSQL arrays can be found in

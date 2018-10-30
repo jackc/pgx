@@ -3,7 +3,7 @@ package pgx
 import (
 	"io"
 
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 // LargeObjects is a structure used to access the large objects API. It is only

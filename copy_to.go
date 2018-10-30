@@ -3,7 +3,7 @@ package pgx
 import (
 	"io"
 
-	"weavelab.xyz/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgproto3"
 )
 
 func (c *Conn) readUntilCopyOutResponse() error {

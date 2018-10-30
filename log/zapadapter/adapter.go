@@ -2,9 +2,9 @@
 package zapadapter
 
 import (
+	"github.com/weave-lab/pgx"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"weavelab.xyz/pgx"
 )
 
 type Logger struct {

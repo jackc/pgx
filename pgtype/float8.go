@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 type Float8 struct {

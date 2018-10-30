@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 // TID is PostgreSQL's Tuple Identifier type.

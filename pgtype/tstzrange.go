@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 type Tstzrange struct {

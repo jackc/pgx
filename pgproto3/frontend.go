@@ -5,7 +5,7 @@ import (
 	"io"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx/chunkreader"
+	"github.com/weave-lab/pgx/chunkreader"
 )
 
 type Frontend struct {

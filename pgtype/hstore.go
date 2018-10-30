@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 // Hstore represents an hstore column that can be null or have null values

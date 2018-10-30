@@ -6,8 +6,8 @@ import (
 	"database/sql"
 	"testing"
 
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/stdlib"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/stdlib"
 )
 
 func openDB(t *testing.T) *sql.DB {

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
-	_ "weavelab.xyz/pgx/stdlib"
+	_ "github.com/weave-lab/pgx/stdlib"
 )
 
 // Test for renamed types
