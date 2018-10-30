@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 var conn *pgx.Conn

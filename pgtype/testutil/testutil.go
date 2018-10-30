@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	_ "github.com/lib/pq"
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/pgtype"
-	_ "weavelab.xyz/pgx/stdlib"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/pgtype"
+	_ "github.com/weave-lab/pgx/stdlib"
 )
 
 func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
@@ -19,7 +19,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 	switch driverName {
 	case "github.com/lib/pq":
 		sqlDriverName = "postgres"
-	case "weavelab.xyz/pgx/stdlib":
+	case "github.com/weave-lab/pgx/stdlib":
 		sqlDriverName = "pgx"
 	default:
 		t.Fatalf("Unknown driver %v", driverName)
@@ -95,7 +95,7 @@ func TestSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface
 func TestSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
 	TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
-	for _, driverName := range []string{"github.com/lib/pq", "weavelab.xyz/pgx/stdlib"} {
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/weave-lab/pgx/stdlib"} {
 		TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
 }
@@ -216,7 +216,7 @@ func TestSuccessfulNormalize(t testing.TB, tests []NormalizeTest) {
 
 func TestSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFunc func(a, b interface{}) bool) {
 	TestPgxSuccessfulNormalizeEqFunc(t, tests, eqFunc)
-	for _, driverName := range []string{"github.com/lib/pq", "weavelab.xyz/pgx/stdlib"} {
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/weave-lab/pgx/stdlib"} {
 		TestDatabaseSQLSuccessfulNormalizeEqFunc(t, driverName, tests, eqFunc)
 	}
 }

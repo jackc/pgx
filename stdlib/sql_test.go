@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/pgmock"
-	"weavelab.xyz/pgx/pgproto3"
-	"weavelab.xyz/pgx/stdlib"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/pgmock"
+	"github.com/weave-lab/pgx/pgproto3"
+	"github.com/weave-lab/pgx/stdlib"
 )
 
 func closeDB(t *testing.T, db *sql.DB) {
@@ -1471,7 +1471,7 @@ func TestSimpleQueryLifeCycle(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
-// https://weavelab.xyz/pgx/issues/409
+// https://github.com/weave-lab/pgx/issues/409
 func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)

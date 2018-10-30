@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 func TestParseUntypedTextArray(t *testing.T) {

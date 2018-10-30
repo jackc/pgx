@@ -3,7 +3,7 @@ package sanitize_test
 import (
 	"testing"
 
-	"weavelab.xyz/pgx/internal/sanitize"
+	"github.com/weave-lab/pgx/internal/sanitize"
 )
 
 func TestNewQuery(t *testing.T) {

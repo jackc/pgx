@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"weavelab.xyz/pgx/pgtype"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 func TestCIDTranscode(t *testing.T) {
@@ -23,7 +23,7 @@ func TestCIDTranscode(t *testing.T) {
 	// No direct conversion from int to cid, convert through text
 	testutil.TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
 
-	for _, driverName := range []string{"github.com/lib/pq", "weavelab.xyz/pgx/stdlib"} {
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/weave-lab/pgx/stdlib"} {
 		testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
 }

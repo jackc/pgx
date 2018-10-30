@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/shopspring/decimal"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 var errUndefined = errors.New("cannot encode status undefined")

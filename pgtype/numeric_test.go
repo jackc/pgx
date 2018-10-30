@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	"weavelab.xyz/pgx/pgtype"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 // For test purposes only. Note that it does not normalize values. e.g. (Int: 1, Exp: 3) will not equal (Int: 1000, Exp: 0)

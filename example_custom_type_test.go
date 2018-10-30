@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/pkg/errors"
-	"weavelab.xyz/pgx"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)

@@ -4,7 +4,7 @@ package logrusadapter
 
 import (
 	"github.com/sirupsen/logrus"
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 type Logger struct {

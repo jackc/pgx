@@ -3,8 +3,8 @@ package pgx
 import (
 	"context"
 
-	"weavelab.xyz/pgx/pgproto3"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 type batchItem struct {
@@ -76,7 +76,7 @@ func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []pgt
 // will not be able to finish sending the queries and PostgreSQL will not be
 // able to finish sending the responses.
 //
-// See https://weavelab.xyz/pgx/issues/374.
+// See https://github.com/weave-lab/pgx/issues/374.
 func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 	if b.err != nil {
 		return b.err

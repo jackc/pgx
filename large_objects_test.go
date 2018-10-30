@@ -4,7 +4,7 @@ import (
 	"io"
 	"testing"
 
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 func TestLargeObjects(t *testing.T) {

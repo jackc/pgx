@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	uuid "github.com/satori/go.uuid"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 var errUndefined = errors.New("cannot encode status undefined")

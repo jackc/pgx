@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 
-	"weavelab.xyz/pgx/pgio"
+	"github.com/weave-lab/pgx/pgio"
 )
 
 type Query struct {

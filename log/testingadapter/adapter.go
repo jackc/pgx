@@ -5,7 +5,7 @@ package testingadapter
 import (
 	"fmt"
 
-	"weavelab.xyz/pgx"
+	"github.com/weave-lab/pgx"
 )
 
 // TestingLogger interface defines the subset of testing.TB methods used by this

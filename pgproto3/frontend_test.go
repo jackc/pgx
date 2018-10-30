@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"weavelab.xyz/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgproto3"
 )
 
 type interruptReader struct {

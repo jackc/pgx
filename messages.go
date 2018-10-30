@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"time"
 
-	"weavelab.xyz/pgx/pgio"
-	"weavelab.xyz/pgx/pgtype"
+	"github.com/weave-lab/pgx/pgio"
+	"github.com/weave-lab/pgx/pgtype"
 )
 
 const (

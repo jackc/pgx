@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/shopspring/decimal"
-	"weavelab.xyz/pgx/pgtype"
-	shopspring "weavelab.xyz/pgx/pgtype/ext/shopspring-numeric"
-	"weavelab.xyz/pgx/pgtype/testutil"
+	"github.com/weave-lab/pgx/pgtype"
+	shopspring "github.com/weave-lab/pgx/pgtype/ext/shopspring-numeric"
+	"github.com/weave-lab/pgx/pgtype/testutil"
 )
 
 func mustParseDecimal(t *testing.T, src string) decimal.Decimal {

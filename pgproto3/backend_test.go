@@ -3,7 +3,7 @@ package pgproto3_test
 import (
 	"testing"
 
-	"weavelab.xyz/pgx/pgproto3"
+	"github.com/weave-lab/pgx/pgproto3"
 )
 
 func TestBackendReceiveInterrupted(t *testing.T) {
