@@ -441,7 +441,7 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 
 // Create the replication slot, using the given name and output plugin.
 func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) (err error) {
-	_, err = rc.c.Exec(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s NOEXPORT_SNAPSHOT", slotName, outputPlugin))
+	_, err = rc.c.Exec(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin))
 	return
 }
 
