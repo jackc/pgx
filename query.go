@@ -342,7 +342,7 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
 
 	r.conn = c
-	r.startTime = c.lastActivityTime
+	r.startTime = time.Now()
 	r.sql = sql
 	r.args = args
 
@@ -368,7 +368,6 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
-	c.lastActivityTime = time.Now()
 	rows = c.getRows(sql, args)
 
 	err = c.waitForPreviousCancelQuery(ctx)

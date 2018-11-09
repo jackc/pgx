@@ -330,8 +330,6 @@ func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*Repl
 }
 
 func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
-	rc.c.lastActivityTime = time.Now()
-
 	rows := rc.c.getRows(sql, nil)
 
 	if err := rc.c.lock(); err != nil {
