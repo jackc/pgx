@@ -111,8 +111,7 @@ func (cc *ConnConfig) networkAddress() (network, address string) {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn  // the underlying TCP or unix domain socket connection
-	lastActivityTime   time.Time // the last time the connection was used
+	conn               net.Conn // the underlying TCP or unix domain socket connection
 	wbuf               []byte
 	pid                uint32            // backend pid
 	secretKey          uint32            // key to use to send a cancel query message to the server
@@ -307,7 +306,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.channels = make(map[string]struct{})
-	c.lastActivityTime = time.Now()
 	c.cancelQueryCompleted = make(chan struct{})
 	close(c.cancelQueryCompleted)
 	c.doneChan = make(chan struct{})
@@ -1423,8 +1421,6 @@ func (c *Conn) rxMsg() (pgproto3.BackendMessage, error) {
 		return nil, err
 	}
 
-	c.lastActivityTime = time.Now()
-
 	// fmt.Printf("rxMsg: %#v\n", msg)
 
 	return msg, nil
@@ -1742,7 +1738,6 @@ func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, 
 	defer c.unlock()
 
 	startTime := time.Now()
-	c.lastActivityTime = startTime
 
 	commandTag, err := c.execEx(ctx, sql, options, arguments...)
 	if err != nil {
