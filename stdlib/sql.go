@@ -140,8 +140,10 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 	if len(name) >= 9 && name[0] == 0 {
 		idBuf := []byte(name)[1:9]
 		id := int64(binary.BigEndian.Uint64(idBuf))
+		d.configMutex.Lock()
 		connConfig = d.configs[id].ConnConfig
 		afterConnect = d.configs[id].AfterConnect
+		d.configMutex.Unlock()
 		name = name[9:]
 	}
 
