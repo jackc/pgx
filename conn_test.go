@@ -52,7 +52,7 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	if _, present := conn.RuntimeParams["server_version"]; !present {
+	if _, present := conn.BaseConn.RuntimeParams["server_version"]; !present {
 		t.Error("Runtime parameters not stored")
 	}
 

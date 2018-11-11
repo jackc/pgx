@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgx/base"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
@@ -111,13 +112,9 @@ func (cc *ConnConfig) networkAddress() (network, address string) {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	conn               net.Conn // the underlying TCP or unix domain socket connection
+	BaseConn           base.Conn
 	wbuf               []byte
-	pid                uint32            // backend pid
-	secretKey          uint32            // key to use to send a cancel query message to the server
-	RuntimeParams      map[string]string // parameters that have been reported by the server
-	config             ConnConfig        // config used when establishing this connection
-	txStatus           byte
+	config             ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	notifications      []*Notification
@@ -141,8 +138,6 @@ type Conn struct {
 	closedChan    chan error
 
 	ConnInfo *pgtype.ConnInfo
-
-	frontend *pgproto3.Frontend
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -290,20 +285,21 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	c.conn, err = c.config.Dial(network, address)
+	c.BaseConn = base.Conn{}
+	c.BaseConn.NetConn, err = c.config.Dial(network, address)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if c != nil && err != nil {
-			c.conn.Close()
+			c.BaseConn.NetConn.Close()
 			c.mux.Lock()
 			c.status = connStatusClosed
 			c.mux.Unlock()
 		}
 	}()
 
-	c.RuntimeParams = make(map[string]string)
+	c.BaseConn.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.channels = make(map[string]struct{})
 	c.cancelQueryCompleted = make(chan struct{})
@@ -325,7 +321,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.frontend, err = pgproto3.NewFrontend(c.conn, c.conn)
+	c.BaseConn.Frontend, err = pgproto3.NewFrontend(c.BaseConn.NetConn, c.BaseConn.NetConn)
 	if err != nil {
 		return err
 	}
@@ -345,7 +341,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		startupMsg.Parameters["database"] = c.config.Database
 	}
 
-	if _, err := c.conn.Write(startupMsg.Encode(nil)); err != nil {
+	if _, err := c.BaseConn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
 		return err
 	}
 
@@ -359,7 +355,8 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 		switch msg := msg.(type) {
 		case *pgproto3.BackendKeyData:
-			c.rxBackendKeyData(msg)
+			c.BaseConn.PID = msg.ProcessID
+			c.BaseConn.SecretKey = msg.SecretKey
 		case *pgproto3.Authentication:
 			if err = c.rxAuthenticationX(msg); err != nil {
 				return err
@@ -607,7 +604,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 
 // PID returns the backend PID for this connection.
 func (c *Conn) PID() uint32 {
-	return c.pid
+	return c.BaseConn.PID
 }
 
 // LocalAddr returns the underlying connection's local address
@@ -615,7 +612,7 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 	if !c.IsAlive() {
 		return nil, errors.New("connection not ready")
 	}
-	return c.conn.LocalAddr(), nil
+	return c.BaseConn.NetConn.LocalAddr(), nil
 }
 
 // Close closes a connection. It is safe to call Close on a already closed
@@ -630,32 +627,32 @@ func (c *Conn) Close() (err error) {
 	c.status = connStatusClosed
 
 	defer func() {
-		c.conn.Close()
+		c.BaseConn.NetConn.Close()
 		c.causeOfDeath = errors.New("Closed")
 		if c.shouldLog(LogLevelInfo) {
 			c.log(LogLevelInfo, "closed connection", nil)
 		}
 	}()
 
-	err = c.conn.SetDeadline(time.Time{})
+	err = c.BaseConn.NetConn.SetDeadline(time.Time{})
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to clear deadlines to send close message", map[string]interface{}{"err": err})
 		return err
 	}
 
-	_, err = c.conn.Write([]byte{'X', 0, 0, 0, 4})
+	_, err = c.BaseConn.NetConn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to send terminate message", map[string]interface{}{"err": err})
 		return err
 	}
 
-	err = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	err = c.BaseConn.NetConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to set read deadline to finish closing", map[string]interface{}{"err": err})
 		return err
 	}
 
-	_, err = c.conn.Read(make([]byte, 1))
+	_, err = c.BaseConn.NetConn.Read(make([]byte, 1))
 	if err != io.EOF {
 		return err
 	}
@@ -1093,7 +1090,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	buf = appendDescribe(buf, 'S', name)
 	buf = appendSync(buf)
 
-	n, err := c.conn.Write(buf)
+	n, err := c.BaseConn.NetConn.Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -1189,7 +1186,7 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 	buf = append(buf, 'H')
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.conn.Write(buf)
+	_, err = c.BaseConn.NetConn.Write(buf)
 	if err != nil {
 		c.die(err)
 		return err
@@ -1317,7 +1314,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if len(args) == 0 {
 		buf := appendQuery(c.wbuf, sql)
 
-		_, err := c.conn.Write(buf)
+		_, err := c.BaseConn.NetConn.Write(buf)
 		if err != nil {
 			c.die(err)
 			return err
@@ -1356,7 +1353,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = appendExecute(buf, "", 0)
 	buf = appendSync(buf)
 
-	n, err := c.conn.Write(buf)
+	n, err := c.BaseConn.NetConn.Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -1401,8 +1398,6 @@ func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
 		c.rxNotificationResponse(msg)
 	case *pgproto3.ReadyForQuery:
 		c.rxReadyForQuery(msg)
-	case *pgproto3.ParameterStatus:
-		c.rxParameterStatus(msg)
 	}
 
 	return nil
@@ -1413,15 +1408,13 @@ func (c *Conn) rxMsg() (pgproto3.BackendMessage, error) {
 		return nil, ErrDeadConn
 	}
 
-	msg, err := c.frontend.Receive()
+	msg, err := c.BaseConn.ReceiveMessage()
 	if err != nil {
 		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
 			c.die(err)
 		}
 		return nil, err
 	}
-
-	// fmt.Printf("rxMsg: %#v\n", msg)
 
 	return msg, nil
 }
@@ -1445,10 +1438,6 @@ func hexMD5(s string) string {
 	hash := md5.New()
 	io.WriteString(hash, s)
 	return hex.EncodeToString(hash.Sum(nil))
-}
-
-func (c *Conn) rxParameterStatus(msg *pgproto3.ParameterStatus) {
-	c.RuntimeParams[msg.Name] = msg.Value
 }
 
 func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) PgError {
@@ -1507,14 +1496,8 @@ func (c *Conn) rxNoticeResponse(msg *pgproto3.NoticeResponse) {
 	c.onNotice(c, notice)
 }
 
-func (c *Conn) rxBackendKeyData(msg *pgproto3.BackendKeyData) {
-	c.pid = msg.ProcessID
-	c.secretKey = msg.SecretKey
-}
-
 func (c *Conn) rxReadyForQuery(msg *pgproto3.ReadyForQuery) {
 	c.pendingReadyForQueryCount--
-	c.txStatus = msg.TxStatus
 }
 
 func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription {
@@ -1548,13 +1531,13 @@ func (c *Conn) rxNotificationResponse(msg *pgproto3.NotificationResponse) {
 }
 
 func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(c.conn, binary.BigEndian, []int32{8, 80877103})
+	err = binary.Write(c.BaseConn.NetConn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
 	}
 
 	response := make([]byte, 1)
-	if _, err = io.ReadFull(c.conn, response); err != nil {
+	if _, err = io.ReadFull(c.BaseConn.NetConn, response); err != nil {
 		return
 	}
 
@@ -1562,7 +1545,7 @@ func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
 		return ErrTLSRefused
 	}
 
-	c.conn = tls.Client(c.conn, tlsConfig)
+	c.BaseConn.NetConn = tls.Client(c.BaseConn.NetConn, tlsConfig)
 
 	return nil
 }
@@ -1576,7 +1559,7 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	buf = append(buf, 0)
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	_, err = c.conn.Write(buf)
+	_, err = c.BaseConn.NetConn.Write(buf)
 
 	return err
 }
@@ -1591,7 +1574,7 @@ func (c *Conn) die(err error) {
 
 	c.status = connStatusClosed
 	c.causeOfDeath = err
-	c.conn.Close()
+	c.BaseConn.NetConn.Close()
 }
 
 func (c *Conn) lock() error {
@@ -1626,8 +1609,8 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
-	if c.pid != 0 {
-		data["pid"] = c.pid
+	if c.BaseConn.PID != 0 {
+		data["pid"] = c.BaseConn.PID
 	}
 
 	c.logger.Log(lvl, msg, data)
@@ -1675,8 +1658,8 @@ func doCancel(c *Conn) error {
 	buf := make([]byte, 16)
 	binary.BigEndian.PutUint32(buf[0:4], 16)
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(c.pid))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(c.secretKey))
+	binary.BigEndian.PutUint32(buf[8:12], uint32(c.BaseConn.PID))
+	binary.BigEndian.PutUint32(buf[12:16], uint32(c.BaseConn.SecretKey))
 	_, err = cancelConn.Write(buf)
 	if err != nil {
 		return err
@@ -1696,7 +1679,7 @@ func doCancel(c *Conn) error {
 // is no way to be sure a query was canceled. See
 // https://www.postgresql.org/docs/current/static/protocol-flow.html#AEN112861
 func (c *Conn) cancelQuery() {
-	if err := c.conn.SetDeadline(time.Now()); err != nil {
+	if err := c.BaseConn.NetConn.SetDeadline(time.Now()); err != nil {
 		c.Close() // Close connection if unable to set deadline
 		return
 	}
@@ -1781,7 +1764,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 
 		buf = appendSync(buf)
 
-		n, err := c.conn.Write(buf)
+		n, err := c.BaseConn.NetConn.Write(buf)
 		if err != nil && fatalWriteErr(n, err) {
 			c.die(err)
 			return "", err
@@ -1916,7 +1899,7 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 	c.mux.Unlock()
 	select {
 	case <-completeCh:
-		if err := c.conn.SetDeadline(time.Time{}); err != nil {
+		if err := c.BaseConn.NetConn.SetDeadline(time.Time{}); err != nil {
 			c.Close() // Close connection if unable to disable deadline
 			return err
 		}
