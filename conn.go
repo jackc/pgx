@@ -13,8 +13,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/user"
-	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -92,27 +90,11 @@ type ConnConfig struct {
 	PreferSimpleProtocol bool
 }
 
-func (cc *ConnConfig) networkAddress() (network, address string) {
-	network = "tcp"
-	address = fmt.Sprintf("%s:%d", cc.Host, cc.Port)
-	// See if host is a valid path, if yes connect with a socket
-	if _, err := os.Stat(cc.Host); err == nil {
-		// For backward compatibility accept socket file paths -- but directories are now preferred
-		network = "unix"
-		address = cc.Host
-		if !strings.Contains(address, "/.s.PGSQL.") {
-			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatInt(int64(cc.Port), 10)
-		}
-	}
-
-	return network, address
-}
-
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	BaseConn           base.Conn
+	BaseConn           *base.Conn
 	wbuf               []byte
 	config             ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
@@ -196,7 +178,7 @@ var ErrDeadConn = errors.New("conn is dead")
 
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
-var ErrTLSRefused = errors.New("server refused TLS connection")
+var ErrTLSRefused = base.ErrTLSRefused
 
 // ErrConnBusy occurs when the connection is busy (for example, in the middle of
 // reading query results) and another action is attempted.
@@ -237,41 +219,17 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	}
 	c.logger = c.config.Logger
 
-	if c.config.User == "" {
-		user, err := user.Current()
-		if err != nil {
-			return nil, err
-		}
-		c.config.User = user.Username
-		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"User": c.config.User})
-		}
-	}
-
-	if c.config.Port == 0 {
-		c.config.Port = 5432
-		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "Using default connection config", map[string]interface{}{"Port": c.config.Port})
-		}
-	}
-
 	c.onNotice = config.OnNotice
 
-	network, address := c.config.networkAddress()
-	if c.config.Dial == nil {
-		d := defaultDialer()
-		c.config.Dial = d.Dial
-	}
-
 	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"network": network, "address": address})
+		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Host})
 	}
-	err = c.connect(config, network, address, config.TLSConfig)
+	err = c.connect(config, config.TLSConfig)
 	if err != nil && config.UseFallbackTLS {
 		if c.shouldLog(LogLevelInfo) {
 			c.log(LogLevelInfo, "connect with TLSConfig failed, trying FallbackTLSConfig", map[string]interface{}{"err": err})
 		}
-		err = c.connect(config, network, address, config.FallbackTLSConfig)
+		err = c.connect(config, config.FallbackTLSConfig)
 	}
 
 	if err != nil {
@@ -284,9 +242,19 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	return c, nil
 }
 
-func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	c.BaseConn = base.Conn{}
-	c.BaseConn.NetConn, err = c.config.Dial(network, address)
+func (c *Conn) connect(config ConnConfig, tlsConfig *tls.Config) (err error) {
+	cc := base.ConnConfig{
+		Host:          config.Host,
+		Port:          config.Port,
+		Database:      config.Database,
+		User:          config.User,
+		Password:      config.Password,
+		TLSConfig:     tlsConfig,
+		Dial:          base.DialFunc(config.Dial),
+		RuntimeParams: config.RuntimeParams,
+	}
+
+	c.BaseConn, err = base.Connect(cc)
 	if err != nil {
 		return err
 	}
@@ -299,7 +267,6 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}()
 
-	c.BaseConn.RuntimeParams = make(map[string]string)
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.channels = make(map[string]struct{})
 	c.cancelQueryCompleted = make(chan struct{})
@@ -312,81 +279,20 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	c.status = connStatusIdle
 	c.mux.Unlock()
 
-	if tlsConfig != nil {
-		if c.shouldLog(LogLevelDebug) {
-			c.log(LogLevelDebug, "starting TLS handshake", nil)
-		}
-		if err := c.startTLS(tlsConfig); err != nil {
-			return err
-		}
+	// Replication connections can't execute the queries to
+	// populate the c.PgTypes and c.pgsqlAfInet
+	if _, ok := config.RuntimeParams["replication"]; ok {
+		return nil
 	}
 
-	c.BaseConn.Frontend, err = pgproto3.NewFrontend(c.BaseConn.NetConn, c.BaseConn.NetConn)
-	if err != nil {
-		return err
-	}
-
-	startupMsg := pgproto3.StartupMessage{
-		ProtocolVersion: pgproto3.ProtocolVersionNumber,
-		Parameters:      make(map[string]string),
-	}
-
-	// Copy default run-time params
-	for k, v := range config.RuntimeParams {
-		startupMsg.Parameters[k] = v
-	}
-
-	startupMsg.Parameters["user"] = c.config.User
-	if c.config.Database != "" {
-		startupMsg.Parameters["database"] = c.config.Database
-	}
-
-	if _, err := c.BaseConn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
-		return err
-	}
-
-	c.pendingReadyForQueryCount = 1
-
-	for {
-		msg, err := c.rxMsg()
+	if c.ConnInfo == minimalConnInfo {
+		err = c.initConnInfo()
 		if err != nil {
 			return err
 		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.BackendKeyData:
-			c.BaseConn.PID = msg.ProcessID
-			c.BaseConn.SecretKey = msg.SecretKey
-		case *pgproto3.Authentication:
-			if err = c.rxAuthenticationX(msg); err != nil {
-				return err
-			}
-		case *pgproto3.ReadyForQuery:
-			c.rxReadyForQuery(msg)
-			if c.shouldLog(LogLevelInfo) {
-				c.log(LogLevelInfo, "connection established", nil)
-			}
-
-			// Replication connections can't execute the queries to
-			// populate the c.PgTypes and c.pgsqlAfInet
-			if _, ok := config.RuntimeParams["replication"]; ok {
-				return nil
-			}
-
-			if c.ConnInfo == minimalConnInfo {
-				err = c.initConnInfo()
-				if err != nil {
-					return err
-				}
-			}
-
-			return nil
-		default:
-			if err = c.processContextFreeMsg(msg); err != nil {
-				return err
-			}
-		}
 	}
+
+	return nil
 }
 
 func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {
@@ -1609,7 +1515,7 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
-	if c.BaseConn.PID != 0 {
+	if c.BaseConn != nil && c.BaseConn.PID != 0 {
 		data["pid"] = c.BaseConn.PID
 	}
 
@@ -1641,8 +1547,8 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	network, address := c.config.networkAddress()
-	cancelConn, err := c.config.Dial(network, address)
+	network, address := c.BaseConn.Config.NetworkAddress()
+	cancelConn, err := c.BaseConn.Config.Dial(network, address)
 	if err != nil {
 		return err
 	}
