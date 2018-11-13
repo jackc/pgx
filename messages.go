@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/base"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -78,32 +79,7 @@ func (fd FieldDescription) Type() reflect.Type {
 	}
 }
 
-// PgError represents an error reported by the PostgreSQL server. See
-// http://www.postgresql.org/docs/9.3/static/protocol-error-fields.html for
-// detailed field description.
-type PgError struct {
-	Severity         string
-	Code             string
-	Message          string
-	Detail           string
-	Hint             string
-	Position         int32
-	InternalPosition int32
-	InternalQuery    string
-	Where            string
-	SchemaName       string
-	TableName        string
-	ColumnName       string
-	DataTypeName     string
-	ConstraintName   string
-	File             string
-	Line             int32
-	Routine          string
-}
-
-func (pe PgError) Error() string {
-	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
-}
+type PgError = base.PgError
 
 // Notice represents a notice response message reported by the PostgreSQL
 // server. Be aware that this is distinct from LISTEN/NOTIFY notification.
