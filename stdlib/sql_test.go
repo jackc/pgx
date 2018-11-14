@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -989,6 +990,28 @@ func TestConnExecContextCancel(t *testing.T) {
 	}
 }
 
+func TestConnExecContextFailureRetry(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	// we get a connection, immediately close it, and then get it back
+	{
+		conn, err := stdlib.AcquireConn(db)
+		if err != nil {
+			t.Fatalf("stdlib.AcquireConn unexpectedly failed: %v", err)
+		}
+		conn.Close()
+		stdlib.ReleaseConn(db, conn)
+	}
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("db.Conn unexpectedly failed: %v", err)
+	}
+	if _, err := conn.ExecContext(context.Background(), "select 1"); err != driver.ErrBadConn {
+		t.Fatalf("Expected conn.ExecContext to return driver.ErrBadConn, but instead received: %v", err)
+	}
+}
+
 func TestConnQueryContextSuccess(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
@@ -1080,6 +1103,28 @@ func TestConnQueryContextCancel(t *testing.T) {
 
 	if err := <-errChan; err != nil {
 		t.Errorf("mock server err: %v", err)
+	}
+}
+
+func TestConnQueryContextFailureRetry(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	// we get a connection, immediately close it, and then get it back
+	{
+		conn, err := stdlib.AcquireConn(db)
+		if err != nil {
+			t.Fatalf("stdlib.AcquireConn unexpectedly failed: %v", err)
+		}
+		conn.Close()
+		stdlib.ReleaseConn(db, conn)
+	}
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatalf("db.Conn unexpectedly failed: %v", err)
+	}
+	if _, err := conn.QueryContext(context.Background(), "select 1"); err != driver.ErrBadConn {
+		t.Fatalf("Expected conn.QueryContext to return driver.ErrBadConn, but instead received: %v", err)
 	}
 }
 
