@@ -75,6 +75,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -292,6 +293,12 @@ func (c *Conn) Exec(query string, argsV []driver.Value) (driver.Result, error) {
 
 	args := valueToInterface(argsV)
 	commandTag, err := c.conn.Exec(query, args...)
+	// if we got a network error before we had a chance to send the query, retry
+	if err != nil && !c.conn.LastStmtSent() {
+		if _, is := err.(net.Error); is {
+			return nil, driver.ErrBadConn
+		}
+	}
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
@@ -303,6 +310,12 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 	args := namedValueToInterface(argsV)
 
 	commandTag, err := c.conn.ExecEx(ctx, query, nil, args...)
+	// if we got a network error before we had a chance to send the query, retry
+	if err != nil && !c.conn.LastStmtSent() {
+		if _, is := err.(net.Error); is {
+			return nil, driver.ErrBadConn
+		}
+	}
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
@@ -323,6 +336,12 @@ func (c *Conn) Query(query string, argsV []driver.Value) (driver.Rows, error) {
 
 	rows, err := c.conn.Query(query, valueToInterface(argsV)...)
 	if err != nil {
+		// if we got a network error before we had a chance to send the query, retry
+		if !c.conn.LastStmtSent() {
+			if _, is := err.(net.Error); is {
+				return nil, driver.ErrBadConn
+			}
+		}
 		return nil, err
 	}
 
@@ -339,6 +358,11 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 	if !c.connConfig.PreferSimpleProtocol {
 		ps, err := c.conn.PrepareEx(ctx, "", query, nil)
 		if err != nil {
+			// since PrepareEx failed, we didn't actually get to send the values, so
+			// we can safely retry
+			if _, is := err.(net.Error); is {
+				return nil, driver.ErrBadConn
+			}
 			return nil, err
 		}
 
@@ -348,6 +372,12 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 	rows, err := c.conn.QueryEx(ctx, query, nil, namedValueToInterface(argsV)...)
 	if err != nil {
+		// if we got a network error before we had a chance to send the query, retry
+		if !c.conn.LastStmtSent() {
+			if _, is := err.(net.Error); is {
+				return nil, driver.ErrBadConn
+			}
+		}
 		return nil, err
 	}
 

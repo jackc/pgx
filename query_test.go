@@ -283,6 +283,9 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 	rows.Close()
 
 	ensureConnValid(t, conn)
@@ -430,6 +433,9 @@ func TestQueryEncodeError(t *testing.T) {
 	rows, err := conn.Query("select $1::integer", "wrong")
 	if err != nil {
 		t.Errorf("conn.Query failure: %v", err)
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
 	}
 	defer rows.Close()
 
@@ -1186,6 +1192,9 @@ func TestQueryExContextSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	var result, rowCount int
 	for rows.Next() {
@@ -1263,6 +1272,9 @@ func TestQueryExContextCancelationCancelsQuery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	for rows.Next() {
 		t.Fatal("No rows should ever be ready -- context cancel apparently did not happen")
@@ -1291,6 +1303,9 @@ func TestQueryRowExContextSuccess(t *testing.T) {
 	}
 	if result != 42 {
 		t.Fatalf("Expected result 42, got %d", result)
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
 	}
 
 	ensureConnValid(t, conn)
@@ -1330,6 +1345,9 @@ func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
 	err := conn.QueryRowEx(ctx, "select pg_sleep(5)", nil).Scan(&result)
 	if err != context.Canceled {
 		t.Fatalf("Expected context.Canceled error, got %v", err)
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
 	}
 
 	ensureConnValid(t, conn)
@@ -1384,6 +1402,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
 		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
+		}
 	}
 
 	{
@@ -1400,6 +1421,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		}
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
+		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
 		}
 	}
 
@@ -1418,6 +1442,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
 		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
+		}
 	}
 
 	{
@@ -1435,6 +1462,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if bytes.Compare(actual, expected) != 0 {
 			t.Errorf("expected %v got %v", expected, actual)
 		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
+		}
 	}
 
 	{
@@ -1451,6 +1481,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		}
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
+		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
 		}
 	}
 
@@ -1470,6 +1503,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		}
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
+		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
 		}
 	}
 
@@ -1510,6 +1546,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if expectedString != actualString {
 			t.Errorf("expected %v got %v", expectedString, actualString)
 		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
+		}
 	}
 
 	// Test dangerous cases
@@ -1528,6 +1567,9 @@ func TestConnSimpleProtocol(t *testing.T) {
 		}
 		if expected != actual {
 			t.Errorf("expected %v got %v", expected, actual)
+		}
+		if !conn.LastStmtSent() {
+			t.Error("Expected LastStmtSent to return true")
 		}
 	}
 
@@ -1576,4 +1618,18 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestQueryExCloseBefore(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	closeConn(t, conn)
+
+	if _, err := conn.QueryEx(context.Background(), "select 1", nil); err == nil {
+		t.Fatal("Expected network error")
+	}
+	if conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return false")
+	}
 }
