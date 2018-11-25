@@ -3,7 +3,6 @@ module github.com/jackc/pgx/v4
 go 1.12
 
 require (
-	github.com/cockroachdb/apd v1.1.0
 	github.com/jackc/pgconn v0.0.0-20190424214952-1e3961bd0ea4
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3 v1.1.0

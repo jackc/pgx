@@ -81,8 +81,6 @@ pgx uses environment variables to configure the test database connections. Consi
 
 To setup the normal test environment, first install these dependencies:
 
-    go get github.com/cockroachdb/apd
-    go get github.com/hashicorp/go-version
     go get github.com/jackc/fake
     go get github.com/lib/pq
     go get github.com/pkg/errors
