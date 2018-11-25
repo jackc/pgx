@@ -179,7 +179,13 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 
 	maxConnections := 3
 	config := pgx.ConnPoolConfig{
-		ConnConfig:     *defaultConnConfig,
+		ConnConfig: pgx.ConnConfig{
+			Host:     defaultConnConfig.Host,
+			User:     defaultConnConfig.User,
+			Password: defaultConnConfig.Password,
+			Database: defaultConnConfig.Database,
+			Port:     defaultConnConfig.Port,
+		},
 		MaxConnections: maxConnections,
 	}
 	config.ConnConfig.Dial = testDialer

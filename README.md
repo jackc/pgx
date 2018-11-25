@@ -102,9 +102,13 @@ Connect to database pgx_test and run:
     create extension hstore;
     create domain uint64 as numeric(20,0);
 
-Next open conn_config_test.go.example and make a copy without the
-.example. If your PostgreSQL server is accepting connections on 127.0.0.1,
-then you are done.
+Next, set the connection string where test database located using environtment
+variable `PGX_TEST_DATABASE`.
+For example, to use test database on virtual machine at IP address
+`192.168.60.10` on port `5432`,
+
+    $ export PGX_TEST_DATABASE=postgres://pgx_md5:secret@192.168.60.10:5432/pgx_test
+    $ go test ./...
 
 ### Connection and Authentication Test Environment
 
