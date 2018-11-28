@@ -102,6 +102,25 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	return
 }
 
+// NewConnPoolEnvDefault does the same thing as NewConnPoolEnvFunc, but passes
+// ConnPoolConfig to NewConnPool without changes.
+func NewConnPoolEnvDefault() (*ConnPool, error) {
+	return NewConnPoolEnvFunc(func(*ConnPoolConfig) {})
+}
+
+// NewConnPoolEnvFunc parses the environment with ParseEnvLibpq into a ConnConfig,
+// wraps it into ConnPoolConfig and passes it directly to NewConnPool.
+func NewConnPoolEnvFunc(modify func(*ConnPoolConfig)) (*ConnPool, error) {
+	conf, err := ParseEnvLibpq()
+	if err != nil {
+		return nil, err
+	}
+
+	poolConf := ConnPoolConfig{ConnConfig: conf}
+	modify(&poolConf)
+	return NewConnPool(poolConf)
+}
+
 // Acquire takes exclusive use of a connection until it is released.
 func (p *ConnPool) Acquire() (*Conn, error) {
 	p.cond.L.Lock()

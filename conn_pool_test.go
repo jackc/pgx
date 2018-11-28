@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -87,6 +88,36 @@ func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
+	}
+	defer pool.Close()
+
+	if n := pool.Stat().MaxConnections; n != 5 {
+		t.Fatalf("Expected pool to default to 5 max connections, but it was %d", n)
+	}
+}
+
+func TestNewConnPoolEnvDefault(t *testing.T) {
+	os.Setenv("PGHOST", defaultConnConfig.Host)
+	os.Setenv("PGUSER", defaultConnConfig.User)
+	os.Setenv("PGPASSWORD", defaultConnConfig.Password)
+	os.Setenv("PGDATABASE", defaultConnConfig.Database)
+
+	pool, err := pgx.NewConnPoolEnvDefault()
+	if err != nil {
+		t.Fatalf("Unable to establish connection pool: %s", err)
+	}
+	pool.Close()
+}
+
+func TestNewConnPoolEnvFunc(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgx.NewConnPoolEnvFunc(func(poolConf *pgx.ConnPoolConfig) {
+		poolConf.ConnConfig = *defaultConnConfig
+		poolConf.MaxConnections = 5
+	})
+	if err != nil {
+		t.Fatalf("Unable to establish connection pool: %s", err)
 	}
 	defer pool.Close()
 
