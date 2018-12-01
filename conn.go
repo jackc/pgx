@@ -135,6 +135,7 @@ type Conn struct {
 
 	pendingReadyForQueryCount int // number of ReadyForQuery messages expected
 	cancelQueryCompleted      chan struct{}
+	lastStmtSent              bool
 
 	// context support
 	ctxInProgress bool
@@ -1731,6 +1732,7 @@ func (c *Conn) Ping(ctx context.Context) error {
 }
 
 func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (CommandTag, error) {
+	c.lastStmtSent = false
 	err := c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
 		return "", err
@@ -1770,6 +1772,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 	}()
 
 	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
+		c.lastStmtSent = true
 		err = c.sanitizeAndSendSimpleQuery(sql, arguments...)
 		if err != nil {
 			return "", err
@@ -1786,6 +1789,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 
 		buf = appendSync(buf)
 
+		c.lastStmtSent = true
 		n, err := c.conn.Write(buf)
 		if err != nil && fatalWriteErr(n, err) {
 			c.die(err)
@@ -1803,11 +1807,13 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 				}
 			}
 
+			c.lastStmtSent = true
 			err = c.sendPreparedQuery(ps, arguments...)
 			if err != nil {
 				return "", err
 			}
 		} else {
+			c.lastStmtSent = true
 			if err = c.sendQuery(sql, arguments...); err != nil {
 				return
 			}
@@ -1977,4 +1983,15 @@ func connInfoFromRows(rows *Rows, err error) (map[string]pgtype.OID, error) {
 	}
 
 	return nameOIDs, err
+}
+
+// LastStmtSent returns true if the last call to Query(Ex)/Exec(Ex) attempted to
+// send the statement over the wire. Each call to a Query(Ex)/Exec(Ex) resets
+// the value to false initially until the statement has been sent. This does
+// NOT mean that the statement was successful or even received, it just means
+// that a write was attempted and therefore it could have been executed. Calls
+// to prepare a statement are ignored, only when the prepared statement is
+// attempted to be executed will this return true.
+func (c *Conn) LastStmtSent() bool {
+	return c.lastStmtSent
 }
