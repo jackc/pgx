@@ -1131,11 +1131,31 @@ func TestExecFailure(t *testing.T) {
 	if _, err := conn.Exec("selct;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	rows, _ := conn.Query("select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
+}
+
+func TestExecFailureWithArguments(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	if _, err := conn.Exec("selct $1;", 1); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+	if conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return false")
 	}
 }
 
@@ -1155,6 +1175,9 @@ func TestExecExContextWithoutCancelation(t *testing.T) {
 	if commandTag != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 }
 
 func TestExecExContextFailureWithoutCancelation(t *testing.T) {
@@ -1169,11 +1192,34 @@ func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 	if _, err := conn.ExecEx(ctx, "selct;", nil); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	rows, _ := conn.Query("select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
+}
+
+func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	if _, err := conn.ExecEx(ctx, "selct $1;", nil, 1); err == nil {
+		t.Fatal("Expected SQL syntax error")
+	}
+	if conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return false")
 	}
 }
 
@@ -1193,8 +1239,25 @@ func TestExecExContextCancelationCancelsQuery(t *testing.T) {
 	if err != context.Canceled {
 		t.Fatalf("Expected context.Canceled err, got %v", err)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestExecFailureCloseBefore(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	closeConn(t, conn)
+
+	if _, err := conn.Exec("select 1"); err == nil {
+		t.Fatal("Expected network error")
+	}
+	if conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return false")
+	}
 }
 
 func TestExecExExtendedProtocol(t *testing.T) {
@@ -1246,6 +1309,9 @@ func TestExecExSimpleProtocol(t *testing.T) {
 	if commandTag != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 
 	commandTag, err = conn.ExecEx(
 		ctx,
@@ -1258,6 +1324,9 @@ func TestExecExSimpleProtocol(t *testing.T) {
 	}
 	if commandTag != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
 	}
 }
 
@@ -1281,6 +1350,9 @@ func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
 	if commandTag != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
 }
 
 func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
@@ -1299,6 +1371,9 @@ func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected error but got none")
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
 	}
 }
 
@@ -1327,6 +1402,23 @@ func TestConnExecExIncorrectParameterOIDsAfterAnotherQuery(t *testing.T) {
 	)
 	if err == nil {
 		t.Fatal("expected error but got none")
+	}
+	if !conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return true")
+	}
+}
+
+func TestExecExFailureCloseBefore(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	closeConn(t, conn)
+
+	if _, err := conn.ExecEx(context.Background(), "select 1", nil); err == nil {
+		t.Fatal("Expected network error")
+	}
+	if conn.LastStmtSent() {
+		t.Error("Expected LastStmtSent to return false")
 	}
 }
 
