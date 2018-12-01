@@ -1044,7 +1044,7 @@ func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
 
 // PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-// It defers from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
+// It differs from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
 //
 // PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
 // name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
