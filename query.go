@@ -368,6 +368,7 @@ type QueryExOptions struct {
 }
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+	c.lastStmtSent = false
 	rows = c.getRows(sql, args)
 
 	err = c.waitForPreviousCancelQuery(ctx)
@@ -394,6 +395,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	}
 
 	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
+		c.lastStmtSent = true
 		err = c.sanitizeAndSendSimpleQuery(sql, args...)
 		if err != nil {
 			rows.fatal(err)
@@ -414,6 +416,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		buf = appendSync(buf)
 
 		n, err := c.BaseConn.NetConn.Write(buf)
+		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			rows.fatal(err)
 			c.die(err)
@@ -459,6 +462,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	rows.sql = ps.SQL
 	rows.fields = ps.FieldDescriptions
 
+	c.lastStmtSent = true
 	err = c.sendPreparedQuery(ps, args...)
 	if err != nil {
 		rows.fatal(err)
