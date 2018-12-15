@@ -72,8 +72,13 @@ func TestConnCopyFromSmall(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
+	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	if err != nil {
 		t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	}
+	copyCount = int(res.RowsAffected())
+	if copyCount != len(inputRows) {
+		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -160,8 +165,13 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin"); err != nil {
+	res, err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin")
+	if err != nil {
 		t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	}
+	copyCount = int(res.RowsAffected())
+	if copyCount != len(inputRows) {
+		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -244,8 +254,13 @@ func TestConnCopyFromJSON(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	if err := conn.CopyFromReader(inputReader, "copy foo from stdin"); err != nil {
+	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+	copyCount = int(res.RowsAffected())
+	if copyCount != len(inputRows) {
+		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -348,12 +363,16 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	err = conn.CopyFromReader(inputReader, "copy foo from stdin")
+	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
 	if err == nil {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 	if _, ok := err.(pgx.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+	copyCount = int(res.RowsAffected())
+	if copyCount != 0 {
+		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
 	}
 
 	rows, err = conn.Query("select * from foo")
@@ -613,13 +632,18 @@ func TestConnCopyFromReaderQueryError(t *testing.T) {
 
 	inputReader := strings.NewReader("")
 
-	err := conn.CopyFromReader(inputReader, "cropy foo from stdin")
+	res, err := conn.CopyFromReader(inputReader, "cropy foo from stdin")
 	if err == nil {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != 0 {
+		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
 	}
 
 	ensureConnValid(t, conn)
@@ -633,13 +657,18 @@ func TestConnCopyFromReaderNoTableError(t *testing.T) {
 
 	inputReader := strings.NewReader("")
 
-	err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
 	if err == nil {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != 0 {
+		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
 	}
 
 	ensureConnValid(t, conn)
@@ -688,9 +717,14 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 		t.Fatalf("Unexpected error for gzip.NewReader: %v", err)
 	}
 
-	err = conn.CopyFromReader(gr, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	res, err := conn.CopyFromReader(gr, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != len(inputRows) {
+		t.Errorf("Expected CopyFromReader to return 1000 copied rows, but got %d", copyCount)
 	}
 
 	err = gr.Close()
