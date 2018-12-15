@@ -30,8 +30,14 @@ func TestConnCopyToWriterSmall(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
-	if err := conn.CopyToWriter(outputWriter, "copy foo to stdout"); err != nil {
+	res, err := conn.CopyToWriter(outputWriter, "copy foo to stdout")
+	if err != nil {
 		t.Errorf("Unexpected error for CopyToWriter: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != 2 {
+		t.Errorf("Expected CopyToWriter to return 2 copied rows, but got %d", copyCount)
 	}
 
 	if i := bytes.Compare(inputBytes, outputWriter.Bytes()); i != 0 {
@@ -66,8 +72,14 @@ func TestConnCopyToWriterLarge(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
-	if err := conn.CopyToWriter(outputWriter, "copy foo to stdout"); err != nil {
+	res, err := conn.CopyToWriter(outputWriter, "copy foo to stdout")
+	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != 1000 {
+		t.Errorf("Expected CopyToWriter to return 1 copied rows, but got %d", copyCount)
 	}
 
 	if i := bytes.Compare(inputBytes, outputWriter.Bytes()); i != 0 {
@@ -85,13 +97,18 @@ func TestConnCopyToWriterQueryError(t *testing.T) {
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0))
 
-	err := conn.CopyToWriter(outputWriter, "cropy foo to stdout")
+	res, err := conn.CopyToWriter(outputWriter, "cropy foo to stdout")
 	if err == nil {
-		t.Errorf("Expected CopyFromReader return error, but it did not")
+		t.Errorf("Expected CopyToWriter return error, but it did not")
 	}
 
 	if _, ok := err.(pgx.PgError); !ok {
-		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+		t.Errorf("Expected CopyToWriter return pgx.PgError, but instead it returned: %v", err)
+	}
+
+	copyCount := int(res.RowsAffected())
+	if copyCount != 0 {
+		t.Errorf("Expected CopyToWriter to return 0 copied rows, but got %d", copyCount)
 	}
 
 	ensureConnValid(t, conn)
