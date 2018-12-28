@@ -94,7 +94,7 @@ type ConnConfig struct {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	BaseConn           *base.Conn
+	pgConn             *base.PgConn
 	wbuf               []byte
 	config             ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
@@ -255,13 +255,13 @@ func (c *Conn) connect(config ConnConfig, tlsConfig *tls.Config) (err error) {
 		RuntimeParams: config.RuntimeParams,
 	}
 
-	c.BaseConn, err = base.Connect(cc)
+	c.pgConn, err = base.Connect(cc)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if c != nil && err != nil {
-			c.BaseConn.NetConn.Close()
+			c.pgConn.NetConn.Close()
 			c.mux.Lock()
 			c.status = connStatusClosed
 			c.mux.Unlock()
@@ -511,7 +511,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 
 // PID returns the backend PID for this connection.
 func (c *Conn) PID() uint32 {
-	return c.BaseConn.PID
+	return c.pgConn.PID
 }
 
 // LocalAddr returns the underlying connection's local address
@@ -519,7 +519,7 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 	if !c.IsAlive() {
 		return nil, errors.New("connection not ready")
 	}
-	return c.BaseConn.NetConn.LocalAddr(), nil
+	return c.pgConn.NetConn.LocalAddr(), nil
 }
 
 // Close closes a connection. It is safe to call Close on a already closed
@@ -534,32 +534,32 @@ func (c *Conn) Close() (err error) {
 	c.status = connStatusClosed
 
 	defer func() {
-		c.BaseConn.NetConn.Close()
+		c.pgConn.NetConn.Close()
 		c.causeOfDeath = errors.New("Closed")
 		if c.shouldLog(LogLevelInfo) {
 			c.log(LogLevelInfo, "closed connection", nil)
 		}
 	}()
 
-	err = c.BaseConn.NetConn.SetDeadline(time.Time{})
+	err = c.pgConn.NetConn.SetDeadline(time.Time{})
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to clear deadlines to send close message", map[string]interface{}{"err": err})
 		return err
 	}
 
-	_, err = c.BaseConn.NetConn.Write([]byte{'X', 0, 0, 0, 4})
+	_, err = c.pgConn.NetConn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to send terminate message", map[string]interface{}{"err": err})
 		return err
 	}
 
-	err = c.BaseConn.NetConn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	err = c.pgConn.NetConn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	if err != nil && c.shouldLog(LogLevelWarn) {
 		c.log(LogLevelWarn, "failed to set read deadline to finish closing", map[string]interface{}{"err": err})
 		return err
 	}
 
-	_, err = c.BaseConn.NetConn.Read(make([]byte, 1))
+	_, err = c.pgConn.NetConn.Read(make([]byte, 1))
 	if err != io.EOF {
 		return err
 	}
@@ -933,6 +933,10 @@ func configTLS(args configTLSArgs, cc *ConnConfig) error {
 	return nil
 }
 
+func (c *Conn) ParameterStatus(key string) string {
+	return c.pgConn.RuntimeParams[key]
+}
+
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders
 // for bound parameters. These placeholders are referenced positional as $1, $2, etc.
 //
@@ -997,7 +1001,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	buf = appendDescribe(buf, 'S', name)
 	buf = appendSync(buf)
 
-	n, err := c.BaseConn.NetConn.Write(buf)
+	n, err := c.pgConn.NetConn.Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -1093,7 +1097,7 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 	buf = append(buf, 'H')
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.BaseConn.NetConn.Write(buf)
+	_, err = c.pgConn.NetConn.Write(buf)
 	if err != nil {
 		c.die(err)
 		return err
@@ -1221,7 +1225,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if len(args) == 0 {
 		buf := appendQuery(c.wbuf, sql)
 
-		_, err := c.BaseConn.NetConn.Write(buf)
+		_, err := c.pgConn.NetConn.Write(buf)
 		if err != nil {
 			c.die(err)
 			return err
@@ -1260,7 +1264,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = appendExecute(buf, "", 0)
 	buf = appendSync(buf)
 
-	n, err := c.BaseConn.NetConn.Write(buf)
+	n, err := c.pgConn.NetConn.Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -1315,7 +1319,7 @@ func (c *Conn) rxMsg() (pgproto3.BackendMessage, error) {
 		return nil, ErrDeadConn
 	}
 
-	msg, err := c.BaseConn.ReceiveMessage()
+	msg, err := c.pgConn.ReceiveMessage()
 	if err != nil {
 		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
 			c.die(err)
@@ -1438,13 +1442,13 @@ func (c *Conn) rxNotificationResponse(msg *pgproto3.NotificationResponse) {
 }
 
 func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(c.BaseConn.NetConn, binary.BigEndian, []int32{8, 80877103})
+	err = binary.Write(c.pgConn.NetConn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
 	}
 
 	response := make([]byte, 1)
-	if _, err = io.ReadFull(c.BaseConn.NetConn, response); err != nil {
+	if _, err = io.ReadFull(c.pgConn.NetConn, response); err != nil {
 		return
 	}
 
@@ -1452,7 +1456,7 @@ func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
 		return ErrTLSRefused
 	}
 
-	c.BaseConn.NetConn = tls.Client(c.BaseConn.NetConn, tlsConfig)
+	c.pgConn.NetConn = tls.Client(c.pgConn.NetConn, tlsConfig)
 
 	return nil
 }
@@ -1466,7 +1470,7 @@ func (c *Conn) txPasswordMessage(password string) (err error) {
 	buf = append(buf, 0)
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	_, err = c.BaseConn.NetConn.Write(buf)
+	_, err = c.pgConn.NetConn.Write(buf)
 
 	return err
 }
@@ -1481,7 +1485,7 @@ func (c *Conn) die(err error) {
 
 	c.status = connStatusClosed
 	c.causeOfDeath = err
-	c.BaseConn.NetConn.Close()
+	c.pgConn.NetConn.Close()
 }
 
 func (c *Conn) lock() error {
@@ -1516,8 +1520,8 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
-	if c.BaseConn != nil && c.BaseConn.PID != 0 {
-		data["pid"] = c.BaseConn.PID
+	if c.pgConn != nil && c.pgConn.PID != 0 {
+		data["pid"] = c.pgConn.PID
 	}
 
 	c.logger.Log(lvl, msg, data)
@@ -1548,8 +1552,8 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	network, address := c.BaseConn.Config.NetworkAddress()
-	cancelConn, err := c.BaseConn.Config.Dial(network, address)
+	network, address := c.pgConn.Config.NetworkAddress()
+	cancelConn, err := c.pgConn.Config.Dial(network, address)
 	if err != nil {
 		return err
 	}
@@ -1565,8 +1569,8 @@ func doCancel(c *Conn) error {
 	buf := make([]byte, 16)
 	binary.BigEndian.PutUint32(buf[0:4], 16)
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(c.BaseConn.PID))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(c.BaseConn.SecretKey))
+	binary.BigEndian.PutUint32(buf[8:12], uint32(c.pgConn.PID))
+	binary.BigEndian.PutUint32(buf[12:16], uint32(c.pgConn.SecretKey))
 	_, err = cancelConn.Write(buf)
 	if err != nil {
 		return err
@@ -1586,7 +1590,7 @@ func doCancel(c *Conn) error {
 // is no way to be sure a query was canceled. See
 // https://www.postgresql.org/docs/current/static/protocol-flow.html#AEN112861
 func (c *Conn) cancelQuery() {
-	if err := c.BaseConn.NetConn.SetDeadline(time.Now()); err != nil {
+	if err := c.pgConn.NetConn.SetDeadline(time.Now()); err != nil {
 		c.Close() // Close connection if unable to set deadline
 		return
 	}
@@ -1673,7 +1677,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 
 		buf = appendSync(buf)
 
-		n, err := c.BaseConn.NetConn.Write(buf)
+		n, err := c.pgConn.NetConn.Write(buf)
 		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			c.die(err)
@@ -1811,7 +1815,7 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 	c.mux.Unlock()
 	select {
 	case <-completeCh:
-		if err := c.BaseConn.NetConn.SetDeadline(time.Time{}); err != nil {
+		if err := c.pgConn.NetConn.SetDeadline(time.Time{}); err != nil {
 			c.Close() // Close connection if unable to disable deadline
 			return err
 		}
