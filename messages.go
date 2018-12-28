@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/base"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -79,7 +79,7 @@ func (fd FieldDescription) Type() reflect.Type {
 	}
 }
 
-type PgError = base.PgError
+type PgError = pgconn.PgError
 
 // Notice represents a notice response message reported by the PostgreSQL
 // server. Be aware that this is distinct from LISTEN/NOTIFY notification.

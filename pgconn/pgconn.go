@@ -1,4 +1,4 @@
-package base
+package pgconn
 
 import (
 	"crypto/md5"
