@@ -519,11 +519,11 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 }
 
 func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
-	if c.pgConn.RuntimeParams["standard_conforming_strings"] != "on" {
+	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
 		return errors.New("simple protocol queries must be run with standard_conforming_strings=on")
 	}
 
-	if c.pgConn.RuntimeParams["client_encoding"] != "UTF8" {
+	if c.pgConn.ParameterStatus("client_encoding") != "UTF8" {
 		return errors.New("simple protocol queries must be run with client_encoding=UTF8")
 	}
 

@@ -933,8 +933,10 @@ func configTLS(args configTLSArgs, cc *ConnConfig) error {
 	return nil
 }
 
+// ParameterStatus returns the value of a parameter reported by the server (e.g.
+// server_version). Returns an empty string for unknown parameters.
 func (c *Conn) ParameterStatus(key string) string {
-	return c.pgConn.RuntimeParams[key]
+	return c.pgConn.ParameterStatus(key)
 }
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders

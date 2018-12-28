@@ -103,12 +103,12 @@ func (cc *ConnConfig) assignDefaults() error {
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
-	NetConn       net.Conn          // the underlying TCP or unix domain socket connection
-	PID           uint32            // backend pid
-	SecretKey     uint32            // key to use to send a cancel query message to the server
-	RuntimeParams map[string]string // parameters that have been reported by the server
-	TxStatus      byte
-	Frontend      *pgproto3.Frontend
+	NetConn           net.Conn          // the underlying TCP or unix domain socket connection
+	PID               uint32            // backend pid
+	SecretKey         uint32            // key to use to send a cancel query message to the server
+	parameterStatuses map[string]string // parameters that have been reported by the server
+	TxStatus          byte
+	Frontend          *pgproto3.Frontend
 
 	Config ConnConfig
 }
@@ -127,7 +127,7 @@ func Connect(cc ConnConfig) (*PgConn, error) {
 		return nil, err
 	}
 
-	pgConn.RuntimeParams = make(map[string]string)
+	pgConn.parameterStatuses = make(map[string]string)
 
 	if cc.TLSConfig != nil {
 		if err := pgConn.startTLS(cc.TLSConfig); err != nil {
@@ -260,8 +260,14 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 	case *pgproto3.ReadyForQuery:
 		pgConn.TxStatus = msg.TxStatus
 	case *pgproto3.ParameterStatus:
-		pgConn.RuntimeParams[msg.Name] = msg.Value
+		pgConn.parameterStatuses[msg.Name] = msg.Value
 	}
 
 	return msg, nil
+}
+
+// ParameterStatus returns the value of a parameter reported by the server (e.g.
+// server_version). Returns an empty string for unknown parameters.
+func (pgConn *PgConn) ParameterStatus(key string) string {
+	return pgConn.parameterStatuses[key]
 }
