@@ -157,7 +157,7 @@ func (ct *copyFrom) run() (int, error) {
 		sentCount += addedRows
 		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-		_, err = ct.conn.BaseConn.NetConn.Write(buf)
+		_, err = ct.conn.pgConn.NetConn.Write(buf)
 		if err != nil {
 			panicked = false
 			ct.conn.die(err)
@@ -181,7 +181,7 @@ func (ct *copyFrom) run() (int, error) {
 	buf = append(buf, copyDone)
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = ct.conn.BaseConn.NetConn.Write(buf)
+	_, err = ct.conn.pgConn.NetConn.Write(buf)
 	if err != nil {
 		panicked = false
 		ct.conn.die(err)
@@ -256,7 +256,7 @@ func (ct *copyFrom) cancelCopyIn() error {
 	buf = append(buf, 0)
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	_, err := ct.conn.BaseConn.NetConn.Write(buf)
+	_, err := ct.conn.pgConn.NetConn.Write(buf)
 	if err != nil {
 		ct.conn.die(err)
 		return err
@@ -304,7 +304,7 @@ func (c *Conn) CopyFromReader(r io.Reader, sql string) (CommandTag, error) {
 		buf = buf[0 : n+5]
 		pgio.SetInt32(buf[sp:], int32(n+4))
 
-		if _, err := c.BaseConn.NetConn.Write(buf); err != nil {
+		if _, err := c.pgConn.NetConn.Write(buf); err != nil {
 			return "", err
 		}
 	}
@@ -313,7 +313,7 @@ func (c *Conn) CopyFromReader(r io.Reader, sql string) (CommandTag, error) {
 	buf = append(buf, copyDone)
 	buf = pgio.AppendInt32(buf, 4)
 
-	if _, err := c.BaseConn.NetConn.Write(buf); err != nil {
+	if _, err := c.pgConn.NetConn.Write(buf); err != nil {
 		return "", err
 	}
 

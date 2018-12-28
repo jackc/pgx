@@ -101,8 +101,8 @@ func (cc *ConnConfig) assignDefaults() error {
 	return nil
 }
 
-// Conn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
-type Conn struct {
+// PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
+type PgConn struct {
 	NetConn       net.Conn          // the underlying TCP or unix domain socket connection
 	PID           uint32            // backend pid
 	SecretKey     uint32            // key to use to send a cancel query message to the server
@@ -113,29 +113,29 @@ type Conn struct {
 	Config ConnConfig
 }
 
-func Connect(cc ConnConfig) (*Conn, error) {
+func Connect(cc ConnConfig) (*PgConn, error) {
 	err := cc.assignDefaults()
 	if err != nil {
 		return nil, err
 	}
 
-	conn := new(Conn)
-	conn.Config = cc
+	pgConn := new(PgConn)
+	pgConn.Config = cc
 
-	conn.NetConn, err = cc.Dial(cc.NetworkAddress())
+	pgConn.NetConn, err = cc.Dial(cc.NetworkAddress())
 	if err != nil {
 		return nil, err
 	}
 
-	conn.RuntimeParams = make(map[string]string)
+	pgConn.RuntimeParams = make(map[string]string)
 
 	if cc.TLSConfig != nil {
-		if err := conn.startTLS(cc.TLSConfig); err != nil {
+		if err := pgConn.startTLS(cc.TLSConfig); err != nil {
 			return nil, err
 		}
 	}
 
-	conn.Frontend, err = pgproto3.NewFrontend(conn.NetConn, conn.NetConn)
+	pgConn.Frontend, err = pgproto3.NewFrontend(pgConn.NetConn, pgConn.NetConn)
 	if err != nil {
 		return nil, err
 	}
@@ -155,26 +155,26 @@ func Connect(cc ConnConfig) (*Conn, error) {
 		startupMsg.Parameters["database"] = cc.Database
 	}
 
-	if _, err := conn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
+	if _, err := pgConn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
 		return nil, err
 	}
 
 	for {
-		msg, err := conn.ReceiveMessage()
+		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			return nil, err
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.BackendKeyData:
-			conn.PID = msg.ProcessID
-			conn.SecretKey = msg.SecretKey
+			pgConn.PID = msg.ProcessID
+			pgConn.SecretKey = msg.SecretKey
 		case *pgproto3.Authentication:
-			if err = conn.rxAuthenticationX(msg); err != nil {
+			if err = pgConn.rxAuthenticationX(msg); err != nil {
 				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
-			return conn, nil
+			return pgConn, nil
 		case *pgproto3.ParameterStatus:
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
@@ -203,14 +203,14 @@ func Connect(cc ConnConfig) (*Conn, error) {
 	}
 }
 
-func (conn *Conn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(conn.NetConn, binary.BigEndian, []int32{8, 80877103})
+func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
+	err = binary.Write(pgConn.NetConn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return
 	}
 
 	response := make([]byte, 1)
-	if _, err = io.ReadFull(conn.NetConn, response); err != nil {
+	if _, err = io.ReadFull(pgConn.NetConn, response); err != nil {
 		return
 	}
 
@@ -218,12 +218,12 @@ func (conn *Conn) startTLS(tlsConfig *tls.Config) (err error) {
 		return ErrTLSRefused
 	}
 
-	conn.NetConn = tls.Client(conn.NetConn, tlsConfig)
+	pgConn.NetConn = tls.Client(pgConn.NetConn, tlsConfig)
 
 	return nil
 }
 
-func (c *Conn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
+func (c *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	switch msg.Type {
 	case pgproto3.AuthTypeOk:
 	case pgproto3.AuthTypeCleartextPassword:
@@ -238,9 +238,9 @@ func (c *Conn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	return
 }
 
-func (conn *Conn) txPasswordMessage(password string) (err error) {
+func (pgConn *PgConn) txPasswordMessage(password string) (err error) {
 	msg := &pgproto3.PasswordMessage{Password: password}
-	_, err = conn.NetConn.Write(msg.Encode(nil))
+	_, err = pgConn.NetConn.Write(msg.Encode(nil))
 	return err
 }
 
@@ -250,17 +250,17 @@ func hexMD5(s string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (conn *Conn) ReceiveMessage() (pgproto3.BackendMessage, error) {
-	msg, err := conn.Frontend.Receive()
+func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
+	msg, err := pgConn.Frontend.Receive()
 	if err != nil {
 		return nil, err
 	}
 
 	switch msg := msg.(type) {
 	case *pgproto3.ReadyForQuery:
-		conn.TxStatus = msg.TxStatus
+		pgConn.TxStatus = msg.TxStatus
 	case *pgproto3.ParameterStatus:
-		conn.RuntimeParams[msg.Name] = msg.Value
+		pgConn.RuntimeParams[msg.Name] = msg.Value
 	}
 
 	return msg, nil

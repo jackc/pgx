@@ -193,7 +193,7 @@ func (p *ConnPool) Release(conn *Conn) {
 		panic("should never release when context is in progress")
 	}
 
-	if conn.BaseConn.TxStatus != 'I' {
+	if conn.pgConn.TxStatus != 'I' {
 		conn.Exec("rollback")
 	}
 

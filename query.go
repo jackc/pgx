@@ -415,7 +415,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 
 		buf = appendSync(buf)
 
-		n, err := c.BaseConn.NetConn.Write(buf)
+		n, err := c.pgConn.NetConn.Write(buf)
 		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			rows.fatal(err)
@@ -519,11 +519,11 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 }
 
 func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
-	if c.BaseConn.RuntimeParams["standard_conforming_strings"] != "on" {
+	if c.pgConn.RuntimeParams["standard_conforming_strings"] != "on" {
 		return errors.New("simple protocol queries must be run with standard_conforming_strings=on")
 	}
 
-	if c.BaseConn.RuntimeParams["client_encoding"] != "UTF8" {
+	if c.pgConn.RuntimeParams["client_encoding"] != "UTF8" {
 		return errors.New("simple protocol queries must be run with client_encoding=UTF8")
 	}
 

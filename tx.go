@@ -260,7 +260,7 @@ func (tx *Tx) CopyToWriter(w io.Writer, sql string, args ...interface{}) (comman
 // Status returns the status of the transaction from the set of
 // pgx.TxStatus* constants.
 func (tx *Tx) Status() int8 {
-	if tx.status == TxStatusInProgress && tx.conn.BaseConn.TxStatus == 'E' {
+	if tx.status == TxStatusInProgress && tx.conn.pgConn.TxStatus == 'E' {
 		return TxStatusInFailure
 	}
 	return tx.status

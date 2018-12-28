@@ -133,7 +133,7 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 		b.conn.pendingReadyForQueryCount++
 	}
 
-	n, err := b.conn.BaseConn.NetConn.Write(buf)
+	n, err := b.conn.pgConn.NetConn.Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			b.conn.die(err)
