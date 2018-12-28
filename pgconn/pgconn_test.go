@@ -1,7 +1,7 @@
-package base_test
+package pgconn_test
 
 import (
-	"github.com/jackc/pgx/base"
+	"github.com/jackc/pgx/pgconn"
 
 	"testing"
 
@@ -10,7 +10,7 @@ import (
 )
 
 func TestSimple(t *testing.T) {
-	pgConn, err := base.Connect(base.ConnConfig{Host: "/var/run/postgresql", User: "jack", Database: "pgx_test"})
+	pgConn, err := pgconn.Connect(pgconn.ConnConfig{Host: "/var/run/postgresql", User: "jack", Database: "pgx_test"})
 	require.Nil(t, err)
 
 	pgConn.SendExec("select current_database()")

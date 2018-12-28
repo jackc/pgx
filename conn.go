@@ -22,7 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/base"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
@@ -94,7 +94,7 @@ type ConnConfig struct {
 // Use ConnPool to manage access to multiple database connections from multiple
 // goroutines.
 type Conn struct {
-	pgConn             *base.PgConn
+	pgConn             *pgconn.PgConn
 	wbuf               []byte
 	config             ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
@@ -179,7 +179,7 @@ var ErrDeadConn = errors.New("conn is dead")
 
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
-var ErrTLSRefused = base.ErrTLSRefused
+var ErrTLSRefused = pgconn.ErrTLSRefused
 
 // ErrConnBusy occurs when the connection is busy (for example, in the middle of
 // reading query results) and another action is attempted.
@@ -244,18 +244,18 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 }
 
 func (c *Conn) connect(config ConnConfig, tlsConfig *tls.Config) (err error) {
-	cc := base.ConnConfig{
+	cc := pgconn.ConnConfig{
 		Host:          config.Host,
 		Port:          config.Port,
 		Database:      config.Database,
 		User:          config.User,
 		Password:      config.Password,
 		TLSConfig:     tlsConfig,
-		Dial:          base.DialFunc(config.Dial),
+		Dial:          pgconn.DialFunc(config.Dial),
 		RuntimeParams: config.RuntimeParams,
 	}
 
-	c.pgConn, err = base.Connect(cc)
+	c.pgConn, err = pgconn.Connect(cc)
 	if err != nil {
 		return err
 	}
