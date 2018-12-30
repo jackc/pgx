@@ -1,20 +1,16 @@
 package pgconn
 
 import (
+	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io"
 	"net"
-	"os"
-	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
@@ -23,7 +19,7 @@ import (
 const batchBufferSize = 4096
 
 // PgError represents an error reported by the PostgreSQL server. See
-// http://www.postgresql.org/docs/9.3/static/protocol-error-fields.html for
+// http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
 // detailed field description.
 type PgError struct {
 	Severity         string
@@ -50,59 +46,11 @@ func (pe PgError) Error() string {
 }
 
 // DialFunc is a function that can be used to connect to a PostgreSQL server
-type DialFunc func(network, addr string) (net.Conn, error)
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
 var ErrTLSRefused = errors.New("server refused TLS connection")
-
-type ConnConfig struct {
-	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port          uint16 // default: 5432
-	Database      string
-	User          string // default: OS user name
-	Password      string
-	TLSConfig     *tls.Config // config for TLS connection -- nil disables TLS
-	Dial          DialFunc
-	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
-}
-
-func (cc *ConnConfig) NetworkAddress() (network, address string) {
-	// If host is a valid path, then address is unix socket
-	if _, err := os.Stat(cc.Host); err == nil {
-		network = "unix"
-		address = cc.Host
-		if !strings.Contains(address, "/.s.PGSQL.") {
-			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatInt(int64(cc.Port), 10)
-		}
-	} else {
-		network = "tcp"
-		address = fmt.Sprintf("%s:%d", cc.Host, cc.Port)
-	}
-
-	return network, address
-}
-
-func (cc *ConnConfig) assignDefaults() error {
-	if cc.User == "" {
-		user, err := user.Current()
-		if err != nil {
-			return err
-		}
-		cc.User = user.Username
-	}
-
-	if cc.Port == 0 {
-		cc.Port = 5432
-	}
-
-	if cc.Dial == nil {
-		defaultDialer := &net.Dialer{KeepAlive: 5 * time.Minute}
-		cc.Dial = defaultDialer.Dial
-	}
-
-	return nil
-}
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
@@ -113,7 +61,7 @@ type PgConn struct {
 	TxStatus          byte
 	Frontend          *pgproto3.Frontend
 
-	Config ConnConfig
+	Config *Config
 
 	batchBuf   []byte
 	batchCount int32
@@ -123,24 +71,72 @@ type PgConn struct {
 	closed bool
 }
 
-func Connect(cc ConnConfig) (*PgConn, error) {
-	err := cc.assignDefaults()
+// Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
+// to provide configuration. See documention for ParseConfig for details. ctx can be used to cancel a connect attempt.
+func Connect(ctx context.Context, connString string) (*PgConn, error) {
+	config, err := ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 
-	pgConn := new(PgConn)
-	pgConn.Config = cc
+	return ConnectConfig(ctx, config)
+}
 
-	pgConn.NetConn, err = cc.Dial(cc.NetworkAddress())
+// Connect establishes a connection to a PostgreSQL server using config. ctx can be used to cancel a connect attempt.
+//
+// If config.Fallbacks are present they will sequentially be tried in case of error establishing network connection. An
+// authentication error will terminate the chain of attempts (like libpq:
+// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
+// if all attempts fail the last error is returned.
+func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err error) {
+	// For convenience set a few defaults if not already set. This makes it simpler to directly construct a config.
+	if config.Port == 0 {
+		config.Port = 5432
+	}
+	if config.DialFunc == nil {
+		config.DialFunc = makeDefaultDialer().DialContext
+	}
+	if config.RuntimeParams == nil {
+		config.RuntimeParams = make(map[string]string)
+	}
+
+	// Simplify usage by treating primary config and fallbacks the same.
+	fallbackConfigs := []*FallbackConfig{
+		{
+			Host:      config.Host,
+			Port:      config.Port,
+			TLSConfig: config.TLSConfig,
+		},
+	}
+	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
+
+	for _, fc := range fallbackConfigs {
+		pgConn, err = connect(ctx, config, fc)
+		if err == nil {
+			return pgConn, nil
+		} else if err, ok := err.(PgError); ok {
+			return nil, err
+		}
+	}
+
+	return nil, err
+}
+
+func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
+	pgConn := new(PgConn)
+	pgConn.Config = config
+
+	var err error
+	network, address := NetworkAddress(config.Host, config.Port)
+	pgConn.NetConn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
 		return nil, err
 	}
 
 	pgConn.parameterStatuses = make(map[string]string)
 
-	if cc.TLSConfig != nil {
-		if err := pgConn.startTLS(cc.TLSConfig); err != nil {
+	if config.TLSConfig != nil {
+		if err := pgConn.startTLS(config.TLSConfig); err != nil {
 			return nil, err
 		}
 	}
@@ -156,13 +152,13 @@ func Connect(cc ConnConfig) (*PgConn, error) {
 	}
 
 	// Copy default run-time params
-	for k, v := range cc.RuntimeParams {
+	for k, v := range config.RuntimeParams {
 		startupMsg.Parameters[k] = v
 	}
 
-	startupMsg.Parameters["user"] = cc.User
-	if cc.Database != "" {
-		startupMsg.Parameters["database"] = cc.Database
+	startupMsg.Parameters["user"] = config.User
+	if config.Database != "" {
+		startupMsg.Parameters["database"] = config.Database
 	}
 
 	if _, err := pgConn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
