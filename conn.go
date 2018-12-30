@@ -4,17 +4,11 @@ import (
 	"context"
 	"crypto/md5"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"net/url"
-	"os"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -57,26 +51,14 @@ func init() {
 // aware that this is distinct from LISTEN/NOTIFY notification.
 type NoticeHandler func(*Conn, *Notice)
 
-// DialFunc is a function that can be used to connect to a PostgreSQL server
-type DialFunc func(network, addr string) (net.Conn, error)
-
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
-	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port              uint16 // default: 5432
-	Database          string
-	User              string // default: OS user name
-	Password          string
-	TLSConfig         *tls.Config // config for TLS connection -- nil disables TLS
-	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
-	FallbackTLSConfig *tls.Config // config for fallback TLS connection (only used if UseFallBackTLS is true)-- nil disables TLS
-	Logger            Logger
-	LogLevel          int
-	Dial              DialFunc
-	RuntimeParams     map[string]string                     // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
-	OnNotice          NoticeHandler                         // Callback function called when a notice response is received.
-	CustomConnInfo    func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
-	CustomCancel      func(*Conn) error                     // Callback function used to override cancellation behavior
+	Configs        []*pgconn.Config
+	Logger         Logger
+	LogLevel       int
+	OnNotice       NoticeHandler                         // Callback function called when a notice response is received.
+	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
+	CustomCancel   func(*Conn) error                     // Callback function used to override cancellation behavior
 
 	// PreferSimpleProtocol disables implicit prepared statement usage. By default
 	// pgx automatically uses the unnamed prepared statement for Query and
@@ -195,18 +177,25 @@ func (e ProtocolError) Error() string {
 	return string(e)
 }
 
-// Connect establishes a connection with a PostgreSQL server using config.
-// config.Host must be specified. config.User will default to the OS user name.
-// Other config fields are optional.
-func Connect(config ConnConfig) (c *Conn, err error) {
-	return connect(config, minimalConnInfo)
+// Connect establishes a connection with a PostgreSQL server with a connection string. See
+// pgconn.Connect for details.
+func Connect(ctx context.Context, connString string) (*Conn, error) {
+	configs, err := pgconn.ParseConfig(connString)
+	if err != nil {
+		return nil, err
+	}
+	connConfig := ConnConfig{
+		Configs: configs,
+	}
+
+	return connect(ctx, connConfig, minimalConnInfo)
 }
 
 func defaultDialer() *net.Dialer {
 	return &net.Dialer{KeepAlive: 5 * time.Minute}
 }
 
-func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
+func connect(ctx context.Context, config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
@@ -223,14 +212,11 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	c.onNotice = config.OnNotice
 
 	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Host})
+		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Configs[0].Host})
 	}
-	err = c.connect(config, config.TLSConfig)
-	if err != nil && config.UseFallbackTLS {
-		if c.shouldLog(LogLevelInfo) {
-			c.log(LogLevelInfo, "connect with TLSConfig failed, trying FallbackTLSConfig", map[string]interface{}{"err": err})
-		}
-		err = c.connect(config, config.FallbackTLSConfig)
+	c.pgConn, err = pgconn.ConnectConfig(ctx, config.Configs)
+	if err != nil {
+		return nil, err
 	}
 
 	if err != nil {
@@ -240,34 +226,6 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		return nil, err
 	}
 
-	return c, nil
-}
-
-func (c *Conn) connect(config ConnConfig, tlsConfig *tls.Config) (err error) {
-	cc := pgconn.ConnConfig{
-		Host:          config.Host,
-		Port:          config.Port,
-		Database:      config.Database,
-		User:          config.User,
-		Password:      config.Password,
-		TLSConfig:     tlsConfig,
-		Dial:          pgconn.DialFunc(config.Dial),
-		RuntimeParams: config.RuntimeParams,
-	}
-
-	c.pgConn, err = pgconn.Connect(cc)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if c != nil && err != nil {
-			c.pgConn.NetConn.Close()
-			c.mux.Lock()
-			c.status = connStatusClosed
-			c.mux.Unlock()
-		}
-	}()
-
 	c.preparedStatements = make(map[string]*PreparedStatement)
 	c.channels = make(map[string]struct{})
 	c.cancelQueryCompleted = make(chan struct{})
@@ -275,25 +233,23 @@ func (c *Conn) connect(config ConnConfig, tlsConfig *tls.Config) (err error) {
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
-
-	c.mux.Lock()
 	c.status = connStatusIdle
-	c.mux.Unlock()
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
-	if _, ok := config.RuntimeParams["replication"]; ok {
-		return nil
+	if _, ok := c.pgConn.Config.RuntimeParams["replication"]; ok {
+		return c, nil
 	}
 
 	if c.ConnInfo == minimalConnInfo {
 		err = c.initConnInfo()
 		if err != nil {
-			return err
+			c.Close()
+			return nil, err
 		}
 	}
 
-	return nil
+	return c, nil
 }
 
 func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {
@@ -524,7 +480,7 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
-func (c *Conn) Close() (err error) {
+func (c *Conn) Close() error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -533,404 +489,12 @@ func (c *Conn) Close() (err error) {
 	}
 	c.status = connStatusClosed
 
-	defer func() {
-		c.pgConn.NetConn.Close()
-		c.causeOfDeath = errors.New("Closed")
-		if c.shouldLog(LogLevelInfo) {
-			c.log(LogLevelInfo, "closed connection", nil)
-		}
-	}()
-
-	err = c.pgConn.NetConn.SetDeadline(time.Time{})
-	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "failed to clear deadlines to send close message", map[string]interface{}{"err": err})
-		return err
+	err := c.pgConn.Close()
+	c.causeOfDeath = errors.New("Closed")
+	if c.shouldLog(LogLevelInfo) {
+		c.log(LogLevelInfo, "closed connection", nil)
 	}
-
-	_, err = c.pgConn.NetConn.Write([]byte{'X', 0, 0, 0, 4})
-	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "failed to send terminate message", map[string]interface{}{"err": err})
-		return err
-	}
-
-	err = c.pgConn.NetConn.SetReadDeadline(time.Now().Add(5 * time.Second))
-	if err != nil && c.shouldLog(LogLevelWarn) {
-		c.log(LogLevelWarn, "failed to set read deadline to finish closing", map[string]interface{}{"err": err})
-		return err
-	}
-
-	_, err = c.pgConn.NetConn.Read(make([]byte, 1))
-	if err != io.EOF {
-		return err
-	}
-
-	return nil
-}
-
-// Merge returns a new ConnConfig with the attributes of old and other
-// combined. When an attribute is set on both, other takes precedence.
-//
-// As a security precaution, if the other TLSConfig is nil, all old TLS
-// attributes will be preserved.
-func (old ConnConfig) Merge(other ConnConfig) ConnConfig {
-	cc := old
-
-	if other.Host != "" {
-		cc.Host = other.Host
-	}
-	if other.Port != 0 {
-		cc.Port = other.Port
-	}
-	if other.Database != "" {
-		cc.Database = other.Database
-	}
-	if other.User != "" {
-		cc.User = other.User
-	}
-	if other.Password != "" {
-		cc.Password = other.Password
-	}
-
-	if other.TLSConfig != nil {
-		cc.TLSConfig = other.TLSConfig
-		cc.UseFallbackTLS = other.UseFallbackTLS
-		cc.FallbackTLSConfig = other.FallbackTLSConfig
-	}
-
-	if other.Logger != nil {
-		cc.Logger = other.Logger
-	}
-	if other.LogLevel != 0 {
-		cc.LogLevel = other.LogLevel
-	}
-
-	if other.Dial != nil {
-		cc.Dial = other.Dial
-	}
-
-	cc.PreferSimpleProtocol = other.PreferSimpleProtocol
-
-	cc.RuntimeParams = make(map[string]string)
-	for k, v := range old.RuntimeParams {
-		cc.RuntimeParams[k] = v
-	}
-	for k, v := range other.RuntimeParams {
-		cc.RuntimeParams[k] = v
-	}
-
-	return cc
-}
-
-// ParseURI parses a database URI into ConnConfig
-//
-// Query parameters not used by the connection process are parsed into ConnConfig.RuntimeParams.
-func ParseURI(uri string) (ConnConfig, error) {
-	var cp ConnConfig
-
-	url, err := url.Parse(uri)
-	if err != nil {
-		return cp, err
-	}
-
-	if url.User != nil {
-		cp.User = url.User.Username()
-		cp.Password, _ = url.User.Password()
-	}
-
-	parts := strings.SplitN(url.Host, ":", 2)
-	cp.Host = parts[0]
-	if len(parts) == 2 {
-		p, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return cp, err
-		}
-		cp.Port = uint16(p)
-	}
-	cp.Database = strings.TrimLeft(url.Path, "/")
-
-	if pgtimeout := url.Query().Get("connect_timeout"); pgtimeout != "" {
-		timeout, err := strconv.ParseInt(pgtimeout, 10, 64)
-		if err != nil {
-			return cp, err
-		}
-		d := defaultDialer()
-		d.Timeout = time.Duration(timeout) * time.Second
-		cp.Dial = d.Dial
-	}
-
-	tlsArgs := configTLSArgs{
-		sslCert:     url.Query().Get("sslcert"),
-		sslKey:      url.Query().Get("sslkey"),
-		sslMode:     url.Query().Get("sslmode"),
-		sslRootCert: url.Query().Get("sslrootcert"),
-	}
-	err = configTLS(tlsArgs, &cp)
-	if err != nil {
-		return cp, err
-	}
-
-	ignoreKeys := map[string]struct{}{
-		"connect_timeout": {},
-		"sslcert":         {},
-		"sslkey":          {},
-		"sslmode":         {},
-		"sslrootcert":     {},
-	}
-
-	cp.RuntimeParams = make(map[string]string)
-
-	for k, v := range url.Query() {
-		if _, ok := ignoreKeys[k]; ok {
-			continue
-		}
-
-		if k == "host" {
-			cp.Host = v[0]
-			continue
-		}
-
-		cp.RuntimeParams[k] = v[0]
-	}
-	if cp.Password == "" {
-		pgpass(&cp)
-	}
-	return cp, nil
-}
-
-var dsnRegexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
-
-// ParseDSN parses a database DSN (data source name) into a ConnConfig
-//
-// e.g. ParseDSN("user=username password=password host=1.2.3.4 port=5432 dbname=mydb sslmode=disable")
-//
-// Any options not used by the connection process are parsed into ConnConfig.RuntimeParams.
-//
-// e.g. ParseDSN("application_name=pgxtest search_path=admin user=username password=password host=1.2.3.4 dbname=mydb")
-//
-// ParseDSN tries to match libpq behavior with regard to sslmode. See comments
-// for ParseEnvLibpq for more information on the security implications of
-// sslmode options.
-func ParseDSN(s string) (ConnConfig, error) {
-	var cp ConnConfig
-
-	m := dsnRegexp.FindAllStringSubmatch(s, -1)
-
-	tlsArgs := configTLSArgs{}
-
-	cp.RuntimeParams = make(map[string]string)
-
-	for _, b := range m {
-		switch b[1] {
-		case "user":
-			cp.User = b[2]
-		case "password":
-			cp.Password = b[2]
-		case "host":
-			cp.Host = b[2]
-		case "port":
-			p, err := strconv.ParseUint(b[2], 10, 16)
-			if err != nil {
-				return cp, err
-			}
-			cp.Port = uint16(p)
-		case "dbname":
-			cp.Database = b[2]
-		case "sslmode":
-			tlsArgs.sslMode = b[2]
-		case "sslrootcert":
-			tlsArgs.sslRootCert = b[2]
-		case "sslcert":
-			tlsArgs.sslCert = b[2]
-		case "sslkey":
-			tlsArgs.sslKey = b[2]
-		case "connect_timeout":
-			timeout, err := strconv.ParseInt(b[2], 10, 64)
-			if err != nil {
-				return cp, err
-			}
-			d := defaultDialer()
-			d.Timeout = time.Duration(timeout) * time.Second
-			cp.Dial = d.Dial
-		default:
-			cp.RuntimeParams[b[1]] = b[2]
-		}
-	}
-
-	err := configTLS(tlsArgs, &cp)
-	if err != nil {
-		return cp, err
-	}
-	if cp.Password == "" {
-		pgpass(&cp)
-	}
-	return cp, nil
-}
-
-// ParseConnectionString parses either a URI or a DSN connection string.
-// see ParseURI and ParseDSN for details.
-func ParseConnectionString(s string) (ConnConfig, error) {
-	if u, err := url.Parse(s); err == nil && u.Scheme != "" {
-		return ParseURI(s)
-	}
-	return ParseDSN(s)
-}
-
-// ParseEnvLibpq parses the environment like libpq does into a ConnConfig
-//
-// See http://www.postgresql.org/docs/9.4/static/libpq-envars.html for details
-// on the meaning of environment variables.
-//
-// ParseEnvLibpq currently recognizes the following environment variables:
-// PGHOST
-// PGPORT
-// PGDATABASE
-// PGUSER
-// PGPASSWORD
-// PGSSLMODE
-// PGSSLCERT
-// PGSSLKEY
-// PGSSLROOTCERT
-// PGAPPNAME
-// PGCONNECT_TIMEOUT
-//
-// Important TLS Security Notes:
-// ParseEnvLibpq tries to match libpq behavior with regard to PGSSLMODE. This
-// includes defaulting to "prefer" behavior if no environment variable is set.
-//
-// See http://www.postgresql.org/docs/9.4/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION
-// for details on what level of security each sslmode provides.
-//
-// "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
-// security guarantees than it would with libpq. Do not rely on this behavior as it
-// may be possible to match libpq in the future. If you need full security use
-// "verify-full".
-//
-// Several of the PGSSLMODE options (including the default behavior of "prefer")
-// will set UseFallbackTLS to true and FallbackTLSConfig to a disabled or
-// weakened TLS mode. This means that if ParseEnvLibpq is used, but TLSConfig is
-// later set from a different source that UseFallbackTLS MUST be set false to
-// avoid the possibility of falling back to weaker or disabled security.
-func ParseEnvLibpq() (ConnConfig, error) {
-	var cc ConnConfig
-
-	cc.Host = os.Getenv("PGHOST")
-
-	if pgport := os.Getenv("PGPORT"); pgport != "" {
-		if port, err := strconv.ParseUint(pgport, 10, 16); err == nil {
-			cc.Port = uint16(port)
-		} else {
-			return cc, err
-		}
-	}
-
-	cc.Database = os.Getenv("PGDATABASE")
-	cc.User = os.Getenv("PGUSER")
-	cc.Password = os.Getenv("PGPASSWORD")
-
-	if pgtimeout := os.Getenv("PGCONNECT_TIMEOUT"); pgtimeout != "" {
-		if timeout, err := strconv.ParseInt(pgtimeout, 10, 64); err == nil {
-			d := defaultDialer()
-			d.Timeout = time.Duration(timeout) * time.Second
-			cc.Dial = d.Dial
-		} else {
-			return cc, err
-		}
-	}
-
-	tlsArgs := configTLSArgs{
-		sslMode:     os.Getenv("PGSSLMODE"),
-		sslKey:      os.Getenv("PGSSLKEY"),
-		sslCert:     os.Getenv("PGSSLCERT"),
-		sslRootCert: os.Getenv("PGSSLROOTCERT"),
-	}
-
-	err := configTLS(tlsArgs, &cc)
-	if err != nil {
-		return cc, err
-	}
-
-	cc.RuntimeParams = make(map[string]string)
-	if appname := os.Getenv("PGAPPNAME"); appname != "" {
-		cc.RuntimeParams["application_name"] = appname
-	}
-	if cc.Password == "" {
-		pgpass(&cc)
-	}
-	return cc, nil
-}
-
-type configTLSArgs struct {
-	sslMode     string
-	sslRootCert string
-	sslCert     string
-	sslKey      string
-}
-
-// configTLS uses lib/pq's TLS parameters to reconstruct a coherent tls.Config.
-// Inputs are parsed out and provided by ParseDSN() or ParseURI().
-func configTLS(args configTLSArgs, cc *ConnConfig) error {
-	// Match libpq default behavior
-	if args.sslMode == "" {
-		args.sslMode = "prefer"
-	}
-
-	switch args.sslMode {
-	case "disable":
-		cc.UseFallbackTLS = false
-		cc.TLSConfig = nil
-		cc.FallbackTLSConfig = nil
-		return nil
-	case "allow":
-		cc.UseFallbackTLS = true
-		cc.FallbackTLSConfig = &tls.Config{InsecureSkipVerify: true}
-	case "prefer":
-		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-		cc.UseFallbackTLS = true
-		cc.FallbackTLSConfig = nil
-	case "require":
-		cc.TLSConfig = &tls.Config{InsecureSkipVerify: true}
-	case "verify-ca", "verify-full":
-		cc.TLSConfig = &tls.Config{
-			ServerName: cc.Host,
-		}
-	default:
-		return errors.New("sslmode is invalid")
-	}
-
-	if args.sslRootCert != "" {
-		caCertPool := x509.NewCertPool()
-
-		caPath := args.sslRootCert
-		caCert, err := ioutil.ReadFile(caPath)
-		if err != nil {
-			return errors.Wrapf(err, "unable to read CA file %q", caPath)
-		}
-
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return errors.Wrap(err, "unable to add CA to cert pool")
-		}
-
-		cc.TLSConfig.RootCAs = caCertPool
-		cc.TLSConfig.ClientCAs = caCertPool
-	}
-
-	sslcert := args.sslCert
-	sslkey := args.sslKey
-
-	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return fmt.Errorf(`both "sslcert" and "sslkey" are required`)
-	}
-
-	if sslcert != "" && sslkey != "" {
-		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
-		if err != nil {
-			return errors.Wrap(err, "unable to read cert")
-		}
-
-		cc.TLSConfig.Certificates = []tls.Certificate{cert}
-	}
-
-	return nil
+	return err
 }
 
 // ParameterStatus returns the value of a parameter reported by the server (e.g.
@@ -1336,9 +900,9 @@ func (c *Conn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	switch msg.Type {
 	case pgproto3.AuthTypeOk:
 	case pgproto3.AuthTypeCleartextPassword:
-		err = c.txPasswordMessage(c.config.Password)
+		err = c.txPasswordMessage(c.pgConn.Config.Password)
 	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(c.config.Password+c.config.User)+string(msg.Salt[:]))
+		digestedPassword := "md5" + hexMD5(hexMD5(c.pgConn.Config.Password+c.pgConn.Config.User)+string(msg.Salt[:]))
 		err = c.txPasswordMessage(digestedPassword)
 	default:
 		err = errors.New("Received unknown authentication message")
@@ -1555,7 +1119,7 @@ func quoteIdentifier(s string) string {
 
 func doCancel(c *Conn) error {
 	network, address := c.pgConn.Config.NetworkAddress()
-	cancelConn, err := c.pgConn.Config.Dial(network, address)
+	cancelConn, err := c.pgConn.Config.DialFunc(context.TODO(), network, address)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,33 @@
+PgConn
+
+Connect - create connection. Accept dialer, connection configs, read PG envvars automatically
+ConnectStrict - same as Connect, but no read env vars or try connection to multiple hosts
+
+Prepare (and describe synchronously)
+
+
+Async
+
+SendExec
+SendExecParams
+SendExecPrepared
+Flush
+GetResults
+
+PgResultReader - streams results
+
+Sync
+
+Exec
+ExecParams
+ExecPrepared
+
+PgResult - reads all results and buffers
+command tag
+
+Query methods, prepare, close, and anything else that can block should be context enabled.
+
+
+Possible:
+Reset
+
