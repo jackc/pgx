@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgmock"
 	"github.com/jackc/pgx/pgproto3"
 )
@@ -254,12 +255,12 @@ func TestConnBeginExContextCancel(t *testing.T) {
 		errChan <- server.ServeOne()
 	}()
 
-	mockConfig, err := pgx.ParseURI(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	pc, err := pgconn.ParseConfig(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conn := mustConnect(t, mockConfig)
+	conn := mustConnect(t, pgx.ConnConfig{Config: *pc})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -303,12 +304,12 @@ func TestTxCommitExCancel(t *testing.T) {
 		errChan <- server.ServeOne()
 	}()
 
-	mockConfig, err := pgx.ParseURI(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
+	pc, err := pgconn.ParseConfig(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	conn := mustConnect(t, mockConfig)
+	conn := mustConnect(t, pgx.ConnConfig{Config: *pc})
 	defer conn.Close()
 
 	tx, err := conn.Begin()

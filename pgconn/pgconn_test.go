@@ -1,16 +1,18 @@
 package pgconn_test
 
 import (
-	"github.com/jackc/pgx/pgconn"
-
+	"context"
+	"os"
 	"testing"
+
+	"github.com/jackc/pgx/pgconn"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSimple(t *testing.T) {
-	pgConn, err := pgconn.Connect(pgconn.ConnConfig{Host: "/var/run/postgresql", User: "jack", Database: "pgx_test"})
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
 	pgConn.SendExec("select current_database()")

@@ -297,7 +297,7 @@ func (p *ConnPool) Stat() (s ConnPoolStat) {
 }
 
 func (p *ConnPool) createConnection() (*Conn, error) {
-	c, err := connect(p.config, p.connInfo)
+	c, err := connect(context.TODO(), &p.config, p.connInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +319,8 @@ func (p *ConnPool) createConnection() (*Conn, error) {
 func (p *ConnPool) createConnectionUnlocked() (*Conn, error) {
 	p.inProgressConnects++
 	p.cond.L.Unlock()
-	c, err := Connect(p.config)
+	// c, err := Connect(p.config)
+	c, err := Connect(context.TODO(), "TODO")
 	p.cond.L.Lock()
 	p.inProgressConnects--
 

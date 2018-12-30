@@ -158,13 +158,13 @@ func NewStandbyStatus(walPositions ...uint64) (status *StandbyStatus, err error)
 	return
 }
 
-func ReplicationConnect(config ConnConfig) (r *ReplicationConn, err error) {
-	if config.RuntimeParams == nil {
-		config.RuntimeParams = make(map[string]string)
+func ReplicationConnect(config *ConnConfig) (r *ReplicationConn, err error) {
+	if config.Config.RuntimeParams == nil {
+		config.Config.RuntimeParams = make(map[string]string)
 	}
-	config.RuntimeParams["replication"] = "database"
+	config.Config.RuntimeParams["replication"] = "database"
 
-	c, err := Connect(config)
+	c, err := ConnectConfig(context.TODO(), config)
 	if err != nil {
 		return
 	}
