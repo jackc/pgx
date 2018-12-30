@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"io"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 func TestLargeObjects(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.Connect(*defaultConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ func TestLargeObjects(t *testing.T) {
 func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.Connect(*defaultConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,11 +2,8 @@ package pgx_test
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net"
-	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +21,7 @@ func TestCrateDBConnect(t *testing.T) {
 		t.Skip("Skipping due to undefined cratedbConnConfig")
 	}
 
-	conn, err := pgx.Connect(*cratedbConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), cratedbConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -47,7 +44,7 @@ func TestCrateDBConnect(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.Connect(*defaultConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -65,8 +62,8 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
-	if currentDB != defaultConnConfig.Database {
-		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	if currentDB != defaultConnConfig.Config.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Config.Database)
 	}
 
 	var user string
@@ -74,8 +71,8 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
-	if user != defaultConnConfig.User {
-		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	if user != defaultConnConfig.Config.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.Config.User)
 	}
 
 	err = conn.Close()
@@ -92,27 +89,7 @@ func TestConnectWithUnixSocketDirectory(t *testing.T) {
 		t.Skip("Skipping due to undefined unixSocketConnConfig")
 	}
 
-	conn, err := pgx.Connect(*unixSocketConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithUnixSocketFile(t *testing.T) {
-	t.Parallel()
-
-	if unixSocketConnConfig == nil {
-		t.Skip("Skipping due to undefined unixSocketConnConfig")
-	}
-
-	connParams := *unixSocketConnConfig
-	connParams.Host = connParams.Host + "/.s.PGSQL.5432"
-	conn, err := pgx.Connect(connParams)
+	conn, err := pgx.ConnectConfig(context.Background(), unixSocketConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -130,7 +107,7 @@ func TestConnectWithTcp(t *testing.T) {
 		t.Skip("Skipping due to undefined tcpConnConfig")
 	}
 
-	conn, err := pgx.Connect(*tcpConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), tcpConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -148,7 +125,7 @@ func TestConnectWithTLS(t *testing.T) {
 		t.Skip("Skipping due to undefined tlsConnConfig")
 	}
 
-	conn, err := pgx.Connect(*tlsConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), tlsConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -166,7 +143,7 @@ func TestConnectWithInvalidUser(t *testing.T) {
 		t.Skip("Skipping due to undefined invalidUserConnConfig")
 	}
 
-	_, err := pgx.Connect(*invalidUserConnConfig)
+	_, err := pgx.ConnectConfig(context.Background(), invalidUserConnConfig)
 	pgErr, ok := err.(pgx.PgError)
 	if !ok {
 		t.Fatalf("Expected to receive a PgError with code 28000, instead received: %v", err)
@@ -183,7 +160,7 @@ func TestConnectWithPlainTextPassword(t *testing.T) {
 		t.Skip("Skipping due to undefined plainPasswordConnConfig")
 	}
 
-	conn, err := pgx.Connect(*plainPasswordConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), plainPasswordConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -201,38 +178,7 @@ func TestConnectWithMD5Password(t *testing.T) {
 		t.Skip("Skipping due to undefined md5ConnConfig")
 	}
 
-	conn, err := pgx.Connect(*md5ConnConfig)
-	if err != nil {
-		t.Fatal("Unable to establish connection: " + err.Error())
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithTLSFallback(t *testing.T) {
-	t.Parallel()
-
-	if tlsConnConfig == nil {
-		t.Skip("Skipping due to undefined tlsConnConfig")
-	}
-
-	connConfig := *tlsConnConfig
-	connConfig.TLSConfig = &tls.Config{ServerName: "bogus.local"} // bogus ServerName should ensure certificate validation failure
-
-	conn, err := pgx.Connect(connConfig)
-	if err == nil {
-		t.Fatal("Expected failed connection, but succeeded")
-	}
-
-	connConfig = *tlsConnConfig
-	connConfig.TLSConfig = &tls.Config{ServerName: "bogus.local"}
-	connConfig.UseFallbackTLS = true
-	connConfig.FallbackTLSConfig = &tls.Config{ServerName: "bogus.local", InsecureSkipVerify: true}
-
-	conn, err = pgx.Connect(connConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), md5ConnConfig)
 	if err != nil {
 		t.Fatal("Unable to establish connection: " + err.Error())
 	}
@@ -251,7 +197,7 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	bad.Host = "127.0.0.1"
 	bad.Port = 1
 
-	_, err := pgx.Connect(bad)
+	_, err := pgx.ConnectConfig(context.Background(), &bad)
 	if err == nil {
 		t.Fatal("Expected error establishing connection to bad port")
 	}
@@ -291,12 +237,12 @@ func TestConnectCustomDialer(t *testing.T) {
 
 	dialled := false
 	conf := *customDialerConnConfig
-	conf.Dial = func(network, address string) (net.Conn, error) {
+	conf.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
 		dialled = true
 		return net.Dial(network, address)
 	}
 
-	conn, err := pgx.Connect(conf)
+	conn, err := pgx.ConnectConfig(context.Background(), &conf)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %s", err)
 	}
@@ -319,7 +265,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 		"search_path":      "myschema",
 	}
 
-	conn, err := pgx.Connect(connConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), &connConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -340,750 +286,6 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	}
 	if s != "myschema" {
 		t.Errorf("Expected search_path to be %s, but it was %s", "myschema", s)
-	}
-}
-
-func TestParseURI(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		url        string
-		connParams pgx.ConnConfig
-	}{
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=prefer",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable",
-			connParams: pgx.ConnConfig{
-				User:              "jack",
-				Password:          "secret",
-				Host:              "localhost",
-				Port:              5432,
-				Database:          "mydb",
-				TLSConfig:         nil,
-				UseFallbackTLS:    false,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgresql://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost/mydb?application_name=pgxtest&search_path=myschema",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams: map[string]string{
-					"application_name": "pgxtest",
-					"search_path":      "myschema",
-				},
-			},
-		},
-		{
-			url: "postgres:///foo?host=/tmp",
-			connParams: pgx.ConnConfig{
-				Host:     "/tmp",
-				Database: "foo",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-	}
-
-	for i, tt := range tests {
-		connParams, err := pgx.ParseURI(tt.url)
-		if err != nil {
-			t.Errorf("%d. Unexpected error from pgx.ParseURL(%q) => %v", i, tt.url, err)
-			continue
-		}
-
-		if !reflect.DeepEqual(connParams, tt.connParams) {
-			t.Errorf("%d. expected %#v got %#v", i, tt.connParams, connParams)
-		}
-	}
-}
-
-func TestParseDSN(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		url        string
-		connParams pgx.ConnConfig
-	}{
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
-			connParams: pgx.ConnConfig{
-				User:          "jack",
-				Password:      "secret",
-				Host:          "localhost",
-				Port:          5432,
-				Database:      "mydb",
-				RuntimeParams: map[string]string{},
-			},
-		},
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=prefer",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost port=5432 dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost dbname=mydb application_name=pgxtest search_path=myschema",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams: map[string]string{
-					"application_name": "pgxtest",
-					"search_path":      "myschema",
-				},
-			},
-		},
-		{
-			url: "user=jack host=localhost dbname=mydb connect_timeout=10",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				Dial:              (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 5 * time.Minute}).Dial,
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-	}
-
-	for i, tt := range tests {
-		actual, err := pgx.ParseDSN(tt.url)
-		if err != nil {
-			t.Errorf("%d. Unexpected error from pgx.ParseDSN(%q) => %v", i, tt.url, err)
-			continue
-		}
-
-		testConnConfigEquals(t, tt.connParams, actual, strconv.Itoa(i))
-	}
-}
-
-func TestParseConnectionString(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		url        string
-		connParams pgx.ConnConfig
-	}{
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=prefer",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable",
-			connParams: pgx.ConnConfig{
-				User:              "jack",
-				Password:          "secret",
-				Host:              "localhost",
-				Port:              5432,
-				Database:          "mydb",
-				TLSConfig:         nil,
-				UseFallbackTLS:    false,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgresql://jack:secret@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost:5432/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost/mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "postgres://jack@localhost/mydb?application_name=pgxtest&search_path=myschema",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams: map[string]string{
-					"application_name": "pgxtest",
-					"search_path":      "myschema",
-				},
-			},
-		},
-		{
-			url: "postgres://jack@localhost/mydb?connect_timeout=10",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				Dial:              (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 5 * time.Minute}).Dial,
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
-			connParams: pgx.ConnConfig{
-				User:          "jack",
-				Password:      "secret",
-				Host:          "localhost",
-				Port:          5432,
-				Database:      "mydb",
-				RuntimeParams: map[string]string{},
-			},
-		},
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=prefer",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack password=secret host=localhost port=5432 dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Password: "secret",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost port=5432 dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Port:     5432,
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost dbname=mydb",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			url: "user=jack host=localhost dbname=mydb application_name=pgxtest search_path=myschema",
-			connParams: pgx.ConnConfig{
-				User:     "jack",
-				Host:     "localhost",
-				Database: "mydb",
-				TLSConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams: map[string]string{
-					"application_name": "pgxtest",
-					"search_path":      "myschema",
-				},
-			},
-		},
-	}
-
-	for i, tt := range tests {
-		actual, err := pgx.ParseConnectionString(tt.url)
-		if err != nil {
-			t.Errorf("%d. Unexpected error from pgx.ParseDSN(%q) => %v", i, tt.url, err)
-			continue
-		}
-
-		testConnConfigEquals(t, tt.connParams, actual, strconv.Itoa(i))
-	}
-}
-
-func testConnConfigEquals(t *testing.T, expected pgx.ConnConfig, actual pgx.ConnConfig, testName string) {
-	if actual.Host != expected.Host {
-		t.Errorf("%s: expected Host to be %v got %v", testName, expected.Host, actual.Host)
-	}
-	if actual.Database != expected.Database {
-		t.Errorf("%s: expected Database to be %v got %v", testName, expected.Database, actual.Database)
-	}
-	if actual.Port != expected.Port {
-		t.Errorf("%s: expected Port to be %v got %v", testName, expected.Port, actual.Port)
-	}
-	if actual.Port != expected.Port {
-		t.Errorf("%s: expected Port to be %v got %v", testName, expected.Port, actual.Port)
-	}
-	if actual.User != expected.User {
-		t.Errorf("%s: expected User to be %v got %v", testName, expected.User, actual.User)
-	}
-	if actual.Password != expected.Password {
-		t.Errorf("%s: expected Password to be %v got %v", testName, expected.Password, actual.Password)
-	}
-	// Cannot test value of underlying Dialer stuct but can at least test if Dial func is set.
-	if (actual.Dial != nil) != (expected.Dial != nil) {
-		t.Errorf("%s: expected Dial mismatch", testName)
-	}
-
-	if !reflect.DeepEqual(actual.RuntimeParams, expected.RuntimeParams) {
-		t.Errorf("%s: expected RuntimeParams to be %#v got %#v", testName, expected.RuntimeParams, actual.RuntimeParams)
-	}
-
-	tlsTests := []struct {
-		name     string
-		expected *tls.Config
-		actual   *tls.Config
-	}{
-		{
-			name:     "TLSConfig",
-			expected: expected.TLSConfig,
-			actual:   actual.TLSConfig,
-		},
-		{
-			name:     "FallbackTLSConfig",
-			expected: expected.FallbackTLSConfig,
-			actual:   actual.FallbackTLSConfig,
-		},
-	}
-	for _, tlsTest := range tlsTests {
-		name := tlsTest.name
-		expected := tlsTest.expected
-		actual := tlsTest.actual
-
-		if expected == nil && actual != nil {
-			t.Errorf("%s / %s: expected nil, but it was set", testName, name)
-		} else if expected != nil && actual == nil {
-			t.Errorf("%s / %s: expected to be set, but got nil", testName, name)
-		} else if expected != nil && actual != nil {
-			if actual.InsecureSkipVerify != expected.InsecureSkipVerify {
-				t.Errorf("%s / %s: expected InsecureSkipVerify to be %v got %v", testName, name, expected.InsecureSkipVerify, actual.InsecureSkipVerify)
-			}
-
-			if actual.ServerName != expected.ServerName {
-				t.Errorf("%s / %s: expected ServerName to be %v got %v", testName, name, expected.ServerName, actual.ServerName)
-			}
-		}
-	}
-
-	if actual.UseFallbackTLS != expected.UseFallbackTLS {
-		t.Errorf("%s: expected UseFallbackTLS to be %v got %v", testName, expected.UseFallbackTLS, actual.UseFallbackTLS)
-	}
-}
-
-func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
-
-	savedEnv := make(map[string]string)
-	for _, n := range pgEnvvars {
-		savedEnv[n] = os.Getenv(n)
-	}
-	defer func() {
-		for k, v := range savedEnv {
-			err := os.Setenv(k, v)
-			if err != nil {
-				t.Fatalf("Unable to restore environment: %v", err)
-			}
-		}
-	}()
-
-	tests := []struct {
-		name    string
-		envvars map[string]string
-		config  pgx.ConnConfig
-	}{
-		{
-			name:    "No environment",
-			envvars: map[string]string{},
-			config: pgx.ConnConfig{
-				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			name: "Normal PG vars",
-			envvars: map[string]string{
-				"PGHOST":            "123.123.123.123",
-				"PGPORT":            "7777",
-				"PGDATABASE":        "foo",
-				"PGUSER":            "bar",
-				"PGPASSWORD":        "baz",
-				"PGCONNECT_TIMEOUT": "10",
-			},
-			config: pgx.ConnConfig{
-				Host:              "123.123.123.123",
-				Port:              7777,
-				Database:          "foo",
-				User:              "bar",
-				Password:          "baz",
-				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				Dial:              (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 5 * time.Minute}).Dial,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			name: "application_name",
-			envvars: map[string]string{
-				"PGAPPNAME": "pgxtest",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{"application_name": "pgxtest"},
-			},
-		},
-		{
-			name: "sslmode=disable",
-			envvars: map[string]string{
-				"PGSSLMODE": "disable",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:      nil,
-				UseFallbackTLS: false,
-				RuntimeParams:  map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=allow",
-			envvars: map[string]string{
-				"PGSSLMODE": "allow",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:         nil,
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: &tls.Config{InsecureSkipVerify: true},
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=prefer",
-			envvars: map[string]string{
-				"PGSSLMODE": "prefer",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:         &tls.Config{InsecureSkipVerify: true},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=require",
-			envvars: map[string]string{
-				"PGSSLMODE": "require",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:      &tls.Config{InsecureSkipVerify: true},
-				UseFallbackTLS: false,
-				RuntimeParams:  map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=verify-ca",
-			envvars: map[string]string{
-				"PGSSLMODE": "verify-ca",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:      &tls.Config{},
-				UseFallbackTLS: false,
-				RuntimeParams:  map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=verify-full",
-			envvars: map[string]string{
-				"PGSSLMODE": "verify-full",
-			},
-			config: pgx.ConnConfig{
-				TLSConfig:      &tls.Config{},
-				UseFallbackTLS: false,
-				RuntimeParams:  map[string]string{},
-			},
-		},
-		{
-			name: "sslmode=verify-full with host",
-			envvars: map[string]string{
-				"PGHOST":    "pgx.example",
-				"PGSSLMODE": "verify-full",
-			},
-			config: pgx.ConnConfig{
-				Host: "pgx.example",
-				TLSConfig: &tls.Config{
-					ServerName: "pgx.example",
-				},
-				UseFallbackTLS: false,
-				RuntimeParams:  map[string]string{},
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		for _, n := range pgEnvvars {
-			err := os.Unsetenv(n)
-			if err != nil {
-				t.Fatalf("%s: Unable to clear environment: %v", tt.name, err)
-			}
-		}
-
-		for k, v := range tt.envvars {
-			err := os.Setenv(k, v)
-			if err != nil {
-				t.Fatalf("%s: Unable to set environment: %v", tt.name, err)
-			}
-		}
-
-		actual, err := pgx.ParseEnvLibpq()
-		if err != nil {
-			t.Errorf("%s: Unexpected error from pgx.ParseLibpq() => %v", tt.name, err)
-			continue
-		}
-
-		testConnConfigEquals(t, tt.config, actual, tt.name)
 	}
 }
 
@@ -1863,7 +1065,7 @@ func TestFatalRxError(t *testing.T) {
 		}
 	}()
 
-	otherConn, err := pgx.Connect(*defaultConnConfig)
+	otherConn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -1889,7 +1091,7 @@ func TestFatalTxError(t *testing.T) {
 			conn := mustConnect(t, *defaultConnConfig)
 			defer closeConn(t, conn)
 
-			otherConn, err := pgx.Connect(*defaultConnConfig)
+			otherConn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 			if err != nil {
 				t.Fatalf("Unable to establish connection: %v", err)
 			}

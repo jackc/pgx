@@ -162,7 +162,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 	var dialCountLock sync.Mutex
 	dialCount := 0
 	openTimeout := 1 * time.Second
-	testDialer := func(network, address string) (net.Conn, error) {
+	testDialer := func(ctx context.Context, network, address string) (net.Conn, error) {
 		var firstDial bool
 		dialCountLock.Lock()
 		dialCount++
@@ -182,7 +182,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 		ConnConfig:     *defaultConnConfig,
 		MaxConnections: maxConnections,
 	}
-	config.ConnConfig.Dial = testDialer
+	config.ConnConfig.Config.DialFunc = testDialer
 
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {

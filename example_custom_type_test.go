@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -72,7 +73,7 @@ func (src *Point) String() string {
 }
 
 func Example_CustomType() {
-	conn, err := pgx.Connect(*defaultConnConfig)
+	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
