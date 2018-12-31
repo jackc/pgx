@@ -45,7 +45,7 @@ type PgError struct {
 	Routine          string
 }
 
-func (pe PgError) Error() string {
+func (pe *PgError) Error() string {
 	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
 }
 
@@ -118,7 +118,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 		pgConn, err = connect(ctx, config, fc)
 		if err == nil {
 			return pgConn, nil
-		} else if err, ok := err.(PgError); ok {
+		} else if err, ok := err.(*PgError); ok {
 			return nil, err
 		}
 	}
@@ -199,7 +199,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
 			pgConn.NetConn.Close()
-			return nil, PgError{
+			return nil, &PgError{
 				Severity:         msg.Severity,
 				Code:             msg.Code,
 				Message:          msg.Message,
@@ -654,8 +654,8 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) (*PgResult, error) {
 	return result, nil
 }
 
-func errorResponseToPgError(msg *pgproto3.ErrorResponse) PgError {
-	return PgError{
+func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
+	return &PgError{
 		Severity:         msg.Severity,
 		Code:             msg.Code,
 		Message:          msg.Message,

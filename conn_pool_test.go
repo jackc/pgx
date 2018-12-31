@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
@@ -892,7 +893,7 @@ func TestConnPoolPrepare(t *testing.T) {
 	}
 
 	err = pool.QueryRow("test", "hello").Scan(&s)
-	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
+	if err, ok := err.(*pgconn.PgError); !(ok && err.Code == "42601") {
 		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
 	}
 }
@@ -996,7 +997,7 @@ func TestConnPoolPrepareWhenConnIsAlreadyAcquired(t *testing.T) {
 
 	var s string
 	err = pool.QueryRow("test", "hello").Scan(&s)
-	if err, ok := err.(pgx.PgError); !(ok && err.Code == "42601") {
+	if err, ok := err.(*pgconn.PgError); !(ok && err.Code == "42601") {
 		t.Errorf("Expected error calling deallocated prepared statement, but got: %v", err)
 	}
 }

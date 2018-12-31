@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 )
 
 func TestConnCopyToWriterSmall(t *testing.T) {
@@ -103,7 +103,7 @@ func TestConnCopyToWriterQueryError(t *testing.T) {
 		t.Errorf("Expected CopyToWriter return error, but it did not")
 	}
 
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyToWriter return pgx.PgError, but instead it returned: %v", err)
 	}
 

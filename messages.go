@@ -79,11 +79,9 @@ func (fd FieldDescription) Type() reflect.Type {
 	}
 }
 
-type PgError = pgconn.PgError
-
 // Notice represents a notice response message reported by the PostgreSQL
 // server. Be aware that this is distinct from LISTEN/NOTIFY notification.
-type Notice PgError
+type Notice pgconn.PgError
 
 // appendParse appends a PostgreSQL wire protocol parse message to buf and returns it.
 func appendParse(buf []byte, name string, query string, parameterOIDs []pgtype.OID) []byte {

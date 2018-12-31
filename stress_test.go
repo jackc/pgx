@@ -13,6 +13,7 @@ import (
 
 	"github.com/jackc/fake"
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 )
 
 type execer interface {
@@ -190,7 +191,7 @@ func queryErrorWhileReturningRows(q queryer, actionNum int) error {
 		rows.Scan(&n)
 	}
 
-	if _, ok := rows.Err().(pgx.PgError); ok {
+	if _, ok := rows.Err().(*pgconn.PgError); ok {
 		return nil
 	}
 	return rows.Err()

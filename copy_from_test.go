@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/pkg/errors"
 )
 
@@ -332,7 +333,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyFrom return pgx.PgError, but instead it returned: %v", err)
 	}
 	if copyCount != 0 {
@@ -367,7 +368,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 	copyCount = int(res.RowsAffected())
@@ -437,7 +438,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyFrom return pgx.PgError, but instead it returned: %v", err)
 	}
 	if copyCount != 0 {
@@ -637,7 +638,7 @@ func TestConnCopyFromReaderQueryError(t *testing.T) {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 
@@ -662,7 +663,7 @@ func TestConnCopyFromReaderNoTableError(t *testing.T) {
 		t.Errorf("Expected CopyFromReader return error, but it did not")
 	}
 
-	if _, ok := err.(pgx.PgError); !ok {
+	if _, ok := err.(*pgconn.PgError); !ok {
 		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
 	}
 

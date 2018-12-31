@@ -13,6 +13,7 @@ import (
 
 	"github.com/cockroachdb/apd"
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
 	uuid "github.com/satori/go.uuid"
@@ -415,7 +416,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 				rows.Scan(&n)
 			}
 
-			if err, ok := rows.Err().(pgx.PgError); !ok {
+			if err, ok := rows.Err().(*pgconn.PgError); !ok {
 				t.Fatalf("Expected pgx.PgError, got %v", err)
 			}
 

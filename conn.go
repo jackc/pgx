@@ -449,7 +449,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 	// [2] https://github.com/crate/crate/issues/5027
 	// [3] https://github.com/jackc/pgx/issues/320
 
-	if pgErr, ok := err.(PgError); ok &&
+	if pgErr, ok := err.(*pgconn.PgError); ok &&
 		(pgErr.Code == "XX000" ||
 			strings.Contains(pgErr.Message, "TableUnknownException") ||
 			strings.Contains(pgErr.Message, "ColumnUnknownException")) {
@@ -922,8 +922,8 @@ func hexMD5(s string) string {
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
-func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) PgError {
-	err := PgError{
+func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
+	err := &pgconn.PgError{
 		Severity:         msg.Severity,
 		Code:             msg.Code,
 		Message:          msg.Message,
