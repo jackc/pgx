@@ -1123,39 +1123,9 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
-	// the connection config. This is important in high availability configurations where fallback connections may be
-	// specified or DNS may be used to load balance.
-	serverAddr := c.pgConn.NetConn.RemoteAddr()
-	cancelConn, err := c.pgConn.Config.DialFunc(context.TODO(), serverAddr.Network(), serverAddr.String())
-	if err != nil {
-		return err
-	}
-	defer cancelConn.Close()
-
-	// If server doesn't process cancellation request in bounded time then abort.
-	now := time.Now()
-	err = cancelConn.SetDeadline(now.Add(15 * time.Second))
-	if err != nil {
-		return err
-	}
-
-	buf := make([]byte, 16)
-	binary.BigEndian.PutUint32(buf[0:4], 16)
-	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(c.pgConn.PID))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(c.pgConn.SecretKey))
-	_, err = cancelConn.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	_, err = cancelConn.Read(buf)
-	if err != io.EOF {
-		return errors.Errorf("Server failed to close connection after cancel query request: %v %v", err, buf)
-	}
-
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	return c.pgConn.CancelRequest(ctx)
 }
 
 // cancelQuery sends a cancel request to the PostgreSQL server. It returns an
