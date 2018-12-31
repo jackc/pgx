@@ -12,12 +12,15 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 )
 
 const batchBufferSize = 4096
+
+var deadlineTime = time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)
 
 // PgError represents an error reported by the PostgreSQL server. See
 // http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
@@ -185,7 +188,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			}
 		case *pgproto3.ReadyForQuery:
 			if config.AfterConnectFunc != nil {
-				err := config.AfterConnectFunc(pgConn)
+				err := config.AfterConnectFunc(ctx, pgConn)
 				if err != nil {
 					pgConn.NetConn.Close()
 					return nil, fmt.Errorf("AfterConnectFunc: %v", err)
@@ -296,24 +299,28 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 	return msg, nil
 }
 
-// Close closes a connection. It is safe to call Close on a already closed
-// connection.
-func (pgConn *PgConn) Close() error {
+// Close closes a connection. It is safe to call Close on a already closed connection. Close attempts a clean close by
+// sending the exit message to PostgreSQL. However, this could block so ctx is available to limit the time to wait. The
+// underlying net.Conn.Close() will always be called regardless of any other errors.
+func (pgConn *PgConn) Close(ctx context.Context) error {
 	if pgConn.closed {
 		return nil
 	}
 	pgConn.closed = true
 
+	defer pgConn.NetConn.Close()
+
+	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.NetConn)
+	defer cleanupContext()
+
 	_, err := pgConn.NetConn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil {
-		pgConn.NetConn.Close()
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	_, err = pgConn.NetConn.Read(make([]byte, 1))
 	if err != io.EOF {
-		pgConn.NetConn.Close()
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	return pgConn.NetConn.Close()
@@ -365,30 +372,38 @@ type PgResultReader struct {
 	err                error
 	complete           bool
 	preloadedRowValues bool
+	ctx                context.Context
+	cleanupContext     func()
 }
 
 // GetResult returns a PgResultReader for the next result. If all results are
 // consumed it returns nil. If an error occurs it will be reported on the
 // returned PgResultReader.
-func (pgConn *PgConn) GetResult() *PgResultReader {
+func (pgConn *PgConn) GetResult(ctx context.Context) *PgResultReader {
+	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.NetConn)
+
 	for pgConn.pendingReadyForQueryCount > 0 {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			return &PgResultReader{pgConn: pgConn, err: err, complete: true}
+			cleanupContext()
+			return &PgResultReader{pgConn: pgConn, ctx: ctx, err: preferContextOverNetTimeoutError(ctx, err), complete: true}
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
-			return &PgResultReader{pgConn: pgConn, fieldDescriptions: msg.Fields}
+			return &PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, fieldDescriptions: msg.Fields}
 		case *pgproto3.DataRow:
-			return &PgResultReader{pgConn: pgConn, rowValues: msg.Values, preloadedRowValues: true}
+			return &PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, rowValues: msg.Values, preloadedRowValues: true}
 		case *pgproto3.CommandComplete:
-			return &PgResultReader{pgConn: pgConn, commandTag: CommandTag(msg.CommandTag), complete: true}
+			cleanupContext()
+			return &PgResultReader{pgConn: pgConn, ctx: ctx, commandTag: CommandTag(msg.CommandTag), complete: true}
 		case *pgproto3.ErrorResponse:
-			return &PgResultReader{pgConn: pgConn, err: errorResponseToPgError(msg), complete: true}
+			cleanupContext()
+			return &PgResultReader{pgConn: pgConn, ctx: ctx, err: errorResponseToPgError(msg), complete: true}
 		}
 	}
 
+	cleanupContext()
 	return nil
 }
 
@@ -406,6 +421,8 @@ func (rr *PgResultReader) NextRow() bool {
 	for {
 		msg, err := rr.pgConn.ReceiveMessage()
 		if err != nil {
+			rr.err = preferContextOverNetTimeoutError(rr.ctx, err)
+			rr.close()
 			return false
 		}
 
@@ -416,13 +433,12 @@ func (rr *PgResultReader) NextRow() bool {
 			rr.rowValues = msg.Values
 			return true
 		case *pgproto3.CommandComplete:
-			rr.rowValues = nil
 			rr.commandTag = CommandTag(msg.CommandTag)
-			rr.complete = true
+			rr.close()
 			return false
 		case *pgproto3.ErrorResponse:
 			rr.err = errorResponseToPgError(msg)
-			rr.complete = true
+			rr.close()
 			return false
 		}
 	}
@@ -441,44 +457,135 @@ func (rr *PgResultReader) Close() (CommandTag, error) {
 	if rr.complete {
 		return rr.commandTag, rr.err
 	}
-
-	rr.rowValues = nil
+	defer rr.close()
 
 	for {
 		msg, err := rr.pgConn.ReceiveMessage()
 		if err != nil {
-			rr.err = err
-			rr.complete = true
+			rr.err = preferContextOverNetTimeoutError(rr.ctx, err)
 			return rr.commandTag, rr.err
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.CommandComplete:
 			rr.commandTag = CommandTag(msg.CommandTag)
-			rr.complete = true
 			return rr.commandTag, rr.err
 		case *pgproto3.ErrorResponse:
 			rr.err = errorResponseToPgError(msg)
-			rr.complete = true
 			return rr.commandTag, rr.err
 		}
 	}
 }
 
+func (rr *PgResultReader) close() {
+	if rr.complete {
+		return
+	}
+
+	rr.cleanupContext()
+	rr.rowValues = nil
+	rr.complete = true
+}
+
 // Flush sends the enqueued execs to the server.
-func (pgConn *PgConn) Flush() error {
+func (pgConn *PgConn) Flush(ctx context.Context) error {
 	defer pgConn.resetBatch()
+
+	cleanup := contextDoneToConnDeadline(ctx, pgConn.NetConn)
+	defer cleanup()
 
 	n, err := pgConn.NetConn.Write(pgConn.batchBuf)
 	if err != nil {
 		if n > 0 {
-			// TODO - kill connection - we sent a partial message
+			// Close connection because cannot recover from partially sent message.
+			pgConn.NetConn.Close()
+			pgConn.closed = true
 		}
-		return err
+		return preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	pgConn.pendingReadyForQueryCount += pgConn.batchCount
 	return nil
+}
+
+// contextDoneToConnDeadline starts a goroutine that will set an immediate deadline on conn after reading from
+// ctx.Done(). The returned cleanup function must be called to terminate this goroutine. The cleanup function is safe to
+// call multiple times.
+func contextDoneToConnDeadline(ctx context.Context, conn net.Conn) (cleanup func()) {
+	if ctx.Done() != nil {
+		deadlineWasSet := false
+		doneChan := make(chan struct{})
+		go func() {
+			select {
+			case <-ctx.Done():
+				conn.SetDeadline(deadlineTime)
+				deadlineWasSet = true
+				<-doneChan
+				// TODO
+			case <-doneChan:
+			}
+		}()
+
+		finished := false
+		return func() {
+			if !finished {
+				doneChan <- struct{}{}
+				if deadlineWasSet {
+					conn.SetDeadline(time.Time{})
+				}
+				finished = true
+			}
+		}
+	}
+
+	return func() {}
+}
+
+// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
+// true. Otherwise returns err.
+func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
+	if err, ok := err.(net.Error); ok && err.Timeout() && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
+}
+
+// RecoverFromTimeout attempts to recover from a timeout error such as is caused by a canceled context. If recovery is
+// successful true is returned. If recovery is not successful the connection is closed and false it returned. Recovery
+// should usually be possible except in the case of a partial write. This must be called after any context cancellation.
+//
+// As RecoverFromTimeout may need to read and ignored data already sent from the server, it potentially can block
+// indefinitely. Use ctx to guard against this.
+func (pgConn *PgConn) RecoverFromTimeout(ctx context.Context) bool {
+	if pgConn.closed {
+		return false
+	}
+	pgConn.resetBatch()
+
+	pgConn.NetConn.SetDeadline(time.Time{})
+
+	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.NetConn)
+	defer cleanupContext()
+
+	for pgConn.pendingReadyForQueryCount > 0 {
+		_, err := pgConn.ReceiveMessage()
+		if err != nil {
+			preferContextOverNetTimeoutError(ctx, err)
+			pgConn.Close(context.Background())
+			return false
+		}
+	}
+
+	result, err := pgConn.Exec(
+		context.Background(), // do not use ctx again because deadline goroutine already started above
+		"select 'RecoverFromTimeout'",
+	)
+	if err != nil || len(result.Rows) != 1 || len(result.Rows[0]) != 1 || string(result.Rows[0][0]) != "RecoverFromTimeout" {
+		pgConn.Close(context.Background())
+		return false
+	}
+
+	return true
 }
 
 func (pgConn *PgConn) resetBatch() {
@@ -500,7 +607,7 @@ type PgResult struct {
 // transactions unless a transaction is already in progress or sql contains transaction control statements.
 //
 // Exec must not be called when there are pending results from previous Send* methods (e.g. SendExec).
-func (pgConn *PgConn) Exec(sql string) (*PgResult, error) {
+func (pgConn *PgConn) Exec(ctx context.Context, sql string) (*PgResult, error) {
 	if pgConn.batchCount != 0 {
 		return nil, errors.New("unflushed previous sends")
 	}
@@ -509,14 +616,14 @@ func (pgConn *PgConn) Exec(sql string) (*PgResult, error) {
 	}
 
 	pgConn.SendExec(sql)
-	err := pgConn.Flush()
+	err := pgConn.Flush(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var result *PgResult
 
-	for resultReader := pgConn.GetResult(); resultReader != nil; resultReader = pgConn.GetResult() {
+	for resultReader := pgConn.GetResult(ctx); resultReader != nil; resultReader = pgConn.GetResult(ctx) {
 		rows := [][][]byte{}
 		for resultReader.NextRow() {
 			row := make([][]byte, len(resultReader.Values()))
