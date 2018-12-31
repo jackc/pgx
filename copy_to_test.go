@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/jackc/pgx"
@@ -10,7 +11,7 @@ import (
 func TestConnCopyToWriterSmall(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -50,7 +51,7 @@ func TestConnCopyToWriterSmall(t *testing.T) {
 func TestConnCopyToWriterLarge(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -92,7 +93,7 @@ func TestConnCopyToWriterLarge(t *testing.T) {
 func TestConnCopyToWriterQueryError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0))

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eux
 
-mv conn_config_test.go.travis conn_config_test.go
-
 if [ "${PGVERSION-}" != "" ]
 then
   # The tricky test user, below, has to actually exist so that it can be used in a test

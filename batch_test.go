@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/jackc/pgx"
@@ -11,7 +12,7 @@ import (
 func TestConnBeginBatch(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
@@ -152,7 +153,7 @@ func TestConnBeginBatch(t *testing.T) {
 func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	_, err := conn.Prepare("ps1", "select n from generate_series(0,$1::int) n")
@@ -208,7 +209,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 
 	sql := `create temporary table ledger(
   id serial primary key,
@@ -251,7 +252,7 @@ func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
 func TestConnBeginBatchContextCancelBeforeQueryResults(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 
 	batch := conn.BeginBatch()
 	batch.Queue("select pg_sleep(2)",
@@ -287,7 +288,7 @@ func TestConnBeginBatchContextCancelBeforeQueryResults(t *testing.T) {
 func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 
 	batch := conn.BeginBatch()
 	batch.Queue("select pg_sleep(2)",
@@ -323,7 +324,7 @@ func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
 func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	batch := conn.BeginBatch()
@@ -394,7 +395,7 @@ func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
 func TestConnBeginBatchQueryError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	batch := conn.BeginBatch()
@@ -446,7 +447,7 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	batch := conn.BeginBatch()
@@ -480,7 +481,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
@@ -529,7 +530,7 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
@@ -578,7 +579,7 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 func TestTxBeginBatch(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger1(
@@ -663,7 +664,7 @@ func TestTxBeginBatch(t *testing.T) {
 func TestTxBeginBatchRollback(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger1(

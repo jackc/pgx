@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,19 +12,20 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCrateDBConnect(t *testing.T) {
 	t.Parallel()
 
-	if cratedbConnConfig == nil {
-		t.Skip("Skipping due to undefined cratedbConnConfig")
+	connString := os.Getenv("PGX_TEST_CRATEDB_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_CRATEDB_CONN_STRING")
 	}
 
-	conn, err := pgx.ConnectConfig(context.Background(), cratedbConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
+	conn, err := pgx.Connect(context.Background(), connString)
+	require.Nil(t, err)
+	defer closeConn(t, conn)
 
 	var result int
 	err = conn.QueryRow("select 1 +1").Scan(&result)
@@ -33,17 +35,14 @@ func TestCrateDBConnect(t *testing.T) {
 	if result != 2 {
 		t.Errorf("bad result: %d", result)
 	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
 }
 
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+
+	conn, err := pgx.ConnectConfig(context.Background(), &config)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -61,8 +60,8 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
-	if currentDB != defaultConnConfig.Config.Database {
-		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Config.Database)
+	if currentDB != config.Config.Database {
+		t.Errorf("Did not connect to specified database (%v)", config.Config.Database)
 	}
 
 	var user string
@@ -70,8 +69,8 @@ func TestConnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
-	if user != defaultConnConfig.Config.User {
-		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.Config.User)
+	if user != config.Config.User {
+		t.Errorf("Did not connect as specified user (%v)", config.Config.User)
 	}
 
 	err = conn.Close()
@@ -83,7 +82,7 @@ func TestConnect(t *testing.T) {
 func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
-	connConfig := *defaultConnConfig
+	connConfig := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 	connConfig.PreferSimpleProtocol = true
 
 	conn := mustConnect(t, connConfig)
@@ -108,7 +107,7 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 func TestExec(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
@@ -143,7 +142,7 @@ func TestExec(t *testing.T) {
 func TestExecFailure(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if _, err := conn.Exec("selct;"); err == nil {
@@ -166,7 +165,7 @@ func TestExecFailure(t *testing.T) {
 func TestExecFailureWithArguments(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if _, err := conn.Exec("selct $1;", 1); err == nil {
@@ -180,7 +179,7 @@ func TestExecFailureWithArguments(t *testing.T) {
 func TestExecExContextWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -201,7 +200,7 @@ func TestExecExContextWithoutCancelation(t *testing.T) {
 func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -227,7 +226,7 @@ func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -244,7 +243,7 @@ func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
 func TestExecExContextCancelationCancelsQuery(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -267,7 +266,7 @@ func TestExecExContextCancelationCancelsQuery(t *testing.T) {
 func TestExecFailureCloseBefore(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
 	if _, err := conn.Exec("select 1"); err == nil {
@@ -281,7 +280,7 @@ func TestExecFailureCloseBefore(t *testing.T) {
 func TestExecExExtendedProtocol(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -314,7 +313,7 @@ func TestExecExExtendedProtocol(t *testing.T) {
 func TestExecExSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -351,7 +350,7 @@ func TestExecExSimpleProtocol(t *testing.T) {
 func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
@@ -376,7 +375,7 @@ func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
 func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
@@ -398,7 +397,7 @@ func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
 func TestConnExecExIncorrectParameterOIDsAfterAnotherQuery(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
@@ -429,7 +428,7 @@ func TestConnExecExIncorrectParameterOIDsAfterAnotherQuery(t *testing.T) {
 func TestExecExFailureCloseBefore(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
 	if _, err := conn.ExecEx(context.Background(), "select 1", nil); err == nil {
@@ -443,7 +442,7 @@ func TestExecExFailureCloseBefore(t *testing.T) {
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	_, err := conn.Prepare("test", "select $1::varchar")
@@ -495,7 +494,7 @@ func TestPrepare(t *testing.T) {
 func TestPrepareBadSQLFailure(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if _, err := conn.Prepare("badSQL", "select foo"); err == nil {
@@ -508,7 +507,7 @@ func TestPrepareBadSQLFailure(t *testing.T) {
 func TestPrepareQueryManyParameters(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tests := []struct {
@@ -578,7 +577,7 @@ func TestPrepareQueryManyParameters(t *testing.T) {
 func TestPrepareIdempotency(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	for i := 0; i < 2; i++ {
@@ -608,7 +607,7 @@ func TestPrepareIdempotency(t *testing.T) {
 func TestPrepareEx(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	_, err := conn.PrepareEx(context.Background(), "test", "select $1", &pgx.PrepareExOptions{ParameterOIDs: []pgtype.OID{pgtype.TextOID}})
@@ -636,14 +635,14 @@ func TestPrepareEx(t *testing.T) {
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
-	listener := mustConnect(t, *defaultConnConfig)
+	listener := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, listener)
 
 	if err := listener.Listen("chat"); err != nil {
 		t.Fatalf("Unable to start listening: %v", err)
 	}
 
-	notifier := mustConnect(t, *defaultConnConfig)
+	notifier := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, notifier)
 
 	mustExec(t, notifier, "notify chat")
@@ -700,14 +699,14 @@ func TestListenNotify(t *testing.T) {
 func TestUnlistenSpecificChannel(t *testing.T) {
 	t.Parallel()
 
-	listener := mustConnect(t, *defaultConnConfig)
+	listener := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, listener)
 
 	if err := listener.Listen("unlisten_test"); err != nil {
 		t.Fatalf("Unable to start listening: %v", err)
 	}
 
-	notifier := mustConnect(t, *defaultConnConfig)
+	notifier := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, notifier)
 
 	mustExec(t, notifier, "notify unlisten_test")
@@ -747,7 +746,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 	listenerDone := make(chan bool)
 	go func() {
-		conn := mustConnect(t, *defaultConnConfig)
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 		defer closeConn(t, conn)
 		defer func() {
 			listenerDone <- true
@@ -790,7 +789,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	}()
 
 	go func() {
-		conn := mustConnect(t, *defaultConnConfig)
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 		defer closeConn(t, conn)
 
 		for i := 0; i < 100000; i++ {
@@ -805,7 +804,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 func TestListenNotifySelfNotification(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if err := conn.Listen("self"); err != nil {
@@ -848,7 +847,7 @@ func TestListenNotifySelfNotification(t *testing.T) {
 func TestListenUnlistenSpecialCharacters(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	chanName := "special characters !@#{$%^&*()}"
@@ -864,7 +863,7 @@ func TestListenUnlistenSpecialCharacters(t *testing.T) {
 func TestFatalRxError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var wg sync.WaitGroup
@@ -881,10 +880,7 @@ func TestFatalRxError(t *testing.T) {
 		}
 	}()
 
-	otherConn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
+	otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer otherConn.Close()
 
 	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID()); err != nil {
@@ -904,16 +900,13 @@ func TestFatalTxError(t *testing.T) {
 	// Run timing sensitive test many times
 	for i := 0; i < 50; i++ {
 		func() {
-			conn := mustConnect(t, *defaultConnConfig)
+			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer closeConn(t, conn)
 
-			otherConn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
-			if err != nil {
-				t.Fatalf("Unable to establish connection: %v", err)
-			}
+			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer otherConn.Close()
 
-			_, err = otherConn.Exec("select pg_terminate_backend($1)", conn.PID())
+			_, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID())
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
@@ -958,7 +951,7 @@ func TestCommandTag(t *testing.T) {
 func TestInsertBoolArray(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); results != "CREATE TABLE" {
@@ -974,7 +967,7 @@ func TestInsertBoolArray(t *testing.T) {
 func TestInsertTimestampArray(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); results != "CREATE TABLE" {
@@ -990,7 +983,7 @@ func TestInsertTimestampArray(t *testing.T) {
 func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows1, err := conn.Query("select generate_series(1,$1)", 10)
@@ -1008,7 +1001,7 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows, err := conn.Query("select generate_series(1,$1)", 10)
@@ -1040,7 +1033,7 @@ func (l *testLogger) Log(level pgx.LogLevel, msg string, data map[string]interfa
 func TestSetLogger(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	l1 := &testLogger{}
@@ -1075,7 +1068,7 @@ func TestSetLogger(t *testing.T) {
 func TestSetLogLevel(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	logger := &testLogger{}
@@ -1152,7 +1145,7 @@ func TestConnOnNotice(t *testing.T) {
 
 	var msg string
 
-	connConfig := *defaultConnConfig
+	connConfig := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 	connConfig.OnNotice = func(c *pgx.Conn, notice *pgx.Notice) {
 		msg = notice.Message
 	}
@@ -1175,7 +1168,7 @@ end$$;`)
 }
 
 func TestConnInitConnInfo(t *testing.T) {
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// spot check that the standard postgres type names aren't qualified
@@ -1203,7 +1196,7 @@ func TestConnInitConnInfo(t *testing.T) {
 }
 
 func TestDomainType(t *testing.T) {
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	dt, ok := conn.ConnInfo.DataTypeForName("uint64")
