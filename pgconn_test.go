@@ -29,6 +29,8 @@ func TestConnect(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			connString := os.Getenv(tt.env)
 			if connString == "" {
 				t.Skipf("Skipping due to missing environment variable %v", tt.env)
@@ -45,6 +47,8 @@ func TestConnect(t *testing.T) {
 // TestConnectTLS is separate from other connect tests because it has an additional test to ensure it really is a secure
 // connection.
 func TestConnectTLS(t *testing.T) {
+	t.Parallel()
+
 	connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
 	if connString == "" {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
@@ -61,6 +65,8 @@ func TestConnectTLS(t *testing.T) {
 }
 
 func TestConnectInvalidUser(t *testing.T) {
+	t.Parallel()
+
 	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
 	if connString == "" {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
@@ -97,6 +103,8 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 }
 
 func TestConnectCustomDialer(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -113,6 +121,8 @@ func TestConnectCustomDialer(t *testing.T) {
 }
 
 func TestConnectWithRuntimeParams(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -137,6 +147,8 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 }
 
 func TestConnectWithFallback(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -168,6 +180,8 @@ func TestConnectWithFallback(t *testing.T) {
 }
 
 func TestConnectWithAfterConnectFunc(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -205,6 +219,8 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 }
 
 func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -218,6 +234,8 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 }
 
 func TestConnExec(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
@@ -229,6 +247,8 @@ func TestConnExec(t *testing.T) {
 }
 
 func TestConnExecMultipleQueries(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
@@ -240,6 +260,8 @@ func TestConnExecMultipleQueries(t *testing.T) {
 }
 
 func TestConnExecMultipleQueriesError(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
@@ -255,6 +277,8 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 }
 
 func TestConnExecContextCanceled(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
@@ -269,6 +293,8 @@ func TestConnExecContextCanceled(t *testing.T) {
 }
 
 func TestConnRecoverFromTimeout(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
@@ -291,6 +317,8 @@ func TestConnRecoverFromTimeout(t *testing.T) {
 }
 
 func TestConnCancelQuery(t *testing.T) {
+	t.Parallel()
+
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
