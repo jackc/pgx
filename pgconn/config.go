@@ -467,27 +467,14 @@ func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
 // AfterConnectTargetSessionAttrsReadWrite is an AfterConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
 func AfterConnectTargetSessionAttrsReadWrite(pgConn *PgConn) error {
-	pgConn.SendExec("show transaction_read_only")
-	err := pgConn.Flush()
+	result, err := pgConn.Exec("show transaction_read_only")
 	if err != nil {
 		return err
 	}
 
-	result := pgConn.GetResult()
-	if err != nil {
-		return err
-	}
-
-	rowFound := result.NextRow()
-	if !rowFound {
-		return errors.New("show transaction_read_only failed")
-	}
-
-	if string(result.Values()[0]) == "on" {
+	if string(result.Rows[0][0]) == "on" {
 		return errors.New("read only connection")
 	}
 
-	_, err = result.Close()
-
-	return err
+	return nil
 }
