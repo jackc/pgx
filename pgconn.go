@@ -127,7 +127,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn.Config = config
 
 	var err error
-	network, address := NetworkAddress(config.Host, config.Port)
+	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
 	pgConn.NetConn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
 		return nil, err

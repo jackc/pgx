@@ -230,6 +230,150 @@ func TestParseConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:       "URL multiple hosts",
+			connString: "postgres://jack:secret@foo,bar,baz/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "bar",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host:      "baz",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "URL multiple hosts and ports",
+			connString: "postgres://jack:secret@foo:1,bar:2,baz:3/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          1,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "bar",
+						Port:      2,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host:      "baz",
+						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "DSN multiple hosts one port",
+			connString: "user=jack password=secret host=foo,bar,baz port=5432 database=mydb sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "bar",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host:      "baz",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "DSN multiple hosts multiple ports",
+			connString: "user=jack password=secret host=foo,bar,baz port=1,2,3 database=mydb sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          "foo",
+				Port:          1,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "bar",
+						Port:      2,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host:      "baz",
+						Port:      3,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "multiple hosts and fallback tsl",
+			connString: "user=jack password=secret host=foo,bar,baz database=mydb sslmode=prefer",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "foo",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "foo",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host: "bar",
+						Port: 5432,
+						TLSConfig: &tls.Config{
+							InsecureSkipVerify: true,
+						}},
+					&pgconn.FallbackConfig{
+						Host:      "bar",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+					&pgconn.FallbackConfig{
+						Host: "baz",
+						Port: 5432,
+						TLSConfig: &tls.Config{
+							InsecureSkipVerify: true,
+						}},
+					&pgconn.FallbackConfig{
+						Host:      "baz",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -243,6 +387,13 @@ func TestParseConfig(t *testing.T) {
 }
 
 func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName string) {
+	if !assert.NotNil(t, expected) {
+		return
+	}
+	if !assert.NotNil(t, actual) {
+		return
+	}
+
 	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
 	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)
@@ -257,12 +408,12 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName 
 		}
 	}
 
-	if assert.Equalf(t, len(expected.Fallbacks), len(actual.Fallbacks), "%s - Fallbacks %v", testName) {
+	if assert.Equalf(t, len(expected.Fallbacks), len(actual.Fallbacks), "%s - Fallbacks", testName) {
 		for i := range expected.Fallbacks {
 			assert.Equalf(t, expected.Fallbacks[i].Host, actual.Fallbacks[i].Host, "%s - Fallback %d - Host", testName, i)
 			assert.Equalf(t, expected.Fallbacks[i].Port, actual.Fallbacks[i].Port, "%s - Fallback %d - Port", testName, i)
 
-			if assert.Equalf(t, expected.Fallbacks[i].TLSConfig == nil, actual.Fallbacks[i].TLSConfig == nil, "%s - Fallback %d - TLSConfig", testName) {
+			if assert.Equalf(t, expected.Fallbacks[i].TLSConfig == nil, actual.Fallbacks[i].TLSConfig == nil, "%s - Fallback %d - TLSConfig", testName, i) {
 				if expected.Fallbacks[i].TLSConfig != nil {
 					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.InsecureSkipVerify, actual.Fallbacks[i].TLSConfig.InsecureSkipVerify, "%s - Fallback %d - TLSConfig InsecureSkipVerify", testName)
 					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.ServerName, actual.Fallbacks[i].TLSConfig.ServerName, "%s - Fallback %d - TLSConfig ServerName", testName)
