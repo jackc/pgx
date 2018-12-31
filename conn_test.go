@@ -3,7 +3,6 @@ package pgx_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -81,128 +80,6 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestConnectWithUnixSocketDirectory(t *testing.T) {
-	t.Parallel()
-
-	// /.s.PGSQL.5432
-	if unixSocketConnConfig == nil {
-		t.Skip("Skipping due to undefined unixSocketConnConfig")
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), unixSocketConnConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithTcp(t *testing.T) {
-	t.Parallel()
-
-	if tcpConnConfig == nil {
-		t.Skip("Skipping due to undefined tcpConnConfig")
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), tcpConnConfig)
-	if err != nil {
-		t.Fatal("Unable to establish connection: " + err.Error())
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithTLS(t *testing.T) {
-	t.Parallel()
-
-	if tlsConnConfig == nil {
-		t.Skip("Skipping due to undefined tlsConnConfig")
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), tlsConnConfig)
-	if err != nil {
-		t.Fatal("Unable to establish connection: " + err.Error())
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithInvalidUser(t *testing.T) {
-	t.Parallel()
-
-	if invalidUserConnConfig == nil {
-		t.Skip("Skipping due to undefined invalidUserConnConfig")
-	}
-
-	_, err := pgx.ConnectConfig(context.Background(), invalidUserConnConfig)
-	pgErr, ok := err.(pgx.PgError)
-	if !ok {
-		t.Fatalf("Expected to receive a PgError with code 28000, instead received: %v", err)
-	}
-	if pgErr.Code != "28000" && pgErr.Code != "28P01" {
-		t.Fatalf("Expected to receive a PgError with code 28000 or 28P01, instead received: %v", pgErr)
-	}
-}
-
-func TestConnectWithPlainTextPassword(t *testing.T) {
-	t.Parallel()
-
-	if plainPasswordConnConfig == nil {
-		t.Skip("Skipping due to undefined plainPasswordConnConfig")
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), plainPasswordConnConfig)
-	if err != nil {
-		t.Fatal("Unable to establish connection: " + err.Error())
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithMD5Password(t *testing.T) {
-	t.Parallel()
-
-	if md5ConnConfig == nil {
-		t.Skip("Skipping due to undefined md5ConnConfig")
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), md5ConnConfig)
-	if err != nil {
-		t.Fatal("Unable to establish connection: " + err.Error())
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithConnectionRefused(t *testing.T) {
-	t.Parallel()
-
-	// Presumably nothing is listening on 127.0.0.1:1
-	bad := *defaultConnConfig
-	bad.Host = "127.0.0.1"
-	bad.Port = 1
-
-	_, err := pgx.ConnectConfig(context.Background(), &bad)
-	if err == nil {
-		t.Fatal("Expected error establishing connection to bad port")
-	}
-}
-
 func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
@@ -226,67 +103,6 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
-}
-
-func TestConnectCustomDialer(t *testing.T) {
-	t.Parallel()
-
-	if customDialerConnConfig == nil {
-		t.Skip("Skipping due to undefined customDialerConnConfig")
-	}
-
-	dialled := false
-	conf := *customDialerConnConfig
-	conf.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		dialled = true
-		return net.Dial(network, address)
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), &conf)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %s", err)
-	}
-	if !dialled {
-		t.Fatal("Connect did not use custom dialer")
-	}
-
-	err = conn.Close()
-	if err != nil {
-		t.Fatal("Unable to close connection")
-	}
-}
-
-func TestConnectWithRuntimeParams(t *testing.T) {
-	t.Parallel()
-
-	connConfig := *defaultConnConfig
-	connConfig.RuntimeParams = map[string]string{
-		"application_name": "pgxtest",
-		"search_path":      "myschema",
-	}
-
-	conn, err := pgx.ConnectConfig(context.Background(), &connConfig)
-	if err != nil {
-		t.Fatalf("Unable to establish connection: %v", err)
-	}
-	defer conn.Close()
-
-	var s string
-	err = conn.QueryRow("show application_name").Scan(&s)
-	if err != nil {
-		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
-	}
-	if s != "pgxtest" {
-		t.Errorf("Expected application_name to be %s, but it was %s", "pgxtest", s)
-	}
-
-	err = conn.QueryRow("show search_path").Scan(&s)
-	if err != nil {
-		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
-	}
-	if s != "myschema" {
-		t.Errorf("Expected search_path to be %s, but it was %s", "myschema", s)
-	}
 }
 
 func TestExec(t *testing.T) {

@@ -11,6 +11,11 @@ before_install:
 env:
   global:
     - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/var/run/postgresql database=pgx_test"
+    - PGX_TEST_TCP_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_TLS_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+    - PGX_TEST_MD5_PASSWORD_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_PLAIN_PASSWORD_CONN_STRING=postgres://pgx_pw:secret@127.0.0.1/pgx_test
   matrix:
     - CRATEVERSION=2.1
     - PGVERSION=10
