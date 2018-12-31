@@ -55,21 +55,23 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 	return network, address
 }
 
-// ParseConfig builds a []*Config with similar behavior to the PostgreSQL standard C library libpq.
-// It uses the same defaults as libpq (e.g. port=5432) and understands most PG* environment
-// variables. connString may be a URL or a DSN. It also may be empty to only read from the
-// environment. If a password is not supplied it will attempt to read the .pgpass file.
+// ParseConfig builds a []*Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
+// defaults as libpq (e.g. port=5432) and understands most PG* environment variables. connString may be a URL or a DSN.
+// It also may be empty to only read from the environment. If a password is not supplied it will attempt to read the
+// .pgpass file.
 //
-// Example DSN: "user=jack password=secret host=1.2.3.4 port=5432 dbname=mydb sslmode=verify-ca"
+// Example DSN: "user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca"
 //
-// Example URL: "postgres://jack:secret@1.2.3.4:5432/mydb?sslmode=verify-ca"
+// Example URL: "postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca"
 //
-// Multiple configs may be returned due to sslmode settings with fallback options (e.g.
-// sslmode=prefer). Future implementations may also support multiple hosts
-// (https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS).
+// ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
+// values that will be tried in order. This can be used as part of a high availability system. See
+// https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS for more information.
 //
-// ParseConfig currently recognizes the following environment variable and their parameter key word
-// equivalents passed via database URL or DSN:
+// Example URL: "postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb"
+//
+// ParseConfig currently recognizes the following environment variable and their parameter key word equivalents passed
+// via database URL or DSN:
 //
 // PGHOST
 // PGPORT
@@ -84,20 +86,18 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // PGAPPNAME
 // PGCONNECT_TIMEOUT
 //
-// See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of
-// environment variables.
+// See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of environment variables.
 //
-// See https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-PARAMKEYWORDS for parameter key
-// word names. They are usually but not always the environment variable name downcased and without
-// the "PG" prefix.
+// See https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-PARAMKEYWORDS for parameter key word names. They are
+// usually but not always the environment variable name downcased and without the "PG" prefix.
 //
 // Important TLS Security Notes:
 //
-// ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to
-// "prefer" behavior if not set.
+// ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to "prefer" behavior if
+// not set.
 //
-// See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on
-// what level of security each sslmode provides.
+// See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
+// security each sslmode provides.
 //
 // "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
 // security guarantees than it would with libpq. Do not rely on this behavior as it
@@ -110,12 +110,7 @@ func ParseConfig(connString string) (*Config, error) {
 	if connString != "" {
 		// connString may be a database URL or a DSN
 		if strings.HasPrefix(connString, "postgres://") {
-			url, err := url.Parse(connString)
-			if err != nil {
-				return nil, err
-			}
-
-			err = addURLSettings(settings, url)
+			err := addURLSettings(settings, connString)
 			if err != nil {
 				return nil, err
 			}
@@ -128,17 +123,10 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	config := &Config{
-		Host:          settings["host"],
 		Database:      settings["database"],
 		User:          settings["user"],
 		Password:      settings["password"],
 		RuntimeParams: make(map[string]string),
-	}
-
-	if port, err := parsePort(settings["port"]); err == nil {
-		config.Port = port
-	} else {
-		return nil, fmt.Errorf("invalid port: %v", settings["port"])
 	}
 
 	if connectTimeout, present := settings["connect_timeout"]; present {
@@ -173,28 +161,50 @@ func ParseConfig(connString string) (*Config, error) {
 		config.RuntimeParams[k] = v
 	}
 
-	var tlsConfigs []*tls.Config
+	fallbacks := []*FallbackConfig{}
 
-	// Ignore TLS settings if Unix domain socket like libpq
-	if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
-		tlsConfigs = append(tlsConfigs, nil)
-	} else {
-		var err error
-		tlsConfigs, err = configTLS(settings)
+	hosts := strings.Split(settings["host"], ",")
+	ports := strings.Split(settings["port"], ",")
+
+	for i, host := range hosts {
+		var portStr string
+		if i < len(ports) {
+			portStr = ports[i]
+		} else {
+			portStr = ports[0]
+		}
+
+		port, err := parsePort(portStr)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid port: %v", settings["port"])
+		}
+
+		var tlsConfigs []*tls.Config
+
+		// Ignore TLS settings if Unix domain socket like libpq
+		if network, _ := NetworkAddress(host, port); network == "unix" {
+			tlsConfigs = append(tlsConfigs, nil)
+		} else {
+			var err error
+			tlsConfigs, err = configTLS(settings)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		for _, tlsConfig := range tlsConfigs {
+			fallbacks = append(fallbacks, &FallbackConfig{
+				Host:      host,
+				Port:      port,
+				TLSConfig: tlsConfig,
+			})
 		}
 	}
 
-	config.TLSConfig = tlsConfigs[0]
-
-	for _, tlsConfig := range tlsConfigs[1:] {
-		config.Fallbacks = append(config.Fallbacks, &FallbackConfig{
-			Host:      config.Host,
-			Port:      config.Port,
-			TLSConfig: tlsConfig,
-		})
-	}
+	config.Host = fallbacks[0].Host
+	config.Port = fallbacks[0].Port
+	config.TLSConfig = fallbacks[0].TLSConfig
+	config.Fallbacks = fallbacks[1:]
 
 	passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
 	if err == nil {
@@ -272,7 +282,12 @@ func addEnvSettings(settings map[string]string) {
 	}
 }
 
-func addURLSettings(settings map[string]string, url *url.URL) error {
+func addURLSettings(settings map[string]string, connString string) error {
+	url, err := url.Parse(connString)
+	if err != nil {
+		return err
+	}
+
 	if url.User != nil {
 		settings["user"] = url.User.Username()
 		if password, present := url.User.Password(); present {
@@ -280,12 +295,23 @@ func addURLSettings(settings map[string]string, url *url.URL) error {
 		}
 	}
 
-	parts := strings.SplitN(url.Host, ":", 2)
-	if parts[0] != "" {
-		settings["host"] = parts[0]
+	// Handle multiple host:port's in url.Host by splitting them into host,host,host and port,port,port.
+	var hosts []string
+	var ports []string
+	for _, host := range strings.Split(url.Host, ",") {
+		parts := strings.SplitN(host, ":", 2)
+		if parts[0] != "" {
+			hosts = append(hosts, parts[0])
+		}
+		if len(parts) == 2 {
+			ports = append(ports, parts[1])
+		}
 	}
-	if len(parts) == 2 {
-		settings["port"] = parts[1]
+	if len(hosts) > 0 {
+		settings["host"] = strings.Join(hosts, ",")
+	}
+	if len(ports) > 0 {
+		settings["port"] = strings.Join(ports, ",")
 	}
 
 	database := strings.TrimLeft(url.Path, "/")
