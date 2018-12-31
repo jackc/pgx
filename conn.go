@@ -2,10 +2,8 @@ package pgx
 
 import (
 	"context"
-	"crypto/md5"
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"io"
 	"net"
 	"reflect"
@@ -899,27 +897,6 @@ func (c *Conn) rxMsg() (pgproto3.BackendMessage, error) {
 	}
 
 	return msg, nil
-}
-
-func (c *Conn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
-	switch msg.Type {
-	case pgproto3.AuthTypeOk:
-	case pgproto3.AuthTypeCleartextPassword:
-		err = c.txPasswordMessage(c.pgConn.Config.Password)
-	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(c.pgConn.Config.Password+c.pgConn.Config.User)+string(msg.Salt[:]))
-		err = c.txPasswordMessage(digestedPassword)
-	default:
-		err = errors.New("Received unknown authentication message")
-	}
-
-	return
-}
-
-func hexMD5(s string) string {
-	hash := md5.New()
-	io.WriteString(hash, s)
-	return hex.EncodeToString(hash.Sum(nil))
 }
 
 func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
