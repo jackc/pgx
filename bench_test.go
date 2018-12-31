@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 )
 
 func BenchmarkConnPool(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)
@@ -31,7 +32,7 @@ func BenchmarkConnPool(b *testing.B) {
 }
 
 func BenchmarkConnPoolQueryRow(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)
@@ -52,7 +53,7 @@ func BenchmarkConnPoolQueryRow(b *testing.B) {
 }
 
 func BenchmarkPointerPointerWithNullValues(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	_, err := conn.Prepare("selectNulls", "select 1::int4, 'johnsmith', null::text, null::text, null::text, null::date, null::timestamptz")
@@ -112,7 +113,7 @@ func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 }
 
 func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	_, err := conn.Prepare("selectNulls", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
@@ -172,7 +173,7 @@ func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
 }
 
 func BenchmarkSelectWithoutLogging(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	benchmarkSelectWithLog(b, conn)
@@ -183,7 +184,7 @@ type discardLogger struct{}
 func (dl discardLogger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {}
 
 func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	var logger discardLogger
@@ -194,7 +195,7 @@ func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
 }
 
 func BenchmarkSelectWithLoggingDebugWithDiscard(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	var logger discardLogger
@@ -205,7 +206,7 @@ func BenchmarkSelectWithLoggingDebugWithDiscard(b *testing.B) {
 }
 
 func BenchmarkSelectWithLoggingInfoWithDiscard(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	var logger discardLogger
@@ -216,7 +217,7 @@ func BenchmarkSelectWithLoggingInfoWithDiscard(b *testing.B) {
 }
 
 func BenchmarkSelectWithLoggingErrorWithDiscard(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	var logger discardLogger
@@ -373,7 +374,7 @@ func newBenchmarkWriteTableCopyFromSrc(count int) pgx.CopyFromSource {
 }
 
 func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	mustExec(b, conn, benchmarkWriteTableCreateSQL)
@@ -484,7 +485,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 }
 
 func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	mustExec(b, conn, benchmarkWriteTableCreateSQL)
@@ -520,7 +521,7 @@ func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
 }
 
 func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
 	mustExec(b, conn, benchmarkWriteTableCreateSQL)
@@ -612,7 +613,7 @@ func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
 }
 
 func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)
@@ -647,7 +648,7 @@ func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
 }
 
 func BenchmarkMultipleQueriesBatch(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 5}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		b.Fatalf("Unable to create connection pool: %v", err)

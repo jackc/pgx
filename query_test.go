@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -14,14 +15,14 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
 )
 
 func TestConnQueryScan(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var sum, rowCount int32
@@ -54,7 +55,7 @@ func TestConnQueryScan(t *testing.T) {
 func TestConnQueryScanWithManyColumns(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	columnCount := 1000
@@ -106,7 +107,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 func TestConnQueryValues(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var rowCount int32
@@ -160,7 +161,7 @@ func TestConnQueryValues(t *testing.T) {
 func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	expected0 := &pgtype.Int8Array{
@@ -222,7 +223,7 @@ func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
 func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var s string
@@ -239,7 +240,7 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 func TestConnQueryCloseEarly(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// Immediately close query without reading any rows
@@ -276,7 +277,7 @@ func TestConnQueryCloseEarly(t *testing.T) {
 func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows, err := conn.Query("select 1/(10-n) from generate_series(1,10) n")
@@ -295,7 +296,7 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 func TestConnQueryReadWrongTypeError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// Read a single value incorrectly
@@ -331,7 +332,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 func TestConnQueryReadTooManyValues(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// Read too many values
@@ -362,7 +363,7 @@ func TestConnQueryReadTooManyValues(t *testing.T) {
 func TestConnQueryScanIgnoreColumn(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows, err := conn.Query("select 1::int8, 2::int8, 3::int8")
@@ -396,7 +397,7 @@ func TestConnQueryScanIgnoreColumn(t *testing.T) {
 func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	for i := 0; i < 100; i++ {
@@ -427,7 +428,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 func TestQueryEncodeError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows, err := conn.Query("select $1::integer", "wrong")
@@ -452,7 +453,7 @@ func TestQueryEncodeError(t *testing.T) {
 func TestQueryRowCoreTypes(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	type allTypes struct {
@@ -509,7 +510,7 @@ func TestQueryRowCoreTypes(t *testing.T) {
 func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	type allTypes struct {
@@ -624,7 +625,7 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	type allTypes struct {
@@ -799,7 +800,7 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 func TestQueryRowCoreByteSlice(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tests := []struct {
@@ -832,7 +833,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 func TestQueryRowUnknownType(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// Clear existing type mappings
@@ -868,7 +869,7 @@ func TestQueryRowUnknownType(t *testing.T) {
 func TestQueryRowErrors(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	type allTypes struct {
@@ -909,7 +910,7 @@ func TestQueryRowErrors(t *testing.T) {
 func TestQueryRowExErrorsWrongParameterOIDs(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	sql := `
@@ -946,7 +947,7 @@ func TestQueryRowExErrorsWrongParameterOIDs(t *testing.T) {
 func TestQueryRowNoResults(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var n int32
@@ -959,7 +960,7 @@ func TestQueryRowNoResults(t *testing.T) {
 }
 
 func TestReadingValueAfterEmptyArray(t *testing.T) {
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var a []string
@@ -979,7 +980,7 @@ func TestReadingValueAfterEmptyArray(t *testing.T) {
 }
 
 func TestReadingNullByteArray(t *testing.T) {
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var a []byte
@@ -994,7 +995,7 @@ func TestReadingNullByteArray(t *testing.T) {
 }
 
 func TestReadingNullByteArrays(t *testing.T) {
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	rows, err := conn.Query("select null::text union all select null::text")
@@ -1023,7 +1024,7 @@ func TestReadingNullByteArrays(t *testing.T) {
 func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var num decimal.Decimal
@@ -1050,7 +1051,7 @@ func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	expected, err := decimal.NewFromString("1234.567")
@@ -1075,7 +1076,7 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 func TestConnQueryDatabaseSQLDriverValuerWithAutoGeneratedPointerReceiver(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "create temporary table t(n numeric)")
@@ -1095,7 +1096,7 @@ func TestConnQueryDatabaseSQLDriverValuerWithAutoGeneratedPointerReceiver(t *tes
 func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{
@@ -1125,7 +1126,7 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	type row struct {
@@ -1182,7 +1183,7 @@ func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 func TestQueryExContextSuccess(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1222,7 +1223,7 @@ func TestQueryExContextSuccess(t *testing.T) {
 func TestQueryExContextErrorWhileReceivingRows(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1259,7 +1260,7 @@ func TestQueryExContextErrorWhileReceivingRows(t *testing.T) {
 func TestQueryExContextCancelationCancelsQuery(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1290,7 +1291,7 @@ func TestQueryExContextCancelationCancelsQuery(t *testing.T) {
 func TestQueryRowExContextSuccess(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1314,7 +1315,7 @@ func TestQueryRowExContextSuccess(t *testing.T) {
 func TestQueryRowExContextErrorWhileReceivingRow(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1332,7 +1333,7 @@ func TestQueryRowExContextErrorWhileReceivingRow(t *testing.T) {
 func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1356,7 +1357,7 @@ func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
 func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	var result int32
@@ -1382,7 +1383,7 @@ func TestConnQueryRowExSingleRoundTrip(t *testing.T) {
 func TestConnSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	// Test all supported low-level types
@@ -1579,7 +1580,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "set client_encoding to 'SQL_ASCII'")
@@ -1601,7 +1602,7 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, "set standard_conforming_strings to off")
@@ -1623,7 +1624,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 func TestQueryExCloseBefore(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
 	if _, err := conn.QueryEx(context.Background(), "select 1", nil); err == nil {

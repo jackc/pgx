@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: maxConnections}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: maxConnections}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
@@ -54,7 +55,7 @@ func TestNewConnPool(t *testing.T) {
 		return nil
 	}
 
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 2, AfterConnect: afterConnect}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 2, AfterConnect: afterConnect}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
@@ -73,7 +74,7 @@ func TestNewConnPool(t *testing.T) {
 		return errAfterConnect
 	}
 
-	config = pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: 2, AfterConnect: afterConnect}
+	config = pgx.ConnPoolConfig{ConnConfig: mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 2, AfterConnect: afterConnect}
 	pool, err = pgx.NewConnPool(config)
 	if err != errAfterConnect {
 		t.Errorf("Expected errAfterConnect but received unexpected: %v", err)
@@ -83,7 +84,7 @@ func TestNewConnPool(t *testing.T) {
 func TestNewConnPoolDefaultsTo5MaxConnections(t *testing.T) {
 	t.Parallel()
 
-	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig}
+	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))}
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatal("Unable to establish connection pool")
@@ -179,7 +180,7 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 
 	maxConnections := 3
 	config := pgx.ConnPoolConfig{
-		ConnConfig:     *defaultConnConfig,
+		ConnConfig:     mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")),
 		MaxConnections: maxConnections,
 	}
 	config.ConnConfig.Config.DialFunc = testDialer
@@ -228,7 +229,7 @@ func TestAcquireTimeoutSanity(t *testing.T) {
 	t.Parallel()
 
 	config := pgx.ConnPoolConfig{
-		ConnConfig:     *defaultConnConfig,
+		ConnConfig:     mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")),
 		MaxConnections: 1,
 	}
 
@@ -260,7 +261,7 @@ func TestPoolWithAcquireTimeoutSet(t *testing.T) {
 
 	connAllocTimeout := 2 * time.Second
 	config := pgx.ConnPoolConfig{
-		ConnConfig:     *defaultConnConfig,
+		ConnConfig:     mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")),
 		MaxConnections: 1,
 		AcquireTimeout: connAllocTimeout,
 	}

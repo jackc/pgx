@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -41,11 +42,12 @@ func getConfirmedFlushLsnFor(t *testing.T, conn *pgx.Conn, slot string) string {
 func TestSimpleReplicationConnection(t *testing.T) {
 	var err error
 
-	if replicationConnConfig == nil {
-		t.Skip("Skipping due to undefined replicationConnConfig")
+	connString := os.Getenv("PGX_TEST_REPLICATION_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_REPLICATION_CONN_STRING")
 	}
 
-	conn := mustConnect(t, *replicationConnConfig)
+	conn := mustConnectString(t, connString)
 	defer func() {
 		// Ensure replication slot is destroyed, but don't check for errors as it
 		// should have already been destroyed.
@@ -53,7 +55,8 @@ func TestSimpleReplicationConnection(t *testing.T) {
 		closeConn(t, conn)
 	}()
 
-	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	replicationConnConfig := mustParseConfig(t, connString)
+	replicationConn := mustReplicationConnect(t, replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
 	var cp string
@@ -164,7 +167,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 
 	closeReplicationConn(t, replicationConn)
 
-	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
+	replicationConn2 := mustReplicationConnect(t, replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn2)
 
 	err = replicationConn2.DropReplicationSlot("pgx_test")
@@ -179,11 +182,13 @@ func TestSimpleReplicationConnection(t *testing.T) {
 }
 
 func TestReplicationConn_DropReplicationSlot(t *testing.T) {
-	if replicationConnConfig == nil {
-		t.Skip("Skipping due to undefined replicationConnConfig")
+	connString := os.Getenv("PGX_TEST_REPLICATION_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_REPLICATION_CONN_STRING")
 	}
 
-	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	replicationConnConfig := mustParseConfig(t, connString)
+	replicationConn := mustReplicationConnect(t, replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
 	var cp string
@@ -224,11 +229,13 @@ func TestReplicationConn_DropReplicationSlot(t *testing.T) {
 }
 
 func TestIdentifySystem(t *testing.T) {
-	if replicationConnConfig == nil {
-		t.Skip("Skipping due to undefined replicationConnConfig")
+	connString := os.Getenv("PGX_TEST_REPLICATION_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_REPLICATION_CONN_STRING")
 	}
 
-	replicationConn2 := mustReplicationConnect(t, *replicationConnConfig)
+	replicationConnConfig := mustParseConfig(t, connString)
+	replicationConn2 := mustReplicationConnect(t, replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn2)
 
 	r, err := replicationConn2.IdentifySystem()
@@ -276,11 +283,13 @@ func getCurrentTimeline(t *testing.T, rc *pgx.ReplicationConn) int {
 }
 
 func TestGetTimelineHistory(t *testing.T) {
-	if replicationConnConfig == nil {
-		t.Skip("Skipping due to undefined replicationConnConfig")
+	connString := os.Getenv("PGX_TEST_REPLICATION_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_REPLICATION_CONN_STRING")
 	}
 
-	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	replicationConnConfig := mustParseConfig(t, connString)
+	replicationConn := mustReplicationConnect(t, replicationConnConfig)
 	defer closeReplicationConn(t, replicationConn)
 
 	timeline := getCurrentTimeline(t, replicationConn)

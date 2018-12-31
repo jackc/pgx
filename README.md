@@ -75,6 +75,8 @@ environment that can test all of them can be cumbersome. In particular,
 Windows cannot test Unix domain socket connections. Because of this pgx will
 skip tests for connection types that are not configured.
 
+pgx uses environment variables to configure the test database connections. Consider using [direnv](https://github.com/direnv/direnv) to simplify this.
+
 ### Normal Test Environment
 
 To setup the normal test environment, first install these dependencies:
@@ -102,11 +104,13 @@ Connect to database pgx_test and run:
     create extension hstore;
     create domain uint64 as numeric(20,0);
 
-Next open conn_config_test.go.example and make a copy without the
-.example. If your PostgreSQL server is accepting connections on 127.0.0.1,
-then you are done.
+Run the tests with environment variable PGX_TEST_DATABASE set to your test database.
+
+    PGX_TEXT_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
 
 ### Connection and Authentication Test Environment
+
+Additional tests are available for specific connection types (e.g. TCP, Unix domain sockets, no password, plain password, MD5 password, etc).
 
 Complete the normal test environment setup and also do the following.
 
@@ -129,6 +133,14 @@ If you are developing on Windows with TCP connections:
     host  pgx_test  pgx_pw    127.0.0.1/32 password
     host  pgx_test  pgx_md5   127.0.0.1/32 md5
 
+Each different test connection type uses a different connection string in an environment variable.
+
+    export PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/var/run/postgresql database=pgx_test"
+    export PGX_TEST_TCP_CONN_STRING="host=127.0.0.1 user=pgx_md5 password=secret database=pgx_test"
+    export PGX_TEST_TLS_CONN_STRING="host=127.0.0.1 user=pgx_md5 password=secret database=pgx_test sslmode=require"
+    export PGX_TEST_MD5_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_md5 password=secret database=pgx_test"
+    export PGX_TEST_PLAIN_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_pw password=secret database=pgx_test"
+
 ### Replication Test Environment
 
 Add a replication user:
@@ -145,7 +157,9 @@ Change the following settings in your postgresql.conf:
     max_wal_senders=5
     max_replication_slots=5
 
-Set `replicationConnConfig` appropriately in `conn_config_test.go`.
+Set the replication environment variable.
+
+    export PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 user=pgx_replication password=secret database=pgx_test"
 
 ## Version Policy
 

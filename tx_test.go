@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 func TestTransactionSuccessfulCommit(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	createSql := `
@@ -57,7 +58,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 func TestTxCommitWhenTxBroken(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	createSql := `
@@ -149,7 +150,7 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 func TestTransactionSuccessfulRollback(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	createSql := `
@@ -191,7 +192,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 func TestBeginExIsoLevels(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
@@ -217,7 +218,7 @@ func TestBeginExIsoLevels(t *testing.T) {
 func TestBeginExReadOnly(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tx, err := conn.BeginEx(context.Background(), &pgx.TxOptions{AccessMode: pgx.ReadOnly})
@@ -336,7 +337,7 @@ func TestTxCommitExCancel(t *testing.T) {
 func TestTxStatus(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tx, err := conn.Begin()
@@ -360,7 +361,7 @@ func TestTxStatus(t *testing.T) {
 func TestTxStatusErrorInTransactions(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tx, err := conn.Begin()
@@ -407,7 +408,7 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 func TestTxErr(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	tx, err := conn.Begin()

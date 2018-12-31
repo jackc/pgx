@@ -5,7 +5,23 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
+	"github.com/stretchr/testify/require"
 )
+
+func mustConnectString(t testing.TB, connString string) *pgx.Conn {
+	conn, err := pgx.Connect(context.Background(), connString)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+	return conn
+}
+
+func mustParseConfig(t testing.TB, connString string) pgx.ConnConfig {
+	config, err := pgconn.ParseConfig(connString)
+	require.Nil(t, err)
+	return pgx.ConnConfig{Config: *config}
+}
 
 func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
 	conn, err := pgx.ConnectConfig(context.Background(), &config)

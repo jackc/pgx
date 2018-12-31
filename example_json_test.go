@@ -3,12 +3,13 @@ package pgx_test
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/jackc/pgx"
 )
 
 func Example_JSON() {
-	conn, err := pgx.ConnectConfig(context.Background(), defaultConnConfig)
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return

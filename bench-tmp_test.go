@@ -1,11 +1,12 @@
 package pgx_test
 
 import (
+	"os"
 	"testing"
 )
 
 func BenchmarkPgtypeInt4ParseBinary(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
 	_, err := conn.Prepare("selectBinary", "select n::int4 from generate_series(1, 100) n")
@@ -36,7 +37,7 @@ func BenchmarkPgtypeInt4ParseBinary(b *testing.B) {
 }
 
 func BenchmarkPgtypeInt4EncodeBinary(b *testing.B) {
-	conn := mustConnect(b, *defaultConnConfig)
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
 	_, err := conn.Prepare("encodeBinary", "select $1::int4, $2::int4, $3::int4, $4::int4, $5::int4, $6::int4, $7::int4")

@@ -18,7 +18,7 @@ import (
 func TestConnCopyFromSmall(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -109,7 +109,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 func TestConnCopyFromLarge(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -202,7 +202,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 func TestConnCopyFromJSON(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	for _, typeName := range []string{"json", "jsonb"} {
@@ -313,7 +313,7 @@ func (cfs *clientFailSource) Err() error {
 func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -424,7 +424,7 @@ func (fs *failSource) Err() error {
 func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -478,7 +478,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -538,7 +538,7 @@ func (cfs *clientFinalErrSource) Err() error {
 func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -596,7 +596,7 @@ func (cfs *nextPanicSource) Err() error {
 func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
@@ -627,7 +627,7 @@ func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
 func TestConnCopyFromReaderQueryError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	inputReader := strings.NewReader("")
@@ -652,7 +652,7 @@ func TestConnCopyFromReaderQueryError(t *testing.T) {
 func TestConnCopyFromReaderNoTableError(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	inputReader := strings.NewReader("")
@@ -677,7 +677,7 @@ func TestConnCopyFromReaderNoTableError(t *testing.T) {
 func TestConnCopyFromGzipReader(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnect(t, *defaultConnConfig)
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
 	mustExec(t, conn, `create temporary table foo(
