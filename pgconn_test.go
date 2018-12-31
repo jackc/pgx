@@ -188,6 +188,40 @@ func TestConnectWithFallback(t *testing.T) {
 	closeConn(t, conn)
 }
 
+func TestConnectWithAcceptConnFunc(t *testing.T) {
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	dialCount := 0
+	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		dialCount += 1
+		return net.Dial(network, address)
+	}
+
+	acceptConnCount := 0
+	config.AcceptConnFunc = func(conn *pgconn.PgConn) bool {
+		acceptConnCount += 1
+		return acceptConnCount > 1
+	}
+
+	// Append current primary config to fallbacks
+	config.Fallbacks = append(config.Fallbacks, &pgconn.FallbackConfig{
+		Host:      config.Host,
+		Port:      config.Port,
+		TLSConfig: config.TLSConfig,
+	})
+
+	// Repeat fallbacks
+	config.Fallbacks = append(config.Fallbacks, config.Fallbacks...)
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	closeConn(t, conn)
+
+	assert.True(t, dialCount > 1)
+	assert.True(t, acceptConnCount > 1)
+}
+
 func TestSimple(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
