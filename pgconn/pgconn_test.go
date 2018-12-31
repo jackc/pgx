@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgconn"
+	"github.com/pkg/errors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -188,7 +189,7 @@ func TestConnectWithFallback(t *testing.T) {
 	closeConn(t, conn)
 }
 
-func TestConnectWithAcceptConnFunc(t *testing.T) {
+func TestConnectWithAfterConnectFunc(t *testing.T) {
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 
@@ -199,9 +200,12 @@ func TestConnectWithAcceptConnFunc(t *testing.T) {
 	}
 
 	acceptConnCount := 0
-	config.AcceptConnFunc = func(conn *pgconn.PgConn) bool {
+	config.AfterConnectFunc = func(conn *pgconn.PgConn) error {
 		acceptConnCount += 1
-		return acceptConnCount > 1
+		if acceptConnCount < 2 {
+			return errors.New("reject first conn")
+		}
+		return nil
 	}
 
 	// Append current primary config to fallbacks
@@ -220,6 +224,19 @@ func TestConnectWithAcceptConnFunc(t *testing.T) {
 
 	assert.True(t, dialCount > 1)
 	assert.True(t, acceptConnCount > 1)
+}
+
+func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	config.AfterConnectFunc = pgconn.AfterConnectTargetSessionAttrsReadWrite
+	config.RuntimeParams["default_transaction_read_only"] = "on"
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	if !assert.NotNil(t, err) {
+		conn.Close()
+	}
 }
 
 func TestSimple(t *testing.T) {
