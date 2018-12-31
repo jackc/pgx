@@ -137,6 +137,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	if config.TLSConfig != nil {
 		if err := pgConn.startTLS(config.TLSConfig); err != nil {
+			pgConn.NetConn.Close()
 			return nil, err
 		}
 	}
@@ -162,6 +163,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 
 	if _, err := pgConn.NetConn.Write(startupMsg.Encode(nil)); err != nil {
+		pgConn.NetConn.Close()
 		return nil, err
 	}
 
@@ -177,13 +179,19 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			pgConn.SecretKey = msg.SecretKey
 		case *pgproto3.Authentication:
 			if err = pgConn.rxAuthenticationX(msg); err != nil {
+				pgConn.NetConn.Close()
 				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
-			return pgConn, nil
+			if config.AcceptConnFunc == nil || config.AcceptConnFunc(pgConn) {
+				return pgConn, nil
+			}
+			pgConn.NetConn.Close()
+			return nil, errors.New("AcceptConnFunc rejected connection")
 		case *pgproto3.ParameterStatus:
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
+			pgConn.NetConn.Close()
 			return nil, PgError{
 				Severity:         msg.Severity,
 				Code:             msg.Code,
@@ -204,6 +212,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				Routine:          msg.Routine,
 			}
 		default:
+			pgConn.NetConn.Close()
 			return nil, errors.New("unexpected message")
 		}
 	}

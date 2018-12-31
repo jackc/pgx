@@ -20,6 +20,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+type AcceptConnFunc func(pgconn *PgConn) bool
+
 // Config is the settings used to establish a connection to a PostgreSQL server.
 type Config struct {
 	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
@@ -32,6 +34,11 @@ type Config struct {
 	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
 	Fallbacks []*FallbackConfig
+
+	// AcceptConnFunc is called after successful connection allow custom logic for determining if the connection is
+	// acceptable. If AcceptConnFunc returns false the connection is closed and the next fallback config is tried. This
+	// allows implementing high availability behavior such as libpq does with target_session_attrs.
+	AcceptConnFunc AcceptConnFunc
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
