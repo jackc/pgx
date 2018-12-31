@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type AcceptConnFunc func(pgconn *PgConn) bool
+type AfterConnectFunc func(pgconn *PgConn) error
 
 // Config is the settings used to establish a connection to a PostgreSQL server.
 type Config struct {
@@ -35,10 +35,10 @@ type Config struct {
 
 	Fallbacks []*FallbackConfig
 
-	// AcceptConnFunc is called after successful connection allow custom logic for determining if the connection is
-	// acceptable. If AcceptConnFunc returns false the connection is closed and the next fallback config is tried. This
+	// AfterConnectFunc is called after successful connection. It can be used to set up the connection or to validate that
+	// server is acceptable. If this returns an error the connection is closed and the next fallback config is tried. This
 	// allows implementing high availability behavior such as libpq does with target_session_attrs.
-	AcceptConnFunc AcceptConnFunc
+	AfterConnectFunc AfterConnectFunc
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
@@ -92,6 +92,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // PGSSLROOTCERT
 // PGAPPNAME
 // PGCONNECT_TIMEOUT
+// PGTARGETSESSIONATTRS
 //
 // See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of environment variables.
 //
@@ -148,17 +149,18 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	notRuntimeParams := map[string]struct{}{
-		"host":            struct{}{},
-		"port":            struct{}{},
-		"database":        struct{}{},
-		"user":            struct{}{},
-		"password":        struct{}{},
-		"passfile":        struct{}{},
-		"connect_timeout": struct{}{},
-		"sslmode":         struct{}{},
-		"sslkey":          struct{}{},
-		"sslcert":         struct{}{},
-		"sslrootcert":     struct{}{},
+		"host":                 struct{}{},
+		"port":                 struct{}{},
+		"database":             struct{}{},
+		"user":                 struct{}{},
+		"password":             struct{}{},
+		"passfile":             struct{}{},
+		"connect_timeout":      struct{}{},
+		"sslmode":              struct{}{},
+		"sslkey":               struct{}{},
+		"sslcert":              struct{}{},
+		"sslrootcert":          struct{}{},
+		"target_session_attrs": struct{}{},
 	}
 
 	for k, v := range settings {
@@ -225,6 +227,12 @@ func ParseConfig(connString string) (*Config, error) {
 		}
 	}
 
+	if settings["target_session_attrs"] == "read-write" {
+		config.AfterConnectFunc = AfterConnectTargetSessionAttrsReadWrite
+	} else if settings["target_session_attrs"] != "any" {
+		return nil, fmt.Errorf("unknown target_session_attrs value %v", settings["target_session_attrs"])
+	}
+
 	return config, nil
 }
 
@@ -242,6 +250,8 @@ func defaultSettings() map[string]string {
 		settings["user"] = user.Username
 		settings["passfile"] = filepath.Join(user.HomeDir, ".pgpass")
 	}
+
+	settings["target_session_attrs"] = "any"
 
 	return settings
 }
@@ -267,18 +277,19 @@ func defaultHost() string {
 
 func addEnvSettings(settings map[string]string) {
 	nameMap := map[string]string{
-		"PGHOST":            "host",
-		"PGPORT":            "port",
-		"PGDATABASE":        "database",
-		"PGUSER":            "user",
-		"PGPASSWORD":        "password",
-		"PGPASSFILE":        "passfile",
-		"PGAPPNAME":         "application_name",
-		"PGCONNECT_TIMEOUT": "connect_timeout",
-		"PGSSLMODE":         "sslmode",
-		"PGSSLKEY":          "sslkey",
-		"PGSSLCERT":         "sslcert",
-		"PGSSLROOTCERT":     "sslrootcert",
+		"PGHOST":               "host",
+		"PGPORT":               "port",
+		"PGDATABASE":           "database",
+		"PGUSER":               "user",
+		"PGPASSWORD":           "password",
+		"PGPASSFILE":           "passfile",
+		"PGAPPNAME":            "application_name",
+		"PGCONNECT_TIMEOUT":    "connect_timeout",
+		"PGSSLMODE":            "sslmode",
+		"PGSSLKEY":             "sslkey",
+		"PGSSLCERT":            "sslcert",
+		"PGSSLROOTCERT":        "sslrootcert",
+		"PGTARGETSESSIONATTRS": "target_session_attrs",
 	}
 
 	for envname, realname := range nameMap {
@@ -451,4 +462,32 @@ func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
 	d := makeDefaultDialer()
 	d.Timeout = time.Duration(timeout) * time.Second
 	return d.DialContext, nil
+}
+
+// AfterConnectTargetSessionAttrsReadWrite is an AfterConnectFunc that implements libpq compatible
+// target_session_attrs=read-write.
+func AfterConnectTargetSessionAttrsReadWrite(pgConn *PgConn) error {
+	pgConn.SendExec("show transaction_read_only")
+	err := pgConn.Flush()
+	if err != nil {
+		return err
+	}
+
+	result := pgConn.GetResult()
+	if err != nil {
+		return err
+	}
+
+	rowFound := result.NextRow()
+	if !rowFound {
+		return errors.New("show transaction_read_only failed")
+	}
+
+	if string(result.Value(0)) == "on" {
+		return errors.New("read only connection")
+	}
+
+	_, err = result.Close()
+
+	return err
 }

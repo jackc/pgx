@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -183,11 +184,14 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
-			if config.AcceptConnFunc == nil || config.AcceptConnFunc(pgConn) {
-				return pgConn, nil
+			if config.AfterConnectFunc != nil {
+				err := config.AfterConnectFunc(pgConn)
+				if err != nil {
+					pgConn.NetConn.Close()
+					return nil, fmt.Errorf("AfterConnectFunc: %v", err)
+				}
 			}
-			pgConn.NetConn.Close()
-			return nil, errors.New("AcceptConnFunc rejected connection")
+			return pgConn, nil
 		case *pgproto3.ParameterStatus:
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
