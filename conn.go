@@ -494,7 +494,7 @@ func (c *Conn) Close() error {
 	}
 	c.status = connStatusClosed
 
-	err := c.pgConn.Close()
+	err := c.pgConn.Close(context.TODO())
 	c.causeOfDeath = errors.New("Closed")
 	if c.shouldLog(LogLevelInfo) {
 		c.log(LogLevelInfo, "closed connection", nil)

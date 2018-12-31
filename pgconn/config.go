@@ -1,6 +1,7 @@
 package pgconn
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -20,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type AfterConnectFunc func(pgconn *PgConn) error
+type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
 
 // Config is the settings used to establish a connection to a PostgreSQL server.
 type Config struct {
@@ -466,8 +467,8 @@ func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
 
 // AfterConnectTargetSessionAttrsReadWrite is an AfterConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
-func AfterConnectTargetSessionAttrsReadWrite(pgConn *PgConn) error {
-	result, err := pgConn.Exec("show transaction_read_only")
+func AfterConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
+	result, err := pgConn.Exec(ctx, "show transaction_read_only")
 	if err != nil {
 		return err
 	}
