@@ -126,36 +126,15 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, conn)
 
-	// TODO - refactor these selects once there are higher level query functions
-
-	conn.SendExec("show application_name")
-	conn.SendExec("show search_path")
-	err = conn.Flush()
+	result, err := conn.Exec("show application_name")
 	require.Nil(t, err)
+	assert.Equal(t, 1, len(result.Rows))
+	assert.Equal(t, "pgxtest", string(result.Rows[0][0]))
 
-	result := conn.GetResult()
-	require.NotNil(t, result)
-
-	rowFound := result.NextRow()
-	assert.True(t, rowFound)
-	if rowFound {
-		assert.Equal(t, "pgxtest", string(result.Value(0)))
-	}
-
-	_, err = result.Close()
-	assert.Nil(t, err)
-
-	result = conn.GetResult()
-	require.NotNil(t, result)
-
-	rowFound = result.NextRow()
-	assert.True(t, rowFound)
-	if rowFound {
-		assert.Equal(t, "myschema", string(result.Value(0)))
-	}
-
-	_, err = result.Close()
-	assert.Nil(t, err)
+	result, err = conn.Exec("show search_path")
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(result.Rows))
+	assert.Equal(t, "myschema", string(result.Rows[0][0]))
 }
 
 func TestConnectWithFallback(t *testing.T) {
@@ -239,26 +218,39 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	}
 }
 
-func TestSimple(t *testing.T) {
+func TestExec(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
+	defer closeConn(t, pgConn)
 
-	pgConn.SendExec("select current_database()")
-	err = pgConn.Flush()
+	result, err := pgConn.Exec("select current_database()")
 	require.Nil(t, err)
+	assert.Equal(t, 1, len(result.Rows))
+	assert.Equal(t, pgConn.Config.Database, string(result.Rows[0][0]))
+}
 
-	result := pgConn.GetResult()
-	require.NotNil(t, result)
+func TestExecMultipleQueries(t *testing.T) {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
 
-	rowFound := result.NextRow()
-	assert.True(t, rowFound)
-	if rowFound {
-		assert.Equal(t, "pgx_test", string(result.Value(0)))
+	result, err := pgConn.Exec("select current_database(); select 1")
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(result.Rows))
+	assert.Equal(t, "1", string(result.Rows[0][0]))
+}
+
+func TestExecMultipleQueriesError(t *testing.T) {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	result, err := pgConn.Exec("select 1; select 1/0; select 1")
+	require.NotNil(t, err)
+	require.Nil(t, result)
+	if pgErr, ok := err.(pgconn.PgError); ok {
+		assert.Equal(t, "22012", pgErr.Code)
+	} else {
+		t.Errorf("unexpected error: %v", err)
 	}
-
-	_, err = result.Close()
-	assert.Nil(t, err)
-
-	err = pgConn.Close()
-	assert.Nil(t, err)
 }
