@@ -264,6 +264,8 @@ func TestConnExecContextCanceled(t *testing.T) {
 	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
 	require.Nil(t, result)
 	assert.Equal(t, context.DeadlineExceeded, err)
+
+	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
 }
 
 func TestConnRecoverFromTimeout(t *testing.T) {
@@ -286,4 +288,24 @@ func TestConnRecoverFromTimeout(t *testing.T) {
 		assert.Equal(t, "1", string(result.Rows[0][0]))
 	}
 	cancel()
+}
+
+func TestConnCancelQuery(t *testing.T) {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	pgConn.SendExec("select current_database(), pg_sleep(5)")
+	err = pgConn.Flush(context.Background())
+	require.Nil(t, err)
+
+	err = pgConn.CancelRequest(context.Background())
+	require.Nil(t, err)
+
+	_, err = pgConn.GetResult(context.Background()).Close()
+	if err, ok := err.(pgconn.PgError); ok {
+		assert.Equal(t, "57014", err.Code)
+	} else {
+		t.Errorf("expected pgconn.PgError got %v", err)
+	}
 }
