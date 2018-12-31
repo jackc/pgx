@@ -269,7 +269,7 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	result, err := pgConn.Exec(context.Background(), "select 1; select 1/0; select 1")
 	require.NotNil(t, err)
 	require.Nil(t, result)
-	if pgErr, ok := err.(pgconn.PgError); ok {
+	if pgErr, ok := err.(*pgconn.PgError); ok {
 		assert.Equal(t, "22012", pgErr.Code)
 	} else {
 		t.Errorf("unexpected error: %v", err)
@@ -331,7 +331,7 @@ func TestConnCancelQuery(t *testing.T) {
 	require.Nil(t, err)
 
 	_, err = pgConn.GetResult(context.Background()).Close()
-	if err, ok := err.(pgconn.PgError); ok {
+	if err, ok := err.(*pgconn.PgError); ok {
 		assert.Equal(t, "57014", err.Code)
 	} else {
 		t.Errorf("expected pgconn.PgError got %v", err)

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/stretchr/testify/require"
 )
@@ -874,7 +875,7 @@ func TestFatalRxError(t *testing.T) {
 		var s string
 		err := conn.QueryRow("select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
 		if err == pgx.ErrDeadConn {
-		} else if pgErr, ok := err.(pgx.PgError); ok && pgErr.Severity == "FATAL" {
+		} else if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Severity == "FATAL" {
 		} else {
 			t.Fatalf("Expected QueryRow Scan to return fatal PgError or ErrDeadConn, but instead received %v", err)
 		}

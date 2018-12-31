@@ -142,7 +142,7 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 
 	err = tx2.Commit()
-	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "40001" {
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "40001" {
 		t.Fatalf("Expected serialization error 40001, got %#v", err)
 	}
 }
@@ -228,7 +228,7 @@ func TestBeginExReadOnly(t *testing.T) {
 	defer tx.Rollback()
 
 	_, err = conn.Exec("create table foo(id serial primary key)")
-	if pgErr, ok := err.(pgx.PgError); !ok || pgErr.Code != "25006" {
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "25006" {
 		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
 	}
 }

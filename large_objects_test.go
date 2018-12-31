@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 )
 
 func TestLargeObjects(t *testing.T) {
@@ -117,7 +118,7 @@ func TestLargeObjects(t *testing.T) {
 	}
 
 	_, err = lo.Open(id, pgx.LargeObjectModeRead)
-	if e, ok := err.(pgx.PgError); !ok || e.Code != "42704" {
+	if e, ok := err.(*pgconn.PgError); !ok || e.Code != "42704" {
 		t.Errorf("Expected undefined_object error (42704), got %#v", err)
 	}
 }
@@ -261,7 +262,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	}
 
 	_, err = lo2.Open(id, pgx.LargeObjectModeRead)
-	if e, ok := err.(pgx.PgError); !ok || e.Code != "42704" {
+	if e, ok := err.(*pgconn.PgError); !ok || e.Code != "42704" {
 		t.Errorf("Expected undefined_object error (42704), got %#v", err)
 	}
 }

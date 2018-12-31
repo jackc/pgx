@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -430,12 +431,12 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 		}
 	}
 
-	if pgErr, ok := rows.Err().(pgx.PgError); !(ok && pgErr.Code == "22012") {
+	if pgErr, ok := rows.Err().(*pgconn.PgError); !(ok && pgErr.Code == "22012") {
 		t.Errorf("rows.Err() => %v, want error code %v", rows.Err(), 22012)
 	}
 
 	err = batch.Close()
-	if pgErr, ok := err.(pgx.PgError); !(ok && pgErr.Code == "22012") {
+	if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "22012") {
 		t.Errorf("rows.Err() => %v, want error code %v", err, 22012)
 	}
 
@@ -464,7 +465,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 
 	var n int32
 	err = batch.QueryRowResults().Scan(&n)
-	if pgErr, ok := err.(pgx.PgError); !(ok && pgErr.Code == "42601") {
+	if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42601") {
 		t.Errorf("rows.Err() => %v, want error code %v", err, 42601)
 	}
 
