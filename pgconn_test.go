@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgconn"
@@ -36,8 +37,7 @@ func TestConnect(t *testing.T) {
 			conn, err := pgconn.Connect(context.Background(), connString)
 			require.Nil(t, err)
 
-			err = conn.Close()
-			require.Nil(t, err)
+			closeConn(t, conn)
 		})
 	}
 }
@@ -57,8 +57,7 @@ func TestConnectTLS(t *testing.T) {
 		t.Error("not a TLS connection")
 	}
 
-	err = conn.Close()
-	require.Nil(t, err)
+	closeConn(t, conn)
 }
 
 func TestConnectInvalidUser(t *testing.T) {
@@ -74,7 +73,7 @@ func TestConnectInvalidUser(t *testing.T) {
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	if err == nil {
-		conn.Close()
+		conn.Close(context.Background())
 		t.Fatal("expected err but got none")
 	}
 	pgErr, ok := err.(pgx.PgError)
@@ -92,7 +91,7 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	// Presumably nothing is listening on 127.0.0.1:1
 	conn, err := pgconn.Connect(context.Background(), "host=127.0.0.1 port=1")
 	if err == nil {
-		conn.Close()
+		conn.Close(context.Background())
 		t.Fatal("Expected error establishing connection to bad port")
 	}
 }
@@ -110,7 +109,7 @@ func TestConnectCustomDialer(t *testing.T) {
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.Nil(t, err)
 	require.True(t, dialed)
-	conn.Close()
+	closeConn(t, conn)
 }
 
 func TestConnectWithRuntimeParams(t *testing.T) {
@@ -126,12 +125,12 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, conn)
 
-	result, err := conn.Exec("show application_name")
+	result, err := conn.Exec(context.Background(), "show application_name")
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "pgxtest", string(result.Rows[0][0]))
 
-	result, err = conn.Exec("show search_path")
+	result, err = conn.Exec(context.Background(), "show search_path")
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "myschema", string(result.Rows[0][0]))
@@ -179,7 +178,7 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 	}
 
 	acceptConnCount := 0
-	config.AfterConnectFunc = func(conn *pgconn.PgConn) error {
+	config.AfterConnectFunc = func(ctx context.Context, conn *pgconn.PgConn) error {
 		acceptConnCount += 1
 		if acceptConnCount < 2 {
 			return errors.New("reject first conn")
@@ -214,38 +213,38 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	if !assert.NotNil(t, err) {
-		conn.Close()
+		conn.Close(context.Background())
 	}
 }
 
-func TestExec(t *testing.T) {
+func TestConnExec(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec("select current_database()")
+	result, err := pgConn.Exec(context.Background(), "select current_database()")
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, pgConn.Config.Database, string(result.Rows[0][0]))
 }
 
-func TestExecMultipleQueries(t *testing.T) {
+func TestConnExecMultipleQueries(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec("select current_database(); select 1")
+	result, err := pgConn.Exec(context.Background(), "select current_database(); select 1")
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "1", string(result.Rows[0][0]))
 }
 
-func TestExecMultipleQueriesError(t *testing.T) {
+func TestConnExecMultipleQueriesError(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec("select 1; select 1/0; select 1")
+	result, err := pgConn.Exec(context.Background(), "select 1; select 1/0; select 1")
 	require.NotNil(t, err)
 	require.Nil(t, result)
 	if pgErr, ok := err.(pgconn.PgError); ok {
@@ -253,4 +252,38 @@ func TestExecMultipleQueriesError(t *testing.T) {
 	} else {
 		t.Errorf("unexpected error: %v", err)
 	}
+}
+
+func TestConnExecContextCanceled(t *testing.T) {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
+	require.Nil(t, result)
+	assert.Equal(t, context.DeadlineExceeded, err)
+}
+
+func TestConnRecoverFromTimeout(t *testing.T) {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
+	cancel()
+	require.Nil(t, result)
+	assert.Equal(t, context.DeadlineExceeded, err)
+
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	if assert.True(t, pgConn.RecoverFromTimeout(ctx)) {
+		result, err := pgConn.Exec(ctx, "select 1")
+		require.Nil(t, err)
+		assert.Len(t, result.Rows, 1)
+		assert.Len(t, result.Rows[0], 1)
+		assert.Equal(t, "1", string(result.Rows[0][0]))
+	}
+	cancel()
 }

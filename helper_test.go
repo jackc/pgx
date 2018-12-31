@@ -1,7 +1,9 @@
 package pgconn_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/pgconn"
 
@@ -9,5 +11,7 @@ import (
 )
 
 func closeConn(t testing.TB, conn *pgconn.PgConn) {
-	require.Nil(t, conn.Close())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	require.Nil(t, conn.Close(ctx))
 }
