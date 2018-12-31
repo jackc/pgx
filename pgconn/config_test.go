@@ -533,6 +533,8 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 }
 
 func TestParseConfigReadsPgPassfile(t *testing.T) {
+	t.Parallel()
+
 	tf, err := ioutil.TempFile("", "")
 	require.Nil(t, err)
 
