@@ -157,6 +157,37 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestConnectWithFallback(t *testing.T) {
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	// Prepend current primary config to fallbacks
+	config.Fallbacks = append([]*pgconn.FallbackConfig{
+		&pgconn.FallbackConfig{
+			Host:      config.Host,
+			Port:      config.Port,
+			TLSConfig: config.TLSConfig,
+		},
+	}, config.Fallbacks...)
+
+	// Make primary config bad
+	config.Host = "localhost"
+	config.Port = 1 // presumably nothing listening here
+
+	// Prepend bad first fallback
+	config.Fallbacks = append([]*pgconn.FallbackConfig{
+		&pgconn.FallbackConfig{
+			Host:      "localhost",
+			Port:      1,
+			TLSConfig: config.TLSConfig,
+		},
+	}, config.Fallbacks...)
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	closeConn(t, conn)
+}
+
 func TestSimple(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(t, err)
