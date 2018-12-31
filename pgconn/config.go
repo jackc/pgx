@@ -483,7 +483,7 @@ func AfterConnectTargetSessionAttrsReadWrite(pgConn *PgConn) error {
 		return errors.New("show transaction_read_only failed")
 	}
 
-	if string(result.Value(0)) == "on" {
+	if string(result.Values()[0]) == "on" {
 		return errors.New("read only connection")
 	}
 
