@@ -382,7 +382,6 @@ func (pgConn *PgConn) SendExecParams(sql string, paramValues [][]byte, paramOIDs
 
 	pgConn.batchBuf = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(pgConn.batchBuf)
 	pgConn.SendExecPrepared("", paramValues, paramFormats, resultFormats)
-	pgConn.batchCount += 1
 }
 
 // SendExecPrepared enqueues the execution of a prepared statement via the PostgreSQL extended query protocol.
@@ -708,6 +707,7 @@ func (pgConn *PgConn) bufferLastResult(ctx context.Context) (*PgResult, error) {
 			CommandTag: commandTag,
 		}
 	}
+
 	if result == nil {
 		return nil, errors.New("unexpected missing result")
 	}
