@@ -20,12 +20,6 @@ import (
 
 const batchBufferSize = 4096
 
-// PostgreSQL extended protocol format codes
-const (
-	TextFormatCode   = 0
-	BinaryFormatCode = 1
-)
-
 var deadlineTime = time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)
 
 // PgError represents an error reported by the PostgreSQL server. See
