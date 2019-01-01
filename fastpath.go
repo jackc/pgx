@@ -72,7 +72,7 @@ func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 	buf = pgio.AppendInt16(buf, 1) // response format code (binary)
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	if _, err := f.cn.pgConn.NetConn.Write(buf); err != nil {
+	if _, err := f.cn.pgConn.Conn().Write(buf); err != nil {
 		return nil, err
 	}
 
