@@ -387,6 +387,10 @@ func appendQuery(buf []byte, query string) []byte {
 
 // appendParse appends a PostgreSQL wire protocol parse message to buf and returns it.
 func appendParse(buf []byte, name string, query string, paramOIDs []uint32) []byte {
+	if len(paramOIDs) > 65535 {
+		panic(fmt.Sprintf("len(paramOIDs) must be between 0 and 65535, received %d", len(paramOIDs)))
+	}
+
 	buf = append(buf, 'P')
 	sp := len(buf)
 	buf = pgio.AppendInt32(buf, -1)
@@ -399,6 +403,19 @@ func appendParse(buf []byte, name string, query string, paramOIDs []uint32) []by
 	for _, oid := range paramOIDs {
 		buf = pgio.AppendUint32(buf, oid)
 	}
+	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
+
+	return buf
+}
+
+// appendDescribe appends a PostgreSQL wire protocol describe message to buf and returns it.
+func appendDescribe(buf []byte, objectType byte, name string) []byte {
+	buf = append(buf, 'D')
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	buf = append(buf, objectType)
+	buf = append(buf, name...)
+	buf = append(buf, 0)
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
 	return buf
@@ -423,6 +440,9 @@ func appendBind(
 ) []byte {
 	if len(paramFormats) != 0 && len(paramFormats) != len(paramValues) && len(paramFormats) != len(paramValues) {
 		panic(fmt.Sprintf("len(paramFormats) must be 0, 1, or len(paramValues), received %d", len(paramFormats)))
+	}
+	if len(paramValues) > 65535 {
+		panic(fmt.Sprintf("len(paramValues) must be between 0 and 65535, received %d", len(paramValues)))
 	}
 
 	buf = append(buf, 'B')
@@ -492,15 +512,31 @@ func appendExecute(buf []byte, portal string, maxRows uint32) []byte {
 //
 // Query is only sent to the PostgreSQL server when Flush is called.
 func (pgConn *PgConn) SendExecParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) {
-	if len(paramValues) > 65535 {
-		panic(fmt.Sprintf("Number of params 0 and 65535, received %d", len(paramValues)))
-	}
 	if len(paramOIDs) != 0 && len(paramOIDs) != len(paramValues) && len(paramOIDs) != len(paramValues) {
 		panic(fmt.Sprintf("len(paramOIDs) must be 0, 1, or len(paramValues), received %d", len(paramOIDs)))
 	}
 
 	pgConn.batchBuf = appendParse(pgConn.batchBuf, "", sql, paramOIDs)
 	pgConn.batchBuf = appendBind(pgConn.batchBuf, "", "", paramFormats, paramValues, resultFormats)
+	pgConn.batchBuf = appendExecute(pgConn.batchBuf, "", 0)
+	pgConn.batchBuf = appendSync(pgConn.batchBuf)
+	pgConn.batchCount += 1
+}
+
+// SendExecPrepared enqueues the execution of a prepared statement via the PostgreSQL extended query protocol.
+//
+// paramValues are the parameter values. It must be encoded in the format given by paramFormats.
+//
+// paramFormats is a slice of format codes determining for each paramValue column whether it is encoded in text or
+// binary format. If paramFormats is nil all results will be in text protocol. SendExecParams will panic if
+// len(paramFormats) is not 0, 1, or len(paramValues).
+//
+// resultFormats is a slice of format codes determining for each result column whether it is encoded in text or
+// binary format. If resultFormats is nil all results will be in text protocol.
+//
+// Query is only sent to the PostgreSQL server when Flush is called.
+func (pgConn *PgConn) SendExecPrepared(stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) {
+	pgConn.batchBuf = appendBind(pgConn.batchBuf, "", stmtName, paramFormats, paramValues, resultFormats)
 	pgConn.batchBuf = appendExecute(pgConn.batchBuf, "", 0)
 	pgConn.batchBuf = appendSync(pgConn.batchBuf)
 	pgConn.batchCount += 1
@@ -838,6 +874,90 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 	}
 
 	return result, nil
+}
+
+// ExecPrepared executes a prepared statement via the PostgreSQL extended query protocol, buffers the entire result, and
+// returns it. See SendExecPrepared for parameter descriptions.
+//
+// ExecPrepared must not be called when there are pending results from previous Send* methods (e.g. SendExec).
+func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) (*PgResult, error) {
+	if pgConn.batchCount != 0 {
+		return nil, errors.New("unflushed previous sends")
+	}
+	if pgConn.pendingReadyForQueryCount != 0 {
+		return nil, errors.New("unread previous results")
+	}
+
+	pgConn.SendExecPrepared(stmtName, paramValues, paramFormats, resultFormats)
+	err := pgConn.Flush(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	resultReader := pgConn.GetResult(ctx)
+	if resultReader == nil {
+		return nil, errors.New("unexpected missing result")
+	}
+
+	var result *PgResult
+	rows := [][][]byte{}
+	for resultReader.NextRow() {
+		row := make([][]byte, len(resultReader.Values()))
+		copy(row, resultReader.Values())
+		rows = append(rows, row)
+	}
+
+	commandTag, err := resultReader.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	result = &PgResult{
+		Rows:       rows,
+		CommandTag: commandTag,
+	}
+
+	return result, nil
+}
+
+// Prepare creates a prepared statement.
+func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) error {
+	if pgConn.batchCount != 0 {
+		return errors.New("unflushed previous sends")
+	}
+	if pgConn.pendingReadyForQueryCount != 0 {
+		return errors.New("unread previous results")
+	}
+
+	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanupContext()
+
+	pgConn.batchBuf = appendParse(pgConn.batchBuf, name, sql, paramOIDs)
+	pgConn.batchBuf = appendDescribe(pgConn.batchBuf, 'S', name)
+	pgConn.batchBuf = appendSync(pgConn.batchBuf)
+	pgConn.batchCount += 1
+	err := pgConn.Flush(context.Background())
+	if err != nil {
+		return preferContextOverNetTimeoutError(ctx, err)
+	}
+
+	for pgConn.pendingReadyForQueryCount > 0 {
+		msg, err := pgConn.ReceiveMessage()
+		if err != nil {
+			return preferContextOverNetTimeoutError(ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ParameterDescription:
+			// TODO
+		case *pgproto3.RowDescription:
+			// TODO
+		case *pgproto3.ErrorResponse:
+			return errorResponseToPgError(msg)
+		}
+	}
+
+	return nil
 }
 
 func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
