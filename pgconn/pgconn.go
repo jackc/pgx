@@ -799,6 +799,10 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) (*PgResult, error) {
 		return nil, err
 	}
 
+	return pgConn.bufferLastResult(ctx)
+}
+
+func (pgConn *PgConn) bufferLastResult(ctx context.Context) (*PgResult, error) {
 	var result *PgResult
 
 	for resultReader := pgConn.GetResult(ctx); resultReader != nil; resultReader = pgConn.GetResult(ctx) {
@@ -844,30 +848,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 		return nil, err
 	}
 
-	resultReader := pgConn.GetResult(ctx)
-	if resultReader == nil {
-		return nil, errors.New("unexpected missing result")
-	}
-
-	var result *PgResult
-	rows := [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-
-	commandTag, err := resultReader.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	result = &PgResult{
-		Rows:       rows,
-		CommandTag: commandTag,
-	}
-
-	return result, nil
+	return pgConn.bufferLastResult(ctx)
 }
 
 // ExecPrepared executes a prepared statement via the PostgreSQL extended query protocol, buffers the entire result, and
@@ -888,30 +869,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 		return nil, err
 	}
 
-	resultReader := pgConn.GetResult(ctx)
-	if resultReader == nil {
-		return nil, errors.New("unexpected missing result")
-	}
-
-	var result *PgResult
-	rows := [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-
-	commandTag, err := resultReader.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	result = &PgResult{
-		Rows:       rows,
-		CommandTag: commandTag,
-	}
-
-	return result, nil
+	return pgConn.bufferLastResult(ctx)
 }
 
 // Prepare creates a prepared statement.
