@@ -59,8 +59,8 @@ var ErrTLSRefused = errors.New("server refused TLS connection")
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn          // the underlying TCP or unix domain socket connection
-	PID               uint32            // backend pid
-	SecretKey         uint32            // key to use to send a cancel query message to the server
+	pid               uint32            // backend pid
+	secretKey         uint32            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	TxStatus          byte
 	Frontend          *pgproto3.Frontend
@@ -179,8 +179,8 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 		switch msg := msg.(type) {
 		case *pgproto3.BackendKeyData:
-			pgConn.PID = msg.ProcessID
-			pgConn.SecretKey = msg.SecretKey
+			pgConn.pid = msg.ProcessID
+			pgConn.secretKey = msg.SecretKey
 		case *pgproto3.Authentication:
 			if err = pgConn.rxAuthenticationX(msg); err != nil {
 				pgConn.conn.Close()
@@ -302,6 +302,16 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 // Conn returns the underlying net.Conn.
 func (pgConn *PgConn) Conn() net.Conn {
 	return pgConn.conn
+}
+
+// PID returns the backend PID.
+func (pgConn *PgConn) PID() uint32 {
+	return pgConn.pid
+}
+
+// SecretKey returns the backend secret key used to send a cancel query message to the server.
+func (pgConn *PgConn) SecretKey() uint32 {
+	return pgConn.secretKey
 }
 
 // Close closes a connection. It is safe to call Close on a already closed connection. Close attempts a clean close by
@@ -701,8 +711,8 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	buf := make([]byte, 16)
 	binary.BigEndian.PutUint32(buf[0:4], 16)
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(pgConn.PID))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(pgConn.SecretKey))
+	binary.BigEndian.PutUint32(buf[8:12], uint32(pgConn.pid))
+	binary.BigEndian.PutUint32(buf[12:16], uint32(pgConn.secretKey))
 	_, err = cancelConn.Write(buf)
 	if err != nil {
 		return preferContextOverNetTimeoutError(ctx, err)
