@@ -37,7 +37,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 	}
 	fieldCount := int(binary.BigEndian.Uint16(buf.Next(2)))
 
-	*dst = RowDescription{Fields: make([]FieldDescription, fieldCount)}
+	dst.Fields = dst.Fields[0:0]
 
 	for i := 0; i < fieldCount; i++ {
 		var fd FieldDescription
@@ -60,7 +60,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 		fd.TypeModifier = int32(binary.BigEndian.Uint32(buf.Next(4)))
 		fd.Format = int16(binary.BigEndian.Uint16(buf.Next(2)))
 
-		dst.Fields[i] = fd
+		dst.Fields = append(dst.Fields, fd)
 	}
 
 	return nil
