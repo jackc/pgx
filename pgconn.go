@@ -538,10 +538,9 @@ type PgResultReader struct {
 	cleanupContext     func()
 }
 
-// GetResult returns a PgResultReader for the next result. If all results are consumed it returns nil. If an error
-// occurs it will be reported on the returned PgResultReader. Returned PgResultReader is only valid until next call of
-// GetResult.
-func (pgConn *PgConn) GetResult(ctx context.Context) *PgResultReader {
+// NextResult reads until a result is ready to be read or no results are pending. Returns true if a result is available.
+// Use ResultReader() to acquire a reader for the result.
+func (pgConn *PgConn) NextResult(ctx context.Context) bool {
 	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.conn)
 
 	for pgConn.pendingReadyForQueryCount > 0 {
@@ -549,29 +548,34 @@ func (pgConn *PgConn) GetResult(ctx context.Context) *PgResultReader {
 		if err != nil {
 			cleanupContext()
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, err: preferContextOverNetTimeoutError(ctx, err), complete: true}
-			return &pgConn.resultReader
+			return true
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, fieldDescriptions: msg.Fields}
-			return &pgConn.resultReader
+			return true
 		case *pgproto3.DataRow:
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, rowValues: msg.Values, preloadedRowValues: true}
-			return &pgConn.resultReader
+			return true
 		case *pgproto3.CommandComplete:
 			cleanupContext()
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, commandTag: CommandTag(msg.CommandTag), complete: true}
-			return &pgConn.resultReader
+			return true
 		case *pgproto3.ErrorResponse:
 			cleanupContext()
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, err: errorResponseToPgError(msg), complete: true}
-			return &pgConn.resultReader
+			return true
 		}
 	}
 
 	cleanupContext()
-	return nil
+	return false
+}
+
+// ResultReader returns the result reader prepared by next result. It is only valid until the result is completed.
+func (pgConn *PgConn) ResultReader() *PgResultReader {
+	return &pgConn.resultReader
 }
 
 // NextRow returns advances the PgResultReader to the next row and returns true if a row is available.
@@ -806,7 +810,8 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) (*PgResult, error) {
 func (pgConn *PgConn) bufferLastResult(ctx context.Context) (*PgResult, error) {
 	var result *PgResult
 
-	for resultReader := pgConn.GetResult(ctx); resultReader != nil; resultReader = pgConn.GetResult(ctx) {
+	for pgConn.NextResult(ctx) {
+		resultReader := pgConn.ResultReader()
 		rows := [][][]byte{}
 		for resultReader.NextRow() {
 			row := make([][]byte, len(resultReader.Values()))

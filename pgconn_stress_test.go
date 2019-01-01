@@ -84,10 +84,10 @@ func stressBatch(pgConn *pgconn.PgConn) error {
 	}
 
 	// Query 1
-	resultReader := pgConn.GetResult(context.Background())
-	if resultReader == nil {
-		return errors.New("missing resultReader")
+	if !pgConn.NextResult(context.Background()) {
+		return errors.New("missing result")
 	}
+	resultReader := pgConn.ResultReader()
 
 	for resultReader.NextRow() {
 	}
@@ -97,10 +97,10 @@ func stressBatch(pgConn *pgconn.PgConn) error {
 	}
 
 	// Query 2
-	resultReader = pgConn.GetResult(context.Background())
-	if resultReader == nil {
-		return errors.New("missing resultReader")
+	if !pgConn.NextResult(context.Background()) {
+		return errors.New("missing result")
 	}
+	resultReader = pgConn.ResultReader()
 
 	for resultReader.NextRow() {
 	}
@@ -110,8 +110,7 @@ func stressBatch(pgConn *pgconn.PgConn) error {
 	}
 
 	// No more
-	resultReader = pgConn.GetResult(context.Background())
-	if resultReader != nil {
+	if pgConn.NextResult(context.Background()) {
 		return errors.New("unexpected result reader")
 	}
 
@@ -162,10 +161,10 @@ func stressBatchCanceled(pgConn *pgconn.PgConn) error {
 	}
 
 	// Query 1
-	resultReader := pgConn.GetResult(context.Background())
-	if resultReader == nil {
-		return errors.New("missing resultReader")
+	if !pgConn.NextResult(context.Background()) {
+		return errors.New("missing result")
 	}
+	resultReader := pgConn.ResultReader()
 
 	for resultReader.NextRow() {
 	}
@@ -176,11 +175,11 @@ func stressBatchCanceled(pgConn *pgconn.PgConn) error {
 
 	// Query 2
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	resultReader = pgConn.GetResult(ctx)
-	cancel()
-	if resultReader == nil {
-		return errors.New("missing resultReader")
+	if !pgConn.NextResult(ctx) {
+		return errors.New("missing result")
 	}
+	cancel()
+	resultReader = pgConn.ResultReader()
 
 	for resultReader.NextRow() {
 	}
