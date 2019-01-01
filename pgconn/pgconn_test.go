@@ -373,8 +373,8 @@ func TestConnBatchedQueries(t *testing.T) {
 	err = pgConn.Flush(context.Background())
 
 	// "select 'SendExec 1'"
-	resultReader := pgConn.GetResult(context.Background())
-	require.NotNil(t, resultReader)
+	require.True(t, pgConn.NextResult(context.Background()))
+	resultReader := pgConn.ResultReader()
 
 	rows := [][][]byte{}
 	for resultReader.NextRow() {
@@ -391,8 +391,8 @@ func TestConnBatchedQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// "SendExecParams 1"
-	resultReader = pgConn.GetResult(context.Background())
-	require.NotNil(t, resultReader)
+	require.True(t, pgConn.NextResult(context.Background()))
+	resultReader = pgConn.ResultReader()
 
 	rows = [][][]byte{}
 	for resultReader.NextRow() {
@@ -409,8 +409,8 @@ func TestConnBatchedQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// "SendExecPrepared 1"
-	resultReader = pgConn.GetResult(context.Background())
-	require.NotNil(t, resultReader)
+	require.True(t, pgConn.NextResult(context.Background()))
+	resultReader = pgConn.ResultReader()
 
 	rows = [][][]byte{}
 	for resultReader.NextRow() {
@@ -427,8 +427,8 @@ func TestConnBatchedQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// "SendExec 2"
-	resultReader = pgConn.GetResult(context.Background())
-	require.NotNil(t, resultReader)
+	require.True(t, pgConn.NextResult(context.Background()))
+	resultReader = pgConn.ResultReader()
 
 	rows = [][][]byte{}
 	for resultReader.NextRow() {
@@ -445,8 +445,8 @@ func TestConnBatchedQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// "SendExecParams 2"
-	resultReader = pgConn.GetResult(context.Background())
-	require.NotNil(t, resultReader)
+	require.True(t, pgConn.NextResult(context.Background()))
+	resultReader = pgConn.ResultReader()
 
 	rows = [][][]byte{}
 	for resultReader.NextRow() {
@@ -463,8 +463,7 @@ func TestConnBatchedQueries(t *testing.T) {
 	assert.Nil(t, err)
 
 	// Done
-	resultReader = pgConn.GetResult(context.Background())
-	assert.Nil(t, resultReader)
+	require.False(t, pgConn.NextResult(context.Background()))
 }
 
 func TestConnRecoverFromTimeout(t *testing.T) {
@@ -505,7 +504,8 @@ func TestConnCancelQuery(t *testing.T) {
 	err = pgConn.CancelRequest(context.Background())
 	require.Nil(t, err)
 
-	_, err = pgConn.GetResult(context.Background()).Close()
+	require.True(t, pgConn.NextResult(context.Background()))
+	_, err = pgConn.ResultReader().Close()
 	if err, ok := err.(*pgconn.PgError); ok {
 		assert.Equal(t, "57014", err.Code)
 	} else {
