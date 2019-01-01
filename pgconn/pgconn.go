@@ -73,6 +73,8 @@ type PgConn struct {
 	pendingReadyForQueryCount int32
 
 	closed bool
+
+	resultReader PgResultReader
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
@@ -536,9 +538,9 @@ type PgResultReader struct {
 	cleanupContext     func()
 }
 
-// GetResult returns a PgResultReader for the next result. If all results are
-// consumed it returns nil. If an error occurs it will be reported on the
-// returned PgResultReader.
+// GetResult returns a PgResultReader for the next result. If all results are consumed it returns nil. If an error
+// occurs it will be reported on the returned PgResultReader. Returned PgResultReader is only valid until next call of
+// GetResult.
 func (pgConn *PgConn) GetResult(ctx context.Context) *PgResultReader {
 	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.conn)
 
@@ -546,20 +548,25 @@ func (pgConn *PgConn) GetResult(ctx context.Context) *PgResultReader {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			cleanupContext()
-			return &PgResultReader{pgConn: pgConn, ctx: ctx, err: preferContextOverNetTimeoutError(ctx, err), complete: true}
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, err: preferContextOverNetTimeoutError(ctx, err), complete: true}
+			return &pgConn.resultReader
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
-			return &PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, fieldDescriptions: msg.Fields}
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, fieldDescriptions: msg.Fields}
+			return &pgConn.resultReader
 		case *pgproto3.DataRow:
-			return &PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, rowValues: msg.Values, preloadedRowValues: true}
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, cleanupContext: cleanupContext, rowValues: msg.Values, preloadedRowValues: true}
+			return &pgConn.resultReader
 		case *pgproto3.CommandComplete:
 			cleanupContext()
-			return &PgResultReader{pgConn: pgConn, ctx: ctx, commandTag: CommandTag(msg.CommandTag), complete: true}
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, commandTag: CommandTag(msg.CommandTag), complete: true}
+			return &pgConn.resultReader
 		case *pgproto3.ErrorResponse:
 			cleanupContext()
-			return &PgResultReader{pgConn: pgConn, ctx: ctx, err: errorResponseToPgError(msg), complete: true}
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, err: errorResponseToPgError(msg), complete: true}
+			return &pgConn.resultReader
 		}
 	}
 
