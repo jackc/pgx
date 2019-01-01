@@ -320,6 +320,96 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
 }
 
+func TestConnBatchedQueries(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	pgConn.SendExec("select 'SendExec 1'")
+	pgConn.SendExecParams("select $1::text", [][]byte{[]byte("SendExecParams 1")}, nil, nil, nil)
+	pgConn.SendExec("select 'SendExec 2'")
+	pgConn.SendExecParams("select $1::text", [][]byte{[]byte("SendExecParams 2")}, nil, nil, nil)
+	err = pgConn.Flush(context.Background())
+
+	// "select 'SendExec 1'"
+	resultReader := pgConn.GetResult(context.Background())
+	require.NotNil(t, resultReader)
+
+	rows := [][][]byte{}
+	for resultReader.NextRow() {
+		row := make([][]byte, len(resultReader.Values()))
+		copy(row, resultReader.Values())
+		rows = append(rows, row)
+	}
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0], 1)
+	assert.Equal(t, "SendExec 1", string(rows[0][0]))
+
+	commandTag, err := resultReader.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
+
+	// "SendExecParams 1"
+	resultReader = pgConn.GetResult(context.Background())
+	require.NotNil(t, resultReader)
+
+	rows = [][][]byte{}
+	for resultReader.NextRow() {
+		row := make([][]byte, len(resultReader.Values()))
+		copy(row, resultReader.Values())
+		rows = append(rows, row)
+	}
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0], 1)
+	assert.Equal(t, "SendExecParams 1", string(rows[0][0]))
+
+	commandTag, err = resultReader.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
+
+	// "SendExec 2"
+	resultReader = pgConn.GetResult(context.Background())
+	require.NotNil(t, resultReader)
+
+	rows = [][][]byte{}
+	for resultReader.NextRow() {
+		row := make([][]byte, len(resultReader.Values()))
+		copy(row, resultReader.Values())
+		rows = append(rows, row)
+	}
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0], 1)
+	assert.Equal(t, "SendExec 2", string(rows[0][0]))
+
+	commandTag, err = resultReader.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
+
+	// "SendExecParams 2"
+	resultReader = pgConn.GetResult(context.Background())
+	require.NotNil(t, resultReader)
+
+	rows = [][][]byte{}
+	for resultReader.NextRow() {
+		row := make([][]byte, len(resultReader.Values()))
+		copy(row, resultReader.Values())
+		rows = append(rows, row)
+	}
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0], 1)
+	assert.Equal(t, "SendExecParams 2", string(rows[0][0]))
+
+	commandTag, err = resultReader.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
+
+	// Done
+	resultReader = pgConn.GetResult(context.Background())
+	assert.Nil(t, resultReader)
+}
+
 func TestConnRecoverFromTimeout(t *testing.T) {
 	t.Parallel()
 
