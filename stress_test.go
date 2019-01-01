@@ -17,7 +17,7 @@ import (
 )
 
 type execer interface {
-	Exec(sql string, arguments ...interface{}) (commandTag pgx.CommandTag, err error)
+	Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 }
 type queryer interface {
 	Query(sql string, args ...interface{}) (*pgx.Rows, error)

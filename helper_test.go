@@ -53,7 +53,7 @@ func closeReplicationConn(t testing.TB, conn *pgx.ReplicationConn) {
 	}
 }
 
-func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgx.CommandTag) {
+func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(sql, arguments...); err != nil {
 		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)

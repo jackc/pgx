@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/pgconn"
 )
 
 // This function uses a postgresql 9.6 specific column
@@ -87,7 +88,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	currentTime := time.Now().Unix()
 
 	for i := 0; i < 5; i++ {
-		var ct pgx.CommandTag
+		var ct pgconn.CommandTag
 		insertedTimes = append(insertedTimes, currentTime)
 		ct, err = conn.Exec("insert into replication_test(a) values($1)", currentTime)
 		if err != nil {

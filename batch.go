@@ -3,6 +3,7 @@ package pgx
 import (
 	"context"
 
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -162,21 +163,21 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 
 // ExecResults reads the results from the next query in the batch as if the
 // query has been sent with Exec.
-func (b *Batch) ExecResults() (CommandTag, error) {
+func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 	if b.err != nil {
-		return "", b.err
+		return nil, b.err
 	}
 
 	select {
 	case <-b.ctx.Done():
 		b.die(b.ctx.Err())
-		return "", b.ctx.Err()
+		return nil, b.ctx.Err()
 	default:
 	}
 
 	if err := b.ensureCommandComplete(); err != nil {
 		b.die(err)
-		return "", err
+		return nil, err
 	}
 
 	b.resultsRead++
@@ -186,16 +187,16 @@ func (b *Batch) ExecResults() (CommandTag, error) {
 	for {
 		msg, err := b.conn.rxMsg()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.CommandComplete:
 			b.pendingCommandComplete = false
-			return CommandTag(msg.CommandTag), nil
+			return pgconn.CommandTag(msg.CommandTag), nil
 		default:
 			if err := b.conn.processContextFreeMsg(msg); err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 	}

@@ -111,31 +111,31 @@ func TestExec(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); results != "CREATE TABLE" {
+	if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); string(results) != "CREATE TABLE" {
 		t.Error("Unexpected results from Exec")
 	}
 
 	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); results != "INSERT 0 1" {
+	if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); string(results) != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
-	if results := mustExec(t, conn, "drop table foo;"); results != "DROP TABLE" {
+	if results := mustExec(t, conn, "drop table foo;"); string(results) != "DROP TABLE" {
 		t.Error("Unexpected results from Exec")
 	}
 
 	// Multiple statements can be executed -- last command tag is returned
-	if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); results != "DROP TABLE" {
+	if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); string(results) != "DROP TABLE" {
 		t.Error("Unexpected results from Exec")
 	}
 
 	// Can execute longer SQL strings than sharedBufferSize
-	if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); results != "SELECT 1" {
+	if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); string(results) != "SELECT 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
 	// Exec no-op which does not return a command tag
-	if results := mustExec(t, conn, "--;"); results != "" {
+	if results := mustExec(t, conn, "--;"); string(results) != "" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }
@@ -190,7 +190,7 @@ func TestExecExContextWithoutCancelation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "CREATE TABLE" {
+	if string(commandTag) != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 	if !conn.LastStmtSent() {
@@ -291,7 +291,7 @@ func TestExecExExtendedProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "CREATE TABLE" {
+	if string(commandTag) != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 
@@ -304,7 +304,7 @@ func TestExecExExtendedProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "INSERT 0 1" {
+	if string(commandTag) != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 
@@ -324,7 +324,7 @@ func TestExecExSimpleProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "CREATE TABLE" {
+	if string(commandTag) != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 	if !conn.LastStmtSent() {
@@ -340,7 +340,7 @@ func TestExecExSimpleProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "INSERT 0 1" {
+	if string(commandTag) != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 	if !conn.LastStmtSent() {
@@ -365,7 +365,7 @@ func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if commandTag != "INSERT 0 1" {
+	if string(commandTag) != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
 	}
 	if !conn.LastStmtSent() {
@@ -924,43 +924,18 @@ func TestFatalTxError(t *testing.T) {
 	}
 }
 
-func TestCommandTag(t *testing.T) {
-	t.Parallel()
-
-	var tests = []struct {
-		commandTag   pgx.CommandTag
-		rowsAffected int64
-	}{
-		{commandTag: "INSERT 0 5", rowsAffected: 5},
-		{commandTag: "UPDATE 0", rowsAffected: 0},
-		{commandTag: "UPDATE 1", rowsAffected: 1},
-		{commandTag: "DELETE 0", rowsAffected: 0},
-		{commandTag: "DELETE 1", rowsAffected: 1},
-		{commandTag: "CREATE TABLE", rowsAffected: 0},
-		{commandTag: "ALTER TABLE", rowsAffected: 0},
-		{commandTag: "DROP TABLE", rowsAffected: 0},
-	}
-
-	for i, tt := range tests {
-		actual := tt.commandTag.RowsAffected()
-		if tt.rowsAffected != actual {
-			t.Errorf(`%d. "%s" should have affected %d rows but it was %d`, i, tt.commandTag, tt.rowsAffected, actual)
-		}
-	}
-}
-
 func TestInsertBoolArray(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); results != "CREATE TABLE" {
+	if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); string(results) != "CREATE TABLE" {
 		t.Error("Unexpected results from Exec")
 	}
 
 	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); results != "INSERT 0 1" {
+	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); string(results) != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }
@@ -971,12 +946,12 @@ func TestInsertTimestampArray(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); results != "CREATE TABLE" {
+	if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); string(results) != "CREATE TABLE" {
 		t.Error("Unexpected results from Exec")
 	}
 
 	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); results != "INSERT 0 1" {
+	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); string(results) != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }

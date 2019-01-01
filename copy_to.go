@@ -3,6 +3,7 @@ package pgx
 import (
 	"io"
 
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgproto3"
 )
 
@@ -25,19 +26,19 @@ func (c *Conn) readUntilCopyOutResponse() error {
 	}
 }
 
-func (c *Conn) CopyToWriter(w io.Writer, sql string, args ...interface{}) (CommandTag, error) {
+func (c *Conn) CopyToWriter(w io.Writer, sql string, args ...interface{}) (pgconn.CommandTag, error) {
 	if err := c.sendSimpleQuery(sql, args...); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := c.readUntilCopyOutResponse(); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for {
 		msg, err := c.rxMsg()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		switch msg := msg.(type) {
@@ -47,17 +48,17 @@ func (c *Conn) CopyToWriter(w io.Writer, sql string, args ...interface{}) (Comma
 			_, err := w.Write(msg.Data)
 			if err != nil {
 				c.die(err)
-				return "", err
+				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
 			c.rxReadyForQuery(msg)
-			return "", nil
+			return nil, nil
 		case *pgproto3.CommandComplete:
-			return CommandTag(msg.CommandTag), nil
+			return pgconn.CommandTag(msg.CommandTag), nil
 		case *pgproto3.ErrorResponse:
-			return "", c.rxErrorResponse(msg)
+			return nil, c.rxErrorResponse(msg)
 		default:
-			return "", c.processContextFreeMsg(msg)
+			return nil, c.processContextFreeMsg(msg)
 		}
 	}
 }

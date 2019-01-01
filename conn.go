@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -118,21 +117,6 @@ type Notification struct {
 	PID     uint32 // backend pid that sent the notification
 	Channel string // channel from which notification was received
 	Payload string
-}
-
-// CommandTag is the result of an Exec function
-type CommandTag string
-
-// RowsAffected returns the number of rows affected. If the CommandTag was not
-// for a row affecting command (such as "CREATE TABLE") then it returns 0
-func (ct CommandTag) RowsAffected() int64 {
-	s := string(ct)
-	index := strings.LastIndex(s, " ")
-	if index == -1 {
-		return 0
-	}
-	n, _ := strconv.ParseInt(s[index+1:], 10, 64)
-	return n
 }
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
@@ -855,7 +839,7 @@ func fatalWriteErr(bytesWritten int, err error) bool {
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
 // arguments should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	return c.ExecEx(context.Background(), sql, nil, arguments...)
 }
 
@@ -1104,15 +1088,15 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return err
 }
 
-func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (CommandTag, error) {
+func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (pgconn.CommandTag, error) {
 	c.lastStmtSent = false
 	err := c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if err := c.lock(); err != nil {
-		return "", err
+		return nil, err
 	}
 	defer c.unlock()
 
@@ -1134,10 +1118,10 @@ func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, 
 	return commandTag, err
 }
 
-func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	err = c.initContext(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer func() {
 		err = c.termContext(err)
@@ -1147,16 +1131,16 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 		c.lastStmtSent = true
 		err = c.sanitizeAndSendSimpleQuery(sql, arguments...)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 	} else if options != nil && len(options.ParameterOIDs) > 0 {
 		if err := c.ensureConnectionReadyForQuery(); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		buf, err := c.buildOneRoundTripExec(c.wbuf, sql, options, arguments)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		buf = appendSync(buf)
@@ -1165,7 +1149,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			c.die(err)
-			return "", err
+			return nil, err
 		}
 		c.pendingReadyForQueryCount++
 	} else {
@@ -1175,14 +1159,14 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 				var err error
 				ps, err = c.prepareEx("", sql, nil)
 				if err != nil {
-					return "", err
+					return nil, err
 				}
 			}
 
 			c.lastStmtSent = true
 			err = c.sendPreparedQuery(ps, arguments...)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		} else {
 			c.lastStmtSent = true
@@ -1205,7 +1189,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 			c.rxReadyForQuery(msg)
 			return commandTag, softErr
 		case *pgproto3.CommandComplete:
-			commandTag = CommandTag(msg.CommandTag)
+			commandTag = pgconn.CommandTag(msg.CommandTag)
 		default:
 			if e := c.processContextFreeMsg(msg); e != nil && softErr == nil {
 				softErr = e
