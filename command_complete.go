@@ -8,7 +8,7 @@ import (
 )
 
 type CommandComplete struct {
-	CommandTag string
+	CommandTag []byte
 }
 
 func (*CommandComplete) Backend() {}
@@ -19,7 +19,7 @@ func (dst *CommandComplete) Decode(src []byte) error {
 		return &invalidMessageFormatErr{messageType: "CommandComplete"}
 	}
 
-	dst.CommandTag = string(src[:idx])
+	dst.CommandTag = src[:idx]
 
 	return nil
 }
@@ -43,6 +43,6 @@ func (src *CommandComplete) MarshalJSON() ([]byte, error) {
 		CommandTag string
 	}{
 		Type:       "CommandComplete",
-		CommandTag: src.CommandTag,
+		CommandTag: string(src.CommandTag),
 	})
 }
