@@ -193,7 +193,7 @@ func (rc *ReplicationConn) SendStandbyStatus(k *StandbyStatus) (err error) {
 
 	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
 
-	_, err = rc.c.pgConn.NetConn.Write(buf)
+	_, err = rc.c.pgConn.Conn().Write(buf)
 	if err != nil {
 		rc.c.die(err)
 	}
@@ -300,7 +300,7 @@ func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*Repl
 	go func() {
 		select {
 		case <-ctx.Done():
-			if err := rc.c.pgConn.NetConn.SetDeadline(time.Now()); err != nil {
+			if err := rc.c.pgConn.Conn().SetDeadline(time.Now()); err != nil {
 				rc.Close() // Close connection if unable to set deadline
 				return
 			}
@@ -314,7 +314,7 @@ func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*Repl
 	var err error
 	select {
 	case err = <-rc.c.closedChan:
-		if err := rc.c.pgConn.NetConn.SetDeadline(time.Time{}); err != nil {
+		if err := rc.c.pgConn.Conn().SetDeadline(time.Time{}); err != nil {
 			rc.Close() // Close connection if unable to disable deadline
 			return nil, err
 		}

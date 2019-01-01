@@ -415,7 +415,7 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 
 		buf = appendSync(buf)
 
-		n, err := c.pgConn.NetConn.Write(buf)
+		n, err := c.pgConn.Conn().Write(buf)
 		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			rows.fatal(err)

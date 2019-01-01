@@ -2,9 +2,6 @@ package pgx
 
 import (
 	"context"
-	"crypto/tls"
-	"encoding/binary"
-	"io"
 	"net"
 	"reflect"
 	"strconv"
@@ -478,7 +475,7 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 	if !c.IsAlive() {
 		return nil, errors.New("connection not ready")
 	}
-	return c.pgConn.NetConn.LocalAddr(), nil
+	return c.pgConn.Conn().LocalAddr(), nil
 }
 
 // Close closes a connection. It is safe to call Close on a already closed
@@ -570,7 +567,7 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	buf = appendDescribe(buf, 'S', name)
 	buf = appendSync(buf)
 
-	n, err := c.pgConn.NetConn.Write(buf)
+	n, err := c.pgConn.Conn().Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -666,7 +663,7 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 	buf = append(buf, 'H')
 	buf = pgio.AppendInt32(buf, 4)
 
-	_, err = c.pgConn.NetConn.Write(buf)
+	_, err = c.pgConn.Conn().Write(buf)
 	if err != nil {
 		c.die(err)
 		return err
@@ -794,7 +791,7 @@ func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if len(args) == 0 {
 		buf := appendQuery(c.wbuf, sql)
 
-		_, err := c.pgConn.NetConn.Write(buf)
+		_, err := c.pgConn.Conn().Write(buf)
 		if err != nil {
 			c.die(err)
 			return err
@@ -833,7 +830,7 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = appendExecute(buf, "", 0)
 	buf = appendSync(buf)
 
-	n, err := c.pgConn.NetConn.Write(buf)
+	n, err := c.pgConn.Conn().Write(buf)
 	if err != nil {
 		if fatalWriteErr(n, err) {
 			c.die(err)
@@ -989,40 +986,6 @@ func (c *Conn) rxNotificationResponse(msg *pgproto3.NotificationResponse) {
 	c.notifications = append(c.notifications, n)
 }
 
-func (c *Conn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(c.pgConn.NetConn, binary.BigEndian, []int32{8, 80877103})
-	if err != nil {
-		return
-	}
-
-	response := make([]byte, 1)
-	if _, err = io.ReadFull(c.pgConn.NetConn, response); err != nil {
-		return
-	}
-
-	if response[0] != 'S' {
-		return ErrTLSRefused
-	}
-
-	c.pgConn.NetConn = tls.Client(c.pgConn.NetConn, tlsConfig)
-
-	return nil
-}
-
-func (c *Conn) txPasswordMessage(password string) (err error) {
-	buf := c.wbuf
-	buf = append(buf, 'p')
-	sp := len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, password...)
-	buf = append(buf, 0)
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
-
-	_, err = c.pgConn.NetConn.Write(buf)
-
-	return err
-}
-
 func (c *Conn) die(err error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
@@ -1033,7 +996,7 @@ func (c *Conn) die(err error) {
 
 	c.status = connStatusClosed
 	c.causeOfDeath = err
-	c.pgConn.NetConn.Close()
+	c.pgConn.Conn().Close()
 }
 
 func (c *Conn) lock() error {
@@ -1111,7 +1074,7 @@ func doCancel(c *Conn) error {
 // is no way to be sure a query was canceled. See
 // https://www.postgresql.org/docs/current/static/protocol-flow.html#AEN112861
 func (c *Conn) cancelQuery() {
-	if err := c.pgConn.NetConn.SetDeadline(time.Now()); err != nil {
+	if err := c.pgConn.Conn().SetDeadline(time.Now()); err != nil {
 		c.Close() // Close connection if unable to set deadline
 		return
 	}
@@ -1198,7 +1161,7 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 
 		buf = appendSync(buf)
 
-		n, err := c.pgConn.NetConn.Write(buf)
+		n, err := c.pgConn.Conn().Write(buf)
 		c.lastStmtSent = true
 		if err != nil && fatalWriteErr(n, err) {
 			c.die(err)
@@ -1336,7 +1299,7 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 	c.mux.Unlock()
 	select {
 	case <-completeCh:
-		if err := c.pgConn.NetConn.SetDeadline(time.Time{}); err != nil {
+		if err := c.pgConn.Conn().SetDeadline(time.Time{}); err != nil {
 			c.Close() // Close connection if unable to disable deadline
 			return err
 		}
