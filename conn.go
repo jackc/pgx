@@ -467,7 +467,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 
 // PID returns the backend PID for this connection.
 func (c *Conn) PID() uint32 {
-	return c.pgConn.PID
+	return c.pgConn.PID()
 }
 
 // LocalAddr returns the underlying connection's local address
@@ -1031,8 +1031,8 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
-	if c.pgConn != nil && c.pgConn.PID != 0 {
-		data["pid"] = c.pgConn.PID
+	if c.pgConn != nil && c.pgConn.PID() != 0 {
+		data["pid"] = c.pgConn.PID()
 	}
 
 	c.logger.Log(lvl, msg, data)
