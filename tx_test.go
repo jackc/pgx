@@ -289,7 +289,7 @@ func TestTxCommitExCancel(t *testing.T) {
 	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
 	script.Steps = append(script.Steps,
 		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
-		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: "BEGIN"}),
+		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("BEGIN")}),
 		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'T'}),
 		pgmock.WaitForClose(),
 	)

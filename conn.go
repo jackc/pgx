@@ -959,7 +959,7 @@ func (c *Conn) rxReadyForQuery(msg *pgproto3.ReadyForQuery) {
 func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription {
 	fields := make([]FieldDescription, len(msg.Fields))
 	for i := 0; i < len(fields); i++ {
-		fields[i].Name = msg.Fields[i].Name
+		fields[i].Name = string(msg.Fields[i].Name)
 		fields[i].Table = pgtype.OID(msg.Fields[i].TableOID)
 		fields[i].AttributeNumber = msg.Fields[i].TableAttributeNumber
 		fields[i].DataType = pgtype.OID(msg.Fields[i].DataTypeOID)
