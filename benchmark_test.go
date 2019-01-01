@@ -36,6 +36,19 @@ func BenchmarkConnect(b *testing.B) {
 	}
 }
 
+func BenchmarkExec(b *testing.B) {
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(b, err)
+	defer closeConn(b, conn)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+		require.Nil(b, err)
+	}
+}
+
 func BenchmarkExecPrepared(b *testing.B) {
 	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(b, err)
