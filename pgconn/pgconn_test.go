@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgconn"
 	"github.com/pkg/errors"
 
@@ -57,7 +56,7 @@ func TestConnectTLS(t *testing.T) {
 	conn, err := pgconn.Connect(context.Background(), connString)
 	require.Nil(t, err)
 
-	if _, ok := conn.NetConn.(*tls.Conn); !ok {
+	if _, ok := conn.Conn().(*tls.Conn); !ok {
 		t.Error("not a TLS connection")
 	}
 
@@ -82,7 +81,7 @@ func TestConnectInvalidUser(t *testing.T) {
 		conn.Close(context.Background())
 		t.Fatal("expected err but got none")
 	}
-	pgErr, ok := err.(pgx.PgError)
+	pgErr, ok := err.(*pgconn.PgError)
 	if !ok {
 		t.Fatalf("Expected to receive a PgError, instead received: %v", err)
 	}
