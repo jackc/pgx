@@ -285,7 +285,36 @@ func TestConnExecContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
-	require.Nil(t, result)
+	assert.Nil(t, result)
+	assert.Equal(t, context.DeadlineExceeded, err)
+
+	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
+}
+
+func TestConnExecParams(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	result, err := pgConn.ExecParams(context.Background(), "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
+	require.Nil(t, err)
+	assert.Equal(t, 1, len(result.Rows))
+	assert.Equal(t, "Hello, world", string(result.Rows[0][0]))
+}
+
+func TestConnExecParamsCanceled(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	result, err := pgConn.ExecParams(ctx, "select current_database(), pg_sleep(1)", nil, nil, nil, nil)
+	assert.Nil(t, result)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
