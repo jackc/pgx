@@ -199,25 +199,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
 			pgConn.conn.Close()
-			return nil, &PgError{
-				Severity:         msg.Severity,
-				Code:             msg.Code,
-				Message:          msg.Message,
-				Detail:           msg.Detail,
-				Hint:             msg.Hint,
-				Position:         msg.Position,
-				InternalPosition: msg.InternalPosition,
-				InternalQuery:    msg.InternalQuery,
-				Where:            msg.Where,
-				SchemaName:       msg.SchemaName,
-				TableName:        msg.TableName,
-				ColumnName:       msg.ColumnName,
-				DataTypeName:     msg.DataTypeName,
-				ConstraintName:   msg.ConstraintName,
-				File:             msg.File,
-				Line:             msg.Line,
-				Routine:          msg.Routine,
-			}
+			return nil, errorResponseToPgError(msg)
 		default:
 			pgConn.conn.Close()
 			return nil, errors.New("unexpected message")
@@ -348,7 +330,7 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 }
 
 // CommandTag is the result of an Exec function
-type CommandTag string
+type CommandTag []byte
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
@@ -360,6 +342,10 @@ func (ct CommandTag) RowsAffected() int64 {
 	}
 	n, _ := strconv.ParseInt(s[index+1:], 10, 64)
 	return n
+}
+
+func (ct CommandTag) String() string {
+	return string(ct)
 }
 
 // SendExec enqueues the execution of sql via the PostgreSQL simple query protocol. sql may contain multiple queries.
@@ -511,6 +497,7 @@ func (pgConn *PgConn) SendExecParams(sql string, paramValues [][]byte, paramOIDs
 	}
 
 	pgConn.batchBuf = appendParse(pgConn.batchBuf, "", sql, paramOIDs)
+	pgConn.batchBuf = appendDescribe(pgConn.batchBuf, 'S', "")
 	pgConn.batchBuf = appendBind(pgConn.batchBuf, "", "", paramFormats, paramValues, resultFormats)
 	pgConn.batchBuf = appendExecute(pgConn.batchBuf, "", 0)
 	pgConn.batchBuf = appendSync(pgConn.batchBuf)
@@ -530,6 +517,7 @@ func (pgConn *PgConn) SendExecParams(sql string, paramValues [][]byte, paramOIDs
 //
 // Query is only sent to the PostgreSQL server when Flush is called.
 func (pgConn *PgConn) SendExecPrepared(stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) {
+	pgConn.batchBuf = appendDescribe(pgConn.batchBuf, 'S', stmtName)
 	pgConn.batchBuf = appendBind(pgConn.batchBuf, "", stmtName, paramFormats, paramValues, resultFormats)
 	pgConn.batchBuf = appendExecute(pgConn.batchBuf, "", 0)
 	pgConn.batchBuf = appendSync(pgConn.batchBuf)
@@ -614,6 +602,12 @@ func (rr *PgResultReader) NextRow() bool {
 			return false
 		}
 	}
+}
+
+// FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until
+// the PgResultReader is closed.
+func (rr *PgResultReader) FieldDescriptions() []pgproto3.FieldDescription {
+	return rr.fieldDescriptions
 }
 
 // Values returns the current row data. NextRow must have been previously been called. The returned [][]byte is only
@@ -914,23 +908,23 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 	return &PgError{
-		Severity:         msg.Severity,
-		Code:             msg.Code,
-		Message:          msg.Message,
-		Detail:           msg.Detail,
-		Hint:             msg.Hint,
+		Severity:         string(msg.Severity),
+		Code:             string(msg.Code),
+		Message:          string(msg.Message),
+		Detail:           string(msg.Detail),
+		Hint:             string(msg.Hint),
 		Position:         msg.Position,
 		InternalPosition: msg.InternalPosition,
-		InternalQuery:    msg.InternalQuery,
-		Where:            msg.Where,
-		SchemaName:       msg.SchemaName,
-		TableName:        msg.TableName,
-		ColumnName:       msg.ColumnName,
-		DataTypeName:     msg.DataTypeName,
-		ConstraintName:   msg.ConstraintName,
-		File:             msg.File,
+		InternalQuery:    string(msg.InternalQuery),
+		Where:            string(msg.Where),
+		SchemaName:       string(msg.SchemaName),
+		TableName:        string(msg.TableName),
+		ColumnName:       string(msg.ColumnName),
+		DataTypeName:     string(msg.DataTypeName),
+		ConstraintName:   string(msg.ConstraintName),
+		File:             string(msg.File),
 		Line:             msg.Line,
-		Routine:          msg.Routine,
+		Routine:          string(msg.Routine),
 	}
 }
 
