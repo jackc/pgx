@@ -7,6 +7,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/jackc/pgx/pgconn"
 	"github.com/pkg/errors"
 )
 
@@ -123,9 +124,9 @@ func (tx *Tx) CommitEx(ctx context.Context) error {
 	}
 
 	commandTag, err := tx.conn.ExecEx(ctx, "commit", nil)
-	if err == nil && commandTag == "COMMIT" {
+	if err == nil && string(commandTag) == "COMMIT" {
 		tx.status = TxStatusCommitSuccess
-	} else if err == nil && commandTag == "ROLLBACK" {
+	} else if err == nil && string(commandTag) == "ROLLBACK" {
 		tx.status = TxStatusCommitFailure
 		tx.err = ErrTxCommitRollback
 	} else {
@@ -175,14 +176,14 @@ func (tx *Tx) RollbackEx(ctx context.Context) error {
 }
 
 // Exec delegates to the underlying *Conn
-func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	return tx.ExecEx(context.Background(), sql, nil, arguments...)
 }
 
 // ExecEx delegates to the underlying *Conn
-func (tx *Tx) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (tx *Tx) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	if tx.status != TxStatusInProgress {
-		return CommandTag(""), ErrTxClosed
+		return nil, ErrTxClosed
 	}
 
 	return tx.conn.ExecEx(ctx, sql, options, arguments...)
@@ -240,18 +241,18 @@ func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFr
 }
 
 // CopyFromReader delegates to the underlying *Conn
-func (tx *Tx) CopyFromReader(r io.Reader, sql string) (commandTag CommandTag, err error) {
+func (tx *Tx) CopyFromReader(r io.Reader, sql string) (commandTag pgconn.CommandTag, err error) {
 	if tx.status != TxStatusInProgress {
-		return CommandTag(""), ErrTxClosed
+		return nil, ErrTxClosed
 	}
 
 	return tx.conn.CopyFromReader(r, sql)
 }
 
 // CopyToWriter delegates to the underlying *Conn
-func (tx *Tx) CopyToWriter(w io.Writer, sql string, args ...interface{}) (commandTag CommandTag, err error) {
+func (tx *Tx) CopyToWriter(w io.Writer, sql string, args ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	if tx.status != TxStatusInProgress {
-		return CommandTag(""), ErrTxClosed
+		return nil, ErrTxClosed
 	}
 
 	return tx.conn.CopyToWriter(w, sql, args...)

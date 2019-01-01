@@ -845,7 +845,7 @@ func TestConnPoolExec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}
-	if results != "CREATE TABLE" {
+	if string(results) != "CREATE TABLE" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
@@ -853,7 +853,7 @@ func TestConnPoolExec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}
-	if results != "INSERT 0 1" {
+	if string(results) != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
@@ -861,7 +861,7 @@ func TestConnPoolExec(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}
-	if results != "DROP TABLE" {
+	if string(results) != "DROP TABLE" {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }

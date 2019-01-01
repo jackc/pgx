@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -352,7 +353,7 @@ func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
 }
 
 // Exec acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -362,7 +363,7 @@ func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag Comman
 	return c.Exec(sql, arguments...)
 }
 
-func (p *ConnPool) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag CommandTag, err error) {
+func (p *ConnPool) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
@@ -554,10 +555,10 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 }
 
 // CopyFromReader acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) CopyFromReader(r io.Reader, sql string) (CommandTag, error) {
+func (p *ConnPool) CopyFromReader(r io.Reader, sql string) (pgconn.CommandTag, error) {
 	c, err := p.Acquire()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer p.Release(c)
 
@@ -565,10 +566,10 @@ func (p *ConnPool) CopyFromReader(r io.Reader, sql string) (CommandTag, error) {
 }
 
 // CopyToWriter acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) CopyToWriter(w io.Writer, sql string, args ...interface{}) (CommandTag, error) {
+func (p *ConnPool) CopyToWriter(w io.Writer, sql string, args ...interface{}) (pgconn.CommandTag, error) {
 	c, err := p.Acquire()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer p.Release(c)
 

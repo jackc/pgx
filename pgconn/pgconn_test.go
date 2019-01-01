@@ -512,3 +512,26 @@ func TestConnCancelQuery(t *testing.T) {
 		t.Errorf("expected pgconn.PgError got %v", err)
 	}
 }
+
+func TestCommandTag(t *testing.T) {
+	t.Parallel()
+
+	var tests = []struct {
+		commandTag   pgconn.CommandTag
+		rowsAffected int64
+	}{
+		{commandTag: pgconn.CommandTag("INSERT 0 5"), rowsAffected: 5},
+		{commandTag: pgconn.CommandTag("UPDATE 0"), rowsAffected: 0},
+		{commandTag: pgconn.CommandTag("UPDATE 1"), rowsAffected: 1},
+		{commandTag: pgconn.CommandTag("DELETE 0"), rowsAffected: 0},
+		{commandTag: pgconn.CommandTag("DELETE 1"), rowsAffected: 1},
+		{commandTag: pgconn.CommandTag("CREATE TABLE"), rowsAffected: 0},
+		{commandTag: pgconn.CommandTag("ALTER TABLE"), rowsAffected: 0},
+		{commandTag: pgconn.CommandTag("DROP TABLE"), rowsAffected: 0},
+	}
+
+	for i, tt := range tests {
+		actual := tt.commandTag.RowsAffected()
+		assert.Equalf(t, tt.rowsAffected, actual, "%d. %v", i, tt.commandTag)
+	}
+}
