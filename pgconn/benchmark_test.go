@@ -50,3 +50,24 @@ func BenchmarkExecPrepared(b *testing.B) {
 		require.Nil(b, err)
 	}
 }
+
+func BenchmarkSendExecPrepared(b *testing.B) {
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(b, err)
+	defer closeConn(b, conn)
+
+	err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		conn.SendExecPrepared("ps1", nil, nil, nil)
+		err := conn.Flush(context.Background())
+		require.Nil(b, err)
+
+		for conn.NextResult(context.Background()) {
+			_, err := conn.ResultReader().Close()
+			require.Nil(b, err)
+		}
+	}
+}
