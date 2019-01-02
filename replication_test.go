@@ -52,7 +52,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	defer func() {
 		// Ensure replication slot is destroyed, but don't check for errors as it
 		// should have already been destroyed.
-		conn.Exec("select pg_drop_replication_slot('pgx_test')")
+		conn.Exec(context.Background(), "select pg_drop_replication_slot('pgx_test')")
 		closeConn(t, conn)
 	}()
 
@@ -74,7 +74,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	}
 
 	// Do a simple change so we can get some wal data
-	_, err = conn.Exec("create table if not exists replication_test (a integer)")
+	_, err = conn.Exec(context.Background(), "create table if not exists replication_test (a integer)")
 	if err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestSimpleReplicationConnection(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		var ct pgconn.CommandTag
 		insertedTimes = append(insertedTimes, currentTime)
-		ct, err = conn.Exec("insert into replication_test(a) values($1)", currentTime)
+		ct, err = conn.Exec(context.Background(), "insert into replication_test(a) values($1)", currentTime)
 		if err != nil {
 			t.Fatalf("Insert failed: %v", err)
 		}

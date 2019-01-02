@@ -345,7 +345,7 @@ func TestPoolReleaseWithTransactions(t *testing.T) {
 		t.Fatalf("Unable to acquire connection: %v", err)
 	}
 	mustExec(t, conn, "begin")
-	if _, err = conn.Exec("selct"); err == nil {
+	if _, err = conn.Exec(context.Background(), "selct"); err == nil {
 		t.Fatal("Did not receive expected error")
 	}
 
@@ -449,7 +449,7 @@ func TestPoolReleaseDiscardsDeadConnections(t *testing.T) {
 				}
 			}()
 
-			if _, err = c2.Exec("select pg_terminate_backend($1)", c1.PID()); err != nil {
+			if _, err = c2.Exec(context.Background(), "select pg_terminate_backend($1)", c1.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
@@ -695,7 +695,7 @@ func TestConnPoolBeginRetry(t *testing.T) {
 			pool.Release(victimConn)
 
 			// Terminate connection that was released to pool
-			if _, err = killerConn.Exec("select pg_terminate_backend($1)", victimConn.PID()); err != nil {
+			if _, err = killerConn.Exec(context.Background(), "select pg_terminate_backend($1)", victimConn.PID()); err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 

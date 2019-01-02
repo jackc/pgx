@@ -146,7 +146,7 @@ func TestExecFailure(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if _, err := conn.Exec("selct;"); err == nil {
+	if _, err := conn.Exec(context.Background(), "selct;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 	if !conn.LastStmtSent() {
@@ -169,7 +169,7 @@ func TestExecFailureWithArguments(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if _, err := conn.Exec("selct $1;", 1); err == nil {
+	if _, err := conn.Exec(context.Background(), "selct $1;", 1); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 	if conn.LastStmtSent() {
@@ -270,7 +270,7 @@ func TestExecFailureCloseBefore(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
-	if _, err := conn.Exec("select 1"); err == nil {
+	if _, err := conn.Exec(context.Background(), "select 1"); err == nil {
 		t.Fatal("Expected network error")
 	}
 	if conn.LastStmtSent() {
@@ -884,7 +884,7 @@ func TestFatalRxError(t *testing.T) {
 	otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer otherConn.Close()
 
-	if _, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID()); err != nil {
+	if _, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID()); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -907,7 +907,7 @@ func TestFatalTxError(t *testing.T) {
 			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer otherConn.Close()
 
-			_, err := otherConn.Exec("select pg_terminate_backend($1)", conn.PID())
+			_, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID())
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
@@ -986,7 +986,7 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	}
 	defer rows.Close()
 
-	_, err = conn.Exec("create temporary table foo(spice timestamp[])")
+	_, err = conn.Exec(context.Background(), "create temporary table foo(spice timestamp[])")
 	if err != pgx.ErrConnBusy {
 		t.Fatalf("conn.Exec should have failed with pgx.ErrConnBusy, but it was %v", err)
 	}
@@ -1128,7 +1128,7 @@ func TestConnOnNotice(t *testing.T) {
 	conn := mustConnect(t, connConfig)
 	defer closeConn(t, conn)
 
-	_, err := conn.Exec(`do $$
+	_, err := conn.Exec(context.Background(), `do $$
 begin
   raise notice 'hello, world';
 end$$;`)

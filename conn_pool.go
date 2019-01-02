@@ -195,7 +195,7 @@ func (p *ConnPool) Release(conn *Conn) {
 	}
 
 	if conn.pgConn.TxStatus != 'I' {
-		conn.Exec("rollback")
+		conn.Exec(context.TODO(), "rollback")
 	}
 
 	if len(conn.channels) > 0 {
@@ -360,7 +360,7 @@ func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag pgconn
 	}
 	defer p.Release(c)
 
-	return c.Exec(sql, arguments...)
+	return c.Exec(context.TODO(), sql, arguments...)
 }
 
 func (p *ConnPool) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {

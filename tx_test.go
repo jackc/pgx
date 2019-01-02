@@ -26,7 +26,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
     );
   `
 
-	if _, err := conn.Exec(createSql); err != nil {
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
     );
   `
 
-	if _, err := conn.Exec(createSql); err != nil {
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
@@ -160,7 +160,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
     );
   `
 
-	if _, err := conn.Exec(createSql); err != nil {
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
@@ -227,7 +227,7 @@ func TestBeginExReadOnly(t *testing.T) {
 	}
 	defer tx.Rollback()
 
-	_, err = conn.Exec("create table foo(id serial primary key)")
+	_, err = conn.Exec(context.Background(), "create table foo(id serial primary key)")
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "25006" {
 		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
 	}

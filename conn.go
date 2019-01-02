@@ -2,6 +2,8 @@ package pgx
 
 import (
 	"context"
+	"database/sql/driver"
+	"fmt"
 	"net"
 	"reflect"
 	"strings"
@@ -673,7 +675,7 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 
 // Listen establishes a PostgreSQL listen/notify to channel
 func (c *Conn) Listen(channel string) error {
-	_, err := c.Exec("listen " + quoteIdentifier(channel))
+	_, err := c.Exec(context.TODO(), "listen "+quoteIdentifier(channel))
 	if err != nil {
 		return err
 	}
@@ -685,7 +687,7 @@ func (c *Conn) Listen(channel string) error {
 
 // Unlisten unsubscribes from a listen channel
 func (c *Conn) Unlisten(channel string) error {
-	_, err := c.Exec("unlisten " + quoteIdentifier(channel))
+	_, err := c.Exec(context.TODO(), "unlisten "+quoteIdentifier(channel))
 	if err != nil {
 		return err
 	}
@@ -835,12 +837,6 @@ func fatalWriteErr(bytesWritten int, err error) bool {
 
 	netErr, is := err.(net.Error)
 	return !(is && netErr.Timeout())
-}
-
-// Exec executes sql. sql can be either a prepared statement name or an SQL string.
-// arguments should be referenced positionally from the sql string as $1, $2, etc.
-func (c *Conn) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	return c.ExecEx(context.Background(), sql, nil, arguments...)
 }
 
 // Processes messages that are not exclusive to one context such as
@@ -1350,4 +1346,171 @@ func connInfoFromRows(rows *Rows, err error) (map[string]pgtype.OID, error) {
 // attempted to be executed will this return true.
 func (c *Conn) LastStmtSent() bool {
 	return c.lastStmtSent
+}
+
+// Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
+// positionally from the sql string as $1, $2, etc.
+func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+	c.lastStmtSent = false
+	err := c.waitForPreviousCancelQuery(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.lock(); err != nil {
+		return nil, err
+	}
+	defer c.unlock()
+
+	if err := c.ensureConnectionReadyForQuery(); err != nil {
+		return nil, err
+	}
+
+	startTime := time.Now()
+
+	commandTag, err := c.exec(ctx, sql, arguments...)
+	if err != nil {
+		if c.shouldLog(LogLevelError) {
+			c.log(LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
+		}
+		return commandTag, err
+	}
+
+	if c.shouldLog(LogLevelInfo) {
+		endTime := time.Now()
+		c.log(LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
+	}
+
+	return commandTag, err
+}
+
+func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+	if len(arguments) == 0 {
+		c.lastStmtSent = true
+		result, err := c.pgConn.Exec(ctx, sql)
+		if err != nil {
+			return nil, err
+		}
+
+		return result.CommandTag, nil
+	} else {
+		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		ps := &PreparedStatement{
+			Name:              psd.Name,
+			SQL:               psd.SQL,
+			ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
+			FieldDescriptions: make([]FieldDescription, len(psd.Fields)),
+		}
+
+		for i := range ps.ParameterOIDs {
+			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
+		}
+		for i := range ps.FieldDescriptions {
+			c.pgconnFieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+		}
+
+		arguments, err = convertDriverValuers(arguments)
+		if err != nil {
+			return nil, err
+		}
+
+		paramFormats := make([]int16, len(arguments))
+		paramValues := make([][]byte, len(arguments))
+		for i := range arguments {
+			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
+			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
+			if err != nil {
+				return nil, err
+			}
+
+		}
+
+		resultFormats := make([]int16, len(ps.FieldDescriptions))
+		for i := range resultFormats {
+			resultFormats[i] = ps.FieldDescriptions[i].FormatCode
+		}
+
+		c.lastStmtSent = true
+		result, err := c.pgConn.ExecPrepared(ctx, psd.Name, paramValues, paramFormats, resultFormats)
+		if err != nil {
+			return nil, err
+		}
+
+		return result.CommandTag, nil
+	}
+
+}
+
+func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg interface{}) ([]byte, error) {
+	if arg == nil {
+		return nil, nil
+	}
+
+	switch arg := arg.(type) {
+	case pgtype.BinaryEncoder:
+		return arg.EncodeBinary(ci, nil)
+	case pgtype.TextEncoder:
+		return arg.EncodeText(ci, nil)
+	case string:
+		return []byte(arg), nil
+	}
+
+	refVal := reflect.ValueOf(arg)
+
+	if refVal.Kind() == reflect.Ptr {
+		if refVal.IsNil() {
+			return nil, nil
+		}
+		arg = refVal.Elem().Interface()
+		return newencodePreparedStatementArgument(ci, oid, arg)
+	}
+
+	if dt, ok := ci.DataTypeForOID(oid); ok {
+		value := dt.Value
+		err := value.Set(arg)
+		if err != nil {
+			{
+				if arg, ok := arg.(driver.Valuer); ok {
+					v, err := callValuerValue(arg)
+					if err != nil {
+						return nil, err
+					}
+					return newencodePreparedStatementArgument(ci, oid, v)
+				}
+			}
+
+			return nil, err
+		}
+
+		return value.(pgtype.BinaryEncoder).EncodeBinary(ci, nil)
+	}
+
+	if strippedArg, ok := stripNamedType(&refVal); ok {
+		return newencodePreparedStatementArgument(ci, oid, strippedArg)
+	}
+	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+}
+
+// pgconnFieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
+// FieldDescription.
+func (c *Conn) pgconnFieldDescriptionToPgxFieldDescription(src *pgconn.FieldDescription, dst *FieldDescription) {
+	dst.Name = src.Name
+	dst.Table = pgtype.OID(src.TableOID)
+	dst.AttributeNumber = src.TableAttributeNumber
+	dst.DataType = pgtype.OID(src.DataTypeOID)
+	dst.DataTypeSize = src.DataTypeSize
+	dst.Modifier = src.TypeModifier
+
+	if dt, ok := c.ConnInfo.DataTypeForOID(dst.DataType); ok {
+		dst.DataTypeName = dt.Name
+		if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+			dst.FormatCode = BinaryFormatCode
+		} else {
+			dst.FormatCode = TextFormatCode
+		}
+	}
 }
