@@ -327,8 +327,11 @@ func TestConnExecPrepared(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	err = pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
+	psd, err := pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
 	require.Nil(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, 1)
+	assert.Len(t, psd.Fields, 1)
 
 	result, err := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{[]byte("Hello, world")}, nil, nil)
 	require.Nil(t, err)
@@ -343,7 +346,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	err = pgConn.Prepare(context.Background(), "ps1", "select current_database(), pg_sleep(1)", nil)
+	_, err = pgConn.Prepare(context.Background(), "ps1", "select current_database(), pg_sleep(1)", nil)
 	require.Nil(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -362,7 +365,7 @@ func TestConnBatchedQueries(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	err = pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
+	_, err = pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
 	require.Nil(t, err)
 
 	pgConn.SendExec("select 'SendExec 1'")
