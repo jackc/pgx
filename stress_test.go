@@ -17,7 +17,7 @@ import (
 )
 
 type execer interface {
-	Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 }
 type queryer interface {
 	Query(sql string, args ...interface{}) (*pgx.Rows, error)
@@ -102,7 +102,7 @@ func TestStressConnPool(t *testing.T) {
 }
 
 func setupStressDB(t *testing.T, pool *pgx.ConnPool) {
-	_, err := pool.Exec(`
+	_, err := pool.Exec(context.Background(), `
 		drop table if exists widgets;
 		create table widgets(
 			id serial primary key,
@@ -121,7 +121,7 @@ func insertUnprepared(e execer, actionNum int) error {
 		insert into widgets(name, description, creation_time)
 		values($1, $2, $3)`
 
-	_, err := e.Exec(sql, fake.ProductName(), fake.Sentences(), time.Now())
+	_, err := e.Exec(context.Background(), sql, fake.ProductName(), fake.Sentences(), time.Now())
 	return err
 }
 
@@ -198,7 +198,7 @@ func queryErrorWhileReturningRows(q queryer, actionNum int) error {
 }
 
 func notify(pool *pgx.ConnPool, actionNum int) error {
-	_, err := pool.Exec("notify stress")
+	_, err := pool.Exec(context.Background(), "notify stress")
 	return err
 }
 
@@ -254,7 +254,7 @@ func txInsertRollback(pool *pgx.ConnPool, actionNum int) error {
 		insert into widgets(name, description, creation_time)
 		values($1, $2, $3)`
 
-	_, err = tx.Exec(sql, fake.ProductName(), fake.Sentences(), time.Now())
+	_, err = tx.Exec(context.Background(), sql, fake.ProductName(), fake.Sentences(), time.Now())
 	if err != nil {
 		return err
 	}
@@ -272,7 +272,7 @@ func txInsertCommit(pool *pgx.ConnPool, actionNum int) error {
 		insert into widgets(name, description, creation_time)
 		values($1, $2, $3)`
 
-	_, err = tx.Exec(sql, fake.ProductName(), fake.Sentences(), time.Now())
+	_, err = tx.Exec(context.Background(), sql, fake.ProductName(), fake.Sentences(), time.Now())
 	if err != nil {
 		tx.Rollback()
 		return err
@@ -352,7 +352,7 @@ func canceledExecExContext(pool *pgx.ConnPool, actionNum int) error {
 		cancelFunc()
 	}()
 
-	_, err := pool.ExecEx(ctx, "select pg_sleep(2)", nil)
+	_, err := pool.Exec(ctx, "select pg_sleep(2)")
 	if err != context.Canceled {
 		return errors.Errorf("Expected context.Canceled error, got %v", err)
 	}

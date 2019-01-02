@@ -801,7 +801,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 				t.Error("Select called onDataRow wrong number of times")
 			}
 
-			_, err = pool.Exec("--;")
+			_, err = pool.Exec(context.Background(), "--;")
 			if err != nil {
 				t.Fatalf("pool.Exec failed: %v", err)
 			}
@@ -841,7 +841,7 @@ func TestConnPoolExec(t *testing.T) {
 	pool := createConnPool(t, 2)
 	defer pool.Close()
 
-	results, err := pool.Exec("create temporary table foo(id integer primary key);")
+	results, err := pool.Exec(context.Background(), "create temporary table foo(id integer primary key);")
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}
@@ -849,7 +849,7 @@ func TestConnPoolExec(t *testing.T) {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
-	results, err = pool.Exec("insert into foo(id) values($1)", 1)
+	results, err = pool.Exec(context.Background(), "insert into foo(id) values($1)", 1)
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}
@@ -857,7 +857,7 @@ func TestConnPoolExec(t *testing.T) {
 		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 
-	results, err = pool.Exec("drop table foo;")
+	results, err = pool.Exec(context.Background(), "drop table foo;")
 	if err != nil {
 		t.Fatalf("Unexpected error from pool.Exec: %v", err)
 	}

@@ -177,7 +177,7 @@ func TestExecFailureWithArguments(t *testing.T) {
 	}
 }
 
-func TestExecExContextWithoutCancelation(t *testing.T) {
+func TestExecContextWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -186,7 +186,7 @@ func TestExecExContextWithoutCancelation(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(id integer primary key);", nil)
+	commandTag, err := conn.Exec(ctx, "create temporary table foo(id integer primary key);")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestExecExContextWithoutCancelation(t *testing.T) {
 	}
 }
 
-func TestExecExContextFailureWithoutCancelation(t *testing.T) {
+func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -207,7 +207,7 @@ func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	if _, err := conn.ExecEx(ctx, "selct;", nil); err == nil {
+	if _, err := conn.Exec(ctx, "selct;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 	if !conn.LastStmtSent() {
@@ -224,7 +224,7 @@ func TestExecExContextFailureWithoutCancelation(t *testing.T) {
 	}
 }
 
-func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
+func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -233,7 +233,7 @@ func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	if _, err := conn.ExecEx(ctx, "selct $1;", nil, 1); err == nil {
+	if _, err := conn.Exec(ctx, "selct $1;", 1); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
 	if conn.LastStmtSent() {
@@ -241,7 +241,7 @@ func TestExecExContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	}
 }
 
-func TestExecExContextCancelationCancelsQuery(t *testing.T) {
+func TestExecContextCancelationCancelsQuery(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -253,7 +253,7 @@ func TestExecExContextCancelationCancelsQuery(t *testing.T) {
 		cancelFunc()
 	}()
 
-	_, err := conn.ExecEx(ctx, "select pg_sleep(60)", nil)
+	_, err := conn.Exec(ctx, "select pg_sleep(60)")
 	if err != context.Canceled {
 		t.Fatalf("Expected context.Canceled err, got %v", err)
 	}
@@ -278,7 +278,7 @@ func TestExecFailureCloseBefore(t *testing.T) {
 	}
 }
 
-func TestExecExExtendedProtocol(t *testing.T) {
+func TestExecExtendedProtocol(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -287,18 +287,17 @@ func TestExecExExtendedProtocol(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	commandTag, err := conn.Exec(ctx, "create temporary table foo(name varchar primary key);")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(commandTag) != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
 
-	commandTag, err = conn.ExecEx(
+	commandTag, err = conn.Exec(
 		ctx,
 		"insert into foo(name) values($1);",
-		nil,
 		"bar",
 	)
 	if err != nil {
@@ -311,119 +310,42 @@ func TestExecExExtendedProtocol(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestExecExSimpleProtocol(t *testing.T) {
-	t.Parallel()
+func TestExecSimpleProtocol(t *testing.T) {
+	t.Skip("TODO when with simple protocol supported in connection")
+	// t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	// conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	// defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	// ctx, cancelFunc := context.WithCancel(context.Background())
+	// defer cancelFunc()
 
-	commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
+	// commandTag, err := conn.ExecEx(ctx, "create temporary table foo(name varchar primary key);", nil)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if string(commandTag) != "CREATE TABLE" {
+	// 	t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	// }
+	// if !conn.LastStmtSent() {
+	// 	t.Error("Expected LastStmtSent to return true")
+	// }
 
-	commandTag, err = conn.ExecEx(
-		ctx,
-		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{SimpleProtocol: true},
-		"bar'; drop table foo;--",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "INSERT 0 1" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
-}
-
-func TestConnExecExSuppliedCorrectParameterOIDs(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
-
-	commandTag, err := conn.ExecEx(
-		context.Background(),
-		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.VarcharOID}},
-		"bar'; drop table foo;--",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "INSERT 0 1" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
-}
-
-func TestConnExecExSuppliedIncorrectParameterOIDs(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
-
-	_, err := conn.ExecEx(
-		context.Background(),
-		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.Int4OID}},
-		"bar'; drop table foo;--",
-	)
-	if err == nil {
-		t.Fatal("expected error but got none")
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
-}
-
-func TestConnExecExIncorrectParameterOIDsAfterAnotherQuery(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	mustExec(t, conn, "create temporary table foo(name varchar primary key);")
-
-	var s string
-	err := conn.QueryRow("insert into foo(name) values('baz') returning name;").Scan(&s)
-	if err != nil {
-		t.Errorf("Executing query failed: %v", err)
-	}
-	if s != "baz" {
-		t.Errorf("Query did not return expected value: %v", s)
-	}
-
-	_, err = conn.ExecEx(
-		context.Background(),
-		"insert into foo(name) values($1);",
-		&pgx.QueryExOptions{ParameterOIDs: []pgtype.OID{pgtype.Int4OID}},
-		"bar'; drop table foo;--",
-	)
-	if err == nil {
-		t.Fatal("expected error but got none")
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
+	// commandTag, err = conn.ExecEx(
+	// 	ctx,
+	// 	"insert into foo(name) values($1);",
+	// 	&pgx.QueryExOptions{SimpleProtocol: true},
+	// 	"bar'; drop table foo;--",
+	// )
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
+	// if string(commandTag) != "INSERT 0 1" {
+	// 	t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+	// }
+	// if !conn.LastStmtSent() {
+	// 	t.Error("Expected LastStmtSent to return true")
+	// }
 }
 
 func TestExecExFailureCloseBefore(t *testing.T) {
@@ -432,7 +354,7 @@ func TestExecExFailureCloseBefore(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
-	if _, err := conn.ExecEx(context.Background(), "select 1", nil); err == nil {
+	if _, err := conn.Exec(context.Background(), "select 1", nil); err == nil {
 		t.Fatal("Expected network error")
 	}
 	if conn.LastStmtSent() {

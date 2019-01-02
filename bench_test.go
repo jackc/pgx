@@ -395,7 +395,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 
 		for src.Next() {
 			values, _ := src.Values()
-			if _, err = tx.Exec("insert_t", values...); err != nil {
+			if _, err = tx.Exec(context.Background(), "insert_t", values...); err != nil {
 				b.Fatalf("Exec unexpectedly failed with: %v", err)
 			}
 		}
@@ -457,7 +457,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 		rowsThisInsert++
 
 		if rowsThisInsert == maxRowsPerInsert {
-			_, err := tx.Exec(sqlBuf.String(), args...)
+			_, err := tx.Exec(context.Background(), sqlBuf.String(), args...)
 			if err != nil {
 				return 0, err
 			}
@@ -468,7 +468,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	}
 
 	if rowsThisInsert > 0 {
-		_, err := tx.Exec(sqlBuf.String(), args...)
+		_, err := tx.Exec(context.Background(), sqlBuf.String(), args...)
 		if err != nil {
 			return 0, err
 		}
