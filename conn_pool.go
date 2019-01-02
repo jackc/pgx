@@ -353,24 +353,14 @@ func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
 }
 
 // Exec acquires a connection, delegates the call to that connection, and releases the connection
-func (p *ConnPool) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+func (p *ConnPool) Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	var c *Conn
 	if c, err = p.Acquire(); err != nil {
 		return
 	}
 	defer p.Release(c)
 
-	return c.Exec(context.TODO(), sql, arguments...)
-}
-
-func (p *ConnPool) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	var c *Conn
-	if c, err = p.Acquire(); err != nil {
-		return
-	}
-	defer p.Release(c)
-
-	return c.ExecEx(ctx, sql, options, arguments...)
+	return c.Exec(ctx, sql, arguments...)
 }
 
 // Query acquires a connection and delegates the call to that connection. When

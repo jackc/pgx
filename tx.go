@@ -90,7 +90,7 @@ func (c *Conn) Begin() (*Tx, error) {
 // mode. Unlike database/sql, the context only affects the begin command. i.e.
 // there is no auto-rollback on context cancelation.
 func (c *Conn) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
-	_, err := c.ExecEx(ctx, txOptions.beginSQL(), nil)
+	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or
 		// a context timeout. In either case, the connection is possibly broken.
@@ -123,7 +123,7 @@ func (tx *Tx) CommitEx(ctx context.Context) error {
 		return ErrTxClosed
 	}
 
-	commandTag, err := tx.conn.ExecEx(ctx, "commit", nil)
+	commandTag, err := tx.conn.Exec(ctx, "commit")
 	if err == nil && string(commandTag) == "COMMIT" {
 		tx.status = TxStatusCommitSuccess
 	} else if err == nil && string(commandTag) == "ROLLBACK" {
@@ -159,7 +159,7 @@ func (tx *Tx) RollbackEx(ctx context.Context) error {
 		return ErrTxClosed
 	}
 
-	_, tx.err = tx.conn.ExecEx(ctx, "rollback", nil)
+	_, tx.err = tx.conn.Exec(ctx, "rollback")
 	if tx.err == nil {
 		tx.status = TxStatusRollbackSuccess
 	} else {
@@ -176,17 +176,8 @@ func (tx *Tx) RollbackEx(ctx context.Context) error {
 }
 
 // Exec delegates to the underlying *Conn
-func (tx *Tx) Exec(sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	return tx.ExecEx(context.Background(), sql, nil, arguments...)
-}
-
-// ExecEx delegates to the underlying *Conn
-func (tx *Tx) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	if tx.status != TxStatusInProgress {
-		return nil, ErrTxClosed
-	}
-
-	return tx.conn.ExecEx(ctx, sql, options, arguments...)
+func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+	return tx.conn.Exec(ctx, sql, arguments...)
 }
 
 // Prepare delegates to the underlying *Conn

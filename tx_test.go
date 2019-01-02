@@ -35,7 +35,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
 
-	_, err = tx.Exec("insert into foo(id) values (1)")
+	_, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
 	if err != nil {
 		t.Fatalf("tx.Exec failed: %v", err)
 	}
@@ -77,12 +77,12 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
 
-	if _, err := tx.Exec("insert into foo(id) values (1)"); err != nil {
+	if _, err := tx.Exec(context.Background(), "insert into foo(id) values (1)"); err != nil {
 		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
 	// Purposely break transaction
-	if _, err := tx.Exec("syntax error"); err == nil {
+	if _, err := tx.Exec(context.Background(), "syntax error"); err == nil {
 		t.Fatal("Unexpected success")
 	}
 
@@ -107,12 +107,12 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	pool := createConnPool(t, 5)
 	defer pool.Close()
 
-	pool.Exec(`drop table if exists tx_serializable_sums`)
-	_, err := pool.Exec(`create table tx_serializable_sums(num integer);`)
+	pool.Exec(context.Background(), `drop table if exists tx_serializable_sums`)
+	_, err := pool.Exec(context.Background(), `create table tx_serializable_sums(num integer);`)
 	if err != nil {
 		t.Fatalf("Unable to create temporary table: %v", err)
 	}
-	defer pool.Exec(`drop table tx_serializable_sums`)
+	defer pool.Exec(context.Background(), `drop table tx_serializable_sums`)
 
 	tx1, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
@@ -126,12 +126,12 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer tx2.Rollback()
 
-	_, err = tx1.Exec(`insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	_, err = tx1.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
 
-	_, err = tx2.Exec(`insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	_, err = tx2.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
 
-	_, err = tx.Exec("insert into foo(id) values (1)")
+	_, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
 	if err != nil {
 		t.Fatalf("tx.Exec failed: %v", err)
 	}
@@ -373,12 +373,12 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
 	}
 
-	_, err = tx.Exec("savepoint s")
+	_, err = tx.Exec(context.Background(), "savepoint s")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec("syntax error")
+	_, err = tx.Exec(context.Background(), "syntax error")
 	if err == nil {
 		t.Fatal("expected an error but did not get one")
 	}
@@ -387,7 +387,7 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInFailure, status)
 	}
 
-	_, err = tx.Exec("rollback to s")
+	_, err = tx.Exec(context.Background(), "rollback to s")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -417,7 +417,7 @@ func TestTxErr(t *testing.T) {
 	}
 
 	// Purposely break transaction
-	if _, err := tx.Exec("syntax error"); err == nil {
+	if _, err := tx.Exec(context.Background(), "syntax error"); err == nil {
 		t.Fatal("Unexpected success")
 	}
 

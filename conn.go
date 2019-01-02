@@ -1080,137 +1080,8 @@ func (c *Conn) cancelQuery() {
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
-	_, err := c.ExecEx(ctx, ";", nil)
+	_, err := c.Exec(ctx, ";", nil)
 	return err
-}
-
-func (c *Conn) ExecEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (pgconn.CommandTag, error) {
-	c.lastStmtSent = false
-	err := c.waitForPreviousCancelQuery(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := c.lock(); err != nil {
-		return nil, err
-	}
-	defer c.unlock()
-
-	startTime := time.Now()
-
-	commandTag, err := c.execEx(ctx, sql, options, arguments...)
-	if err != nil {
-		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
-		}
-		return commandTag, err
-	}
-
-	if c.shouldLog(LogLevelInfo) {
-		endTime := time.Now()
-		c.log(LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
-	}
-
-	return commandTag, err
-}
-
-func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	err = c.initContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = c.termContext(err)
-	}()
-
-	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
-		c.lastStmtSent = true
-		err = c.sanitizeAndSendSimpleQuery(sql, arguments...)
-		if err != nil {
-			return nil, err
-		}
-	} else if options != nil && len(options.ParameterOIDs) > 0 {
-		if err := c.ensureConnectionReadyForQuery(); err != nil {
-			return nil, err
-		}
-
-		buf, err := c.buildOneRoundTripExec(c.wbuf, sql, options, arguments)
-		if err != nil {
-			return nil, err
-		}
-
-		buf = appendSync(buf)
-
-		n, err := c.pgConn.Conn().Write(buf)
-		c.lastStmtSent = true
-		if err != nil && fatalWriteErr(n, err) {
-			c.die(err)
-			return nil, err
-		}
-		c.pendingReadyForQueryCount++
-	} else {
-		if len(arguments) > 0 {
-			ps, ok := c.preparedStatements[sql]
-			if !ok {
-				var err error
-				ps, err = c.prepareEx("", sql, nil)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			c.lastStmtSent = true
-			err = c.sendPreparedQuery(ps, arguments...)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			c.lastStmtSent = true
-			if err = c.sendQuery(sql, arguments...); err != nil {
-				return
-			}
-		}
-	}
-
-	var softErr error
-
-	for {
-		msg, err := c.rxMsg()
-		if err != nil {
-			return commandTag, err
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.ReadyForQuery:
-			c.rxReadyForQuery(msg)
-			return commandTag, softErr
-		case *pgproto3.CommandComplete:
-			commandTag = pgconn.CommandTag(msg.CommandTag)
-		default:
-			if e := c.processContextFreeMsg(msg); e != nil && softErr == nil {
-				softErr = e
-			}
-		}
-	}
-}
-
-func (c *Conn) buildOneRoundTripExec(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
-	if len(arguments) != len(options.ParameterOIDs) {
-		return nil, errors.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
-	}
-
-	if len(options.ParameterOIDs) > 65535 {
-		return nil, errors.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
-	}
-
-	buf = appendParse(buf, "", sql, options.ParameterOIDs)
-	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOIDs, arguments, nil)
-	if err != nil {
-		return nil, err
-	}
-	buf = appendExecute(buf, "", 0)
-
-	return buf, nil
 }
 
 func (c *Conn) initContext(ctx context.Context) error {
@@ -1397,6 +1268,10 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
 		if err != nil {
 			return nil, err
+		}
+
+		if len(psd.ParamOIDs) != len(arguments) {
+			return nil, errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(arguments))
 		}
 
 		ps := &PreparedStatement{
