@@ -551,3 +551,26 @@ func TestCommandTag(t *testing.T) {
 		assert.Equalf(t, tt.rowsAffected, actual, "%d. %v", i, tt.commandTag)
 	}
 }
+
+func TestConnOnNotice(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	var msg string
+	config.OnNotice = func(c *pgconn.PgConn, notice *pgconn.Notice) {
+		msg = notice.Message
+	}
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `do $$
+begin
+  raise notice 'hello, world';
+end$$;`)
+	require.Nil(t, err)
+	assert.Equal(t, "hello, world", msg)
+}

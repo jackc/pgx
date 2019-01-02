@@ -1038,33 +1038,6 @@ func TestIdentifierSanitize(t *testing.T) {
 	}
 }
 
-func TestConnOnNotice(t *testing.T) {
-	t.Parallel()
-
-	var msg string
-
-	connConfig := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	connConfig.OnNotice = func(c *pgx.Conn, notice *pgx.Notice) {
-		msg = notice.Message
-	}
-	conn := mustConnect(t, connConfig)
-	defer closeConn(t, conn)
-
-	_, err := conn.Exec(context.Background(), `do $$
-begin
-  raise notice 'hello, world';
-end$$;`)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if msg != "hello, world" {
-		t.Errorf("msg => %v, want %v", msg, "hello, world")
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestConnInitConnInfo(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
