@@ -243,6 +243,8 @@ func TestConnExec(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, pgConn.Config.Database, string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecEmpty(t *testing.T) {
@@ -256,6 +258,8 @@ func TestConnExecEmpty(t *testing.T) {
 	require.Nil(t, err)
 	assert.Nil(t, result.CommandTag)
 	assert.Equal(t, 0, len(result.Rows))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecMultipleQueries(t *testing.T) {
@@ -269,6 +273,8 @@ func TestConnExecMultipleQueries(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "1", string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecMultipleQueriesError(t *testing.T) {
@@ -286,6 +292,8 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	} else {
 		t.Errorf("unexpected error: %v", err)
 	}
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecContextCanceled(t *testing.T) {
@@ -302,6 +310,8 @@ func TestConnExecContextCanceled(t *testing.T) {
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecParams(t *testing.T) {
@@ -315,6 +325,8 @@ func TestConnExecParams(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "Hello, world", string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecParamsCanceled(t *testing.T) {
@@ -331,6 +343,8 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecPrepared(t *testing.T) {
@@ -350,6 +364,8 @@ func TestConnExecPrepared(t *testing.T) {
 	require.Nil(t, err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "Hello, world", string(result.Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecPreparedCanceled(t *testing.T) {
@@ -369,6 +385,8 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnBatchedQueries(t *testing.T) {
@@ -480,6 +498,8 @@ func TestConnBatchedQueries(t *testing.T) {
 
 	// Done
 	require.False(t, pgConn.NextResult(context.Background()))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnRecoverFromTimeout(t *testing.T) {
@@ -504,6 +524,8 @@ func TestConnRecoverFromTimeout(t *testing.T) {
 		assert.Equal(t, "1", string(result.Rows[0][0]))
 	}
 	cancel()
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnCancelQuery(t *testing.T) {
@@ -527,6 +549,10 @@ func TestConnCancelQuery(t *testing.T) {
 	} else {
 		t.Errorf("expected pgconn.PgError got %v", err)
 	}
+
+	require.False(t, pgConn.NextResult(context.Background()))
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestCommandTag(t *testing.T) {
@@ -573,4 +599,6 @@ begin
 end$$;`)
 	require.Nil(t, err)
 	assert.Equal(t, "hello, world", msg)
+
+	ensureConnValid(t, pgConn)
 }

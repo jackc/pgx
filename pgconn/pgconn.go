@@ -562,23 +562,28 @@ func (rr *PgResultReader) close() {
 
 // Flush sends the enqueued execs to the server.
 func (pgConn *PgConn) Flush(ctx context.Context) error {
-	defer pgConn.resetBatch()
-
 	cleanup := contextDoneToConnDeadline(ctx, pgConn.conn)
-	defer cleanup()
+	err := pgConn.flush()
+	cleanup()
+	return preferContextOverNetTimeoutError(ctx, err)
+}
 
+// flush sends the enqueued execs to the server without handling a context.
+func (pgConn *PgConn) flush() error {
 	n, err := pgConn.conn.Write(pgConn.batchBuf)
-	if err != nil {
-		if n > 0 {
-			// Close connection because cannot recover from partially sent message.
-			pgConn.conn.Close()
-			pgConn.closed = true
-		}
-		return preferContextOverNetTimeoutError(ctx, err)
+	if err != nil && n > 0 {
+		// Close connection because cannot recover from partially sent message.
+		pgConn.conn.Close()
+		pgConn.closed = true
 	}
 
-	pgConn.pendingReadyForQueryCount += pgConn.batchCount
-	return nil
+	if err == nil {
+		pgConn.pendingReadyForQueryCount += pgConn.batchCount
+	}
+
+	pgConn.resetBatch()
+
+	return err
 }
 
 // contextDoneToConnDeadline starts a goroutine that will set an immediate deadline on conn after reading from
@@ -646,13 +651,11 @@ func (pgConn *PgConn) RecoverFromTimeout(ctx context.Context) bool {
 	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.conn)
 	defer cleanupContext()
 
-	for pgConn.pendingReadyForQueryCount > 0 {
-		_, err := pgConn.ReceiveMessage()
-		if err != nil {
-			preferContextOverNetTimeoutError(ctx, err)
-			pgConn.Close(context.Background())
-			return false
-		}
+	err := pgConn.ensureReadyForQuery()
+	if err != nil {
+		preferContextOverNetTimeoutError(ctx, err)
+		pgConn.Close(context.Background())
+		return false
 	}
 
 	result, err := pgConn.Exec(
@@ -665,6 +668,18 @@ func (pgConn *PgConn) RecoverFromTimeout(ctx context.Context) bool {
 	}
 
 	return true
+}
+
+// ensureReadyForQuery reads until pendingReadyForQueryCount == 0.
+func (pgConn *PgConn) ensureReadyForQuery() error {
+	for pgConn.pendingReadyForQueryCount > 0 {
+		_, err := pgConn.ReceiveMessage()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (pgConn *PgConn) resetBatch() {
@@ -690,14 +705,19 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) (*PgResult, error) {
 	if pgConn.batchCount != 0 {
 		return nil, errors.New("unflushed previous sends")
 	}
-	if pgConn.pendingReadyForQueryCount != 0 {
-		return nil, errors.New("unread previous results")
+
+	cleanup := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanup()
+
+	err := pgConn.ensureReadyForQuery()
+	if err != nil {
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	pgConn.SendExec(sql)
-	err := pgConn.Flush(ctx)
+	err = pgConn.flush()
 	if err != nil {
-		return nil, err
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	return pgConn.bufferLastResult(ctx)
@@ -741,12 +761,17 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 	if pgConn.batchCount != 0 {
 		return nil, errors.New("unflushed previous sends")
 	}
-	if pgConn.pendingReadyForQueryCount != 0 {
-		return nil, errors.New("unread previous results")
+
+	cleanup := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanup()
+
+	err := pgConn.ensureReadyForQuery()
+	if err != nil {
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	pgConn.SendExecParams(sql, paramValues, paramOIDs, paramFormats, resultFormats)
-	err := pgConn.Flush(ctx)
+	err = pgConn.flush()
 	if err != nil {
 		return nil, err
 	}
@@ -762,12 +787,17 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	if pgConn.batchCount != 0 {
 		return nil, errors.New("unflushed previous sends")
 	}
-	if pgConn.pendingReadyForQueryCount != 0 {
-		return nil, errors.New("unread previous results")
+
+	cleanup := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanup()
+
+	err := pgConn.ensureReadyForQuery()
+	if err != nil {
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	pgConn.SendExecPrepared(stmtName, paramValues, paramFormats, resultFormats)
-	err := pgConn.Flush(ctx)
+	err = pgConn.flush()
 	if err != nil {
 		return nil, err
 	}
@@ -809,18 +839,20 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	if pgConn.batchCount != 0 {
 		return nil, errors.New("unflushed previous sends")
 	}
-	if pgConn.pendingReadyForQueryCount != 0 {
-		return nil, errors.New("unread previous results")
-	}
 
-	cleanupContext := contextDoneToConnDeadline(ctx, pgConn.conn)
-	defer cleanupContext()
+	cleanup := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanup()
+
+	err := pgConn.ensureReadyForQuery()
+	if err != nil {
+		return nil, preferContextOverNetTimeoutError(ctx, err)
+	}
 
 	pgConn.batchBuf = (&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs}).Encode(pgConn.batchBuf)
 	pgConn.batchBuf = (&pgproto3.Describe{ObjectType: 'S', Name: name}).Encode(pgConn.batchBuf)
 	pgConn.batchBuf = (&pgproto3.Sync{}).Encode(pgConn.batchBuf)
 	pgConn.batchCount += 1
-	err := pgConn.Flush(context.Background())
+	err = pgConn.flush()
 	if err != nil {
 		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
