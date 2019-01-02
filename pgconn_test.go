@@ -245,6 +245,19 @@ func TestConnExec(t *testing.T) {
 	assert.Equal(t, pgConn.Config.Database, string(result.Rows[0][0]))
 }
 
+func TestConnExecEmpty(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	result, err := pgConn.Exec(context.Background(), ";")
+	require.Nil(t, err)
+	assert.Nil(t, result.CommandTag)
+	assert.Equal(t, 0, len(result.Rows))
+}
+
 func TestConnExecMultipleQueries(t *testing.T) {
 	t.Parallel()
 
