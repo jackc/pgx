@@ -628,12 +628,12 @@ func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
 	return err
 }
 
-// RecoverFromTimeout attempts to recover from a timeout error such as is caused by a canceled context. If recovery is
-// successful true is returned. If recovery is not successful the connection is closed and false is returned. Recovery
-// should usually be possible except in the case of a partial write. This must be called after any context cancellation.
-//
-// As RecoverFromTimeout may need to read and ignored data already sent from the server, it potentially can block
-// indefinitely. Use ctx to guard against this.
+// RecoverFromTimeout attempts to recover from a timeout error such as is caused by a canceled context. This must be
+// called after any context cancellation. This is not done automatically as RecoverFromTimeout may need to signal the
+// server to abort the in-progress query and read and ignore data already sent from the server. This potentially can
+// block indefinitely. Use ctx to guard against this. If recovery is successful true is returned. If recovery is not
+// successful the connection is closed and false is returned. Recovery should usually be possible except in the case of
+// a partial write.
 func (pgConn *PgConn) RecoverFromTimeout(ctx context.Context) bool {
 	if pgConn.closed {
 		return false
