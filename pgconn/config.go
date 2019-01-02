@@ -40,6 +40,8 @@ type Config struct {
 	// server is acceptable. If this returns an error the connection is closed and the next fallback config is tried. This
 	// allows implementing high availability behavior such as libpq does with target_session_attrs.
 	AfterConnectFunc AfterConnectFunc
+
+	OnNotice NoticeHandler // Callback function called when a notice response is received.
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a

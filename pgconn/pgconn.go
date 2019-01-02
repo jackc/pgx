@@ -48,8 +48,18 @@ func (pe *PgError) Error() string {
 	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
 }
 
+// Notice represents a notice response message reported by the PostgreSQL server. Be aware that this is distinct from
+// LISTEN/NOTIFY notification.
+type Notice PgError
+
 // DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+// NoticeHandler is a function that can handle notices received from the PostgreSQL server. Notices can be received at
+// any time, usually during handling of a query response. The *PgConn is provided so the handler is aware of the origin
+// of the notice, but it must not invoke any query method. Be aware that this is distinct from LISTEN/NOTIFY
+// notification.
+type NoticeHandler func(*PgConn, *Notice)
 
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
@@ -276,6 +286,10 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 		if msg.Severity == "FATAL" {
 			// TODO - close pgConn
 			return nil, errorResponseToPgError(msg)
+		}
+	case *pgproto3.NoticeResponse:
+		if pgConn.Config.OnNotice != nil {
+			pgConn.Config.OnNotice(pgConn, noticeResponseToNotice(msg))
 		}
 	}
 
@@ -856,6 +870,11 @@ func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 		Line:             msg.Line,
 		Routine:          string(msg.Routine),
 	}
+}
+
+func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
+	pgerr := errorResponseToPgError((*pgproto3.ErrorResponse)(msg))
+	return (*Notice)(pgerr)
 }
 
 // CancelRequest sends a cancel request to the PostgreSQL server. It returns an error if unable to deliver the cancel

@@ -40,19 +40,11 @@ func init() {
 	})
 }
 
-// NoticeHandler is a function that can handle notices received from the
-// PostgreSQL server. Notices can be received at any time, usually during
-// handling of a query response. The *Conn is provided so the handler is aware
-// of the origin of the notice, but it must not invoke any query method. Be
-// aware that this is distinct from LISTEN/NOTIFY notification.
-type NoticeHandler func(*Conn, *Notice)
-
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	pgconn.Config
 	Logger         Logger
 	LogLevel       int
-	OnNotice       NoticeHandler                         // Callback function called when a notice response is received.
 	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
 	CustomCancel   func(*Conn) error                     // Callback function used to override cancellation behavior
 
@@ -83,7 +75,6 @@ type Conn struct {
 	fp                 *fastpath
 	poolResetCount     int
 	preallocatedRows   []Rows
-	onNotice           NoticeHandler
 
 	mux          sync.Mutex
 	status       byte // One of connStatus* constants
@@ -194,8 +185,6 @@ func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo)
 		c.logLevel = LogLevelDebug
 	}
 	c.logger = c.config.Logger
-
-	c.onNotice = config.OnNotice
 
 	if c.shouldLog(LogLevelInfo) {
 		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
@@ -849,8 +838,6 @@ func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
 	switch msg := msg.(type) {
 	case *pgproto3.ErrorResponse:
 		return c.rxErrorResponse(msg)
-	case *pgproto3.NoticeResponse:
-		c.rxNoticeResponse(msg)
 	case *pgproto3.NotificationResponse:
 		c.rxNotificationResponse(msg)
 	case *pgproto3.ReadyForQuery:
@@ -902,34 +889,6 @@ func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 	}
 
 	return err
-}
-
-func (c *Conn) rxNoticeResponse(msg *pgproto3.NoticeResponse) {
-	if c.onNotice == nil {
-		return
-	}
-
-	notice := &Notice{
-		Severity:         msg.Severity,
-		Code:             msg.Code,
-		Message:          msg.Message,
-		Detail:           msg.Detail,
-		Hint:             msg.Hint,
-		Position:         msg.Position,
-		InternalPosition: msg.InternalPosition,
-		InternalQuery:    msg.InternalQuery,
-		Where:            msg.Where,
-		SchemaName:       msg.SchemaName,
-		TableName:        msg.TableName,
-		ColumnName:       msg.ColumnName,
-		DataTypeName:     msg.DataTypeName,
-		ConstraintName:   msg.ConstraintName,
-		File:             msg.File,
-		Line:             msg.Line,
-		Routine:          msg.Routine,
-	}
-
-	c.onNotice(c, notice)
 }
 
 func (c *Conn) rxReadyForQuery(msg *pgproto3.ReadyForQuery) {
