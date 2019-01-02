@@ -440,6 +440,10 @@ func (pgConn *PgConn) NextResult(ctx context.Context) bool {
 			cleanupContext()
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, commandTag: CommandTag(msg.CommandTag), complete: true}
 			return true
+		case *pgproto3.EmptyQueryResponse:
+			cleanupContext()
+			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, complete: true}
+			return true
 		case *pgproto3.ErrorResponse:
 			cleanupContext()
 			pgConn.resultReader = PgResultReader{pgConn: pgConn, ctx: ctx, err: errorResponseToPgError(msg), complete: true}
