@@ -629,7 +629,7 @@ func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
 }
 
 // RecoverFromTimeout attempts to recover from a timeout error such as is caused by a canceled context. If recovery is
-// successful true is returned. If recovery is not successful the connection is closed and false it returned. Recovery
+// successful true is returned. If recovery is not successful the connection is closed and false is returned. Recovery
 // should usually be possible except in the case of a partial write. This must be called after any context cancellation.
 //
 // As RecoverFromTimeout may need to read and ignored data already sent from the server, it potentially can block
