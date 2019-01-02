@@ -54,7 +54,7 @@ func BenchmarkExecPrepared(b *testing.B) {
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
-	err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 
 	b.ResetTimer()
 
@@ -69,7 +69,7 @@ func BenchmarkSendExecPrepared(b *testing.B) {
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
-	err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 
 	b.ResetTimer()
 
