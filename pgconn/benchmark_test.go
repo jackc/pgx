@@ -49,6 +49,22 @@ func BenchmarkExec(b *testing.B) {
 	}
 }
 
+func BenchmarkExecPossibleToCancel(b *testing.B) {
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(b, err)
+	defer closeConn(b, conn)
+
+	b.ResetTimer()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for i := 0; i < b.N; i++ {
+		_, err := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+		require.Nil(b, err)
+	}
+}
+
 func BenchmarkExecPrepared(b *testing.B) {
 	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(b, err)
@@ -60,6 +76,24 @@ func BenchmarkExecPrepared(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		_, err := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil)
+		require.Nil(b, err)
+	}
+}
+
+func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(b, err)
+	defer closeConn(b, conn)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err = conn.Prepare(ctx, "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_, err := conn.ExecPrepared(ctx, "ps1", nil, nil, nil)
 		require.Nil(b, err)
 	}
 }
