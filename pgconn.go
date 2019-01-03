@@ -814,33 +814,11 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	return pgConn.bufferLastResult(ctx)
 }
 
-type FieldDescription struct {
-	Name                 string
-	TableOID             uint32
-	TableAttributeNumber uint16
-	DataTypeOID          uint32
-	DataTypeSize         int16
-	TypeModifier         int32
-	FormatCode           int16
-}
-
-// pgproto3FieldDescriptionToPgconnFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
-// FieldDescription.
-func pgproto3FieldDescriptionToPgconnFieldDescription(src *pgproto3.FieldDescription, dst *FieldDescription) {
-	dst.Name = string(src.Name)
-	dst.TableOID = src.TableOID
-	dst.TableAttributeNumber = src.TableAttributeNumber
-	dst.DataTypeOID = src.DataTypeOID
-	dst.DataTypeSize = src.DataTypeSize
-	dst.TypeModifier = src.TypeModifier
-	dst.FormatCode = src.Format
-}
-
 type PreparedStatementDescription struct {
 	Name      string
 	SQL       string
 	ParamOIDs []uint32
-	Fields    []FieldDescription
+	Fields    []pgproto3.FieldDescription
 }
 
 // Prepare creates a prepared statement.
@@ -877,10 +855,8 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
-			psd.Fields = make([]FieldDescription, len(msg.Fields))
-			for i := range msg.Fields {
-				pgproto3FieldDescriptionToPgconnFieldDescription(&msg.Fields[i], &psd.Fields[i])
-			}
+			psd.Fields = make([]pgproto3.FieldDescription, len(msg.Fields))
+			copy(psd.Fields, msg.Fields)
 		case *pgproto3.ErrorResponse:
 			return nil, errorResponseToPgError(msg)
 		}
