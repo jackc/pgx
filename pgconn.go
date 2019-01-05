@@ -536,8 +536,8 @@ func (pgConn *PgConn) cancelRequest(ctx context.Context) error {
 // statements.
 //
 // Prefer ExecParams unless executing arbitrary SQL that may contain multiple queries.
-func (pgConn *PgConn) Exec(ctx context.Context, sql string) *PgMultiResult {
-	multiResult := &PgMultiResult{
+func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResult {
+	multiResult := &MultiResult{
 		pgConn:                 pgConn,
 		ctx:                    ctx,
 		cleanupContextDeadline: func() {},
@@ -593,8 +593,8 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *PgMultiResult {
 // binary format. If resultFormats is nil all results will be in text protocol.
 //
 // Result must be closed before PgConn can be used again.
-func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) *PgResult {
-	result := &PgResult{
+func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) *Result {
+	result := &Result{
 		pgConn:                 pgConn,
 		ctx:                    ctx,
 		cleanupContextDeadline: func() {},
@@ -649,8 +649,8 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 // binary format. If resultFormats is nil all results will be in text protocol.
 //
 // Result must be closed before PgConn can be used again.
-func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) *PgResult {
-	result := &PgResult{
+func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) *Result {
+	result := &Result{
 		pgConn:                 pgConn,
 		ctx:                    ctx,
 		cleanupContextDeadline: func() {},
@@ -689,18 +689,18 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	return result
 }
 
-type PgMultiResult struct {
+type MultiResult struct {
 	pgConn                 *PgConn
 	ctx                    context.Context
 	cleanupContextDeadline func()
 
-	pgResult *PgResult
+	pgResult *Result
 
 	closed bool
 	err    error
 }
 
-func (mr *PgMultiResult) ReadAll() ([]*BufferedResult, error) {
+func (mr *MultiResult) ReadAll() ([]*BufferedResult, error) {
 	var results []*BufferedResult
 
 	for mr.NextResult() {
@@ -711,7 +711,7 @@ func (mr *PgMultiResult) ReadAll() ([]*BufferedResult, error) {
 	return results, err
 }
 
-func (mr *PgMultiResult) receiveMessage() (pgproto3.BackendMessage, error) {
+func (mr *MultiResult) receiveMessage() (pgproto3.BackendMessage, error) {
 	msg, err := mr.pgConn.ReceiveMessage()
 
 	if err != nil {
@@ -740,8 +740,8 @@ func (mr *PgMultiResult) receiveMessage() (pgproto3.BackendMessage, error) {
 	return msg, nil
 }
 
-// NextResult returns advances the PgMultiResult to the next result and returns true if a result is available.
-func (mr *PgMultiResult) NextResult() bool {
+// NextResult returns advances the MultiResult to the next result and returns true if a result is available.
+func (mr *MultiResult) NextResult() bool {
 	for !mr.closed && mr.err == nil {
 		msg, err := mr.receiveMessage()
 		if err != nil {
@@ -750,7 +750,7 @@ func (mr *PgMultiResult) NextResult() bool {
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
-			mr.pgResult = &PgResult{
+			mr.pgResult = &Result{
 				pgConn:                 mr.pgConn,
 				pgMultiResult:          mr,
 				ctx:                    mr.ctx,
@@ -759,7 +759,7 @@ func (mr *PgMultiResult) NextResult() bool {
 			}
 			return true
 		case *pgproto3.CommandComplete:
-			mr.pgResult = &PgResult{
+			mr.pgResult = &Result{
 				commandTag:       CommandTag(msg.CommandTag),
 				commandConcluded: true,
 				closed:           true,
@@ -773,11 +773,11 @@ func (mr *PgMultiResult) NextResult() bool {
 	return false
 }
 
-func (mr *PgMultiResult) Result() *PgResult {
+func (mr *MultiResult) Result() *Result {
 	return mr.pgResult
 }
 
-func (mr *PgMultiResult) Close() error {
+func (mr *MultiResult) Close() error {
 	for !mr.closed {
 		_, err := mr.receiveMessage()
 		if err != nil {
@@ -788,9 +788,9 @@ func (mr *PgMultiResult) Close() error {
 	return mr.err
 }
 
-type PgResult struct {
+type Result struct {
 	pgConn                 *PgConn
-	pgMultiResult          *PgMultiResult
+	pgMultiResult          *MultiResult
 	ctx                    context.Context
 	cleanupContextDeadline func()
 
@@ -809,7 +809,7 @@ type BufferedResult struct {
 	Err               error
 }
 
-func (rr *PgResult) ReadAll() *BufferedResult {
+func (rr *Result) ReadAll() *BufferedResult {
 	br := &BufferedResult{}
 
 	for rr.NextRow() {
@@ -828,8 +828,8 @@ func (rr *PgResult) ReadAll() *BufferedResult {
 	return br
 }
 
-// NextRow advances the PgResult to the next row and returns true if a row is available.
-func (rr *PgResult) NextRow() bool {
+// NextRow advances the Result to the next row and returns true if a row is available.
+func (rr *Result) NextRow() bool {
 	for !rr.commandConcluded {
 		msg, err := rr.receiveMessage()
 		if err != nil {
@@ -847,21 +847,21 @@ func (rr *PgResult) NextRow() bool {
 }
 
 // FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until
-// the PgResult is closed.
-func (rr *PgResult) FieldDescriptions() []pgproto3.FieldDescription {
+// the Result is closed.
+func (rr *Result) FieldDescriptions() []pgproto3.FieldDescription {
 	return rr.fieldDescriptions
 }
 
 // Values returns the current row data. NextRow must have been previously been called. The returned [][]byte is only
-// valid until the next NextRow call or the PgResult is closed. However, the underlying byte data is safe to
+// valid until the next NextRow call or the Result is closed. However, the underlying byte data is safe to
 // retain a reference to and mutate.
-func (rr *PgResult) Values() [][]byte {
+func (rr *Result) Values() [][]byte {
 	return rr.rowValues
 }
 
 // Close consumes any remaining result data and returns the command tag or
 // error.
-func (rr *PgResult) Close() (CommandTag, error) {
+func (rr *Result) Close() (CommandTag, error) {
 	if rr.closed {
 		return rr.commandTag, rr.err
 	}
@@ -893,7 +893,7 @@ func (rr *PgResult) Close() (CommandTag, error) {
 	return rr.commandTag, rr.err
 }
 
-func (rr *PgResult) receiveMessage() (msg pgproto3.BackendMessage, err error) {
+func (rr *Result) receiveMessage() (msg pgproto3.BackendMessage, err error) {
 	if rr.pgMultiResult == nil {
 		msg, err = rr.pgConn.ReceiveMessage()
 	} else {
@@ -927,7 +927,7 @@ func (rr *PgResult) receiveMessage() (msg pgproto3.BackendMessage, err error) {
 	return msg, nil
 }
 
-func (rr *PgResult) concludeCommand(commandTag CommandTag, err error) {
+func (rr *Result) concludeCommand(commandTag CommandTag, err error) {
 	if rr.commandConcluded {
 		return
 	}
@@ -1006,8 +1006,8 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	batch.buf = (&pgproto3.Execute{}).Encode(batch.buf)
 }
 
-func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *PgMultiResult {
-	multiResult := &PgMultiResult{
+func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResult {
+	multiResult := &MultiResult{
 		pgConn:                 pgConn,
 		ctx:                    ctx,
 		cleanupContextDeadline: func() {},
