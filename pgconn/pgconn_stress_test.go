@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/pgconn"
-	"github.com/pkg/errors"
 
 	"github.com/stretchr/testify/require"
 )
@@ -22,9 +21,9 @@ func TestConnStress(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	actionCount := 100
-	if s := os.Getenv("PTX_TEST_STRESS_FACTOR"); s != "" {
+	if s := os.Getenv("PGX_TEST_STRESS_FACTOR"); s != "" {
 		stressFactor, err := strconv.ParseInt(s, 10, 64)
-		require.Nil(t, err, "Failed to parse PTX_TEST_STRESS_FACTOR")
+		require.Nil(t, err, "Failed to parse PGX_TEST_STRESS_FACTOR")
 		actionCount *= int(stressFactor)
 	}
 
@@ -61,138 +60,61 @@ func setupStressDB(t *testing.T, pgConn *pgconn.PgConn) {
 		insert into widgets(name, description) values
 			('Foo', 'bar'),
 			('baz', 'Something really long Something really long Something really long Something really long Something really long'),
-			('a', 'b')`)
+			('a', 'b')`).ReadAll()
 	require.Nil(t, err)
 }
 
 func stressExecSelect(pgConn *pgconn.PgConn) error {
-	_, err := pgConn.Exec(context.Background(), "select * from widgets")
+	_, err := pgConn.Exec(context.Background(), "select * from widgets").ReadAll()
 	return err
 }
 
 func stressExecParamsSelect(pgConn *pgconn.PgConn) error {
-	_, err := pgConn.ExecParams(context.Background(), "select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
-	return err
+	result := pgConn.ExecParams(context.Background(), "select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).ReadAll()
+	return result.Err
 }
 
 func stressBatch(pgConn *pgconn.PgConn) error {
-	pgConn.SendExec("select * from widgets")
-	pgConn.SendExecParams("select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
-	err := pgConn.Flush(context.Background())
-	if err != nil {
-		return err
-	}
+	batch := &pgconn.Batch{}
 
-	// Query 1
-	if !pgConn.NextResult(context.Background()) {
-		return errors.New("missing result")
-	}
-	resultReader := pgConn.ResultReader()
-
-	for resultReader.NextRow() {
-	}
-	_, err = resultReader.Close()
-	if err != nil {
-		return err
-	}
-
-	// Query 2
-	if !pgConn.NextResult(context.Background()) {
-		return errors.New("missing result")
-	}
-	resultReader = pgConn.ResultReader()
-
-	for resultReader.NextRow() {
-	}
-	_, err = resultReader.Close()
-	if err != nil {
-		return err
-	}
-
-	// No more
-	if pgConn.NextResult(context.Background()) {
-		return errors.New("unexpected result reader")
-	}
-
-	return nil
+	batch.ExecParams("select * from widgets", nil, nil, nil, nil)
+	batch.ExecParams("select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
+	_, err := pgConn.ExecBatch(context.Background(), batch).ReadAll()
+	return err
 }
 
 func stressExecSelectCanceled(pgConn *pgconn.PgConn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	_, err := pgConn.Exec(ctx, "select *, pg_sleep(1) from widgets")
+	_, err := pgConn.Exec(ctx, "select *, pg_sleep(1) from widgets").ReadAll()
 	cancel()
 	if err != context.DeadlineExceeded {
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)
-	recovered := pgConn.RecoverFromTimeout(ctx)
-	cancel()
-	if !recovered {
-		return errors.New("unable to recover from timeout")
-	}
 	return nil
 }
 
 func stressExecParamsSelectCanceled(pgConn *pgconn.PgConn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	_, err := pgConn.ExecParams(ctx, "select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
+	result := pgConn.ExecParams(ctx, "select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).ReadAll()
 	cancel()
-	if err != context.DeadlineExceeded {
-		return err
+	if result.Err != context.DeadlineExceeded {
+		return result.Err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)
-	recovered := pgConn.RecoverFromTimeout(ctx)
-	cancel()
-	if !recovered {
-		return errors.New("unable to recover from timeout")
-	}
 	return nil
 }
 
 func stressBatchCanceled(pgConn *pgconn.PgConn) error {
-
-	pgConn.SendExec("select * from widgets")
-	pgConn.SendExecParams("select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
-	err := pgConn.Flush(context.Background())
-	if err != nil {
-		return err
-	}
-
-	// Query 1
-	if !pgConn.NextResult(context.Background()) {
-		return errors.New("missing result")
-	}
-	resultReader := pgConn.ResultReader()
-
-	for resultReader.NextRow() {
-	}
-	_, err = resultReader.Close()
-	if err != nil {
-		return err
-	}
-
-	// Query 2
+	batch := &pgconn.Batch{}
+	batch.ExecParams("select * from widgets", nil, nil, nil, nil)
+	batch.ExecParams("select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	if !pgConn.NextResult(ctx) {
-		return errors.New("missing result")
-	}
+	_, err := pgConn.ExecBatch(ctx, batch).ReadAll()
 	cancel()
-	resultReader = pgConn.ResultReader()
-
-	for resultReader.NextRow() {
-	}
-	_, err = resultReader.Close()
 	if err != context.DeadlineExceeded {
 		return err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), 500*time.Millisecond)
-	recovered := pgConn.RecoverFromTimeout(ctx)
-	cancel()
-	if !recovered {
-		return errors.New("unable to recover from timeout")
-	}
 	return nil
 }
