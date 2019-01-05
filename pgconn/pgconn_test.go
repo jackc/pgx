@@ -134,13 +134,13 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, conn)
 
-	result, err := conn.Exec(context.Background(), "show application_name")
-	require.Nil(t, err)
+	result := conn.ExecParams(context.Background(), "show application_name", nil, nil, nil, nil).ReadAll()
+	require.Nil(t, result.Err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "pgxtest", string(result.Rows[0][0]))
 
-	result, err = conn.Exec(context.Background(), "show search_path")
-	require.Nil(t, err)
+	result = conn.ExecParams(context.Background(), "show search_path", nil, nil, nil, nil).ReadAll()
+	require.Nil(t, result.Err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "myschema", string(result.Rows[0][0]))
 }
@@ -239,10 +239,14 @@ func TestConnExec(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec(context.Background(), "select current_database()")
-	require.Nil(t, err)
-	assert.Equal(t, 1, len(result.Rows))
-	assert.Equal(t, pgConn.Config.Database, string(result.Rows[0][0]))
+	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	assert.Nil(t, err)
+
+	assert.Len(t, results, 1)
+	assert.Nil(t, results[0].Err)
+	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Len(t, results[0].Rows, 1)
+	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
 
 	ensureConnValid(t, pgConn)
 }
@@ -254,10 +258,16 @@ func TestConnExecEmpty(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec(context.Background(), ";")
-	require.Nil(t, err)
-	assert.Nil(t, result.CommandTag)
-	assert.Equal(t, 0, len(result.Rows))
+	multiResult := pgConn.Exec(context.Background(), ";")
+
+	resultCount := 0
+	for multiResult.NextResult() {
+		resultCount += 1
+		multiResult.Result().Close()
+	}
+	assert.Equal(t, 0, resultCount)
+	err = multiResult.Close()
+	assert.Nil(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -269,10 +279,20 @@ func TestConnExecMultipleQueries(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec(context.Background(), "select current_database(); select 1")
-	require.Nil(t, err)
-	assert.Equal(t, 1, len(result.Rows))
-	assert.Equal(t, "1", string(result.Rows[0][0]))
+	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'; select 1").ReadAll()
+	assert.Nil(t, err)
+
+	assert.Len(t, results, 2)
+
+	assert.Nil(t, results[0].Err)
+	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Len(t, results[0].Rows, 1)
+	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
+
+	assert.Nil(t, results[1].Err)
+	assert.Equal(t, "SELECT 1", string(results[1].CommandTag))
+	assert.Len(t, results[1].Rows, 1)
+	assert.Equal(t, "1", string(results[1].Rows[0][0]))
 
 	ensureConnValid(t, pgConn)
 }
@@ -284,14 +304,17 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.Exec(context.Background(), "select 1; select 1/0; select 1")
+	results, err := pgConn.Exec(context.Background(), "select 1; select 1/0; select 1").ReadAll()
 	require.NotNil(t, err)
-	require.Nil(t, result)
 	if pgErr, ok := err.(*pgconn.PgError); ok {
 		assert.Equal(t, "22012", pgErr.Code)
 	} else {
 		t.Errorf("unexpected error: %v", err)
 	}
+
+	assert.Len(t, results, 1)
+	assert.Len(t, results[0].Rows, 1)
+	assert.Equal(t, "1", string(results[0].Rows[0][0]))
 
 	ensureConnValid(t, pgConn)
 }
@@ -305,11 +328,12 @@ func TestConnExecContextCanceled(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
-	assert.Nil(t, result)
-	assert.Equal(t, context.DeadlineExceeded, err)
+	multiResult := pgConn.Exec(ctx, "select 'Hello, world', pg_sleep(1)")
 
-	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
+	for multiResult.NextResult() {
+	}
+	err = multiResult.Close()
+	assert.Equal(t, context.DeadlineExceeded, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -321,10 +345,16 @@ func TestConnExecParams(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	result, err := pgConn.ExecParams(context.Background(), "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
-	require.Nil(t, err)
-	assert.Equal(t, 1, len(result.Rows))
-	assert.Equal(t, "Hello, world", string(result.Rows[0][0]))
+	result := pgConn.ExecParams(context.Background(), "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+		assert.Equal(t, "Hello, world", string(result.Values()[0]))
+	}
+	assert.Equal(t, 1, rowCount)
+	commandTag, err := result.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -338,11 +368,15 @@ func TestConnExecParamsCanceled(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	result, err := pgConn.ExecParams(ctx, "select current_database(), pg_sleep(1)", nil, nil, nil, nil)
-	assert.Nil(t, result)
+	result := pgConn.ExecParams(ctx, "select current_database(), pg_sleep(1)", nil, nil, nil, nil)
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+	}
+	assert.Equal(t, 0, rowCount)
+	commandTag, err := result.Close()
+	assert.Nil(t, commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
-
-	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
 
 	ensureConnValid(t, pgConn)
 }
@@ -360,10 +394,16 @@ func TestConnExecPrepared(t *testing.T) {
 	assert.Len(t, psd.ParamOIDs, 1)
 	assert.Len(t, psd.Fields, 1)
 
-	result, err := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{[]byte("Hello, world")}, nil, nil)
-	require.Nil(t, err)
-	assert.Equal(t, 1, len(result.Rows))
-	assert.Equal(t, "Hello, world", string(result.Rows[0][0]))
+	result := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{[]byte("Hello, world")}, nil, nil)
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+		assert.Equal(t, "Hello, world", string(result.Values()[0]))
+	}
+	assert.Equal(t, 1, rowCount)
+	commandTag, err := result.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Nil(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -380,16 +420,20 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	result, err := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil)
-	assert.Nil(t, result)
+	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil)
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+	}
+	assert.Equal(t, 0, rowCount)
+	commandTag, err := result.Close()
+	assert.Nil(t, commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
-
-	assert.True(t, pgConn.RecoverFromTimeout(context.Background()))
 
 	ensureConnValid(t, pgConn)
 }
 
-func TestConnBatchedQueries(t *testing.T) {
+func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
@@ -399,160 +443,26 @@ func TestConnBatchedQueries(t *testing.T) {
 	_, err = pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
 	require.Nil(t, err)
 
-	pgConn.SendExec("select 'SendExec 1'")
-	pgConn.SendExecParams("select $1::text", [][]byte{[]byte("SendExecParams 1")}, nil, nil, nil)
-	pgConn.SendExecPrepared("ps1", [][]byte{[]byte("SendExecPrepared 1")}, nil, nil)
-	pgConn.SendExec("select 'SendExec 2'")
-	pgConn.SendExecParams("select $1::text", [][]byte{[]byte("SendExecParams 2")}, nil, nil, nil)
-	err = pgConn.Flush(context.Background())
+	batch := &pgconn.Batch{}
 
-	// "select 'SendExec 1'"
-	require.True(t, pgConn.NextResult(context.Background()))
-	resultReader := pgConn.ResultReader()
-
-	rows := [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-	require.Len(t, rows, 1)
-	require.Len(t, rows[0], 1)
-	assert.Equal(t, "SendExec 1", string(rows[0][0]))
-
-	commandTag, err := resultReader.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
-
-	// "SendExecParams 1"
-	require.True(t, pgConn.NextResult(context.Background()))
-	resultReader = pgConn.ResultReader()
-
-	rows = [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-	require.Len(t, rows, 1)
-	require.Len(t, rows[0], 1)
-	assert.Equal(t, "SendExecParams 1", string(rows[0][0]))
-
-	commandTag, err = resultReader.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
-
-	// "SendExecPrepared 1"
-	require.True(t, pgConn.NextResult(context.Background()))
-	resultReader = pgConn.ResultReader()
-
-	rows = [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-	require.Len(t, rows, 1)
-	require.Len(t, rows[0], 1)
-	assert.Equal(t, "SendExecPrepared 1", string(rows[0][0]))
-
-	commandTag, err = resultReader.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
-
-	// "SendExec 2"
-	require.True(t, pgConn.NextResult(context.Background()))
-	resultReader = pgConn.ResultReader()
-
-	rows = [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-	require.Len(t, rows, 1)
-	require.Len(t, rows[0], 1)
-	assert.Equal(t, "SendExec 2", string(rows[0][0]))
-
-	commandTag, err = resultReader.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
-
-	// "SendExecParams 2"
-	require.True(t, pgConn.NextResult(context.Background()))
-	resultReader = pgConn.ResultReader()
-
-	rows = [][][]byte{}
-	for resultReader.NextRow() {
-		row := make([][]byte, len(resultReader.Values()))
-		copy(row, resultReader.Values())
-		rows = append(rows, row)
-	}
-	require.Len(t, rows, 1)
-	require.Len(t, rows[0], 1)
-	assert.Equal(t, "SendExecParams 2", string(rows[0][0]))
-
-	commandTag, err = resultReader.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
-
-	// Done
-	require.False(t, pgConn.NextResult(context.Background()))
-
-	ensureConnValid(t, pgConn)
-}
-
-func TestConnRecoverFromTimeout(t *testing.T) {
-	t.Parallel()
-
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 1")}, nil, nil, nil)
+	batch.ExecPrepared("ps1", [][]byte{[]byte("ExecPrepared 1")}, nil, nil)
+	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 2")}, nil, nil, nil)
+	results, err := pgConn.ExecBatch(context.Background(), batch).ReadAll()
 	require.Nil(t, err)
-	defer closeConn(t, pgConn)
+	require.Len(t, results, 3)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	result, err := pgConn.Exec(ctx, "select current_database(), pg_sleep(1)")
-	cancel()
-	require.Nil(t, result)
-	assert.Equal(t, context.DeadlineExceeded, err)
+	require.Len(t, results[0].Rows, 1)
+	require.Equal(t, "ExecParams 1", string(results[0].Rows[0][0]))
+	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
 
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	if assert.True(t, pgConn.RecoverFromTimeout(ctx)) {
-		result, err := pgConn.Exec(ctx, "select 1")
-		require.Nil(t, err)
-		assert.Len(t, result.Rows, 1)
-		assert.Len(t, result.Rows[0], 1)
-		assert.Equal(t, "1", string(result.Rows[0][0]))
-	}
-	cancel()
+	require.Len(t, results[1].Rows, 1)
+	require.Equal(t, "ExecPrepared 1", string(results[1].Rows[0][0]))
+	assert.Equal(t, "SELECT 1", string(results[1].CommandTag))
 
-	ensureConnValid(t, pgConn)
-}
-
-func TestConnCancelQuery(t *testing.T) {
-	t.Parallel()
-
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
-	defer closeConn(t, pgConn)
-
-	pgConn.SendExec("select current_database(), pg_sleep(5)")
-	err = pgConn.Flush(context.Background())
-	require.Nil(t, err)
-
-	err = pgConn.CancelRequest(context.Background())
-	require.Nil(t, err)
-
-	require.True(t, pgConn.NextResult(context.Background()))
-	_, err = pgConn.ResultReader().Close()
-	if err, ok := err.(*pgconn.PgError); ok {
-		assert.Equal(t, "57014", err.Code)
-	} else {
-		t.Errorf("expected pgconn.PgError got %v", err)
-	}
-
-	require.False(t, pgConn.NextResult(context.Background()))
-
-	ensureConnValid(t, pgConn)
+	require.Len(t, results[2].Rows, 1)
+	require.Equal(t, "ExecParams 2", string(results[2].Rows[0][0]))
+	assert.Equal(t, "SELECT 1", string(results[2].CommandTag))
 }
 
 func TestCommandTag(t *testing.T) {
@@ -593,10 +503,11 @@ func TestConnOnNotice(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, pgConn)
 
-	_, err = pgConn.Exec(context.Background(), `do $$
+	multiResult := pgConn.Exec(context.Background(), `do $$
 begin
   raise notice 'hello, world';
 end$$;`)
+	err = multiResult.Close()
 	require.Nil(t, err)
 	assert.Equal(t, "hello, world", msg)
 
