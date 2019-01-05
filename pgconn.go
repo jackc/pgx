@@ -988,6 +988,7 @@ func (pgConn *PgConn) recoverFromTimeout() {
 	}
 }
 
+// Batch is a collection of queries that can be sent to the PostgreSQL server in a single round-trip.
 type Batch struct {
 	buf []byte
 }
@@ -1006,6 +1007,7 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	batch.buf = (&pgproto3.Execute{}).Encode(batch.buf)
 }
 
+// ExecBatch executes all the queries in batch in a single round-trip.
 func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResult {
 	multiResult := &MultiResult{
 		pgConn:                 pgConn,
