@@ -44,7 +44,7 @@ func BenchmarkExec(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+		_, err := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date").ReadAll()
 		require.Nil(b, err)
 	}
 }
@@ -60,7 +60,7 @@ func BenchmarkExecPossibleToCancel(b *testing.B) {
 	defer cancel()
 
 	for i := 0; i < b.N; i++ {
-		_, err := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+		_, err := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date").ReadAll()
 		require.Nil(b, err)
 	}
 }
@@ -71,12 +71,13 @@ func BenchmarkExecPrepared(b *testing.B) {
 	defer closeConn(b, conn)
 
 	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+	require.Nil(b, err)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil)
-		require.Nil(b, err)
+		result := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil).ReadAll()
+		require.Nil(b, result.Err)
 	}
 }
 
@@ -89,32 +90,12 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 	defer cancel()
 
 	_, err = conn.Prepare(ctx, "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		_, err := conn.ExecPrepared(ctx, "ps1", nil, nil, nil)
-		require.Nil(b, err)
-	}
-}
-
-func BenchmarkSendExecPrepared(b *testing.B) {
-	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(b, err)
-	defer closeConn(b, conn)
-
-	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		conn.SendExecPrepared("ps1", nil, nil, nil)
-		err := conn.Flush(context.Background())
-		require.Nil(b, err)
-
-		for conn.NextResult(context.Background()) {
-			_, err := conn.ResultReader().Close()
-			require.Nil(b, err)
-		}
+		result := conn.ExecPrepared(ctx, "ps1", nil, nil, nil).ReadAll()
+		require.Nil(b, result.Err)
 	}
 }
