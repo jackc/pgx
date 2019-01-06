@@ -20,7 +20,7 @@ func closeConn(t testing.TB, conn *pgconn.PgConn) {
 // Do a simple query to ensure the connection is still usable
 func ensureConnValid(t *testing.T, pgConn *pgconn.PgConn) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	result := pgConn.ExecParams(ctx, "select generate_series(1,$1)", [][]byte{[]byte("3")}, nil, nil, nil).ReadAll()
+	result := pgConn.ExecParams(ctx, "select generate_series(1,$1)", [][]byte{[]byte("3")}, nil, nil, nil).Read()
 	cancel()
 
 	require.Nil(t, result.Err)
