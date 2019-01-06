@@ -1002,9 +1002,10 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	return c.pgConn.CancelRequest(ctx)
+	// ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// defer cancel()
+	// return c.pgConn.CancelRequest(ctx)
+	return errors.New("TODO - reimplement cancellation")
 }
 
 // cancelQuery sends a cancel request to the PostgreSQL server. It returns an
@@ -1217,12 +1218,15 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	if len(arguments) == 0 {
 		c.lastStmtSent = true
-		result, err := c.pgConn.Exec(ctx, sql)
+		results, err := c.pgConn.Exec(ctx, sql).ReadAll()
 		if err != nil {
 			return "", err
 		}
+		if len(results) == 0 {
+			return "", nil
+		}
 
-		return result.CommandTag, nil
+		return results[len(results)-1].CommandTag, nil
 	} else {
 		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
 		if err != nil {
@@ -1244,7 +1248,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
 		}
 		for i := range ps.FieldDescriptions {
-			c.pgconnFieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+			c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
 		}
 
 		arguments, err = convertDriverValuers(arguments)
@@ -1269,12 +1273,8 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 		}
 
 		c.lastStmtSent = true
-		result, err := c.pgConn.ExecPrepared(ctx, psd.Name, paramValues, paramFormats, resultFormats)
-		if err != nil {
-			return "", err
-		}
-
-		return result.CommandTag, nil
+		result := c.pgConn.ExecPrepared(ctx, psd.Name, paramValues, paramFormats, resultFormats).Read()
+		return result.CommandTag, result.Err
 	}
 
 }
@@ -1329,9 +1329,9 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }
 
-// pgconnFieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
+// pgproto3FieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
 // FieldDescription.
-func (c *Conn) pgconnFieldDescriptionToPgxFieldDescription(src *pgconn.FieldDescription, dst *FieldDescription) {
+func (c *Conn) pgproto3FieldDescriptionToPgxFieldDescription(src *pgproto3.FieldDescription, dst *FieldDescription) {
 	dst.Name = src.Name
 	dst.Table = pgtype.OID(src.TableOID)
 	dst.AttributeNumber = src.TableAttributeNumber
