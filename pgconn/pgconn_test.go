@@ -3,6 +3,8 @@ package pgconn_test
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"log"
 	"net"
 	"os"
 	"testing"
@@ -512,4 +514,28 @@ end$$;`)
 	assert.Equal(t, "hello, world", msg)
 
 	ensureConnValid(t, pgConn)
+}
+
+func Example() {
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer pgConn.Close(context.Background())
+
+	result := pgConn.ExecParams(context.Background(), "select generate_series(1,3)", nil, nil, nil, nil).Read()
+	if result.Err != nil {
+		log.Fatalln(result.Err)
+	}
+
+	for _, row := range result.Rows {
+		fmt.Println(string(row[0]))
+	}
+
+	fmt.Println(result.CommandTag)
+	// Output:
+	// 1
+	// 2
+	// 3
+	// SELECT 3
 }
