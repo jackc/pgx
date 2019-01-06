@@ -70,7 +70,7 @@ func stressExecSelect(pgConn *pgconn.PgConn) error {
 }
 
 func stressExecParamsSelect(pgConn *pgconn.PgConn) error {
-	result := pgConn.ExecParams(context.Background(), "select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).ReadAll()
+	result := pgConn.ExecParams(context.Background(), "select * from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).Read()
 	return result.Err
 }
 
@@ -96,7 +96,7 @@ func stressExecSelectCanceled(pgConn *pgconn.PgConn) error {
 
 func stressExecParamsSelectCanceled(pgConn *pgconn.PgConn) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	result := pgConn.ExecParams(ctx, "select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).ReadAll()
+	result := pgConn.ExecParams(ctx, "select *, pg_sleep(1) from widgets where id < $1", [][]byte{[]byte("10")}, nil, nil, nil).Read()
 	cancel()
 	if result.Err != context.DeadlineExceeded {
 		return result.Err
