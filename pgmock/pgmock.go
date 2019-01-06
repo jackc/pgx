@@ -224,7 +224,7 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{Name: "oid",
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -232,7 +232,7 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{Name: "typname",
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -435,7 +435,7 @@ where (
 		steps = append(steps, step)
 	}
 
-	steps = append(steps, SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 163")}))
+	steps = append(steps, SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 163"}))
 	steps = append(steps, SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}))
 
 	steps = append(steps, []Step{
@@ -450,7 +450,7 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{Name: "oid",
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -458,7 +458,7 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{Name: "typname",
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -475,7 +475,7 @@ where (
 		ExpectMessage(&pgproto3.Execute{}),
 		ExpectMessage(&pgproto3.Sync{}),
 		SendMessage(&pgproto3.BindComplete{}),
-		SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 0")}),
+		SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 0"}),
 		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 	}...)
 
@@ -491,7 +491,7 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{Name: "oid",
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -499,7 +499,7 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{Name: "typname",
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -507,7 +507,7 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typbasetype"),
+				{Name: "typbasetype",
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -524,7 +524,7 @@ where (
 		ExpectMessage(&pgproto3.Execute{}),
 		ExpectMessage(&pgproto3.Sync{}),
 		SendMessage(&pgproto3.BindComplete{}),
-		SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 0")}),
+		SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 0"}),
 		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 	}...)
 

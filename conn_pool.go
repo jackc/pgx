@@ -548,7 +548,7 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 func (p *ConnPool) CopyFromReader(r io.Reader, sql string) (pgconn.CommandTag, error) {
 	c, err := p.Acquire()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer p.Release(c)
 
@@ -559,7 +559,7 @@ func (p *ConnPool) CopyFromReader(r io.Reader, sql string) (pgconn.CommandTag, e
 func (p *ConnPool) CopyToWriter(w io.Writer, sql string, args ...interface{}) (pgconn.CommandTag, error) {
 	c, err := p.Acquire()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer p.Release(c)
 

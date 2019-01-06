@@ -165,19 +165,19 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 // query has been sent with Exec.
 func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 	if b.err != nil {
-		return nil, b.err
+		return "", b.err
 	}
 
 	select {
 	case <-b.ctx.Done():
 		b.die(b.ctx.Err())
-		return nil, b.ctx.Err()
+		return "", b.ctx.Err()
 	default:
 	}
 
 	if err := b.ensureCommandComplete(); err != nil {
 		b.die(err)
-		return nil, err
+		return "", err
 	}
 
 	b.resultsRead++
@@ -187,7 +187,7 @@ func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 	for {
 		msg, err := b.conn.rxMsg()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		switch msg := msg.(type) {
@@ -196,7 +196,7 @@ func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 			return pgconn.CommandTag(msg.CommandTag), nil
 		default:
 			if err := b.conn.processContextFreeMsg(msg); err != nil {
-				return nil, err
+				return "", err
 			}
 		}
 	}

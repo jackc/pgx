@@ -1184,16 +1184,16 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	c.lastStmtSent = false
 	err := c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	if err := c.lock(); err != nil {
-		return nil, err
+		return "", err
 	}
 	defer c.unlock()
 
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	startTime := time.Now()
@@ -1219,18 +1219,18 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 		c.lastStmtSent = true
 		result, err := c.pgConn.Exec(ctx, sql)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		return result.CommandTag, nil
 	} else {
 		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		if len(psd.ParamOIDs) != len(arguments) {
-			return nil, errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(arguments))
+			return "", errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(arguments))
 		}
 
 		ps := &PreparedStatement{
@@ -1249,7 +1249,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 		arguments, err = convertDriverValuers(arguments)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		paramFormats := make([]int16, len(arguments))
@@ -1258,7 +1258,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
 			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
 			if err != nil {
-				return nil, err
+				return "", err
 			}
 
 		}
@@ -1271,7 +1271,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 		c.lastStmtSent = true
 		result, err := c.pgConn.ExecPrepared(ctx, psd.Name, paramValues, paramFormats, resultFormats)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 
 		return result.CommandTag, nil
