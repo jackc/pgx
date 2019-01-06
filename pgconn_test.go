@@ -375,7 +375,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Nil(t, commandTag)
+	assert.Equal(t, pgconn.CommandTag(""), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	ensureConnValid(t, pgConn)
@@ -427,7 +427,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Nil(t, commandTag)
+	assert.Equal(t, pgconn.CommandTag(""), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	ensureConnValid(t, pgConn)
