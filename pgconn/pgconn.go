@@ -347,7 +347,7 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 }
 
 // CommandTag is the result of an Exec function
-type CommandTag []byte
+type CommandTag string
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
@@ -359,10 +359,6 @@ func (ct CommandTag) RowsAffected() int64 {
 	}
 	n, _ := strconv.ParseInt(s[index+1:], 10, 64)
 	return n
-}
-
-func (ct CommandTag) String() string {
-	return string(ct)
 }
 
 // preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
@@ -602,7 +598,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 
 	select {
 	case <-ctx.Done():
-		result.concludeCommand(nil, ctx.Err())
+		result.concludeCommand("", ctx.Err())
 		result.closed = true
 		return result
 	case pgConn.controller <- result:
@@ -628,7 +624,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 			pgConn.closed = true
 		}
 
-		result.concludeCommand(nil, err)
+		result.concludeCommand("", err)
 		result.cleanupContextDeadline()
 		result.closed = true
 		<-pgConn.controller
@@ -658,7 +654,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 
 	select {
 	case <-ctx.Done():
-		result.concludeCommand(nil, ctx.Err())
+		result.concludeCommand("", ctx.Err())
 		result.closed = true
 		return result
 	case pgConn.controller <- result:
@@ -680,7 +676,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 			pgConn.closed = true
 		}
 
-		result.concludeCommand(nil, err)
+		result.concludeCommand("", err)
 		result.cleanupContextDeadline()
 		result.closed = true
 		<-pgConn.controller
@@ -870,7 +866,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 	for !rr.commandConcluded {
 		_, err := rr.receiveMessage()
 		if err != nil {
-			return nil, rr.err
+			return "", rr.err
 		}
 	}
 
@@ -878,7 +874,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 		for {
 			msg, err := rr.receiveMessage()
 			if err != nil {
-				return nil, rr.err
+				return "", rr.err
 			}
 
 			switch msg.(type) {
@@ -901,7 +897,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	}
 
 	if err != nil {
-		rr.concludeCommand(nil, err)
+		rr.concludeCommand("", err)
 		rr.cleanupContextDeadline()
 		rr.closed = true
 		if rr.multiResultReader == nil {
@@ -921,7 +917,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(CommandTag(msg.CommandTag), nil)
 	case *pgproto3.ErrorResponse:
-		rr.concludeCommand(nil, errorResponseToPgError(msg))
+		rr.concludeCommand("", errorResponseToPgError(msg))
 	}
 
 	return msg, nil
