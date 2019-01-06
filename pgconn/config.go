@@ -70,32 +70,35 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // It also may be empty to only read from the environment. If a password is not supplied it will attempt to read the
 // .pgpass file.
 //
-// Example DSN: "user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca"
+//   # Example DSN
+//   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca
 //
-// Example URL: "postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca"
+//   # Example URL
+//   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system. See
 // https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS for more information.
 //
-// Example URL: "postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb"
+//   # Example URL
+//   postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb
 //
 // ParseConfig currently recognizes the following environment variable and their parameter key word equivalents passed
 // via database URL or DSN:
 //
-// PGHOST
-// PGPORT
-// PGDATABASE
-// PGUSER
-// PGPASSWORD
-// PGPASSFILE
-// PGSSLMODE
-// PGSSLCERT
-// PGSSLKEY
-// PGSSLROOTCERT
-// PGAPPNAME
-// PGCONNECT_TIMEOUT
-// PGTARGETSESSIONATTRS
+// 	 PGHOST
+// 	 PGPORT
+// 	 PGDATABASE
+// 	 PGUSER
+// 	 PGPASSWORD
+// 	 PGPASSFILE
+// 	 PGSSLMODE
+// 	 PGSSLCERT
+// 	 PGSSLKEY
+// 	 PGSSLROOTCERT
+// 	 PGAPPNAME
+// 	 PGCONNECT_TIMEOUT
+// 	 PGTARGETSESSIONATTRS
 //
 // See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of environment variables.
 //

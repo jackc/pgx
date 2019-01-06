@@ -685,6 +685,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	return result
 }
 
+// MultiResultReader is a reader for a command that could return multiple results such as Exec or ExecBatch.
 type MultiResultReader struct {
 	pgConn                 *PgConn
 	ctx                    context.Context
@@ -696,6 +697,7 @@ type MultiResultReader struct {
 	err    error
 }
 
+// ReadAll reads all available results. Calling ReadAll is mutually exclusive with all other MultiResultReader methods.
 func (mrr *MultiResultReader) ReadAll() ([]*Result, error) {
 	var results []*Result
 
@@ -769,10 +771,12 @@ func (mrr *MultiResultReader) NextResult() bool {
 	return false
 }
 
+// ResultReader returns the current ResultReader.
 func (mrr *MultiResultReader) ResultReader() *ResultReader {
 	return mrr.rr
 }
 
+// Close closes the MultiResultReader and returns the first error that occurred during the MultiResultReader's use.
 func (mrr *MultiResultReader) Close() error {
 	for !mrr.closed {
 		_, err := mrr.receiveMessage()
@@ -784,6 +788,7 @@ func (mrr *MultiResultReader) Close() error {
 	return mrr.err
 }
 
+// ResultReader is a reader for the result of a single query.
 type ResultReader struct {
 	pgConn                 *PgConn
 	multiResultReader      *MultiResultReader
@@ -798,6 +803,7 @@ type ResultReader struct {
 	err               error
 }
 
+// Result is the saved query response that is returned by calling Read on a ResultReader.
 type Result struct {
 	FieldDescriptions []pgproto3.FieldDescription
 	Rows              [][][]byte
@@ -805,6 +811,7 @@ type Result struct {
 	Err               error
 }
 
+// Read saves the query response to a Result.
 func (rr *ResultReader) Read() *Result {
 	br := &Result{}
 
@@ -1003,7 +1010,8 @@ func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFor
 	batch.buf = (&pgproto3.Execute{}).Encode(batch.buf)
 }
 
-// ExecBatch executes all the queries in batch in a single round-trip.
+// ExecBatch executes all the queries in batch in a single round-trip. Execution is implicitly transactional unless a
+// transaction is already in progress or SQL contains transaction control statements.
 func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultReader {
 	multiResult := &MultiResultReader{
 		pgConn:                 pgConn,
