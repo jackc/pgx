@@ -134,12 +134,12 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, conn)
 
-	result := conn.ExecParams(context.Background(), "show application_name", nil, nil, nil, nil).ReadAll()
+	result := conn.ExecParams(context.Background(), "show application_name", nil, nil, nil, nil).Read()
 	require.Nil(t, result.Err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "pgxtest", string(result.Rows[0][0]))
 
-	result = conn.ExecParams(context.Background(), "show search_path", nil, nil, nil, nil).ReadAll()
+	result = conn.ExecParams(context.Background(), "show search_path", nil, nil, nil, nil).Read()
 	require.Nil(t, result.Err)
 	assert.Equal(t, 1, len(result.Rows))
 	assert.Equal(t, "myschema", string(result.Rows[0][0]))
@@ -263,7 +263,7 @@ func TestConnExecEmpty(t *testing.T) {
 	resultCount := 0
 	for multiResult.NextResult() {
 		resultCount += 1
-		multiResult.Result().Close()
+		multiResult.ResultReader().Close()
 	}
 	assert.Equal(t, 0, resultCount)
 	err = multiResult.Close()

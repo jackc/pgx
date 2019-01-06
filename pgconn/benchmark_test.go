@@ -76,7 +76,7 @@ func BenchmarkExecPrepared(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil).ReadAll()
+		result := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil).Read()
 		require.Nil(b, result.Err)
 	}
 }
@@ -95,7 +95,7 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result := conn.ExecPrepared(ctx, "ps1", nil, nil, nil).ReadAll()
+		result := conn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
 		require.Nil(b, result.Err)
 	}
 }
