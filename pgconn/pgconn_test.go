@@ -235,6 +235,20 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	}
 }
 
+func TestConnPrepareFailure(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	psd, err := pgConn.Prepare(context.Background(), "ps1", "SYNTAX ERROR", nil)
+	require.Nil(t, psd)
+	require.NotNil(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 

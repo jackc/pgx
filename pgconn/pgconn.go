@@ -438,6 +438,8 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 	psd := &PreparedStatementDescription{Name: name, SQL: sql}
 
+	var parseErr error
+
 readloop:
 	for {
 		msg, err := pgConn.ReceiveMessage()
@@ -454,14 +456,17 @@ readloop:
 			psd.Fields = make([]pgproto3.FieldDescription, len(msg.Fields))
 			copy(psd.Fields, msg.Fields)
 		case *pgproto3.ErrorResponse:
-			go pgConn.recoverFromTimeout()
-			return nil, errorResponseToPgError(msg)
+			parseErr = errorResponseToPgError(msg)
 		case *pgproto3.ReadyForQuery:
 			break readloop
 		}
 	}
 
 	<-pgConn.controller
+
+	if parseErr != nil {
+		return nil, parseErr
+	}
 	return psd, nil
 }
 
