@@ -247,15 +247,11 @@ func TestExecContextCancelationCancelsQuery(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		cancelFunc()
-	}()
-
-	_, err := conn.Exec(ctx, "select pg_sleep(60)")
-	if err != context.Canceled {
-		t.Fatalf("Expected context.Canceled err, got %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	_, err := conn.Exec(ctx, "select pg_sleep(1)")
+	cancel()
+	if err != context.DeadlineExceeded {
+		t.Fatalf("Expected context.DeadlineExceeded err, got %v", err)
 	}
 	if !conn.LastStmtSent() {
 		t.Error("Expected LastStmtSent to return true")
