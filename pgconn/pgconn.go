@@ -263,7 +263,7 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 	msg, err := pgConn.Frontend.Receive()
 	if err != nil {
 		// Close on anything other than timeout error - everything else is fatal
-		if err, ok := err.(net.Error); !ok && err.Timeout() {
+		if err, ok := err.(net.Error); !(ok && err.Timeout()) {
 			pgConn.hardClose()
 		}
 
