@@ -527,6 +527,22 @@ func (pgConn *PgConn) cancelRequest(ctx context.Context) error {
 	return nil
 }
 
+// WaitUntilReady waits until a previous context cancellation has been competed processed and the connection is ready
+// for use. This is done automatically by all methods that need the connection to be ready for use. The only expected
+// use for this method is for a connection pool to wait for a returned connection to be usable again before making it
+// available.
+func (pgConn *PgConn) WaitUntilReady(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case pgConn.controller <- pgConn:
+		// The connection must be ready since it was locked. Immediately unlock it.
+		<-pgConn.controller
+	}
+
+	return nil
+}
+
 // Exec executes SQL via the PostgreSQL simple query protocol. SQL may contain multiple queries. Execution is
 // implicitly wrapped in a transaction unless a transaction is already in progress or SQL contains transaction control
 // statements.
@@ -942,7 +958,7 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 	rr.commandConcluded = true
 }
 
-func (pgConn *PgConn) recoverFromTimeout() {
+func (pgConn *PgConn) defaultCancel() {
 	// Regardless of recovery outcome the lock on the pgConn must be released.
 	defer func() { <-pgConn.controller }()
 
@@ -988,6 +1004,26 @@ func (pgConn *PgConn) recoverFromTimeout() {
 	err = pgConn.conn.SetDeadline(time.Time{})
 	if err != nil {
 		pgConn.hardClose()
+	}
+}
+
+type ContextCancel struct {
+	PgConn *PgConn
+}
+
+// Finish must be called when the cancellation request has finished processing. The connection must be in a ready for
+// query state or the connection must be closed. This must be called regardless of the success of the cancellation and
+// whether the connection is still valid or not. It releases an internal busy lock on the connection.
+func (cc *ContextCancel) Finish() {
+	<-cc.PgConn.controller
+}
+
+func (pgConn *PgConn) recoverFromTimeout() {
+	if pgConn.Config.OnContextCancel == nil {
+		pgConn.defaultCancel()
+	} else {
+		cc := &ContextCancel{PgConn: pgConn}
+		pgConn.Config.OnContextCancel(cc)
 	}
 }
 
