@@ -565,6 +565,31 @@ func (pgConn *PgConn) WaitUntilReady(ctx context.Context) error {
 	return nil
 }
 
+// WaitForNotification waits for a LISTON/NOTIFY message to be received. It returns an error if a notification was not
+// received.
+func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case pgConn.controller <- pgConn:
+	}
+	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanupContextDeadline()
+	defer func() { <-pgConn.controller }()
+
+	for {
+		msg, err := pgConn.ReceiveMessage()
+		if err != nil {
+			return preferContextOverNetTimeoutError(ctx, err)
+		}
+
+		switch msg.(type) {
+		case *pgproto3.NotificationResponse:
+			return nil
+		}
+	}
+}
+
 // Exec executes SQL via the PostgreSQL simple query protocol. SQL may contain multiple queries. Execution is
 // implicitly wrapped in a transaction unless a transaction is already in progress or SQL contains transaction control
 // statements.
