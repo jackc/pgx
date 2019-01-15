@@ -54,6 +54,9 @@ type Config struct {
 
 	// OnNotice is a callback function called when a notice response is received.
 	OnNotice NoticeHandler
+
+	// OnNotification is a callback function called when a notification from the LISTEN/NOTIFY system is received.
+	OnNotification NotificationHandler
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
