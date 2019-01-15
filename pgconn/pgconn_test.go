@@ -629,6 +629,56 @@ func TestConnOnNotification(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnWaitForNotification(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	var msg string
+	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
+		msg = n.Payload
+	}
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
+	require.Nil(t, err)
+
+	notifier, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, notifier)
+	_, err = notifier.Exec(context.Background(), "notify foo, 'bar'").ReadAll()
+	require.Nil(t, err)
+
+	err = pgConn.WaitForNotification(context.Background())
+	require.Nil(t, err)
+
+	assert.Equal(t, "bar", msg)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnWaitForNotificationTimeout(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	err = pgConn.WaitForNotification(ctx)
+	cancel()
+	require.Equal(t, context.DeadlineExceeded, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
