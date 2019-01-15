@@ -50,6 +50,13 @@ func (pe *PgError) Error() string {
 // LISTEN/NOTIFY notification.
 type Notice PgError
 
+// Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
+type Notification struct {
+	PID     uint32 // backend pid that sent the notification
+	Channel string // channel from which notification was received
+	Payload string
+}
+
 // DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
@@ -58,6 +65,12 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 // of the notice, but it must not invoke any query method. Be aware that this is distinct from LISTEN/NOTIFY
 // notification.
 type NoticeHandler func(*PgConn, *Notice)
+
+// NotificationHandler is a function that can handle notifications received from the PostgreSQL server. Notifications
+// can be received at any time, usually during handling of a query response. The *PgConn is provided so the handler is
+// aware of the origin of the notice, but it must not invoke any query method. Be aware that this is distinct from a
+// notice event.
+type NotificationHandler func(*PgConn, *Notification)
 
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
@@ -283,6 +296,10 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 	case *pgproto3.NoticeResponse:
 		if pgConn.Config.OnNotice != nil {
 			pgConn.Config.OnNotice(pgConn, noticeResponseToNotice(msg))
+		}
+	case *pgproto3.NotificationResponse:
+		if pgConn.Config.OnNotification != nil {
+			pgConn.Config.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
 		}
 	}
 

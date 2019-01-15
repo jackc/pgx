@@ -597,6 +597,38 @@ end$$;`)
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnOnNotification(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+
+	var msg string
+	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
+		msg = n.Payload
+	}
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
+	require.Nil(t, err)
+
+	notifier, err := pgconn.ConnectConfig(context.Background(), config)
+	require.Nil(t, err)
+	defer closeConn(t, notifier)
+	_, err = notifier.Exec(context.Background(), "notify foo, 'bar'").ReadAll()
+	require.Nil(t, err)
+
+	_, err = pgConn.Exec(context.Background(), "select 1").ReadAll()
+	require.Nil(t, err)
+
+	assert.Equal(t, "bar", msg)
+
+	ensureConnValid(t, pgConn)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
