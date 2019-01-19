@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 )
 
@@ -801,6 +802,134 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 				go pgConn.recoverFromTimeout()
 				return "", err
 			}
+		case *pgproto3.ReadyForQuery:
+			<-pgConn.controller
+			return commandTag, pgErr
+		case *pgproto3.CommandComplete:
+			commandTag = CommandTag(msg.CommandTag)
+		case *pgproto3.ErrorResponse:
+			pgErr = errorResponseToPgError(msg)
+		}
+	}
+}
+
+// CopyFrom executes the copy command sql and copies all of r to the PostgreSQL server.
+//
+// Note: context cancellation will only interrupt operations on the underlying PostgreSQL network connection. Reads on r
+// could still block.
+func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (CommandTag, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case pgConn.controller <- pgConn:
+	}
+	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
+
+	// Send copy to command
+	var buf []byte
+	buf = (&pgproto3.Query{String: sql}).Encode(buf)
+
+	n, err := pgConn.conn.Write(buf)
+	if err != nil {
+		// Partially sent messages are a fatal error for the connection.
+		if n > 0 {
+			// Close connection because cannot recover from partially sent message.
+			pgConn.conn.Close()
+			pgConn.closed = true
+		}
+
+		cleanupContextDeadline()
+		<-pgConn.controller
+
+		return "", preferContextOverNetTimeoutError(ctx, err)
+	}
+
+	// Read until copy in response or error.
+	var commandTag CommandTag
+	var pgErr error
+	pendingCopyInResponse := true
+	for pendingCopyInResponse {
+		msg, err := pgConn.ReceiveMessage()
+		if err != nil {
+			cleanupContextDeadline()
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				go pgConn.recoverFromTimeout()
+			} else {
+				<-pgConn.controller
+			}
+
+			return "", preferContextOverNetTimeoutError(ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.CopyInResponse:
+			pendingCopyInResponse = false
+		case *pgproto3.ErrorResponse:
+			pgErr = errorResponseToPgError(msg)
+		case *pgproto3.ReadyForQuery:
+			<-pgConn.controller
+			return commandTag, pgErr
+		}
+	}
+
+	// Send copy data
+	buf = make([]byte, 0, 65536)
+	buf = append(buf, 'd')
+	sp := len(buf)
+	for {
+		n, err := r.Read(buf[5:cap(buf)])
+		if err == io.EOF && n == 0 {
+			break
+		}
+		buf = buf[0 : n+5]
+		pgio.SetInt32(buf[sp:], int32(n+4))
+
+		_, err = pgConn.conn.Write(buf)
+		if err != nil {
+			// Partially sent messages are a fatal error for the connection. If nothing was sent it might be possible to
+			// recover the connection with a CopyFail, but that could be rather complicated and error prone. Simpler just to
+			// close the connection.
+			pgConn.conn.Close()
+			pgConn.closed = true
+
+			cleanupContextDeadline()
+			<-pgConn.controller
+
+			return "", preferContextOverNetTimeoutError(ctx, err)
+		}
+	}
+
+	// Send copy done
+	buf = buf[:0]
+	copyDone := &pgproto3.CopyDone{}
+	buf = copyDone.Encode(buf)
+
+	_, err = pgConn.conn.Write(buf)
+	if err != nil {
+		pgConn.conn.Close()
+		pgConn.closed = true
+
+		cleanupContextDeadline()
+		<-pgConn.controller
+
+		return "", preferContextOverNetTimeoutError(ctx, err)
+	}
+
+	// Read results
+	for {
+		msg, err := pgConn.ReceiveMessage()
+		if err != nil {
+			cleanupContextDeadline()
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				go pgConn.recoverFromTimeout()
+			} else {
+				<-pgConn.controller
+			}
+
+			return "", preferContextOverNetTimeoutError(ctx, err)
+		}
+
+		switch msg := msg.(type) {
 		case *pgproto3.ReadyForQuery:
 			<-pgConn.controller
 			return commandTag, pgErr

@@ -2,12 +2,15 @@ package pgconn_test
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -787,6 +790,139 @@ func TestConnCopyToCanceled(t *testing.T) {
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
 	assert.Equal(t, context.DeadlineExceeded, err)
 	assert.Equal(t, pgconn.CommandTag(""), res)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFrom(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	srcBuf := &bytes.Buffer{}
+
+	inputRows := [][][]byte{}
+	for i := 0; i < 1000; i++ {
+		a := strconv.Itoa(i)
+		b := "foo " + a + " bar"
+		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
+		_, err = srcBuf.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		require.NoError(t, err)
+	}
+
+	ct, err := pgConn.CopyFrom(context.Background(), srcBuf, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	require.NoError(t, err)
+	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
+
+	result := pgConn.ExecParams(context.Background(), "select * from foo", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	assert.Equal(t, inputRows, result.Rows)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFromGzipReader(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	f, err := ioutil.TempFile("", "*")
+	require.NoError(t, err)
+
+	gw := gzip.NewWriter(f)
+
+	inputRows := [][][]byte{}
+	for i := 0; i < 1000; i++ {
+		a := strconv.Itoa(i)
+		b := "foo " + a + " bar"
+		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
+		_, err = gw.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		require.NoError(t, err)
+	}
+
+	err = gw.Close()
+	require.NoError(t, err)
+
+	_, err = f.Seek(0, 0)
+	require.NoError(t, err)
+
+	gr, err := gzip.NewReader(f)
+	require.NoError(t, err)
+
+	ct, err := pgConn.CopyFrom(context.Background(), gr, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	require.NoError(t, err)
+	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
+
+	err = gr.Close()
+	require.NoError(t, err)
+
+	err = f.Close()
+	require.NoError(t, err)
+
+	err = os.Remove(f.Name())
+	require.NoError(t, err)
+
+	result := pgConn.ExecParams(context.Background(), "select * from foo", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	assert.Equal(t, inputRows, result.Rows)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFromQuerySyntaxError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	srcBuf := &bytes.Buffer{}
+
+	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "cropy foo to stdout")
+	require.Error(t, err)
+	assert.IsType(t, &pgconn.PgError{}, err)
+	assert.Equal(t, int64(0), res.RowsAffected())
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFromQueryNoTableError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	srcBuf := &bytes.Buffer{}
+
+	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "cropy foo to stdout")
+	require.Error(t, err)
+	assert.IsType(t, &pgconn.PgError{}, err)
+	assert.Equal(t, int64(0), res.RowsAffected())
 
 	ensureConnValid(t, pgConn)
 }
