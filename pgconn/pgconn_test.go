@@ -40,7 +40,7 @@ func TestConnect(t *testing.T) {
 			}
 
 			conn, err := pgconn.Connect(context.Background(), connString)
-			require.Nil(t, err)
+			require.NoError(t, err)
 
 			closeConn(t, conn)
 		})
@@ -58,7 +58,7 @@ func TestConnectTLS(t *testing.T) {
 	}
 
 	conn, err := pgconn.Connect(context.Background(), connString)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	if _, ok := conn.Conn().(*tls.Conn); !ok {
 		t.Error("not a TLS connection")
@@ -76,7 +76,7 @@ func TestConnectInvalidUser(t *testing.T) {
 	}
 
 	config, err := pgconn.ParseConfig(connString)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	config.User = "pgxinvalidusertest"
 
@@ -109,7 +109,7 @@ func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	dialed := false
 	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -118,7 +118,7 @@ func TestConnectCustomDialer(t *testing.T) {
 	}
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.True(t, dialed)
 	closeConn(t, conn)
 }
@@ -127,7 +127,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	config.RuntimeParams = map[string]string{
 		"application_name": "pgxtest",
@@ -135,7 +135,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 	}
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, conn)
 
 	result := conn.ExecParams(context.Background(), "show application_name", nil, nil, nil, nil).Read()
@@ -153,7 +153,7 @@ func TestConnectWithFallback(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	// Prepend current primary config to fallbacks
 	config.Fallbacks = append([]*pgconn.FallbackConfig{
@@ -178,7 +178,7 @@ func TestConnectWithFallback(t *testing.T) {
 	}, config.Fallbacks...)
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	closeConn(t, conn)
 }
 
@@ -186,7 +186,7 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	dialCount := 0
 	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -214,7 +214,7 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 	config.Fallbacks = append(config.Fallbacks, config.Fallbacks...)
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	closeConn(t, conn)
 
 	assert.True(t, dialCount > 1)
@@ -225,7 +225,7 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	config.AfterConnectFunc = pgconn.AfterConnectTargetSessionAttrsReadWrite
 	config.RuntimeParams["default_transaction_read_only"] = "on"
@@ -240,7 +240,7 @@ func TestConnPrepareFailure(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	psd, err := pgConn.Prepare(context.Background(), "ps1", "SYNTAX ERROR", nil)
@@ -254,11 +254,11 @@ func TestConnExec(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
@@ -273,7 +273,7 @@ func TestConnExecEmpty(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	multiResult := pgConn.Exec(context.Background(), ";")
@@ -285,7 +285,7 @@ func TestConnExecEmpty(t *testing.T) {
 	}
 	assert.Equal(t, 0, resultCount)
 	err = multiResult.Close()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -294,11 +294,11 @@ func TestConnExecMultipleQueries(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'; select 1").ReadAll()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, 2)
 
@@ -319,7 +319,7 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	results, err := pgConn.Exec(context.Background(), "select 1; select 1/0; select 1").ReadAll()
@@ -341,7 +341,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -360,7 +360,7 @@ func TestConnExecParams(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	result := pgConn.ExecParams(context.Background(), "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
@@ -372,7 +372,7 @@ func TestConnExecParams(t *testing.T) {
 	assert.Equal(t, 1, rowCount)
 	commandTag, err := result.Close()
 	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -381,7 +381,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -403,11 +403,11 @@ func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	psd, err := pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.NotNil(t, psd)
 	assert.Len(t, psd.ParamOIDs, 1)
 	assert.Len(t, psd.Fields, 1)
@@ -421,7 +421,7 @@ func TestConnExecPrepared(t *testing.T) {
 	assert.Equal(t, 1, rowCount)
 	commandTag, err := result.Close()
 	assert.Equal(t, "SELECT 1", string(commandTag))
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -430,11 +430,11 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Prepare(context.Background(), "ps1", "select current_database(), pg_sleep(1)", nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
@@ -455,11 +455,11 @@ func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	batch := &pgconn.Batch{}
 
@@ -467,7 +467,7 @@ func TestConnExecBatch(t *testing.T) {
 	batch.ExecPrepared("ps1", [][]byte{[]byte("ExecPrepared 1")}, nil, nil)
 	batch.ExecParams("select $1::text", [][]byte{[]byte("ExecParams 2")}, nil, nil, nil)
 	results, err := pgConn.ExecBatch(context.Background(), batch).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 	require.Len(t, results, 3)
 
 	require.Len(t, results[0].Rows, 1)
@@ -510,7 +510,7 @@ func TestConnContextCancelWithOnContextCancel(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	calledChan := make(chan struct{})
 
@@ -533,7 +533,7 @@ func TestConnContextCancelWithOnContextCancel(t *testing.T) {
 	}
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -558,7 +558,7 @@ func TestConnWaitUntilReady(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -567,7 +567,7 @@ func TestConnWaitUntilReady(t *testing.T) {
 	assert.Equal(t, context.DeadlineExceeded, result.Err)
 
 	err = pgConn.WaitUntilReady(context.Background())
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
 }
@@ -576,7 +576,7 @@ func TestConnOnNotice(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var msg string
 	config.OnNotice = func(c *pgconn.PgConn, notice *pgconn.Notice) {
@@ -584,7 +584,7 @@ func TestConnOnNotice(t *testing.T) {
 	}
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	multiResult := pgConn.Exec(context.Background(), `do $$
@@ -592,7 +592,7 @@ begin
   raise notice 'hello, world';
 end$$;`)
 	err = multiResult.Close()
-	require.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "hello, world", msg)
 
 	ensureConnValid(t, pgConn)
@@ -602,7 +602,7 @@ func TestConnOnNotification(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var msg string
 	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
@@ -610,20 +610,20 @@ func TestConnOnNotification(t *testing.T) {
 	}
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	notifier, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, notifier)
 	_, err = notifier.Exec(context.Background(), "notify foo, 'bar'").ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = pgConn.Exec(context.Background(), "select 1").ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, "bar", msg)
 
@@ -634,7 +634,7 @@ func TestConnWaitForNotification(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	var msg string
 	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
@@ -642,20 +642,20 @@ func TestConnWaitForNotification(t *testing.T) {
 	}
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	notifier, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, notifier)
 	_, err = notifier.Exec(context.Background(), "notify foo, 'bar'").ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	err = pgConn.WaitForNotification(context.Background())
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, "bar", msg)
 
@@ -666,10 +666,10 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
@@ -684,7 +684,7 @@ func TestConnCopyToSmall(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
@@ -696,13 +696,13 @@ func TestConnCopyToSmall(t *testing.T) {
 		f date,
 		g json
 	)`).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = pgConn.Exec(context.Background(), `insert into foo values (0, 1, 2, 'abc', 'efg', '2000-01-01', '{"abc":"def","foo":"bar"}')`).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = pgConn.Exec(context.Background(), `insert into foo values (null, null, null, null, null, null, null)`).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inputBytes := []byte("0\t1\t2\tabc\tefg\t2000-01-01\t{\"abc\":\"def\",\"foo\":\"bar\"}\n" +
 		"\\N\t\\N\t\\N\t\\N\t\\N\t\\N\t\\N\n")
@@ -710,7 +710,7 @@ func TestConnCopyToSmall(t *testing.T) {
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
 	res, err := pgConn.CopyTo(context.Background(), outputWriter, "copy foo to stdout")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, int64(2), res.RowsAffected())
 	assert.Equal(t, inputBytes, outputWriter.Bytes())
@@ -722,7 +722,7 @@ func TestConnCopyToLarge(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
@@ -735,20 +735,20 @@ func TestConnCopyToLarge(t *testing.T) {
 		g json,
 		h bytea
 	)`).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	inputBytes := make([]byte, 0)
 
 	for i := 0; i < 1000; i++ {
 		_, err = pgConn.Exec(context.Background(), `insert into foo values (0, 1, 2, 'abc', 'efg', '2000-01-01', '{"abc":"def","foo":"bar"}', 'oooo')`).ReadAll()
-		require.Nil(t, err)
+		require.NoError(t, err)
 		inputBytes = append(inputBytes, "0\t1\t2\tabc\tefg\t2000-01-01\t{\"abc\":\"def\",\"foo\":\"bar\"}\t\\\\x6f6f6f6f\n"...)
 	}
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
 
 	res, err := pgConn.CopyTo(context.Background(), outputWriter, "copy foo to stdout")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, int64(1000), res.RowsAffected())
 	assert.Equal(t, inputBytes, outputWriter.Bytes())
@@ -760,7 +760,7 @@ func TestConnCopyToQueryError(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	outputWriter := bytes.NewBuffer(make([]byte, 0))
@@ -777,7 +777,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	outputWriter := &bytes.Buffer{}
