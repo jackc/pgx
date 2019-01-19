@@ -791,6 +791,34 @@ func TestConnCopyToCanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnEscapeString(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	tests := []struct {
+		in  string
+		out string
+	}{
+		{in: "", out: ""},
+		{in: "42", out: "42"},
+		{in: "'", out: "''"},
+		{in: "hi'there", out: "hi''there"},
+		{in: "'hi there'", out: "''hi there''"},
+	}
+
+	for i, tt := range tests {
+		value, err := pgConn.EscapeString(tt.in)
+		if assert.NoErrorf(t, err, "%d.", i) {
+			assert.Equalf(t, tt.out, value, "%d.", i)
+		}
+	}
+
+	ensureConnValid(t, pgConn)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
