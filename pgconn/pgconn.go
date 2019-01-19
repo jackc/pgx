@@ -747,6 +747,71 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	return result
 }
 
+// CopyTo executes the copy command sql and copies the results to w.
+func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (CommandTag, error) {
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case pgConn.controller <- pgConn:
+	}
+	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
+
+	// Send copy to command
+	var buf []byte
+	buf = (&pgproto3.Query{String: sql}).Encode(buf)
+
+	n, err := pgConn.conn.Write(buf)
+	if err != nil {
+		// Partially sent messages are a fatal error for the connection.
+		if n > 0 {
+			// Close connection because cannot recover from partially sent message.
+			pgConn.conn.Close()
+			pgConn.closed = true
+		}
+
+		cleanupContextDeadline()
+		<-pgConn.controller
+
+		return "", preferContextOverNetTimeoutError(ctx, err)
+	}
+
+	// Read results
+	var commandTag CommandTag
+	var pgErr error
+	for {
+		msg, err := pgConn.ReceiveMessage()
+		if err != nil {
+			cleanupContextDeadline()
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				go pgConn.recoverFromTimeout()
+			} else {
+				<-pgConn.controller
+			}
+
+			return "", preferContextOverNetTimeoutError(ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.CopyDone:
+		case *pgproto3.CopyData:
+			_, err := w.Write(msg.Data)
+			if err != nil {
+				// This isn't actually a timeout, but we want the same behavior. Abort the request and cleanup.
+				cleanupContextDeadline()
+				go pgConn.recoverFromTimeout()
+				return "", err
+			}
+		case *pgproto3.ReadyForQuery:
+			<-pgConn.controller
+			return commandTag, pgErr
+		case *pgproto3.CommandComplete:
+			commandTag = CommandTag(msg.CommandTag)
+		case *pgproto3.ErrorResponse:
+			pgErr = errorResponseToPgError(msg)
+		}
+	}
+}
+
 // MultiResultReader is a reader for a command that could return multiple results such as Exec or ExecBatch.
 type MultiResultReader struct {
 	pgConn                 *PgConn
