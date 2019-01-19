@@ -17,7 +17,7 @@ func TestConnStress(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
 	actionCount := 100
@@ -61,7 +61,7 @@ func setupStressDB(t *testing.T, pgConn *pgconn.PgConn) {
 			('Foo', 'bar'),
 			('baz', 'Something really long Something really long Something really long Something really long Something really long'),
 			('a', 'b')`).ReadAll()
-	require.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func stressExecSelect(pgConn *pgconn.PgConn) error {

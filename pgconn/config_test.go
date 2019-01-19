@@ -515,12 +515,12 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 	for i, tt := range tests {
 		for _, n := range pgEnvvars {
 			err := os.Unsetenv(n)
-			require.Nil(t, err)
+			require.NoError(t, err)
 		}
 
 		for k, v := range tt.envvars {
 			err := os.Setenv(k, v)
-			require.Nil(t, err)
+			require.NoError(t, err)
 		}
 
 		config, err := pgconn.ParseConfig("")
@@ -536,13 +536,13 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	t.Parallel()
 
 	tf, err := ioutil.TempFile("", "")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	defer tf.Close()
 	defer os.Remove(tf.Name())
 
 	_, err = tf.Write([]byte("test1:5432:curlydb:curly:nyuknyuknyuk"))
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	connString := fmt.Sprintf("postgres://curly@test1:5432/curlydb?sslmode=disable&passfile=%s", tf.Name())
 	expected := &pgconn.Config{
@@ -556,7 +556,7 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	}
 
 	actual, err := pgconn.ParseConfig(connString)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	assertConfigsEqual(t, expected, actual, "passfile")
 }
