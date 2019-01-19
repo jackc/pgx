@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -54,8 +55,9 @@ func TestInt4ArrayTranscode(t *testing.T) {
 
 func TestInt4ArraySet(t *testing.T) {
 	successfulTests := []struct {
-		source interface{}
-		result pgtype.Int4Array
+		source        interface{}
+		result        pgtype.Int4Array
+		expectedError bool
 	}{
 		{
 			source: []int32{1},
@@ -63,6 +65,17 @@ func TestInt4ArraySet(t *testing.T) {
 				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present},
+		},
+		{
+			source: []int{1},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source:        []int{1, math.MaxInt32 + 1, 2},
+			expectedError: true,
 		},
 		{
 			source: []uint32{1},
@@ -81,7 +94,15 @@ func TestInt4ArraySet(t *testing.T) {
 		var r pgtype.Int4Array
 		err := r.Set(tt.source)
 		if err != nil {
+			if tt.expectedError {
+				continue
+			}
 			t.Errorf("%d: %v", i, err)
+		}
+
+		if tt.expectedError {
+			t.Errorf("%d: an error was expected, %v", i, tt)
+			continue
 		}
 
 		if !reflect.DeepEqual(r, tt.result) {
