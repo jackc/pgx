@@ -1145,7 +1145,6 @@ type Batch struct {
 
 // ExecParams appends an ExecParams command to the batch. See PgConn.ExecParams for parameter descriptions.
 func (batch *Batch) ExecParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) {
-	// TODO - refactor ExecParams and ExecPrepared - these lines only difference
 	batch.buf = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(batch.buf)
 	batch.ExecPrepared("", paramValues, paramFormats, resultFormats)
 }
