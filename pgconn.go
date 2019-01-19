@@ -1193,3 +1193,20 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 
 	return multiResult
 }
+
+// EscapeString escapes a string such that it can safely be interpolated into a SQL command string. It does not include
+// the surrounding single quotes.
+//
+// The current implementation requires that standard_conforming_strings=on and client_encoding="UTF8". If these
+// conditions are not met an error will be returned. It is possible these restrictions will be lifted in the future.
+func (pgConn *PgConn) EscapeString(s string) (string, error) {
+	if pgConn.ParameterStatus("standard_conforming_strings") != "on" {
+		return "", errors.New("EscapeString must be run with standard_conforming_strings=on")
+	}
+
+	if pgConn.ParameterStatus("client_encoding") != "UTF8" {
+		return "", errors.New("EscapeString must be run with client_encoding=UTF8")
+	}
+
+	return strings.Replace(s, "'", "''", -1), nil
+}
