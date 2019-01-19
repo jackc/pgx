@@ -1,6 +1,7 @@
 package pgconn_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -675,6 +676,117 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 	err = pgConn.WaitForNotification(ctx)
 	cancel()
 	require.Equal(t, context.DeadlineExceeded, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyToSmall(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int2,
+		b int4,
+		c int8,
+		d varchar,
+		e text,
+		f date,
+		g json
+	)`).ReadAll()
+	require.Nil(t, err)
+
+	_, err = pgConn.Exec(context.Background(), `insert into foo values (0, 1, 2, 'abc', 'efg', '2000-01-01', '{"abc":"def","foo":"bar"}')`).ReadAll()
+	require.Nil(t, err)
+
+	_, err = pgConn.Exec(context.Background(), `insert into foo values (null, null, null, null, null, null, null)`).ReadAll()
+	require.Nil(t, err)
+
+	inputBytes := []byte("0\t1\t2\tabc\tefg\t2000-01-01\t{\"abc\":\"def\",\"foo\":\"bar\"}\n" +
+		"\\N\t\\N\t\\N\t\\N\t\\N\t\\N\t\\N\n")
+
+	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
+
+	res, err := pgConn.CopyTo(context.Background(), outputWriter, "copy foo to stdout")
+	require.Nil(t, err)
+
+	assert.Equal(t, int64(2), res.RowsAffected())
+	assert.Equal(t, inputBytes, outputWriter.Bytes())
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyToLarge(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int2,
+		b int4,
+		c int8,
+		d varchar,
+		e text,
+		f date,
+		g json,
+		h bytea
+	)`).ReadAll()
+	require.Nil(t, err)
+
+	inputBytes := make([]byte, 0)
+
+	for i := 0; i < 1000; i++ {
+		_, err = pgConn.Exec(context.Background(), `insert into foo values (0, 1, 2, 'abc', 'efg', '2000-01-01', '{"abc":"def","foo":"bar"}', 'oooo')`).ReadAll()
+		require.Nil(t, err)
+		inputBytes = append(inputBytes, "0\t1\t2\tabc\tefg\t2000-01-01\t{\"abc\":\"def\",\"foo\":\"bar\"}\t\\\\x6f6f6f6f\n"...)
+	}
+
+	outputWriter := bytes.NewBuffer(make([]byte, 0, len(inputBytes)))
+
+	res, err := pgConn.CopyTo(context.Background(), outputWriter, "copy foo to stdout")
+	require.Nil(t, err)
+
+	assert.Equal(t, int64(1000), res.RowsAffected())
+	assert.Equal(t, inputBytes, outputWriter.Bytes())
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyToQueryError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	outputWriter := bytes.NewBuffer(make([]byte, 0))
+
+	res, err := pgConn.CopyTo(context.Background(), outputWriter, "cropy foo to stdout")
+	require.Error(t, err)
+	assert.IsType(t, &pgconn.PgError{}, err)
+	assert.Equal(t, int64(0), res.RowsAffected())
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyToCanceled(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.Nil(t, err)
+	defer closeConn(t, pgConn)
+
+	outputWriter := &bytes.Buffer{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
+	assert.Equal(t, context.DeadlineExceeded, err)
+	assert.Equal(t, pgconn.CommandTag(""), res)
 
 	ensureConnValid(t, pgConn)
 }
