@@ -549,10 +549,9 @@ func (pgConn *PgConn) cancelRequest(ctx context.Context) error {
 	return nil
 }
 
-// WaitUntilReady waits until a previous context cancellation has been competed processed and the connection is ready
-// for use. This is done automatically by all methods that need the connection to be ready for use. The only expected
-// use for this method is for a connection pool to wait for a returned connection to be usable again before making it
-// available.
+// WaitUntilReady waits until a previous context cancellation has been completed and the connection is ready for use.
+// This is done automatically by all methods that need the connection to be ready for use. The only expected use for
+// this method is for a connection pool to wait for a returned connection to be usable again before making it available.
 func (pgConn *PgConn) WaitUntilReady(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
