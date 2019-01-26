@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/jackc/pgx/pgconn"
@@ -229,24 +228,6 @@ func (tx *Tx) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFr
 	}
 
 	return tx.conn.CopyFrom(tableName, columnNames, rowSrc)
-}
-
-// CopyFromReader delegates to the underlying *Conn
-func (tx *Tx) CopyFromReader(r io.Reader, sql string) (commandTag pgconn.CommandTag, err error) {
-	if tx.status != TxStatusInProgress {
-		return "", ErrTxClosed
-	}
-
-	return tx.conn.CopyFromReader(r, sql)
-}
-
-// CopyToWriter delegates to the underlying *Conn
-func (tx *Tx) CopyToWriter(w io.Writer, sql string, args ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	if tx.status != TxStatusInProgress {
-		return "", ErrTxClosed
-	}
-
-	return tx.conn.CopyToWriter(w, sql, args...)
 }
 
 // Status returns the status of the transaction from the set of

@@ -398,6 +398,12 @@ func (pgConn *PgConn) hardClose() error {
 	return pgConn.conn.Close()
 }
 
+// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect deatch of
+// underlying connection.
+func (pgConn *PgConn) IsAlive() bool {
+	return !pgConn.closed
+}
+
 // writeAll writes the entire buffer. The connection is hard closed on a partial write or a non-temporary error.
 func (pgConn *PgConn) writeAll(buf []byte) error {
 	n, err := pgConn.conn.Write(buf)

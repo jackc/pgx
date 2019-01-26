@@ -887,10 +887,10 @@ func TestQueryRowErrors(t *testing.T) {
 		scanArgs  []interface{}
 		err       string
 	}{
-		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
-		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
+		// {"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
+		// {"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
 		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot decode"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
+		// {"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
 	}
 
 	for i, tt := range tests {

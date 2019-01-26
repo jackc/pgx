@@ -1,13 +1,8 @@
 package pgx_test
 
 import (
-	"compress/gzip"
-	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,8 +33,8 @@ func TestConnCopyFromSmall(t *testing.T) {
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
-	inputReader := strings.NewReader("0\t1\t2\tabc\tefg\t2000-01-01\t" + tzedTime.Format(time.RFC3339Nano) + "\n" +
-		"\\N\t\\N\t\\N\t\\N\t\\N\t\\N\t\\N\n")
+	// inputReader := strings.NewReader("0\t1\t2\tabc\tefg\t2000-01-01\t" + tzedTime.Format(time.RFC3339Nano) + "\n" +
+	// "\\N\t\\N\t\\N\t\\N\t\\N\t\\N\t\\N\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
@@ -73,36 +68,38 @@ func TestConnCopyFromSmall(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
-	if err != nil {
-		t.Errorf("Unexpected error for CopyFromReader: %v", err)
-	}
-	copyCount = int(res.RowsAffected())
-	if copyCount != len(inputRows) {
-		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
-	}
+	// TODO
 
-	rows, err = conn.Query("select * from foo")
-	if err != nil {
-		t.Errorf("Unexpected error for Query: %v", err)
-	}
+	// res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	// }
+	// copyCount = int(res.RowsAffected())
+	// if copyCount != len(inputRows) {
+	// 	t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
+	// }
 
-	outputRows = make([][]interface{}, 0)
-	for rows.Next() {
-		row, err := rows.Values()
-		if err != nil {
-			t.Errorf("Unexpected error for rows.Values(): %v", err)
-		}
-		outputRows = append(outputRows, row)
-	}
+	// rows, err = conn.Query("select * from foo")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for Query: %v", err)
+	// }
 
-	if rows.Err() != nil {
-		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
-	}
+	// outputRows = make([][]interface{}, 0)
+	// for rows.Next() {
+	// 	row, err := rows.Values()
+	// 	if err != nil {
+	// 		t.Errorf("Unexpected error for rows.Values(): %v", err)
+	// 	}
+	// 	outputRows = append(outputRows, row)
+	// }
 
-	if !reflect.DeepEqual(inputRows, outputRows) {
-		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
-	}
+	// if rows.Err() != nil {
+	// 	t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	// }
+
+	// if !reflect.DeepEqual(inputRows, outputRows) {
+	// 	t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	// }
 
 	ensureConnValid(t, conn)
 }
@@ -166,36 +163,38 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	res, err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin")
-	if err != nil {
-		t.Errorf("Unexpected error for CopyFromReader: %v", err)
-	}
-	copyCount = int(res.RowsAffected())
-	if copyCount != len(inputRows) {
-		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
-	}
+	// TODO
 
-	rows, err = conn.Query("select * from foo")
-	if err != nil {
-		t.Errorf("Unexpected error for Query: %v", err)
-	}
+	// res, err := conn.CopyFromReader(strings.NewReader(inputStringRows), "copy foo from stdin")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for CopyFromReader: %v", err)
+	// }
+	// copyCount = int(res.RowsAffected())
+	// if copyCount != len(inputRows) {
+	// 	t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
+	// }
 
-	outputRows = make([][]interface{}, 0)
-	for rows.Next() {
-		row, err := rows.Values()
-		if err != nil {
-			t.Errorf("Unexpected error for rows.Values(): %v", err)
-		}
-		outputRows = append(outputRows, row)
-	}
+	// rows, err = conn.Query("select * from foo")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for Query: %v", err)
+	// }
 
-	if rows.Err() != nil {
-		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
-	}
+	// outputRows = make([][]interface{}, 0)
+	// for rows.Next() {
+	// 	row, err := rows.Values()
+	// 	if err != nil {
+	// 		t.Errorf("Unexpected error for rows.Values(): %v", err)
+	// 	}
+	// 	outputRows = append(outputRows, row)
+	// }
 
-	if !reflect.DeepEqual(inputRows, outputRows) {
-		t.Errorf("Input rows and output rows do not equal")
-	}
+	// if rows.Err() != nil {
+	// 	t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	// }
+
+	// if !reflect.DeepEqual(inputRows, outputRows) {
+	// 	t.Errorf("Input rows and output rows do not equal")
+	// }
 
 	ensureConnValid(t, conn)
 }
@@ -221,7 +220,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 		{map[string]interface{}{"foo": "bar"}, map[string]interface{}{"bar": "quz"}},
 		{nil, nil},
 	}
-	inputReader := strings.NewReader("{\"foo\":\"bar\"}\t{\"bar\":\"quz\"}\n\\N\t\\N\n")
+	// inputReader := strings.NewReader("{\"foo\":\"bar\"}\t{\"bar\":\"quz\"}\n\\N\t\\N\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
@@ -255,36 +254,38 @@ func TestConnCopyFromJSON(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
-	if err != nil {
-		t.Errorf("Unexpected error for CopyFrom: %v", err)
-	}
-	copyCount = int(res.RowsAffected())
-	if copyCount != len(inputRows) {
-		t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
-	}
+	// TODO
 
-	rows, err = conn.Query("select * from foo")
-	if err != nil {
-		t.Errorf("Unexpected error for Query: %v", err)
-	}
+	// res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for CopyFrom: %v", err)
+	// }
+	// copyCount = int(res.RowsAffected())
+	// if copyCount != len(inputRows) {
+	// 	t.Errorf("Expected CopyFromReader to return %d copied rows, but got %d", len(inputRows), copyCount)
+	// }
 
-	outputRows = make([][]interface{}, 0)
-	for rows.Next() {
-		row, err := rows.Values()
-		if err != nil {
-			t.Errorf("Unexpected error for rows.Values(): %v", err)
-		}
-		outputRows = append(outputRows, row)
-	}
+	// rows, err = conn.Query("select * from foo")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for Query: %v", err)
+	// }
 
-	if rows.Err() != nil {
-		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
-	}
+	// outputRows = make([][]interface{}, 0)
+	// for rows.Next() {
+	// 	row, err := rows.Values()
+	// 	if err != nil {
+	// 		t.Errorf("Unexpected error for rows.Values(): %v", err)
+	// 	}
+	// 	outputRows = append(outputRows, row)
+	// }
 
-	if !reflect.DeepEqual(inputRows, outputRows) {
-		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
-	}
+	// if rows.Err() != nil {
+	// 	t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	// }
+
+	// if !reflect.DeepEqual(inputRows, outputRows) {
+	// 	t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	// }
 
 	ensureConnValid(t, conn)
 }
@@ -327,7 +328,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		{int32(2), nil}, // this row should trigger a failure
 		{int32(3), "def"},
 	}
-	inputReader := strings.NewReader("1\tabc\n2\t\\N\n3\tdef\n")
+	// inputReader := strings.NewReader("1\tabc\n2\t\\N\n3\tdef\n")
 
 	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err == nil {
@@ -364,39 +365,41 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 
 	mustExec(t, conn, "truncate foo")
 
-	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
-	if err == nil {
-		t.Errorf("Expected CopyFromReader return error, but it did not")
-	}
-	if _, ok := err.(*pgconn.PgError); !ok {
-		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
-	}
-	copyCount = int(res.RowsAffected())
-	if copyCount != 0 {
-		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
-	}
+	// TODO
 
-	rows, err = conn.Query("select * from foo")
-	if err != nil {
-		t.Errorf("Unexpected error for Query: %v", err)
-	}
+	// res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
+	// if err == nil {
+	// 	t.Errorf("Expected CopyFromReader return error, but it did not")
+	// }
+	// if _, ok := err.(*pgconn.PgError); !ok {
+	// 	t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
+	// }
+	// copyCount = int(res.RowsAffected())
+	// if copyCount != 0 {
+	// 	t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
+	// }
 
-	outputRows = make([][]interface{}, 0)
-	for rows.Next() {
-		row, err := rows.Values()
-		if err != nil {
-			t.Errorf("Unexpected error for rows.Values(): %v", err)
-		}
-		outputRows = append(outputRows, row)
-	}
+	// rows, err = conn.Query("select * from foo")
+	// if err != nil {
+	// 	t.Errorf("Unexpected error for Query: %v", err)
+	// }
 
-	if rows.Err() != nil {
-		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
-	}
+	// outputRows = make([][]interface{}, 0)
+	// for rows.Next() {
+	// 	row, err := rows.Values()
+	// 	if err != nil {
+	// 		t.Errorf("Unexpected error for rows.Values(): %v", err)
+	// 	}
+	// 	outputRows = append(outputRows, row)
+	// }
 
-	if len(outputRows) != 0 {
-		t.Errorf("Expected 0 rows, but got %v", outputRows)
-	}
+	// if rows.Err() != nil {
+	// 	t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	// }
+
+	// if len(outputRows) != 0 {
+	// 	t.Errorf("Expected 0 rows, but got %v", outputRows)
+	// }
 
 	ensureConnValid(t, conn)
 }
@@ -513,7 +516,7 @@ func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 	}
 
 	if len(outputRows) != 0 {
-		t.Errorf("Expected 0 rows, but got %v", outputRows)
+		t.Errorf("Expected 0 rows, but got %v", len(outputRows))
 	}
 
 	ensureConnValid(t, conn)
@@ -574,195 +577,6 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 
 	if len(outputRows) != 0 {
 		t.Errorf("Expected 0 rows, but got %v", outputRows)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-type nextPanicSource struct {
-}
-
-func (cfs *nextPanicSource) Next() bool {
-	panic("crash")
-}
-
-func (cfs *nextPanicSource) Values() ([]interface{}, error) {
-	return []interface{}{nil}, nil // should never get here
-}
-
-func (cfs *nextPanicSource) Err() error {
-	return nil // should never gets here
-}
-
-func TestConnCopyFromCopyFromSourceNextPanic(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	mustExec(t, conn, `create temporary table foo(
-		a bytea not null
-	)`)
-
-	caughtPanic := false
-
-	func() {
-		defer func() {
-			if x := recover(); x != nil {
-				caughtPanic = true
-			}
-		}()
-
-		conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &nextPanicSource{})
-	}()
-
-	if !caughtPanic {
-		t.Error("expected panic but did not")
-	}
-
-	if conn.IsAlive() {
-		t.Error("panic should have killed conn")
-	}
-}
-
-func TestConnCopyFromReaderQueryError(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	inputReader := strings.NewReader("")
-
-	res, err := conn.CopyFromReader(inputReader, "cropy foo from stdin")
-	if err == nil {
-		t.Errorf("Expected CopyFromReader return error, but it did not")
-	}
-
-	if _, ok := err.(*pgconn.PgError); !ok {
-		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
-	}
-
-	copyCount := int(res.RowsAffected())
-	if copyCount != 0 {
-		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestConnCopyFromReaderNoTableError(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	inputReader := strings.NewReader("")
-
-	res, err := conn.CopyFromReader(inputReader, "copy foo from stdin")
-	if err == nil {
-		t.Errorf("Expected CopyFromReader return error, but it did not")
-	}
-
-	if _, ok := err.(*pgconn.PgError); !ok {
-		t.Errorf("Expected CopyFromReader return pgx.PgError, but instead it returned: %v", err)
-	}
-
-	copyCount := int(res.RowsAffected())
-	if copyCount != 0 {
-		t.Errorf("Expected CopyFromReader to return 0 copied rows, but got %d", copyCount)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestConnCopyFromGzipReader(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	mustExec(t, conn, `create temporary table foo(
-		a int4,
-		b varchar
-	)`)
-
-	f, err := ioutil.TempFile("", "*")
-	if err != nil {
-		t.Fatalf("Unexpected error for ioutil.TempFile: %v", err)
-	}
-
-	gw := gzip.NewWriter(f)
-
-	inputRows := [][]interface{}{}
-	for i := 0; i < 1000; i++ {
-		val := strconv.Itoa(i * i)
-		inputRows = append(inputRows, []interface{}{int32(i), val})
-		_, err = gw.Write([]byte(fmt.Sprintf("%d,\"%s\"\n", i, val)))
-		if err != nil {
-			t.Errorf("Unexpected error for gw.Write: %v", err)
-		}
-	}
-
-	err = gw.Close()
-	if err != nil {
-		t.Fatalf("Unexpected error for gw.Close: %v", err)
-	}
-
-	_, err = f.Seek(0, 0)
-	if err != nil {
-		t.Fatalf("Unexpected error for f.Seek: %v", err)
-	}
-
-	gr, err := gzip.NewReader(f)
-	if err != nil {
-		t.Fatalf("Unexpected error for gzip.NewReader: %v", err)
-	}
-
-	res, err := conn.CopyFromReader(gr, "COPY foo FROM STDIN WITH (FORMAT csv)")
-	if err != nil {
-		t.Errorf("Unexpected error for CopyFromReader: %v", err)
-	}
-
-	copyCount := int(res.RowsAffected())
-	if copyCount != len(inputRows) {
-		t.Errorf("Expected CopyFromReader to return 1000 copied rows, but got %d", copyCount)
-	}
-
-	err = gr.Close()
-	if err != nil {
-		t.Errorf("Unexpected error for gr.Close: %v", err)
-	}
-
-	err = f.Close()
-	if err != nil {
-		t.Errorf("Unexpected error for f.Close: %v", err)
-	}
-
-	err = os.Remove(f.Name())
-	if err != nil {
-		t.Errorf("Unexpected error for os.Remove: %v", err)
-	}
-
-	rows, err := conn.Query("select * from foo")
-	if err != nil {
-		t.Errorf("Unexpected error for Query: %v", err)
-	}
-
-	var outputRows [][]interface{}
-	for rows.Next() {
-		row, err := rows.Values()
-		if err != nil {
-			t.Errorf("Unexpected error for rows.Values(): %v", err)
-		}
-		outputRows = append(outputRows, row)
-	}
-
-	if rows.Err() != nil {
-		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
-	}
-
-	if !reflect.DeepEqual(inputRows, outputRows) {
-		t.Errorf("Input rows and output rows do not equal")
 	}
 
 	ensureConnValid(t, conn)

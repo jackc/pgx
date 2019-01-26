@@ -13,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/pgconn"
-	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -69,7 +68,6 @@ type Conn struct {
 	config             *ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
-	notifications      []*Notification
 	logger             Logger
 	logLevel           int
 	fp                 *fastpath
@@ -103,13 +101,6 @@ type PreparedStatement struct {
 // PrepareExOptions is an option struct that can be passed to PrepareEx
 type PrepareExOptions struct {
 	ParameterOIDs []pgtype.OID
-}
-
-// Notification is a message received from the PostgreSQL LISTEN/NOTIFY system
-type Notification struct {
-	PID     uint32 // backend pid that sent the notification
-	Channel string // channel from which notification was received
-	Payload string
 }
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
@@ -501,17 +492,6 @@ func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExO
 		return nil, err
 	}
 
-	err = c.initContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	ps, err = c.prepareEx(name, sql, opts)
-	err = c.termContext(err)
-	return ps, err
-}
-
-func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
@@ -562,7 +542,9 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 		c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
 	}
 
-	c.preparedStatements[name] = ps
+	if name != "" {
+		c.preparedStatements[name] = ps
+	}
 
 	return ps, nil
 }
@@ -593,42 +575,8 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 
 	delete(c.preparedStatements, name)
 
-	// close
-	buf := c.wbuf
-	buf = append(buf, 'C')
-	sp := len(buf)
-	buf = pgio.AppendInt32(buf, -1)
-	buf = append(buf, 'S')
-	buf = append(buf, name...)
-	buf = append(buf, 0)
-	pgio.SetInt32(buf[sp:], int32(len(buf[sp:])))
-
-	// flush
-	buf = append(buf, 'H')
-	buf = pgio.AppendInt32(buf, 4)
-
-	_, err = c.pgConn.Conn().Write(buf)
-	if err != nil {
-		c.die(err)
-		return err
-	}
-
-	for {
-		msg, err := c.rxMsg()
-		if err != nil {
-			return err
-		}
-
-		switch msg.(type) {
-		case *pgproto3.CloseComplete:
-			return nil
-		default:
-			err = c.processContextFreeMsg(msg)
-			if err != nil {
-				return err
-			}
-		}
-	}
+	_, err = c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
+	return err
 }
 
 // Listen establishes a PostgreSQL listen/notify to channel
@@ -654,64 +602,10 @@ func (c *Conn) Unlisten(channel string) error {
 	return nil
 }
 
-// WaitForNotification waits for a PostgreSQL notification.
-func (c *Conn) WaitForNotification(ctx context.Context) (notification *Notification, err error) {
-	// Return already received notification immediately
-	if len(c.notifications) > 0 {
-		notification := c.notifications[0]
-		c.notifications = c.notifications[1:]
-		return notification, nil
-	}
-
-	err = c.waitForPreviousCancelQuery(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	err = c.initContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		err = c.termContext(err)
-	}()
-
-	if err = c.lock(); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if unlockErr := c.unlock(); unlockErr != nil && err == nil {
-			err = unlockErr
-		}
-	}()
-
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return nil, err
-	}
-
-	for {
-		msg, err := c.rxMsg()
-		if err != nil {
-			return nil, err
-		}
-
-		err = c.processContextFreeMsg(msg)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(c.notifications) > 0 {
-			notification := c.notifications[0]
-			c.notifications = c.notifications[1:]
-			return notification, nil
-		}
-	}
-}
-
 func (c *Conn) IsAlive() bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	return c.status >= connStatusIdle
+	return c.pgConn.IsAlive() && c.status >= connStatusIdle
 }
 
 func (c *Conn) CauseOfDeath() error {
@@ -807,8 +701,6 @@ func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
 	switch msg := msg.(type) {
 	case *pgproto3.ErrorResponse:
 		return c.rxErrorResponse(msg)
-	case *pgproto3.NotificationResponse:
-		c.rxNotificationResponse(msg)
 	case *pgproto3.ReadyForQuery:
 		c.rxReadyForQuery(msg)
 	}
@@ -884,14 +776,6 @@ func (c *Conn) rxParameterDescription(msg *pgproto3.ParameterDescription) []pgty
 		parameters[i] = pgtype.OID(msg.ParameterOIDs[i])
 	}
 	return parameters
-}
-
-func (c *Conn) rxNotificationResponse(msg *pgproto3.NotificationResponse) {
-	n := new(Notification)
-	n.PID = msg.PID
-	n.Channel = msg.Channel
-	n.Payload = msg.Payload
-	c.notifications = append(c.notifications, n)
 }
 
 func (c *Conn) die(err error) {
@@ -1238,7 +1122,13 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 		resultFormats := make([]int16, len(ps.FieldDescriptions))
 		for i := range resultFormats {
-			resultFormats[i] = ps.FieldDescriptions[i].FormatCode
+			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+					resultFormats[i] = BinaryFormatCode
+				} else {
+					resultFormats[i] = TextFormatCode
+				}
+			}
 		}
 
 		c.lastStmtSent = true
@@ -1307,13 +1197,9 @@ func (c *Conn) pgproto3FieldDescriptionToPgxFieldDescription(src *pgproto3.Field
 	dst.DataType = pgtype.OID(src.DataTypeOID)
 	dst.DataTypeSize = src.DataTypeSize
 	dst.Modifier = src.TypeModifier
+	dst.FormatCode = src.Format
 
 	if dt, ok := c.ConnInfo.DataTypeForOID(dst.DataType); ok {
 		dst.DataTypeName = dt.Name
-		if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-			dst.FormatCode = BinaryFormatCode
-		} else {
-			dst.FormatCode = TextFormatCode
-		}
 	}
 }
