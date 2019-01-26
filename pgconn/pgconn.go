@@ -398,11 +398,15 @@ func (pgConn *PgConn) hardClose() error {
 	return pgConn.conn.Close()
 }
 
-// writeAll writes the entire buffer successfully or it hard closes the connection.
+// writeAll writes the entire buffer. The connection is hard closed on a partial write or a non-temporary error.
 func (pgConn *PgConn) writeAll(buf []byte) error {
 	n, err := pgConn.conn.Write(buf)
-	if err != nil && n > 0 {
-		pgConn.hardClose()
+	if err != nil {
+		if n > 0 {
+			pgConn.hardClose()
+		} else if ne, ok := err.(net.Error); ok && !ne.Temporary() {
+			pgConn.hardClose()
+		}
 	}
 	return err
 }
