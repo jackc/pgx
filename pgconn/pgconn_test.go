@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -826,6 +827,41 @@ func TestConnCopyFrom(t *testing.T) {
 	require.NoError(t, result.Err)
 
 	assert.Equal(t, inputRows, result.Rows)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFromCanceled(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	r, w := io.Pipe()
+	go func() {
+		for i := 0; i < 1000000; i++ {
+			a := strconv.Itoa(i)
+			b := "foo " + a + " bar"
+			_, err := w.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+			if err != nil {
+				return
+			}
+			time.Sleep(time.Microsecond)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	cancel()
+	assert.Equal(t, int64(0), ct.RowsAffected())
+	require.Equal(t, context.DeadlineExceeded, err)
 
 	ensureConnValid(t, pgConn)
 }
