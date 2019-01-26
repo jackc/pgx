@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgx/internal/sanitize"
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -56,6 +57,8 @@ type Rows struct {
 	args       []interface{}
 	unlockConn bool
 	closed     bool
+
+	resultReader *pgconn.ResultReader
 }
 
 func (rows *Rows) FieldDescriptions() []FieldDescription {
@@ -76,7 +79,12 @@ func (rows *Rows) Close() {
 
 	rows.closed = true
 
-	rows.err = rows.conn.termContext(rows.err)
+	if rows.resultReader != nil {
+		_, closeErr := rows.resultReader.Close()
+		if rows.err == nil {
+			rows.err = closeErr
+		}
+	}
 
 	if rows.err == nil {
 		if rows.conn.shouldLog(LogLevelInfo) {
@@ -119,50 +127,21 @@ func (rows *Rows) Next() bool {
 		return false
 	}
 
-	rows.rowCount++
-	rows.columnIdx = 0
-
-	for {
-		msg, err := rows.conn.rxMsg()
-		if err != nil {
-			rows.fatal(err)
-			return false
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.RowDescription:
-			rows.fields = rows.conn.rxRowDescription(msg)
-			for i := range rows.fields {
-				if dt, ok := rows.conn.ConnInfo.DataTypeForOID(rows.fields[i].DataType); ok {
-					rows.fields[i].DataTypeName = dt.Name
-					rows.fields[i].FormatCode = TextFormatCode
-				} else {
-					rows.fatal(errors.Errorf("unknown oid: %d", rows.fields[i].DataType))
-					return false
-				}
-			}
-		case *pgproto3.DataRow:
-			if len(msg.Values) != len(rows.fields) {
-				rows.fatal(ProtocolError(fmt.Sprintf("Row description field count (%v) and data row field count (%v) do not match", len(rows.fields), len(msg.Values))))
-				return false
-			}
-
-			rows.values = msg.Values
-			return true
-		case *pgproto3.CommandComplete:
-			if rows.batch != nil {
-				rows.batch.pendingCommandComplete = false
-			}
-			rows.Close()
-			return false
-
-		default:
-			err = rows.conn.processContextFreeMsg(msg)
-			if err != nil {
-				rows.fatal(err)
-				return false
+	if rows.resultReader.NextRow() {
+		if rows.fields == nil {
+			rrFieldDescriptions := rows.resultReader.FieldDescriptions()
+			rows.fields = make([]FieldDescription, len(rrFieldDescriptions))
+			for i := range rrFieldDescriptions {
+				rows.conn.pgproto3FieldDescriptionToPgxFieldDescription(&rrFieldDescriptions[i], &rows.fields[i])
 			}
 		}
+		rows.rowCount++
+		rows.columnIdx = 0
+		rows.values = rows.resultReader.Values()
+		return true
+	} else {
+		rows.Close()
+		return false
 	}
 }
 
@@ -179,15 +158,6 @@ func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
 	fd := &rows.fields[rows.columnIdx]
 	rows.columnIdx++
 	return buf, fd, true
-}
-
-type scanArgError struct {
-	col int
-	err error
-}
-
-func (e scanArgError) Error() string {
-	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
 }
 
 // Scan reads the values from the current row into dest values positionally.
@@ -326,6 +296,15 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	return values, rows.Err()
 }
 
+type scanArgError struct {
+	col int
+	err error
+}
+
+func (e scanArgError) Error() string {
+	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
+}
+
 // Query executes sql with args. If there is an error the returned *Rows will
 // be returned in an error state. So it is allowed to ignore the error returned
 // from Query and handle it in *Rows.
@@ -369,7 +348,14 @@ type QueryExOptions struct {
 
 func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
 	c.lastStmtSent = false
-	rows = c.getRows(sql, args)
+	// rows = c.getRows(sql, args)
+
+	rows = &Rows{
+		conn:      c,
+		startTime: time.Now(),
+		sql:       sql,
+		args:      args,
+	}
 
 	err = c.waitForPreviousCancelQuery(ctx)
 	if err != nil {
@@ -388,85 +374,128 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 	}
 	rows.unlockConn = true
 
-	err = c.initContext(ctx)
+	// err = c.initContext(ctx)
+	// if err != nil {
+	// 	rows.fatal(err)
+	// 	return rows, rows.err
+	// }
+
+	// if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
+	// 	c.lastStmtSent = true
+	// 	err = c.sanitizeAndSendSimpleQuery(sql, args...)
+	// 	if err != nil {
+	// 		rows.fatal(err)
+	// 		return rows, err
+	// 	}
+
+	// 	return rows, nil
+	// }
+
+	// if options != nil && len(options.ParameterOIDs) > 0 {
+
+	// 	buf, err := c.buildOneRoundTripQueryEx(c.wbuf, sql, options, args)
+	// 	if err != nil {
+	// 		rows.fatal(err)
+	// 		return rows, err
+	// 	}
+
+	// 	buf = appendSync(buf)
+
+	// 	n, err := c.pgConn.Conn().Write(buf)
+	// 	c.lastStmtSent = true
+	// 	if err != nil && fatalWriteErr(n, err) {
+	// 		rows.fatal(err)
+	// 		c.die(err)
+	// 		return rows, err
+	// 	}
+	// 	c.pendingReadyForQueryCount++
+
+	// 	fieldDescriptions, err := c.readUntilRowDescription()
+	// 	if err != nil {
+	// 		rows.fatal(err)
+	// 		return rows, err
+	// 	}
+
+	// 	if len(options.ResultFormatCodes) == 0 {
+	// 		for i := range fieldDescriptions {
+	// 			fieldDescriptions[i].FormatCode = TextFormatCode
+	// 		}
+	// 	} else if len(options.ResultFormatCodes) == 1 {
+	// 		fc := options.ResultFormatCodes[0]
+	// 		for i := range fieldDescriptions {
+	// 			fieldDescriptions[i].FormatCode = fc
+	// 		}
+	// 	} else {
+	// 		for i := range options.ResultFormatCodes {
+	// 			fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
+	// 		}
+	// 	}
+
+	// 	rows.sql = sql
+	// 	rows.fields = fieldDescriptions
+	// 	return rows, nil
+	// }
+
+	ps, ok := c.preparedStatements[sql]
+	if !ok {
+		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
+		if err != nil {
+			rows.fatal(err)
+			return rows, rows.err
+		}
+
+		if len(psd.ParamOIDs) != len(args) {
+			rows.fatal(errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(args)))
+			return rows, rows.err
+		}
+
+		ps = &PreparedStatement{
+			Name:              psd.Name,
+			SQL:               psd.SQL,
+			ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
+			FieldDescriptions: make([]FieldDescription, len(psd.Fields)),
+		}
+
+		for i := range ps.ParameterOIDs {
+			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
+		}
+		for i := range ps.FieldDescriptions {
+			c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+		}
+	}
+	rows.sql = ps.SQL
+
+	args, err = convertDriverValuers(args)
 	if err != nil {
 		rows.fatal(err)
 		return rows, rows.err
 	}
 
-	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
-		c.lastStmtSent = true
-		err = c.sanitizeAndSendSimpleQuery(sql, args...)
-		if err != nil {
-			rows.fatal(err)
-			return rows, err
-		}
-
-		return rows, nil
-	}
-
-	if options != nil && len(options.ParameterOIDs) > 0 {
-
-		buf, err := c.buildOneRoundTripQueryEx(c.wbuf, sql, options, args)
-		if err != nil {
-			rows.fatal(err)
-			return rows, err
-		}
-
-		buf = appendSync(buf)
-
-		n, err := c.pgConn.Conn().Write(buf)
-		c.lastStmtSent = true
-		if err != nil && fatalWriteErr(n, err) {
-			rows.fatal(err)
-			c.die(err)
-			return rows, err
-		}
-		c.pendingReadyForQueryCount++
-
-		fieldDescriptions, err := c.readUntilRowDescription()
-		if err != nil {
-			rows.fatal(err)
-			return rows, err
-		}
-
-		if len(options.ResultFormatCodes) == 0 {
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = TextFormatCode
-			}
-		} else if len(options.ResultFormatCodes) == 1 {
-			fc := options.ResultFormatCodes[0]
-			for i := range fieldDescriptions {
-				fieldDescriptions[i].FormatCode = fc
-			}
-		} else {
-			for i := range options.ResultFormatCodes {
-				fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
-			}
-		}
-
-		rows.sql = sql
-		rows.fields = fieldDescriptions
-		return rows, nil
-	}
-
-	ps, ok := c.preparedStatements[sql]
-	if !ok {
-		var err error
-		ps, err = c.prepareEx("", sql, nil)
+	paramFormats := make([]int16, len(args))
+	paramValues := make([][]byte, len(args))
+	for i := range args {
+		paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], args[i])
+		paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], args[i])
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
 		}
+
 	}
-	rows.sql = ps.SQL
-	rows.fields = ps.FieldDescriptions
+
+	resultFormats := make([]int16, len(ps.FieldDescriptions))
+	for i := range resultFormats {
+		if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+			if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+				resultFormats[i] = BinaryFormatCode
+			} else {
+				resultFormats[i] = TextFormatCode
+			}
+		}
+	}
 
 	c.lastStmtSent = true
-	err = c.sendPreparedQuery(ps, args...)
-	if err != nil {
-		rows.fatal(err)
-	}
+	rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats)
 
 	return rows, rows.err
 }

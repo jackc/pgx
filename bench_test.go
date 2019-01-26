@@ -668,7 +668,7 @@ func BenchmarkMultipleQueriesBatch(b *testing.B) {
 			)
 		}
 
-		err := batch.Send(context.Background(), nil)
+		err := batch.Send(context.Background())
 		if err != nil {
 			b.Fatal(err)
 		}

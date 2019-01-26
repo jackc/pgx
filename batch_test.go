@@ -17,10 +17,10 @@ func TestConnBeginBatch(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
-  id serial primary key,
-  description varchar not null,
-  amount int not null
-);`
+	  id serial primary key,
+	  description varchar not null,
+	  amount int not null
+	);`
 	mustExec(t, conn, sql)
 
 	batch := conn.BeginBatch()
@@ -50,12 +50,20 @@ func TestConnBeginBatch(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ct, err := batch.ExecResults()
+	if err != nil {
+		t.Error(err)
+	}
+	if ct.RowsAffected() != 1 {
+		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
+	}
+
+	ct, err = batch.ExecResults()
 	if err != nil {
 		t.Error(err)
 	}
@@ -173,7 +181,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 		)
 	}
 
-	err = batch.Send(context.Background(), nil)
+	err = batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +241,7 @@ func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 
-	err := batch.Send(ctx, nil)
+	err := batch.Send(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,9 +253,7 @@ func TestConnBeginBatchContextCancelBeforeExecResults(t *testing.T) {
 		t.Errorf("err => %v, want %v", err, context.Canceled)
 	}
 
-	if conn.IsAlive() {
-		t.Error("conn should be dead, but was alive")
-	}
+	ensureConnValid(t, conn)
 }
 
 func TestConnBeginBatchContextCancelBeforeQueryResults(t *testing.T) {
@@ -269,21 +275,26 @@ func TestConnBeginBatchContextCancelBeforeQueryResults(t *testing.T) {
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 
-	err := batch.Send(ctx, nil)
+	err := batch.Send(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	cancelFn()
 
-	_, err = batch.QueryResults()
-	if err != context.Canceled {
-		t.Errorf("err => %v, want %v", err, context.Canceled)
+	rows, err := batch.QueryResults()
+
+	if rows.Next() {
+		t.Error("unexpected row")
 	}
 
-	if conn.IsAlive() {
-		t.Error("conn should be dead, but was alive")
+	if rows.Err() != context.Canceled {
+		t.Errorf("rows.Err() => %v, want %v", rows.Err(), context.Canceled)
 	}
+
+	batch.Close()
+
+	ensureConnValid(t, conn)
 }
 
 func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
@@ -305,7 +316,7 @@ func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
 
 	ctx, cancelFn := context.WithCancel(context.Background())
 
-	err := batch.Send(ctx, nil)
+	err := batch.Send(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,9 +328,7 @@ func TestConnBeginBatchContextCancelBeforeFinish(t *testing.T) {
 		t.Errorf("err => %v, want %v", err, context.Canceled)
 	}
 
-	if conn.IsAlive() {
-		t.Error("conn should be dead, but was alive")
-	}
+	ensureConnValid(t, conn)
 }
 
 func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
@@ -340,7 +349,7 @@ func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +420,7 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -440,9 +449,7 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 		t.Errorf("rows.Err() => %v, want error code %v", err, 22012)
 	}
 
-	if conn.IsAlive() {
-		t.Error("conn should be dead, but was alive")
-	}
+	ensureConnValid(t, conn)
 }
 
 func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
@@ -458,7 +465,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -474,9 +481,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 		t.Error("Expected error")
 	}
 
-	if conn.IsAlive() {
-		t.Error("conn should be dead, but was alive")
-	}
+	ensureConnValid(t, conn)
 }
 
 func TestConnBeginBatchQueryRowInsert(t *testing.T) {
@@ -486,10 +491,10 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
-  id serial primary key,
-  description varchar not null,
-  amount int not null
-);`
+	  id serial primary key,
+	  description varchar not null,
+	  amount int not null
+	);`
 	mustExec(t, conn, sql)
 
 	batch := conn.BeginBatch()
@@ -504,7 +509,7 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 		nil,
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -535,10 +540,10 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger(
-  id serial primary key,
-  description varchar not null,
-  amount int not null
-);`
+	  id serial primary key,
+	  description varchar not null,
+	  amount int not null
+	);`
 	mustExec(t, conn, sql)
 
 	batch := conn.BeginBatch()
@@ -553,7 +558,7 @@ func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
 		nil,
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -584,15 +589,15 @@ func TestTxBeginBatch(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger1(
-  id serial primary key,
-  description varchar not null
-);`
+	  id serial primary key,
+	  description varchar not null
+	);`
 	mustExec(t, conn, sql)
 
 	sql = `create temporary table ledger2(
-  id int primary key,
-  amount int not null
-);`
+	  id int primary key,
+	  amount int not null
+	);`
 	mustExec(t, conn, sql)
 
 	tx, _ := conn.Begin()
@@ -603,7 +608,7 @@ func TestTxBeginBatch(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -627,7 +632,7 @@ func TestTxBeginBatch(t *testing.T) {
 		nil,
 	)
 
-	err = batch.Send(context.Background(), nil)
+	err = batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -639,8 +644,8 @@ func TestTxBeginBatch(t *testing.T) {
 		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
 	}
 
-	var amout int
-	err = batch.QueryRowResults().Scan(&amout)
+	var amount int
+	err = batch.QueryRowResults().Scan(&amount)
 	if err != nil {
 		t.Error(err)
 	}
@@ -669,9 +674,9 @@ func TestTxBeginBatchRollback(t *testing.T) {
 	defer closeConn(t, conn)
 
 	sql := `create temporary table ledger1(
-  id serial primary key,
-  description varchar not null
-);`
+	  id serial primary key,
+	  description varchar not null
+	);`
 	mustExec(t, conn, sql)
 
 	tx, _ := conn.Begin()
@@ -682,7 +687,7 @@ func TestTxBeginBatchRollback(t *testing.T) {
 		[]int16{pgx.BinaryFormatCode},
 	)
 
-	err := batch.Send(context.Background(), nil)
+	err := batch.Send(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
