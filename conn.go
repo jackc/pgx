@@ -1144,7 +1144,8 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 						ps.FieldDescriptions[i].FormatCode = TextFormatCode
 					}
 				} else {
-					return nil, errors.Errorf("unknown oid: %d", ps.FieldDescriptions[i].DataType)
+					fd := ps.FieldDescriptions[i]
+					return nil, errors.Errorf("unknown oid: %d, name: %s", fd.DataType, fd.Name)
 				}
 			}
 		case *pgproto3.ReadyForQuery:

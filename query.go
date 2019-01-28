@@ -137,7 +137,8 @@ func (rows *Rows) Next() bool {
 					rows.fields[i].DataTypeName = dt.Name
 					rows.fields[i].FormatCode = TextFormatCode
 				} else {
-					rows.fatal(errors.Errorf("unknown oid: %d", rows.fields[i].DataType))
+					fd := rows.fields[i]
+					rows.fatal(errors.Errorf("unknown oid: %d, name: %s", fd.DataType, fd.Name))
 					return false
 				}
 			}
@@ -259,7 +260,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 					}
 				}
 			} else {
-				rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown oid: %v", fd.DataType)})
+				rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown oid: %v, name: %s", fd.DataType, fd.Name)})
 			}
 		}
 
@@ -507,7 +508,8 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 				if dt, ok := c.ConnInfo.DataTypeForOID(fieldDescriptions[i].DataType); ok {
 					fieldDescriptions[i].DataTypeName = dt.Name
 				} else {
-					return nil, errors.Errorf("unknown oid: %d", fieldDescriptions[i].DataType)
+					fd := fieldDescriptions[i]
+					return nil, errors.Errorf("unknown oid: %d, name: %s", fd.DataType, fd.Name)
 				}
 			}
 			return fieldDescriptions, nil
