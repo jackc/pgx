@@ -46,6 +46,10 @@ func NewFrontend(r io.Reader, w io.Writer) (*Frontend, error) {
 	return &Frontend{cr: cr, w: w}, nil
 }
 
+func NewFrontendWithChankReader(w io.Writer, cr *chunkreader.ChunkReader) (*Frontend, error) {
+	return &Frontend{cr: cr, w: w}, nil
+}
+
 func (b *Frontend) Send(msg FrontendMessage) error {
 	_, err := b.w.Write(msg.Encode(nil))
 	return err

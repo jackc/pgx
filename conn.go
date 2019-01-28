@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgx/chunkreader"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
@@ -89,6 +90,9 @@ type ConnConfig struct {
 	// used by default. The same functionality can be controlled on a per query
 	// basis by setting QueryExOptions.SimpleProtocol.
 	PreferSimpleProtocol bool
+
+	// MinReadBufferSize used to configure size of connection read buffer.
+	MinReadBufferSize int
 }
 
 func (cc *ConnConfig) networkAddress() (network, address string) {
@@ -328,7 +332,14 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 		}
 	}
 
-	c.frontend, err = pgproto3.NewFrontend(c.conn, c.conn)
+	cr, err := chunkreader.NewChunkReaderEx(c.conn, chunkreader.Options{
+		MinBufLen: config.MinReadBufferSize,
+	})
+	if err != nil {
+		return err
+	}
+
+	c.frontend, err = pgproto3.NewFrontendWithChankReader(c.conn, cr)
 	if err != nil {
 		return err
 	}
