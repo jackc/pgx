@@ -863,7 +863,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	require.Equal(t, context.DeadlineExceeded, err)
 
-	ensureConnValid(t, pgConn)
+	assert.False(t, pgConn.IsAlive())
 }
 
 func TestConnCopyFromGzipReader(t *testing.T) {
