@@ -418,8 +418,8 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		buf = appendSync(buf)
 
 		c.lastStmtSent = true
-		n, err := c.conn.Write(buf)
-		if err != nil && fatalWriteErr(n, err) {
+		_, err = c.conn.Write(buf)
+		if err != nil {
 			rows.fatal(err)
 			c.die(err)
 			return rows, err

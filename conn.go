@@ -1096,11 +1096,9 @@ func (c *Conn) prepareEx(name, sql string, opts *PrepareExOptions) (ps *Prepared
 	buf = appendDescribe(buf, 'S', name)
 	buf = appendSync(buf)
 
-	n, err := c.conn.Write(buf)
+	_, err = c.conn.Write(buf)
 	if err != nil {
-		if fatalWriteErr(n, err) {
-			c.die(err)
-		}
+		c.die(err)
 		return nil, err
 	}
 	c.pendingReadyForQueryCount++
@@ -1360,27 +1358,14 @@ func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}
 	buf = appendExecute(buf, "", 0)
 	buf = appendSync(buf)
 
-	n, err := c.conn.Write(buf)
+	_, err = c.conn.Write(buf)
 	if err != nil {
-		if fatalWriteErr(n, err) {
-			c.die(err)
-		}
+		c.die(err)
 		return err
 	}
 	c.pendingReadyForQueryCount++
 
 	return nil
-}
-
-// fatalWriteError takes the response of a net.Conn.Write and determines if it is fatal
-func fatalWriteErr(bytesWritten int, err error) bool {
-	// Partial writes break the connection
-	if bytesWritten > 0 {
-		return true
-	}
-
-	netErr, is := err.(net.Error)
-	return !(is && netErr.Timeout())
 }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string.
@@ -1791,8 +1776,8 @@ func (c *Conn) execEx(ctx context.Context, sql string, options *QueryExOptions, 
 		buf = appendSync(buf)
 
 		c.lastStmtSent = true
-		n, err := c.conn.Write(buf)
-		if err != nil && fatalWriteErr(n, err) {
+		_, err = c.conn.Write(buf)
+		if err != nil {
 			c.die(err)
 			return "", err
 		}
