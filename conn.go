@@ -614,13 +614,6 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-func (c *Conn) sendQuery(sql string, arguments ...interface{}) (err error) {
-	if ps, present := c.preparedStatements[sql]; present {
-		return c.sendPreparedQuery(ps, arguments...)
-	}
-	return c.sendSimpleQuery(sql, arguments...)
-}
-
 func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
 		return err
