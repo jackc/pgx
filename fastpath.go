@@ -52,10 +52,6 @@ func fpInt64Arg(n int64) fpArg {
 }
 
 func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
-	if err := f.cn.ensureConnectionReadyForQuery(); err != nil {
-		return nil, err
-	}
-
 	buf := f.cn.wbuf
 	buf = append(buf, 'F') // function call
 	sp := len(buf)
@@ -76,8 +72,6 @@ func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 		return nil, err
 	}
 
-	f.cn.pendingReadyForQueryCount++
-
 	for {
 		msg, err := f.cn.pgConn.ReceiveMessage()
 		if err != nil {
@@ -88,7 +82,6 @@ func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 			res = make([]byte, len(msg.Result))
 			copy(res, msg.Result)
 		case *pgproto3.ReadyForQuery:
-			f.cn.rxReadyForQuery(msg)
 			// done
 			return res, err
 		default:

@@ -90,10 +90,6 @@ func (b *Batch) Send(ctx context.Context) error {
 		return err
 	}
 
-	if err := b.conn.ensureConnectionReadyForQuery(); err != nil {
-		return err
-	}
-
 	batch := &pgconn.Batch{}
 
 	for _, bi := range b.items {

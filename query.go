@@ -361,11 +361,6 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, err
 	}
 
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		rows.fatal(err)
-		return rows, err
-	}
-
 	if err := c.lock(); err != nil {
 		rows.fatal(err)
 		return rows, err
