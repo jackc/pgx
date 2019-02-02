@@ -416,7 +416,7 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 		queryString += fmt.Sprintf(" ( %s )", strings.Join(pluginArguments, ", "))
 	}
 
-	if err = rc.c.sendQuery(queryString); err != nil {
+	if err = rc.c.sendSimpleQuery(queryString); err != nil {
 		return
 	}
 
