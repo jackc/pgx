@@ -11,7 +11,6 @@ import (
 
 	"github.com/jackc/pgx/internal/sanitize"
 	"github.com/jackc/pgx/pgconn"
-	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -518,33 +517,6 @@ func (c *Conn) buildOneRoundTripQueryEx(buf []byte, sql string, options *QueryEx
 	buf = appendExecute(buf, "", 0)
 
 	return buf, nil
-}
-
-func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
-	for {
-		msg, err := c.rxMsg()
-		if err != nil {
-			return nil, err
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.ParameterDescription:
-		case *pgproto3.RowDescription:
-			fieldDescriptions := c.rxRowDescription(msg)
-			for i := range fieldDescriptions {
-				if dt, ok := c.ConnInfo.DataTypeForOID(fieldDescriptions[i].DataType); ok {
-					fieldDescriptions[i].DataTypeName = dt.Name
-				} else {
-					return nil, errors.Errorf("unknown oid: %d", fieldDescriptions[i].DataType)
-				}
-			}
-			return fieldDescriptions, nil
-		default:
-			if err := c.processContextFreeMsg(msg); err != nil {
-				return nil, err
-			}
-		}
-	}
 }
 
 func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
