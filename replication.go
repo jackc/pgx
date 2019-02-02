@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgio"
 	"github.com/jackc/pgx/pgproto3"
 	"github.com/jackc/pgx/pgtype"
@@ -445,14 +446,25 @@ func (rc *ReplicationConn) CreateReplicationSlot(slotName, outputPlugin string) 
 
 // Create the replication slot, using the given name and output plugin, and return the consistent_point and snapshot_name values.
 func (rc *ReplicationConn) CreateReplicationSlotEx(slotName, outputPlugin string) (consistentPoint string, snapshotName string, err error) {
-	var dummy string
-	var rows *Rows
-	rows, err = rc.sendReplicationModeQuery(fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin))
-	defer rows.Close()
-	for rows.Next() {
-		rows.Scan(&dummy, &consistentPoint, &snapshotName, &dummy)
+	var results []*pgconn.Result
+	results, err = rc.c.pgConn.Exec(context.TODO(), fmt.Sprintf("CREATE_REPLICATION_SLOT %s LOGICAL %s", slotName, outputPlugin)).ReadAll()
+	if err != nil {
+		return "", "", err
 	}
-	return
+
+	if len(results) != 1 {
+		return "", "", errors.Errorf("expected 1 result got: %d", len(results))
+	}
+
+	if len(results[0].Rows) != 1 {
+		return "", "", errors.Errorf("expected 1 row got: %d", len(results[0].Rows))
+	}
+
+	if len(results[0].Rows[0]) != 4 {
+		return "", "", errors.Errorf("expected 4 columns got: %d", len(results[0].Rows[0]))
+	}
+
+	return string(results[0].Rows[0][1]), string(results[0].Rows[0][2]), nil
 }
 
 // Drop the replication slot for the given name
