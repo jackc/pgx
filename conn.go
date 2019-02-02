@@ -614,23 +614,6 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-func (c *Conn) sendSimpleQuery(sql string) error {
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return err
-	}
-
-	buf := appendQuery(c.wbuf, sql)
-
-	_, err := c.pgConn.Conn().Write(buf)
-	if err != nil {
-		c.die(err)
-		return err
-	}
-	c.pendingReadyForQueryCount++
-
-	return nil
-}
-
 // fatalWriteError takes the response of a net.Conn.Write and determines if it is fatal
 func fatalWriteErr(bytesWritten int, err error) bool {
 	// Partial writes break the connection

@@ -330,41 +330,6 @@ func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*Repl
 	return r, err
 }
 
-func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
-	rows := rc.c.getRows(sql, nil)
-
-	if err := rc.c.lock(); err != nil {
-		rows.fatal(err)
-		return rows, err
-	}
-	rows.unlockConn = true
-
-	err := rc.c.sendSimpleQuery(sql)
-	if err != nil {
-		rows.fatal(err)
-	}
-
-	msg, err := rc.c.pgConn.ReceiveMessage()
-	if err != nil {
-		return nil, err
-	}
-
-	switch msg := msg.(type) {
-	case *pgproto3.RowDescription:
-		rows.fields = rc.c.rxRowDescription(msg)
-		// We don't have c.PgTypes here because we're a replication
-		// connection. This means the field descriptions will have
-		// only OIDs. Not much we can do about this.
-	default:
-		if e := rc.c.processContextFreeMsg(msg); e != nil {
-			rows.fatal(e)
-			return rows, e
-		}
-	}
-
-	return rows, rows.err
-}
-
 // Execute the "IDENTIFY_SYSTEM" command as documented here:
 // https://www.postgresql.org/docs/9.5/static/protocol-replication.html
 //
@@ -376,7 +341,8 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 // type names, so the field descriptions in the result will have only
 // OIDs and no DataTypeName values
 func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
-	return rc.sendReplicationModeQuery("IDENTIFY_SYSTEM")
+	return nil, errors.New("TODO")
+	// return rc.sendReplicationModeQuery("IDENTIFY_SYSTEM")
 }
 
 // Execute the "TIMELINE_HISTORY" command as documented here:
@@ -391,7 +357,8 @@ func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
 // type names, so the field descriptions in the result will have only
 // OIDs and no DataTypeName values
 func (rc *ReplicationConn) TimelineHistory(timeline int) (r *Rows, err error) {
-	return rc.sendReplicationModeQuery(fmt.Sprintf("TIMELINE_HISTORY %d", timeline))
+	return nil, errors.New("TODO")
+	// return rc.sendReplicationModeQuery(fmt.Sprintf("TIMELINE_HISTORY %d", timeline))
 }
 
 // Start a replication connection, sending WAL data to the given replication
@@ -416,8 +383,12 @@ func (rc *ReplicationConn) StartReplication(slotName string, startLsn uint64, ti
 		queryString += fmt.Sprintf(" ( %s )", strings.Join(pluginArguments, ", "))
 	}
 
-	if err = rc.c.sendSimpleQuery(queryString); err != nil {
-		return
+	buf := appendQuery(rc.c.wbuf, queryString)
+
+	_, err = rc.c.pgConn.Conn().Write(buf)
+	if err != nil {
+		rc.c.die(err)
+		return err
 	}
 
 	ctx, cancelFn := context.WithTimeout(context.Background(), initialReplicationResponseTimeout)
