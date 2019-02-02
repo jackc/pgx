@@ -78,9 +78,8 @@ type Conn struct {
 	status       byte // One of connStatus* constants
 	causeOfDeath error
 
-	pendingReadyForQueryCount int // number of ReadyForQuery messages expected
-	cancelQueryCompleted      chan struct{}
-	lastStmtSent              bool
+	cancelQueryCompleted chan struct{}
+	lastStmtSent         bool
 
 	// context support
 	ctxInProgress bool
@@ -498,10 +497,6 @@ func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExO
 		}
 	}
 
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return nil, err
-	}
-
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
@@ -569,10 +564,6 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 		err = c.termContext(err)
 	}()
 
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return err
-	}
-
 	delete(c.preparedStatements, name)
 
 	_, err = c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
@@ -635,8 +626,6 @@ func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
 	switch msg := msg.(type) {
 	case *pgproto3.ErrorResponse:
 		return c.rxErrorResponse(msg)
-	case *pgproto3.ReadyForQuery:
-		c.rxReadyForQuery(msg)
 	}
 
 	return nil
@@ -668,10 +657,6 @@ func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 	}
 
 	return err
-}
-
-func (c *Conn) rxReadyForQuery(msg *pgproto3.ReadyForQuery) {
-	c.pendingReadyForQueryCount--
 }
 
 func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription {
@@ -872,7 +857,7 @@ func (c *Conn) WaitUntilReady(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.ensureConnectionReadyForQuery()
+	return nil
 }
 
 func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
@@ -889,30 +874,6 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-func (c *Conn) ensureConnectionReadyForQuery() error {
-	for c.pendingReadyForQueryCount > 0 {
-		msg, err := c.pgConn.ReceiveMessage()
-		if err != nil {
-			return err
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.ErrorResponse:
-			pgErr := c.rxErrorResponse(msg)
-			if pgErr.Severity == "FATAL" {
-				return pgErr
-			}
-		default:
-			err = c.processContextFreeMsg(msg)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func connInfoFromRows(rows *Rows, err error) (map[string]pgtype.OID, error) {
@@ -963,10 +924,6 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 		return "", err
 	}
 	defer c.unlock()
-
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return "", err
-	}
 
 	startTime := time.Now()
 
