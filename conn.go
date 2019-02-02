@@ -614,58 +614,16 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-func (c *Conn) sendSimpleQuery(sql string, args ...interface{}) error {
+func (c *Conn) sendSimpleQuery(sql string) error {
 	if err := c.ensureConnectionReadyForQuery(); err != nil {
 		return err
 	}
 
-	if len(args) == 0 {
-		buf := appendQuery(c.wbuf, sql)
+	buf := appendQuery(c.wbuf, sql)
 
-		_, err := c.pgConn.Conn().Write(buf)
-		if err != nil {
-			c.die(err)
-			return err
-		}
-		c.pendingReadyForQueryCount++
-
-		return nil
-	}
-
-	ps, err := c.Prepare("", sql)
+	_, err := c.pgConn.Conn().Write(buf)
 	if err != nil {
-		return err
-	}
-
-	return c.sendPreparedQuery(ps, args...)
-}
-
-func (c *Conn) sendPreparedQuery(ps *PreparedStatement, arguments ...interface{}) (err error) {
-	if len(ps.ParameterOIDs) != len(arguments) {
-		return errors.Errorf("Prepared statement \"%v\" requires %d parameters, but %d were provided", ps.Name, len(ps.ParameterOIDs), len(arguments))
-	}
-
-	if err := c.ensureConnectionReadyForQuery(); err != nil {
-		return err
-	}
-
-	resultFormatCodes := make([]int16, len(ps.FieldDescriptions))
-	for i, fd := range ps.FieldDescriptions {
-		resultFormatCodes[i] = fd.FormatCode
-	}
-	buf, err := appendBind(c.wbuf, "", ps.Name, c.ConnInfo, ps.ParameterOIDs, arguments, resultFormatCodes)
-	if err != nil {
-		return err
-	}
-
-	buf = appendExecute(buf, "", 0)
-	buf = appendSync(buf)
-
-	n, err := c.pgConn.Conn().Write(buf)
-	if err != nil {
-		if fatalWriteErr(n, err) {
-			c.die(err)
-		}
+		c.die(err)
 		return err
 	}
 	c.pendingReadyForQueryCount++
