@@ -9,7 +9,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/internal/sanitize"
 	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -519,30 +518,30 @@ func (c *Conn) buildOneRoundTripQueryEx(buf []byte, sql string, options *QueryEx
 	return buf, nil
 }
 
-func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
-	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
-		return errors.New("simple protocol queries must be run with standard_conforming_strings=on")
-	}
+// func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
+// 	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
+// 		return errors.New("simple protocol queries must be run with standard_conforming_strings=on")
+// 	}
 
-	if c.pgConn.ParameterStatus("client_encoding") != "UTF8" {
-		return errors.New("simple protocol queries must be run with client_encoding=UTF8")
-	}
+// 	if c.pgConn.ParameterStatus("client_encoding") != "UTF8" {
+// 		return errors.New("simple protocol queries must be run with client_encoding=UTF8")
+// 	}
 
-	valueArgs := make([]interface{}, len(args))
-	for i, a := range args {
-		valueArgs[i], err = convertSimpleArgument(c.ConnInfo, a)
-		if err != nil {
-			return err
-		}
-	}
+// 	valueArgs := make([]interface{}, len(args))
+// 	for i, a := range args {
+// 		valueArgs[i], err = convertSimpleArgument(c.ConnInfo, a)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 
-	sql, err = sanitize.SanitizeSQL(sql, valueArgs...)
-	if err != nil {
-		return err
-	}
+// 	sql, err = sanitize.SanitizeSQL(sql, valueArgs...)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	return c.sendSimpleQuery(sql)
-}
+// 	return c.sendSimpleQuery(sql)
+// }
 
 func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
 	rows, _ := c.QueryEx(ctx, sql, options, args...)
