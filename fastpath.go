@@ -79,7 +79,7 @@ func (f *fastpath) Call(oid pgtype.OID, args []fpArg) (res []byte, err error) {
 	f.cn.pendingReadyForQueryCount++
 
 	for {
-		msg, err := f.cn.rxMsg()
+		msg, err := f.cn.pgConn.ReceiveMessage()
 		if err != nil {
 			return nil, err
 		}

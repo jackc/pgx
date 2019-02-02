@@ -708,22 +708,6 @@ func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
 	return nil
 }
 
-func (c *Conn) rxMsg() (pgproto3.BackendMessage, error) {
-	if !c.IsAlive() {
-		return nil, ErrDeadConn
-	}
-
-	msg, err := c.pgConn.ReceiveMessage()
-	if err != nil {
-		if netErr, ok := err.(net.Error); !(ok && netErr.Timeout()) {
-			c.die(err)
-		}
-		return nil, err
-	}
-
-	return msg, nil
-}
-
 func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 	err := &pgconn.PgError{
 		Severity:         msg.Severity,
@@ -975,7 +959,7 @@ func (c *Conn) waitForPreviousCancelQuery(ctx context.Context) error {
 
 func (c *Conn) ensureConnectionReadyForQuery() error {
 	for c.pendingReadyForQueryCount > 0 {
-		msg, err := c.rxMsg()
+		msg, err := c.pgConn.ReceiveMessage()
 		if err != nil {
 			return err
 		}

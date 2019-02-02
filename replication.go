@@ -219,7 +219,7 @@ func (rc *ReplicationConn) GetConnInfo() *pgtype.ConnInfo {
 }
 
 func (rc *ReplicationConn) readReplicationMessage() (r *ReplicationMessage, err error) {
-	msg, err := rc.c.rxMsg()
+	msg, err := rc.c.pgConn.ReceiveMessage()
 	if err != nil {
 		return
 	}
@@ -344,7 +344,7 @@ func (rc *ReplicationConn) sendReplicationModeQuery(sql string) (*Rows, error) {
 		rows.fatal(err)
 	}
 
-	msg, err := rc.c.rxMsg()
+	msg, err := rc.c.pgConn.ReceiveMessage()
 	if err != nil {
 		return nil, err
 	}
