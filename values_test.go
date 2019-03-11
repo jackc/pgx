@@ -50,6 +50,29 @@ func TestDateTranscode(t *testing.T) {
 	}
 }
 
+func TestEnumTranscode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec("create type some_type as enum ('hello-world', 'goodbye-world')")
+	if err != nil {
+		t.Fatalf("Unexpected failure in test setup: %v", err)
+	}
+	defer conn.Exec("drop type some_type")
+
+	var out string
+	var actual = "hello-world"
+	err = conn.QueryRow("select $1::some_type", actual).Scan(&out)
+	if err != nil {
+		t.Fatalf("Unexpected failure on QueryRow Scan: %v", err)
+	}
+	if actual != out {
+		t.Errorf("Did not transcode enum successfully: %s is not %s", out, actual)
+	}
+}
+
 func TestTimestampTzTranscode(t *testing.T) {
 	t.Parallel()
 
