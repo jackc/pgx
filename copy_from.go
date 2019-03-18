@@ -334,6 +334,4 @@ func (c *Conn) CopyFromReader(r io.Reader, sql string) error {
 			return c.processContextFreeMsg(msg)
 		}
 	}
-
-	return nil
 }
