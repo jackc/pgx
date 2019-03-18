@@ -59,6 +59,4 @@ func (c *Conn) CopyToWriter(w io.Writer, sql string, args ...interface{}) error 
 			return c.processContextFreeMsg(msg)
 		}
 	}
-
-	return nil
 }
