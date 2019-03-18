@@ -201,18 +201,6 @@ func (rc *ReplicationConn) SendStandbyStatus(k *StandbyStatus) (err error) {
 	return
 }
 
-func (rc *ReplicationConn) Close() error {
-	return rc.Close()
-}
-
-func (rc *ReplicationConn) IsAlive() bool {
-	return rc.IsAlive()
-}
-
-func (rc *ReplicationConn) CauseOfDeath() error {
-	return rc.CauseOfDeath()
-}
-
 func (rc *ReplicationConn) GetConnInfo() *pgtype.ConnInfo {
 	return rc.ConnInfo
 }
