@@ -43,7 +43,7 @@ func init() {
 type ConnConfig struct {
 	pgconn.Config
 	Logger         Logger
-	LogLevel       int
+	LogLevel       LogLevel
 	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
 	CustomCancel   func(*Conn) error                     // Callback function used to override cancellation behavior
 
@@ -69,7 +69,7 @@ type Conn struct {
 	preparedStatements map[string]*PreparedStatement
 	channels           map[string]struct{}
 	logger             Logger
-	logLevel           int
+	logLevel           LogLevel
 	fp                 *fastpath
 	poolResetCount     int
 	preallocatedRows   []Rows
@@ -718,7 +718,7 @@ func (c *Conn) unlock() error {
 	return nil
 }
 
-func (c *Conn) shouldLog(lvl int) bool {
+func (c *Conn) shouldLog(lvl LogLevel) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
@@ -742,7 +742,7 @@ func (c *Conn) SetLogger(logger Logger) Logger {
 
 // SetLogLevel replaces the current log level and returns the previous log
 // level.
-func (c *Conn) SetLogLevel(lvl int) (int, error) {
+func (c *Conn) SetLogLevel(lvl LogLevel) (LogLevel, error) {
 	oldLvl := c.logLevel
 
 	if lvl < LogLevelNone || lvl > LogLevelTrace {
