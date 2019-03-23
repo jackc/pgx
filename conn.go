@@ -72,7 +72,7 @@ type ConnConfig struct {
 	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
 	FallbackTLSConfig *tls.Config // config for fallback TLS connection (only used if UseFallBackTLS is true)-- nil disables TLS
 	Logger            Logger
-	LogLevel          int
+	LogLevel          LogLevel
 	Dial              DialFunc
 	RuntimeParams     map[string]string                     // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 	OnNotice          NoticeHandler                         // Callback function called when a notice response is received.
@@ -123,7 +123,7 @@ type Conn struct {
 	channels           map[string]struct{}
 	notifications      []*Notification
 	logger             Logger
-	logLevel           int
+	logLevel           LogLevel
 	fp                 *fastpath
 	poolResetCount     int
 	preallocatedRows   []Rows
@@ -1609,7 +1609,7 @@ func (c *Conn) unlock() error {
 	return nil
 }
 
-func (c *Conn) shouldLog(lvl int) bool {
+func (c *Conn) shouldLog(lvl LogLevel) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
@@ -1633,7 +1633,7 @@ func (c *Conn) SetLogger(logger Logger) Logger {
 
 // SetLogLevel replaces the current log level and returns the previous log
 // level.
-func (c *Conn) SetLogLevel(lvl int) (int, error) {
+func (c *Conn) SetLogLevel(lvl LogLevel) (LogLevel, error) {
 	oldLvl := c.logLevel
 
 	if lvl < LogLevelNone || lvl > LogLevelTrace {

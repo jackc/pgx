@@ -28,7 +28,7 @@ type ConnPool struct {
 	resetCount           int
 	afterConnect         func(*Conn) error
 	logger               Logger
-	logLevel             int
+	logLevel             LogLevel
 	closed               bool
 	preparedStatements   map[string]*PreparedStatement
 	acquireTimeout       time.Duration
