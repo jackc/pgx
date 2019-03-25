@@ -171,6 +171,17 @@ func ReplicationConnect(config ConnConfig) (r *ReplicationConn, err error) {
 	return &ReplicationConn{c}, nil
 }
 
+// ReplicationConn is a PostgreSQL connection handle established in the
+// replication mode which enables a special set of commands for streaming WAL
+// changes from the server.
+//
+// When in replication mode, only the simple query protocol can be used
+// (see PreferSimpleProtocol in ConnConfig). Execution of normal SQL queries on
+// the connection is possible but may be limited in available functionality.
+// Most notably, prepared statements won't work.
+//
+// See https://www.postgresql.org/docs/11/protocol-replication.html for
+// details.
 type ReplicationConn struct {
 	*Conn
 }
