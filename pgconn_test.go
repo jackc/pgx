@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/pgconn"
-	"github.com/jackc/pgx/pgproto3"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgproto3"
 	"github.com/pkg/errors"
 
 	"github.com/stretchr/testify/assert"

@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/pgpassfile"
+	"github.com/jackc/pgpassfile"
 	"github.com/pkg/errors"
 )
 

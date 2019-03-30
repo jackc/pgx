@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgproto3"
+	"github.com/jackc/pgio"
+	"github.com/jackc/pgproto3"
 )
 
 var deadlineTime = time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)
@@ -171,7 +171,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		}
 	}
 
-	pgConn.Frontend, err = pgproto3.NewFrontend(pgConn.conn, pgConn.conn)
+	pgConn.Frontend, err = pgproto3.NewFrontend(pgproto3.NewChunkReader(pgConn.conn), pgConn.conn)
 	if err != nil {
 		return nil, err
 	}
