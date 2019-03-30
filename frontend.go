@@ -4,12 +4,11 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/jackc/chunkreader"
 	"github.com/pkg/errors"
 )
 
 type Frontend struct {
-	cr *chunkreader.ChunkReader
+	cr ChunkReader
 	w  io.Writer
 
 	// Backend message flyweights
@@ -42,8 +41,7 @@ type Frontend struct {
 	partialMsg bool
 }
 
-func NewFrontend(r io.Reader, w io.Writer) (*Frontend, error) {
-	cr := chunkreader.NewChunkReader(r)
+func NewFrontend(cr ChunkReader, w io.Writer) (*Frontend, error) {
 	return &Frontend{cr: cr, w: w}, nil
 }
 

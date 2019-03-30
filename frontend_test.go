@@ -37,7 +37,7 @@ func TestFrontendReceiveInterrupted(t *testing.T) {
 	server := &interruptReader{}
 	server.push([]byte{'Z', 0, 0, 0, 5})
 
-	frontend, err := pgproto3.NewFrontend(server, nil)
+	frontend, err := pgproto3.NewFrontend(pgproto3.NewChunkReader(server), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
