@@ -199,6 +199,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	for {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
+			pgConn.conn.Close()
 			return nil, err
 		}
 
@@ -502,7 +503,7 @@ readloop:
 	for {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			go pgConn.recoverFromTimeout()
+			pgConn.hardClose()
 			return nil, preferContextOverNetTimeoutError(ctx, err)
 		}
 
@@ -555,10 +556,10 @@ func noticeResponseToNotice(msg *pgproto3.NoticeResponse) *Notice {
 	return (*Notice)(pgerr)
 }
 
-// cancelRequest sends a cancel request to the PostgreSQL server. It returns an error if unable to deliver the cancel
+// CancelRequest sends a cancel request to the PostgreSQL server. It returns an error if unable to deliver the cancel
 // request, but lack of an error does not ensure that the query was canceled. As specified in the documentation, there
 // is no way to be sure a query was canceled. See https://www.postgresql.org/docs/11/protocol-flow.html#id-1.10.5.7.9
-func (pgConn *PgConn) cancelRequest(ctx context.Context) error {
+func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// Open a cancellation request to the same server. The address is taken from the net.Conn directly instead of reusing
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.
@@ -585,21 +586,6 @@ func (pgConn *PgConn) cancelRequest(ctx context.Context) error {
 	_, err = cancelConn.Read(buf)
 	if err != io.EOF {
 		return fmt.Errorf("Server failed to close connection after cancel query request: %v", preferContextOverNetTimeoutError(ctx, err))
-	}
-
-	return nil
-}
-
-// WaitUntilReady waits until a previous context cancellation has been completed and the connection is ready for use.
-// This is done automatically by all methods that need the connection to be ready for use. The only expected use for
-// this method is for a connection pool to wait for a returned connection to be usable again before making it available.
-func (pgConn *PgConn) WaitUntilReady(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case pgConn.controller <- pgConn:
-		// The connection must be ready since it was locked. Immediately unlock it.
-		<-pgConn.controller
 	}
 
 	return nil
@@ -778,6 +764,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	case pgConn.controller <- pgConn:
 	}
 	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanupContextDeadline()
 
 	// Send copy to command
 	var buf []byte
@@ -786,7 +773,6 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		cleanupContextDeadline()
 		<-pgConn.controller
 
 		return "", preferContextOverNetTimeoutError(ctx, err)
@@ -798,13 +784,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	for {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			cleanupContextDeadline()
-			if err, ok := err.(net.Error); ok && err.Timeout() {
-				go pgConn.recoverFromTimeout()
-			} else {
-				<-pgConn.controller
-			}
-
+			pgConn.hardClose()
 			return "", preferContextOverNetTimeoutError(ctx, err)
 		}
 
@@ -813,9 +793,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		case *pgproto3.CopyData:
 			_, err := w.Write(msg.Data)
 			if err != nil {
-				// This isn't actually a timeout, but we want the same behavior. Abort the request and cleanup.
-				cleanupContextDeadline()
-				go pgConn.recoverFromTimeout()
+				pgConn.hardClose()
 				return "", err
 			}
 		case *pgproto3.ReadyForQuery:
@@ -840,6 +818,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	case pgConn.controller <- pgConn:
 	}
 	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
+	defer cleanupContextDeadline()
 
 	// Send copy to command
 	var buf []byte
@@ -848,7 +827,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		cleanupContextDeadline()
 		<-pgConn.controller
 
 		return "", preferContextOverNetTimeoutError(ctx, err)
@@ -861,13 +839,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for pendingCopyInResponse {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			cleanupContextDeadline()
-			if err, ok := err.(net.Error); ok && err.Timeout() {
-				go pgConn.recoverFromTimeoutDuringCopyFrom()
-			} else {
-				<-pgConn.controller
-			}
-
+			pgConn.hardClose()
 			return "", preferContextOverNetTimeoutError(ctx, err)
 		}
 
@@ -899,7 +871,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			_, err = pgConn.conn.Write(buf)
 			if err != nil {
 				pgConn.hardClose()
-				cleanupContextDeadline()
 				<-pgConn.controller
 
 				return "", preferContextOverNetTimeoutError(ctx, err)
@@ -910,13 +881,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		case <-signalMessageChan:
 			msg, err := pgConn.ReceiveMessage()
 			if err != nil {
-				cleanupContextDeadline()
-				if err, ok := err.(net.Error); ok && err.Timeout() {
-					go pgConn.recoverFromTimeoutDuringCopyFrom()
-				} else {
-					<-pgConn.controller
-				}
-
+				pgConn.hardClose()
 				return "", preferContextOverNetTimeoutError(ctx, err)
 			}
 
@@ -939,8 +904,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err = pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-
-		cleanupContextDeadline()
 		<-pgConn.controller
 
 		return "", preferContextOverNetTimeoutError(ctx, err)
@@ -950,13 +913,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			cleanupContextDeadline()
-			if err, ok := err.(net.Error); ok && err.Timeout() {
-				go pgConn.recoverFromTimeout()
-			} else {
-				<-pgConn.controller
-			}
-
+			pgConn.hardClose()
 			return "", preferContextOverNetTimeoutError(ctx, err)
 		}
 
@@ -969,47 +926,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		case *pgproto3.ErrorResponse:
 			pgErr = errorResponseToPgError(msg)
 		}
-	}
-}
-
-func (pgConn *PgConn) recoverFromTimeoutDuringCopyFrom() {
-	// Regardless of recovery outcome the lock on the pgConn must be released.
-	defer func() { <-pgConn.controller }()
-
-	// Limit time to wait for entire cancellation process.
-	err := pgConn.conn.SetDeadline(time.Now().Add(15 * time.Second))
-	if err != nil {
-		pgConn.hardClose()
-		return
-	}
-
-	copyFail := &pgproto3.CopyFail{Error: "client cancel"}
-	buf := copyFail.Encode(nil)
-
-	_, err = pgConn.conn.Write(buf)
-	if err != nil {
-		pgConn.hardClose()
-		return
-	}
-
-	pendingReadyForQuery := true
-
-	for pendingReadyForQuery {
-		msg, err := pgConn.ReceiveMessage()
-		if err != nil {
-			pgConn.hardClose()
-			return
-		}
-
-		switch msg.(type) {
-		case *pgproto3.ReadyForQuery:
-			pendingReadyForQuery = false
-		}
-	}
-
-	err = pgConn.conn.SetDeadline(time.Time{})
-	if err != nil {
-		pgConn.hardClose()
 	}
 }
 
@@ -1044,13 +960,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 		mrr.cleanupContextDeadline()
 		mrr.err = preferContextOverNetTimeoutError(mrr.ctx, err)
 		mrr.closed = true
-
-		if err, ok := err.(net.Error); ok && err.Timeout() {
-			go mrr.pgConn.recoverFromTimeout()
-		} else {
-			<-mrr.pgConn.controller
-		}
-
+		mrr.pgConn.hardClose()
 		return nil, mrr.err
 	}
 
@@ -1236,11 +1146,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 		rr.cleanupContextDeadline()
 		rr.closed = true
 		if rr.multiResultReader == nil {
-			if err, ok := err.(net.Error); ok && err.Timeout() {
-				go rr.pgConn.recoverFromTimeout()
-			} else {
-				<-rr.pgConn.controller
-			}
+			rr.pgConn.hardClose()
 		}
 
 		return nil, rr.err
@@ -1268,75 +1174,6 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 	rr.fieldDescriptions = nil
 	rr.rowValues = nil
 	rr.commandConcluded = true
-}
-
-func (pgConn *PgConn) defaultCancel() {
-	// Regardless of recovery outcome the lock on the pgConn must be released.
-	defer func() { <-pgConn.controller }()
-
-	// Send a cancellation request to the PostgreSQL server. If it is not successful in a reasonable amount of time do not
-	// try further to recover the connection.
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	err := pgConn.cancelRequest(ctx)
-	cancel()
-	if err != nil {
-		pgConn.hardClose()
-		return
-	}
-
-	// Limit time to wait for ReadyForQuery message.
-	err = pgConn.conn.SetDeadline(time.Now().Add(15 * time.Second))
-	if err != nil {
-		pgConn.hardClose()
-		return
-	}
-
-	// A cancel query request will always return a "57014" error response, even if no query was in progress. This error
-	// may be returned before or after the ReadyForQuery message. Must ensure both messages are read.
-	needError57014 := true
-	needReadyForQuery := true
-
-	for needError57014 || needReadyForQuery {
-		msg, err := pgConn.ReceiveMessage()
-		if err != nil {
-			pgConn.hardClose()
-			return
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.ErrorResponse:
-			if msg.Code == "57014" {
-				needError57014 = false
-			}
-		case *pgproto3.ReadyForQuery:
-			needReadyForQuery = false
-		}
-	}
-
-	err = pgConn.conn.SetDeadline(time.Time{})
-	if err != nil {
-		pgConn.hardClose()
-	}
-}
-
-type ContextCancel struct {
-	PgConn *PgConn
-}
-
-// Finish must be called when the cancellation request has finished processing. The connection must be in a ready for
-// query state or the connection must be closed. This must be called regardless of the success of the cancellation and
-// whether the connection is still valid or not. It releases an internal busy lock on the connection.
-func (cc *ContextCancel) Finish() {
-	<-cc.PgConn.controller
-}
-
-func (pgConn *PgConn) recoverFromTimeout() {
-	if pgConn.Config.OnContextCancel == nil {
-		pgConn.defaultCancel()
-	} else {
-		cc := &ContextCancel{PgConn: pgConn}
-		pgConn.Config.OnContextCancel(cc)
-	}
 }
 
 // Batch is a collection of queries that can be sent to the PostgreSQL server in a single round-trip.

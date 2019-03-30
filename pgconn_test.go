@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3"
 	"github.com/pkg/errors"
 
 	"github.com/stretchr/testify/assert"
@@ -356,8 +355,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	}
 	err = multiResult.Close()
 	assert.Equal(t, context.DeadlineExceeded, err)
-
-	ensureConnValid(t, pgConn)
+	assert.False(t, pgConn.IsAlive())
 }
 
 func TestConnExecParams(t *testing.T) {
@@ -400,7 +398,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag(""), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
-	ensureConnValid(t, pgConn)
+	assert.False(t, pgConn.IsAlive())
 }
 
 func TestConnExecPrepared(t *testing.T) {
@@ -451,8 +449,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag(""), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
-
-	ensureConnValid(t, pgConn)
+	assert.False(t, pgConn.IsAlive())
 }
 
 func TestConnExecBatch(t *testing.T) {
@@ -508,72 +505,6 @@ func TestCommandTag(t *testing.T) {
 		actual := tt.commandTag.RowsAffected()
 		assert.Equalf(t, tt.rowsAffected, actual, "%d. %v", i, tt.commandTag)
 	}
-}
-
-func TestConnContextCancelWithOnContextCancel(t *testing.T) {
-	t.Parallel()
-
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-
-	calledChan := make(chan struct{})
-
-	config.OnContextCancel = func(cc *pgconn.ContextCancel) {
-		defer cc.Finish()
-		close(calledChan)
-
-		for {
-			msg, err := cc.PgConn.ReceiveMessage()
-			if err != nil {
-				cc.PgConn.Close(context.Background())
-				return
-			}
-
-			switch msg.(type) {
-			case *pgproto3.ReadyForQuery:
-				return
-			}
-		}
-	}
-
-	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	defer closeConn(t, pgConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	result := pgConn.ExecParams(ctx, "select 'Hello, world', pg_sleep(0.25)", nil, nil, nil, nil)
-	_, err = result.Close()
-	assert.Equal(t, context.DeadlineExceeded, err)
-
-	called := false
-	select {
-	case <-calledChan:
-		called = true
-	case <-time.NewTimer(time.Second).C:
-	}
-
-	assert.True(t, called)
-
-	ensureConnValid(t, pgConn)
-}
-
-func TestConnWaitUntilReady(t *testing.T) {
-	t.Parallel()
-
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer closeConn(t, pgConn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-	result := pgConn.ExecParams(ctx, "select current_database(), pg_sleep(1)", nil, nil, nil, nil).Read()
-	assert.Equal(t, context.DeadlineExceeded, result.Err)
-
-	err = pgConn.WaitUntilReady(context.Background())
-	require.NoError(t, err)
-
-	ensureConnValid(t, pgConn)
 }
 
 func TestConnOnNotice(t *testing.T) {
@@ -792,7 +723,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	assert.Equal(t, context.DeadlineExceeded, err)
 	assert.Equal(t, pgconn.CommandTag(""), res)
 
-	ensureConnValid(t, pgConn)
+	assert.False(t, pgConn.IsAlive())
 }
 
 func TestConnCopyFrom(t *testing.T) {
@@ -987,6 +918,28 @@ func TestConnEscapeString(t *testing.T) {
 			assert.Equalf(t, tt.out, value, "%d.", i)
 		}
 	}
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCancelRequest(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	multiResult := pgConn.Exec(context.Background(), "select 'Hello, world', pg_sleep(5)")
+
+	err = pgConn.CancelRequest(context.Background())
+	require.NoError(t, err)
+
+	for multiResult.NextResult() {
+	}
+	err = multiResult.Close()
+
+	require.IsType(t, &pgconn.PgError{}, err)
+	require.Equal(t, "57014", err.(*pgconn.PgError).Code)
 
 	ensureConnValid(t, pgConn)
 }

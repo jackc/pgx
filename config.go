@@ -41,17 +41,6 @@ type Config struct {
 	// allows implementing high availability behavior such as libpq does with target_session_attrs.
 	AfterConnectFunc AfterConnectFunc
 
-	// OnContextCancel is a callback function used to override cancellation behavior. It is called when a context.Context
-	// is canceled. Default cancellation behavior is to establish another connection to the PostgreSQL server and send a
-	// query cancel request. Some non-PostgreSQL servers (e.g. CockroachDB) that speak a subset of the PostgreSQL wire
-	// protocol do not support this cancellation method.
-	//
-	// It is called from a background goroutine. When the cancellation process has finished ContextCancel.Finish must be
-	// called whether it was successful or not. If an error occurs the connection should be closed. The connection must be
-	// in a ready for query state or be closed when ContextCancel.Finish is called. Use PgConn.ReceiveMessage() to read
-	// the connection until a ready for query message is received.
-	OnContextCancel func(*ContextCancel)
-
 	// OnNotice is a callback function called when a notice response is received.
 	OnNotice NoticeHandler
 
