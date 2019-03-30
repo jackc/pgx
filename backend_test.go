@@ -3,7 +3,7 @@ package pgproto3_test
 import (
 	"testing"
 
-	"github.com/jackc/pgx/pgproto3"
+	"github.com/jackc/pgproto3"
 )
 
 func TestBackendReceiveInterrupted(t *testing.T) {
