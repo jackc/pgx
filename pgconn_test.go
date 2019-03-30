@@ -484,6 +484,29 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", string(results[2].CommandTag))
 }
 
+func TestConnLocking(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
+	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	assert.Error(t, err)
+	assert.Equal(t, "connection busy", err.Error())
+
+	results, err = mrr.ReadAll()
+	assert.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.Nil(t, results[0].Err)
+	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Len(t, results[0].Rows, 1)
+	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestCommandTag(t *testing.T) {
 	t.Parallel()
 
