@@ -1,5 +1,5 @@
-[![](https://godoc.org/github.com/jackc/pgpassfile?status.svg)](https://godoc.org/github.com/jackc/pgpassfile)
-[![Build Status](https://travis-ci.org/jackc/pgpassfile.svg)](https://travis-ci.org/jackc/pgpassfile)
+[![](https://godoc.org/github.com/jackc/pgio?status.svg)](https://godoc.org/github.com/jackc/pgio)
+[![Build Status](https://travis-ci.org/jackc/pgio.svg)](https://travis-ci.org/jackc/pgio)
 
 # pgio
 
