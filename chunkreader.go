@@ -1,9 +1,11 @@
+// Package chunkreader provides an opinionated, efficient buffered reader.
 package chunkreader
 
 import (
 	"io"
 )
 
+// ChunkReader is a io.Reader wrapper that minimizes reads and memory allocations.
 type ChunkReader struct {
 	r io.Reader
 
