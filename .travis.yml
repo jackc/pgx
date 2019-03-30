@@ -1,0 +1,38 @@
+language: go
+
+go:
+  - 1.x
+  - tip
+
+# Derived from https://github.com/lib/pq/blob/master/.travis.yml
+before_install:
+  - ./travis/before_install.bash
+
+env:
+  global:
+    - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/var/run/postgresql database=pgx_test"
+    - PGX_TEST_TCP_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_TLS_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+    - PGX_TEST_MD5_PASSWORD_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test
+    - PGX_TEST_PLAIN_PASSWORD_CONN_STRING=postgres://pgx_pw:secret@127.0.0.1/pgx_test
+  matrix:
+    - CRATEVERSION=2.1 PGX_TEST_CRATEDB_CONN_STRING="host=127.0.0.1 port=6543 user=pgx database=pgx_test"
+    - PGVERSION=10 PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 port=6543 user=pgx_replication password=secret database=pgx_test"
+    - PGVERSION=9.6 PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 port=6543 user=pgx_replication password=secret database=pgx_test"
+    - PGVERSION=9.5
+    - PGVERSION=9.4
+    - PGVERSION=9.3
+
+before_script:
+  - ./travis/before_script.bash
+
+install:
+  - ./travis/install.bash
+
+script:
+  - ./travis/script.bash
+
+matrix:
+  allow_failures:
+    - go: tip
