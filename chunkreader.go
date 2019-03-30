@@ -8,8 +8,8 @@ import (
 
 // ChunkReader is an interface to decouple github.com/jackc/chunkreader from this package.
 type ChunkReader interface {
-	// Next returns buf filled with the next n bytes. If an error occurs, buf will be nil. Next must
-	// not reuse buf. In case of error, Next must preserve partially read data.
+	// Next returns buf filled with the next n bytes. If an error (including a partial read) occurs,
+	// buf must be nil. Next must preserve any partially read data. Next must not reuse buf.
 	Next(n int) (buf []byte, err error)
 }
 
