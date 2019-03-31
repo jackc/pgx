@@ -163,6 +163,7 @@ func ReplicationConnect(config ConnConfig) (r *ReplicationConn, err error) {
 		config.RuntimeParams = make(map[string]string)
 	}
 	config.RuntimeParams["replication"] = "database"
+	config.PreferSimpleProtocol = true
 
 	c, err := Connect(config)
 	if err != nil {
