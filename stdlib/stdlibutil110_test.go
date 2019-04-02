@@ -16,5 +16,12 @@ func openDB(t *testing.T) *sql.DB {
 		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
 	}
 
-	return stdlib.OpenDB(config)
+	pool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+		ConnConfig: config,
+	})
+
+	if err != nil {
+		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
+	}
+	return stdlib.OpenDBFromPool(pool)
 }
