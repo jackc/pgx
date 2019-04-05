@@ -239,7 +239,7 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	}
 }
 
-func TestConnPrepareFailure(t *testing.T) {
+func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
