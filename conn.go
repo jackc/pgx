@@ -45,7 +45,6 @@ type ConnConfig struct {
 	Logger         Logger
 	LogLevel       LogLevel
 	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
-	CustomCancel   func(*Conn) error                     // Callback function used to override cancellation behavior
 
 	// PreferSimpleProtocol disables implicit prepared statement usage. By default
 	// pgx automatically uses the unnamed prepared statement for Query and
@@ -757,44 +756,6 @@ func quoteIdentifier(s string) string {
 	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
 }
 
-func doCancel(c *Conn) error {
-	// ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	// defer cancel()
-	// return c.pgConn.CancelRequest(ctx)
-	return errors.New("TODO - reimplement cancellation")
-}
-
-// cancelQuery sends a cancel request to the PostgreSQL server. It returns an
-// error if unable to deliver the cancel request, but lack of an error does not
-// ensure that the query was canceled. As specified in the documentation, there
-// is no way to be sure a query was canceled. See
-// https://www.postgresql.org/docs/current/static/protocol-flow.html#AEN112861
-func (c *Conn) cancelQuery() {
-	if err := c.pgConn.Conn().SetDeadline(time.Now()); err != nil {
-		c.Close() // Close connection if unable to set deadline
-		return
-	}
-
-	var cancelFn func(*Conn) error
-	completeCh := make(chan struct{})
-	c.mux.Lock()
-	c.cancelQueryCompleted = completeCh
-	c.mux.Unlock()
-	if c.config.CustomCancel != nil {
-		cancelFn = c.config.CustomCancel
-	} else {
-		cancelFn = doCancel
-	}
-
-	go func() {
-		defer close(completeCh)
-		err := cancelFn(c)
-		if err != nil {
-			c.Close() // Something is very wrong. Terminate the connection.
-		}
-	}()
-}
-
 func (c *Conn) Ping(ctx context.Context) error {
 	_, err := c.Exec(ctx, ";", nil)
 	return err
@@ -845,7 +806,6 @@ func (c *Conn) termContext(opErr error) error {
 func (c *Conn) contextHandler(ctx context.Context) {
 	select {
 	case <-ctx.Done():
-		c.cancelQuery()
 		c.closedChan <- ctx.Err()
 	case <-c.doneChan:
 	}
