@@ -2,15 +2,11 @@ package pgx_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgmock"
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {
@@ -230,107 +226,6 @@ func TestBeginExReadOnly(t *testing.T) {
 	_, err = conn.Exec(context.Background(), "create table foo(id serial primary key)")
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "25006" {
 		t.Errorf("Expected error SQLSTATE 25006, but got %#v", err)
-	}
-}
-
-func TestConnBeginExContextCancel(t *testing.T) {
-	t.Parallel()
-
-	script := &pgmock.Script{
-		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
-	}
-	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
-	script.Steps = append(script.Steps,
-		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
-		pgmock.WaitForClose(),
-	)
-
-	server, err := pgmock.NewServer(script)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- server.ServeOne()
-	}()
-
-	pc, err := pgconn.ParseConfig(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	conn := mustConnect(t, pgx.ConnConfig{Config: *pc})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-
-	_, err = conn.BeginEx(ctx, nil)
-	if err != context.DeadlineExceeded {
-		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
-	}
-
-	if conn.IsAlive() {
-		t.Error("expected conn to be dead after BeginEx failure")
-	}
-
-	if err := <-errChan; err != nil {
-		t.Errorf("mock server err: %v", err)
-	}
-}
-
-func TestTxCommitExCancel(t *testing.T) {
-	t.Parallel()
-
-	script := &pgmock.Script{
-		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
-	}
-	script.Steps = append(script.Steps, pgmock.PgxInitSteps()...)
-	script.Steps = append(script.Steps,
-		pgmock.ExpectMessage(&pgproto3.Query{String: "begin"}),
-		pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: "BEGIN"}),
-		pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'T'}),
-		pgmock.WaitForClose(),
-	)
-
-	server, err := pgmock.NewServer(script)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Close()
-
-	errChan := make(chan error, 1)
-	go func() {
-		errChan <- server.ServeOne()
-	}()
-
-	pc, err := pgconn.ParseConfig(fmt.Sprintf("postgres://pgx_md5:secret@%s/pgx_test?sslmode=disable", server.Addr()))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	conn := mustConnect(t, pgx.ConnConfig{Config: *pc})
-	defer conn.Close()
-
-	tx, err := conn.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
-	defer cancel()
-	err = tx.CommitEx(ctx)
-	if err != context.DeadlineExceeded {
-		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
-	}
-
-	if conn.IsAlive() {
-		t.Error("expected conn to be dead after CommitEx failure")
-	}
-
-	if err := <-errChan; err != nil {
-		t.Errorf("mock server err: %v", err)
 	}
 }
 

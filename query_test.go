@@ -1258,37 +1258,6 @@ func TestQueryExContextErrorWhileReceivingRows(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestQueryExContextCancelationCancelsQuery(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		cancelFunc()
-	}()
-
-	rows, err := conn.QueryEx(ctx, "select pg_sleep(5)", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
-
-	for rows.Next() {
-		t.Fatal("No rows should ever be ready -- context cancel apparently did not happen")
-	}
-
-	if rows.Err() != context.Canceled {
-		t.Fatalf("Expected context.Canceled error, got %v", rows.Err())
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryRowExContextSuccess(t *testing.T) {
 	t.Parallel()
 
@@ -1326,30 +1295,6 @@ func TestQueryRowExContextErrorWhileReceivingRow(t *testing.T) {
 	err := conn.QueryRowEx(ctx, "select 10/0", nil).Scan(&result)
 	if err == nil || err.Error() != "ERROR: division by zero (SQLSTATE 22012)" {
 		t.Fatalf("Expected division by zero error, but got %v", err)
-	}
-
-	ensureConnValid(t, conn)
-}
-
-func TestQueryRowExContextCancelationCancelsQuery(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		cancelFunc()
-	}()
-
-	var result []byte
-	err := conn.QueryRowEx(ctx, "select pg_sleep(5)", nil).Scan(&result)
-	if err != context.Canceled {
-		t.Fatalf("Expected context.Canceled error, got %v", err)
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
 	}
 
 	ensureConnValid(t, conn)
