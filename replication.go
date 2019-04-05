@@ -9,9 +9,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgconn"
-	"github.com/jackc/pgx/pgio"
-	"github.com/jackc/pgx/pgproto3"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgio"
+	"github.com/jackc/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
 

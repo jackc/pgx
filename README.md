@@ -56,7 +56,7 @@ database/sql compatibility layer for pgx. pgx can be used as a normal database/s
 
 Approximately 60 PostgreSQL types are supported including uuid, hstore, json, bytea, numeric, interval, inet, and arrays. These types support database/sql interfaces and are usable even outside of pgx. They are fully tested in pgx and pq. They also support a higher performance interface when used with the pgx driver.
 
-## github.com/jackc/pgx/pgproto3
+## github.com/jackc/pgproto3
 
 pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire protocol. This is useful for implementing very low level PostgreSQL tooling.
 

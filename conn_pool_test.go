@@ -11,8 +11,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgconn"
 )
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {

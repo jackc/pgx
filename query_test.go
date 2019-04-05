@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
 	uuid "github.com/satori/go.uuid"

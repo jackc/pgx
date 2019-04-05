@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgx/pgio"
+	"github.com/jackc/pgio"
 	"github.com/jackc/pgx/pgtype"
 )
 

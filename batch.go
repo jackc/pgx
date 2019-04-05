@@ -3,7 +3,7 @@ package pgx
 import (
 	"context"
 
-	"github.com/jackc/pgx/pgconn"
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/pkg/errors"
 )

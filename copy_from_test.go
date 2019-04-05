@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgconn"
 	"github.com/pkg/errors"
 )
 

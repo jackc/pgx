@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgconn"
 )
 
 func TestLargeObjects(t *testing.T) {
