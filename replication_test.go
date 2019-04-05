@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/pgconn"
 )
 
 // This function uses a postgresql 9.6 specific column

@@ -10,7 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgio"
+	"github.com/jackc/pgio"
 )
 
 // Hstore represents an hstore column that can be null or have null values

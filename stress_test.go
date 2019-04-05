@@ -13,7 +13,7 @@ package pgx_test
 
 // 	"github.com/jackc/fake"
 // 	"github.com/jackc/pgx"
-// 	"github.com/jackc/pgx/pgconn"
+// 	"github.com/jackc/pgconn"
 // )
 
 // type execer interface {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgx/pgproto3"
+	"github.com/jackc/pgproto3"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -43,7 +43,7 @@ func (s *Server) ServeOne() error {
 
 	s.Close()
 
-	backend, err := pgproto3.NewBackend(conn, conn)
+	backend, err := pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn)
 	if err != nil {
 		conn.Close()
 		return err

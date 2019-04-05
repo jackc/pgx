@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/internal/sanitize"
-	"github.com/jackc/pgx/pgconn"
 	"github.com/jackc/pgx/pgtype"
 )
 
