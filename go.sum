@@ -6,6 +6,8 @@ github.com/jackc/chunkreader v1.0.0 h1:4s39bBR8ByfqH+DKm8rQA3E1LHZWB9XWcrz8fqaZb
 github.com/jackc/chunkreader v1.0.0/go.mod h1:RT6O25fNZIuasFJRyZ4R/Y2BbhasbmZXF9QQ7T3kePo=
 github.com/jackc/pgconn v0.0.0-20190330221323-ed7d91dc9873 h1:M68R77AKFS7dub7R7WgJ9D6yiNuExOYhBuGtazlbr10=
 github.com/jackc/pgconn v0.0.0-20190330221323-ed7d91dc9873/go.mod h1:8Bzf8vzi/ZpcgLgrq8IUHjZX4ZU+Hf6N6/AJ85+fDeE=
+github.com/jackc/pgconn v0.0.0-20190405170659-7ad3625edd3b h1:EFVP6CIXsShWT+mEeoVGMvJz1a1SAKqw8zQ15bz7cw8=
+github.com/jackc/pgconn v0.0.0-20190405170659-7ad3625edd3b/go.mod h1:8Bzf8vzi/ZpcgLgrq8IUHjZX4ZU+Hf6N6/AJ85+fDeE=
 github.com/jackc/pgio v1.0.0 h1:g12B9UwVnzGhueNavwioyEEpAmqMe1E/BN9ES+8ovkE=
 github.com/jackc/pgio v1.0.0/go.mod h1:oP+2QK2wFfUWgr+gxjoBH9KGBb31Eio69xUb0w5bYf8=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=
