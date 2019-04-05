@@ -504,6 +504,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 	select {
 	case <-ctx.Done():
+		pgConn.unlock()
 		return nil, ctx.Err()
 	default:
 	}
@@ -626,6 +627,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		pgConn.unlock()
 		return ctx.Err()
 	default:
 	}
@@ -668,6 +670,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	case <-ctx.Done():
 		multiResult.closed = true
 		multiResult.err = ctx.Err()
+		pgConn.unlock()
 		return multiResult
 	default:
 	}
@@ -828,6 +831,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 
 	select {
 	case <-ctx.Done():
+		pgConn.unlock()
 		return "", ctx.Err()
 	default:
 	}
@@ -1278,6 +1282,7 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 	case <-ctx.Done():
 		multiResult.closed = true
 		multiResult.err = ctx.Err()
+		pgConn.unlock()
 		return multiResult
 	default:
 	}
