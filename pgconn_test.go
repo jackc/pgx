@@ -9,9 +9,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -379,6 +381,52 @@ func TestConnExecParams(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	paramCount := math.MaxUint16
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	result := pgConn.ExecParams(context.Background(), sql, args, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, paramCount)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecParamsTooManyParams(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	paramCount := math.MaxUint16 + 1
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	result := pgConn.ExecParams(context.Background(), sql, args, nil, nil, nil).Read()
+	require.Error(t, result.Err)
+	require.Equal(t, "extended protocol limited to 65535 parameters", result.Err.Error())
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecParamsCanceled(t *testing.T) {
 	t.Parallel()
 
@@ -424,6 +472,64 @@ func TestConnExecPrepared(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, "SELECT 1", string(commandTag))
 	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	paramCount := math.MaxUint16
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	psd, err := pgConn.Prepare(context.Background(), "ps1", sql, nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, paramCount)
+	assert.Len(t, psd.Fields, 1)
+
+	result := pgConn.ExecPrepared(context.Background(), "ps1", args, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, paramCount)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecPreparedTooManyParams(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	paramCount := math.MaxUint16 + 1
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	psd, err := pgConn.Prepare(context.Background(), "ps1", sql, nil)
+	require.NoError(t, err)
+	require.NotNil(t, psd)
+	assert.Len(t, psd.ParamOIDs, paramCount)
+	assert.Len(t, psd.Fields, 1)
+
+	result := pgConn.ExecPrepared(context.Background(), "ps1", args, nil, nil).Read()
+	require.Error(t, result.Err)
+	require.Equal(t, "extended protocol limited to 65535 parameters", result.Err.Error())
 
 	ensureConnValid(t, pgConn)
 }

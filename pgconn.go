@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -720,10 +721,18 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 		return result
 	}
 
+	if len(paramValues) > math.MaxUint16 {
+		result.concludeCommand("", fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.closed = true
+		pgConn.unlock()
+		return result
+	}
+
 	select {
 	case <-ctx.Done():
 		result.concludeCommand("", ctx.Err())
 		result.closed = true
+		pgConn.unlock()
 		return result
 	default:
 	}
@@ -776,10 +785,18 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 		return result
 	}
 
+	if len(paramValues) > math.MaxUint16 {
+		result.concludeCommand("", fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.closed = true
+		pgConn.unlock()
+		return result
+	}
+
 	select {
 	case <-ctx.Done():
 		result.concludeCommand("", ctx.Err())
 		result.closed = true
+		pgConn.unlock()
 		return result
 	default:
 	}
