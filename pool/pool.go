@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
@@ -20,7 +21,11 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 	maxConnections := 5 // TODO - unhard-code
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) { return pgx.Connect(ctx, connString) },
-		func(value interface{}) { value.(*pgx.Conn).Close() },
+		func(value interface{}) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			value.(*pgx.Conn).Close(ctx)
+			cancel()
+		},
 		maxConnections)
 
 	// Initially establish one connection

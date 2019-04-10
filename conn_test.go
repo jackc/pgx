@@ -72,7 +72,7 @@ func TestConnect(t *testing.T) {
 		t.Errorf("Did not connect as specified user (%v)", config.Config.User)
 	}
 
-	err = conn.Close()
+	err = conn.Close(context.Background())
 	if err != nil {
 		t.Fatal("Unable to close connection")
 	}
@@ -481,7 +481,7 @@ func TestFatalRxError(t *testing.T) {
 	}()
 
 	otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer otherConn.Close()
+	defer otherConn.Close(context.Background())
 
 	if _, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID()); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
@@ -504,7 +504,7 @@ func TestFatalTxError(t *testing.T) {
 			defer closeConn(t, conn)
 
 			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-			defer otherConn.Close()
+			defer otherConn.Close(context.Background())
 
 			_, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID())
 			if err != nil {
