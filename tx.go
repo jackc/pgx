@@ -105,10 +105,9 @@ func (c *Conn) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
 // All Tx methods return ErrTxClosed if Commit or Rollback has already been
 // called on the Tx.
 type Tx struct {
-	conn     *Conn
-	connPool *ConnPool
-	err      error
-	status   int8
+	conn   *Conn
+	err    error
+	status int8
 }
 
 // Commit commits the transaction
@@ -133,10 +132,6 @@ func (tx *Tx) CommitEx(ctx context.Context) error {
 		tx.err = err
 		// A commit failure leaves the connection in an undefined state
 		tx.conn.die(errors.New("commit failed"))
-	}
-
-	if tx.connPool != nil {
-		tx.connPool.Release(tx.conn)
 	}
 
 	return tx.err
@@ -165,10 +160,6 @@ func (tx *Tx) RollbackEx(ctx context.Context) error {
 		tx.status = TxStatusRollbackFailure
 		// A rollback failure leaves the connection in an undefined state
 		tx.conn.die(errors.New("rollback failed"))
-	}
-
-	if tx.connPool != nil {
-		tx.connPool.Release(tx.conn)
 	}
 
 	return tx.err

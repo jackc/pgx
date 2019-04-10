@@ -100,23 +100,26 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 func TestTxCommitSerializationFailure(t *testing.T) {
 	t.Parallel()
 
-	pool := createConnPool(t, 5)
-	defer pool.Close()
+	c1 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, c1)
 
-	pool.Exec(context.Background(), `drop table if exists tx_serializable_sums`)
-	_, err := pool.Exec(context.Background(), `create table tx_serializable_sums(num integer);`)
+	c2 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, c2)
+
+	c1.Exec(context.Background(), `drop table if exists tx_serializable_sums`)
+	_, err := c1.Exec(context.Background(), `create table tx_serializable_sums(num integer);`)
 	if err != nil {
 		t.Fatalf("Unable to create temporary table: %v", err)
 	}
-	defer pool.Exec(context.Background(), `drop table tx_serializable_sums`)
+	defer c1.Exec(context.Background(), `drop table tx_serializable_sums`)
 
-	tx1, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx1, err := c1.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("BeginEx failed: %v", err)
 	}
 	defer tx1.Rollback()
 
-	tx2, err := pool.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx2, err := c2.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("BeginEx failed: %v", err)
 	}

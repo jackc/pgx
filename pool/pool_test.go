@@ -209,3 +209,26 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 
 	assert.Equal(t, 0, pool.Stat().TotalConns())
 }
+
+func TestConnPoolQueryConcurrentLoad(t *testing.T) {
+	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	n := 100
+	done := make(chan bool)
+
+	for i := 0; i < n; i++ {
+		go func() {
+			defer func() { done <- true }()
+			testQuery(t, pool)
+			testQueryEx(t, pool)
+			testQueryRow(t, pool)
+			testQueryRowEx(t, pool)
+		}()
+	}
+
+	for i := 0; i < n; i++ {
+		<-done
+	}
+}

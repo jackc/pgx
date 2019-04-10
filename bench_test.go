@@ -13,45 +13,6 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-func BenchmarkConnPool(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		b.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var conn *pgx.Conn
-		if conn, err = pool.Acquire(); err != nil {
-			b.Fatalf("Unable to acquire connection: %v", err)
-		}
-		pool.Release(conn)
-	}
-}
-
-func BenchmarkConnPoolQueryRow(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		b.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		num := float64(-1)
-		if err := pool.QueryRow("select random()").Scan(&num); err != nil {
-			b.Fatal(err)
-		}
-
-		if num < 0 {
-			b.Fatalf("expected `select random()` to return between 0 and 1 but it was: %v", num)
-		}
-	}
-}
-
 func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
@@ -613,19 +574,15 @@ func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
 }
 
 func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		b.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
 
 	queryCount := 3
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < queryCount; j++ {
-			rows, err := pool.Query("select n from generate_series(0, 5) n")
+			rows, err := conn.Query("select n from generate_series(0, 5) n")
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -648,18 +605,14 @@ func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
 }
 
 func BenchmarkMultipleQueriesBatch(b *testing.B) {
-	config := pgx.ConnPoolConfig{ConnConfig: mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")), MaxConnections: 5}
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		b.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
 
 	queryCount := 3
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		batch := pool.BeginBatch()
+		batch := conn.BeginBatch()
 		for j := 0; j < queryCount; j++ {
 			batch.Queue("select n from generate_series(0,5) n",
 				nil,
