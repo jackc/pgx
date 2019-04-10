@@ -27,7 +27,7 @@ func Example_JSON() {
 
 	var output person
 
-	err = conn.QueryRow("select $1::json", input).Scan(&output)
+	err = conn.QueryRow(context.Background(), "select $1::json", input).Scan(&output)
 	if err != nil {
 		fmt.Println(err)
 		return

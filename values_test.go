@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"os"
 	"reflect"
@@ -41,7 +42,7 @@ func TestDateTranscode(t *testing.T) {
 	for _, actualDate := range dates {
 		var d time.Time
 
-		err := conn.QueryRow("select $1::date", actualDate).Scan(&d)
+		err := conn.QueryRow(context.Background(), "select $1::date", actualDate).Scan(&d)
 		if err != nil {
 			t.Fatalf("Unexpected failure on QueryRow Scan: %v", err)
 		}
@@ -61,7 +62,7 @@ func TestTimestampTzTranscode(t *testing.T) {
 
 	var outputTime time.Time
 
-	err := conn.QueryRow("select $1::timestamptz", inputTime).Scan(&outputTime)
+	err := conn.QueryRow(context.Background(), "select $1::timestamptz", inputTime).Scan(&outputTime)
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
@@ -98,7 +99,7 @@ func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 		return
@@ -114,7 +115,7 @@ func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
-	err := conn.QueryRow("select $1::"+typename, &input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, &input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 		return
@@ -129,7 +130,7 @@ func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
 func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string) {
 	input := map[string]string{"key": "value"}
 	var output map[string]string
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 		return
@@ -148,7 +149,7 @@ func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 		"inventory": []interface{}{"phone", "key"},
 	}
 	var output map[string]interface{}
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 		return
@@ -163,7 +164,7 @@ func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []string{"foo", "bar", "baz"}
 	var output []string
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 	}
@@ -176,7 +177,7 @@ func testJSONStringArray(t *testing.T, conn *pgx.Conn, typename string) {
 func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []int64{1, 2, 234432}
 	var output []int64
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 	}
@@ -189,7 +190,7 @@ func testJSONInt64Array(t *testing.T, conn *pgx.Conn, typename string) {
 func testJSONInt16ArrayFailureDueToOverflow(t *testing.T, conn *pgx.Conn, typename string) {
 	input := []int{1, 2, 234432}
 	var output []int16
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err == nil || err.Error() != "can't scan into dest[0]: json: cannot unmarshal number 234432 into Go value of type int16" {
 		t.Errorf("%s: Expected *json.UnmarkalTypeError, but got %v", typename, err)
 	}
@@ -208,7 +209,7 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
 
 	var output person
 
-	err := conn.QueryRow("select $1::"+typename, input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
 	}
@@ -236,7 +237,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 	input := "01086ee0-4963-4e35-9116-30c173a8d0bd"
 
 	var output string
-	err := conn.QueryRow("select $1::uuid", input).Scan(&output)
+	err := conn.QueryRow(context.Background(), "select $1::uuid", input).Scan(&output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,7 +245,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 		t.Errorf("uuid: Did not transcode string successfully: %s is not %s", input, output)
 	}
 
-	err = conn.QueryRow("select $1::uuid", &input).Scan(&output)
+	err = conn.QueryRow(context.Background(), "select $1::uuid", &input).Scan(&output)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +289,7 @@ func TestInetCIDRTranscodeIPNet(t *testing.T) {
 	for i, tt := range tests {
 		var actual net.IPNet
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
 			continue
@@ -329,7 +330,7 @@ func TestInetCIDRTranscodeIP(t *testing.T) {
 	for i, tt := range tests {
 		var actual net.IP
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
 			continue
@@ -352,7 +353,7 @@ func TestInetCIDRTranscodeIP(t *testing.T) {
 	for i, tt := range failTests {
 		var actual net.IP
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err == nil {
 			t.Errorf("%d. Expected failure but got none", i)
 			continue
@@ -407,7 +408,7 @@ func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 	for i, tt := range tests {
 		var actual []*net.IPNet
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
 			continue
@@ -456,7 +457,7 @@ func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 	for i, tt := range tests {
 		var actual []net.IP
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
 			continue
@@ -492,7 +493,7 @@ func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 	for i, tt := range failTests {
 		var actual []net.IP
 
-		err := conn.QueryRow(tt.sql, tt.value).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
 		if err == nil {
 			t.Errorf("%d. Expected failure but got none", i)
 			continue
@@ -530,7 +531,7 @@ func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 		expected := mustParseCIDR(t, tt.value)
 		var actual net.IPNet
 
-		err := conn.QueryRow(tt.sql, expected.IP).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql, expected.IP).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, value -> %v)", i, err, tt.sql, tt.value)
 			continue
@@ -648,7 +649,7 @@ func TestArrayDecoding(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		err := conn.QueryRow(tt.sql, tt.query).Scan(tt.scan)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.query).Scan(tt.scan)
 		if err != nil {
 			t.Errorf(`%d. error reading array: %v`, i, err)
 			continue
@@ -666,7 +667,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 
 	var val []string
 
-	err := conn.QueryRow("select array[]::text[]").Scan(&val)
+	err := conn.QueryRow(context.Background(), "select array[]::text[]").Scan(&val)
 	if err != nil {
 		t.Errorf(`error reading array: %v`, err)
 	}
@@ -676,7 +677,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 
 	var n, m int32
 
-	err = conn.QueryRow("select 1::integer, array[]::text[], 42::integer").Scan(&n, &val, &m)
+	err = conn.QueryRow(context.Background(), "select 1::integer, array[]::text[], 42::integer").Scan(&n, &val, &m)
 	if err != nil {
 		t.Errorf(`error reading array: %v`, err)
 	}
@@ -690,7 +691,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 		t.Errorf("Expected n to be 42, but it was %d", n)
 	}
 
-	rows, err := conn.Query("select 1::integer, array['test']::text[] union select 2::integer, array[]::text[] union select 3::integer, array['test']::text[]")
+	rows, err := conn.Query(context.Background(), "select 1::integer, array['test']::text[] union select 2::integer, array[]::text[] union select 3::integer, array['test']::text[]")
 	if err != nil {
 		t.Errorf(`error retrieving rows with array: %v`, err)
 	}
@@ -771,7 +772,7 @@ func TestPointerPointer(t *testing.T) {
 	for i, tt := range tests {
 		actual = zero
 
-		err := conn.QueryRow(tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
+		err := conn.QueryRow(context.Background(), tt.sql, tt.queryArgs...).Scan(tt.scanArgs...)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
 		}
@@ -793,7 +794,7 @@ func TestPointerPointerNonZero(t *testing.T) {
 	f := "foo"
 	dest := &f
 
-	err := conn.QueryRow("select $1::text", nil).Scan(&dest)
+	err := conn.QueryRow(context.Background(), "select $1::text", nil).Scan(&dest)
 	if err != nil {
 		t.Errorf("Unexpected failure scanning: %v", err)
 	}
@@ -852,7 +853,7 @@ func TestEncodeTypeRename(t *testing.T) {
 	inString := _string("foo")
 	var outString _string
 
-	err := conn.QueryRow("select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text",
+	err := conn.QueryRow(context.Background(), "select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text",
 		inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString,
 	).Scan(&outInt, &outInt8, &outInt16, &outInt32, &outInt64, &outUint, &outUint8, &outUint16, &outUint32, &outUint64, &outString)
 	if err != nil {
@@ -936,7 +937,7 @@ func TestRowDecode(t *testing.T) {
 	for i, tt := range tests {
 		var actual []interface{}
 
-		err := conn.QueryRow(tt.sql).Scan(&actual)
+		err := conn.QueryRow(context.Background(), tt.sql).Scan(&actual)
 		if err != nil {
 			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
 			continue

@@ -54,25 +54,14 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	return conn.Exec(ctx, sql, arguments...)
 }
 
-func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
-	r, err := c.res.Value().(*pgx.Conn).Query(sql, args...)
+func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*Rows, error) {
+	r, err := c.res.Value().(*pgx.Conn).Query(ctx, sql, optionsAndArgs...)
 	rows := &Rows{r: r, err: err}
 	return rows, err
 }
 
-func (c *Conn) QueryEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) (*Rows, error) {
-	r, err := c.res.Value().(*pgx.Conn).QueryEx(ctx, sql, options, args...)
-	rows := &Rows{r: r, err: err}
-	return rows, err
-}
-
-func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
-	r := c.res.Value().(*pgx.Conn).QueryRow(sql, args...)
-	return &Row{r: r}
-}
-
-func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) *Row {
-	r := c.res.Value().(*pgx.Conn).QueryRowEx(ctx, sql, options, args...)
+func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+	r := c.res.Value().(*pgx.Conn).QueryRow(ctx, sql, optionsAndArgs...)
 	return &Row{r: r}
 }
 

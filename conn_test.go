@@ -27,7 +27,7 @@ func TestCrateDBConnect(t *testing.T) {
 	defer closeConn(t, conn)
 
 	var result int
-	err = conn.QueryRow("select 1 +1").Scan(&result)
+	err = conn.QueryRow(context.Background(), "select 1 +1").Scan(&result)
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	var currentDB string
-	err = conn.QueryRow("select current_database()").Scan(&currentDB)
+	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
@@ -64,7 +64,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	var user string
-	err = conn.QueryRow("select current_user").Scan(&user)
+	err = conn.QueryRow(context.Background(), "select current_user").Scan(&user)
 	if err != nil {
 		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	// into a pgtype.Text as the integer will have been encoded in text.
 
 	var s pgtype.Text
-	err := conn.QueryRow("select $1::int4", 42).Scan(&s)
+	err := conn.QueryRow(context.Background(), "select $1::int4", 42).Scan(&s)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func TestExecFailure(t *testing.T) {
 		t.Error("Expected LastStmtSent to return true")
 	}
 
-	rows, _ := conn.Query("select 1")
+	rows, _ := conn.Query(context.Background(), "select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
@@ -212,7 +212,7 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 		t.Error("Expected LastStmtSent to return true")
 	}
 
-	rows, _ := conn.Query("select 1")
+	rows, _ := conn.Query(context.Background(), "select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
@@ -350,7 +350,7 @@ func TestPrepare(t *testing.T) {
 	}
 
 	var s string
-	err = conn.QueryRow("test", "hello").Scan(&s)
+	err = conn.QueryRow(context.Background(), "test", "hello").Scan(&s)
 	if err != nil {
 		t.Errorf("Executing prepared statement failed: %v", err)
 	}
@@ -374,7 +374,7 @@ func TestPrepare(t *testing.T) {
 	}
 
 	var n int32
-	err = conn.QueryRow("test", int32(1)).Scan(&n)
+	err = conn.QueryRow(context.Background(), "test", int32(1)).Scan(&n)
 	if err != nil {
 		t.Errorf("Executing prepared statement failed: %v", err)
 	}
@@ -415,7 +415,7 @@ func TestPrepareIdempotency(t *testing.T) {
 		}
 
 		var n int32
-		err = conn.QueryRow("test").Scan(&n)
+		err = conn.QueryRow(context.Background(), "test").Scan(&n)
 		if err != nil {
 			t.Errorf("%d. Executing prepared statement failed: %v", i, err)
 		}
@@ -445,7 +445,7 @@ func TestPrepareEx(t *testing.T) {
 	}
 
 	var s string
-	err = conn.QueryRow("test", "hello").Scan(&s)
+	err = conn.QueryRow(context.Background(), "test", "hello").Scan(&s)
 	if err != nil {
 		t.Errorf("Executing prepared statement failed: %v", err)
 	}
@@ -472,7 +472,7 @@ func TestFatalRxError(t *testing.T) {
 		defer wg.Done()
 		var n int32
 		var s string
-		err := conn.QueryRow("select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
+		err := conn.QueryRow(context.Background(), "select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
 		if err == pgx.ErrDeadConn {
 		} else if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Severity == "FATAL" {
 		} else {
@@ -511,7 +511,7 @@ func TestFatalTxError(t *testing.T) {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
 
-			err = conn.QueryRow("select 1").Scan(nil)
+			err = conn.QueryRow(context.Background(), "select 1").Scan(nil)
 			if err == nil {
 				t.Fatal("Expected error but none occurred")
 			}
@@ -561,13 +561,13 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	rows1, err := conn.Query("select generate_series(1,$1)", 10)
+	rows1, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
 	defer rows1.Close()
 
-	_, err = conn.Query("select generate_series(1,$1)", 10)
+	_, err = conn.Query(context.Background(), "select generate_series(1,$1)", 10)
 	if err != pgx.ErrConnBusy {
 		t.Fatalf("conn.Query should have failed with pgx.ErrConnBusy, but it was %v", err)
 	}
@@ -579,7 +579,7 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	rows, err := conn.Query("select generate_series(1,$1)", 10)
+	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -756,7 +756,7 @@ func TestDomainType(t *testing.T) {
 	}
 
 	var n uint64
-	err := conn.QueryRow("select $1::uint64", uint64(42)).Scan(&n)
+	err := conn.QueryRow(context.Background(), "select $1::uint64", uint64(42)).Scan(&n)
 	if err != nil {
 		t.Fatal(err)
 	}

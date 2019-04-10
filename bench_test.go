@@ -34,7 +34,7 @@ func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 			lastLoginTime *time.Time
 		}
 
-		err = conn.QueryRow("selectNulls").Scan(
+		err = conn.QueryRow(context.Background(), "selectNulls").Scan(
 			&record.id,
 			&record.userName,
 			&record.email,
@@ -94,7 +94,7 @@ func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
 			lastLoginTime *time.Time
 		}
 
-		err = conn.QueryRow("selectNulls").Scan(
+		err = conn.QueryRow(context.Background(), "selectNulls").Scan(
 			&record.id,
 			&record.userName,
 			&record.email,
@@ -206,7 +206,7 @@ func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
 			lastLoginTime time.Time
 		}
 
-		err = conn.QueryRow("test").Scan(
+		err = conn.QueryRow(context.Background(), "test").Scan(
 			&record.id,
 			&record.userName,
 			&record.email,
@@ -582,7 +582,7 @@ func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < queryCount; j++ {
-			rows, err := conn.Query("select n from generate_series(0, 5) n")
+			rows, err := conn.Query(context.Background(), "select n from generate_series(0, 5) n")
 			if err != nil {
 				b.Fatal(err)
 			}

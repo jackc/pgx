@@ -33,18 +33,6 @@ func TestTxQuery(t *testing.T) {
 	testQuery(t, tx)
 }
 
-func TestTxQueryEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	tx, err := pool.Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
-
-	testQueryEx(t, tx)
-}
-
 func TestTxQueryRow(t *testing.T) {
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
@@ -55,16 +43,4 @@ func TestTxQueryRow(t *testing.T) {
 	defer tx.Rollback()
 
 	testQueryRow(t, tx)
-}
-
-func TestTxQueryRowEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	tx, err := pool.Begin()
-	require.NoError(t, err)
-	defer tx.Rollback()
-
-	testQueryRowEx(t, tx)
 }

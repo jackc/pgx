@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"context"
 	"io"
 
 	"github.com/jackc/pgx/pgtype"
@@ -38,7 +39,7 @@ func (tx *Tx) LargeObjects() (*LargeObjects, error) {
 		tx.conn.fp = newFastpath(tx.conn)
 	}
 	if _, exists := tx.conn.fp.fns["lo_open"]; !exists {
-		res, err := tx.Query(largeObjectFns)
+		res, err := tx.Query(context.TODO(), largeObjectFns)
 		if err != nil {
 			return nil, err
 		}
