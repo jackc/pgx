@@ -361,7 +361,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 			}
 		}
 
-		err = tx.Commit()
+		err = tx.Commit(context.Background())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -392,7 +392,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(context.Background())
 
 	for rowSrc.Next() {
 		if rowsThisInsert > 0 {
@@ -437,7 +437,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 		rowCount += rowsThisInsert
 	}
 
-	if err := tx.Commit(); err != nil {
+	if err := tx.Commit(context.Background()); err != nil {
 		return 0, nil
 	}
 

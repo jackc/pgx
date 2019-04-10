@@ -278,7 +278,7 @@ package pgx_test
 // 		return err
 // 	}
 
-// 	return tx.Commit()
+// 	return tx.Commit(context.Background())
 // }
 
 // func txMultipleQueries(pool *pgx.ConnPool, actionNum int) error {
@@ -317,7 +317,7 @@ package pgx_test
 // 		}
 // 	}
 
-// 	return tx.Commit()
+// 	return tx.Commit(context.Background())
 // }
 
 // func canceledQueryExContext(pool *pgx.ConnPool, actionNum int) error {

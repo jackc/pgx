@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/pkg/errors"
@@ -110,13 +109,8 @@ type Tx struct {
 	status int8
 }
 
-// Commit commits the transaction
-func (tx *Tx) Commit() error {
-	return tx.CommitEx(context.Background())
-}
-
-// CommitEx commits the transaction with a context.
-func (tx *Tx) CommitEx(ctx context.Context) error {
+// Commit commits the transaction.
+func (tx *Tx) Commit(ctx context.Context) error {
 	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}
@@ -141,14 +135,7 @@ func (tx *Tx) CommitEx(ctx context.Context) error {
 // Tx is already closed, but is otherwise safe to call multiple times. Hence, a
 // defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 // non-error condition.
-func (tx *Tx) Rollback() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	return tx.RollbackEx(ctx)
-}
-
-// RollbackEx is the context version of Rollback
-func (tx *Tx) RollbackEx(ctx context.Context) error {
+func (tx *Tx) Rollback(ctx context.Context) error {
 	if tx.status != TxStatusInProgress {
 		return ErrTxClosed
 	}

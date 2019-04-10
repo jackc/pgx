@@ -535,7 +535,7 @@ func TestTxBeginBatch(t *testing.T) {
 	}
 
 	batch.Close()
-	tx.Commit()
+	tx.Commit(context.Background())
 
 	var count int
 	conn.QueryRow(context.Background(), "select count(1) from ledger1 where id = $1", id).Scan(&count)
@@ -581,7 +581,7 @@ func TestTxBeginBatchRollback(t *testing.T) {
 		t.Error(err)
 	}
 	batch.Close()
-	tx.Rollback()
+	tx.Rollback(context.Background())
 
 	row := conn.QueryRow(context.Background(), "select count(1) from ledger1 where id = $1", id)
 	var count int

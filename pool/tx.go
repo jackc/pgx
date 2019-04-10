@@ -12,8 +12,8 @@ type Tx struct {
 	c *Conn
 }
 
-func (tx *Tx) Commit() error {
-	err := tx.t.Commit()
+func (tx *Tx) Commit(ctx context.Context) error {
+	err := tx.t.Commit(ctx)
 	if tx.c != nil {
 		tx.c.Release()
 		tx.c = nil
@@ -21,8 +21,8 @@ func (tx *Tx) Commit() error {
 	return err
 }
 
-func (tx *Tx) Rollback() error {
-	err := tx.t.Rollback()
+func (tx *Tx) Rollback(ctx context.Context) error {
+	err := tx.t.Rollback(ctx)
 	if tx.c != nil {
 		tx.c.Release()
 		tx.c = nil
