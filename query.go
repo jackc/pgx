@@ -356,12 +356,6 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 		args:      args,
 	}
 
-	err = c.waitForPreviousCancelQuery(ctx)
-	if err != nil {
-		rows.fatal(err)
-		return rows, err
-	}
-
 	if err := c.lock(); err != nil {
 		rows.fatal(err)
 		return rows, err
