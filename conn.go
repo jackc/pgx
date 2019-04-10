@@ -155,10 +155,6 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig, minimalConnInfo)
 }
 
-func defaultDialer() *net.Dialer {
-	return &net.Dialer{KeepAlive: 5 * time.Minute}
-}
-
 func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
 	c = new(Conn)
 
@@ -561,17 +557,6 @@ func (c *Conn) CauseOfDeath() error {
 	return c.causeOfDeath
 }
 
-// fatalWriteError takes the response of a net.Conn.Write and determines if it is fatal
-func fatalWriteErr(bytesWritten int, err error) bool {
-	// Partial writes break the connection
-	if bytesWritten > 0 {
-		return true
-	}
-
-	netErr, is := err.(net.Error)
-	return !(is && netErr.Timeout())
-}
-
 // Processes messages that are not exclusive to one context such as
 // authentication or query response. The response to these messages is the same
 // regardless of when they occur. It also ignores messages that are only
@@ -613,28 +598,6 @@ func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 	}
 
 	return err
-}
-
-func (c *Conn) rxRowDescription(msg *pgproto3.RowDescription) []FieldDescription {
-	fields := make([]FieldDescription, len(msg.Fields))
-	for i := 0; i < len(fields); i++ {
-		fields[i].Name = string(msg.Fields[i].Name)
-		fields[i].Table = pgtype.OID(msg.Fields[i].TableOID)
-		fields[i].AttributeNumber = msg.Fields[i].TableAttributeNumber
-		fields[i].DataType = pgtype.OID(msg.Fields[i].DataTypeOID)
-		fields[i].DataTypeSize = msg.Fields[i].DataTypeSize
-		fields[i].Modifier = msg.Fields[i].TypeModifier
-		fields[i].FormatCode = msg.Fields[i].Format
-	}
-	return fields
-}
-
-func (c *Conn) rxParameterDescription(msg *pgproto3.ParameterDescription) []pgtype.OID {
-	parameters := make([]pgtype.OID, len(msg.ParameterOIDs))
-	for i := 0; i < len(parameters); i++ {
-		parameters[i] = pgtype.OID(msg.ParameterOIDs[i])
-	}
-	return parameters
 }
 
 func (c *Conn) die(err error) {

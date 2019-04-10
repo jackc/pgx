@@ -497,26 +497,6 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	return rows, rows.err
 }
 
-func (c *Conn) buildOneRoundTripQueryEx(buf []byte, sql string, options *QueryExOptions, arguments []interface{}) ([]byte, error) {
-	if len(arguments) != len(options.ParameterOIDs) {
-		return nil, errors.Errorf("mismatched number of arguments (%d) and options.ParameterOIDs (%d)", len(arguments), len(options.ParameterOIDs))
-	}
-
-	if len(options.ParameterOIDs) > 65535 {
-		return nil, errors.Errorf("Number of QueryExOptions ParameterOIDs must be between 0 and 65535, received %d", len(options.ParameterOIDs))
-	}
-
-	buf = appendParse(buf, "", sql, options.ParameterOIDs)
-	buf = appendDescribe(buf, 'S', "")
-	buf, err := appendBind(buf, "", "", c.ConnInfo, options.ParameterOIDs, arguments, options.ResultFormatCodes)
-	if err != nil {
-		return nil, err
-	}
-	buf = appendExecute(buf, "", 0)
-
-	return buf, nil
-}
-
 func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, error) {
 	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
 		return "", errors.New("simple protocol queries must be run with standard_conforming_strings=on")
