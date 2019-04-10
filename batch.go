@@ -84,11 +84,6 @@ func (b *Batch) Send(ctx context.Context) error {
 
 	b.ctx = ctx
 
-	err := b.conn.waitForPreviousCancelQuery(ctx)
-	if err != nil {
-		return err
-	}
-
 	batch := &pgconn.Batch{}
 
 	for _, bi := range b.items {
