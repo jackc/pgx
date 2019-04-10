@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,35 +37,13 @@ func testExec(t *testing.T, db execer) {
 }
 
 type queryer interface {
-	Query(sql string, args ...interface{}) (*pool.Rows, error)
+	Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*pool.Rows, error)
 }
 
 func testQuery(t *testing.T, db queryer) {
 	var sum, rowCount int32
 
-	rows, err := db.Query("select generate_series(1,$1)", 10)
-	require.NoError(t, err)
-
-	for rows.Next() {
-		var n int32
-		rows.Scan(&n)
-		sum += n
-		rowCount++
-	}
-
-	assert.NoError(t, rows.Err())
-	assert.Equal(t, int32(10), rowCount)
-	assert.Equal(t, int32(55), sum)
-}
-
-type queryExer interface {
-	QueryEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) (*pool.Rows, error)
-}
-
-func testQueryEx(t *testing.T, db queryExer) {
-	var sum, rowCount int32
-
-	rows, err := db.QueryEx(context.Background(), "select generate_series(1,$1)", nil, 10)
+	rows, err := db.Query(context.Background(), "select generate_series(1,$1)", 10)
 	require.NoError(t, err)
 
 	for rows.Next() {
@@ -82,24 +59,12 @@ func testQueryEx(t *testing.T, db queryExer) {
 }
 
 type queryRower interface {
-	QueryRow(sql string, args ...interface{}) *pool.Row
+	QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *pool.Row
 }
 
 func testQueryRow(t *testing.T, db queryRower) {
 	var what, who string
-	err := db.QueryRow("select 'hello', $1", "world").Scan(&what, &who)
-	assert.NoError(t, err)
-	assert.Equal(t, "hello", what)
-	assert.Equal(t, "world", who)
-}
-
-type queryRowExer interface {
-	QueryRowEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) *pool.Row
-}
-
-func testQueryRowEx(t *testing.T, db queryRowExer) {
-	var what, who string
-	err := db.QueryRowEx(context.Background(), "select 'hello', $1", nil, "world").Scan(&what, &who)
+	err := db.QueryRow(context.Background(), "select 'hello', $1", "world").Scan(&what, &who)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello", what)
 	assert.Equal(t, "world", who)

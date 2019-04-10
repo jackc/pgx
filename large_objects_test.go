@@ -167,7 +167,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 
 	// IMPORTANT: Use the same connection for another query
 	query := `select n from generate_series(1,10) n`
-	rows, err := conn.Query(query)
+	rows, err := conn.Query(context.Background(), query)
 	if err != nil {
 		t.Fatal(err)
 	}

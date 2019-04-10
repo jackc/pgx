@@ -42,7 +42,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 	}
 
 	var n int64
-	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 	}
 
 	var n int64
-	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	}
 
 	var n int64
-	err = conn.QueryRow("select count(*) from foo").Scan(&n)
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
@@ -202,7 +202,7 @@ func TestBeginExIsoLevels(t *testing.T) {
 		}
 
 		var level pgx.TxIsoLevel
-		conn.QueryRow("select current_setting('transaction_isolation')").Scan(&level)
+		conn.QueryRow(context.Background(), "select current_setting('transaction_isolation')").Scan(&level)
 		if level != iso {
 			t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
 		}

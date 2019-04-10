@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"testing"
@@ -44,7 +45,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -139,7 +140,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -230,7 +231,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -341,7 +342,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return 0 copied rows, but got %d", copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -454,7 +455,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 		t.Errorf("Failing CopyFrom shouldn't have taken so long: %v", copyTime)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -497,7 +498,7 @@ func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return 0 copied rows, but got %d", copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
@@ -557,7 +558,7 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 		t.Errorf("Expected CopyFrom to return 0 copied rows, but got %d", copyCount)
 	}
 
-	rows, err := conn.Query("select * from foo")
+	rows, err := conn.Query(context.Background(), "select * from foo")
 	if err != nil {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}

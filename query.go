@@ -307,13 +307,6 @@ func (e scanArgError) Error() string {
 	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
 }
 
-// Query executes sql with args. If there is an error the returned *Rows will
-// be returned in an error state. So it is allowed to ignore the error returned
-// from Query and handle it in *Rows.
-func (c *Conn) Query(sql string, args ...interface{}) (*Rows, error) {
-	return c.QueryEx(context.Background(), sql, nil, args...)
-}
-
 func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 	if len(c.preallocatedRows) == 0 {
 		c.preallocatedRows = make([]Rows, 64)
@@ -330,14 +323,6 @@ func (c *Conn) getRows(sql string, args []interface{}) *Rows {
 	return r
 }
 
-// QueryRow is a convenience wrapper over Query. Any error that occurs while
-// querying is deferred until calling Scan on the returned *Row. That *Row will
-// error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(sql string, args ...interface{}) *Row {
-	rows, _ := c.Query(sql, args...)
-	return (*Row)(rows)
-}
-
 type QueryExOptions struct {
 	// When ParameterOIDs are present and the query is not a prepared statement,
 	// then ParameterOIDs and ResultFormatCodes will be used to avoid an extra
@@ -348,9 +333,21 @@ type QueryExOptions struct {
 	SimpleProtocol bool
 }
 
-func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) (rows *Rows, err error) {
+// Query executes sql with args. If there is an error the returned *Rows will
+// be returned in an error state. So it is allowed to ignore the error returned
+// from Query and handle it in *Rows.
+func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (rows *Rows, err error) {
 	c.lastStmtSent = false
 	// rows = c.getRows(sql, args)
+
+	var options *QueryExOptions
+	args := optionsAndArgs
+	if len(optionsAndArgs) > 0 {
+		if o, ok := optionsAndArgs[0].(*QueryExOptions); ok {
+			options = o
+			args = optionsAndArgs[1:]
+		}
+	}
 
 	rows = &Rows{
 		conn:      c,
@@ -547,7 +544,10 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	return sanitize.SanitizeSQL(sql, valueArgs...)
 }
 
-func (c *Conn) QueryRowEx(ctx context.Context, sql string, options *QueryExOptions, args ...interface{}) *Row {
-	rows, _ := c.QueryEx(ctx, sql, options, args...)
+// QueryRow is a convenience wrapper over Query. Any error that occurs while
+// querying is deferred until calling Scan on the returned *Row. That *Row will
+// error with ErrNoRows if no rows are returned.
+func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+	rows, _ := c.Query(ctx, sql, optionsAndArgs...)
 	return (*Row)(rows)
 }

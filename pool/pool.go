@@ -63,13 +63,13 @@ func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	return c.Exec(ctx, sql, arguments...)
 }
 
-func (p *Pool) Query(sql string, args ...interface{}) (*Rows, error) {
-	c, err := p.Acquire(context.Background())
+func (p *Pool) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*Rows, error) {
+	c, err := p.Acquire(ctx)
 	if err != nil {
 		return &Rows{err: err}, err
 	}
 
-	rows, err := c.Query(sql, args...)
+	rows, err := c.Query(ctx, sql, optionsAndArgs...)
 	if err == nil {
 		rows.c = c
 	} else {
@@ -79,40 +79,13 @@ func (p *Pool) Query(sql string, args ...interface{}) (*Rows, error) {
 	return rows, err
 }
 
-func (p *Pool) QueryEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) (*Rows, error) {
-	c, err := p.Acquire(context.Background())
-	if err != nil {
-		return &Rows{err: err}, err
-	}
-
-	rows, err := c.QueryEx(ctx, sql, options, args...)
-	if err == nil {
-		rows.c = c
-	} else {
-		c.Release()
-	}
-
-	return rows, err
-}
-
-func (p *Pool) QueryRow(sql string, args ...interface{}) *Row {
-	c, err := p.Acquire(context.Background())
+func (p *Pool) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+	c, err := p.Acquire(ctx)
 	if err != nil {
 		return &Row{err: err}
 	}
 
-	row := c.QueryRow(sql, args...)
-	row.c = c
-	return row
-}
-
-func (p *Pool) QueryRowEx(ctx context.Context, sql string, options *pgx.QueryExOptions, args ...interface{}) *Row {
-	c, err := p.Acquire(context.Background())
-	if err != nil {
-		return &Row{err: err}
-	}
-
-	row := c.QueryRowEx(ctx, sql, options, args...)
+	row := c.QueryRow(ctx, sql, optionsAndArgs...)
 	row.c = c
 	return row
 }

@@ -88,14 +88,14 @@ func Example_CustomType() {
 	})
 
 	p := &Point{}
-	err = conn.QueryRow("select null::point").Scan(p)
+	err = conn.QueryRow(context.Background(), "select null::point").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println(p)
 
-	err = conn.QueryRow("select point(1.5,2.5)").Scan(p)
+	err = conn.QueryRow(context.Background(), "select point(1.5,2.5)").Scan(p)
 	if err != nil {
 		fmt.Println(err)
 		return

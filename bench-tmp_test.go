@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"context"
 	"os"
 	"testing"
 )
@@ -18,7 +19,7 @@ func BenchmarkPgtypeInt4ParseBinary(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		var n int32
 
-		rows, err := conn.Query("selectBinary")
+		rows, err := conn.Query(context.Background(), "selectBinary")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -47,7 +48,7 @@ func BenchmarkPgtypeInt4EncodeBinary(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		rows, err := conn.Query("encodeBinary", int32(i), int32(i), int32(i), int32(i), int32(i), int32(i), int32(i))
+		rows, err := conn.Query(context.Background(), "encodeBinary", int32(i), int32(i), int32(i), int32(i), int32(i), int32(i), int32(i))
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -53,7 +53,7 @@ func TestPoolQuery(t *testing.T) {
 	waitForReleaseToComplete()
 
 	// Test expected pool behavior
-	rows, err := pool.Query("select generate_series(1,$1)", 10)
+	rows, err := pool.Query(context.Background(), "select generate_series(1,$1)", 10)
 	require.NoError(t, err)
 
 	stats := pool.Stat()
@@ -68,33 +68,6 @@ func TestPoolQuery(t *testing.T) {
 	assert.Equal(t, 0, stats.AcquiredConns())
 	assert.Equal(t, 1, stats.TotalConns())
 
-}
-
-func TestPoolQueryEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	// Test common usage
-	testQueryEx(t, pool)
-	waitForReleaseToComplete()
-
-	// Test expected pool behavior
-
-	rows, err := pool.QueryEx(context.Background(), "select generate_series(1,$1)", nil, 10)
-	require.NoError(t, err)
-
-	stats := pool.Stat()
-	assert.Equal(t, 1, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
-
-	rows.Close()
-	assert.NoError(t, rows.Err())
-	waitForReleaseToComplete()
-
-	stats = pool.Stat()
-	assert.Equal(t, 0, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
 }
 
 func TestPoolQueryRow(t *testing.T) {
@@ -103,19 +76,6 @@ func TestPoolQueryRow(t *testing.T) {
 	defer pool.Close()
 
 	testQueryRow(t, pool)
-	waitForReleaseToComplete()
-
-	stats := pool.Stat()
-	assert.Equal(t, 0, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
-}
-
-func TestPoolQueryRowEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	testQueryRowEx(t, pool)
 	waitForReleaseToComplete()
 
 	stats := pool.Stat()
@@ -222,9 +182,7 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 		go func() {
 			defer func() { done <- true }()
 			testQuery(t, pool)
-			testQueryEx(t, pool)
 			testQueryRow(t, pool)
-			testQueryRowEx(t, pool)
 		}()
 	}
 

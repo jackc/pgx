@@ -229,7 +229,7 @@ where (
 	)`
 	)
 
-	nameOIDs, err := connInfoFromRows(c.Query(namedOIDQuery))
+	nameOIDs, err := connInfoFromRows(c.Query(context.TODO(), namedOIDQuery))
 	if err != nil {
 		return nil, err
 	}
@@ -277,7 +277,7 @@ func (c *Conn) initConnInfo() (err error) {
 // initConnInfoEnumArray introspects for arrays of enums and registers a data type for them.
 func (c *Conn) initConnInfoEnumArray(cinfo *pgtype.ConnInfo) error {
 	nameOIDs := make(map[string]pgtype.OID, 16)
-	rows, err := c.Query(`select t.oid, t.typname
+	rows, err := c.Query(context.TODO(), `select t.oid, t.typname
 from pg_type t
   join pg_type base_type on t.typelem=base_type.oid
 where t.typtype = 'b'
@@ -321,7 +321,7 @@ func (c *Conn) initConnInfoDomains(cinfo *pgtype.ConnInfo) error {
 
 	domains := make([]*domain, 0, 16)
 
-	rows, err := c.Query(`select t.oid, t.typname, t.typbasetype
+	rows, err := c.Query(context.TODO(), `select t.oid, t.typname, t.typbasetype
 from pg_type t
   join pg_type base_type on t.typbasetype=base_type.oid
 where t.typtype = 'd'
@@ -414,7 +414,7 @@ func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
 			nameOIDs map[string]pgtype.OID
 		)
 
-		if nameOIDs, err = connInfoFromRows(c.Query(`select oid, typname from pg_catalog.pg_type`)); err != nil {
+		if nameOIDs, err = connInfoFromRows(c.Query(context.TODO(), `select oid, typname from pg_catalog.pg_type`)); err != nil {
 			return nil, err
 		}
 

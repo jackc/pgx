@@ -33,18 +33,6 @@ func TestConnQuery(t *testing.T) {
 	testQuery(t, c)
 }
 
-func TestConnQueryEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	c, err := pool.Acquire(context.Background())
-	require.NoError(t, err)
-	defer c.Release()
-
-	testQueryEx(t, c)
-}
-
 func TestConnQueryRow(t *testing.T) {
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
@@ -55,16 +43,4 @@ func TestConnQueryRow(t *testing.T) {
 	defer c.Release()
 
 	testQueryRow(t, c)
-}
-
-func TestConnlQueryRowEx(t *testing.T) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	defer pool.Close()
-
-	c, err := pool.Acquire(context.Background())
-	require.NoError(t, err)
-	defer c.Release()
-
-	testQueryRowEx(t, c)
 }
