@@ -461,6 +461,10 @@ func (c *Conn) Close() error {
 	return err
 }
 
+func (c *Conn) TxStatus() byte {
+	return c.pgConn.TxStatus
+}
+
 // ParameterStatus returns the value of a parameter reported by the server (e.g.
 // server_version). Returns an empty string for unknown parameters.
 func (c *Conn) ParameterStatus(key string) string {

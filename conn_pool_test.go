@@ -226,97 +226,6 @@ func TestPoolNonBlockingConnections(t *testing.T) {
 
 }
 
-func TestAcquireTimeoutSanity(t *testing.T) {
-	t.Parallel()
-
-	config := pgx.ConnPoolConfig{
-		ConnConfig:     mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")),
-		MaxConnections: 1,
-	}
-
-	// case 1: default 0 value
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Expected NewConnPool with default config.AcquireTimeout not to fail, instead it failed with '%v'", err)
-	}
-	pool.Close()
-
-	// case 2: negative value
-	config.AcquireTimeout = -1 * time.Second
-	_, err = pgx.NewConnPool(config)
-	if err == nil {
-		t.Fatal("Expected NewConnPool with negative config.AcquireTimeout to fail, instead it did not")
-	}
-
-	// case 3: positive value
-	config.AcquireTimeout = 1 * time.Second
-	pool, err = pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Expected NewConnPool with positive config.AcquireTimeout not to fail, instead it failed with '%v'", err)
-	}
-	defer pool.Close()
-}
-
-func TestPoolWithAcquireTimeoutSet(t *testing.T) {
-	t.Parallel()
-
-	connAllocTimeout := 2 * time.Second
-	config := pgx.ConnPoolConfig{
-		ConnConfig:     mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE")),
-		MaxConnections: 1,
-		AcquireTimeout: connAllocTimeout,
-	}
-
-	pool, err := pgx.NewConnPool(config)
-	if err != nil {
-		t.Fatalf("Unable to create connection pool: %v", err)
-	}
-	defer pool.Close()
-
-	// Consume all connections ...
-	allConnections := acquireAllConnections(t, pool, config.MaxConnections)
-	defer releaseAllConnections(pool, allConnections)
-
-	// ... then try to consume 1 more. It should fail after a short timeout.
-	_, timeTaken, err := acquireWithTimeTaken(pool)
-
-	if err == nil || err != pgx.ErrAcquireTimeout {
-		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
-	}
-	if timeTaken < connAllocTimeout {
-		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
-	}
-}
-
-func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
-	t.Parallel()
-
-	maxConnections := 1
-	pool := createConnPool(t, maxConnections)
-	defer pool.Close()
-
-	// Consume all connections ...
-	allConnections := acquireAllConnections(t, pool, maxConnections)
-
-	// ... then try to consume 1 more. It should hang forever.
-	// To unblock it we release the previously taken connection in a goroutine.
-	stopDeadWaitTimeout := 5 * time.Second
-	timer := time.AfterFunc(stopDeadWaitTimeout+100*time.Millisecond, func() {
-		releaseAllConnections(pool, allConnections)
-	})
-	defer timer.Stop()
-
-	conn, timeTaken, err := acquireWithTimeTaken(pool)
-	if err == nil {
-		pool.Release(conn)
-	} else {
-		t.Fatalf("Expected error to be nil, instead it was '%v'", err)
-	}
-	if timeTaken < stopDeadWaitTimeout {
-		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", stopDeadWaitTimeout, timeTaken)
-	}
-}
-
 func TestPoolErrClosedPool(t *testing.T) {
 	t.Parallel()
 
@@ -331,47 +240,6 @@ func TestPoolErrClosedPool(t *testing.T) {
 
 	if err == nil || err != pgx.ErrClosedPool {
 		t.Fatalf("Expected error to be pgx.ErrClosedPool, instead it was '%v'", err)
-	}
-}
-
-func TestPoolReleaseWithTransactions(t *testing.T) {
-	t.Parallel()
-
-	pool := createConnPool(t, 2)
-	defer pool.Close()
-
-	conn, err := pool.Acquire()
-	if err != nil {
-		t.Fatalf("Unable to acquire connection: %v", err)
-	}
-	mustExec(t, conn, "begin")
-	if _, err = conn.Exec(context.Background(), "selct"); err == nil {
-		t.Fatal("Did not receive expected error")
-	}
-
-	if conn.TxStatus() != 'E' {
-		t.Fatalf("Expected TxStatus to be 'E', instead it was '%c'", conn.TxStatus())
-	}
-
-	pool.Release(conn)
-
-	if conn.TxStatus() != 'I' {
-		t.Fatalf("Expected release to rollback errored transaction, but it did not: '%c'", conn.TxStatus())
-	}
-
-	conn, err = pool.Acquire()
-	if err != nil {
-		t.Fatalf("Unable to acquire connection: %v", err)
-	}
-	mustExec(t, conn, "begin")
-	if conn.TxStatus() != 'T' {
-		t.Fatalf("Expected txStatus to be 'T', instead it was '%c'", conn.TxStatus())
-	}
-
-	pool.Release(conn)
-
-	if conn.TxStatus() != 'I' {
-		t.Fatalf("Expected release to rollback uncommitted transaction, but it did not: '%c'", conn.TxStatus())
 	}
 }
 
@@ -832,37 +700,6 @@ func TestConnPoolQueryRow(t *testing.T) {
 	stats := pool.Stat()
 	if stats.CurrentConnections != 1 || stats.AvailableConnections != 1 {
 		t.Fatalf("Unexpected connection pool stats: %v", stats)
-	}
-}
-
-func TestConnPoolExec(t *testing.T) {
-	t.Parallel()
-
-	pool := createConnPool(t, 2)
-	defer pool.Close()
-
-	results, err := pool.Exec(context.Background(), "create temporary table foo(id integer primary key);")
-	if err != nil {
-		t.Fatalf("Unexpected error from pool.Exec: %v", err)
-	}
-	if string(results) != "CREATE TABLE" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
-
-	results, err = pool.Exec(context.Background(), "insert into foo(id) values($1)", 1)
-	if err != nil {
-		t.Fatalf("Unexpected error from pool.Exec: %v", err)
-	}
-	if string(results) != "INSERT 0 1" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
-
-	results, err = pool.Exec(context.Background(), "drop table foo;")
-	if err != nil {
-		t.Fatalf("Unexpected error from pool.Exec: %v", err)
-	}
-	if string(results) != "DROP TABLE" {
-		t.Errorf("Unexpected results from Exec: %v", results)
 	}
 }
 
