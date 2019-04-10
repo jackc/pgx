@@ -160,7 +160,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	}
 
 	// Commit the first transaction
-	err = tx.Commit()
+	err = tx.Commit(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

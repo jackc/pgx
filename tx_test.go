@@ -36,7 +36,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(context.Background())
 	if err != nil {
 		t.Fatalf("tx.Commit failed: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 		t.Fatal("Unexpected success")
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(context.Background())
 	if err != pgx.ErrTxCommitRollback {
 		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
 	}
@@ -117,13 +117,13 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BeginEx failed: %v", err)
 	}
-	defer tx1.Rollback()
+	defer tx1.Rollback(context.Background())
 
 	tx2, err := c2.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
 		t.Fatalf("BeginEx failed: %v", err)
 	}
-	defer tx2.Rollback()
+	defer tx2.Rollback(context.Background())
 
 	_, err = tx1.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
 	if err != nil {
@@ -135,12 +135,12 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 		t.Fatalf("Exec failed: %v", err)
 	}
 
-	err = tx1.Commit()
+	err = tx1.Commit(context.Background())
 	if err != nil {
 		t.Fatalf("Commit failed: %v", err)
 	}
 
-	err = tx2.Commit()
+	err = tx2.Commit(context.Background())
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "40001" {
 		t.Fatalf("Expected serialization error 40001, got %#v", err)
 	}
@@ -173,7 +173,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
-	err = tx.Rollback()
+	err = tx.Rollback(context.Background())
 	if err != nil {
 		t.Fatalf("tx.Rollback failed: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestBeginExIsoLevels(t *testing.T) {
 			t.Errorf("Expected to be in isolation level %v but was %v", iso, level)
 		}
 
-		err = tx.Rollback()
+		err = tx.Rollback(context.Background())
 		if err != nil {
 			t.Fatalf("tx.Rollback failed: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestBeginExReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("conn.BeginEx failed: %v", err)
 	}
-	defer tx.Rollback()
+	defer tx.Rollback(context.Background())
 
 	_, err = conn.Exec(context.Background(), "create table foo(id serial primary key)")
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "25006" {
@@ -247,7 +247,7 @@ func TestTxStatus(t *testing.T) {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
 	}
 
-	if err := tx.Rollback(); err != nil {
+	if err := tx.Rollback(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -294,7 +294,7 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
 	}
 
-	if err := tx.Rollback(); err != nil {
+	if err := tx.Rollback(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -319,7 +319,7 @@ func TestTxErr(t *testing.T) {
 		t.Fatal("Unexpected success")
 	}
 
-	if err := tx.Commit(); err != pgx.ErrTxCommitRollback {
+	if err := tx.Commit(context.Background()); err != pgx.ErrTxCommitRollback {
 		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
 	}
 

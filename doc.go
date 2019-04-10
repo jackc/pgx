@@ -184,12 +184,12 @@ can create a transaction with a specified isolation level.
     // the tx commits successfully, this is a no-op
     defer tx.Rollback()
 
-    _, err = tx.Exec("insert into foo(id) values (1)")
+    _, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
     if err != nil {
         return err
     }
 
-    err = tx.Commit()
+    err = tx.Commit(context.Background())
     if err != nil {
         return err
     }
