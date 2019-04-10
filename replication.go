@@ -203,7 +203,7 @@ func (rc *ReplicationConn) SendStandbyStatus(k *StandbyStatus) (err error) {
 }
 
 func (rc *ReplicationConn) Close() error {
-	return rc.c.Close()
+	return rc.c.Close(context.TODO())
 }
 
 func (rc *ReplicationConn) IsAlive() bool {

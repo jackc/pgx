@@ -199,7 +199,7 @@ func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo)
 	if c.ConnInfo == minimalConnInfo {
 		err = c.initConnInfo()
 		if err != nil {
-			c.Close()
+			c.Close(ctx)
 			return nil, err
 		}
 	}
@@ -435,7 +435,7 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
-func (c *Conn) Close() error {
+func (c *Conn) Close(ctx context.Context) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -444,7 +444,7 @@ func (c *Conn) Close() error {
 	}
 	c.status = connStatusClosed
 
-	err := c.pgConn.Close(context.TODO())
+	err := c.pgConn.Close(ctx)
 	c.causeOfDeath = errors.New("Closed")
 	if c.shouldLog(LogLevelInfo) {
 		c.log(LogLevelInfo, "closed connection", nil)

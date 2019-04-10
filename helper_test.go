@@ -40,7 +40,7 @@ func mustReplicationConnect(t testing.TB, config pgx.ConnConfig) *pgx.Replicatio
 }
 
 func closeConn(t testing.TB, conn *pgx.Conn) {
-	err := conn.Close()
+	err := conn.Close(context.Background())
 	if err != nil {
 		t.Fatalf("conn.Close unexpectedly failed: %v", err)
 	}

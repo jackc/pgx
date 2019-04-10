@@ -160,7 +160,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	c.Conn().Close()
+	c.Conn().Close(ctx)
 
 	assert.Equal(t, 1, pool.Stat().TotalConns())
 
