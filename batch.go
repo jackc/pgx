@@ -19,7 +19,6 @@ type batchItem struct {
 // unnecessary network round trips.
 type Batch struct {
 	conn                   *Conn
-	connPool               *ConnPool
 	items                  []*batchItem
 	resultsRead            int
 	pendingCommandComplete bool
@@ -188,8 +187,4 @@ func (b *Batch) die(err error) {
 
 	b.err = err
 	b.conn.die(err)
-
-	if b.conn != nil && b.connPool != nil {
-		b.connPool.Release(b.conn)
-	}
 }

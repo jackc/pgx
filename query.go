@@ -44,7 +44,6 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 // calling Next() until it returns false, or when a fatal error occurs.
 type Rows struct {
 	conn       *Conn
-	connPool   *ConnPool
 	batch      *Batch
 	values     [][]byte
 	fields     []FieldDescription
@@ -104,10 +103,6 @@ func (rows *Rows) Close() {
 
 	if rows.batch != nil && rows.err != nil {
 		rows.batch.die(rows.err)
-	}
-
-	if rows.connPool != nil {
-		rows.connPool.Release(rows.conn)
 	}
 }
 
