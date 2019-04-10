@@ -60,7 +60,7 @@ func listen() {
 	}
 	defer pool.Release(conn)
 
-	conn.Listen("chat")
+	conn.Exec(context.Background(), "listen chat")
 
 	for {
 		notification, err := conn.WaitForNotification(context.Background())

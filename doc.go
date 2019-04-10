@@ -220,7 +220,7 @@ pgx can listen to the PostgreSQL notification system with the
 WaitForNotification function. It takes a maximum time to wait for a
 notification.
 
-    err := conn.Listen("channelname")
+    err := conn.Exec("listen channelname")
     if err != nil {
         return nil
     }

@@ -66,7 +66,6 @@ type Conn struct {
 	wbuf               []byte
 	config             *ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
-	channels           map[string]struct{}
 	logger             Logger
 	logLevel           LogLevel
 	fp                 *fastpath
@@ -191,7 +190,6 @@ func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo)
 	}
 
 	c.preparedStatements = make(map[string]*PreparedStatement)
-	c.channels = make(map[string]struct{})
 	c.cancelQueryCompleted = make(chan struct{})
 	close(c.cancelQueryCompleted)
 	c.doneChan = make(chan struct{})
@@ -571,29 +569,6 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 
 	_, err = c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
 	return err
-}
-
-// Listen establishes a PostgreSQL listen/notify to channel
-func (c *Conn) Listen(channel string) error {
-	_, err := c.Exec(context.TODO(), "listen "+quoteIdentifier(channel))
-	if err != nil {
-		return err
-	}
-
-	c.channels[channel] = struct{}{}
-
-	return nil
-}
-
-// Unlisten unsubscribes from a listen channel
-func (c *Conn) Unlisten(channel string) error {
-	_, err := c.Exec(context.TODO(), "unlisten "+quoteIdentifier(channel))
-	if err != nil {
-		return err
-	}
-
-	delete(c.channels, channel)
-	return nil
 }
 
 func (c *Conn) IsAlive() bool {

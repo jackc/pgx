@@ -617,7 +617,7 @@ func TestSetLogger(t *testing.T) {
 		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
 	}
 
-	if err := conn.Listen("foo"); err != nil {
+	if _, err := conn.Exec(context.Background(), "listen foo"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -631,7 +631,7 @@ func TestSetLogger(t *testing.T) {
 		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", l1, oldLogger)
 	}
 
-	if err := conn.Listen("bar"); err != nil {
+	if _, err := conn.Exec(context.Background(), "listen bar"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -657,7 +657,7 @@ func TestSetLogLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := conn.Listen("foo"); err != nil {
+	if _, err := conn.Exec(context.Background(), "listen foo"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -669,7 +669,7 @@ func TestSetLogLevel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := conn.Listen("bar"); err != nil {
+	if _, err := conn.Exec(context.Background(), "listen bar"); err != nil {
 		t.Fatal(err)
 	}
 
