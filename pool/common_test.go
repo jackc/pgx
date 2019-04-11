@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/pool"
+	"github.com/jackc/pgx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,7 +37,7 @@ func testExec(t *testing.T, db execer) {
 }
 
 type queryer interface {
-	Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*pool.Rows, error)
+	Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error)
 }
 
 func testQuery(t *testing.T, db queryer) {
@@ -59,7 +59,7 @@ func testQuery(t *testing.T, db queryer) {
 }
 
 type queryRower interface {
-	QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *pool.Row
+	QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row
 }
 
 func testQueryRow(t *testing.T, db queryRower) {

@@ -340,7 +340,7 @@ func (rc *ReplicationConn) WaitForReplicationMessage(ctx context.Context) (*Repl
 // NOTE: Because this is a replication mode connection, we don't have
 // type names, so the field descriptions in the result will have only
 // OIDs and no DataTypeName values
-func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
+func (rc *ReplicationConn) IdentifySystem() (r Rows, err error) {
 	return nil, errors.New("TODO")
 	// return rc.sendReplicationModeQuery("IDENTIFY_SYSTEM")
 }
@@ -356,7 +356,7 @@ func (rc *ReplicationConn) IdentifySystem() (r *Rows, err error) {
 // NOTE: Because this is a replication mode connection, we don't have
 // type names, so the field descriptions in the result will have only
 // OIDs and no DataTypeName values
-func (rc *ReplicationConn) TimelineHistory(timeline int) (r *Rows, err error) {
+func (rc *ReplicationConn) TimelineHistory(timeline int) (r Rows, err error) {
 	return nil, errors.New("TODO")
 	// return rc.sendReplicationModeQuery(fmt.Sprintf("TIMELINE_HISTORY %d", timeline))
 }

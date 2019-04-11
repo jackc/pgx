@@ -25,7 +25,7 @@ func (f *fastpath) addFunction(name string, oid pgtype.OID) {
 	f.fns[name] = oid
 }
 
-func (f *fastpath) addFunctions(rows *Rows) error {
+func (f *fastpath) addFunctions(rows Rows) error {
 	for rows.Next() {
 		var name string
 		var oid pgtype.OID

@@ -144,7 +144,7 @@ func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 
 // QueryResults reads the results from the next query in the batch as if the
 // query has been sent with Query.
-func (b *Batch) QueryResults() (*Rows, error) {
+func (b *Batch) QueryResults() (Rows, error) {
 	rows := b.conn.getRows("batch query", nil)
 
 	if !b.mrr.NextResult() {
@@ -162,9 +162,9 @@ func (b *Batch) QueryResults() (*Rows, error) {
 
 // QueryRowResults reads the results from the next query in the batch as if the
 // query has been sent with QueryRow.
-func (b *Batch) QueryRowResults() *Row {
+func (b *Batch) QueryRowResults() Row {
 	rows, _ := b.QueryResults()
-	return (*Row)(rows)
+	return (*connRow)(rows.(*connRows))
 
 }
 

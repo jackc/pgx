@@ -14,14 +14,45 @@ import (
 	"github.com/jackc/pgx/pgtype"
 )
 
-// Row is a convenience wrapper over Rows that is returned by QueryRow.
-type Row Rows
+// Rows is the result set returned from *Conn.Query. Rows must be closed before
+// the *Conn can be used again. Rows are closed by explicitly calling Close(),
+// calling Next() until it returns false, or when a fatal error occurs.
+type Rows interface {
+	// Close closes the rows, making the connection ready for use again. It is safe
+	// to call Close after rows is already closed.
+	Close()
 
-// Scan works the same as (*Rows Scan) with the following exceptions. If no
-// rows were found it returns ErrNoRows. If multiple rows are returned it
-// ignores all but the first.
-func (r *Row) Scan(dest ...interface{}) (err error) {
-	rows := (*Rows)(r)
+	Err() error
+	FieldDescriptions() []FieldDescription
+
+	// Next prepares the next row for reading. It returns true if there is another
+	// row and false if no more rows are available. It automatically closes rows
+	// when all rows are read.
+	Next() bool
+
+	// Scan reads the values from the current row into dest values positionally.
+	// dest can include pointers to core types, values implementing the Scanner
+	// interface, []byte, and nil. []byte will skip the decoding process and directly
+	// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
+	Scan(dest ...interface{}) error
+
+	// Values returns an array of the row values
+	Values() ([]interface{}, error)
+}
+
+// Row is a convenience wrapper over Rows that is returned by QueryRow.
+type Row interface {
+	// Scan works the same as Rows. with the following exceptions. If no
+	// rows were found it returns ErrNoRows. If multiple rows are returned it
+	// ignores all but the first.
+	Scan(dest ...interface{}) error
+}
+
+// connRow implements the Row interface for Conn.QueryRow.
+type connRow connRows
+
+func (r *connRow) Scan(dest ...interface{}) (err error) {
+	rows := (*connRows)(r)
 
 	if rows.Err() != nil {
 		return rows.Err()
@@ -39,10 +70,8 @@ func (r *Row) Scan(dest ...interface{}) (err error) {
 	return rows.Err()
 }
 
-// Rows is the result set returned from *Conn.Query. Rows must be closed before
-// the *Conn can be used again. Rows are closed by explicitly calling Close(),
-// calling Next() until it returns false, or when a fatal error occurs.
-type Rows struct {
+// connRows implements the Rows interface for Conn.Query.
+type connRows struct {
 	conn       *Conn
 	batch      *Batch
 	values     [][]byte
@@ -60,13 +89,11 @@ type Rows struct {
 	multiResultReader *pgconn.MultiResultReader
 }
 
-func (rows *Rows) FieldDescriptions() []FieldDescription {
+func (rows *connRows) FieldDescriptions() []FieldDescription {
 	return rows.fields
 }
 
-// Close closes the rows, making the connection ready for use again. It is safe
-// to call Close after rows is already closed.
-func (rows *Rows) Close() {
+func (rows *connRows) Close() {
 	if rows.closed {
 		return
 	}
@@ -106,13 +133,13 @@ func (rows *Rows) Close() {
 	}
 }
 
-func (rows *Rows) Err() error {
+func (rows *connRows) Err() error {
 	return rows.err
 }
 
 // fatal signals an error occurred after the query was sent to the server. It
 // closes the rows automatically.
-func (rows *Rows) fatal(err error) {
+func (rows *connRows) fatal(err error) {
 	if rows.err != nil {
 		return
 	}
@@ -121,10 +148,7 @@ func (rows *Rows) fatal(err error) {
 	rows.Close()
 }
 
-// Next prepares the next row for reading. It returns true if there is another
-// row and false if no more rows are available. It automatically closes rows
-// when all rows are read.
-func (rows *Rows) Next() bool {
+func (rows *connRows) Next() bool {
 	if rows.closed {
 		return false
 	}
@@ -147,7 +171,7 @@ func (rows *Rows) Next() bool {
 	}
 }
 
-func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
+func (rows *connRows) nextColumn() ([]byte, *FieldDescription, bool) {
 	if rows.closed {
 		return nil, nil, false
 	}
@@ -162,11 +186,7 @@ func (rows *Rows) nextColumn() ([]byte, *FieldDescription, bool) {
 	return buf, fd, true
 }
 
-// Scan reads the values from the current row into dest values positionally.
-// dest can include pointers to core types, values implementing the Scanner
-// interface, []byte, and nil. []byte will skip the decoding process and directly
-// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
-func (rows *Rows) Scan(dest ...interface{}) (err error) {
+func (rows *connRows) Scan(dest ...interface{}) (err error) {
 	if len(rows.fields) != len(dest) {
 		err = errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
 		rows.fatal(err)
@@ -243,8 +263,7 @@ func (rows *Rows) Scan(dest ...interface{}) (err error) {
 	return nil
 }
 
-// Values returns an array of the row values
-func (rows *Rows) Values() ([]interface{}, error) {
+func (rows *connRows) Values() ([]interface{}, error) {
 	if rows.closed {
 		return nil, errors.New("rows is closed")
 	}
@@ -307,9 +326,9 @@ func (e scanArgError) Error() string {
 	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
 }
 
-func (c *Conn) getRows(sql string, args []interface{}) *Rows {
+func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	if len(c.preallocatedRows) == 0 {
-		c.preallocatedRows = make([]Rows, 64)
+		c.preallocatedRows = make([]connRows, 64)
 	}
 
 	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
@@ -333,10 +352,9 @@ type QueryExOptions struct {
 	SimpleProtocol bool
 }
 
-// Query executes sql with args. If there is an error the returned *Rows will
-// be returned in an error state. So it is allowed to ignore the error returned
-// from Query and handle it in *Rows.
-func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (rows *Rows, err error) {
+// Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
+// allowed to ignore the error returned from Query and handle it in Rows.
+func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (Rows, error) {
 	c.lastStmtSent = false
 	// rows = c.getRows(sql, args)
 
@@ -349,7 +367,7 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 		}
 	}
 
-	rows = &Rows{
+	rows := &connRows{
 		conn:      c,
 		startTime: time.Now(),
 		sql:       sql,
@@ -368,6 +386,7 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	// 	return rows, rows.err
 	// }
 
+	var err error
 	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
 		sql, err = c.sanitizeForSimpleQuery(sql, args...)
 		if err != nil {
@@ -519,9 +538,9 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
-// querying is deferred until calling Scan on the returned *Row. That *Row will
+// querying is deferred until calling Scan on the returned Row. That Row will
 // error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) Row {
 	rows, _ := c.Query(ctx, sql, optionsAndArgs...)
-	return (*Row)(rows)
+	return (*connRow)(rows.(*connRows))
 }

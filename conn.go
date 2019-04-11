@@ -70,7 +70,7 @@ type Conn struct {
 	logLevel           LogLevel
 	fp                 *fastpath
 	poolResetCount     int
-	preallocatedRows   []Rows
+	preallocatedRows   []connRows
 
 	mux          sync.Mutex
 	status       byte // One of connStatus* constants
@@ -681,7 +681,7 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return err
 }
 
-func connInfoFromRows(rows *Rows, err error) (map[string]pgtype.OID, error) {
+func connInfoFromRows(rows Rows, err error) (map[string]pgtype.OID, error) {
 	if err != nil {
 		return nil, err
 	}
