@@ -4,13 +4,30 @@ import (
 	"github.com/jackc/pgx"
 )
 
-type Rows struct {
-	r   *pgx.Rows
+type errRows struct {
+	err error
+}
+
+func (errRows) Close()                                    {}
+func (e errRows) Err() error                              { return e.err }
+func (errRows) FieldDescriptions() []pgx.FieldDescription { return nil }
+func (errRows) Next() bool                                { return false }
+func (e errRows) Scan(dest ...interface{}) error          { return e.err }
+func (e errRows) Values() ([]interface{}, error)          { return nil, e.err }
+
+type errRow struct {
+	err error
+}
+
+func (e errRow) Scan(dest ...interface{}) error { return e.err }
+
+type poolRows struct {
+	r   pgx.Rows
 	c   *Conn
 	err error
 }
 
-func (rows *Rows) Close() {
+func (rows *poolRows) Close() {
 	rows.r.Close()
 	if rows.c != nil {
 		rows.c.Release()
@@ -18,18 +35,18 @@ func (rows *Rows) Close() {
 	}
 }
 
-func (rows *Rows) Err() error {
+func (rows *poolRows) Err() error {
 	if rows.err != nil {
 		return rows.err
 	}
 	return rows.r.Err()
 }
 
-func (rows *Rows) FieldDescriptions() []pgx.FieldDescription {
+func (rows *poolRows) FieldDescriptions() []pgx.FieldDescription {
 	return rows.r.FieldDescriptions()
 }
 
-func (rows *Rows) Next() bool {
+func (rows *poolRows) Next() bool {
 	if rows.err != nil {
 		return false
 	}
@@ -41,7 +58,7 @@ func (rows *Rows) Next() bool {
 	return n
 }
 
-func (rows *Rows) Scan(dest ...interface{}) error {
+func (rows *poolRows) Scan(dest ...interface{}) error {
 	err := rows.r.Scan(dest...)
 	if err != nil {
 		rows.Close()
@@ -49,7 +66,7 @@ func (rows *Rows) Scan(dest ...interface{}) error {
 	return err
 }
 
-func (rows *Rows) Values() ([]interface{}, error) {
+func (rows *poolRows) Values() ([]interface{}, error) {
 	values, err := rows.r.Values()
 	if err != nil {
 		rows.Close()
@@ -57,13 +74,13 @@ func (rows *Rows) Values() ([]interface{}, error) {
 	return values, err
 }
 
-type Row struct {
-	r   *pgx.Row
+type poolRow struct {
+	r   pgx.Row
 	c   *Conn
 	err error
 }
 
-func (row *Row) Scan(dest ...interface{}) error {
+func (row *poolRow) Scan(dest ...interface{}) error {
 	if row.err != nil {
 		return row.err
 	}

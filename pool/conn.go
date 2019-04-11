@@ -50,23 +50,19 @@ func (c *Conn) Release() {
 }
 
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
-	conn := c.res.Value().(*pgx.Conn)
-	return conn.Exec(ctx, sql, arguments...)
+	return c.Conn().Exec(ctx, sql, arguments...)
 }
 
-func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*Rows, error) {
-	r, err := c.res.Value().(*pgx.Conn).Query(ctx, sql, optionsAndArgs...)
-	rows := &Rows{r: r, err: err}
-	return rows, err
+func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error) {
+	return c.Conn().Query(ctx, sql, optionsAndArgs...)
 }
 
-func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
-	r := c.res.Value().(*pgx.Conn).QueryRow(ctx, sql, optionsAndArgs...)
-	return &Row{r: r}
+func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row {
+	return c.Conn().QueryRow(ctx, sql, optionsAndArgs...)
 }
 
 func (c *Conn) Begin() (*pgx.Tx, error) {
-	return c.res.Value().(*pgx.Conn).Begin()
+	return c.Conn().Begin()
 }
 
 func (c *Conn) Conn() *pgx.Conn {

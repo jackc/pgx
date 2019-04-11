@@ -38,10 +38,10 @@ func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (p
 	return tx.c.Exec(ctx, sql, arguments...)
 }
 
-func (tx *Tx) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*Rows, error) {
+func (tx *Tx) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error) {
 	return tx.c.Query(ctx, sql, optionsAndArgs...)
 }
 
-func (tx *Tx) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+func (tx *Tx) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row {
 	return tx.c.QueryRow(ctx, sql, optionsAndArgs...)
 }

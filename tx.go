@@ -172,20 +172,20 @@ func (tx *Tx) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOp
 }
 
 // Query delegates to the underlying *Conn
-func (tx *Tx) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (*Rows, error) {
+func (tx *Tx) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (Rows, error) {
 	if tx.status != TxStatusInProgress {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
-		return &Rows{closed: true, err: err}, err
+		return &connRows{closed: true, err: err}, err
 	}
 
 	return tx.conn.Query(ctx, sql, optionsAndArgs...)
 }
 
 // QueryRow delegates to the underlying *Conn
-func (tx *Tx) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) *Row {
+func (tx *Tx) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) Row {
 	rows, _ := tx.Query(ctx, sql, optionsAndArgs...)
-	return (*Row)(rows)
+	return (*connRow)(rows.(*connRows))
 }
 
 // CopyFrom delegates to the underlying *Conn
