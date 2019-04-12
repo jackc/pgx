@@ -724,6 +724,13 @@ func (c *Conn) LastStmtSent() bool {
 	return c.lastStmtSent
 }
 
+// PgConn returns the underlying *pgconn.PgConn. This is an escape hatch method that allows lower level access to the
+// PostgreSQL connection than pgx exposes.
+//
+// It is strongly recommended that the connection be idle (no in-progress queries) before the underlying *pgconn.PgConn
+// is used and the connection must be returned to the same state before any *pgx.Conn methods are again used.
+func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
+
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
