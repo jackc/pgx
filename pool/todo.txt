@@ -6,3 +6,10 @@ func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc C
 func (p *ConnPool) Deallocate(name string) (err error)
 func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error)
 func (p *ConnPool) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (*PreparedStatement, error)
+
+
+max conns
+max conn lifetime
+keep alive
+acquire hook (check based on idle time)
+release hook (do reset all?)
