@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -10,12 +11,12 @@ import (
 
 func TestEnumArrayTranscode(t *testing.T) {
 	setupConn := testutil.MustConnectPgx(t)
-	defer testutil.MustClose(t, setupConn)
+	defer testutil.MustCloseContext(t, setupConn)
 
-	if _, err := setupConn.Exec("drop type if exists color"); err != nil {
+	if _, err := setupConn.Exec(context.Background(), "drop type if exists color"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := setupConn.Exec("create type color as enum ('red', 'green', 'blue')"); err != nil {
+	if _, err := setupConn.Exec(context.Background(), "create type color as enum ('red', 'green', 'blue')"); err != nil {
 		t.Fatal(err)
 	}
 
