@@ -139,6 +139,19 @@ func (e ProtocolError) Error() string {
 // Connect establishes a connection with a PostgreSQL server with a connection string. See
 // pgconn.Connect for details.
 func Connect(ctx context.Context, connString string) (*Conn, error) {
+	connConfig, err := ParseConfig(connString)
+	if err != nil {
+		return nil, err
+	}
+	return connect(ctx, connConfig, minimalConnInfo)
+}
+
+// Connect establishes a connection with a PostgreSQL server with a configuration struct.
+func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
+	return connect(ctx, connConfig, minimalConnInfo)
+}
+
+func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
 		return nil, err
@@ -147,12 +160,7 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 		Config: *config,
 	}
 
-	return connect(ctx, connConfig, minimalConnInfo)
-}
-
-// Connect establishes a connection with a PostgreSQL server with a configuration struct.
-func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
-	return connect(ctx, connConfig, minimalConnInfo)
+	return connConfig, nil
 }
 
 func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
