@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 func TestHstoreArrayTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustClose(t, conn)
+	defer testutil.MustCloseContext(t, conn)
 
 	text := func(s string) pgtype.Text {
 		return pgtype.Text{String: s, Status: pgtype.Present}
@@ -77,7 +78,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		}
 
 		var result pgtype.HstoreArray
-		err := conn.QueryRow("test", vEncoder).Scan(&result)
+		err := conn.QueryRow(context.Background(), "test", vEncoder).Scan(&result)
 		if err != nil {
 			t.Errorf("%v: %v", fc.name, err)
 			continue
