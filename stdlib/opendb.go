@@ -47,7 +47,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 		conn *pgx.Conn
 	)
 
-	if conn, err = pgx.Connect(c.ConnConfig); err != nil {
+	if conn, err = pgx.ConnectConfig(ctx, &c.ConnConfig); err != nil {
 		return nil, err
 	}
 
