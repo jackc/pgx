@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -12,7 +13,7 @@ import (
 
 func TestRecordTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustClose(t, conn)
+	defer testutil.MustCloseContext(t, conn)
 
 	tests := []struct {
 		sql      string
@@ -91,7 +92,7 @@ func TestRecordTranscode(t *testing.T) {
 		ps.FieldDescriptions[0].FormatCode = pgx.BinaryFormatCode
 
 		var result pgtype.Record
-		if err := conn.QueryRow(psName).Scan(&result); err != nil {
+		if err := conn.QueryRow(context.Background(), psName).Scan(&result); err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
@@ -104,9 +105,9 @@ func TestRecordTranscode(t *testing.T) {
 
 func TestRecordWithUnknownOID(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustClose(t, conn)
+	defer testutil.MustCloseContext(t, conn)
 
-	_, err := conn.Exec(`drop type if exists floatrange;
+	_, err := conn.Exec(context.Background(), `drop type if exists floatrange;
 
 create type floatrange as range (
   subtype = float8,
@@ -115,10 +116,10 @@ create type floatrange as range (
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Exec("drop type floatrange")
+	defer conn.Exec(context.Background(), "drop type floatrange")
 
 	var result pgtype.Record
-	err = conn.QueryRow("select row('foo'::text, floatrange(1, 10), 'bar'::text)").Scan(&result)
+	err = conn.QueryRow(context.Background(), "select row('foo'::text, floatrange(1, 10), 'bar'::text)").Scan(&result)
 	if err == nil {
 		t.Errorf("expected error but none")
 	}

@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/pgtype"
@@ -15,7 +16,7 @@ func TestLineTranscode(t *testing.T) {
 
 	// line may exist but not be usable on 9.3 :(
 	var isPG93 bool
-	err := conn.QueryRow("select version() ~ '9.3'").Scan(&isPG93)
+	err := conn.QueryRow(context.Background(), "select version() ~ '9.3'").Scan(&isPG93)
 	if err != nil {
 		t.Fatal(err)
 	}

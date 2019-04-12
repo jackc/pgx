@@ -34,12 +34,7 @@ func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 }
 
 func MustConnectPgx(t testing.TB) *pgx.Conn {
-	config, err := pgx.ParseConnectionString(os.Getenv("PGX_TEST_DATABASE"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	conn, err := pgx.Connect(config)
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,6 +46,15 @@ func MustClose(t testing.TB, conn interface {
 	Close() error
 }) {
 	err := conn.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func MustCloseContext(t testing.TB, conn interface {
+	Close(context.Context) error
+}) {
+	err := conn.Close(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +106,7 @@ func TestSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []int
 
 func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	conn := MustConnectPgx(t)
-	defer MustClose(t, conn)
+	defer MustCloseContext(t, conn)
 
 	ps, err := conn.Prepare("test", fmt.Sprintf("select $1::%s", pgTypeName))
 	if err != nil {
@@ -133,7 +137,7 @@ func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 			}
 
 			result := reflect.New(reflect.TypeOf(derefV))
-			err := conn.QueryRow("test", ForceEncoder(v, fc.formatCode)).Scan(result.Interface())
+			err := conn.QueryRow(context.Background(), "test", ForceEncoder(v, fc.formatCode)).Scan(result.Interface())
 			if err != nil {
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}
@@ -147,7 +151,7 @@ func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 
 func TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	conn := MustConnectPgx(t)
-	defer MustClose(t, conn)
+	defer MustCloseContext(t, conn)
 
 	for i, v := range values {
 		// Derefence value if it is a pointer
@@ -158,7 +162,7 @@ func TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName str
 		}
 
 		result := reflect.New(reflect.TypeOf(derefV))
-		err := conn.QueryRowEx(
+		err := conn.QueryRow(
 			context.Background(),
 			fmt.Sprintf("select ($1)::%s", pgTypeName),
 			&pgx.QueryExOptions{SimpleProtocol: true},
@@ -223,7 +227,7 @@ func TestSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFunc f
 
 func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFunc func(a, b interface{}) bool) {
 	conn := MustConnectPgx(t)
-	defer MustClose(t, conn)
+	defer MustCloseContext(t, conn)
 
 	formats := []struct {
 		name       string
@@ -254,7 +258,7 @@ func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFun
 			}
 
 			result := reflect.New(reflect.TypeOf(derefV))
-			err = conn.QueryRow(psName).Scan(result.Interface())
+			err = conn.QueryRow(context.Background(), psName).Scan(result.Interface())
 			if err != nil {
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}
