@@ -257,21 +257,6 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 }
 
-func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {
-	if !c.conn.IsAlive() {
-		return nil, driver.ErrBadConn
-	}
-
-	args := valueToInterface(argsV)
-
-	rows, err := c.conn.Query(context.Background(), name, args...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Rows{rows: rows}, nil
-}
-
 func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []driver.NamedValue) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
