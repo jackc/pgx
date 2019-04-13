@@ -11,7 +11,7 @@ import (
 const (
 	BoolOID             = 16
 	ByteaOID            = 17
-	CharOID             = 18
+	QCharOID            = 18
 	NameOID             = 19
 	Int8OID             = 20
 	Int2OID             = 21
@@ -22,11 +22,19 @@ const (
 	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
+	PointOID            = 600
+	LsegOID             = 601
+	PathOID             = 602
+	BoxOID              = 603
+	PolygonOID          = 604
+	LineOID             = 628
 	CIDROID             = 650
 	CIDRArrayOID        = 651
 	Float4OID           = 700
 	Float8OID           = 701
+	CircleOID           = 718
 	UnknownOID          = 705
+	MacaddrOID          = 829
 	InetOID             = 869
 	BoolArrayOID        = 1000
 	Int2ArrayOID        = 1005
@@ -49,11 +57,21 @@ const (
 	DateArrayOID        = 1182
 	TimestamptzOID      = 1184
 	TimestamptzArrayOID = 1185
+	IntervalOID         = 1186
+	NumericArrayOID     = 1231
+	BitOID              = 1560
+	VarbitOID           = 1562
 	NumericOID          = 1700
 	RecordOID           = 2249
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
+	DaterangeOID        = 3812
+	Int4rangeOID        = 3904
+	NumrangeOID         = 3906
+	TsrangeOID          = 3908
+	TstzrangeOID        = 3910
+	Int8rangeOID        = 3926
 )
 
 type Status byte
@@ -155,11 +173,77 @@ type ConnInfo struct {
 }
 
 func NewConnInfo() *ConnInfo {
-	return &ConnInfo{
-		oidToDataType:         make(map[OID]*DataType, 256),
-		nameToDataType:        make(map[string]*DataType, 256),
-		reflectTypeToDataType: make(map[reflect.Type]*DataType, 256),
+	ci := &ConnInfo{
+		oidToDataType:         make(map[OID]*DataType, 128),
+		nameToDataType:        make(map[string]*DataType, 128),
+		reflectTypeToDataType: make(map[reflect.Type]*DataType, 128),
 	}
+
+	ci.RegisterDataType(DataType{Value: &ACLItemArray{}, Name: "_aclitem", OID: ACLItemArrayOID})
+	ci.RegisterDataType(DataType{Value: &BoolArray{}, Name: "_bool", OID: BoolArrayOID})
+	ci.RegisterDataType(DataType{Value: &BPCharArray{}, Name: "_bpchar", OID: BPCharArrayOID})
+	ci.RegisterDataType(DataType{Value: &ByteaArray{}, Name: "_bytea", OID: ByteaArrayOID})
+	ci.RegisterDataType(DataType{Value: &CIDRArray{}, Name: "_cidr", OID: CIDRArrayOID})
+	ci.RegisterDataType(DataType{Value: &DateArray{}, Name: "_date", OID: DateArrayOID})
+	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
+	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
+	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
+	ci.RegisterDataType(DataType{Value: &Int2Array{}, Name: "_int2", OID: Int2ArrayOID})
+	ci.RegisterDataType(DataType{Value: &Int4Array{}, Name: "_int4", OID: Int4ArrayOID})
+	ci.RegisterDataType(DataType{Value: &Int8Array{}, Name: "_int8", OID: Int8ArrayOID})
+	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
+	ci.RegisterDataType(DataType{Value: &TextArray{}, Name: "_text", OID: TextArrayOID})
+	ci.RegisterDataType(DataType{Value: &TimestampArray{}, Name: "_timestamp", OID: TimestampArrayOID})
+	ci.RegisterDataType(DataType{Value: &TimestamptzArray{}, Name: "_timestamptz", OID: TimestamptzArrayOID})
+	ci.RegisterDataType(DataType{Value: &UUIDArray{}, Name: "_uuid", OID: UUIDArrayOID})
+	ci.RegisterDataType(DataType{Value: &VarcharArray{}, Name: "_varchar", OID: VarcharArrayOID})
+	ci.RegisterDataType(DataType{Value: &ACLItem{}, Name: "aclitem", OID: ACLItemOID})
+	ci.RegisterDataType(DataType{Value: &Bit{}, Name: "bit", OID: BitOID})
+	ci.RegisterDataType(DataType{Value: &Bool{}, Name: "bool", OID: BoolOID})
+	ci.RegisterDataType(DataType{Value: &Box{}, Name: "box", OID: BoxOID})
+	ci.RegisterDataType(DataType{Value: &BPChar{}, Name: "bpchar", OID: BPCharOID})
+	ci.RegisterDataType(DataType{Value: &Bytea{}, Name: "bytea", OID: ByteaOID})
+	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
+	ci.RegisterDataType(DataType{Value: &CID{}, Name: "cid", OID: CIDOID})
+	ci.RegisterDataType(DataType{Value: &CIDR{}, Name: "cidr", OID: CIDROID})
+	ci.RegisterDataType(DataType{Value: &Circle{}, Name: "circle", OID: CircleOID})
+	ci.RegisterDataType(DataType{Value: &Date{}, Name: "date", OID: DateOID})
+	ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
+	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
+	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
+	ci.RegisterDataType(DataType{Value: &Inet{}, Name: "inet", OID: InetOID})
+	ci.RegisterDataType(DataType{Value: &Int2{}, Name: "int2", OID: Int2OID})
+	ci.RegisterDataType(DataType{Value: &Int4{}, Name: "int4", OID: Int4OID})
+	ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
+	ci.RegisterDataType(DataType{Value: &Int8{}, Name: "int8", OID: Int8OID})
+	ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
+	ci.RegisterDataType(DataType{Value: &Interval{}, Name: "interval", OID: IntervalOID})
+	ci.RegisterDataType(DataType{Value: &JSON{}, Name: "json", OID: JSONOID})
+	ci.RegisterDataType(DataType{Value: &JSONB{}, Name: "jsonb", OID: JSONBOID})
+	ci.RegisterDataType(DataType{Value: &Line{}, Name: "line", OID: LineOID})
+	ci.RegisterDataType(DataType{Value: &Lseg{}, Name: "lseg", OID: LsegOID})
+	ci.RegisterDataType(DataType{Value: &Macaddr{}, Name: "macaddr", OID: MacaddrOID})
+	ci.RegisterDataType(DataType{Value: &Name{}, Name: "name", OID: NameOID})
+	ci.RegisterDataType(DataType{Value: &Numeric{}, Name: "numeric", OID: NumericOID})
+	ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
+	ci.RegisterDataType(DataType{Value: &OIDValue{}, Name: "oid", OID: OIDOID})
+	ci.RegisterDataType(DataType{Value: &Path{}, Name: "path", OID: PathOID})
+	ci.RegisterDataType(DataType{Value: &Point{}, Name: "point", OID: PointOID})
+	ci.RegisterDataType(DataType{Value: &Polygon{}, Name: "polygon", OID: PolygonOID})
+	ci.RegisterDataType(DataType{Value: &Record{}, Name: "record", OID: RecordOID})
+	ci.RegisterDataType(DataType{Value: &Text{}, Name: "text", OID: TextOID})
+	ci.RegisterDataType(DataType{Value: &TID{}, Name: "tid", OID: TIDOID})
+	ci.RegisterDataType(DataType{Value: &Timestamp{}, Name: "timestamp", OID: TimestampOID})
+	ci.RegisterDataType(DataType{Value: &Timestamptz{}, Name: "timestamptz", OID: TimestamptzOID})
+	ci.RegisterDataType(DataType{Value: &Tsrange{}, Name: "tsrange", OID: TsrangeOID})
+	ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
+	ci.RegisterDataType(DataType{Value: &Unknown{}, Name: "unknown", OID: UnknownOID})
+	ci.RegisterDataType(DataType{Value: &UUID{}, Name: "uuid", OID: UUIDOID})
+	ci.RegisterDataType(DataType{Value: &Varbit{}, Name: "varbit", OID: VarbitOID})
+	ci.RegisterDataType(DataType{Value: &Varchar{}, Name: "varchar", OID: VarcharOID})
+	ci.RegisterDataType(DataType{Value: &XID{}, Name: "xid", OID: XIDOID})
+
+	return ci
 }
 
 func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
@@ -295,7 +379,6 @@ func init() {
 		"circle":       &Circle{},
 		"date":         &Date{},
 		"daterange":    &Daterange{},
-		"decimal":      &Decimal{},
 		"float4":       &Float4{},
 		"float8":       &Float8{},
 		"hstore":       &Hstore{},
