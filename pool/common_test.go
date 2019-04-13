@@ -37,7 +37,7 @@ func testExec(t *testing.T, db execer) {
 }
 
 type queryer interface {
-	Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error)
+	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
 }
 
 func testQuery(t *testing.T, db queryer) {
@@ -59,7 +59,7 @@ func testQuery(t *testing.T, db queryer) {
 }
 
 type queryRower interface {
-	QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row
+	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
 }
 
 func testQueryRow(t *testing.T, db queryRower) {
