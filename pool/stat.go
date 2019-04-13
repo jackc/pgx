@@ -18,7 +18,7 @@ func (s *Stat) AcquireDuration() time.Duration {
 	return s.s.AcquireDuration()
 }
 
-func (s *Stat) AcquiredConns() int {
+func (s *Stat) AcquiredConns() int32 {
 	return s.s.AcquiredResources()
 }
 
@@ -26,7 +26,7 @@ func (s *Stat) CanceledAcquireCount() int64 {
 	return s.s.CanceledAcquireCount()
 }
 
-func (s *Stat) ConstructingConns() int {
+func (s *Stat) ConstructingConns() int32 {
 	return s.s.ConstructingResources()
 }
 
@@ -34,14 +34,14 @@ func (s *Stat) EmptyAcquireCount() int64 {
 	return s.s.EmptyAcquireCount()
 }
 
-func (s *Stat) IdleConns() int {
+func (s *Stat) IdleConns() int32 {
 	return s.s.IdleResources()
 }
 
-func (s *Stat) MaxConns() int {
+func (s *Stat) MaxConns() int32 {
 	return s.s.MaxResources()
 }
 
-func (s *Stat) TotalConns() int {
+func (s *Stat) TotalConns() int32 {
 	return s.s.TotalResources()
 }

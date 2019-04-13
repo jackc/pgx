@@ -4,14 +4,12 @@ go 1.12
 
 require (
 	github.com/cockroachdb/apd v1.1.0
-	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/jackc/pgconn v0.0.0-20190405170659-7ad3625edd3b
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3 v1.0.0
-	github.com/jackc/puddle v0.0.0-20190409004018-0d93e0ec116a
+	github.com/jackc/puddle v0.0.0-20190413234325-e4ced69a3a2b
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/lib/pq v1.0.0
-	github.com/mattn/go-colorable v0.1.1 // indirect
-	github.com/mattn/go-isatty v0.0.7 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/rs/zerolog v1.13.0
 	github.com/satori/go.uuid v1.2.0
@@ -21,5 +19,6 @@ require (
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
-	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
+	golang.org/x/sys v0.0.0-20190222072716-a9d3bda3a223 // indirect
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )
