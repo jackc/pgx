@@ -17,6 +17,13 @@ func TestConnect(t *testing.T) {
 	pool.Close()
 }
 
+func TestParseConfigExtractsPoolArguments(t *testing.T) {
+	config, err := pool.ParseConfig("pool_max_conns=42")
+	assert.NoError(t, err)
+	assert.EqualValues(t, 42, config.MaxConns)
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
+}
+
 func TestConnectCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -57,16 +64,16 @@ func TestPoolQuery(t *testing.T) {
 	require.NoError(t, err)
 
 	stats := pool.Stat()
-	assert.Equal(t, 1, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
+	assert.EqualValues(t, 1, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
 
 	rows.Close()
 	assert.NoError(t, rows.Err())
 	waitForReleaseToComplete()
 
 	stats = pool.Stat()
-	assert.Equal(t, 0, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
 
 }
 
@@ -79,8 +86,8 @@ func TestPoolQueryRow(t *testing.T) {
 	waitForReleaseToComplete()
 
 	stats := pool.Stat()
-	assert.Equal(t, 0, stats.AcquiredConns())
-	assert.Equal(t, 1, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
 }
 
 func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
@@ -162,12 +169,12 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 
 	c.Conn().Close(ctx)
 
-	assert.Equal(t, 1, pool.Stat().TotalConns())
+	assert.EqualValues(t, 1, pool.Stat().TotalConns())
 
 	c.Release()
 	waitForReleaseToComplete()
 
-	assert.Equal(t, 0, pool.Stat().TotalConns())
+	assert.EqualValues(t, 0, pool.Stat().TotalConns())
 }
 
 func TestConnPoolQueryConcurrentLoad(t *testing.T) {
