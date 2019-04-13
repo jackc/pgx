@@ -242,8 +242,10 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 	var rows pgx.Rows
 
 	if !c.connConfig.PreferSimpleProtocol {
-		c.conn.Deallocate("stdlibtemp")
-		ps, err := c.conn.PrepareEx(ctx, "stdlibtemp", query, nil)
+		// TODO - remove hack that creates a new prepared statement for every query -- put in place because of problem preparing empty statement name
+		psname := fmt.Sprintf("stdlibpx%v", &argsV)
+
+		ps, err := c.conn.PrepareEx(ctx, psname, query, nil)
 		if err != nil {
 			// since PrepareEx failed, we didn't actually get to send the values, so
 			// we can safely retry
@@ -254,7 +256,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 		}
 
 		restrictBinaryToDatabaseSqlTypes(ps)
-		return c.queryPreparedContext(ctx, "stdlibtemp", argsV)
+		return c.queryPreparedContext(ctx, psname, argsV)
 	}
 
 	rows, err := c.conn.Query(ctx, query, namedValueToInterface(argsV)...)
