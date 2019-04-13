@@ -834,11 +834,14 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 		return nil, nil
 	}
 
+	// TODO - don't allocate a new buf for each encoded prepared statement. The empty slice is necessary because otherwise empty strings may be encoded as []byte(nil) instead of []byte{}
+	buf := make([]byte, 0)
+
 	switch arg := arg.(type) {
 	case pgtype.BinaryEncoder:
-		return arg.EncodeBinary(ci, nil)
+		return arg.EncodeBinary(ci, buf)
 	case pgtype.TextEncoder:
-		return arg.EncodeText(ci, nil)
+		return arg.EncodeText(ci, buf)
 	case string:
 		return []byte(arg), nil
 	}
@@ -870,7 +873,7 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 			return nil, err
 		}
 
-		return value.(pgtype.BinaryEncoder).EncodeBinary(ci, nil)
+		return value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {

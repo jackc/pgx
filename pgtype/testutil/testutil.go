@@ -137,7 +137,8 @@ func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 			}
 
 			result := reflect.New(reflect.TypeOf(derefV))
-			err := conn.QueryRow(context.Background(), "test", ForceEncoder(v, fc.formatCode)).Scan(result.Interface())
+
+			err := conn.QueryRow(context.Background(), "test", vEncoder).Scan(result.Interface())
 			if err != nil {
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}
