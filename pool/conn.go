@@ -53,12 +53,12 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	return c.Conn().Exec(ctx, sql, arguments...)
 }
 
-func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error) {
-	return c.Conn().Query(ctx, sql, optionsAndArgs...)
+func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+	return c.Conn().Query(ctx, sql, args...)
 }
 
-func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row {
-	return c.Conn().QueryRow(ctx, sql, optionsAndArgs...)
+func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	return c.Conn().QueryRow(ctx, sql, args...)
 }
 
 func (c *Conn) Begin() (*pgx.Tx, error) {

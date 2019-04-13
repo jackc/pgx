@@ -45,17 +45,6 @@ type ConnConfig struct {
 	Logger         Logger
 	LogLevel       LogLevel
 	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
-
-	// PreferSimpleProtocol disables implicit prepared statement usage. By default
-	// pgx automatically uses the unnamed prepared statement for Query and
-	// QueryRow. It also uses a prepared statement when Exec has arguments. This
-	// can improve performance due to being able to use the binary format. It also
-	// does not rely on client side parameter sanitization. However, it does incur
-	// two round-trips per query and may be incompatible proxies such as
-	// PGBouncer. Setting PreferSimpleProtocol causes the simple protocol to be
-	// used by default. The same functionality can be controlled on a per query
-	// basis by setting QueryExOptions.SimpleProtocol.
-	PreferSimpleProtocol bool
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.

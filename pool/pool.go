@@ -68,13 +68,13 @@ func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	return c.Exec(ctx, sql, arguments...)
 }
 
-func (p *Pool) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (pgx.Rows, error) {
+func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return errRows{err: err}, err
 	}
 
-	rows, err := c.Query(ctx, sql, optionsAndArgs...)
+	rows, err := c.Query(ctx, sql, args...)
 	if err != nil {
 		c.Release()
 		return errRows{err: err}, err
@@ -83,13 +83,13 @@ func (p *Pool) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	return &poolRows{r: rows, c: c}, nil
 }
 
-func (p *Pool) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) pgx.Row {
+func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return errRow{err: err}
 	}
 
-	row := c.QueryRow(ctx, sql, optionsAndArgs...)
+	row := c.QueryRow(ctx, sql, args...)
 	return &poolRow{r: row, c: c}
 }
 

@@ -239,40 +239,22 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 		return nil, driver.ErrBadConn
 	}
 
-	var rows pgx.Rows
+	// TODO - remove hack that creates a new prepared statement for every query -- put in place because of problem preparing empty statement name
+	psname := fmt.Sprintf("stdlibpx%v", &argsV)
 
-	if !c.connConfig.PreferSimpleProtocol {
-		// TODO - remove hack that creates a new prepared statement for every query -- put in place because of problem preparing empty statement name
-		psname := fmt.Sprintf("stdlibpx%v", &argsV)
-
-		ps, err := c.conn.PrepareEx(ctx, psname, query, nil)
-		if err != nil {
-			// since PrepareEx failed, we didn't actually get to send the values, so
-			// we can safely retry
-			if _, is := err.(net.Error); is {
-				return nil, driver.ErrBadConn
-			}
-			return nil, err
-		}
-
-		restrictBinaryToDatabaseSqlTypes(ps)
-		return c.queryPreparedContext(ctx, psname, argsV)
-	}
-
-	rows, err := c.conn.Query(ctx, query, namedValueToInterface(argsV)...)
+	ps, err := c.conn.PrepareEx(ctx, psname, query, nil)
 	if err != nil {
-		// if we got a network error before we had a chance to send the query, retry
-		if !c.conn.LastStmtSent() {
-			if _, is := err.(net.Error); is {
-				return nil, driver.ErrBadConn
-			}
+		// since PrepareEx failed, we didn't actually get to send the values, so
+		// we can safely retry
+		if _, is := err.(net.Error); is {
+			return nil, driver.ErrBadConn
 		}
 		return nil, err
 	}
 
-	// Preload first row because otherwise we won't know what columns are available when database/sql asks.
-	more := rows.Next()
-	return &Rows{rows: rows, skipNext: true, skipNextMore: more}, nil
+	restrictBinaryToDatabaseSqlTypes(ps)
+	return c.queryPreparedContext(ctx, psname, argsV)
+
 }
 
 func (c *Conn) queryPrepared(name string, argsV []driver.Value) (driver.Rows, error) {

@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/internal/sanitize"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -288,30 +287,11 @@ func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	return r
 }
 
-type QueryExOptions struct {
-	// When ParameterOIDs are present and the query is not a prepared statement,
-	// then ParameterOIDs and ResultFormatCodes will be used to avoid an extra
-	// network round-trip.
-	ParameterOIDs     []pgtype.OID
-	ResultFormatCodes []int16
-
-	SimpleProtocol bool
-}
-
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
-func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interface{}) (Rows, error) {
+func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
 	c.lastStmtSent = false
 	// rows = c.getRows(sql, args)
-
-	var options *QueryExOptions
-	args := optionsAndArgs
-	if len(optionsAndArgs) > 0 {
-		if o, ok := optionsAndArgs[0].(*QueryExOptions); ok {
-			options = o
-			args = optionsAndArgs[1:]
-		}
-	}
 
 	rows := &connRows{
 		conn:      c,
@@ -331,27 +311,6 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	// 	rows.fatal(err)
 	// 	return rows, rows.err
 	// }
-
-	var err error
-	if (options == nil && c.config.PreferSimpleProtocol) || (options != nil && options.SimpleProtocol) {
-		sql, err = c.sanitizeForSimpleQuery(sql, args...)
-		if err != nil {
-			rows.fatal(err)
-			return rows, err
-		}
-
-		c.lastStmtSent = true
-		rows.multiResultReader = c.pgConn.Exec(ctx, sql)
-		if rows.multiResultReader.NextResult() {
-			rows.resultReader = rows.multiResultReader.ResultReader()
-		} else {
-			err = rows.multiResultReader.Close()
-			rows.fatal(err)
-			return rows, err
-		}
-
-		return rows, nil
-	}
 
 	// if options != nil && len(options.ParameterOIDs) > 0 {
 
@@ -427,6 +386,7 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	}
 	rows.sql = ps.SQL
 
+	var err error
 	args, err = convertDriverValuers(args)
 	if err != nil {
 		rows.fatal(err)
@@ -461,31 +421,10 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 	return rows, rows.err
 }
 
-func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, error) {
-	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
-		return "", errors.New("simple protocol queries must be run with standard_conforming_strings=on")
-	}
-
-	if c.pgConn.ParameterStatus("client_encoding") != "UTF8" {
-		return "", errors.New("simple protocol queries must be run with client_encoding=UTF8")
-	}
-
-	var err error
-	valueArgs := make([]interface{}, len(args))
-	for i, a := range args {
-		valueArgs[i], err = convertSimpleArgument(c.ConnInfo, a)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return sanitize.SanitizeSQL(sql, valueArgs...)
-}
-
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
 // querying is deferred until calling Scan on the returned Row. That Row will
 // error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(ctx context.Context, sql string, optionsAndArgs ...interface{}) Row {
-	rows, _ := c.Query(ctx, sql, optionsAndArgs...)
+func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+	rows, _ := c.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
 }
