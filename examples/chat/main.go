@@ -6,19 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx"
+	pgxpool "github.com/jackc/pgx/pool"
 )
 
-var pool *pgx.ConnPool
+var pool *pgxpool.Pool
 
 func main() {
-	config, err := pgx.ParseEnvLibpq()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Unable to parse environment:", err)
-		os.Exit(1)
-	}
-
-	pool, err = pgx.NewConnPool(pgx.ConnPoolConfig{ConnConfig: config})
+	var err error
+	pool, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to connect to database:", err)
 		os.Exit(1)
@@ -40,7 +35,7 @@ Type "exit" to quit.`)
 			os.Exit(0)
 		}
 
-		_, err = pool.Exec("select pg_notify('chat', $1)", msg)
+		_, err = pool.Exec(context.Background(), "select pg_notify('chat', $1)", msg)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error sending notification:", err)
 			os.Exit(1)
@@ -53,22 +48,24 @@ Type "exit" to quit.`)
 }
 
 func listen() {
-	conn, err := pool.Acquire()
+	conn, err := pool.Acquire(context.Background())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error acquiring connection:", err)
 		os.Exit(1)
 	}
-	defer pool.Release(conn)
+	defer conn.Release()
+
+	// TODO - determine how listen should be handled in pgx vs. pgconn
 
 	conn.Exec(context.Background(), "listen chat")
 
-	for {
-		notification, err := conn.WaitForNotification(context.Background())
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
-			os.Exit(1)
-		}
+	// for {
+	// 	notification, err := conn.WaitForNotification(context.Background())
+	// 	if err != nil {
+	// 		fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
+	// 		os.Exit(1)
+	// 	}
 
-		fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
-	}
+	// 	fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
+	// }
 }

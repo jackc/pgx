@@ -19,12 +19,7 @@ Build todo:
 
 ## Connection configuration
 
-The database connection is configured via enviroment variables.
-
-* PGHOST - defaults to localhost
-* PGUSER - defaults to current OS user
-* PGPASSWORD - defaults to empty string
-* PGDATABASE - defaults to user name
+The database connection is configured via DATABASE_URL and standard PostgreSQL environment variables (PGHOST, PGUSER, etc.)
 
 You can either export them then run todo:
 
