@@ -1,6 +1,10 @@
 // TODO - Fix after v4 churn ends
 package main
 
+func main() {
+
+}
+
 // import (
 // 	"io/ioutil"
 // 	"net/http"
