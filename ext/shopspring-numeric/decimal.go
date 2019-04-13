@@ -205,6 +205,7 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 			if nextDst, retry := pgtype.GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
+			return errors.Errorf("unable to assign to %T", dst)
 		}
 	case pgtype.Null:
 		return pgtype.NullAssignTo(dst)
