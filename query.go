@@ -2,7 +2,6 @@ package pgx
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"reflect"
 	"time"
@@ -186,9 +185,9 @@ func (rows *connRows) nextColumn() ([]byte, *FieldDescription, bool) {
 	return buf, fd, true
 }
 
-func (rows *connRows) Scan(dest ...interface{}) (err error) {
+func (rows *connRows) Scan(dest ...interface{}) error {
 	if len(rows.fields) != len(dest) {
-		err = errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
+		err := errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
 		rows.fatal(err)
 		return err
 	}
@@ -200,63 +199,10 @@ func (rows *connRows) Scan(dest ...interface{}) (err error) {
 			continue
 		}
 
-		if s, ok := d.(pgtype.BinaryDecoder); ok && fd.FormatCode == BinaryFormatCode {
-			err = s.DecodeBinary(rows.conn.ConnInfo, buf)
-			if err != nil {
-				rows.fatal(scanArgError{col: i, err: err})
-			}
-		} else if s, ok := d.(pgtype.TextDecoder); ok && fd.FormatCode == TextFormatCode {
-			err = s.DecodeText(rows.conn.ConnInfo, buf)
-			if err != nil {
-				rows.fatal(scanArgError{col: i, err: err})
-			}
-		} else {
-			if dt, ok := rows.conn.ConnInfo.DataTypeForOID(fd.DataType); ok {
-				value := dt.Value
-				switch fd.FormatCode {
-				case TextFormatCode:
-					if textDecoder, ok := value.(pgtype.TextDecoder); ok {
-						err = textDecoder.DecodeText(rows.conn.ConnInfo, buf)
-						if err != nil {
-							rows.fatal(scanArgError{col: i, err: err})
-						}
-					} else {
-						rows.fatal(scanArgError{col: i, err: errors.Errorf("%T is not a pgtype.TextDecoder", value)})
-					}
-				case BinaryFormatCode:
-					if binaryDecoder, ok := value.(pgtype.BinaryDecoder); ok {
-						err = binaryDecoder.DecodeBinary(rows.conn.ConnInfo, buf)
-						if err != nil {
-							rows.fatal(scanArgError{col: i, err: err})
-						}
-					} else {
-						rows.fatal(scanArgError{col: i, err: errors.Errorf("%T is not a pgtype.BinaryDecoder", value)})
-					}
-				default:
-					rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown format code: %v", fd.FormatCode)})
-				}
-
-				if rows.Err() == nil {
-					if scanner, ok := d.(sql.Scanner); ok {
-						sqlSrc, err := pgtype.DatabaseSQLValue(rows.conn.ConnInfo, value)
-						if err != nil {
-							rows.fatal(err)
-						}
-						err = scanner.Scan(sqlSrc)
-						if err != nil {
-							rows.fatal(scanArgError{col: i, err: err})
-						}
-					} else if err := value.AssignTo(d); err != nil {
-						rows.fatal(scanArgError{col: i, err: err})
-					}
-				}
-			} else {
-				rows.fatal(scanArgError{col: i, err: errors.Errorf("unknown oid: %v", fd.DataType)})
-			}
-		}
-
-		if rows.Err() != nil {
-			return rows.Err()
+		err := rows.conn.ConnInfo.Scan(fd.DataType, fd.FormatCode, buf, d)
+		if err != nil {
+			rows.fatal(scanArgError{col: i, err: err})
+			return err
 		}
 	}
 
