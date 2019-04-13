@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -83,6 +84,12 @@ func (im InfinityModifier) String() string {
 		return "invalid"
 	}
 }
+
+// PostgreSQL format codes
+const (
+	TextFormatCode   = 0
+	BinaryFormatCode = 1
+)
 
 type Value interface {
 	// Set converts and assigns src to itself.
@@ -205,6 +212,53 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	}
 
 	return ci2
+}
+
+func (ci *ConnInfo) Scan(oid OID, formatCode int16, buf []byte, dest interface{}) error {
+	if dest, ok := dest.(BinaryDecoder); ok && formatCode == BinaryFormatCode {
+		return dest.DecodeBinary(ci, buf)
+	}
+
+	if dest, ok := dest.(TextDecoder); ok && formatCode == TextFormatCode {
+		return dest.DecodeText(ci, buf)
+	}
+
+	if dt, ok := ci.DataTypeForOID(oid); ok {
+		value := dt.Value
+		switch formatCode {
+		case TextFormatCode:
+			if textDecoder, ok := value.(TextDecoder); ok {
+				err := textDecoder.DecodeText(ci, buf)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.Errorf("%T is not a pgtype.TextDecoder", value)
+			}
+		case BinaryFormatCode:
+			if binaryDecoder, ok := value.(BinaryDecoder); ok {
+				err := binaryDecoder.DecodeBinary(ci, buf)
+				if err != nil {
+					return err
+				}
+			} else {
+				return errors.Errorf("%T is not a pgtype.BinaryDecoder", value)
+			}
+		default:
+			return errors.Errorf("unknown format code: %v", formatCode)
+		}
+
+		if scanner, ok := dest.(sql.Scanner); ok {
+			sqlSrc, err := DatabaseSQLValue(ci, value)
+			if err != nil {
+				return err
+			}
+			return scanner.Scan(sqlSrc)
+		} else {
+			return value.AssignTo(dest)
+		}
+	}
+	return errors.Errorf("unknown oid: %v", oid)
 }
 
 var nameValues map[string]Value
