@@ -24,21 +24,6 @@ const (
 	connStatusBusy
 )
 
-// minimalConnInfo has just enough static type information to establish the
-// connection and retrieve the type data.
-var minimalConnInfo *pgtype.ConnInfo
-
-func init() {
-	minimalConnInfo = pgtype.NewConnInfo()
-	minimalConnInfo.InitializeDataTypes(map[string]pgtype.OID{
-		"int4":    pgtype.Int4OID,
-		"name":    pgtype.NameOID,
-		"oid":     pgtype.OIDOID,
-		"text":    pgtype.TextOID,
-		"varchar": pgtype.VarcharOID,
-	})
-}
-
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	pgconn.Config
@@ -132,12 +117,12 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return connect(ctx, connConfig, minimalConnInfo)
+	return connect(ctx, connConfig)
 }
 
 // Connect establishes a connection with a PostgreSQL server with a configuration struct.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
-	return connect(ctx, connConfig, minimalConnInfo)
+	return connect(ctx, connConfig)
 }
 
 func ParseConfig(connString string) (*ConnConfig, error) {
@@ -152,11 +137,11 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	return connConfig, nil
 }
 
-func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) {
+func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c = new(Conn)
 
 	c.config = config
-	c.ConnInfo = connInfo
+	c.ConnInfo = pgtype.NewConnInfo()
 
 	if c.config.LogLevel != 0 {
 		c.logLevel = c.config.LogLevel
@@ -193,228 +178,7 @@ func connect(ctx context.Context, config *ConnConfig, connInfo *pgtype.ConnInfo)
 		return c, nil
 	}
 
-	if c.ConnInfo == minimalConnInfo {
-		err = c.initConnInfo()
-		if err != nil {
-			c.Close(ctx)
-			return nil, err
-		}
-	}
-
 	return c, nil
-}
-
-func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {
-	const (
-		namedOIDQuery = `select t.oid,
-	case when nsp.nspname in ('pg_catalog', 'public') then t.typname
-		else nsp.nspname||'.'||t.typname
-	end
-from pg_type t
-left join pg_type base_type on t.typelem=base_type.oid
-left join pg_namespace nsp on t.typnamespace=nsp.oid
-where (
-	  t.typtype in('b', 'p', 'r', 'e')
-	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
-	)`
-	)
-
-	nameOIDs, err := connInfoFromRows(c.Query(context.TODO(), namedOIDQuery))
-	if err != nil {
-		return nil, err
-	}
-
-	cinfo := pgtype.NewConnInfo()
-	cinfo.InitializeDataTypes(nameOIDs)
-
-	if err = c.initConnInfoEnumArray(cinfo); err != nil {
-		return nil, err
-	}
-
-	if err = c.initConnInfoDomains(cinfo); err != nil {
-		return nil, err
-	}
-
-	return cinfo, nil
-}
-
-func (c *Conn) initConnInfo() (err error) {
-	var (
-		connInfo *pgtype.ConnInfo
-	)
-
-	if c.config.CustomConnInfo != nil {
-		if c.ConnInfo, err = c.config.CustomConnInfo(c); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if connInfo, err = initPostgresql(c); err == nil {
-		c.ConnInfo = connInfo
-		return err
-	}
-
-	// Check if CrateDB specific approach might still allow us to connect.
-	if connInfo, err = c.crateDBTypesQuery(err); err == nil {
-		c.ConnInfo = connInfo
-	}
-
-	return err
-}
-
-// initConnInfoEnumArray introspects for arrays of enums and registers a data type for them.
-func (c *Conn) initConnInfoEnumArray(cinfo *pgtype.ConnInfo) error {
-	nameOIDs := make(map[string]pgtype.OID, 16)
-	rows, err := c.Query(context.TODO(), `select t.oid, t.typname
-from pg_type t
-  join pg_type base_type on t.typelem=base_type.oid
-where t.typtype = 'b'
-  and base_type.typtype = 'e'`)
-	if err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var oid pgtype.OID
-		var name pgtype.Text
-		if err := rows.Scan(&oid, &name); err != nil {
-			return err
-		}
-
-		nameOIDs[name.String] = oid
-	}
-
-	if rows.Err() != nil {
-		return rows.Err()
-	}
-
-	for name, oid := range nameOIDs {
-		cinfo.RegisterDataType(pgtype.DataType{
-			Value: &pgtype.EnumArray{},
-			Name:  name,
-			OID:   oid,
-		})
-	}
-
-	return nil
-}
-
-// initConnInfoDomains introspects for domains and registers a data type for them.
-func (c *Conn) initConnInfoDomains(cinfo *pgtype.ConnInfo) error {
-	type domain struct {
-		oid     pgtype.OID
-		name    pgtype.Text
-		baseOID pgtype.OID
-	}
-
-	domains := make([]*domain, 0, 16)
-
-	rows, err := c.Query(context.TODO(), `select t.oid, t.typname, t.typbasetype
-from pg_type t
-  join pg_type base_type on t.typbasetype=base_type.oid
-where t.typtype = 'd'
-  and base_type.typtype = 'b'`)
-	if err != nil {
-		return err
-	}
-
-	for rows.Next() {
-		var d domain
-		if err := rows.Scan(&d.oid, &d.name, &d.baseOID); err != nil {
-			return err
-		}
-
-		domains = append(domains, &d)
-	}
-
-	if rows.Err() != nil {
-		return rows.Err()
-	}
-
-	for _, d := range domains {
-		baseDataType, ok := cinfo.DataTypeForOID(d.baseOID)
-		if ok {
-			cinfo.RegisterDataType(pgtype.DataType{
-				Value: reflect.New(reflect.ValueOf(baseDataType.Value).Elem().Type()).Interface().(pgtype.Value),
-				Name:  d.name.String,
-				OID:   d.oid,
-			})
-		}
-	}
-
-	return nil
-}
-
-// crateDBTypesQuery checks if the given err is likely to be the result of
-// CrateDB not implementing the pg_types table correctly. If yes, a CrateDB
-// specific query against pg_types is executed and its results are returned. If
-// not, the original error is returned.
-func (c *Conn) crateDBTypesQuery(err error) (*pgtype.ConnInfo, error) {
-	// CrateDB 2.1.6 is a database that implements the PostgreSQL wire protocol,
-	// but not perfectly. In particular, the pg_catalog schema containing the
-	// pg_type table is not visible by default and the pg_type.typtype column is
-	// not implemented. Therefor the query above currently returns the following
-	// error:
-	//
-	//   pgx.PgError{Severity:"ERROR", Code:"XX000",
-	//   Message:"TableUnknownException: Table 'test.pg_type' unknown",
-	//   Detail:"", Hint:"", Position:0, InternalPosition:0, InternalQuery:"",
-	//   Where:"", SchemaName:"", TableName:"", ColumnName:"", DataTypeName:"",
-	//   ConstraintName:"", File:"Schemas.java", Line:99, Routine:"getTableInfo"}
-	//
-	// If CrateDB was to fix the pg_type table visbility in the future, we'd
-	// still get this error until typtype column is implemented:
-	//
-	//   pgx.PgError{Severity:"ERROR", Code:"XX000",
-	//   Message:"ColumnUnknownException: Column typtype unknown", Detail:"",
-	//   Hint:"", Position:0, InternalPosition:0, InternalQuery:"", Where:"",
-	//   SchemaName:"", TableName:"", ColumnName:"", DataTypeName:"",
-	//   ConstraintName:"", File:"FullQualifiedNameFieldProvider.java", Line:132,
-	//
-	// Additionally CrateDB doesn't implement Postgres error codes [2], and
-	// instead always returns "XX000" (internal_error). The code below uses all
-	// of this knowledge as a heuristic to detect CrateDB. If CrateDB is
-	// detected, a CrateDB specific pg_type query is executed instead.
-	//
-	// The heuristic is designed to still work even if CrateDB fixes [2] or
-	// renames its internal exception names. If both are changed but pg_types
-	// isn't fixed, this code will need to be changed.
-	//
-	// There is also a small chance the heuristic will yield a false positive for
-	// non-CrateDB databases (e.g. if a real Postgres instance returns a XX000
-	// error), but hopefully there will be no harm in attempting the alternative
-	// query in this case.
-	//
-	// CrateDB also uses the type varchar for the typname column which required
-	// adding varchar to the minimalConnInfo init code.
-	//
-	// Also see the discussion here [3].
-	//
-	// [1] https://crate.io/
-	// [2] https://github.com/crate/crate/issues/5027
-	// [3] https://github.com/jackc/pgx/issues/320
-
-	if pgErr, ok := err.(*pgconn.PgError); ok &&
-		(pgErr.Code == "XX000" ||
-			strings.Contains(pgErr.Message, "TableUnknownException") ||
-			strings.Contains(pgErr.Message, "ColumnUnknownException")) {
-		var (
-			nameOIDs map[string]pgtype.OID
-		)
-
-		if nameOIDs, err = connInfoFromRows(c.Query(context.TODO(), `select oid, typname from pg_catalog.pg_type`)); err != nil {
-			return nil, err
-		}
-
-		cinfo := pgtype.NewConnInfo()
-		cinfo.InitializeDataTypes(nameOIDs)
-
-		return cinfo, err
-	}
-
-	return nil, err
 }
 
 // PID returns the backend PID for this connection.

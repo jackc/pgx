@@ -680,26 +680,25 @@ func TestConnInitConnInfo(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestDomainType(t *testing.T) {
+func TestRegisteredDomainType(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	dt, ok := conn.ConnInfo.DataTypeForName("uint64")
-	if !ok {
-		t.Fatal("Expected data type for domain uint64 to be present")
+	var uint64OID pgtype.OID
+	err := conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
+	if err != nil {
+		t.Fatalf("did not find uint64 OID, %v", err)
 	}
-	if dt, ok := dt.Value.(*pgtype.Numeric); !ok {
-		t.Fatalf("Expected data type value for domain uint64 to be *pgtype.Numeric, but it was %T", dt)
-	}
+	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
 
 	var n uint64
-	err := conn.QueryRow(context.Background(), "select $1::uint64", uint64(42)).Scan(&n)
+	err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if n != 42 {
-		t.Fatalf("Expected n to be 42, but was %v", n)
+	if n != 24 {
+		t.Fatalf("Expected n to be 24, but was %v", n)
 	}
 
 	ensureConnValid(t, conn)
