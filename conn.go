@@ -760,6 +760,39 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 }
 
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+
+	if ps, ok := c.preparedStatements[sql]; ok {
+		args, err := convertDriverValuers(arguments)
+		if err != nil {
+			return "", err
+		}
+
+		paramFormats := make([]int16, len(args))
+		paramValues := make([][]byte, len(args))
+		for i := range args {
+			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], args[i])
+			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], args[i])
+			if err != nil {
+				return "", err
+			}
+		}
+
+		resultFormats := make([]int16, len(ps.FieldDescriptions))
+		for i := range resultFormats {
+			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+					resultFormats[i] = BinaryFormatCode
+				} else {
+					resultFormats[i] = TextFormatCode
+				}
+			}
+		}
+
+		c.lastStmtSent = true
+		result := c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats).Read()
+		return result.CommandTag, result.Err
+	}
+
 	if len(arguments) == 0 {
 		c.lastStmtSent = true
 		results, err := c.pgConn.Exec(ctx, sql).ReadAll()
