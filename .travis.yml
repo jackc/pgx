@@ -10,6 +10,7 @@ before_install:
 
 env:
   global:
+    - GO111MODULE=on
     - PGX_TEST_DATABASE=postgres://pgx_md5:secret@127.0.0.1/pgx_test
     - PGX_TEST_UNIX_SOCKET_CONN_STRING="host=/var/run/postgresql database=pgx_test"
     - PGX_TEST_TCP_CONN_STRING=postgres://pgx_md5:secret@127.0.0.1/pgx_test
@@ -26,9 +27,6 @@ env:
 
 before_script:
   - ./travis/before_script.bash
-
-install:
-  - ./travis/install.bash
 
 script:
   - ./travis/script.bash
