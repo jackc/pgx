@@ -685,7 +685,7 @@ func quoteIdentifier(s string) string {
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
-	_, err := c.Exec(ctx, ";", nil)
+	_, err := c.Exec(ctx, ";")
 	return err
 }
 
