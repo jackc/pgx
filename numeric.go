@@ -568,10 +568,6 @@ func (dst *Numeric) Scan(src interface{}) error {
 	}
 
 	switch src := src.(type) {
-	case float64:
-		// TODO
-		// *dst = Numeric{Float: src, Status: Present}
-		return nil
 	case string:
 		return dst.DecodeText(nil, []byte(src))
 	case []byte:
