@@ -1,22 +1,19 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/jackc/pgx"
 	"os"
 	"strconv"
+
+	"github.com/jackc/pgx"
 )
 
 var conn *pgx.Conn
 
 func main() {
-	config, err := pgx.ParseEnvLibpq()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Unable to parse environment:", err)
-		os.Exit(1)
-	}
-
-	conn, err = pgx.Connect(config)
+	var err error
+	conn, err = pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connection to database: %v\n", err)
 		os.Exit(1)
@@ -74,7 +71,7 @@ func main() {
 }
 
 func listTasks() error {
-	rows, _ := conn.Query("select * from tasks")
+	rows, _ := conn.Query(context.Background(), "select * from tasks")
 
 	for rows.Next() {
 		var id int32
@@ -90,17 +87,17 @@ func listTasks() error {
 }
 
 func addTask(description string) error {
-	_, err := conn.Exec("insert into tasks(description) values($1)", description)
+	_, err := conn.Exec(context.Background(), "insert into tasks(description) values($1)", description)
 	return err
 }
 
 func updateTask(itemNum int32, description string) error {
-	_, err := conn.Exec("update tasks set description=$1 where id=$2", description, itemNum)
+	_, err := conn.Exec(context.Background(), "update tasks set description=$1 where id=$2", description, itemNum)
 	return err
 }
 
 func removeTask(itemNum int32) error {
-	_, err := conn.Exec("delete from tasks where id=$1", itemNum)
+	_, err := conn.Exec(context.Background(), "delete from tasks where id=$1", itemNum)
 	return err
 }
 
