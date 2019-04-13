@@ -209,7 +209,7 @@ func (src *VarcharArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 			return nil, err
 		}
 		if elemBuf == nil {
-			buf = append(buf, `"NULL"`...)
+			buf = append(buf, `NULL`...)
 		} else {
 			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
 		}
