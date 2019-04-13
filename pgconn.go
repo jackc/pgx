@@ -501,10 +501,10 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	if err := pgConn.lock(); err != nil {
 		return nil, err
 	}
+	defer pgConn.unlock()
 
 	select {
 	case <-ctx.Done():
-		pgConn.unlock()
 		return nil, ctx.Err()
 	default:
 	}
@@ -547,8 +547,6 @@ readloop:
 			break readloop
 		}
 	}
-
-	pgConn.unlock()
 
 	if parseErr != nil {
 		return nil, parseErr
