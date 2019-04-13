@@ -27,9 +27,8 @@ const (
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	pgconn.Config
-	Logger         Logger
-	LogLevel       LogLevel
-	CustomConnInfo func(*Conn) (*pgtype.ConnInfo, error) // Callback function to implement connection strategies for different backends. crate, pgbouncer, pgpool, etc.
+	Logger   Logger
+	LogLevel LogLevel
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
