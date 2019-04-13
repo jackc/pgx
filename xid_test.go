@@ -20,9 +20,6 @@ func TestXIDTranscode(t *testing.T) {
 
 	testutil.TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
 
-	// No direct conversion from int to xid, convert through text
-	testutil.TestPgxSimpleProtocolSuccessfulTranscodeEqFunc(t, "text::"+pgTypeName, values, eqFunc)
-
 	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
 		testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
 	}
