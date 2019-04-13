@@ -496,7 +496,6 @@ func (c *Conn) Query(ctx context.Context, sql string, optionsAndArgs ...interfac
 			rows.fatal(err)
 			return rows, rows.err
 		}
-
 	}
 
 	resultFormats := make([]int16, len(ps.FieldDescriptions))
