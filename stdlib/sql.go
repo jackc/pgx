@@ -254,15 +254,30 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 	restrictBinaryToDatabaseSqlTypes(ps)
 	return c.queryPreparedContext(ctx, psname, argsV)
-
 }
+
+// func (c *Conn) execParams(ctx context.Context, sql string, argsV []driver.NamedValue) (*pgconn.ResultReader, error) {
+// 	if !c.conn.IsAlive() {
+// 		return nil, driver.ErrBadConn
+// 	}
+
+// 	paramValues := make([][]byte, len(argsV))
+// 	for i := 0;i< len(paramValues); i++ {
+// 		v := argsV[i].Value
+// 		paramValues
+// 	}
+
+// 	return c.conn.PgConn().ExecParams(ctx, sql,paramValues, nil, nil, nil)
+// }
 
 func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []driver.NamedValue) (driver.Rows, error) {
 	if !c.conn.IsAlive() {
 		return nil, driver.ErrBadConn
 	}
 
-	args := namedValueToInterface(argsV)
+	// TODO - don't always use text
+	args := []interface{}{pgx.QueryResultFormats{0}}
+	args = append(args, namedValueToInterface(argsV)...)
 
 	rows, err := c.conn.Query(ctx, name, args...)
 	if err != nil {

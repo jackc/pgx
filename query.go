@@ -287,11 +287,26 @@ func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	return r
 }
 
+type QueryResultFormats []int16
+
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
 func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
 	c.lastStmtSent = false
 	// rows = c.getRows(sql, args)
+
+	var resultFormats QueryResultFormats
+
+optionLoop:
+	for len(args) > 0 {
+		switch arg := args[0].(type) {
+		case QueryResultFormats:
+			resultFormats = arg
+			args = args[1:]
+		default:
+			break optionLoop
+		}
+	}
 
 	rows := &connRows{
 		conn:      c,
@@ -404,13 +419,15 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows
 		}
 	}
 
-	resultFormats := make([]int16, len(ps.FieldDescriptions))
-	for i := range resultFormats {
-		if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
-			if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-				resultFormats[i] = BinaryFormatCode
-			} else {
-				resultFormats[i] = TextFormatCode
+	if resultFormats == nil {
+		resultFormats = make([]int16, len(ps.FieldDescriptions))
+		for i := range resultFormats {
+			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+					resultFormats[i] = BinaryFormatCode
+				} else {
+					resultFormats[i] = TextFormatCode
+				}
 			}
 		}
 	}
