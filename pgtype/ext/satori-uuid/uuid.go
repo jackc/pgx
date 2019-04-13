@@ -78,6 +78,7 @@ func (src *UUID) AssignTo(dst interface{}) error {
 			if nextDst, retry := pgtype.GetAssignToDstType(v); retry {
 				return src.AssignTo(nextDst)
 			}
+			return errors.Errorf("unable to assign to %T", dst)
 		}
 	case pgtype.Null:
 		return pgtype.NullAssignTo(dst)

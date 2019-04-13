@@ -680,23 +680,69 @@ func TestConnInitConnInfo(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestRegisteredDomainType(t *testing.T) {
+func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	var n uint64
+	err := conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if n != 42 {
+		t.Fatalf("Expected n to be 42, but was %v", n)
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestDomainType(t *testing.T) {
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	var err error
+	var n uint64
+
+	// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
+
+	// Since it is not registered, pgx does not know how to encode Go uint64 argument.
+	err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+	if err == nil {
+		t.Fatal("expected error encoding uint64 into unregistered domain")
+	}
+
+	// A string can be used. But a string cannot be the result because the describe result from the PostgreSQL server gives
+	// the underlying type of numeric.
+	err = conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 42 {
+		t.Fatalf("Expected n to be 42, but was %v", n)
+	}
+
 	var uint64OID pgtype.OID
-	err := conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
+	err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
 	if err != nil {
 		t.Fatalf("did not find uint64 OID, %v", err)
 	}
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
 
-	var n uint64
+	// String is still an acceptable argument after registration
+	err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 7 {
+		t.Fatalf("Expected n to be 7, but was %v", n)
+	}
+
+	// But a uint64 is acceptable
 	err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if n != 24 {
 		t.Fatalf("Expected n to be 24, but was %v", n)
 	}
