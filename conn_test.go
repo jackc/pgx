@@ -212,6 +212,56 @@ func TestConnectWithMD5Password(t *testing.T) {
 	}
 }
 
+func TestConnectWithSCRAMPassword(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_SCRAM_PASSWORD_CONN_STRING")
+	if connString == "" {
+		t.Skip("Skipping due to missing PGX_TEST_SCRAM_PASSWORD_CONN_STRING env var")
+	}
+
+	connConfig, err := pgx.ParseConnectionString(connString)
+	if err != nil {
+		t.Fatalf("Unable to parse config: %v", err)
+	}
+
+	conn, err := pgx.Connect(connConfig)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	if _, present := conn.RuntimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
+	if conn.PID() == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	var currentDB string
+	err = conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	}
+
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnectWithTLSFallback(t *testing.T) {
 	t.Parallel()
 
