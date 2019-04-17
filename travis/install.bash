@@ -12,3 +12,5 @@ go get -u github.com/sirupsen/logrus
 go get -u github.com/pkg/errors
 go get -u go.uber.org/zap
 go get -u github.com/rs/zerolog
+go get -u golang.org/x/crypto/pbkdf2
+go get -u golang.org/x/text/secure/precis
