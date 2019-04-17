@@ -11,6 +11,7 @@ then
   psql -U postgres -c "create user pgx_ssl SUPERUSER PASSWORD 'secret'"
   psql -U postgres -c "create user pgx_md5 SUPERUSER PASSWORD 'secret'"
   psql -U postgres -c "create user pgx_pw  SUPERUSER PASSWORD 'secret'"
+  psql -U postgres -c "create user travis"
   psql -U postgres -c "create user pgx_replication with replication password 'secret'"
   psql -U postgres -c "create user \" tricky, ' } \"\" \\ test user \" superuser password 'secret'"
 fi
