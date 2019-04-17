@@ -260,6 +260,8 @@ func (c *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	case pgproto3.AuthTypeMD5Password:
 		digestedPassword := "md5" + hexMD5(hexMD5(c.Config.Password+c.Config.User)+string(msg.Salt[:]))
 		err = c.txPasswordMessage(digestedPassword)
+	case pgproto3.AuthTypeSASL:
+		err = c.scramAuth(msg.SASLAuthMechanisms)
 	default:
 		err = errors.New("Received unknown authentication message")
 	}

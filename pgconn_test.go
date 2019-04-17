@@ -33,12 +33,11 @@ func TestConnect(t *testing.T) {
 		{"TCP", "PGX_TEST_TCP_CONN_STRING"},
 		{"Plain password", "PGX_TEST_PLAIN_PASSWORD_CONN_STRING"},
 		{"MD5 password", "PGX_TEST_MD5_PASSWORD_CONN_STRING"},
+		{"SCRAM password", "PGX_TEST_SCRAM_PASSWORD_CONN_STRING"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			connString := os.Getenv(tt.env)
 			if connString == "" {
 				t.Skipf("Skipping due to missing environment variable %v", tt.env)
