@@ -7,7 +7,6 @@ import (
 	"net"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,7 +44,6 @@ type Conn struct {
 	poolResetCount     int
 	preallocatedRows   []connRows
 
-	mux          sync.Mutex
 	causeOfDeath error
 
 	lastStmtSent bool
@@ -190,9 +188,6 @@ func (c *Conn) LocalAddr() (net.Addr, error) {
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close(ctx context.Context) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
 	if !c.IsAlive() {
 		return nil
 	}
@@ -303,8 +298,6 @@ func (c *Conn) IsAlive() bool {
 }
 
 func (c *Conn) CauseOfDeath() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
 	return c.causeOfDeath
 }
 
@@ -352,9 +345,6 @@ func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 }
 
 func (c *Conn) die(err error) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
 	if !c.IsAlive() {
 		return
 	}
