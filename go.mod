@@ -1,4 +1,4 @@
-module github.com/jackc/pgproto3
+module github.com/jackc/pgproto3/v2
 
 go 1.12
 
