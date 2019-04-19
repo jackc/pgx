@@ -98,7 +98,9 @@ type PgConn struct {
 	bufferingReceiveMsg pgproto3.BackendMessage
 	bufferingReceiveErr error
 
-	wbuf []byte // Reusable write buffer
+	// Reusable / preallocated resources
+	wbuf         []byte // write buffer
+	resultReader ResultReader
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
@@ -756,11 +758,12 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 }
 
 func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]byte) *ResultReader {
-	result := &ResultReader{
+	pgConn.resultReader = ResultReader{
 		pgConn:                 pgConn,
 		ctx:                    ctx,
 		cleanupContextDeadline: func() {},
 	}
+	result := &pgConn.resultReader
 
 	if err := pgConn.lock(); err != nil {
 		result.concludeCommand("", err)
@@ -1035,20 +1038,22 @@ func (mrr *MultiResultReader) NextResult() bool {
 
 		switch msg := msg.(type) {
 		case *pgproto3.RowDescription:
-			mrr.rr = &ResultReader{
+			mrr.pgConn.resultReader = ResultReader{
 				pgConn:                 mrr.pgConn,
 				multiResultReader:      mrr,
 				ctx:                    mrr.ctx,
 				cleanupContextDeadline: func() {},
 				fieldDescriptions:      msg.Fields,
 			}
+			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.CommandComplete:
-			mrr.rr = &ResultReader{
+			mrr.pgConn.resultReader = ResultReader{
 				commandTag:       CommandTag(msg.CommandTag),
 				commandConcluded: true,
 				closed:           true,
 			}
+			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.EmptyQueryResponse:
 			return false
