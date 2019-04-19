@@ -46,7 +46,6 @@ type Conn struct {
 	preallocatedRows   []connRows
 
 	mux          sync.Mutex
-	status       byte // One of connStatus* constants
 	causeOfDeath error
 
 	lastStmtSent bool
@@ -94,10 +93,6 @@ var ErrDeadConn = errors.New("conn is dead")
 // ErrTLSRefused occurs when the connection attempt requires TLS and the
 // PostgreSQL server refuses to use TLS
 var ErrTLSRefused = pgconn.ErrTLSRefused
-
-// ErrConnBusy occurs when the connection is busy (for example, in the middle of
-// reading query results) and another action is attempted.
-var ErrConnBusy = errors.New("conn is busy")
 
 // ErrInvalidLogLevel occurs on attempt to set an invalid log level.
 var ErrInvalidLogLevel = errors.New("invalid log level")
@@ -169,7 +164,6 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
-	c.status = connStatusIdle
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
@@ -199,10 +193,9 @@ func (c *Conn) Close(ctx context.Context) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if c.status < connStatusIdle {
+	if !c.IsAlive() {
 		return nil
 	}
-	c.status = connStatusClosed
 
 	err := c.pgConn.Close(ctx)
 	c.causeOfDeath = errors.New("Closed")
@@ -306,9 +299,7 @@ func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
 }
 
 func (c *Conn) IsAlive() bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	return c.pgConn.IsAlive() && c.status >= connStatusIdle
+	return c.pgConn.IsAlive()
 }
 
 func (c *Conn) CauseOfDeath() error {
@@ -364,37 +355,15 @@ func (c *Conn) die(err error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	if c.status == connStatusClosed {
+	if !c.IsAlive() {
 		return
 	}
 
-	c.status = connStatusClosed
 	c.causeOfDeath = err
-	c.pgConn.Conn().Close()
-}
 
-func (c *Conn) lock() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if c.status != connStatusIdle {
-		return ErrConnBusy
-	}
-
-	c.status = connStatusBusy
-	return nil
-}
-
-func (c *Conn) unlock() error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-
-	if c.status != connStatusBusy {
-		return errors.New("unlock conn that is not busy")
-	}
-
-	c.status = connStatusIdle
-	return nil
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // force immediate hard cancel
+	c.pgConn.Close(ctx)
 }
 
 func (c *Conn) shouldLog(lvl LogLevel) bool {
@@ -487,11 +456,6 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 // positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	c.lastStmtSent = false
-
-	if err := c.lock(); err != nil {
-		return nil, err
-	}
-	defer c.unlock()
 
 	startTime := time.Now()
 

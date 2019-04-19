@@ -70,18 +70,17 @@ func (r *connRow) Scan(dest ...interface{}) (err error) {
 
 // connRows implements the Rows interface for Conn.Query.
 type connRows struct {
-	conn       *Conn
-	batch      *Batch
-	values     [][]byte
-	fields     []FieldDescription
-	rowCount   int
-	columnIdx  int
-	err        error
-	startTime  time.Time
-	sql        string
-	args       []interface{}
-	unlockConn bool
-	closed     bool
+	conn      *Conn
+	batch     *Batch
+	values    [][]byte
+	fields    []FieldDescription
+	rowCount  int
+	columnIdx int
+	err       error
+	startTime time.Time
+	sql       string
+	args      []interface{}
+	closed    bool
 
 	resultReader      *pgconn.ResultReader
 	multiResultReader *pgconn.MultiResultReader
@@ -94,11 +93,6 @@ func (rows *connRows) FieldDescriptions() []FieldDescription {
 func (rows *connRows) Close() {
 	if rows.closed {
 		return
-	}
-
-	if rows.unlockConn {
-		rows.conn.unlock()
-		rows.unlockConn = false
 	}
 
 	rows.closed = true
@@ -314,12 +308,6 @@ optionLoop:
 		sql:       sql,
 		args:      args,
 	}
-
-	if err := c.lock(); err != nil {
-		rows.fatal(err)
-		return rows, err
-	}
-	rows.unlockConn = true
 
 	// err = c.initContext(ctx)
 	// if err != nil {

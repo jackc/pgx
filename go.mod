@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/cockroachdb/apd v1.1.0
-	github.com/jackc/pgconn v0.0.0-20190419205212-7bb6c2f3e982
+	github.com/jackc/pgconn v0.0.0-20190419211655-3710e52a9a12
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3 v1.1.0
 	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190419041544-9b6a681f50bf
