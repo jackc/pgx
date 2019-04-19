@@ -1,6 +1,7 @@
 package pgconn
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/tls"
@@ -17,7 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgio"
-	"github.com/jackc/pgproto3"
+	"github.com/jackc/pgproto3/v2"
 )
 
 var deadlineTime = time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)
@@ -436,18 +437,21 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 }
 
 // CommandTag is the result of an Exec function
-type CommandTag string
+type CommandTag []byte
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
 func (ct CommandTag) RowsAffected() int64 {
-	s := string(ct)
-	index := strings.LastIndex(s, " ")
-	if index == -1 {
+	idx := bytes.LastIndexByte([]byte(ct), ' ')
+	if idx == -1 {
 		return 0
 	}
-	n, _ := strconv.ParseInt(s[index+1:], 10, 64)
+	n, _ := strconv.ParseInt(string([]byte(ct)[idx+1:]), 10, 64)
 	return n
+}
+
+func (ct CommandTag) String() string {
+	return string(ct)
 }
 
 // preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
@@ -756,7 +760,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	result := &pgConn.resultReader
 
 	if len(paramValues) > math.MaxUint16 {
-		result.concludeCommand("", fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.concludeCommand(nil, fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
 		result.closed = true
 		pgConn.unlock()
 		return result
@@ -764,7 +768,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 
 	select {
 	case <-ctx.Done():
-		result.concludeCommand("", ctx.Err())
+		result.concludeCommand(nil, ctx.Err())
 		result.closed = true
 		pgConn.unlock()
 		return result
@@ -783,7 +787,7 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		result.concludeCommand("", err)
+		result.concludeCommand(nil, err)
 		result.cleanupContextDeadline()
 		result.closed = true
 		pgConn.unlock()
@@ -797,7 +801,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	select {
 	case <-ctx.Done():
 		pgConn.unlock()
-		return "", ctx.Err()
+		return nil, ctx.Err()
 	default:
 	}
 	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
@@ -812,7 +816,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		pgConn.hardClose()
 		pgConn.unlock()
 
-		return "", preferContextOverNetTimeoutError(ctx, err)
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	// Read results
@@ -822,7 +826,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return "", preferContextOverNetTimeoutError(ctx, err)
+			return nil, preferContextOverNetTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -831,7 +835,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 			_, err := w.Write(msg.Data)
 			if err != nil {
 				pgConn.hardClose()
-				return "", err
+				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.unlock()
@@ -854,7 +858,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return nil, ctx.Err()
 	default:
 	}
 	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
@@ -867,7 +871,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		return "", preferContextOverNetTimeoutError(ctx, err)
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	// Read until copy in response or error.
@@ -878,7 +882,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return "", preferContextOverNetTimeoutError(ctx, err)
+			return nil, preferContextOverNetTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -908,7 +912,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			_, err = pgConn.conn.Write(buf)
 			if err != nil {
 				pgConn.hardClose()
-				return "", preferContextOverNetTimeoutError(ctx, err)
+				return nil, preferContextOverNetTimeoutError(ctx, err)
 			}
 		}
 
@@ -917,7 +921,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			msg, err := pgConn.ReceiveMessage()
 			if err != nil {
 				pgConn.hardClose()
-				return "", preferContextOverNetTimeoutError(ctx, err)
+				return nil, preferContextOverNetTimeoutError(ctx, err)
 			}
 
 			switch msg := msg.(type) {
@@ -939,7 +943,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err = pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		return "", preferContextOverNetTimeoutError(ctx, err)
+		return nil, preferContextOverNetTimeoutError(ctx, err)
 	}
 
 	// Read results
@@ -947,7 +951,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return "", preferContextOverNetTimeoutError(ctx, err)
+			return nil, preferContextOverNetTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -1145,7 +1149,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 	for !rr.commandConcluded {
 		_, err := rr.receiveMessage()
 		if err != nil {
-			return "", rr.err
+			return nil, rr.err
 		}
 	}
 
@@ -1153,7 +1157,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 		for {
 			msg, err := rr.receiveMessage()
 			if err != nil {
-				return "", rr.err
+				return nil, rr.err
 			}
 
 			switch msg.(type) {
@@ -1176,7 +1180,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	}
 
 	if err != nil {
-		rr.concludeCommand("", err)
+		rr.concludeCommand(nil, err)
 		rr.cleanupContextDeadline()
 		rr.closed = true
 		if rr.multiResultReader == nil {
@@ -1192,7 +1196,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(CommandTag(msg.CommandTag), nil)
 	case *pgproto3.ErrorResponse:
-		rr.concludeCommand("", errorResponseToPgError(msg))
+		rr.concludeCommand(nil, errorResponseToPgError(msg))
 	}
 
 	return msg, nil

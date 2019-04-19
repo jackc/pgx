@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jackc/pgproto3"
+	"github.com/jackc/pgproto3/v2"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/secure/precis"
 )

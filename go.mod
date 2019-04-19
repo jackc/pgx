@@ -6,6 +6,7 @@ require (
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgpassfile v1.0.0
 	github.com/jackc/pgproto3 v1.1.0
+	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190419041544-9b6a681f50bf
 	github.com/pkg/errors v0.8.1
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a

@@ -475,7 +475,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, pgconn.CommandTag(""), commandTag)
+	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
 	assert.False(t, pgConn.IsAlive())
@@ -601,7 +601,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, pgconn.CommandTag(""), commandTag)
+	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 	assert.False(t, pgConn.IsAlive())
 }
@@ -958,7 +958,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	defer cancel()
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
 	assert.Equal(t, context.DeadlineExceeded, err)
-	assert.Equal(t, pgconn.CommandTag(""), res)
+	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	assert.False(t, pgConn.IsAlive())
 }
@@ -977,7 +977,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select * from generate_series(1,1000)) to stdout")
 	require.Error(t, err)
 	require.Equal(t, context.Canceled, err)
-	assert.Equal(t, pgconn.CommandTag(""), res)
+	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	ensureConnValid(t, pgConn)
 }
@@ -1084,7 +1084,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	require.Error(t, err)
 	require.Equal(t, context.Canceled, err)
-	assert.Equal(t, pgconn.CommandTag(""), ct)
+	assert.Equal(t, pgconn.CommandTag(nil), ct)
 
 	ensureConnValid(t, pgConn)
 }
