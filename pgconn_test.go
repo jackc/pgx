@@ -690,11 +690,9 @@ func TestConnLocking(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
-	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
-	assert.Error(t, err)
-	assert.Equal(t, "connection busy", err.Error())
+	require.Panics(t, func() { pgConn.Exec(context.Background(), "select 'Hello, world'") })
 
-	results, err = mrr.ReadAll()
+	results, err := mrr.ReadAll()
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
