@@ -215,6 +215,7 @@ func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 }
 
 func TestExecFailureCloseBefore(t *testing.T) {
+	t.Skip("TODO: LastStmtSent needs to be ported / rewritten for pgconn")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -505,8 +506,8 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 	defer rows1.Close()
 
 	_, err = conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	if err != pgx.ErrConnBusy {
-		t.Fatalf("conn.Query should have failed with pgx.ErrConnBusy, but it was %v", err)
+	if err != pgconn.ErrConnBusy {
+		t.Fatalf("conn.Query should have failed with pgconn.ErrConnBusy, but it was %v", err)
 	}
 }
 
@@ -523,8 +524,8 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	defer rows.Close()
 
 	_, err = conn.Exec(context.Background(), "create temporary table foo(spice timestamp[])")
-	if err != pgx.ErrConnBusy {
-		t.Fatalf("conn.Exec should have failed with pgx.ErrConnBusy, but it was %v", err)
+	if err != pgconn.ErrConnBusy {
+		t.Fatalf("conn.Exec should have failed with pgconn.ErrConnBusy, but it was %v", err)
 	}
 }
 
