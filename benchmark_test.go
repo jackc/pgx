@@ -1,6 +1,7 @@
 package pgconn_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"testing"
@@ -41,11 +42,42 @@ func BenchmarkExec(b *testing.B) {
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
+	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date").ReadAll()
-		require.Nil(b, err)
+		mrr := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+
+		for mrr.NextResult() {
+			rr := mrr.ResultReader()
+
+			rowCount := 0
+			for rr.NextRow() {
+				rowCount += 1
+				if len(rr.Values()) != len(expectedValues) {
+					b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+				}
+				for i := range rr.Values() {
+					if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+						b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+					}
+				}
+			}
+			_, err = rr.Close()
+
+			if err != nil {
+				b.Fatal(err)
+			}
+			if rowCount != 1 {
+				b.Fatalf("unexpected rowCount: %d", rowCount)
+			}
+		}
+
+		err := mrr.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -54,14 +86,45 @@ func BenchmarkExecPossibleToCancel(b *testing.B) {
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
+	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
+
 	b.ResetTimer()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	for i := 0; i < b.N; i++ {
-		_, err := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date").ReadAll()
-		require.Nil(b, err)
+		mrr := conn.Exec(ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+
+		for mrr.NextResult() {
+			rr := mrr.ResultReader()
+
+			rowCount := 0
+			for rr.NextRow() {
+				rowCount += 1
+				if len(rr.Values()) != len(expectedValues) {
+					b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+				}
+				for i := range rr.Values() {
+					if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+						b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+					}
+				}
+			}
+			_, err = rr.Close()
+
+			if err != nil {
+				b.Fatal(err)
+			}
+			if rowCount != 1 {
+				b.Fatalf("unexpected rowCount: %d", rowCount)
+			}
+		}
+
+		err := mrr.Close()
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -73,11 +136,33 @@ func BenchmarkExecPrepared(b *testing.B) {
 	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 	require.Nil(b, err)
 
+	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil).Read()
-		require.Nil(b, result.Err)
+		rr := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil)
+
+		rowCount := 0
+		for rr.NextRow() {
+			rowCount += 1
+			if len(rr.Values()) != len(expectedValues) {
+				b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+			}
+			for i := range rr.Values() {
+				if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+					b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+				}
+			}
+		}
+		_, err = rr.Close()
+
+		if err != nil {
+			b.Fatal(err)
+		}
+		if rowCount != 1 {
+			b.Fatalf("unexpected rowCount: %d", rowCount)
+		}
 	}
 }
 
@@ -92,10 +177,32 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 	_, err = conn.Prepare(ctx, "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
 	require.Nil(b, err)
 
+	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
+
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		result := conn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
-		require.Nil(b, result.Err)
+		rr := conn.ExecPrepared(ctx, "ps1", nil, nil, nil)
+
+		rowCount := 0
+		for rr.NextRow() {
+			rowCount += 1
+			if len(rr.Values()) != len(expectedValues) {
+				b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+			}
+			for i := range rr.Values() {
+				if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+					b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+				}
+			}
+		}
+		_, err = rr.Close()
+
+		if err != nil {
+			b.Fatal(err)
+		}
+		if rowCount != 1 {
+			b.Fatalf("unexpected rowCount: %d", rowCount)
+		}
 	}
 }
