@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/pgtype"
 )
 
@@ -489,7 +489,7 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	c.lastStmtSent = false
 
 	if err := c.lock(); err != nil {
-		return "", err
+		return nil, err
 	}
 	defer c.unlock()
 
@@ -516,7 +516,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 	if ps, ok := c.preparedStatements[sql]; ok {
 		args, err := convertDriverValuers(arguments)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		paramFormats := make([]int16, len(args))
@@ -525,7 +525,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], args[i])
 			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], args[i])
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 		}
 
@@ -549,21 +549,21 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 		c.lastStmtSent = true
 		results, err := c.pgConn.Exec(ctx, sql).ReadAll()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		if len(results) == 0 {
-			return "", nil
+			return nil, nil
 		}
 
 		return results[len(results)-1].CommandTag, nil
 	} else {
 		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		if len(psd.ParamOIDs) != len(arguments) {
-			return "", errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(arguments))
+			return nil, errors.Errorf("expected %d arguments, got %d", len(psd.ParamOIDs), len(arguments))
 		}
 
 		ps := &PreparedStatement{
@@ -582,7 +582,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 		arguments, err = convertDriverValuers(arguments)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
 		paramFormats := make([]int16, len(arguments))
@@ -591,7 +591,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
 			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], arguments[i])
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 
 		}
@@ -670,7 +670,7 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 // pgproto3FieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
 // FieldDescription.
 func (c *Conn) pgproto3FieldDescriptionToPgxFieldDescription(src *pgproto3.FieldDescription, dst *FieldDescription) {
-	dst.Name = src.Name
+	dst.Name = string(src.Name)
 	dst.Table = pgtype.OID(src.TableOID)
 	dst.AttributeNumber = src.TableAttributeNumber
 	dst.DataType = pgtype.OID(src.DataTypeOID)

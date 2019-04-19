@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgio"
-	"github.com/jackc/pgproto3"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/pgtype"
 )
 
