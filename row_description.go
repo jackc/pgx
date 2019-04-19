@@ -30,35 +30,44 @@ type RowDescription struct {
 func (*RowDescription) Backend() {}
 
 func (dst *RowDescription) Decode(src []byte) error {
-	buf := bytes.NewBuffer(src)
 
-	if buf.Len() < 2 {
+	if len(src) < 2 {
 		return &invalidMessageFormatErr{messageType: "RowDescription"}
 	}
-	fieldCount := int(binary.BigEndian.Uint16(buf.Next(2)))
+	fieldCount := int(binary.BigEndian.Uint16(src))
+	rp := 2
 
 	dst.Fields = dst.Fields[0:0]
 
 	for i := 0; i < fieldCount; i++ {
 		var fd FieldDescription
-		bName, err := buf.ReadBytes(0)
-		if err != nil {
-			return err
+
+		idx := bytes.IndexByte(src[rp:], 0)
+		if idx < 0 {
+			return &invalidMessageFormatErr{messageType: "RowDescription"}
 		}
+		bName := string(src[rp : rp+idx])
+		rp += idx + 1
 		fd.Name = string(bName[:len(bName)-1])
 
 		// Since buf.Next() doesn't return an error if we hit the end of the buffer
 		// check Len ahead of time
-		if buf.Len() < 18 {
+		if len(src[rp:]) < 18 {
 			return &invalidMessageFormatErr{messageType: "RowDescription"}
 		}
 
-		fd.TableOID = binary.BigEndian.Uint32(buf.Next(4))
-		fd.TableAttributeNumber = binary.BigEndian.Uint16(buf.Next(2))
-		fd.DataTypeOID = binary.BigEndian.Uint32(buf.Next(4))
-		fd.DataTypeSize = int16(binary.BigEndian.Uint16(buf.Next(2)))
-		fd.TypeModifier = int32(binary.BigEndian.Uint32(buf.Next(4)))
-		fd.Format = int16(binary.BigEndian.Uint16(buf.Next(2)))
+		fd.TableOID = binary.BigEndian.Uint32(src[rp:])
+		rp += 4
+		fd.TableAttributeNumber = binary.BigEndian.Uint16(src[rp:])
+		rp += 2
+		fd.DataTypeOID = binary.BigEndian.Uint32(src[rp:])
+		rp += 4
+		fd.DataTypeSize = int16(binary.BigEndian.Uint16(src[rp:]))
+		rp += 2
+		fd.TypeModifier = int32(binary.BigEndian.Uint32(src[rp:]))
+		rp += 4
+		fd.Format = int16(binary.BigEndian.Uint16(src[rp:]))
+		rp += 2
 
 		dst.Fields = append(dst.Fields, fd)
 	}
