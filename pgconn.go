@@ -84,6 +84,10 @@ type NotificationHandler func(*PgConn, *Notification)
 // PostgreSQL server refuses to use TLS
 var ErrTLSRefused = errors.New("server refused TLS connection")
 
+// ErrConnBusy occurs when the connection is busy (for example, in the middle of reading query results) and another
+// action is attempted.
+var ErrConnBusy = errors.New("conn is busy")
+
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn          // the underlying TCP or unix domain socket connection
@@ -422,7 +426,7 @@ func (pgConn *PgConn) IsAlive() bool {
 func (pgConn *PgConn) lock() error {
 	switch pgConn.status {
 	case connStatusBusy:
-		return errors.New("connection busy") // This only should be possible in case of an application bug.
+		return ErrConnBusy // This only should be possible in case of an application bug.
 	case connStatusClosed:
 		return errors.New("conn closed")
 	case connStatusUninitialized:
