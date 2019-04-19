@@ -14,7 +14,7 @@ const (
 )
 
 type FieldDescription struct {
-	Name                 string
+	Name                 []byte
 	TableOID             uint32
 	TableAttributeNumber uint16
 	DataTypeOID          uint32
@@ -46,9 +46,8 @@ func (dst *RowDescription) Decode(src []byte) error {
 		if idx < 0 {
 			return &invalidMessageFormatErr{messageType: "RowDescription"}
 		}
-		bName := string(src[rp : rp+idx])
+		fd.Name = src[rp : rp+idx]
 		rp += idx + 1
-		fd.Name = string(bName[:len(bName)-1])
 
 		// Since buf.Next() doesn't return an error if we hit the end of the buffer
 		// check Len ahead of time
