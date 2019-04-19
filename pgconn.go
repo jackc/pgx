@@ -97,6 +97,8 @@ type PgConn struct {
 	bufferingReceiveMux sync.Mutex
 	bufferingReceiveMsg pgproto3.BackendMessage
 	bufferingReceiveErr error
+
+	wbuf []byte // Reusable write buffer
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
@@ -153,6 +155,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
 	pgConn := new(PgConn)
 	pgConn.Config = config
+	pgConn.wbuf = make([]byte, 0, 1024)
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
@@ -190,7 +193,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		startupMsg.Parameters["database"] = config.Database
 	}
 
-	if _, err := pgConn.conn.Write(startupMsg.Encode(nil)); err != nil {
+	if _, err := pgConn.conn.Write(startupMsg.Encode(pgConn.wbuf)); err != nil {
 		pgConn.conn.Close()
 		return nil, err
 	}
@@ -271,7 +274,7 @@ func (c *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {
 	msg := &pgproto3.PasswordMessage{Password: password}
-	_, err = pgConn.conn.Write(msg.Encode(nil))
+	_, err = pgConn.conn.Write(msg.Encode(pgConn.wbuf))
 	return err
 }
 
@@ -513,7 +516,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	cleanupContextDeadline := contextDoneToConnDeadline(ctx, pgConn.conn)
 	defer cleanupContextDeadline()
 
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs}).Encode(buf)
 	buf = (&pgproto3.Describe{ObjectType: 'S', Name: name}).Encode(buf)
 	buf = (&pgproto3.Sync{}).Encode(buf)
@@ -676,7 +679,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	}
 	multiResult.cleanupContextDeadline = contextDoneToConnDeadline(ctx, pgConn.conn)
 
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
 	_, err := pgConn.conn.Write(buf)
@@ -717,7 +720,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 		return result
 	}
 
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(buf)
 	buf = (&pgproto3.Bind{ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(buf)
 
@@ -744,7 +747,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 		return result
 	}
 
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(buf)
 
 	pgConn.execExtendedSuffix(buf, result)
@@ -816,7 +819,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	defer cleanupContextDeadline()
 
 	// Send copy to command
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
 	_, err := pgConn.conn.Write(buf)
@@ -875,7 +878,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	defer cleanupContextDeadline()
 
 	// Send copy to command
-	var buf []byte
+	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
 	_, err := pgConn.conn.Write(buf)
