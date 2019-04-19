@@ -136,7 +136,7 @@ func (b *Batch) ExecResults() (pgconn.CommandTag, error) {
 		if err == nil {
 			err = errors.New("no result")
 		}
-		return "", err
+		return nil, err
 	}
 
 	return b.mrr.ResultReader().Close()

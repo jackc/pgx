@@ -95,7 +95,7 @@ func (p *Pool) Stat() *Stat {
 func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer c.Release()
 
