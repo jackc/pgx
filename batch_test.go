@@ -177,7 +177,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 		batch.Queue("ps1",
 			[]interface{}{5},
 			nil,
-			[]int16{pgx.BinaryFormatCode},
+			nil,
 		)
 	}
 
