@@ -41,17 +41,14 @@ type Conn struct {
 	logger             Logger
 	logLevel           LogLevel
 	fp                 *fastpath
-	poolResetCount     int
 	preallocatedRows   []connRows
 
 	causeOfDeath error
 
 	lastStmtSent bool
 
-	// context support
-	ctxInProgress bool
-	doneChan      chan struct{}
-	closedChan    chan error
+	doneChan   chan struct{}
+	closedChan chan error
 
 	ConnInfo *pgtype.ConnInfo
 }
