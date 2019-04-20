@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"reflect"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // PostgreSQL oids for common types

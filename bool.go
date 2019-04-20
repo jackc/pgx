@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"strconv"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type Bool struct {

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type UUID struct {
