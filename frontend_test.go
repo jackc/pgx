@@ -5,7 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/jackc/pgproto3"
+	"github.com/jackc/pgproto3/v2"
 )
 
 type interruptReader struct {
