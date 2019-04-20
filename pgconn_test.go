@@ -692,7 +692,7 @@ func TestConnLocking(t *testing.T) {
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
 	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
-	assert.Equal(t, "connection busy", err.Error())
+	assert.Equal(t, pgconn.ErrConnBusy, err)
 
 	results, err = mrr.ReadAll()
 	assert.NoError(t, err)
