@@ -57,7 +57,7 @@ type copyFrom struct {
 	readerErrChan chan error
 }
 
-func (ct *copyFrom) run() (int, error) {
+func (ct *copyFrom) run(ctx context.Context) (int, error) {
 	quotedTableName := ct.tableName.Sanitize()
 	cbuf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
@@ -111,7 +111,7 @@ func (ct *copyFrom) run() (int, error) {
 		w.Close()
 	}()
 
-	commandTag, err := ct.conn.pgConn.CopyFrom(context.TODO(), r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
+	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
 
 	return int(commandTag.RowsAffected()), err
 }
@@ -149,7 +149,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, ps *PreparedStatement) (bool, []byt
 // CopyFrom requires all values use the binary format. Almost all types
 // implemented by pgx use the binary format by default. Types implementing
 // Encoder can only be used if they encode to the binary format.
-func (c *Conn) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
+func (c *Conn) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
 	ct := &copyFrom{
 		conn:          c,
 		tableName:     tableName,
@@ -158,5 +158,5 @@ func (c *Conn) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyF
 		readerErrChan: make(chan error),
 	}
 
-	return ct.run()
+	return ct.run(ctx)
 }
