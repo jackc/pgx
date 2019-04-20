@@ -14,6 +14,8 @@ github.com/jackc/pgconn v0.0.0-20190419205212-7bb6c2f3e982 h1:U0G6KWiQ9xrqbXt96O
 github.com/jackc/pgconn v0.0.0-20190419205212-7bb6c2f3e982/go.mod h1:UsnoyBN75lNxOeZXUT70J9xAvZffv2fxrxCrIPIH/Rk=
 github.com/jackc/pgconn v0.0.0-20190419211655-3710e52a9a12 h1:PzGjcOqGl6npHTDt8yDK5lnI9/ZQ+5ZpywzazR+yd8Q=
 github.com/jackc/pgconn v0.0.0-20190419211655-3710e52a9a12/go.mod h1:UsnoyBN75lNxOeZXUT70J9xAvZffv2fxrxCrIPIH/Rk=
+github.com/jackc/pgconn v0.0.0-20190420161109-39e6ff5766bd h1:eSKDWtHcm6H/vELPrs6fh7bch3wBc2vUvqVnHw17+5c=
+github.com/jackc/pgconn v0.0.0-20190420161109-39e6ff5766bd/go.mod h1:UsnoyBN75lNxOeZXUT70J9xAvZffv2fxrxCrIPIH/Rk=
 github.com/jackc/pgio v1.0.0 h1:g12B9UwVnzGhueNavwioyEEpAmqMe1E/BN9ES+8ovkE=
 github.com/jackc/pgio v1.0.0/go.mod h1:oP+2QK2wFfUWgr+gxjoBH9KGBb31Eio69xUb0w5bYf8=
 github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=

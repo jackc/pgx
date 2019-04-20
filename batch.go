@@ -59,24 +59,6 @@ func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []pgt
 
 // Send sends all queued queries to the server at once. All queries are run in an implicit transaction unless explicit
 // transaction control statements are executed.
-//
-// Warning: Send writes all queued queries before reading any results. This can
-// cause a deadlock if an excessive number of queries are queued. It is highly
-// advisable to use a timeout context to protect against this possibility.
-// Unfortunately, this excessive number can vary based on operating system,
-// connection type (TCP or Unix domain socket), and type of query. Unix domain
-// sockets seem to be much more susceptible to this issue than TCP connections.
-// However, it usually is at least several thousand.
-//
-// The deadlock occurs when the batched queries to be sent are so large that the
-// PostgreSQL server cannot receive it all at once. PostgreSQL received some of
-// the queued queries and starts executing them. As PostgreSQL executes the
-// queries it sends responses back. pgx will not read any of these responses
-// until it has finished sending. Therefore, if all network buffers are full pgx
-// will not be able to finish sending the queries and PostgreSQL will not be
-// able to finish sending the responses.
-//
-// See https://github.com/jackc/pgx/issues/374.
 func (b *Batch) Send(ctx context.Context) error {
 	if b.err != nil {
 		return b.err
