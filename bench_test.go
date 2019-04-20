@@ -492,7 +492,8 @@ func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		src := newBenchmarkWriteTableCopyFromSrc(n)
 
-		_, err := conn.CopyFrom(pgx.Identifier{"t"},
+		_, err := conn.CopyFrom(context.Background(),
+			pgx.Identifier{"t"},
 			[]string{"varchar_1",
 				"varchar_2",
 				"varchar_null_1",

@@ -35,7 +35,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime, []byte{111, 111, 111, 111}})
 	}
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 		{nil, nil},
 	}
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		{int32(3), "def"},
 	}
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(inputRows))
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
@@ -291,7 +291,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 
 	startTime := time.Now()
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &failSource{})
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, &failSource{})
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
@@ -343,7 +343,7 @@ func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 		a bytea not null
 	)`)
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &clientFailSource{})
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, &clientFailSource{})
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
@@ -403,7 +403,7 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 		a bytea not null
 	)`)
 
-	copyCount, err := conn.CopyFrom(pgx.Identifier{"foo"}, []string{"a"}, &clientFinalErrSource{})
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, &clientFinalErrSource{})
 	if err == nil {
 		t.Errorf("Expected CopyFrom return error, but it did not")
 	}
