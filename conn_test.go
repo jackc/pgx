@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/stretchr/testify/require"
+	errors "golang.org/x/xerrors"
 )
 
 func TestCrateDBConnect(t *testing.T) {
@@ -122,17 +123,11 @@ func TestExecFailure(t *testing.T) {
 	if _, err := conn.Exec(context.Background(), "selct;"); err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
 
 	rows, _ := conn.Query(context.Background(), "select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
-	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
 	}
 }
 
@@ -142,11 +137,12 @@ func TestExecFailureWithArguments(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if _, err := conn.Exec(context.Background(), "selct $1;", 1); err == nil {
+	_, err := conn.Exec(context.Background(), "selct $1;", 1)
+	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return false")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 }
 
@@ -164,10 +160,10 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(commandTag) != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
+		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 }
 
@@ -180,11 +176,12 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	if _, err := conn.Exec(ctx, "selct;"); err == nil {
+	_, err := conn.Exec(ctx, "selct;")
+	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 
 	rows, _ := conn.Query(context.Background(), "select 1")
@@ -192,8 +189,8 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	if rows.Err() != nil {
 		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 }
 
@@ -206,26 +203,27 @@ func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
-	if _, err := conn.Exec(ctx, "selct $1;", 1); err == nil {
+	_, err := conn.Exec(ctx, "selct $1;", 1)
+	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return false")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 }
 
 func TestExecFailureCloseBefore(t *testing.T) {
-	t.Skip("TODO: LastStmtSent needs to be ported / rewritten for pgconn")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
-	if _, err := conn.Exec(context.Background(), "select 1"); err == nil {
+	_, err := conn.Exec(context.Background(), "select 1")
+	if err == nil {
 		t.Fatal("Expected network error")
 	}
-	if conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return false")
+	if !errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected no bytes to be sent to server")
 	}
 }
 
@@ -259,20 +257,6 @@ func TestExecExtendedProtocol(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
-}
-
-func TestExecExFailureCloseBefore(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	closeConn(t, conn)
-
-	if _, err := conn.Exec(context.Background(), "select 1", nil); err == nil {
-		t.Fatal("Expected network error")
-	}
-	if conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return false")
-	}
 }
 
 func TestPrepare(t *testing.T) {
@@ -478,7 +462,7 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 	defer rows1.Close()
 
 	_, err = conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	if err != pgconn.ErrConnBusy {
+	if !errors.Is(err, pgconn.ErrConnBusy) {
 		t.Fatalf("conn.Query should have failed with pgconn.ErrConnBusy, but it was %v", err)
 	}
 }
@@ -496,7 +480,7 @@ func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
 	defer rows.Close()
 
 	_, err = conn.Exec(context.Background(), "create temporary table foo(spice timestamp[])")
-	if err != pgconn.ErrConnBusy {
+	if !errors.Is(err, pgconn.ErrConnBusy) {
 		t.Fatalf("conn.Exec should have failed with pgconn.ErrConnBusy, but it was %v", err)
 	}
 }

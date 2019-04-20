@@ -45,8 +45,6 @@ type Conn struct {
 
 	causeOfDeath error
 
-	lastStmtSent bool
-
 	doneChan   chan struct{}
 	closedChan chan error
 
@@ -392,17 +390,6 @@ func connInfoFromRows(rows Rows, err error) (map[string]pgtype.OID, error) {
 	return nameOIDs, err
 }
 
-// LastStmtSent returns true if the last call to Query(Ex)/Exec(Ex) attempted to
-// send the statement over the wire. Each call to a Query(Ex)/Exec(Ex) resets
-// the value to false initially until the statement has been sent. This does
-// NOT mean that the statement was successful or even received, it just means
-// that a write was attempted and therefore it could have been executed. Calls
-// to prepare a statement are ignored, only when the prepared statement is
-// attempted to be executed will this return true.
-func (c *Conn) LastStmtSent() bool {
-	return c.lastStmtSent
-}
-
 // PgConn returns the underlying *pgconn.PgConn. This is an escape hatch method that allows lower level access to the
 // PostgreSQL connection than pgx exposes.
 //
@@ -413,8 +400,6 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
-	c.lastStmtSent = false
-
 	startTime := time.Now()
 
 	commandTag, err := c.exec(ctx, sql, arguments...)
@@ -462,13 +447,11 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			}
 		}
 
-		c.lastStmtSent = true
 		result := c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats).Read()
 		return result.CommandTag, result.Err
 	}
 
 	if len(arguments) == 0 {
-		c.lastStmtSent = true
 		results, err := c.pgConn.Exec(ctx, sql).ReadAll()
 		if err != nil {
 			return nil, err
@@ -529,7 +512,6 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			}
 		}
 
-		c.lastStmtSent = true
 		result := c.pgConn.ExecPrepared(ctx, psd.Name, paramValues, paramFormats, resultFormats).Read()
 		return result.CommandTag, result.Err
 	}

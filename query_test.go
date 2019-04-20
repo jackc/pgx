@@ -18,6 +18,7 @@ import (
 	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
 	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
+	errors "golang.org/x/xerrors"
 )
 
 func TestConnQueryScan(t *testing.T) {
@@ -285,8 +286,8 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 	rows.Close()
 
@@ -436,8 +437,8 @@ func TestQueryEncodeError(t *testing.T) {
 	if err != nil {
 		t.Errorf("conn.Query failure: %v", err)
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
+	if errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 	defer rows.Close()
 
@@ -1158,9 +1159,6 @@ func TestQueryContextSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
 
 	var result, rowCount int
 	for rows.Next() {
@@ -1239,9 +1237,6 @@ func TestQueryRowContextSuccess(t *testing.T) {
 	if result != 42 {
 		t.Fatalf("Expected result 42, got %d", result)
 	}
-	if !conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return true")
-	}
 
 	ensureConnValid(t, conn)
 }
@@ -1270,10 +1265,11 @@ func TestQueryCloseBefore(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	closeConn(t, conn)
 
-	if _, err := conn.Query(context.Background(), "select 1"); err == nil {
+	_, err := conn.Query(context.Background(), "select 1")
+	if err == nil {
 		t.Fatal("Expected network error")
 	}
-	if conn.LastStmtSent() {
-		t.Error("Expected LastStmtSent to return false")
+	if !errors.Is(err, pgconn.ErrNoBytesSent) {
+		t.Error("Expected bytes to be sent to server")
 	}
 }
