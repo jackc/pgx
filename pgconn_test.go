@@ -686,6 +686,10 @@ func TestConnExecBatchPrecanceled(t *testing.T) {
 //
 // See https://github.com/jackc/pgx/issues/374.
 func TestConnExecBatchHuge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	t.Parallel()
 
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
