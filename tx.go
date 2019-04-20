@@ -158,17 +158,12 @@ func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (c
 }
 
 // Prepare delegates to the underlying *Conn
-func (tx *Tx) Prepare(name, sql string) (*PreparedStatement, error) {
-	return tx.PrepareEx(context.Background(), name, sql, nil)
-}
-
-// PrepareEx delegates to the underlying *Conn
-func (tx *Tx) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (*PreparedStatement, error) {
+func (tx *Tx) Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error) {
 	if tx.status != TxStatusInProgress {
 		return nil, ErrTxClosed
 	}
 
-	return tx.conn.PrepareEx(ctx, name, sql, opts)
+	return tx.conn.Prepare(ctx, name, sql)
 }
 
 // Query delegates to the underlying *Conn

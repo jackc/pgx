@@ -68,7 +68,7 @@ func (ct *copyFrom) run(ctx context.Context) (int, error) {
 	}
 	quotedColumnNames := cbuf.String()
 
-	ps, err := ct.conn.Prepare("", fmt.Sprintf("select %s from %s", quotedColumnNames, quotedTableName))
+	ps, err := ct.conn.Prepare(ctx, "", fmt.Sprintf("select %s from %s", quotedColumnNames, quotedTableName))
 	if err != nil {
 		return 0, err
 	}

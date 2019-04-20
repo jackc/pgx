@@ -10,7 +10,7 @@ func BenchmarkPgtypeInt4ParseBinary(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
-	_, err := conn.Prepare("selectBinary", "select n::int4 from generate_series(1, 100) n")
+	_, err := conn.Prepare(context.Background(), "selectBinary", "select n::int4 from generate_series(1, 100) n")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func BenchmarkPgtypeInt4EncodeBinary(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
-	_, err := conn.Prepare("encodeBinary", "select $1::int4, $2::int4, $3::int4, $4::int4, $5::int4, $6::int4, $7::int4")
+	_, err := conn.Prepare(context.Background(), "encodeBinary", "select $1::int4, $2::int4, $3::int4, $4::int4, $5::int4, $6::int4, $7::int4")
 	if err != nil {
 		b.Fatal(err)
 	}

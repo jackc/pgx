@@ -85,7 +85,7 @@ func TestRecordTranscode(t *testing.T) {
 
 	for i, tt := range tests {
 		psName := fmt.Sprintf("test%d", i)
-		ps, err := conn.Prepare(psName, tt.sql)
+		ps, err := conn.Prepare(context.Background(), psName, tt.sql)
 		if err != nil {
 			t.Fatal(err)
 		}
