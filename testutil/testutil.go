@@ -107,7 +107,7 @@ func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []
 	conn := MustConnectPgx(t)
 	defer MustCloseContext(t, conn)
 
-	_, err := conn.Prepare("test", fmt.Sprintf("select $1::%s", pgTypeName))
+	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select $1::%s", pgTypeName))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFun
 	for i, tt := range tests {
 		for _, fc := range formats {
 			psName := fmt.Sprintf("test%d", i)
-			ps, err := conn.Prepare(psName, tt.SQL)
+			ps, err := conn.Prepare(context.Background(), psName, tt.SQL)
 			if err != nil {
 				t.Fatal(err)
 			}

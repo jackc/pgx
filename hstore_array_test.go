@@ -70,7 +70,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		Status:     pgtype.Present,
 	}
 
-	ps, err := conn.Prepare("test", "select $1::hstore[]")
+	ps, err := conn.Prepare(context.Background(), "test", "select $1::hstore[]")
 	if err != nil {
 		t.Fatal(err)
 	}
