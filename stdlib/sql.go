@@ -80,8 +80,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 )
@@ -226,8 +227,9 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 
 	commandTag, err := c.conn.Exec(ctx, query, args...)
 	// if we got a network error before we had a chance to send the query, retry
-	if err != nil && !c.conn.LastStmtSent() {
-		if _, is := err.(net.Error); is {
+	if err != nil {
+		var netErr net.Error
+		if is := errors.As(err, &netErr); is && errors.Is(err, pgconn.ErrNoBytesSent) {
 			return nil, driver.ErrBadConn
 		}
 	}

@@ -286,7 +286,6 @@ type QueryResultFormats []int16
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
 func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
-	c.lastStmtSent = false
 	// rows = c.getRows(sql, args)
 
 	var resultFormats QueryResultFormats
@@ -369,7 +368,6 @@ optionLoop:
 		}
 	}
 
-	c.lastStmtSent = true
 	rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats)
 
 	return rows, rows.err
