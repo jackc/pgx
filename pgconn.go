@@ -26,33 +26,6 @@ const (
 	connStatusBusy
 )
 
-// PgError represents an error reported by the PostgreSQL server. See
-// http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
-// detailed field description.
-type PgError struct {
-	Severity         string
-	Code             string
-	Message          string
-	Detail           string
-	Hint             string
-	Position         int32
-	InternalPosition int32
-	InternalQuery    string
-	Where            string
-	SchemaName       string
-	TableName        string
-	ColumnName       string
-	DataTypeName     string
-	ConstraintName   string
-	File             string
-	Line             int32
-	Routine          string
-}
-
-func (pe *PgError) Error() string {
-	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
-}
-
 // Notice represents a notice response message reported by the PostgreSQL server. Be aware that this is distinct from
 // LISTEN/NOTIFY notification.
 type Notice PgError
@@ -78,14 +51,6 @@ type NoticeHandler func(*PgConn, *Notice)
 // aware of the origin of the notice, but it must not invoke any query method. Be aware that this is distinct from a
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
-
-// ErrTLSRefused occurs when the connection attempt requires TLS and the
-// PostgreSQL server refuses to use TLS
-var ErrTLSRefused = errors.New("server refused TLS connection")
-
-// ErrConnBusy occurs when the connection is busy (for example, in the middle of reading query results) and another
-// action is attempted.
-var ErrConnBusy = errors.New("conn is busy")
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
@@ -395,12 +360,12 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 
 	_, err := pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil {
-		return preferContextOverNetTimeoutError(ctx, err)
+		return linkErrors(ctx.Err(), err)
 	}
 
 	_, err = pgConn.conn.Read(make([]byte, 1))
 	if err != io.EOF {
-		return preferContextOverNetTimeoutError(ctx, err)
+		return linkErrors(ctx.Err(), err)
 	}
 
 	return pgConn.conn.Close()
@@ -469,15 +434,6 @@ func (ct CommandTag) String() string {
 	return string(ct)
 }
 
-// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
-// true. Otherwise returns err.
-func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
-	if err, ok := err.(net.Error); ok && err.Timeout() && ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return err
-}
-
 type PreparedStatementDescription struct {
 	Name      string
 	SQL       string
@@ -508,7 +464,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		return nil, linkErrors(ctx.Err(), err)
 	}
 
 	psd := &PreparedStatementDescription{Name: name, SQL: sql}
@@ -520,7 +476,7 @@ readloop:
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return nil, linkErrors(ctx.Err(), err)
 		}
 
 		switch msg := msg.(type) {
@@ -595,12 +551,12 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	binary.BigEndian.PutUint32(buf[12:16], uint32(pgConn.secretKey))
 	_, err = cancelConn.Write(buf)
 	if err != nil {
-		return preferContextOverNetTimeoutError(ctx, err)
+		return linkErrors(ctx.Err(), err)
 	}
 
 	_, err = cancelConn.Read(buf)
 	if err != io.EOF {
-		return errors.Errorf("Server failed to close connection after cancel query request: %w", preferContextOverNetTimeoutError(ctx, err))
+		return errors.Errorf("Server failed to close connection after cancel query request: %w", linkErrors(ctx.Err(), err))
 	}
 
 	return nil
@@ -626,7 +582,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	for {
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
-			return preferContextOverNetTimeoutError(ctx, err)
+			return linkErrors(ctx.Err(), err)
 		}
 
 		switch msg.(type) {
@@ -673,7 +629,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		pgConn.hardClose()
 		pgConn.doneChanToDeadline.cleanup()
 		multiResult.closed = true
-		multiResult.err = preferContextOverNetTimeoutError(ctx, err)
+		multiResult.err = linkErrors(ctx.Err(), err)
 		pgConn.unlock()
 		return multiResult
 	}
@@ -814,7 +770,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		pgConn.hardClose()
 		pgConn.unlock()
 
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		return nil, linkErrors(ctx.Err(), err)
 	}
 
 	// Read results
@@ -824,7 +780,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return nil, linkErrors(ctx.Err(), err)
 		}
 
 		switch msg := msg.(type) {
@@ -871,7 +827,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		return nil, linkErrors(ctx.Err(), err)
 	}
 
 	// Read until copy in response or error.
@@ -882,7 +838,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return nil, linkErrors(ctx.Err(), err)
 		}
 
 		switch msg := msg.(type) {
@@ -912,7 +868,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			_, err = pgConn.conn.Write(buf)
 			if err != nil {
 				pgConn.hardClose()
-				return nil, preferContextOverNetTimeoutError(ctx, err)
+				return nil, linkErrors(ctx.Err(), err)
 			}
 		}
 
@@ -921,7 +877,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			msg, err := pgConn.ReceiveMessage()
 			if err != nil {
 				pgConn.hardClose()
-				return nil, preferContextOverNetTimeoutError(ctx, err)
+				return nil, linkErrors(ctx.Err(), err)
 			}
 
 			switch msg := msg.(type) {
@@ -943,7 +899,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err = pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		return nil, preferContextOverNetTimeoutError(ctx, err)
+		return nil, linkErrors(ctx.Err(), err)
 	}
 
 	// Read results
@@ -951,7 +907,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.ReceiveMessage()
 		if err != nil {
 			pgConn.hardClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return nil, linkErrors(ctx.Err(), err)
 		}
 
 		switch msg := msg.(type) {

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -907,7 +907,7 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	err = pgConn.WaitForNotification(ctx)
 	cancel()
-	require.Equal(t, context.DeadlineExceeded, err)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 
 	ensureConnValid(t, pgConn)
 }
@@ -1017,7 +1017,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
-	assert.Equal(t, context.DeadlineExceeded, err)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	assert.False(t, pgConn.IsAlive())
@@ -1108,7 +1108,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	cancel()
 	assert.Equal(t, int64(0), ct.RowsAffected())
-	require.Equal(t, context.DeadlineExceeded, err)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 
 	assert.False(t, pgConn.IsAlive())
 }
