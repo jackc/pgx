@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 )
 
 // This function uses a postgresql 9.6 specific column

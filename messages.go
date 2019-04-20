@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgio"
-	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 const (

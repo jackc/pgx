@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3"
-	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 func newFastpath(cn *Conn) *fastpath {
