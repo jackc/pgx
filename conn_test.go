@@ -297,7 +297,7 @@ func TestPrepare(t *testing.T) {
 		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
-	err = conn.Deallocate("test")
+	err = conn.Deallocate(context.Background(), "test")
 	if err != nil {
 		t.Errorf("conn.Deallocate failed: %v", err)
 	}
@@ -321,7 +321,7 @@ func TestPrepare(t *testing.T) {
 		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
-	err = conn.Deallocate("test")
+	err = conn.Deallocate(context.Background(), "test")
 	if err != nil {
 		t.Errorf("conn.Deallocate failed: %v", err)
 	}
@@ -392,7 +392,7 @@ func TestPrepareEx(t *testing.T) {
 		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
-	err = conn.Deallocate("test")
+	err = conn.Deallocate(context.Background(), "test")
 	if err != nil {
 		t.Errorf("conn.Deallocate failed: %v", err)
 	}
