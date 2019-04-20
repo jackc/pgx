@@ -282,14 +282,9 @@ func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExO
 }
 
 // Deallocate released a prepared statement
-func (c *Conn) Deallocate(name string) error {
-	return c.deallocateContext(context.Background(), name)
-}
-
-// TODO - consider making this public
-func (c *Conn) deallocateContext(ctx context.Context, name string) (err error) {
+func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	delete(c.preparedStatements, name)
-	_, err = c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
+	_, err := c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
 	return err
 }
 

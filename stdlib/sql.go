@@ -315,7 +315,7 @@ type Stmt struct {
 }
 
 func (s *Stmt) Close() error {
-	return s.conn.conn.Deallocate(s.ps.Name)
+	return s.conn.conn.Deallocate(context.Background(), s.ps.Name)
 }
 
 func (s *Stmt) NumInput() int {
