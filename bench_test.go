@@ -17,7 +17,7 @@ func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
-	_, err := conn.Prepare("selectNulls", "select 1::int4, 'johnsmith', null::text, null::text, null::text, null::date, null::timestamptz")
+	_, err := conn.Prepare(context.Background(), "selectNulls", "select 1::int4, 'johnsmith', null::text, null::text, null::text, null::date, null::timestamptz")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)
 
-	_, err := conn.Prepare("selectNulls", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
+	_, err := conn.Prepare(context.Background(), "selectNulls", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -189,7 +189,7 @@ func BenchmarkSelectWithLoggingErrorWithDiscard(b *testing.B) {
 }
 
 func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
-	_, err := conn.Prepare("test", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
+	_, err := conn.Prepare(context.Background(), "test", "select 1::int4, 'johnsmith', 'johnsmith@example.com', 'John Smith', 'male', '1970-01-01'::date, '2015-01-01 00:00:00'::timestamptz")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -339,7 +339,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	defer closeConn(b, conn)
 
 	mustExec(b, conn, benchmarkWriteTableCreateSQL)
-	_, err := conn.Prepare("insert_t", benchmarkWriteTableInsertSQL)
+	_, err := conn.Prepare(context.Background(), "insert_t", benchmarkWriteTableInsertSQL)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -450,7 +450,7 @@ func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
 	defer closeConn(b, conn)
 
 	mustExec(b, conn, benchmarkWriteTableCreateSQL)
-	_, err := conn.Prepare("insert_t", benchmarkWriteTableInsertSQL)
+	_, err := conn.Prepare(context.Background(), "insert_t", benchmarkWriteTableInsertSQL)
 	if err != nil {
 		b.Fatal(err)
 	}

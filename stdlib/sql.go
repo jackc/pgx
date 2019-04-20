@@ -162,7 +162,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
-	ps, err := c.conn.PrepareEx(ctx, name, query, nil)
+	ps, err := c.conn.Prepare(ctx, name, query)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 	// TODO - remove hack that creates a new prepared statement for every query -- put in place because of problem preparing empty statement name
 	psname := fmt.Sprintf("stdlibpx%v", &argsV)
 
-	ps, err := c.conn.PrepareEx(ctx, psname, query, nil)
+	ps, err := c.conn.Prepare(ctx, psname, query)
 	if err != nil {
 		// since PrepareEx failed, we didn't actually get to send the values, so
 		// we can safely retry

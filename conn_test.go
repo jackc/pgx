@@ -281,7 +281,7 @@ func TestPrepare(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	_, err := conn.Prepare("test", "select $1::varchar")
+	_, err := conn.Prepare(context.Background(), "test", "select $1::varchar")
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return
@@ -305,7 +305,7 @@ func TestPrepare(t *testing.T) {
 	// Create another prepared statement to ensure Deallocate left the connection
 	// in a working state and that we can reuse the prepared statement name.
 
-	_, err = conn.Prepare("test", "select $1::integer")
+	_, err = conn.Prepare(context.Background(), "test", "select $1::integer")
 	if err != nil {
 		t.Errorf("Unable to prepare statement: %v", err)
 		return
@@ -333,7 +333,7 @@ func TestPrepareBadSQLFailure(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if _, err := conn.Prepare("badSQL", "select foo"); err == nil {
+	if _, err := conn.Prepare(context.Background(), "badSQL", "select foo"); err == nil {
 		t.Fatal("Prepare should have failed with syntax error")
 	}
 
@@ -347,7 +347,7 @@ func TestPrepareIdempotency(t *testing.T) {
 	defer closeConn(t, conn)
 
 	for i := 0; i < 2; i++ {
-		_, err := conn.Prepare("test", "select 42::integer")
+		_, err := conn.Prepare(context.Background(), "test", "select 42::integer")
 		if err != nil {
 			t.Fatalf("%d. Unable to prepare statement: %v", i, err)
 		}
@@ -363,38 +363,10 @@ func TestPrepareIdempotency(t *testing.T) {
 		}
 	}
 
-	_, err := conn.Prepare("test", "select 'fail'::varchar")
+	_, err := conn.Prepare(context.Background(), "test", "select 'fail'::varchar")
 	if err == nil {
 		t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
 		return
-	}
-}
-
-func TestPrepareEx(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	_, err := conn.PrepareEx(context.Background(), "test", "select $1", &pgx.PrepareExOptions{ParameterOIDs: []pgtype.OID{pgtype.TextOID}})
-	if err != nil {
-		t.Errorf("Unable to prepare statement: %v", err)
-		return
-	}
-
-	var s string
-	err = conn.QueryRow(context.Background(), "test", "hello").Scan(&s)
-	if err != nil {
-		t.Errorf("Executing prepared statement failed: %v", err)
-	}
-
-	if s != "hello" {
-		t.Errorf("Prepared statement did not return expected value: %v", s)
-	}
-
-	err = conn.Deallocate(context.Background(), "test")
-	if err != nil {
-		t.Errorf("conn.Deallocate failed: %v", err)
 	}
 }
 

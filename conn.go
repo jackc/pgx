@@ -216,18 +216,7 @@ func (c *Conn) ParameterStatus(key string) string {
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
-func (c *Conn) Prepare(name, sql string) (ps *PreparedStatement, err error) {
-	return c.PrepareEx(context.Background(), name, sql, nil)
-}
-
-// PrepareEx creates a prepared statement with name and sql. sql can contain placeholders
-// for bound parameters. These placeholders are referenced positional as $1, $2, etc.
-// It differs from Prepare as it allows additional options (such as parameter OIDs) to be passed via struct
-//
-// PrepareEx is idempotent; i.e. it is safe to call PrepareEx multiple times with the same
-// name and sql arguments. This allows a code path to PrepareEx and Query/Exec without
-// concern for if the statement has already been prepared.
-func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (ps *PreparedStatement, err error) {
+func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedStatement, err error) {
 	if name != "" {
 		if ps, ok := c.preparedStatements[name]; ok && ps.SQL == sql {
 			return ps, nil
@@ -237,25 +226,12 @@ func (c *Conn) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExO
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
-				c.log(LogLevelError, "prepareEx failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
+				c.log(LogLevelError, "Prepare failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
 			}
 		}()
 	}
 
-	if opts == nil {
-		opts = &PrepareExOptions{}
-	}
-
-	if len(opts.ParameterOIDs) > 65535 {
-		return nil, errors.Errorf("Number of PrepareExOptions ParameterOIDs must be between 0 and 65535, received %d", len(opts.ParameterOIDs))
-	}
-
-	var paramOIDs []uint32
-	for _, oid := range opts.ParameterOIDs {
-		paramOIDs = append(paramOIDs, uint32(oid))
-	}
-
-	psd, err := c.pgConn.Prepare(context.TODO(), name, sql, paramOIDs)
+	psd, err := c.pgConn.Prepare(context.TODO(), name, sql, nil)
 	if err != nil {
 		return nil, err
 	}

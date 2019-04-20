@@ -165,7 +165,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	_, err := conn.Prepare("ps1", "select n from generate_series(0,$1::int) n")
+	_, err := conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 	if err != nil {
 		t.Fatal(err)
 	}
