@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgpassfile"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
@@ -195,7 +195,7 @@ func ParseConfig(connString string) (*Config, error) {
 
 		port, err := parsePort(portStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid port: %v", settings["port"])
+			return nil, errors.Errorf("invalid port: %w", err)
 		}
 
 		var tlsConfigs []*tls.Config
@@ -240,7 +240,7 @@ func ParseConfig(connString string) (*Config, error) {
 	if settings["target_session_attrs"] == "read-write" {
 		config.AfterConnectFunc = AfterConnectTargetSessionAttrsReadWrite
 	} else if settings["target_session_attrs"] != "any" {
-		return nil, fmt.Errorf("unknown target_session_attrs value %v", settings["target_session_attrs"])
+		return nil, errors.Errorf("unknown target_session_attrs value: %v", settings["target_session_attrs"])
 	}
 
 	return config, nil
@@ -409,11 +409,11 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		caPath := sslrootcert
 		caCert, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return nil, errors.Wrapf(err, "unable to read CA file %q", caPath)
+			return nil, errors.Errorf("unable to read CA file: %w", err)
 		}
 
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.Wrap(err, "unable to add CA to cert pool")
+			return nil, errors.Errorf("unable to add CA to cert pool: %w", err)
 		}
 
 		tlsConfig.RootCAs = caCertPool
@@ -421,13 +421,13 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	}
 
 	if (sslcert != "" && sslkey == "") || (sslcert == "" && sslkey != "") {
-		return nil, fmt.Errorf(`both "sslcert" and "sslkey" are required`)
+		return nil, errors.New(`both "sslcert" and "sslkey" are required`)
 	}
 
 	if sslcert != "" && sslkey != "" {
 		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
 		if err != nil {
-			return nil, errors.Wrap(err, "unable to read cert")
+			return nil, errors.Errorf("unable to read cert: %w", err)
 		}
 
 		tlsConfig.Certificates = []tls.Certificate{cert}

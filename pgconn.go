@@ -7,8 +7,6 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"io"
 	"math"
 	"net"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
+	errors "golang.org/x/xerrors"
 )
 
 const (
@@ -232,7 +231,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				err := config.AfterConnectFunc(ctx, pgConn)
 				if err != nil {
 					pgConn.conn.Close()
-					return nil, fmt.Errorf("AfterConnectFunc: %v", err)
+					return nil, errors.Errorf("AfterConnectFunc: %v", err)
 				}
 			}
 			return pgConn, nil
@@ -601,7 +600,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 
 	_, err = cancelConn.Read(buf)
 	if err != io.EOF {
-		return fmt.Errorf("Server failed to close connection after cancel query request: %v", preferContextOverNetTimeoutError(ctx, err))
+		return errors.Errorf("Server failed to close connection after cancel query request: %w", preferContextOverNetTimeoutError(ctx, err))
 	}
 
 	return nil
@@ -757,7 +756,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	result := &pgConn.resultReader
 
 	if len(paramValues) > math.MaxUint16 {
-		result.concludeCommand(nil, fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.concludeCommand(nil, errors.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
 		result.closed = true
 		pgConn.unlock()
 		return result

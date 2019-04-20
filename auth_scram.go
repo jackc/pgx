@@ -17,13 +17,13 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgproto3/v2"
 	"golang.org/x/crypto/pbkdf2"
 	"golang.org/x/text/secure/precis"
+	errors "golang.org/x/xerrors"
 )
 
 const clientNonceLen = 18
@@ -181,12 +181,12 @@ func (sc *scramClient) recvServerFirstMessage(serverFirstMessage []byte) error {
 	var err error
 	sc.salt, err = base64.StdEncoding.DecodeString(string(saltStr))
 	if err != nil {
-		return fmt.Errorf("invalid SCRAM salt received from server: %v", err)
+		return errors.Errorf("invalid SCRAM salt received from server: %w", err)
 	}
 
 	sc.iterations, err = strconv.Atoi(string(iterationsStr))
 	if err != nil || sc.iterations <= 0 {
-		return fmt.Errorf("invalid SCRAM iteration count received from server: %s", iterationsStr)
+		return errors.Errorf("invalid SCRAM iteration count received from server: %w", err)
 	}
 
 	if !bytes.HasPrefix(sc.clientAndServerNonce, sc.clientNonce) {
