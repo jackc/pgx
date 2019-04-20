@@ -309,57 +309,6 @@ optionLoop:
 		args:      args,
 	}
 
-	// err = c.initContext(ctx)
-	// if err != nil {
-	// 	rows.fatal(err)
-	// 	return rows, rows.err
-	// }
-
-	// if options != nil && len(options.ParameterOIDs) > 0 {
-
-	// 	buf, err := c.buildOneRoundTripQueryEx(c.wbuf, sql, options, args)
-	// 	if err != nil {
-	// 		rows.fatal(err)
-	// 		return rows, err
-	// 	}
-
-	// 	buf = appendSync(buf)
-
-	// 	n, err := c.pgConn.Conn().Write(buf)
-	// 	c.lastStmtSent = true
-	// 	if err != nil && fatalWriteErr(n, err) {
-	// 		rows.fatal(err)
-	// 		c.die(err)
-	// 		return rows, err
-	// 	}
-	// 	c.pendingReadyForQueryCount++
-
-	// 	fieldDescriptions, err := c.readUntilRowDescription()
-	// 	if err != nil {
-	// 		rows.fatal(err)
-	// 		return rows, err
-	// 	}
-
-	// 	if len(options.ResultFormatCodes) == 0 {
-	// 		for i := range fieldDescriptions {
-	// 			fieldDescriptions[i].FormatCode = TextFormatCode
-	// 		}
-	// 	} else if len(options.ResultFormatCodes) == 1 {
-	// 		fc := options.ResultFormatCodes[0]
-	// 		for i := range fieldDescriptions {
-	// 			fieldDescriptions[i].FormatCode = fc
-	// 		}
-	// 	} else {
-	// 		for i := range options.ResultFormatCodes {
-	// 			fieldDescriptions[i].FormatCode = options.ResultFormatCodes[i]
-	// 		}
-	// 	}
-
-	// 	rows.sql = sql
-	// 	rows.fields = fieldDescriptions
-	// 	return rows, nil
-	// }
-
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
 		psd, err := c.pgConn.Prepare(ctx, "", sql, nil)
