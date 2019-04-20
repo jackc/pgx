@@ -1257,15 +1257,19 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
 
 	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
-	_, err := pgConn.conn.Write(batch.buf)
-	if err != nil {
-		pgConn.hardClose()
-		pgConn.doneChanToDeadline.cleanup()
-		multiResult.closed = true
-		multiResult.err = preferContextOverNetTimeoutError(ctx, err)
-		pgConn.unlock()
-		return multiResult
-	}
+
+	// A large batch can deadlock without concurrent reading and writing. If the Write fails the underlying net.Conn is
+	// closed. This is all that can be done without introducing a race condition or adding a concurrent safe communication
+	// channel to relay the error back. The practical effect of this is that the underlying Write error is not reported.
+	// The error the code reading the batch results receives will be a closed connection error.
+	//
+	// See https://github.com/jackc/pgx/issues/374.
+	go func() {
+		_, err := pgConn.conn.Write(batch.buf)
+		if err != nil {
+			pgConn.conn.Close()
+		}
+	}()
 
 	return multiResult
 }
