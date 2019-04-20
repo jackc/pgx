@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgconn"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type TxIsoLevel string

@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"strconv"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgx/v4/pgtype"
 	"github.com/shopspring/decimal"

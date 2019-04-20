@@ -5,7 +5,7 @@ import (
 	"net"
 	"reflect"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4/pgtype"

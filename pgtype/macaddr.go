@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"net"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type Macaddr struct {

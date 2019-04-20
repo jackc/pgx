@@ -5,7 +5,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgtype"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type batchItem struct {

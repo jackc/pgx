@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // The values for log levels are chosen such that the zero value means that no

@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type JSON struct {

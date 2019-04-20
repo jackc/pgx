@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"

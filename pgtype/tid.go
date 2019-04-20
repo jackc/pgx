@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // TID is PostgreSQL's Tuple Identifier type.

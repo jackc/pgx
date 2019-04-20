@@ -4,7 +4,7 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // QChar is for PostgreSQL's special 8-bit-only "char" type more akin to the C

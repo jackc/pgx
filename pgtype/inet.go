@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"net"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // Network address family is dependent on server socket.h value for AF_INET.

@@ -9,7 +9,7 @@ package pgx_test
 // 	"testing"
 // 	"time"
 
-// 	"github.com/pkg/errors"
+// 	errors "golang.org/x/xerrors"
 
 // 	"github.com/jackc/fake"
 // 	"github.com/jackc/pgx/v4"

@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
