@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type BPCharArray struct {

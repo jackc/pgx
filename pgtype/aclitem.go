@@ -3,7 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // ACLItem is used for PostgreSQL's aclitem data type. A sample aclitem

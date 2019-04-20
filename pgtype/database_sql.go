@@ -3,7 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 func DatabaseSQLValue(ci *ConnInfo, src Value) (interface{}, error) {
