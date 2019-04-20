@@ -228,7 +228,7 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedState
 		}()
 	}
 
-	psd, err := c.pgConn.Prepare(context.TODO(), name, sql, nil)
+	psd, err := c.pgConn.Prepare(ctx, name, sql, nil)
 	if err != nil {
 		return nil, err
 	}
