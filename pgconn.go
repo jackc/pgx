@@ -444,13 +444,13 @@ type PreparedStatementDescription struct {
 // Prepare creates a prepared statement.
 func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) (*PreparedStatementDescription, error) {
 	if err := pgConn.lock(); err != nil {
-		return nil, err
+		return nil, linkErrors(err, ErrNoBytesSent)
 	}
 	defer pgConn.unlock()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
 	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
@@ -461,9 +461,12 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	buf = (&pgproto3.Describe{ObjectType: 'S', Name: name}).Encode(buf)
 	buf = (&pgproto3.Sync{}).Encode(buf)
 
-	_, err := pgConn.conn.Write(buf)
+	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
+		if n == 0 {
+			err = linkErrors(err, ErrNoBytesSent)
+		}
 		return nil, linkErrors(ctx.Err(), err)
 	}
 
@@ -601,7 +604,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	if err := pgConn.lock(); err != nil {
 		return &MultiResultReader{
 			closed: true,
-			err:    err,
+			err:    linkErrors(err, ErrNoBytesSent),
 		}
 	}
 
@@ -614,7 +617,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	select {
 	case <-ctx.Done():
 		multiResult.closed = true
-		multiResult.err = ctx.Err()
+		multiResult.err = linkErrors(ctx.Err(), ErrNoBytesSent)
 		pgConn.unlock()
 		return multiResult
 	default:
@@ -624,11 +627,14 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
-	_, err := pgConn.conn.Write(buf)
+	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
 		pgConn.doneChanToDeadline.cleanup()
 		multiResult.closed = true
+		if n == 0 {
+			err = linkErrors(err, ErrNoBytesSent)
+		}
 		multiResult.err = linkErrors(ctx.Err(), err)
 		pgConn.unlock()
 		return multiResult
@@ -666,7 +672,7 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 	buf = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(buf)
 	buf = (&pgproto3.Bind{ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(buf)
 
-	pgConn.execExtendedSuffix(buf, result)
+	pgConn.execExtendedSuffix(ctx, buf, result)
 
 	return result
 }
@@ -692,7 +698,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(buf)
 
-	pgConn.execExtendedSuffix(buf, result)
+	pgConn.execExtendedSuffix(ctx, buf, result)
 
 	return result
 }
@@ -701,7 +707,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	if err := pgConn.lock(); err != nil {
 		return &ResultReader{
 			closed: true,
-			err:    err,
+			err:    linkErrors(err, ErrNoBytesSent),
 		}
 	}
 
@@ -720,7 +726,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 
 	select {
 	case <-ctx.Done():
-		result.concludeCommand(nil, ctx.Err())
+		result.concludeCommand(nil, linkErrors(ctx.Err(), ErrNoBytesSent))
 		result.closed = true
 		pgConn.unlock()
 		return result
@@ -731,15 +737,18 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	return result
 }
 
-func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
+func (pgConn *PgConn) execExtendedSuffix(ctx context.Context, buf []byte, result *ResultReader) {
 	buf = (&pgproto3.Describe{ObjectType: 'P'}).Encode(buf)
 	buf = (&pgproto3.Execute{}).Encode(buf)
 	buf = (&pgproto3.Sync{}).Encode(buf)
 
-	_, err := pgConn.conn.Write(buf)
+	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		result.concludeCommand(nil, err)
+		if n == 0 {
+			err = linkErrors(err, ErrNoBytesSent)
+		}
+		result.concludeCommand(nil, linkErrors(ctx.Err(), err))
 		pgConn.doneChanToDeadline.cleanup()
 		result.closed = true
 		pgConn.unlock()
@@ -749,13 +758,13 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 // CopyTo executes the copy command sql and copies the results to w.
 func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (CommandTag, error) {
 	if err := pgConn.lock(); err != nil {
-		return nil, err
+		return nil, linkErrors(err, ErrNoBytesSent)
 	}
 
 	select {
 	case <-ctx.Done():
 		pgConn.unlock()
-		return nil, ctx.Err()
+		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
 	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
@@ -765,11 +774,13 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
-	_, err := pgConn.conn.Write(buf)
+	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
 		pgConn.unlock()
-
+		if n == 0 {
+			err = linkErrors(err, ErrNoBytesSent)
+		}
 		return nil, linkErrors(ctx.Err(), err)
 	}
 
@@ -808,13 +819,13 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 // could still block.
 func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (CommandTag, error) {
 	if err := pgConn.lock(); err != nil {
-		return nil, err
+		return nil, linkErrors(err, ErrNoBytesSent)
 	}
 	defer pgConn.unlock()
 
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
 	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
@@ -824,9 +835,12 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
 
-	_, err := pgConn.conn.Write(buf)
+	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
+		if n == 0 {
+			err = linkErrors(err, ErrNoBytesSent)
+		}
 		return nil, linkErrors(ctx.Err(), err)
 	}
 
@@ -1191,7 +1205,7 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 	if err := pgConn.lock(); err != nil {
 		return &MultiResultReader{
 			closed: true,
-			err:    err,
+			err:    linkErrors(err, ErrNoBytesSent),
 		}
 	}
 
@@ -1204,7 +1218,7 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 	select {
 	case <-ctx.Done():
 		multiResult.closed = true
-		multiResult.err = ctx.Err()
+		multiResult.err = linkErrors(ctx.Err(), ErrNoBytesSent)
 		pgConn.unlock()
 		return multiResult
 	default:

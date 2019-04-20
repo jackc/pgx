@@ -15,6 +15,10 @@ var ErrTLSRefused = errors.New("server refused TLS connection")
 // action is attempted.
 var ErrConnBusy = errors.New("conn is busy")
 
+// ErrNoBytesSent is used to annotate an error that occurred without sending any bytes to the server. This can be used
+// to implement safe retry logic. ErrNoBytesSent will never occur alone. It will always be wrapped by another error.
+var ErrNoBytesSent = errors.New("no bytes sent to server")
+
 // PgError represents an error reported by the PostgreSQL server. See
 // http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
 // detailed field description.

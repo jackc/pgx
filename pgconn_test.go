@@ -264,9 +264,10 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	psd, err := pgConn.Prepare(ctx, "ps1", "select 1", nil)
-	require.Nil(t, psd)
-	require.Error(t, err)
-	require.Equal(t, context.Canceled, err)
+	assert.Nil(t, psd)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
 	ensureConnValid(t, pgConn)
 }
@@ -386,8 +387,9 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	_, err = pgConn.Exec(ctx, "select 'Hello, world'").ReadAll()
-	require.Error(t, err)
-	require.Equal(t, context.Canceled, err)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
 	ensureConnValid(t, pgConn)
 }
@@ -492,7 +494,8 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 	cancel()
 	result := pgConn.ExecParams(ctx, "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil).Read()
 	require.Error(t, result.Err)
-	require.Equal(t, context.Canceled, result.Err)
+	assert.True(t, errors.Is(result.Err, context.Canceled))
+	assert.True(t, errors.Is(result.Err, pgconn.ErrNoBytesSent))
 
 	ensureConnValid(t, pgConn)
 }
@@ -620,7 +623,8 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 	cancel()
 	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
 	require.Error(t, result.Err)
-	require.Equal(t, context.Canceled, result.Err)
+	assert.True(t, errors.Is(result.Err, context.Canceled))
+	assert.True(t, errors.Is(result.Err, pgconn.ErrNoBytesSent))
 
 	ensureConnValid(t, pgConn)
 }
@@ -677,7 +681,8 @@ func TestConnExecBatchPrecanceled(t *testing.T) {
 	cancel()
 	_, err = pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.Error(t, err)
-	require.Equal(t, context.Canceled, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
 	ensureConnValid(t, pgConn)
 }
@@ -750,7 +755,8 @@ func TestConnLocking(t *testing.T) {
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
 	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
-	assert.Equal(t, pgconn.ErrConnBusy, err)
+	assert.True(t, errors.Is(err, pgconn.ErrConnBusy))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
 	results, err = mrr.ReadAll()
 	assert.NoError(t, err)
@@ -1036,7 +1042,8 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 	cancel()
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select * from generate_series(1,1000)) to stdout")
 	require.Error(t, err)
-	require.Equal(t, context.Canceled, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	ensureConnValid(t, pgConn)
@@ -1143,7 +1150,8 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	cancel()
 	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	require.Error(t, err)
-	require.Equal(t, context.Canceled, err)
+	assert.True(t, errors.Is(err, context.Canceled))
+	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 	assert.Equal(t, pgconn.CommandTag(nil), ct)
 
 	ensureConnValid(t, pgConn)
