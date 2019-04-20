@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // pguint32 is the core type that is used to implement PostgreSQL types such as

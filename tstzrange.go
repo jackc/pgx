@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type Tstzrange struct {

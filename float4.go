@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type Float4 struct {

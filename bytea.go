@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 type Bytea struct {

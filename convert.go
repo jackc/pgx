@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 const maxUint = ^uint(0)

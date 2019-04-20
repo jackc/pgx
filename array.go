@@ -9,7 +9,7 @@ import (
 	"unicode"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
+	errors "golang.org/x/xerrors"
 )
 
 // Information on the internals of PostgreSQL arrays can be found in
