@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jackc/pgx/pool"
+	"github.com/jackc/pgx/v4/pool"
 	"github.com/stretchr/testify/require"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {

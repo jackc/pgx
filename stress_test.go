@@ -12,7 +12,7 @@ package pgx_test
 // 	"github.com/pkg/errors"
 
 // 	"github.com/jackc/fake"
-// 	"github.com/jackc/pgx"
+// 	"github.com/jackc/pgx/v4"
 // 	"github.com/jackc/pgconn"
 // )
 

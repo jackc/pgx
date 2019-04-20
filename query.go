@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 // Rows is the result set returned from *Conn.Query. Rows must be closed before

@@ -5,7 +5,7 @@ package testingadapter
 import (
 	"fmt"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 )
 
 // TestingLogger interface defines the subset of testing.TB methods used by this

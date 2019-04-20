@@ -1,7 +1,7 @@
 package pool
 
 import (
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 )
 
 type errRows struct {

@@ -10,8 +10,8 @@ func main() {
 // 	"net/http"
 // 	"os"
 
-// 	"github.com/jackc/pgx"
-// 	"github.com/jackc/pgx/log/log15adapter"
+// 	"github.com/jackc/pgx/v4"
+// 	"github.com/jackc/pgx/v4/log/log15adapter"
 // 	log "gopkg.in/inconshreveable/log15.v2"
 // )
 
