@@ -5,7 +5,7 @@ import (
 
 	errors "golang.org/x/xerrors"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgtype"
 	uuid "github.com/satori/go.uuid"
 )
 
