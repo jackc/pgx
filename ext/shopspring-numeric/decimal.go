@@ -6,7 +6,7 @@ import (
 
 	errors "golang.org/x/xerrors"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgtype"
 	"github.com/shopspring/decimal"
 )
 

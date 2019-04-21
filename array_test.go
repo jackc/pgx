@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgtype"
 )
 
 func TestParseUntypedTextArray(t *testing.T) {
