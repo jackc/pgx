@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgtype"
 	errors "golang.org/x/xerrors"
 )
 

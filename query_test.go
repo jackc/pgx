@@ -13,9 +13,9 @@ import (
 
 	"github.com/cockroachdb/apd"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgtype"
+	satori "github.com/jackc/pgtype/ext/satori-uuid"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgtype"
-	satori "github.com/jackc/pgx/v4/pgtype/ext/satori-uuid"
 	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
 	errors "golang.org/x/xerrors"
