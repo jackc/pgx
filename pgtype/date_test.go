@@ -116,3 +116,30 @@ func TestDateAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalJSON(t *testing.T) {
+	r := pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}
+	enc, err := r.MarshalJSON()
+	if err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if string(enc) != "\"1900-01-01T00:00:00Z\"" {
+		t.Errorf("Incorrect json marshal")
+	}
+}
+
+func TestUnmarshalJSON(t *testing.T) {
+	var r pgtype.Date
+	tm := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	if err := r.UnmarshalJSON([]byte(`"` + tm.Format(time.RFC3339) + `"`)); err != nil {
+		t.Errorf("%v", err)
+		return
+	}
+
+	if tm != r.Time {
+		t.Errorf("Incorrect json unmarshal")
+	}
+}
