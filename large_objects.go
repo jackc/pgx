@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgtype"
 )
 
 // LargeObjects is a structure used to access the large objects API. It is only

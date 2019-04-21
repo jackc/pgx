@@ -83,8 +83,8 @@ import (
 	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgtype"
 )
 
 // oids that map to intrinsic database/sql types. These will be allowed to be

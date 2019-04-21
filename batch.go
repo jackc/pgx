@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgtype"
 	errors "golang.org/x/xerrors"
 )
 
