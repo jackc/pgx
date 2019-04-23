@@ -125,21 +125,19 @@ func TestMarshalJSON(t *testing.T) {
 		return
 	}
 
-	if string(enc) != "\"1900-01-01T00:00:00Z\"" {
+	if string(enc) != "\"1900-01-01\"" {
 		t.Errorf("Incorrect json marshal")
 	}
 }
 
 func TestUnmarshalJSON(t *testing.T) {
 	var r pgtype.Date
-	tm := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	if err := r.UnmarshalJSON([]byte(`"` + tm.Format(time.RFC3339) + `"`)); err != nil {
+	if err := r.UnmarshalJSON([]byte("\"1900-01-01\"")); err != nil {
 		t.Errorf("%v", err)
 		return
 	}
 
-	if tm != r.Time {
+	if r.Time.Year() != 1900 || r.Time.Month() != 1 || r.Time.Day() != 1 {
 		t.Errorf("Incorrect json unmarshal")
 	}
 }
