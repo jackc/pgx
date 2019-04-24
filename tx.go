@@ -185,9 +185,13 @@ func (tx *Tx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []
 	return tx.conn.CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
-// BeginBatch returns a *Batch query for the tx's connection.
-func (tx *Tx) BeginBatch() *Batch {
-	return &Batch{conn: tx.conn}
+// SendBatch delegates to the underlying *Conn
+func (tx *Tx) SendBatch(ctx context.Context, b *Batch) *BatchResults {
+	if tx.status != TxStatusInProgress {
+		return &BatchResults{err: ErrTxClosed}
+	}
+
+	return tx.conn.SendBatch(ctx, b)
 }
 
 // Status returns the status of the transaction from the set of

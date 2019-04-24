@@ -613,7 +613,7 @@ func BenchmarkMultipleQueriesBatch(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		batch := conn.BeginBatch()
+		batch := &pgx.Batch{}
 		for j := 0; j < queryCount; j++ {
 			batch.Queue("select n from generate_series(0,5) n",
 				nil,
@@ -622,13 +622,10 @@ func BenchmarkMultipleQueriesBatch(b *testing.B) {
 			)
 		}
 
-		err := batch.Send(context.Background())
-		if err != nil {
-			b.Fatal(err)
-		}
+		br := conn.SendBatch(context.Background(), batch)
 
 		for j := 0; j < queryCount; j++ {
-			rows, err := batch.QueryResults()
+			rows, err := br.QueryResults()
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -648,7 +645,7 @@ func BenchmarkMultipleQueriesBatch(b *testing.B) {
 			}
 		}
 
-		err = batch.Close()
+		err := br.Close()
 		if err != nil {
 			b.Fatal(err)
 		}
