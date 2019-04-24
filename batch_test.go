@@ -484,7 +484,7 @@ func TestTxBeginBatch(t *testing.T) {
 	);`
 	mustExec(t, conn, sql)
 
-	tx, _ := conn.Begin()
+	tx, _ := conn.Begin(context.Background(), nil)
 	batch := tx.BeginBatch()
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
@@ -563,7 +563,7 @@ func TestTxBeginBatchRollback(t *testing.T) {
 	);`
 	mustExec(t, conn, sql)
 
-	tx, _ := conn.Begin()
+	tx, _ := conn.Begin(context.Background(), nil)
 	batch := tx.BeginBatch()
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
