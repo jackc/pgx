@@ -1273,3 +1273,35 @@ func TestQueryCloseBefore(t *testing.T) {
 		t.Error("Expected bytes to be sent to server")
 	}
 }
+
+func TestRowsFromResultReader(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	resultReader := conn.PgConn().ExecParams(context.Background(), "select generate_series(1,$1)", [][]byte{[]byte("10")}, nil, nil, nil)
+
+	var sum, rowCount int32
+
+	rows := pgx.RowsFromResultReader(conn.ConnInfo, resultReader)
+	defer rows.Close()
+
+	for rows.Next() {
+		var n int32
+		rows.Scan(&n)
+		sum += n
+		rowCount++
+	}
+
+	if rows.Err() != nil {
+		t.Fatalf("conn.Query failed: %v", rows.Err())
+	}
+
+	if rowCount != 10 {
+		t.Error("wrong number of rows")
+	}
+	if sum != 55 {
+		t.Error("Wrong values returned")
+	}
+}
