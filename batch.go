@@ -18,13 +18,12 @@ type batchItem struct {
 // Batch queries are a way of bundling multiple queries together to avoid
 // unnecessary network round trips.
 type Batch struct {
-	conn                   *Conn
-	items                  []*batchItem
-	resultsRead            int
-	pendingCommandComplete bool
-	ctx                    context.Context
-	err                    error
-	inTx                   bool
+	conn        *Conn
+	items       []*batchItem
+	resultsRead int
+	ctx         context.Context
+	err         error
+	inTx        bool
 
 	mrr *pgconn.MultiResultReader
 }
