@@ -1,11 +1,9 @@
-func (p *ConnPool) Begin() (*Tx, error)
 func (p *ConnPool) BeginBatch() *Batch
-func (p *ConnPool) BeginEx(ctx context.Context, txOptions *TxOptions) (*Tx, error)
 func (p *ConnPool) Close()
 func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error)
 func (p *ConnPool) Deallocate(name string) (err error)
-func (p *ConnPool) Prepare(name, sql string) (*PreparedStatement, error)
-func (p *ConnPool) PrepareEx(ctx context.Context, name, sql string, opts *PrepareExOptions) (*PreparedStatement, error)
+func (p *ConnPool) Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error)
+
 
 
 max conns
