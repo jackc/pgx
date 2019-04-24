@@ -704,3 +704,67 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Ro
 	rows, _ := c.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
 }
+
+// SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless
+// explicit transaction control statements are executed.
+func (c *Conn) SendBatch(ctx context.Context, b *Batch) *BatchResults {
+	batch := &pgconn.Batch{}
+
+	for _, bi := range b.items {
+		var parameterOIDs []pgtype.OID
+		ps := c.preparedStatements[bi.query]
+
+		if ps != nil {
+			parameterOIDs = ps.ParameterOIDs
+		} else {
+			parameterOIDs = bi.parameterOIDs
+		}
+
+		args, err := convertDriverValuers(bi.arguments)
+		if err != nil {
+			return &BatchResults{err: err}
+		}
+
+		paramFormats := make([]int16, len(args))
+		paramValues := make([][]byte, len(args))
+		for i := range args {
+			paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, parameterOIDs[i], args[i])
+			paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, parameterOIDs[i], args[i])
+			if err != nil {
+				return &BatchResults{err: err}
+			}
+
+		}
+
+		if ps != nil {
+			resultFormats := bi.resultFormatCodes
+			if resultFormats == nil {
+				resultFormats = make([]int16, len(ps.FieldDescriptions))
+				for i := range resultFormats {
+					if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+						if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
+							resultFormats[i] = BinaryFormatCode
+						} else {
+							resultFormats[i] = TextFormatCode
+						}
+					}
+				}
+			}
+
+			batch.ExecPrepared(ps.Name, paramValues, paramFormats, resultFormats)
+		} else {
+			oids := make([]uint32, len(parameterOIDs))
+			for i := 0; i < len(parameterOIDs); i++ {
+				oids[i] = uint32(parameterOIDs[i])
+			}
+			batch.ExecParams(bi.query, paramValues, oids, paramFormats, bi.resultFormatCodes)
+		}
+	}
+
+	mrr := c.pgConn.ExecBatch(ctx, batch)
+
+	return &BatchResults{
+		conn: c,
+		mrr:  mrr,
+	}
+}
