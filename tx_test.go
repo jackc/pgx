@@ -26,7 +26,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
@@ -113,15 +113,15 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer c1.Exec(context.Background(), `drop table tx_serializable_sums`)
 
-	tx1, err := c1.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx1, err := c1.Begin(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginEx failed: %v", err)
+		t.Fatalf("Begin failed: %v", err)
 	}
 	defer tx1.Rollback(context.Background())
 
-	tx2, err := c2.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
+	tx2, err := c2.Begin(context.Background(), &pgx.TxOptions{IsoLevel: pgx.Serializable})
 	if err != nil {
-		t.Fatalf("BeginEx failed: %v", err)
+		t.Fatalf("Begin failed: %v", err)
 	}
 	defer tx2.Rollback(context.Background())
 
@@ -163,7 +163,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 		t.Fatalf("Failed to create table: %v", err)
 	}
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("conn.Begin failed: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	}
 }
 
-func TestBeginExIsoLevels(t *testing.T) {
+func TestBeginIsoLevels(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -196,9 +196,9 @@ func TestBeginExIsoLevels(t *testing.T) {
 
 	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
-		tx, err := conn.BeginEx(context.Background(), &pgx.TxOptions{IsoLevel: iso})
+		tx, err := conn.Begin(context.Background(), &pgx.TxOptions{IsoLevel: iso})
 		if err != nil {
-			t.Fatalf("conn.BeginEx failed: %v", err)
+			t.Fatalf("conn.Begin failed: %v", err)
 		}
 
 		var level pgx.TxIsoLevel
@@ -214,15 +214,15 @@ func TestBeginExIsoLevels(t *testing.T) {
 	}
 }
 
-func TestBeginExReadOnly(t *testing.T) {
+func TestBeginReadOnly(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	tx, err := conn.BeginEx(context.Background(), &pgx.TxOptions{AccessMode: pgx.ReadOnly})
+	tx, err := conn.Begin(context.Background(), &pgx.TxOptions{AccessMode: pgx.ReadOnly})
 	if err != nil {
-		t.Fatalf("conn.BeginEx failed: %v", err)
+		t.Fatalf("conn.Begin failed: %v", err)
 	}
 	defer tx.Rollback(context.Background())
 
@@ -238,7 +238,7 @@ func TestTxStatus(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestTxStatusErrorInTransactions(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestTxErr(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}

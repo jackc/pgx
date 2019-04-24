@@ -127,13 +127,13 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return &poolRow{r: row, c: c}
 }
 
-func (p *Pool) Begin() (*Tx, error) {
-	c, err := p.Acquire(context.Background())
+func (p *Pool) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*Tx, error) {
+	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := c.Begin()
+	t, err := c.Begin(ctx, txOptions)
 	if err != nil {
 		return nil, err
 	}

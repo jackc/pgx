@@ -61,8 +61,8 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return c.Conn().QueryRow(ctx, sql, args...)
 }
 
-func (c *Conn) Begin() (*pgx.Tx, error) {
-	return c.Conn().Begin()
+func (c *Conn) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*pgx.Tx, error) {
+	return c.Conn().Begin(ctx, txOptions)
 }
 
 func (c *Conn) Conn() *pgx.Conn {
