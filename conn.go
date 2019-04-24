@@ -242,7 +242,7 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedState
 		ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
 	}
 	for i := range ps.FieldDescriptions {
-		c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+		pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 	}
 
 	if name != "" {
@@ -482,7 +482,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
 		}
 		for i := range ps.FieldDescriptions {
-			c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+			pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 		}
 
 		arguments, err = convertDriverValuers(arguments)
@@ -573,7 +573,7 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 
 // pgproto3FieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
 // FieldDescription.
-func (c *Conn) pgproto3FieldDescriptionToPgxFieldDescription(src *pgproto3.FieldDescription, dst *FieldDescription) {
+func pgproto3FieldDescriptionToPgxFieldDescription(connInfo *pgtype.ConnInfo, src *pgproto3.FieldDescription, dst *FieldDescription) {
 	dst.Name = string(src.Name)
 	dst.Table = pgtype.OID(src.TableOID)
 	dst.AttributeNumber = src.TableAttributeNumber
@@ -582,7 +582,7 @@ func (c *Conn) pgproto3FieldDescriptionToPgxFieldDescription(src *pgproto3.Field
 	dst.Modifier = src.TypeModifier
 	dst.FormatCode = src.Format
 
-	if dt, ok := c.ConnInfo.DataTypeForOID(dst.DataType); ok {
+	if dt, ok := connInfo.DataTypeForOID(dst.DataType); ok {
 		dst.DataTypeName = dt.Name
 	}
 }
@@ -595,7 +595,8 @@ func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
 	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
 
-	r.conn = c
+	r.logger = c
+	r.connInfo = c.ConnInfo
 	r.startTime = time.Now()
 	r.sql = sql
 	r.args = args
@@ -624,7 +625,8 @@ optionLoop:
 	}
 
 	rows := &connRows{
-		conn:      c,
+		logger:    c,
+		connInfo:  c.ConnInfo,
 		startTime: time.Now(),
 		sql:       sql,
 		args:      args,
@@ -654,7 +656,7 @@ optionLoop:
 			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
 		}
 		for i := range ps.FieldDescriptions {
-			c.pgproto3FieldDescriptionToPgxFieldDescription(&psd.Fields[i], &ps.FieldDescriptions[i])
+			pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 		}
 	}
 	rows.sql = ps.SQL
