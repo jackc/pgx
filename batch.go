@@ -20,7 +20,6 @@ type batchItem struct {
 type Batch struct {
 	conn  *Conn
 	items []*batchItem
-	ctx   context.Context
 	err   error
 
 	mrr *pgconn.MultiResultReader
@@ -54,8 +53,6 @@ func (b *Batch) Send(ctx context.Context) error {
 	if b.err != nil {
 		return b.err
 	}
-
-	b.ctx = ctx
 
 	batch := &pgconn.Batch{}
 
