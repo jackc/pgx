@@ -1289,7 +1289,12 @@ func TestConnCancelRequest(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	multiResult := pgConn.Exec(context.Background(), "select 'Hello, world', pg_sleep(5)")
+	multiResult := pgConn.Exec(context.Background(), "select 'Hello, world', pg_sleep(2)")
+
+	// This test flickers without the Sleep. It appears that since Exec only sends the query and returns without awaiting a
+	// response that the CancelRequest can race it and be received before the query is running and cancellable. So wait a
+	// few milliseconds.
+	time.Sleep(50 * time.Millisecond)
 
 	err = pgConn.CancelRequest(context.Background())
 	require.NoError(t, err)
