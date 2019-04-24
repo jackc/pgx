@@ -185,6 +185,11 @@ func (tx *Tx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []
 	return tx.conn.CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
+// BeginBatch returns a *Batch query for the tx's connection.
+func (tx *Tx) BeginBatch() *Batch {
+	return &Batch{conn: tx.conn}
+}
+
 // Status returns the status of the transaction from the set of
 // pgx.TxStatus* constants.
 func (tx *Tx) Status() int8 {
