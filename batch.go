@@ -158,12 +158,3 @@ func (b *Batch) QueryRowResults() Row {
 func (b *Batch) Close() (err error) {
 	return b.mrr.Close()
 }
-
-func (b *Batch) die(err error) {
-	if b.err != nil {
-		return
-	}
-
-	b.err = err
-	b.conn.die(err)
-}
