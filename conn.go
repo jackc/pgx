@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -167,19 +166,6 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	return c, nil
 }
 
-// PID returns the backend PID for this connection.
-func (c *Conn) PID() uint32 {
-	return c.pgConn.PID()
-}
-
-// LocalAddr returns the underlying connection's local address
-func (c *Conn) LocalAddr() (net.Addr, error) {
-	if !c.IsAlive() {
-		return nil, errors.New("connection not ready")
-	}
-	return c.pgConn.Conn().LocalAddr(), nil
-}
-
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close(ctx context.Context) error {
@@ -193,16 +179,6 @@ func (c *Conn) Close(ctx context.Context) error {
 		c.log(LogLevelInfo, "closed connection", nil)
 	}
 	return err
-}
-
-func (c *Conn) TxStatus() byte {
-	return c.pgConn.TxStatus
-}
-
-// ParameterStatus returns the value of a parameter reported by the server (e.g.
-// server_version). Returns an empty string for unknown parameters.
-func (c *Conn) ParameterStatus(key string) string {
-	return c.pgConn.ParameterStatus(key)
 }
 
 // Prepare creates a prepared statement with name and sql. sql can contain placeholders

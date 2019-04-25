@@ -100,19 +100,19 @@ func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	pid := c.Conn().PID()
+	pid := c.Conn().PgConn().PID()
 
-	assert.Equal(t, byte('I'), c.Conn().TxStatus())
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	_, err = c.Exec(ctx, "begin")
 	assert.NoError(t, err)
 
-	assert.Equal(t, byte('T'), c.Conn().TxStatus())
+	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus)
 
 	_, err = c.Exec(ctx, "selct")
 	assert.Error(t, err)
 
-	assert.Equal(t, byte('E'), c.Conn().TxStatus())
+	assert.Equal(t, byte('E'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
 	waitForReleaseToComplete()
@@ -120,8 +120,8 @@ func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, pid, c.Conn().PID())
-	assert.Equal(t, byte('I'), c.Conn().TxStatus())
+	assert.Equal(t, pid, c.Conn().PgConn().PID())
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
 }
@@ -136,14 +136,14 @@ func TestConnReleaseRollsBackInTransaction(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	pid := c.Conn().PID()
+	pid := c.Conn().PgConn().PID()
 
-	assert.Equal(t, byte('I'), c.Conn().TxStatus())
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	_, err = c.Exec(ctx, "begin")
 	assert.NoError(t, err)
 
-	assert.Equal(t, byte('T'), c.Conn().TxStatus())
+	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
 	waitForReleaseToComplete()
@@ -151,8 +151,8 @@ func TestConnReleaseRollsBackInTransaction(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, pid, c.Conn().PID())
-	assert.Equal(t, byte('I'), c.Conn().TxStatus())
+	assert.Equal(t, pid, c.Conn().PgConn().PID())
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
 }

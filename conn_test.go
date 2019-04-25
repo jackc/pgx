@@ -47,14 +47,6 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	if conn.ParameterStatus("server_version") == "" {
-		t.Error("Runtime parameters not stored")
-	}
-
-	if conn.PID() == 0 {
-		t.Error("Backend PID not stored")
-	}
-
 	var currentDB string
 	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
 	if err != nil {
@@ -377,7 +369,7 @@ func TestFatalRxError(t *testing.T) {
 	otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer otherConn.Close(context.Background())
 
-	if _, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID()); err != nil {
+	if _, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PgConn().PID()); err != nil {
 		t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 	}
 
@@ -400,7 +392,7 @@ func TestFatalTxError(t *testing.T) {
 			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer otherConn.Close(context.Background())
 
-			_, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PID())
+			_, err := otherConn.Exec(context.Background(), "select pg_terminate_backend($1)", conn.PgConn().PID())
 			if err != nil {
 				t.Fatalf("Unable to kill backend PostgreSQL process: %v", err)
 			}
