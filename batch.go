@@ -31,15 +31,29 @@ func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []pgt
 	})
 }
 
-type BatchResults struct {
+type BatchResults interface {
+	// ExecResults reads the results from the next query in the batch as if the query has been sent with Exec.
+	ExecResults() (pgconn.CommandTag, error)
+
+	// QueryResults reads the results from the next query in the batch as if the query has been sent with Query.
+	QueryResults() (Rows, error)
+
+	// QueryRowResults reads the results from the next query in the batch as if the query has been sent with QueryRow.
+	QueryRowResults() Row
+
+	// Close closes the batch operation. Any error that occured during a batch operation may have made it impossible to
+	// resyncronize the connection with the server. In this case the underlying connection will have been closed.
+	Close() error
+}
+
+type batchResults struct {
 	conn *Conn
 	mrr  *pgconn.MultiResultReader
 	err  error
 }
 
-// ExecResults reads the results from the next query in the batch as if the
-// query has been sent with Exec.
-func (br *BatchResults) ExecResults() (pgconn.CommandTag, error) {
+// ExecResults reads the results from the next query in the batch as if the query has been sent with Exec.
+func (br *batchResults) ExecResults() (pgconn.CommandTag, error) {
 	if br.err != nil {
 		return nil, br.err
 	}
@@ -55,9 +69,8 @@ func (br *BatchResults) ExecResults() (pgconn.CommandTag, error) {
 	return br.mrr.ResultReader().Close()
 }
 
-// QueryResults reads the results from the next query in the batch as if the
-// query has been sent with Query.
-func (br *BatchResults) QueryResults() (Rows, error) {
+// QueryResults reads the results from the next query in the batch as if the query has been sent with Query.
+func (br *batchResults) QueryResults() (Rows, error) {
 	rows := br.conn.getRows("batch query", nil)
 
 	if br.err != nil {
@@ -79,18 +92,16 @@ func (br *BatchResults) QueryResults() (Rows, error) {
 	return rows, nil
 }
 
-// QueryRowResults reads the results from the next query in the batch as if the
-// query has been sent with QueryRow.
-func (br *BatchResults) QueryRowResults() Row {
+// QueryRowResults reads the results from the next query in the batch as if the query has been sent with QueryRow.
+func (br *batchResults) QueryRowResults() Row {
 	rows, _ := br.QueryResults()
 	return (*connRow)(rows.(*connRows))
 
 }
 
-// Close closes the batch operation. Any error that occured during a batch
-// operation may have made it impossible to resyncronize the connection with the
-// server. In this case the underlying connection will have been closed.
-func (br *BatchResults) Close() error {
+// Close closes the batch operation. Any error that occured during a batch operation may have made it impossible to
+// resyncronize the connection with the server. In this case the underlying connection will have been closed.
+func (br *batchResults) Close() error {
 	if br.err != nil {
 		return br.err
 	}

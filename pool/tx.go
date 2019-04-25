@@ -45,3 +45,7 @@ func (tx *Tx) Query(ctx context.Context, sql string, args ...interface{}) (pgx.R
 func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	return tx.c.QueryRow(ctx, sql, args...)
 }
+
+func (tx *Tx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
+	return tx.c.SendBatch(ctx, b)
+}

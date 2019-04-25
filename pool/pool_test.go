@@ -90,6 +90,19 @@ func TestPoolQueryRow(t *testing.T) {
 	assert.EqualValues(t, 1, stats.TotalConns())
 }
 
+func TestPoolSendBatch(t *testing.T) {
+	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	testSendBatch(t, pool)
+	waitForReleaseToComplete()
+
+	stats := pool.Stat()
+	assert.EqualValues(t, 0, stats.AcquiredConns())
+	assert.EqualValues(t, 1, stats.TotalConns())
+}
+
 func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

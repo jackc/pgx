@@ -1,5 +1,3 @@
-func (p *ConnPool) BeginBatch() *Batch
-func (p *ConnPool) Close()
 func (p *ConnPool) CopyFrom(tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error)
 func (p *ConnPool) Deallocate(name string) (err error)
 func (p *ConnPool) Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error)
