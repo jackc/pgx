@@ -23,17 +23,9 @@ type execer interface {
 }
 
 func testExec(t *testing.T, db execer) {
-	results, err := db.Exec(context.Background(), "create table foo(id integer primary key);")
+	results, err := db.Exec(context.Background(), "set time zone 'America/Chicago'")
 	require.NoError(t, err)
-	assert.Equal(t, "CREATE TABLE", string(results))
-
-	results, err = db.Exec(context.Background(), "insert into foo(id) values($1)", 1)
-	require.NoError(t, err)
-	assert.Equal(t, "INSERT 0 1", string(results))
-
-	results, err = db.Exec(context.Background(), "drop table foo;")
-	require.NoError(t, err)
-	assert.Equal(t, "DROP TABLE", string(results))
+	assert.EqualValues(t, "SET", results)
 }
 
 type queryer interface {
