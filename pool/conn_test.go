@@ -10,6 +10,8 @@ import (
 )
 
 func TestConnExec(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -22,6 +24,8 @@ func TestConnExec(t *testing.T) {
 }
 
 func TestConnQuery(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -34,6 +38,8 @@ func TestConnQuery(t *testing.T) {
 }
 
 func TestConnQueryRow(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -46,6 +52,8 @@ func TestConnQueryRow(t *testing.T) {
 }
 
 func TestConnSendBatch(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -58,6 +66,8 @@ func TestConnSendBatch(t *testing.T) {
 }
 
 func TestConnCopyFrom(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()

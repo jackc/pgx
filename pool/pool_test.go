@@ -13,12 +13,16 @@ import (
 )
 
 func TestConnect(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	pool.Close()
 }
 
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
+	t.Parallel()
+
 	config, err := pool.ParseConfig("pool_max_conns=42")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
@@ -26,6 +30,8 @@ func TestParseConfigExtractsPoolArguments(t *testing.T) {
 }
 
 func TestConnectCancel(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -34,6 +40,8 @@ func TestConnectCancel(t *testing.T) {
 }
 
 func TestPoolAcquireAndConnRelease(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -44,6 +52,8 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 }
 
 func TestPoolExec(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -52,6 +62,8 @@ func TestPoolExec(t *testing.T) {
 }
 
 func TestPoolQuery(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -79,6 +91,8 @@ func TestPoolQuery(t *testing.T) {
 }
 
 func TestPoolQueryRow(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -92,6 +106,8 @@ func TestPoolQueryRow(t *testing.T) {
 }
 
 func TestPoolSendBatch(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
@@ -107,6 +123,7 @@ func TestPoolSendBatch(t *testing.T) {
 func TestPoolCopyFrom(t *testing.T) {
 	// Not able to use testCopyFrom because it relies on temporary tables and the pool may run subsequent calls under
 	// different connections.
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -150,6 +167,8 @@ func TestPoolCopyFrom(t *testing.T) {
 }
 
 func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -186,6 +205,8 @@ func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
 }
 
 func TestConnReleaseRollsBackInTransaction(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -217,6 +238,8 @@ func TestConnReleaseRollsBackInTransaction(t *testing.T) {
 }
 
 func TestConnReleaseDestroysClosedConn(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -237,6 +260,8 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 }
 
 func TestConnPoolQueryConcurrentLoad(t *testing.T) {
+	t.Parallel()
+
 	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
