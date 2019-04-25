@@ -31,7 +31,7 @@ func (c *Conn) Release() {
 			return
 		}
 
-		if conn.TxStatus() != 'I' {
+		if conn.PgConn().TxStatus != 'I' {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			_, err := conn.Exec(ctx, "rollback")
 			cancel()
