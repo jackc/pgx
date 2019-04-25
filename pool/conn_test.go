@@ -56,3 +56,15 @@ func TestConnSendBatch(t *testing.T) {
 
 	testSendBatch(t, c)
 }
+
+func TestConnCopyFrom(t *testing.T) {
+	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(context.Background())
+	require.NoError(t, err)
+	defer c.Release()
+
+	testCopyFrom(t, c)
+}

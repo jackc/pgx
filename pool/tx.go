@@ -49,3 +49,7 @@ func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx
 func (tx *Tx) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	return tx.c.SendBatch(ctx, b)
 }
+
+func (tx *Tx) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	return tx.c.CopyFrom(ctx, tableName, columnNames, rowSrc)
+}

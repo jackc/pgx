@@ -39,7 +39,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
-	if copyCount != len(inputRows) {
+	if int(copyCount) != len(inputRows) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
@@ -97,7 +97,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
-	if copyCount != len(inputRows) {
+	if int(copyCount) != len(inputRows) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 
@@ -152,7 +152,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error for CopyFrom: %v", err)
 	}
-	if copyCount != len(inputRows) {
+	if int(copyCount) != len(inputRows) {
 		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
 	}
 

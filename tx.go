@@ -177,7 +177,7 @@ func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) Row
 }
 
 // CopyFrom delegates to the underlying *Conn
-func (tx *Tx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int, error) {
+func (tx *Tx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
 	if tx.status != TxStatusInProgress {
 		return 0, ErrTxClosed
 	}

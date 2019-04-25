@@ -94,3 +94,42 @@ func testSendBatch(t *testing.T, db sendBatcher) {
 	err = br.Close()
 	assert.NoError(t, err)
 }
+
+type copyFromer interface {
+	CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error)
+}
+
+func testCopyFrom(t *testing.T, db interface {
+	execer
+	queryer
+	copyFromer
+}) {
+	_, err := db.Exec(context.Background(), `create temporary table foo(a int2, b int4, c int8, d varchar, e text, f date, g timestamptz)`)
+	require.NoError(t, err)
+
+	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
+	inputRows := [][]interface{}{
+		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
+		{nil, nil, nil, nil, nil, nil, nil},
+	}
+
+	copyCount, err := db.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
+	assert.NoError(t, err)
+	assert.EqualValues(t, len(inputRows), copyCount)
+
+	rows, err := db.Query(context.Background(), "select * from foo")
+	assert.NoError(t, err)
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	assert.NoError(t, rows.Err())
+	assert.Equal(t, inputRows, outputRows)
+}
