@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -101,6 +102,51 @@ func TestPoolSendBatch(t *testing.T) {
 	stats := pool.Stat()
 	assert.EqualValues(t, 0, stats.AcquiredConns())
 	assert.EqualValues(t, 1, stats.TotalConns())
+}
+
+func TestPoolCopyFrom(t *testing.T) {
+	// Not able to use testCopyFrom because it relies on temporary tables and the pool may run subsequent calls under
+	// different connections.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	_, err = pool.Exec(ctx, `drop table if exists poolcopyfromtest`)
+	require.NoError(t, err)
+
+	_, err = pool.Exec(ctx, `create table poolcopyfromtest(a int2, b int4, c int8, d varchar, e text, f date, g timestamptz)`)
+	require.NoError(t, err)
+	defer pool.Exec(ctx, `drop table poolcopyfromtest`)
+
+	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
+	inputRows := [][]interface{}{
+		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
+		{nil, nil, nil, nil, nil, nil, nil},
+	}
+
+	copyCount, err := pool.CopyFrom(ctx, pgx.Identifier{"poolcopyfromtest"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
+	assert.NoError(t, err)
+	assert.EqualValues(t, len(inputRows), copyCount)
+
+	rows, err := pool.Query(ctx, "select * from poolcopyfromtest")
+	assert.NoError(t, err)
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	assert.NoError(t, rows.Err())
+	assert.Equal(t, inputRows, outputRows)
 }
 
 func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {

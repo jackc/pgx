@@ -150,3 +150,13 @@ func (p *Pool) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*Tx, error)
 
 	return &Tx{t: t, c: c}, err
 }
+
+func (p *Pool) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer c.Release()
+
+	return c.Conn().CopyFrom(ctx, tableName, columnNames, rowSrc)
+}
