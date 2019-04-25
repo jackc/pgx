@@ -127,6 +127,16 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return &poolRow{r: row, c: c}
 }
 
+func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return errBatchResults{err: err}
+	}
+
+	br := c.SendBatch(ctx, b)
+	return &poolBatchResults{br: br, c: c}
+}
+
 func (p *Pool) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*Tx, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {

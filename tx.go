@@ -186,9 +186,9 @@ func (tx *Tx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []
 }
 
 // SendBatch delegates to the underlying *Conn
-func (tx *Tx) SendBatch(ctx context.Context, b *Batch) *BatchResults {
+func (tx *Tx) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	if tx.status != TxStatusInProgress {
-		return &BatchResults{err: ErrTxClosed}
+		return &batchResults{err: ErrTxClosed}
 	}
 
 	return tx.conn.SendBatch(ctx, b)

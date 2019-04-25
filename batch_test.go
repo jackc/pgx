@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-func TestConnBeginBatch(t *testing.T) {
+func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -156,7 +156,7 @@ func TestConnBeginBatch(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
+func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -209,7 +209,7 @@ func TestConnBeginBatchWithPreparedStatement(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
+func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -277,7 +277,7 @@ func TestConnBeginBatchCloseRowsPartiallyRead(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchQueryError(t *testing.T) {
+func TestConnSendBatchQueryError(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -324,7 +324,7 @@ func TestConnBeginBatchQueryError(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
+func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -353,7 +353,7 @@ func TestConnBeginBatchQuerySyntaxError(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchQueryRowInsert(t *testing.T) {
+func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -399,7 +399,7 @@ func TestConnBeginBatchQueryRowInsert(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnBeginBatchQueryPartialReadInsert(t *testing.T) {
+func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))

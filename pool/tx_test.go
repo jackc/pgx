@@ -44,3 +44,15 @@ func TestTxQueryRow(t *testing.T) {
 
 	testQueryRow(t, tx)
 }
+
+func TestTxSendBatch(t *testing.T) {
+	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	tx, err := pool.Begin(context.Background(), nil)
+	require.NoError(t, err)
+	defer tx.Rollback(context.Background())
+
+	testSendBatch(t, tx)
+}

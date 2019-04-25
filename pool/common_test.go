@@ -69,3 +69,28 @@ func testQueryRow(t *testing.T, db queryRower) {
 	assert.Equal(t, "hello", what)
 	assert.Equal(t, "world", who)
 }
+
+type sendBatcher interface {
+	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
+}
+
+func testSendBatch(t *testing.T, db sendBatcher) {
+	batch := &pgx.Batch{}
+	batch.Queue("select 1", nil, nil, nil)
+	batch.Queue("select 2", nil, nil, nil)
+
+	br := db.SendBatch(context.Background(), batch)
+
+	var err error
+	var n int32
+	err = br.QueryRowResults().Scan(&n)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+
+	err = br.QueryRowResults().Scan(&n)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, n)
+
+	err = br.Close()
+	assert.NoError(t, err)
+}

@@ -61,6 +61,10 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return c.Conn().QueryRow(ctx, sql, args...)
 }
 
+func (c *Conn) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
+	return c.Conn().SendBatch(ctx, b)
+}
+
 func (c *Conn) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*pgx.Tx, error) {
 	return c.Conn().Begin(ctx, txOptions)
 }
