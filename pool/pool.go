@@ -16,6 +16,7 @@ const defaultMaxConns = 5
 type Pool struct {
 	p             *puddle.Pool
 	beforeAcquire func(*pgx.Conn) bool
+	afterRelease  func(*pgx.Conn) bool
 }
 
 type Config struct {
@@ -25,6 +26,10 @@ type Config struct {
 	// acquision or false to indicate that the connection should be destroyed and a different connection should be
 	// acquired.
 	BeforeAcquire func(*pgx.Conn) bool
+
+	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
+	// return the connection to the pool or false to destroy the connection.
+	AfterRelease func(*pgx.Conn) bool
 
 	MaxConns int32
 }
@@ -45,6 +50,7 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	p := &Pool{
 		beforeAcquire: config.BeforeAcquire,
+		afterRelease:  config.AfterRelease,
 	}
 
 	p.p = puddle.NewPool(
@@ -102,7 +108,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 		}
 
 		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
-			return &Conn{res: res}, nil
+			return &Conn{res: res, p: p}, nil
 		}
 
 		res.Destroy()
@@ -116,7 +122,7 @@ func (p *Pool) AcquireAllIdle() []*Conn {
 	conns := make([]*Conn, 0, len(resources))
 	for _, res := range resources {
 		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
-			conns = append(conns, &Conn{res: res})
+			conns = append(conns, &Conn{res: res, p: p})
 		} else {
 			res.Destroy()
 		}

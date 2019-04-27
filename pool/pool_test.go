@@ -92,6 +92,36 @@ func TestPoolBeforeAcquire(t *testing.T) {
 	assert.EqualValues(t, 12, acquireAttempts)
 }
 
+func TestPoolAfterRelease(t *testing.T) {
+	t.Parallel()
+
+	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	afterReleaseCount := 0
+
+	config.AfterRelease = func(c *pgx.Conn) bool {
+		afterReleaseCount += 1
+		return afterReleaseCount%2 == 1
+	}
+
+	db, err := pool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	connPIDs := map[uint32]struct{}{}
+
+	for i := 0; i < 10; i++ {
+		conn, err := db.Acquire(context.Background())
+		assert.NoError(t, err)
+		connPIDs[conn.Conn().PgConn().PID()] = struct{}{}
+		conn.Release()
+		waitForReleaseToComplete()
+	}
+
+	assert.EqualValues(t, 5, len(connPIDs))
+}
+
 func TestPoolAcquireAllIdle(t *testing.T) {
 	t.Parallel()
 
@@ -243,7 +273,7 @@ func TestPoolCopyFrom(t *testing.T) {
 	assert.Equal(t, inputRows, outputRows)
 }
 
-func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
+func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -275,13 +305,13 @@ func TestConnReleaseRollsBackFailedTransaction(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, pid, c.Conn().PgConn().PID())
+	assert.NotEqual(t, pid, c.Conn().PgConn().PID())
 	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
 }
 
-func TestConnReleaseRollsBackInTransaction(t *testing.T) {
+func TestConnReleaseClosesConnInTransaction(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -308,7 +338,7 @@ func TestConnReleaseRollsBackInTransaction(t *testing.T) {
 	c, err = pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	assert.Equal(t, pid, c.Conn().PgConn().PID())
+	assert.NotEqual(t, pid, c.Conn().PgConn().PID())
 	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
 
 	c.Release()
