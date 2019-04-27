@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -12,6 +11,7 @@ import (
 // Conn is an acquired *pgx.Conn from a Pool.
 type Conn struct {
 	res *puddle.Resource
+	p   *Pool
 }
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
@@ -26,22 +26,12 @@ func (c *Conn) Release() {
 	c.res = nil
 
 	go func() {
-		if !conn.IsAlive() {
+		if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' {
 			res.Destroy()
 			return
 		}
 
-		if conn.PgConn().TxStatus != 'I' {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err := conn.Exec(ctx, "rollback")
-			cancel()
-			if err != nil {
-				res.Destroy()
-				return
-			}
-		}
-
-		if conn.IsAlive() {
+		if c.p.afterRelease == nil || c.p.afterRelease(conn) {
 			res.Release()
 		} else {
 			res.Destroy()
