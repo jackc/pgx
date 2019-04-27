@@ -25,6 +25,8 @@ type Pool struct {
 	closeChan         chan struct{}
 }
 
+// Config is the configuration struct for creating a pool. It is highly recommended to modify a Config returned by
+// ParseConfig rather than to construct a Config from scratch.
 type Config struct {
 	ConnConfig *pgx.ConnConfig
 
@@ -48,7 +50,7 @@ type Config struct {
 }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
-// connection.
+// connection. See ParseConfig for information on connString format.
 func Connect(ctx context.Context, connString string) (*Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -92,6 +94,20 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	return p, nil
 }
 
+// ParseConfig builds a Config from connString. It parses connString with the same behavior as pgx.ParseConfig with the
+// addition of the following variables:
+//
+// pool_max_conns: integer greater than 0
+// pool_max_conn_lifetime: duration string
+// pool_health_check_period: duration string
+//
+// See Config for definitions of these arguments.
+//
+//   # Example DSN
+//   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//
+//   # Example URL
+//   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	connConfig, err := pgx.ParseConfig(connString)
 	if err != nil {
