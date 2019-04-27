@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -80,7 +81,7 @@ func ParseConfig(connString string) (*Config, error) {
 		return nil, err
 	}
 
-	config := &Config{ConnConfig: connConfig, MaxConns: defaultMaxConns}
+	config := &Config{ConnConfig: connConfig}
 
 	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_max_conns"]; ok {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conns")
@@ -89,6 +90,11 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, fmt.Errorf("invalid pool_max_conns: %v", err)
 		}
 		config.MaxConns = int32(n)
+	} else {
+		config.MaxConns = 4
+		if int32(runtime.NumCPU()) > config.MaxConns {
+			config.MaxConns = runtime.NumCPU()
+		}
 	}
 
 	return config, nil
