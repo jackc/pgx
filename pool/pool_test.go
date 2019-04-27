@@ -51,6 +51,47 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolBeforeAcquire(t *testing.T) {
+	t.Parallel()
+
+	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	acquireAttempts := 0
+
+	config.BeforeAcquire = func(c *pgx.Conn) bool {
+		acquireAttempts += 1
+		return acquireAttempts%2 == 0
+	}
+
+	db, err := pool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	conns := make([]*pool.Conn, 4)
+	for i := range conns {
+		conns[i], err = db.Acquire(context.Background())
+		assert.NoError(t, err)
+	}
+
+	for _, c := range conns {
+		c.Release()
+	}
+	waitForReleaseToComplete()
+
+	assert.EqualValues(t, 8, acquireAttempts)
+
+	conns = db.AcquireAllIdle()
+	assert.Len(t, conns, 2)
+
+	for _, c := range conns {
+		c.Release()
+	}
+	waitForReleaseToComplete()
+
+	assert.EqualValues(t, 12, acquireAttempts)
+}
+
 func TestPoolAcquireAllIdle(t *testing.T) {
 	t.Parallel()
 

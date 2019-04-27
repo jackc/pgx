@@ -14,12 +14,19 @@ import (
 const defaultMaxConns = 5
 
 type Pool struct {
-	p *puddle.Pool
+	p             *puddle.Pool
+	beforeAcquire func(*pgx.Conn) bool
 }
 
 type Config struct {
-	MaxConns   int32
 	ConnConfig *pgx.ConnConfig
+
+	// BeforeAcquire is called before before a connection is acquired from the pool. It must return true to allow the
+	// acquision or false to indicate that the connection should be destroyed and a different connection should be
+	// acquired.
+	BeforeAcquire func(*pgx.Conn) bool
+
+	MaxConns int32
 }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -30,7 +37,15 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 		return nil, err
 	}
 
-	p := &Pool{}
+	return ConnectConfig(ctx, config)
+}
+
+// ConnectConfig creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
+// connection.
+func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
+	p := &Pool{
+		beforeAcquire: config.BeforeAcquire,
+	}
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) { return pgx.ConnectConfig(ctx, config.ConnConfig) },
@@ -80,22 +95,33 @@ func (p *Pool) Close() {
 }
 
 func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
-	res, err := p.p.Acquire(ctx)
-	if err != nil {
-		return nil, err
-	}
+	for {
+		res, err := p.p.Acquire(ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	return &Conn{res: res}, nil
+		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
+			return &Conn{res: res}, nil
+		}
+
+		res.Destroy()
+	}
 }
 
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
 func (p *Pool) AcquireAllIdle() []*Conn {
 	resources := p.p.AcquireAllIdle()
-	conns := make([]*Conn, len(resources))
-	for i := range conns {
-		conns[i] = &Conn{res: resources[i]}
+	conns := make([]*Conn, 0, len(resources))
+	for _, res := range resources {
+		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
+			conns = append(conns, &Conn{res: res})
+		} else {
+			res.Destroy()
+		}
 	}
+
 	return conns
 }
 
