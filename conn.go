@@ -580,7 +580,11 @@ func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	return r
 }
 
+// QueryResultFormats controls the result format (text=0, binary=1) of a query by result column position.
 type QueryResultFormats []int16
+
+// QueryResultFormatsByOID controls the result format (text=0, binary=1) of a query by the result column OID.
+type QueryResultFormatsByOID map[pgtype.OID]int16
 
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
@@ -588,12 +592,16 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows
 	// rows = c.getRows(sql, args)
 
 	var resultFormats QueryResultFormats
+	var resultFormatsByOID QueryResultFormatsByOID
 
 optionLoop:
 	for len(args) > 0 {
 		switch arg := args[0].(type) {
 		case QueryResultFormats:
 			resultFormats = arg
+			args = args[1:]
+		case QueryResultFormatsByOID:
+			resultFormatsByOID = arg
 			args = args[1:]
 		default:
 			break optionLoop
@@ -652,6 +660,13 @@ optionLoop:
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
+		}
+	}
+
+	if resultFormatsByOID != nil {
+		resultFormats = make([]int16, len(ps.FieldDescriptions))
+		for i := range resultFormats {
+			resultFormats[i] = resultFormatsByOID[ps.FieldDescriptions[i].DataType]
 		}
 	}
 
