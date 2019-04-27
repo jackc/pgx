@@ -51,6 +51,27 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolAfterConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
+		_, err := c.Prepare(ctx, "ps1", "select 1")
+		return err
+	}
+
+	db, err := pool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	var n int32
+	err = db.QueryRow(context.Background(), "ps1").Scan(&n)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, n)
+}
+
 func TestPoolBeforeAcquire(t *testing.T) {
 	t.Parallel()
 

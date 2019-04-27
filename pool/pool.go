@@ -18,6 +18,7 @@ var defaultHealthCheckPeriod = time.Minute
 
 type Pool struct {
 	p                 *puddle.Pool
+	afterConnect      func(context.Context, *pgx.Conn) error
 	beforeAcquire     func(*pgx.Conn) bool
 	afterRelease      func(*pgx.Conn) bool
 	maxConnLifetime   time.Duration
@@ -29,6 +30,9 @@ type Pool struct {
 // ParseConfig rather than to construct a Config from scratch.
 type Config struct {
 	ConnConfig *pgx.ConnConfig
+
+	// AfterConnect is called after a connection is established, but before it is added to the pool.
+	AfterConnect func(context.Context, *pgx.Conn) error
 
 	// BeforeAcquire is called before before a connection is acquired from the pool. It must return true to allow the
 	// acquision or false to indicate that the connection should be destroyed and a different connection should be
@@ -64,6 +68,7 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 // connection.
 func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	p := &Pool{
+		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
 		maxConnLifetime:   config.MaxConnLifetime,
@@ -72,7 +77,22 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	}
 
 	p.p = puddle.NewPool(
-		func(ctx context.Context) (interface{}, error) { return pgx.ConnectConfig(ctx, config.ConnConfig) },
+		func(ctx context.Context) (interface{}, error) {
+			conn, err := pgx.ConnectConfig(ctx, config.ConnConfig)
+			if err != nil {
+				return nil, err
+			}
+
+			if p.afterConnect != nil {
+				err = p.afterConnect(ctx, conn)
+				if err != nil {
+					conn.Close(ctx)
+					return nil, err
+				}
+			}
+
+			return conn, nil
+		},
 		func(value interface{}) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			value.(*pgx.Conn).Close(ctx)
