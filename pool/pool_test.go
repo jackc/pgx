@@ -51,6 +51,42 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolAcquireAllIdle(t *testing.T) {
+	t.Parallel()
+
+	db, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	conns := db.AcquireAllIdle()
+	assert.Len(t, conns, 1)
+
+	for _, c := range conns {
+		c.Release()
+	}
+	waitForReleaseToComplete()
+
+	conns = make([]*pool.Conn, 3)
+	for i := range conns {
+		conns[i], err = db.Acquire(context.Background())
+		assert.NoError(t, err)
+	}
+
+	for _, c := range conns {
+		if c != nil {
+			c.Release()
+		}
+	}
+	waitForReleaseToComplete()
+
+	conns = db.AcquireAllIdle()
+	assert.Len(t, conns, 3)
+
+	for _, c := range conns {
+		c.Release()
+	}
+}
+
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 

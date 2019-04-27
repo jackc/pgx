@@ -88,6 +88,17 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 	return &Conn{res: res}, nil
 }
 
+// AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
+// keep-alive functionality. It does not update pool statistics.
+func (p *Pool) AcquireAllIdle() []*Conn {
+	resources := p.p.AcquireAllIdle()
+	conns := make([]*Conn, len(resources))
+	for i := range conns {
+		conns[i] = &Conn{res: resources[i]}
+	}
+	return conns
+}
+
 func (p *Pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
 }
