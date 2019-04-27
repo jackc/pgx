@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -26,7 +27,8 @@ func (c *Conn) Release() {
 	c.res = nil
 
 	go func() {
-		if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' {
+		now := time.Now()
+		if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
 			res.Destroy()
 			return
 		}

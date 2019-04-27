@@ -158,6 +158,50 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 	}
 }
 
+func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
+	t.Parallel()
+
+	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConnLifetime = 250 * time.Millisecond
+
+	db, err := pool.ConnectConfig(context.Background(), config)
+	defer db.Close()
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+
+	time.Sleep(config.MaxConnLifetime)
+
+	c.Release()
+	waitForReleaseToComplete()
+
+	stats := db.Stat()
+	assert.EqualValues(t, 0, stats.TotalConns())
+}
+
+func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
+	t.Parallel()
+
+	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConnLifetime = 100 * time.Millisecond
+	config.HealthCheckPeriod = 100 * time.Millisecond
+
+	db, err := pool.ConnectConfig(context.Background(), config)
+	defer db.Close()
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+	c.Release()
+	time.Sleep(config.MaxConnLifetime + 50*time.Millisecond)
+
+	stats := db.Stat()
+	assert.EqualValues(t, 0, stats.TotalConns())
+}
+
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 
