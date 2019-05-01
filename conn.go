@@ -885,6 +885,7 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // PGDATABASE
 // PGUSER
 // PGPASSWORD
+// PGPASSFILE
 // PGSSLMODE
 // PGSSLCERT
 // PGSSLKEY
@@ -911,6 +912,43 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // avoid the possibility of falling back to weaker or disabled security.
 func ParseEnvLibpq() (ConnConfig, error) {
 	var cc ConnConfig
+
+	pgpassfilename := os.Getenv("PGPASSFILE")
+	if pgpassfilename != "" {
+		fileinfo, err := os.Stat(pgpassfilename)
+		if err != nil {
+			return cc, err
+		}
+		mode := fileinfo.Mode()
+		if mode&(0x77) != 0 {
+			return cc, errors.New("incorrect permissions on pgpass file")
+		}
+		if err != nil {
+			return cc, err
+		}
+		pgpassfile, err := ioutil.ReadFile(pgpassfilename)
+		if err != nil {
+			return cc, err
+		}
+		fields := strings.Split(string(pgpassfile), ":")
+		if len(fields) != 5 {
+			return cc, errors.New("expected 5 fields in pgpass file")
+		}
+		cc.Host = fields[0]
+		if port, err := strconv.ParseUint(fields[1], 10, 16); err == nil {
+			cc.Port = uint16(port)
+		} else {
+			return cc, err
+		}
+		if fields[2] == "*" {
+			cc.Database = ""
+		} else {
+			cc.Database = fields[2]
+		}
+		cc.User = fields[3]
+		cc.Password = fields[4]
+		return cc, nil
+	}
 
 	cc.Host = os.Getenv("PGHOST")
 

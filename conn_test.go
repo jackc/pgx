@@ -962,7 +962,7 @@ func testConnConfigEquals(t *testing.T, expected pgx.ConnConfig, actual pgx.Conn
 }
 
 func TestParseEnvLibpq(t *testing.T) {
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGPASSFILE", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
