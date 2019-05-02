@@ -462,3 +462,23 @@ func (rc *ReplicationConn) DropReplicationSlot(slotName string) (err error) {
 	_, err = rc.Exec(fmt.Sprintf("DROP_REPLICATION_SLOT %s", slotName))
 	return
 }
+
+//Check the replication slot exists for a given name
+func (rc *ReplicationConn) CheckReplicationSlotExists(slotName string) (slotExists bool, err error) {
+	var rows *Rows
+	rows, err = rc.sendReplicationModeQuery(fmt.Sprintf(`
+	SELECT
+		CASE WHEN slot_name = '0' THEN false else true end
+	FROM (
+		SELECT slot_name from pg_replication_slots
+		WHERE slot_name = '%s'
+		UNION ALL
+		SELECT '0' as slot_name
+		) AS mustreturn
+	ORDER BY slot_name DESC LIMIT 1`, slotName))
+	defer rows.Close()
+	for rows.Next() {
+		rows.Scan(&slotExists)
+	}
+	return
+}

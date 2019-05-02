@@ -368,3 +368,45 @@ func TestSimpleProtocolEnforcement(t *testing.T) {
 	}
 	rows.Close()
 }
+
+func TestCheckReplicationSlotExists(t *testing.T) {
+	if replicationConnConfig == nil {
+		t.Skip("Skipping due to undefined replicationConnConfig")
+	}
+
+	replicationConn := mustReplicationConnect(t, *replicationConnConfig)
+	defer closeReplicationConn(t, replicationConn)
+
+	slotName := "pgx_slot_test"
+
+	//Create the replication slot
+	err := replicationConn.CreateReplicationSlot(slotName, "test_decoding")
+	if err != nil {
+		t.Logf("replication slot create failed: %v", err)
+	}
+
+	//Check if the replication slot exists, at this point it should
+	slotExists, err := replicationConn.CheckReplicationSlotExists(slotName)
+	if err != nil {
+		t.Fatalf("Query failed: %v", err)
+	}
+	if slotExists {
+		t.Fatalf("Expected Replication slot %s to exist", slotName)
+	}
+
+	//Drop the Replication slot
+	err = replicationConn.DropReplicationSlot(slotName)
+	if err != nil {
+		t.Fatalf("Failed to drop replication slot: %v", err)
+	}
+
+	//Check again if the replication slot exists, at this point it should be gone
+	slotExists, err = replicationConn.CheckReplicationSlotExists(slotName)
+	if err != nil {
+		t.Fatalf("Query failed: %v", err)
+	}
+	if slotExists {
+		t.Fatalf("Unexpected Replication slot found: %s", slotName)
+	}
+
+}
