@@ -44,6 +44,8 @@ func (src *CopyOutResponse) Encode(dst []byte) []byte {
 	sp := len(dst)
 	dst = pgio.AppendInt32(dst, -1)
 
+	dst = append(dst, src.OverallFormat)
+
 	dst = pgio.AppendUint16(dst, uint16(len(src.ColumnFormatCodes)))
 	for _, fc := range src.ColumnFormatCodes {
 		dst = pgio.AppendUint16(dst, fc)
