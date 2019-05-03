@@ -8,11 +8,10 @@ import (
 )
 
 type CopyFail struct {
-	Error string
+	Message string
 }
 
-func (*CopyFail) Frontend() {}
-func (*CopyFail) Backend()  {}
+func (*CopyFail) Backend() {}
 
 func (dst *CopyFail) Decode(src []byte) error {
 	idx := bytes.IndexByte(src, 0)
@@ -20,17 +19,17 @@ func (dst *CopyFail) Decode(src []byte) error {
 		return &invalidMessageFormatErr{messageType: "CopyFail"}
 	}
 
-	dst.Error = string(src[:idx])
+	dst.Message = string(src[:idx])
 
 	return nil
 }
 
 func (src *CopyFail) Encode(dst []byte) []byte {
-	dst = append(dst, 'C')
+	dst = append(dst, 'f')
 	sp := len(dst)
 	dst = pgio.AppendInt32(dst, -1)
 
-	dst = append(dst, src.Error...)
+	dst = append(dst, src.Message...)
 	dst = append(dst, 0)
 
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
@@ -40,10 +39,10 @@ func (src *CopyFail) Encode(dst []byte) []byte {
 
 func (src *CopyFail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Type  string
-		Error string
+		Type    string
+		Message string
 	}{
-		Type:  "CopyFail",
-		Error: src.Error,
+		Type:    "CopyFail",
+		Message: src.Message,
 	})
 }
