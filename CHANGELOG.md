@@ -1,3 +1,30 @@
+# 3.4.0 (May 3, 2019)
+
+## Features
+
+* Improved .pgpass handling (Dmitry Smal)
+* Adds RowsAffected for CopyToWriter and CopyFromReader (Nikolay Vorobev)
+* Support binding of []int type to array integer (David Bariod)
+* Expose registered driver instance to aid integration with other libraries (PLATEL Kévin)
+* Allow normal queries on replication connections (Jan Vcelak)
+* Add support for creating a DB from pgx.Pool (fzerorubigd)
+* SCRAM authentication
+* pgtype.Date JSON marshal/unmarshal (Andrey Kuzmin)
+
+## Fixes
+
+* Fix encoding of ErrorResponse (Josh Leverette)
+* Use more detailed error output of unknown field (Ilya Sivanev)
+* "Temporary" Write errors no longer silently break connections.
+* Fix PreferSimpleProtocol overwrite (Ilya Sinelnikov)
+* Fix enum handling (Robert Lin)
+* Copy protocol fixes (Andrey)
+
+## Changes
+
+* Do not attempt recovery from any Write error.
+* Use LogLevel type instead of int for conn config
+
 # 3.3.0 (December 1, 2018)
 
 ## Features
