@@ -9,6 +9,7 @@
 //   https://github.com/lib/pq/pull/608
 //   https://github.com/lib/pq/pull/788
 //   https://github.com/lib/pq/pull/833
+
 package pgx
 
 import (
