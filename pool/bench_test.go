@@ -10,6 +10,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func BenchmarkAcquireAndRelease(b *testing.B) {
+	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(b, err)
+	defer pool.Close()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		c, err := pool.Acquire(context.Background())
+		if err != nil {
+			b.Fatal(err)
+		}
+		c.Release()
+	}
+}
+
 func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(b, err)

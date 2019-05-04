@@ -26,14 +26,19 @@ func (c *Conn) Release() {
 	res := c.res
 	c.res = nil
 
-	go func() {
-		now := time.Now()
-		if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
-			res.Destroy()
-			return
-		}
+	now := time.Now()
+	if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
+		res.Destroy()
+		return
+	}
 
-		if c.p.afterRelease == nil || c.p.afterRelease(conn) {
+	if c.p.afterRelease == nil {
+		res.Release()
+		return
+	}
+
+	go func() {
+		if c.p.afterRelease(conn) {
 			res.Release()
 		} else {
 			res.Destroy()
@@ -66,7 +71,7 @@ func (c *Conn) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*pgx.Tx, er
 }
 
 func (c *Conn) Conn() *pgx.Conn {
-	return c.res.Value().(*connResource).conn
+	return c.connResource().conn
 }
 
 func (c *Conn) connResource() *connResource {
