@@ -49,9 +49,8 @@ type Conn struct {
 
 	wbuf             []byte
 	preallocatedRows []connRows
-	paramFormats     []int16
+	int16SlicePool   int16SlicePool
 	paramValues      [][]byte
-	resultFormats    []int16
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -160,9 +159,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
-	c.paramFormats = make([]int16, 0, 16)
 	c.paramValues = make([][]byte, 0, 16)
-	c.resultFormats = make([]int16, 0, 32)
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
@@ -651,12 +648,7 @@ optionLoop:
 		return rows, rows.err
 	}
 
-	var paramFormats []int16
-	if len(args) > cap(c.paramFormats) {
-		paramFormats = make([]int16, len(args))
-	} else {
-		paramFormats = c.paramFormats[:len(args)]
-	}
+	paramFormats := c.int16SlicePool.get(len(args))
 
 	var paramValues [][]byte
 	if len(args) > cap(c.paramValues) {
@@ -682,11 +674,7 @@ optionLoop:
 	}
 
 	if resultFormats == nil {
-		if len(ps.FieldDescriptions) > cap(c.resultFormats) {
-			resultFormats = make([]int16, len(ps.FieldDescriptions))
-		} else {
-			resultFormats = c.resultFormats[:len(ps.FieldDescriptions)]
-		}
+		resultFormats = c.int16SlicePool.get(len(ps.FieldDescriptions))
 
 		for i := range resultFormats {
 			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
@@ -700,6 +688,8 @@ optionLoop:
 	}
 
 	rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats)
+
+	c.int16SlicePool.reset()
 
 	return rows, rows.err
 }
