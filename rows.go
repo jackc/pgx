@@ -8,6 +8,7 @@ import (
 	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 )
 
@@ -20,7 +21,7 @@ type Rows interface {
 	Close()
 
 	Err() error
-	FieldDescriptions() []FieldDescription
+	FieldDescriptions() []pgproto3.FieldDescription
 
 	// Next prepares the next row for reading. It returns true if there is another
 	// row and false if no more rows are available. It automatically closes rows
@@ -77,7 +78,6 @@ type connRows struct {
 	logger    rowLog
 	connInfo  *pgtype.ConnInfo
 	values    [][]byte
-	fields    []FieldDescription
 	rowCount  int
 	columnIdx int
 	err       error
@@ -89,8 +89,8 @@ type connRows struct {
 	resultReader *pgconn.ResultReader
 }
 
-func (rows *connRows) FieldDescriptions() []FieldDescription {
-	return rows.fields
+func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
+	return rows.resultReader.FieldDescriptions()
 }
 
 func (rows *connRows) Close() {
@@ -140,13 +140,6 @@ func (rows *connRows) Next() bool {
 	}
 
 	if rows.resultReader.NextRow() {
-		if rows.fields == nil {
-			rrFieldDescriptions := rows.resultReader.FieldDescriptions()
-			rows.fields = make([]FieldDescription, len(rrFieldDescriptions))
-			for i := range rrFieldDescriptions {
-				pgproto3FieldDescriptionToPgxFieldDescription(rows.connInfo, &rrFieldDescriptions[i], &rows.fields[i])
-			}
-		}
 		rows.rowCount++
 		rows.columnIdx = 0
 		rows.values = rows.resultReader.Values()
@@ -157,24 +150,24 @@ func (rows *connRows) Next() bool {
 	}
 }
 
-func (rows *connRows) nextColumn() ([]byte, *FieldDescription, bool) {
+func (rows *connRows) nextColumn() ([]byte, *pgproto3.FieldDescription, bool) {
 	if rows.closed {
 		return nil, nil, false
 	}
-	if len(rows.fields) <= rows.columnIdx {
+	if len(rows.FieldDescriptions()) <= rows.columnIdx {
 		rows.fatal(ProtocolError("No next column available"))
 		return nil, nil, false
 	}
 
 	buf := rows.values[rows.columnIdx]
-	fd := &rows.fields[rows.columnIdx]
+	fd := &rows.FieldDescriptions()[rows.columnIdx]
 	rows.columnIdx++
 	return buf, fd, true
 }
 
 func (rows *connRows) Scan(dest ...interface{}) error {
-	if len(rows.fields) != len(dest) {
-		err := errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.fields))
+	if len(rows.FieldDescriptions()) != len(dest) {
+		err := errors.Errorf("Scan received wrong number of arguments, got %d but expected %d", len(dest), len(rows.FieldDescriptions()))
 		rows.fatal(err)
 		return err
 	}
@@ -186,7 +179,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		err := rows.connInfo.Scan(fd.DataType, fd.FormatCode, buf, d)
+		err := rows.connInfo.Scan(pgtype.OID(fd.DataTypeOID), fd.Format, buf, d)
 		if err != nil {
 			rows.fatal(scanArgError{col: i, err: err})
 			return err
@@ -201,9 +194,9 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		return nil, errors.New("rows is closed")
 	}
 
-	values := make([]interface{}, 0, len(rows.fields))
+	values := make([]interface{}, 0, len(rows.FieldDescriptions()))
 
-	for range rows.fields {
+	for range rows.FieldDescriptions() {
 		buf, fd, _ := rows.nextColumn()
 
 		if buf == nil {
@@ -211,10 +204,10 @@ func (rows *connRows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataType); ok {
+		if dt, ok := rows.connInfo.DataTypeForOID(pgtype.OID(fd.DataTypeOID)); ok {
 			value := reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(pgtype.Value)
 
-			switch fd.FormatCode {
+			switch fd.Format {
 			case TextFormatCode:
 				decoder := value.(pgtype.TextDecoder)
 				if decoder == nil {

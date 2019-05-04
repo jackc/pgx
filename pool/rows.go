@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -8,12 +9,12 @@ type errRows struct {
 	err error
 }
 
-func (errRows) Close()                                    {}
-func (e errRows) Err() error                              { return e.err }
-func (errRows) FieldDescriptions() []pgx.FieldDescription { return nil }
-func (errRows) Next() bool                                { return false }
-func (e errRows) Scan(dest ...interface{}) error          { return e.err }
-func (e errRows) Values() ([]interface{}, error)          { return nil, e.err }
+func (errRows) Close()                                         {}
+func (e errRows) Err() error                                   { return e.err }
+func (errRows) FieldDescriptions() []pgproto3.FieldDescription { return nil }
+func (errRows) Next() bool                                     { return false }
+func (e errRows) Scan(dest ...interface{}) error               { return e.err }
+func (e errRows) Values() ([]interface{}, error)               { return nil, e.err }
 
 type errRow struct {
 	err error
@@ -42,7 +43,7 @@ func (rows *poolRows) Err() error {
 	return rows.r.Err()
 }
 
-func (rows *poolRows) FieldDescriptions() []pgx.FieldDescription {
+func (rows *poolRows) FieldDescriptions() []pgproto3.FieldDescription {
 	return rows.r.FieldDescriptions()
 }
 

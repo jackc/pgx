@@ -74,6 +74,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"reflect"
 	"strings"
@@ -260,7 +261,7 @@ func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []dr
 
 	// Preload first row because otherwise we won't know what columns are available when database/sql asks.
 	more := rows.Next()
-	return &Rows{rows: rows, skipNext: true, skipNextMore: more}, nil
+	return &Rows{conn: c, rows: rows, skipNext: true, skipNextMore: more}, nil
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
@@ -301,6 +302,7 @@ func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (dri
 }
 
 type Rows struct {
+	conn         *Conn
 	rows         pgx.Rows
 	values       []interface{}
 	skipNext     bool
@@ -311,32 +313,82 @@ func (r *Rows) Columns() []string {
 	fieldDescriptions := r.rows.FieldDescriptions()
 	names := make([]string, 0, len(fieldDescriptions))
 	for _, fd := range fieldDescriptions {
-		names = append(names, fd.Name)
+		names = append(names, string(fd.Name))
 	}
 	return names
 }
 
 // ColumnTypeDatabaseTypeName return the database system type name.
 func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
-	return strings.ToUpper(r.rows.FieldDescriptions()[index].DataTypeName)
+	if dt, ok := r.conn.conn.ConnInfo.DataTypeForOID(pgtype.OID(r.rows.FieldDescriptions()[index].DataTypeOID)); ok {
+		return strings.ToUpper(dt.Name)
+	}
+
+	return ""
 }
+
+const varHeaderSize = 4
 
 // ColumnTypeLength returns the length of the column type if the column is a
 // variable length type. If the column is not a variable length type ok
 // should return false.
 func (r *Rows) ColumnTypeLength(index int) (int64, bool) {
-	return r.rows.FieldDescriptions()[index].Length()
+	fd := r.rows.FieldDescriptions()[index]
+
+	switch fd.DataTypeOID {
+	case pgtype.TextOID, pgtype.ByteaOID:
+		return math.MaxInt64, true
+	case pgtype.VarcharOID, pgtype.BPCharArrayOID:
+		return int64(fd.TypeModifier - varHeaderSize), true
+	default:
+		return 0, false
+	}
 }
 
 // ColumnTypePrecisionScale should return the precision and scale for decimal
 // types. If not applicable, ok should be false.
 func (r *Rows) ColumnTypePrecisionScale(index int) (precision, scale int64, ok bool) {
-	return r.rows.FieldDescriptions()[index].PrecisionScale()
+	fd := r.rows.FieldDescriptions()[index]
+
+	switch fd.DataTypeOID {
+	case pgtype.NumericOID:
+		mod := fd.TypeModifier - varHeaderSize
+		precision = int64((mod >> 16) & 0xffff)
+		scale = int64(mod & 0xffff)
+		return precision, scale, true
+	default:
+		return 0, 0, false
+	}
 }
 
 // ColumnTypeScanType returns the value type that can be used to scan types into.
 func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
-	return r.rows.FieldDescriptions()[index].Type()
+	fd := r.rows.FieldDescriptions()[index]
+
+	switch fd.DataTypeOID {
+	case pgtype.Float8OID:
+		return reflect.TypeOf(float64(0))
+	case pgtype.Float4OID:
+		return reflect.TypeOf(float32(0))
+	case pgtype.Int8OID:
+		return reflect.TypeOf(int64(0))
+	case pgtype.Int4OID:
+		return reflect.TypeOf(int32(0))
+	case pgtype.Int2OID:
+		return reflect.TypeOf(int16(0))
+	case pgtype.VarcharOID, pgtype.BPCharArrayOID, pgtype.TextOID:
+		return reflect.TypeOf("")
+	case pgtype.BoolOID:
+		return reflect.TypeOf(false)
+	case pgtype.NumericOID:
+		return reflect.TypeOf(float64(0))
+	case pgtype.DateOID, pgtype.TimestampOID, pgtype.TimestamptzOID:
+		return reflect.TypeOf(time.Time{})
+	case pgtype.ByteaOID:
+		return reflect.TypeOf([]byte(nil))
+	default:
+		return reflect.TypeOf(new(interface{})).Elem()
+	}
 }
 
 func (r *Rows) Close() error {
@@ -348,7 +400,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 	if r.values == nil {
 		r.values = make([]interface{}, len(r.rows.FieldDescriptions()))
 		for i, fd := range r.rows.FieldDescriptions() {
-			switch fd.DataType {
+			switch fd.DataTypeOID {
 			case pgtype.BoolOID:
 				r.values[i] = &pgtype.Bool{}
 			case pgtype.ByteaOID:

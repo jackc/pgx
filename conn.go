@@ -56,7 +56,7 @@ type Conn struct {
 type PreparedStatement struct {
 	Name              string
 	SQL               string
-	FieldDescriptions []FieldDescription
+	FieldDescriptions []pgproto3.FieldDescription
 	ParameterOIDs     []pgtype.OID
 }
 
@@ -213,14 +213,11 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedState
 		Name:              psd.Name,
 		SQL:               psd.SQL,
 		ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
-		FieldDescriptions: make([]FieldDescription, len(psd.Fields)),
+		FieldDescriptions: psd.Fields,
 	}
 
 	for i := range ps.ParameterOIDs {
 		ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
-	}
-	for i := range ps.FieldDescriptions {
-		pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 	}
 
 	if name != "" {
@@ -416,7 +413,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 		resultFormats := make([]int16, len(ps.FieldDescriptions))
 		for i := range resultFormats {
-			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+			if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 					resultFormats[i] = BinaryFormatCode
 				} else {
@@ -453,14 +450,11 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 			Name:              psd.Name,
 			SQL:               psd.SQL,
 			ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
-			FieldDescriptions: make([]FieldDescription, len(psd.Fields)),
+			FieldDescriptions: psd.Fields,
 		}
 
 		for i := range ps.ParameterOIDs {
 			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
-		}
-		for i := range ps.FieldDescriptions {
-			pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 		}
 
 		arguments, err = convertDriverValuers(arguments)
@@ -481,7 +475,7 @@ func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 		resultFormats := make([]int16, len(ps.FieldDescriptions))
 		for i := range resultFormats {
-			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+			if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 					resultFormats[i] = BinaryFormatCode
 				} else {
@@ -549,22 +543,6 @@ func newencodePreparedStatementArgument(ci *pgtype.ConnInfo, oid pgtype.OID, arg
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }
 
-// pgproto3FieldDescriptionToPgxFieldDescription copies and converts the data from a pgproto3.FieldDescription to a
-// FieldDescription.
-func pgproto3FieldDescriptionToPgxFieldDescription(connInfo *pgtype.ConnInfo, src *pgproto3.FieldDescription, dst *FieldDescription) {
-	dst.Name = string(src.Name)
-	dst.Table = pgtype.OID(src.TableOID)
-	dst.AttributeNumber = src.TableAttributeNumber
-	dst.DataType = pgtype.OID(src.DataTypeOID)
-	dst.DataTypeSize = src.DataTypeSize
-	dst.Modifier = src.TypeModifier
-	dst.FormatCode = src.Format
-
-	if dt, ok := connInfo.DataTypeForOID(dst.DataType); ok {
-		dst.DataTypeName = dt.Name
-	}
-}
-
 func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	if len(c.preallocatedRows) == 0 {
 		c.preallocatedRows = make([]connRows, 64)
@@ -628,14 +606,11 @@ optionLoop:
 			Name:              psd.Name,
 			SQL:               psd.SQL,
 			ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
-			FieldDescriptions: make([]FieldDescription, len(psd.Fields)),
+			FieldDescriptions: psd.Fields,
 		}
 
 		for i := range ps.ParameterOIDs {
 			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
-		}
-		for i := range ps.FieldDescriptions {
-			pgproto3FieldDescriptionToPgxFieldDescription(c.ConnInfo, &psd.Fields[i], &ps.FieldDescriptions[i])
 		}
 	}
 	rows.sql = ps.SQL
@@ -658,13 +633,13 @@ optionLoop:
 	if resultFormatsByOID != nil {
 		resultFormats = make([]int16, len(ps.FieldDescriptions))
 		for i := range resultFormats {
-			resultFormats[i] = resultFormatsByOID[ps.FieldDescriptions[i].DataType]
+			resultFormats[i] = resultFormatsByOID[pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)]
 		}
 	}
 
 	if resultFormats == nil {
 		for i := range ps.FieldDescriptions {
-			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+			if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 					c.eqb.AppendResultFormat(BinaryFormatCode)
 				} else {
@@ -725,7 +700,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			if resultFormats == nil {
 				resultFormats = make([]int16, len(ps.FieldDescriptions))
 				for i := range resultFormats {
-					if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
+					if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
 						if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 							resultFormats[i] = BinaryFormatCode
 						} else {
