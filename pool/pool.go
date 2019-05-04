@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -24,6 +25,9 @@ type Pool struct {
 	maxConnLifetime   time.Duration
 	healthCheckPeriod time.Duration
 	closeChan         chan struct{}
+
+	preallocatedConnsMux sync.Mutex
+	preallocatedConns    []Conn
 }
 
 // Config is the configuration struct for creating a pool. It is highly recommended to modify a Config returned by
@@ -212,6 +216,24 @@ func (p *Pool) checkIdleConnsHealth() {
 	}
 }
 
+func (p *Pool) getConn(res *puddle.Resource) *Conn {
+	p.preallocatedConnsMux.Lock()
+
+	if len(p.preallocatedConns) == 0 {
+		p.preallocatedConns = make([]Conn, 128)
+	}
+
+	c := &p.preallocatedConns[len(p.preallocatedConns)-1]
+	p.preallocatedConns = p.preallocatedConns[0 : len(p.preallocatedConns)-1]
+
+	p.preallocatedConnsMux.Unlock()
+
+	c.res = res
+	c.p = p
+
+	return c
+}
+
 func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
@@ -220,7 +242,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 		}
 
 		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
-			return &Conn{res: res, p: p}, nil
+			return p.getConn(res), nil
 		}
 
 		res.Destroy()
@@ -234,7 +256,7 @@ func (p *Pool) AcquireAllIdle() []*Conn {
 	conns := make([]*Conn, 0, len(resources))
 	for _, res := range resources {
 		if p.beforeAcquire == nil || p.beforeAcquire(res.Value().(*pgx.Conn)) {
-			conns = append(conns, &Conn{res: res, p: p})
+			conns = append(conns, p.getConn(res))
 		} else {
 			res.Destroy()
 		}
