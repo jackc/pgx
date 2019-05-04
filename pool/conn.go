@@ -66,5 +66,17 @@ func (c *Conn) Begin(ctx context.Context, txOptions *pgx.TxOptions) (*pgx.Tx, er
 }
 
 func (c *Conn) Conn() *pgx.Conn {
-	return c.res.Value().(*pgx.Conn)
+	return c.res.Value().(*connResource).conn
+}
+
+func (c *Conn) connResource() *connResource {
+	return c.res.Value().(*connResource)
+}
+
+func (c *Conn) getPoolRow(r pgx.Row) *poolRow {
+	return c.connResource().getPoolRow(c, r)
+}
+
+func (c *Conn) getPoolRows(r pgx.Rows) *poolRows {
+	return c.connResource().getPoolRows(c, r)
 }
