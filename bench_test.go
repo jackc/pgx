@@ -26,13 +26,48 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		err = conn.QueryRow(context.Background(), "ps1", int64(i)).Scan(&n)
+		err = conn.QueryRow(context.Background(), "ps1", i).Scan(&n)
 		if err != nil {
 			b.Fatal(err)
 		}
 
 		if n != int64(i) {
 			b.Fatalf("expected %d, got %d", i, n)
+		}
+	}
+}
+
+func BenchmarkMinimalPgConnPreparedSelect(b *testing.B) {
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	pgConn := conn.PgConn()
+
+	_, err := pgConn.Prepare(context.Background(), "ps1", "select $1::int8", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	encodedBytes := make([]byte, 8)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+
+		rr := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{encodedBytes}, []int16{1}, []int16{1})
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for rr.NextRow() {
+			for i := range rr.Values() {
+				if bytes.Compare(rr.Values()[0], encodedBytes) != 0 {
+					b.Fatalf("unexpected values: %s %s", rr.Values()[i], encodedBytes)
+				}
+			}
+		}
+		_, err = rr.Close()
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }
