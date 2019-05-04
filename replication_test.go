@@ -248,7 +248,7 @@ func TestIdentifySystem(t *testing.T) {
 	}
 	defer r.Close()
 	for _, fd := range r.FieldDescriptions() {
-		t.Logf("Field: %s of type %v", fd.Name, fd.DataType)
+		t.Logf("Field: %s of type %v", fd.Name, fd.DataTypeOID)
 	}
 
 	var rowCount int
@@ -307,7 +307,7 @@ func TestGetTimelineHistory(t *testing.T) {
 	defer r.Close()
 
 	for _, fd := range r.FieldDescriptions() {
-		t.Logf("Field: %s of type %v", fd.Name, fd.DataType)
+		t.Logf("Field: %s of type %v", fd.Name, fd.DataTypeOID)
 	}
 
 	var rowCount int
