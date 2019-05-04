@@ -34,13 +34,11 @@ type ConnConfig struct {
 // goroutines.
 type Conn struct {
 	pgConn             *pgconn.PgConn
-	wbuf               []byte
 	config             *ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*PreparedStatement
 	logger             Logger
 	logLevel           LogLevel
 	fp                 *fastpath
-	preallocatedRows   []connRows
 
 	causeOfDeath error
 
@@ -48,6 +46,11 @@ type Conn struct {
 	closedChan chan error
 
 	ConnInfo *pgtype.ConnInfo
+
+	wbuf             []byte
+	preallocatedRows []connRows
+	paramFormats     []int16
+	paramValues      [][]byte
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -156,6 +159,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
+	c.paramFormats = make([]int16, 0, 16)
+	c.paramValues = make([][]byte, 0, 16)
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
@@ -652,8 +657,20 @@ optionLoop:
 		return rows, rows.err
 	}
 
-	paramFormats := make([]int16, len(args))
-	paramValues := make([][]byte, len(args))
+	var paramFormats []int16
+	if len(args) > cap(c.paramFormats) {
+		paramFormats = make([]int16, len(args))
+	} else {
+		paramFormats = c.paramFormats[:len(args)]
+	}
+
+	var paramValues [][]byte
+	if len(args) > cap(c.paramValues) {
+		paramValues = make([][]byte, len(args))
+	} else {
+		paramValues = c.paramValues[:len(args)]
+	}
+
 	for i := range args {
 		paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], args[i])
 		paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], args[i])
