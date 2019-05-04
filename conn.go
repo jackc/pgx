@@ -49,8 +49,7 @@ type Conn struct {
 
 	wbuf             []byte
 	preallocatedRows []connRows
-	int16SlicePool   int16SlicePool
-	paramValues      [][]byte
+	eqb              extendedQueryBuilder
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -159,7 +158,6 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
-	c.paramValues = make([][]byte, 0, 16)
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
@@ -610,6 +608,7 @@ optionLoop:
 		}
 	}
 
+	c.eqb.Reset()
 	rows := c.getRows(sql, args)
 
 	ps, ok := c.preparedStatements[sql]
@@ -648,18 +647,8 @@ optionLoop:
 		return rows, rows.err
 	}
 
-	paramFormats := c.int16SlicePool.get(len(args))
-
-	var paramValues [][]byte
-	if len(args) > cap(c.paramValues) {
-		paramValues = make([][]byte, len(args))
-	} else {
-		paramValues = c.paramValues[:len(args)]
-	}
-
 	for i := range args {
-		paramFormats[i] = chooseParameterFormatCode(c.ConnInfo, ps.ParameterOIDs[i], args[i])
-		paramValues[i], err = newencodePreparedStatementArgument(c.ConnInfo, ps.ParameterOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.ConnInfo, ps.ParameterOIDs[i], args[i])
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
@@ -674,22 +663,20 @@ optionLoop:
 	}
 
 	if resultFormats == nil {
-		resultFormats = c.int16SlicePool.get(len(ps.FieldDescriptions))
-
-		for i := range resultFormats {
+		for i := range ps.FieldDescriptions {
 			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-					resultFormats[i] = BinaryFormatCode
+					c.eqb.AppendResultFormat(BinaryFormatCode)
 				} else {
-					resultFormats[i] = TextFormatCode
+					c.eqb.AppendResultFormat(TextFormatCode)
 				}
 			}
 		}
+
+		resultFormats = c.eqb.resultFormats
 	}
 
-	rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, paramValues, paramFormats, resultFormats)
-
-	c.int16SlicePool.reset()
+	rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 
 	return rows, rows.err
 }
