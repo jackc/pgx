@@ -13,6 +13,30 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+func BenchmarkMinimalPreparedSelect(b *testing.B) {
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	_, err := conn.Prepare(context.Background(), "ps1", "select $1::int8")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	var n int64
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err = conn.QueryRow(context.Background(), "ps1", int64(i)).Scan(&n)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if n != int64(i) {
+			b.Fatalf("expected %d, got %d", i, n)
+		}
+	}
+}
+
 func BenchmarkPointerPointerWithNullValues(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
 	defer closeConn(b, conn)

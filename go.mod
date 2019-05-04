@@ -15,6 +15,7 @@ require (
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	github.com/sirupsen/logrus v1.4.1
 	github.com/stretchr/testify v1.3.0
+	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/xerrors v0.0.0-20190410155217-1f06c39b4373
 )
