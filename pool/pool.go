@@ -28,6 +28,9 @@ type Pool struct {
 
 	preallocatedConnsMux sync.Mutex
 	preallocatedConns    []Conn
+
+	preallocatedPoolRowsMux sync.Mutex
+	preallocatedPoolRows    []poolRow
 }
 
 // Config is the configuration struct for creating a pool. It is highly recommended to modify a Config returned by
@@ -234,6 +237,24 @@ func (p *Pool) getConn(res *puddle.Resource) *Conn {
 	return c
 }
 
+func (p *Pool) getPoolRow(c *Conn, r pgx.Row) *poolRow {
+	p.preallocatedPoolRowsMux.Lock()
+
+	if len(p.preallocatedPoolRows) == 0 {
+		p.preallocatedPoolRows = make([]poolRow, 128)
+	}
+
+	pr := &p.preallocatedPoolRows[len(p.preallocatedPoolRows)-1]
+	p.preallocatedPoolRows = p.preallocatedPoolRows[0 : len(p.preallocatedPoolRows)-1]
+
+	p.preallocatedPoolRowsMux.Unlock()
+
+	pr.c = c
+	pr.r = r
+
+	return pr
+}
+
 func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
@@ -301,7 +322,7 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	}
 
 	row := c.QueryRow(ctx, sql, args...)
-	return &poolRow{r: row, c: c}
+	return p.getPoolRow(c, row)
 }
 
 func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
