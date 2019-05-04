@@ -13,7 +13,7 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-var defaultMinMaxConns = int32(4)
+var defaultMaxConns = int32(4)
 var defaultMaxConnLifetime = time.Hour
 var defaultHealthCheckPeriod = time.Minute
 
@@ -157,7 +157,7 @@ func ParseConfig(connString string) (*Config, error) {
 		}
 		config.MaxConns = int32(n)
 	} else {
-		config.MaxConns = defaultMinMaxConns
+		config.MaxConns = defaultMaxConns
 		if numCPU := int32(runtime.NumCPU()); numCPU > config.MaxConns {
 			config.MaxConns = numCPU
 		}
