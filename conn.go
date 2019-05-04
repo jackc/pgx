@@ -594,8 +594,6 @@ type QueryResultFormatsByOID map[pgtype.OID]int16
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
 func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
-	// rows = c.getRows(sql, args)
-
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
 
@@ -613,13 +611,7 @@ optionLoop:
 		}
 	}
 
-	rows := &connRows{
-		logger:    c,
-		connInfo:  c.ConnInfo,
-		startTime: time.Now(),
-		sql:       sql,
-		args:      args,
-	}
+	rows := c.getRows(sql, args)
 
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
