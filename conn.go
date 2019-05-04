@@ -51,6 +51,7 @@ type Conn struct {
 	preallocatedRows []connRows
 	paramFormats     []int16
 	paramValues      [][]byte
+	resultFormats    []int16
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -161,6 +162,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.wbuf = make([]byte, 0, 1024)
 	c.paramFormats = make([]int16, 0, 16)
 	c.paramValues = make([][]byte, 0, 16)
+	c.resultFormats = make([]int16, 0, 32)
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
@@ -680,7 +682,12 @@ optionLoop:
 	}
 
 	if resultFormats == nil {
-		resultFormats = make([]int16, len(ps.FieldDescriptions))
+		if len(ps.FieldDescriptions) > cap(c.resultFormats) {
+			resultFormats = make([]int16, len(ps.FieldDescriptions))
+		} else {
+			resultFormats = c.resultFormats[:len(ps.FieldDescriptions)]
+		}
+
 		for i := range resultFormats {
 			if dt, ok := c.ConnInfo.DataTypeForOID(ps.FieldDescriptions[i].DataType); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
