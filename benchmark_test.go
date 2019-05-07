@@ -206,3 +206,19 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 		}
 	}
 }
+
+// func BenchmarkChanToSetDeadlinePossibleToCancel(b *testing.B) {
+// 	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+// 	require.Nil(b, err)
+// 	defer closeConn(b, conn)
+
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
+
+// 	b.ResetTimer()
+
+// 	for i := 0; i < b.N; i++ {
+// 		conn.ChanToSetDeadline().Watch(ctx)
+// 		conn.ChanToSetDeadline().Ignore()
+// 	}
+// }

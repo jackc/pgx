@@ -13,7 +13,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/jackc/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
@@ -21,6 +23,7 @@ import (
 
 const (
 	connStatusUninitialized = iota
+	connStatusConnecting
 	connStatusClosed
 	connStatusIdle
 	connStatusBusy
@@ -71,10 +74,10 @@ type PgConn struct {
 	bufferingReceiveErr error
 
 	// Reusable / preallocated resources
-	wbuf               []byte // write buffer
-	resultReader       ResultReader
-	multiResultReader  MultiResultReader
-	doneChanToDeadline chanToSetDeadline
+	wbuf              []byte // write buffer
+	resultReader      ResultReader
+	multiResultReader MultiResultReader
+	contextWatcher    *ctxwatch.ContextWatcher
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
@@ -148,6 +151,12 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			return nil, err
 		}
 	}
+
+	pgConn.status = connStatusConnecting
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
+		func() { pgConn.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
+		func() { pgConn.conn.SetDeadline(time.Time{}) },
+	)
 
 	pgConn.Frontend, err = pgproto3.NewFrontend(pgproto3.NewChunkReader(pgConn.conn), pgConn.conn)
 	if err != nil {
@@ -355,8 +364,8 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 
 	defer pgConn.conn.Close()
 
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
-	defer pgConn.doneChanToDeadline.cleanup()
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
 
 	_, err := pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
 	if err != nil {
@@ -377,6 +386,7 @@ func (pgConn *PgConn) hardClose() error {
 		return nil
 	}
 	pgConn.status = connStatusClosed
+
 	return pgConn.conn.Close()
 }
 
@@ -453,8 +463,8 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
-	defer pgConn.doneChanToDeadline.cleanup()
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
 
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs}).Encode(buf)
@@ -543,9 +553,12 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	}
 	defer cancelConn.Close()
 
-	var doneChanToDeadline chanToSetDeadline
-	doneChanToDeadline.start(ctx.Done(), cancelConn)
-	defer doneChanToDeadline.cleanup()
+	contextWatcher := ctxwatch.NewContextWatcher(
+		func() { cancelConn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
+		func() { cancelConn.SetDeadline(time.Time{}) },
+	)
+	contextWatcher.Watch(ctx)
+	defer contextWatcher.Unwatch()
 
 	buf := make([]byte, 16)
 	binary.BigEndian.PutUint32(buf[0:4], 16)
@@ -579,8 +592,8 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	default:
 	}
 
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
-	defer pgConn.doneChanToDeadline.cleanup()
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
 
 	for {
 		msg, err := pgConn.ReceiveMessage()
@@ -622,7 +635,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		return multiResult
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
+	pgConn.contextWatcher.Watch(ctx)
 
 	buf := pgConn.wbuf
 	buf = (&pgproto3.Query{String: sql}).Encode(buf)
@@ -630,7 +643,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.hardClose()
-		pgConn.doneChanToDeadline.cleanup()
+		pgConn.contextWatcher.Unwatch()
 		multiResult.closed = true
 		if n == 0 {
 			err = linkErrors(err, ErrNoBytesSent)
@@ -732,7 +745,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 		return result
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
+	pgConn.contextWatcher.Watch(ctx)
 
 	return result
 }
@@ -749,7 +762,7 @@ func (pgConn *PgConn) execExtendedSuffix(ctx context.Context, buf []byte, result
 			err = linkErrors(err, ErrNoBytesSent)
 		}
 		result.concludeCommand(nil, linkErrors(ctx.Err(), err))
-		pgConn.doneChanToDeadline.cleanup()
+		pgConn.contextWatcher.Unwatch()
 		result.closed = true
 		pgConn.unlock()
 	}
@@ -767,8 +780,8 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
-	defer pgConn.doneChanToDeadline.cleanup()
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
 
 	// Send copy to command
 	buf := pgConn.wbuf
@@ -828,8 +841,8 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		return nil, linkErrors(ctx.Err(), ErrNoBytesSent)
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
-	defer pgConn.doneChanToDeadline.cleanup()
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
 
 	// Send copy to command
 	buf := pgConn.wbuf
@@ -962,7 +975,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 	msg, err := mrr.pgConn.ReceiveMessage()
 
 	if err != nil {
-		mrr.pgConn.doneChanToDeadline.cleanup()
+		mrr.pgConn.contextWatcher.Unwatch()
 		mrr.err = preferContextOverNetTimeoutError(mrr.ctx, err)
 		mrr.closed = true
 		mrr.pgConn.hardClose()
@@ -971,7 +984,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 
 	switch msg := msg.(type) {
 	case *pgproto3.ReadyForQuery:
-		mrr.pgConn.doneChanToDeadline.cleanup()
+		mrr.pgConn.contextWatcher.Unwatch()
 		mrr.closed = true
 		mrr.pgConn.unlock()
 	case *pgproto3.ErrorResponse:
@@ -1129,7 +1142,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 
 			switch msg.(type) {
 			case *pgproto3.ReadyForQuery:
-				rr.pgConn.doneChanToDeadline.cleanup()
+				rr.pgConn.contextWatcher.Unwatch()
 				rr.pgConn.unlock()
 				return rr.commandTag, rr.err
 			}
@@ -1148,7 +1161,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 
 	if err != nil {
 		rr.concludeCommand(nil, err)
-		rr.pgConn.doneChanToDeadline.cleanup()
+		rr.pgConn.contextWatcher.Unwatch()
 		rr.closed = true
 		if rr.multiResultReader == nil {
 			rr.pgConn.hardClose()
@@ -1223,7 +1236,7 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 		return multiResult
 	default:
 	}
-	pgConn.doneChanToDeadline.start(ctx.Done(), pgConn.conn)
+	pgConn.contextWatcher.Watch(ctx)
 
 	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
 
