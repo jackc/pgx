@@ -75,7 +75,7 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 }
 
 func TestSQLOpen(t *testing.T) {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
+	db, err := sql.Open("pgx", testConnStr)
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestOpenWithDriverConfigAfterConnect(t *testing.T) {
 	stdlib.RegisterDriverConfig(&driverConfig)
 	defer stdlib.UnregisterDriverConfig(&driverConfig)
 
-	db, err := sql.Open("pgx", driverConfig.ConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test"))
+	db, err := sql.Open("pgx", driverConfig.ConnectionString(testConnStr))
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
@@ -332,15 +332,14 @@ func (l *testLogger) Log(lvl pgx.LogLevel, msg string, data map[string]interface
 
 func TestConnQueryLog(t *testing.T) {
 	logger := &testLogger{}
+	connConfig, err := pgx.ParseConnectionString(testConnStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	connConfig.Logger = logger
 
 	driverConfig := stdlib.DriverConfig{
-		ConnConfig: pgx.ConnConfig{
-			Host:     "127.0.0.1",
-			User:     "pgx_md5",
-			Password: "secret",
-			Database: "pgx_test",
-			Logger:   logger,
-		},
+		ConnConfig: connConfig,
 	}
 
 	stdlib.RegisterDriverConfig(&driverConfig)
@@ -1443,7 +1442,7 @@ func TestSimpleQueryLifeCycle(t *testing.T) {
 	stdlib.RegisterDriverConfig(&driverConfig)
 	defer stdlib.UnregisterDriverConfig(&driverConfig)
 
-	db, err := sql.Open("pgx", driverConfig.ConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test"))
+	db, err := sql.Open("pgx", driverConfig.ConnectionString(testConnStr))
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}

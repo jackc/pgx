@@ -11,7 +11,7 @@ import (
 )
 
 func openDB(t *testing.T) *sql.DB {
-	config, err := pgx.ParseConnectionString("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
+	config, err := pgx.ParseConnectionString(testConnStr)
 	if err != nil {
 		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
 	}

@@ -1,12 +1,14 @@
 package pgx_test
 
 import (
-	// "crypto/tls"
-	// "crypto/x509"
-	// "fmt"
-	// "go/build"
-	// "io/ioutil"
-	// "path"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"go/build"
+	"io/ioutil"
+	"log"
+	"os"
+	"path"
 
 	"github.com/jackc/pgx"
 )
@@ -31,49 +33,62 @@ var cratedbConnConfig *pgx.ConnConfig = nil
 // var invalidUserConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "invalid", Database: "pgx_test"}
 // var customDialerConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test"}
 // var replicationConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_replication", Password: "secret", Database: "pgx_test"}
-
 // var tlsConnConfig *pgx.ConnConfig = &pgx.ConnConfig{Host: "127.0.0.1", User: "pgx_md5", Password: "secret", Database: "pgx_test", TLSConfig: &tls.Config{InsecureSkipVerify: true}}
-//
-//// or to test client certs:
-//
-// var tlsConnConfig *pgx.ConnConfig
-//
-// func init() {
-// 	homeDir := build.Default.GOPATH
-// 	tlsConnConfig = &pgx.ConnConfig{
-// 		Host:     "127.0.0.1",
-// 		User:     "pgx_md5",
-// 		Password: "secret",
-// 		Database: "pgx_test",
-// 		TLSConfig: &tls.Config{
-// 			InsecureSkipVerify: true,
-// 		},
-// 	}
-// 	caCertPool := x509.NewCertPool()
-//
-// 	caPath := path.Join(homeDir, "/src/github.com/jackc/pgx/rootCA.pem")
-// 	caCert, err := ioutil.ReadFile(caPath)
-// 	if err != nil {
-// 		panic(fmt.Sprintf("unable to read CA file: %v", err))
-// 	}
-//
-// 	if !caCertPool.AppendCertsFromPEM(caCert) {
-// 		panic("unable to add CA to cert pool")
-// 	}
-//
-// 	tlsConnConfig.TLSConfig.RootCAs = caCertPool
-// 	tlsConnConfig.TLSConfig.ClientCAs = caCertPool
-//
-// 	sslCert := path.Join(homeDir, "/src/github.com/jackc/pgx/pg_md5.crt")
-// 	sslKey := path.Join(homeDir, "/src/github.com/jackc/pgx/pg_md5.key")
-// 	if (sslCert != "" && sslKey == "") || (sslCert == "" && sslKey != "") {
-// 		panic(`both "sslcert" and "sslkey" are required`)
-// 	}
-//
-// 	cert, err := tls.LoadX509KeyPair(sslCert, sslKey)
-// 	if err != nil {
-// 		panic(fmt.Sprintf("unable to read cert: %v", err))
-// 	}
-//
-// 	tlsConnConfig.TLSConfig.Certificates = []tls.Certificate{cert}
-// }
+
+func initTLSConnConfig() {
+	homeDir := build.Default.GOPATH
+	tlsConnConfig = &pgx.ConnConfig{
+		Host:     defaultConnConfig.Host,
+		User:     defaultConnConfig.User,
+		Password: defaultConnConfig.Password,
+		Database: defaultConnConfig.Database,
+		TLSConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+
+	caCertPool := x509.NewCertPool()
+
+	caPath := path.Join(homeDir, "/src/github.com/jackc/pgx/rootCA.pem")
+	caCert, err := ioutil.ReadFile(caPath)
+	if err != nil {
+		panic(fmt.Sprintf("unable to read CA file: %v", err))
+	}
+
+	if !caCertPool.AppendCertsFromPEM(caCert) {
+		panic("unable to add CA to cert pool")
+	}
+
+	tlsConnConfig.TLSConfig.RootCAs = caCertPool
+	tlsConnConfig.TLSConfig.ClientCAs = caCertPool
+
+	sslCert := path.Join(homeDir, "/src/github.com/jackc/pgx/pg_md5.crt")
+	sslKey := path.Join(homeDir, "/src/github.com/jackc/pgx/pg_md5.key")
+	if (sslCert != "" && sslKey == "") || (sslCert == "" && sslKey != "") {
+		panic(`both "sslcert" and "sslkey" are required`)
+	}
+
+	cert, err := tls.LoadX509KeyPair(sslCert, sslKey)
+	if err != nil {
+		panic(fmt.Sprintf("unable to read cert: %v", err))
+	}
+
+	tlsConnConfig.TLSConfig.Certificates = []tls.Certificate{cert}
+}
+
+func init() {
+	connStr := os.Getenv("PGX_TEST_DATABASE")
+	if len(connStr) == 0 {
+		return
+	}
+
+	connConfig, err := pgx.ParseConnectionString(connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	*defaultConnConfig = connConfig
+
+	// Uncomment to test TLS connection functionality.
+	// initTLSConnConfig()
+}
