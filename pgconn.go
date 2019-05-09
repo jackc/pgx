@@ -879,8 +879,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 
 	// Send copy data
-	buf = make([]byte, 0, 20000)
-	// buf = make([]byte, 0, 65536)
+	buf = make([]byte, 0, 65536)
 	buf = append(buf, 'd')
 	sp := len(buf)
 	var readErr error
