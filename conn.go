@@ -38,7 +38,6 @@ type Conn struct {
 	preparedStatements map[string]*PreparedStatement
 	logger             Logger
 	logLevel           LogLevel
-	fp                 *fastpath
 
 	causeOfDeath error
 

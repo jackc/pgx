@@ -11,7 +11,6 @@ import (
 )
 
 func TestLargeObjects(t *testing.T) {
-	t.Skip("TODO: fix or (re)move")
 	t.Parallel()
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
@@ -24,10 +23,7 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	lo, err := tx.LargeObjects()
-	if err != nil {
-		t.Fatal(err)
-	}
+	lo := tx.LargeObjects()
 
 	id, err := lo.Create(0)
 	if err != nil {
@@ -125,7 +121,6 @@ func TestLargeObjects(t *testing.T) {
 }
 
 func TestLargeObjectsMultipleTransactions(t *testing.T) {
-	t.Skip("TODO: fix or (re)move")
 	t.Parallel()
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
@@ -138,10 +133,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	lo, err := tx.LargeObjects()
-	if err != nil {
-		t.Fatal(err)
-	}
+	lo := tx.LargeObjects()
 
 	id, err := lo.Create(0)
 	if err != nil {
@@ -181,10 +173,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	lo2, err := tx2.LargeObjects()
-	if err != nil {
-		t.Fatal(err)
-	}
+	lo2 := tx2.LargeObjects()
 
 	// Reopen the large object in the new transaction
 	obj2, err := lo2.Open(id, pgx.LargeObjectModeRead|pgx.LargeObjectModeWrite)
