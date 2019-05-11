@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -13,24 +14,27 @@ import (
 func TestLargeObjects(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tx, err := conn.Begin(context.Background(), nil)
+	tx, err := conn.Begin(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	lo := tx.LargeObjects()
 
-	id, err := lo.Create(0)
+	id, err := lo.Create(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	obj, err := lo.Open(id, pgx.LargeObjectModeRead|pgx.LargeObjectModeWrite)
+	obj, err := lo.Open(ctx, id, pgx.LargeObjectModeRead|pgx.LargeObjectModeWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,12 +113,12 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = lo.Unlink(id)
+	err = lo.Unlink(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = lo.Open(id, pgx.LargeObjectModeRead)
+	_, err = lo.Open(ctx, id, pgx.LargeObjectModeRead)
 	if e, ok := err.(*pgconn.PgError); !ok || e.Code != "42704" {
 		t.Errorf("Expected undefined_object error (42704), got %#v", err)
 	}
@@ -123,24 +127,27 @@ func TestLargeObjects(t *testing.T) {
 func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	t.Parallel()
 
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	tx, err := conn.Begin(context.Background(), nil)
+	tx, err := conn.Begin(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	lo := tx.LargeObjects()
 
-	id, err := lo.Create(0)
+	id, err := lo.Create(ctx, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	obj, err := lo.Open(id, pgx.LargeObjectModeWrite)
+	obj, err := lo.Open(ctx, id, pgx.LargeObjectModeWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,21 +161,21 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	}
 
 	// Commit the first transaction
-	err = tx.Commit(context.Background())
+	err = tx.Commit(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// IMPORTANT: Use the same connection for another query
 	query := `select n from generate_series(1,10) n`
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(ctx, query)
 	if err != nil {
 		t.Fatal(err)
 	}
 	rows.Close()
 
 	// Start a new transaction
-	tx2, err := conn.Begin(context.Background(), nil)
+	tx2, err := conn.Begin(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +183,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	lo2 := tx2.LargeObjects()
 
 	// Reopen the large object in the new transaction
-	obj2, err := lo2.Open(id, pgx.LargeObjectModeRead|pgx.LargeObjectModeWrite)
+	obj2, err := lo2.Open(ctx, id, pgx.LargeObjectModeRead|pgx.LargeObjectModeWrite)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,12 +254,12 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = lo2.Unlink(id)
+	err = lo2.Unlink(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = lo2.Open(id, pgx.LargeObjectModeRead)
+	_, err = lo2.Open(ctx, id, pgx.LargeObjectModeRead)
 	if e, ok := err.(*pgconn.PgError); !ok || e.Code != "42704" {
 		t.Errorf("Expected undefined_object error (42704), got %#v", err)
 	}
