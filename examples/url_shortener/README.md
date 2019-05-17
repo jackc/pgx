@@ -6,20 +6,28 @@ This is a sample REST URL shortener service implemented using pgx as the connect
 
 Create a PostgreSQL database and run structure.sql into it to create the necessary data schema.
 
-Edit connectionOptions in main.go with the location and credentials for your database.
+Configure the database connection with `DATABASE_URL` or standard PostgreSQL (`PG*`) environment variables or
 
 Run main.go:
 
-    go run main.go
+```
+go run main.go
+```
 
 ## Create or Update a Shortened URL
 
-    curl -X PUT -d 'http://www.google.com' http://localhost:8080/google
+```
+curl -X PUT -d 'http://www.google.com' http://localhost:8080/google
+```
 
 ## Get a Shortened URL
 
-    curl http://localhost:8080/google
+```
+curl http://localhost:8080/google
+```
 
 ## Delete a Shortened URL
 
-    curl -X DELETE http://localhost:8080/google
+```
+curl -X DELETE http://localhost:8080/google
+```
