@@ -22,7 +22,6 @@ type Frontend struct {
 	copyInResponse       CopyInResponse
 	copyOutResponse      CopyOutResponse
 	copyDone             CopyDone
-	copyFail             CopyFail
 	dataRow              DataRow
 	emptyQueryResponse   EmptyQueryResponse
 	errorResponse        ErrorResponse
@@ -82,8 +81,6 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 		msg = &b.dataRow
 	case 'E':
 		msg = &b.errorResponse
-	case 'f':
-		msg = &b.copyFail
 	case 'G':
 		msg = &b.copyInResponse
 	case 'H':

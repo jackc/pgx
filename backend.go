@@ -14,6 +14,7 @@ type Backend struct {
 	// Frontend message flyweights
 	bind            Bind
 	_close          Close
+	copyFail        CopyFail
 	describe        Describe
 	execute         Execute
 	flush           Flush
@@ -80,6 +81,8 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		msg = &b.describe
 	case 'E':
 		msg = &b.execute
+	case 'f':
+		msg = &b.copyFail
 	case 'H':
 		msg = &b.flush
 	case 'P':

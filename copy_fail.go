@@ -11,7 +11,7 @@ type CopyFail struct {
 	Message string
 }
 
-func (*CopyFail) Backend() {}
+func (*CopyFail) Frontend() {}
 
 func (dst *CopyFail) Decode(src []byte) error {
 	idx := bytes.IndexByte(src, 0)
