@@ -296,13 +296,9 @@ func parseHstore(s string) (k []string, v []Text, err error) {
 		case hsKey:
 			switch r {
 			case '"': //End of the key
-				if buf.Len() == 0 {
-					err = errors.New("Empty Key is invalid")
-				} else {
-					keys = append(keys, buf.String())
-					buf = bytes.Buffer{}
-					state = hsSep
-				}
+				keys = append(keys, buf.String())
+				buf = bytes.Buffer{}
+				state = hsSep
 			case '\\': //Potential escaped character
 				n, end := p.Consume()
 				switch {
