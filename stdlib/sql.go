@@ -240,18 +240,10 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 		return nil, driver.ErrBadConn
 	}
 
-	return c.queryPreparedContext(ctx, query, argsV)
-}
-
-func (c *Conn) queryPreparedContext(ctx context.Context, name string, argsV []driver.NamedValue) (driver.Rows, error) {
-	if !c.conn.IsAlive() {
-		return nil, driver.ErrBadConn
-	}
-
 	args := []interface{}{databaseSQLResultFormats}
 	args = append(args, namedValueToInterface(argsV)...)
 
-	rows, err := c.conn.Query(ctx, name, args...)
+	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
 		if errors.Is(err, pgconn.ErrNoBytesSent) {
 			return nil, driver.ErrBadConn
@@ -298,7 +290,7 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (driver.Rows, error) {
-	return s.conn.queryPreparedContext(ctx, s.ps.Name, argsV)
+	return s.conn.QueryContext(ctx, s.ps.Name, argsV)
 }
 
 type Rows struct {
