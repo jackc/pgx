@@ -71,6 +71,31 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectWithPreferSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	connConfig := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	connConfig.PreferSimpleProtocol = true
+
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	// If simple protocol is used we should be able to correctly scan the result
+	// into a pgtype.Text as the integer will have been encoded in text.
+
+	var s pgtype.Text
+	err := conn.QueryRow(context.Background(), "select $1::int4", 42).Scan(&s)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if s.Get() != "42" {
+		t.Fatalf(`expected "42", got %v`, s)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestExec(t *testing.T) {
 	t.Parallel()
 
@@ -249,6 +274,37 @@ func TestExecExtendedProtocol(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestExecSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	commandTag, err := conn.Exec(ctx, "create temporary table foo(name varchar primary key);")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(commandTag) != "CREATE TABLE" {
+		t.Fatalf("Unexpected results from Exec: %v", commandTag)
+	}
+
+	commandTag, err = conn.Exec(ctx,
+		"insert into foo(name) values($1);",
+		pgx.QuerySimpleProtocol(true),
+		"bar'; drop table foo;--",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(commandTag) != "INSERT 0 1" {
+		t.Fatalf("Unexpected results from Exec: %v", commandTag)
+	}
+
 }
 
 func TestPrepare(t *testing.T) {

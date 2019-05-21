@@ -86,7 +86,8 @@ type connRows struct {
 	args      []interface{}
 	closed    bool
 
-	resultReader *pgconn.ResultReader
+	resultReader      *pgconn.ResultReader
+	multiResultReader *pgconn.MultiResultReader
 }
 
 func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
@@ -102,6 +103,13 @@ func (rows *connRows) Close() {
 
 	if rows.resultReader != nil {
 		_, closeErr := rows.resultReader.Close()
+		if rows.err == nil {
+			rows.err = closeErr
+		}
+	}
+
+	if rows.multiResultReader != nil {
+		closeErr := rows.multiResultReader.Close()
 		if rows.err == nil {
 			rows.err = closeErr
 		}
