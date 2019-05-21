@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"math"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 }
 
 func TestSQLOpen(t *testing.T) {
-	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
+	db, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatalf("sql.Open failed: %v", err)
 	}
@@ -1055,7 +1056,7 @@ func TestRowsColumnTypes(t *testing.T) {
 }
 
 func TestSimpleQueryLifeCycle(t *testing.T) {
-	config, err := pgx.ParseConfig("postgres://pgx_md5:secret@127.0.0.1:5432/pgx_test")
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
 	}
