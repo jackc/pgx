@@ -106,7 +106,7 @@ Connect to database pgx_test and run:
 
 Run the tests with environment variable PGX_TEST_DATABASE set to your test database.
 
-    PGX_TEXT_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
+    PGX_TEST_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
 
 ### Connection and Authentication Test Environment
 
