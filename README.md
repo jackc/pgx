@@ -97,7 +97,6 @@ Then run the following SQL:
     create user pgx_md5 password 'secret';
     create user " tricky, ' } "" \ test user " password 'secret';
     create database pgx_test;
-    create user pgx_replication with replication password 'secret';
 
 Connect to database pgx_test and run:
 
@@ -140,26 +139,6 @@ Each different test connection type uses a different connection string in an env
     export PGX_TEST_TLS_CONN_STRING="host=127.0.0.1 user=pgx_md5 password=secret database=pgx_test sslmode=require"
     export PGX_TEST_MD5_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_md5 password=secret database=pgx_test"
     export PGX_TEST_PLAIN_PASSWORD_CONN_STRING="host=127.0.0.1 user=pgx_pw password=secret database=pgx_test"
-
-### Replication Test Environment
-
-Add a replication user:
-
-    create user pgx_replication with replication password 'secret';
-
-Add a replication line to your pg_hba.conf:
-
-    host replication pgx_replication 127.0.0.1/32 md5
-
-Change the following settings in your postgresql.conf:
-
-    wal_level=logical
-    max_wal_senders=5
-    max_replication_slots=5
-
-Set the replication environment variable.
-
-    export PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 user=pgx_replication password=secret database=pgx_test"
 
 ## Version Policy
 
