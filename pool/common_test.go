@@ -56,7 +56,7 @@ type queryRower interface {
 
 func testQueryRow(t *testing.T, db queryRower) {
 	var what, who string
-	err := db.QueryRow(context.Background(), "select 'hello', $1", "world").Scan(&what, &who)
+	err := db.QueryRow(context.Background(), "select 'hello', $1::text", "world").Scan(&what, &who)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello", what)
 	assert.Equal(t, "world", who)
