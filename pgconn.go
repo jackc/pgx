@@ -145,8 +145,8 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	pgConn.parameterStatuses = make(map[string]string)
 
-	if config.TLSConfig != nil {
-		if err := pgConn.startTLS(config.TLSConfig); err != nil {
+	if fallbackConfig.TLSConfig != nil {
+		if err := pgConn.startTLS(fallbackConfig.TLSConfig); err != nil {
 			pgConn.conn.Close()
 			return nil, err
 		}
