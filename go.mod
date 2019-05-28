@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/jackc/pgconn v0.0.0-20190527175027-de87e8be96e1
+	github.com/jackc/pgconn v0.0.0-20190528115420-71ec1f782113
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190420180111-c116219b62db
 	github.com/jackc/pgtype v0.0.0-20190421001408-4ed0de4755e0
@@ -19,6 +19,6 @@ require (
 	github.com/stretchr/testify v1.3.0
 	go.uber.org/atomic v1.4.0 // indirect
 	go.uber.org/zap v1.9.1
-	golang.org/x/xerrors v0.0.0-20190410155217-1f06c39b4373
+	golang.org/x/xerrors v0.0.0-20190513163551-3ee3066db522
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
