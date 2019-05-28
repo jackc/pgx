@@ -9,5 +9,5 @@ require (
 	github.com/stretchr/testify v1.3.0
 	golang.org/x/crypto v0.0.0-20190411191339-88737f569e3a
 	golang.org/x/text v0.3.0
-	golang.org/x/xerrors v0.0.0-20190410155217-1f06c39b4373
+	golang.org/x/xerrors v0.0.0-20190513163551-3ee3066db522
 )
