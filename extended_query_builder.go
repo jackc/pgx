@@ -72,20 +72,29 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 	}
 
 	var err error
+	var buf []byte
 	pos := len(eqb.paramValueBytes)
 
 	switch arg := arg.(type) {
 	case pgtype.BinaryEncoder:
-		eqb.paramValueBytes, err = arg.EncodeBinary(ci, eqb.paramValueBytes)
+		buf, err = arg.EncodeBinary(ci, eqb.paramValueBytes)
 		if err != nil {
 			return nil, err
 		}
+		if buf == nil {
+			return nil, nil
+		}
+		eqb.paramValueBytes = buf
 		return eqb.paramValueBytes[pos:], nil
 	case pgtype.TextEncoder:
-		eqb.paramValueBytes, err = arg.EncodeText(ci, eqb.paramValueBytes)
+		buf, err = arg.EncodeText(ci, eqb.paramValueBytes)
 		if err != nil {
 			return nil, err
 		}
+		if buf == nil {
+			return nil, nil
+		}
+		eqb.paramValueBytes = buf
 		return eqb.paramValueBytes[pos:], nil
 	case string:
 		return []byte(arg), nil
