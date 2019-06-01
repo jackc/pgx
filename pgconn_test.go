@@ -112,7 +112,7 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	dialed := false
@@ -130,7 +130,7 @@ func TestConnectCustomDialer(t *testing.T) {
 func TestConnectWithRuntimeParams(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	config.RuntimeParams = map[string]string{
@@ -156,7 +156,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 func TestConnectWithFallback(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	// Prepend current primary config to fallbacks
@@ -189,7 +189,7 @@ func TestConnectWithFallback(t *testing.T) {
 func TestConnectWithAfterConnectFunc(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	dialCount := 0
@@ -228,7 +228,7 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	config.AfterConnectFunc = pgconn.AfterConnectTargetSessionAttrsReadWrite
@@ -243,7 +243,7 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -257,7 +257,7 @@ func TestConnPrepareSyntaxError(t *testing.T) {
 func TestConnPrepareContextPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -275,7 +275,7 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -294,7 +294,7 @@ func TestConnExec(t *testing.T) {
 func TestConnExecEmpty(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -315,7 +315,7 @@ func TestConnExecEmpty(t *testing.T) {
 func TestConnExecMultipleQueries(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -340,7 +340,7 @@ func TestConnExecMultipleQueries(t *testing.T) {
 func TestConnExecMultipleQueriesError(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -362,7 +362,7 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 func TestConnExecContextCanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -380,7 +380,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 func TestConnExecContextPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -397,7 +397,7 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 func TestConnExecParams(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -418,7 +418,7 @@ func TestConnExecParams(t *testing.T) {
 func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -441,7 +441,7 @@ func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
 func TestConnExecParamsTooManyParams(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -464,7 +464,7 @@ func TestConnExecParamsTooManyParams(t *testing.T) {
 func TestConnExecParamsCanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -486,7 +486,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 func TestConnExecParamsPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -503,7 +503,7 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -530,7 +530,7 @@ func TestConnExecPrepared(t *testing.T) {
 func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -559,7 +559,7 @@ func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
 func TestConnExecPreparedTooManyParams(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -588,7 +588,7 @@ func TestConnExecPreparedTooManyParams(t *testing.T) {
 func TestConnExecPreparedCanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -612,7 +612,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 func TestConnExecPreparedPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -632,7 +632,7 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -664,7 +664,7 @@ func TestConnExecBatch(t *testing.T) {
 func TestConnExecBatchPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -697,7 +697,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -725,7 +725,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 func TestConnExecBatchImplicitTransaction(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -748,7 +748,7 @@ func TestConnExecBatchImplicitTransaction(t *testing.T) {
 func TestConnLocking(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -795,7 +795,7 @@ func TestCommandTag(t *testing.T) {
 func TestConnOnNotice(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	var msg string
@@ -821,7 +821,7 @@ end$$;`)
 func TestConnOnNotification(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	var msg string
@@ -853,7 +853,7 @@ func TestConnOnNotification(t *testing.T) {
 func TestConnWaitForNotification(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	var msg string
@@ -885,7 +885,7 @@ func TestConnWaitForNotification(t *testing.T) {
 func TestConnWaitForNotificationPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
@@ -903,7 +903,7 @@ func TestConnWaitForNotificationPrecanceled(t *testing.T) {
 func TestConnWaitForNotificationTimeout(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
@@ -921,7 +921,7 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 func TestConnCopyToSmall(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -959,7 +959,7 @@ func TestConnCopyToSmall(t *testing.T) {
 func TestConnCopyToLarge(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -997,7 +997,7 @@ func TestConnCopyToLarge(t *testing.T) {
 func TestConnCopyToQueryError(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1014,7 +1014,7 @@ func TestConnCopyToQueryError(t *testing.T) {
 func TestConnCopyToCanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1032,7 +1032,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 func TestConnCopyToPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1052,7 +1052,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 func TestConnCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1088,7 +1088,7 @@ func TestConnCopyFrom(t *testing.T) {
 func TestConnCopyFromCanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1123,7 +1123,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 func TestConnCopyFromPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1160,7 +1160,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 func TestConnCopyFromGzipReader(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1217,7 +1217,7 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1240,7 +1240,7 @@ func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 func TestConnCopyFromQueryNoTableError(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1257,7 +1257,7 @@ func TestConnCopyFromQueryNoTableError(t *testing.T) {
 func TestConnEscapeString(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1285,7 +1285,7 @@ func TestConnEscapeString(t *testing.T) {
 func TestConnCancelRequest(t *testing.T) {
 	t.Parallel()
 
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
@@ -1310,7 +1310,7 @@ func TestConnCancelRequest(t *testing.T) {
 }
 
 func Example() {
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	if err != nil {
 		log.Fatalln(err)
 	}
