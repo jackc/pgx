@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"math"
 	"math/big"
 	"reflect"
 	"testing"
@@ -66,9 +67,23 @@ func TestNumericArraySet(t *testing.T) {
 				Status:     pgtype.Present},
 		},
 		{
+			source: []float32{float32(math.Copysign(0, -1))},
+			result: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
 			source: []float64{1},
 			result: pgtype.NumericArray{
 				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []float64{math.Copysign(0, -1)},
+			result: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
 				Status:     pgtype.Present},
 		},
