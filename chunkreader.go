@@ -1,11 +1,17 @@
-// Package chunkreader provides an opinionated, efficient buffered reader.
+// Package chunkreader provides an io.Reader wrapper that minimizes IO reads and memory allocations.
 package chunkreader
 
 import (
 	"io"
 )
 
-// ChunkReader is a io.Reader wrapper that minimizes reads and memory allocations.
+// ChunkReader is a io.Reader wrapper that minimizes IO reads and memory allocations. It allocates memory in chunks and
+// will read as much as will fit in the current buffer in a single call regardless of how large a read is actually
+// requested. The memory returned via Next is owned by the caller. This avoids the need for an additional copy.
+//
+// The downside of this approach is that a large buffer can be pinned in memory even if only a small slice is
+// referenced. For example, an entire 4096 byte block could be pinned in memory by even a 1 byte slice. In these rare
+// cases it would be advantageous to copy the bytes to another slice.
 type ChunkReader struct {
 	r io.Reader
 
@@ -43,8 +49,8 @@ func NewConfig(r io.Reader, config Config) (*ChunkReader, error) {
 	}, nil
 }
 
-// Next returns buf filled with the next n bytes. If an error occurs, buf will
-// be nil.
+// Next returns buf filled with the next n bytes. The caller gains ownership of buf. It is not necessary to make a copy
+// of buf. If an error occurs, buf will be nil.
 func (r *ChunkReader) Next(n int) (buf []byte, err error) {
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {

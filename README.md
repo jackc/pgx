@@ -3,6 +3,6 @@
 
 # chunkreader
 
-Package chunkreader provides an opinionated, efficient buffered reader.
+Package chunkreader provides an io.Reader wrapper that minimizes IO reads and memory allocations.
 
 Extracted from original implementation in https://github.com/jackc/pgx.
