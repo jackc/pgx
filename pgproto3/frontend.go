@@ -23,7 +23,7 @@ type Frontend struct {
 	copyInResponse       CopyInResponse
 	copyOutResponse      CopyOutResponse
 	copyDone             CopyDone
-        copyFail             CopyFail
+	copyFail             CopyFail
 	dataRow              DataRow
 	emptyQueryResponse   EmptyQueryResponse
 	errorResponse        ErrorResponse
@@ -36,6 +36,7 @@ type Frontend struct {
 	parseComplete        ParseComplete
 	readyForQuery        ReadyForQuery
 	rowDescription       RowDescription
+	portalSuspended      PortalSuspended
 
 	bodyLen    int
 	msgType    byte
@@ -76,8 +77,8 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 		msg = &b.notificationResponse
 	case 'c':
 		msg = &b.copyDone
-        case 'f':
-                msg = &b.copyFail
+	case 'f':
+		msg = &b.copyFail
 	case 'C':
 		msg = &b.commandComplete
 	case 'd':
@@ -112,6 +113,8 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 		msg = &b.copyBothResponse
 	case 'Z':
 		msg = &b.readyForQuery
+	case 's':
+		msg = &b.portalSuspended
 	default:
 		return nil, errors.Errorf("unknown message type: %c", b.msgType)
 	}
