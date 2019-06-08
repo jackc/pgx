@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"math"
 	"math/big"
 	"math/rand"
 	"reflect"
@@ -188,7 +189,9 @@ func TestNumericSet(t *testing.T) {
 		result *pgtype.Numeric
 	}{
 		{source: float32(1), result: &pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present}},
+		{source: float32(math.Copysign(0, -1)), result: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Present}},
 		{source: float64(1), result: &pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present}},
+		{source: float64(math.Copysign(0, -1)), result: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Present}},
 		{source: int8(1), result: &pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present}},
 		{source: int16(1), result: &pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present}},
 		{source: int32(1), result: &pgtype.Numeric{Int: big.NewInt(1), Status: pgtype.Present}},
