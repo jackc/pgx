@@ -321,7 +321,7 @@ func parseNumericString(str string) (n *big.Int, exp int32, err error) {
 	if len(parts) > 1 {
 		exp = int32(-len(parts[1]))
 	} else {
-		for len(digits) > 1 && digits[len(digits)-1] == '0' {
+		for len(digits) > 1 && digits[len(digits)-1] == '0' && digits[len(digits)-2] != '-' {
 			digits = digits[:len(digits)-1]
 			exp++
 		}
