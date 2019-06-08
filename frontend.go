@@ -34,6 +34,7 @@ type Frontend struct {
 	parseComplete        ParseComplete
 	readyForQuery        ReadyForQuery
 	rowDescription       RowDescription
+	portalSuspended      PortalSuspended
 
 	bodyLen    int
 	msgType    byte
@@ -95,6 +96,8 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 		msg = &b.noticeResponse
 	case 'R':
 		msg = &b.authentication
+	case 's':
+		msg = &b.portalSuspended
 	case 'S':
 		msg = &b.parameterStatus
 	case 't':
