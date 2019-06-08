@@ -12,31 +12,32 @@ type ChunkReader struct {
 	buf    []byte
 	rp, wp int // buf read position and write position
 
-	options Options
+	config Config
 }
 
-type Options struct {
+// Config contains configuration parameters for ChunkReader.
+type Config struct {
 	MinBufLen int // Minimum buffer length
 }
 
 func NewChunkReader(r io.Reader) *ChunkReader {
-	cr, err := NewChunkReaderEx(r, Options{})
+	cr, err := NewChunkReaderEx(r, Config{})
 	if err != nil {
-		panic("default options can't be bad")
+		panic("default config can't be bad")
 	}
 
 	return cr
 }
 
-func NewChunkReaderEx(r io.Reader, options Options) (*ChunkReader, error) {
-	if options.MinBufLen == 0 {
-		options.MinBufLen = 4096
+func NewChunkReaderEx(r io.Reader, config Config) (*ChunkReader, error) {
+	if config.MinBufLen == 0 {
+		config.MinBufLen = 4096
 	}
 
 	return &ChunkReader{
-		r:       r,
-		buf:     make([]byte, options.MinBufLen),
-		options: options,
+		r:      r,
+		buf:    make([]byte, config.MinBufLen),
+		config: config,
 	}, nil
 }
 
@@ -78,8 +79,8 @@ func (r *ChunkReader) appendAtLeast(fillLen int) error {
 }
 
 func (r *ChunkReader) newBuf(size int) []byte {
-	if size < r.options.MinBufLen {
-		size = r.options.MinBufLen
+	if size < r.config.MinBufLen {
+		size = r.config.MinBufLen
 	}
 	return make([]byte, size)
 }
