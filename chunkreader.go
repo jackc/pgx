@@ -3,7 +3,7 @@ package pgproto3
 import (
 	"io"
 
-	"github.com/jackc/chunkreader"
+	"github.com/jackc/chunkreader/v2"
 )
 
 // ChunkReader is an interface to decouple github.com/jackc/chunkreader from this package.
@@ -14,5 +14,5 @@ type ChunkReader interface {
 }
 
 func NewChunkReader(r io.Reader) ChunkReader {
-	return chunkreader.NewChunkReader(r)
+	return chunkreader.New(r)
 }
