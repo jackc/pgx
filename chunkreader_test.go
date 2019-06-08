@@ -7,7 +7,7 @@ import (
 
 func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Config{MinBufLen: 4})
+	r, err := NewConfig(server, Config{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 
 func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Config{MinBufLen: 4})
+	r, err := NewConfig(server, Config{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 
 func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewChunkReaderEx(server, Config{MinBufLen: 4})
+	r, err := NewConfig(server, Config{MinBufLen: 4})
 	if err != nil {
 		t.Fatal(err)
 	}

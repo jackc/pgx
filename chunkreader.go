@@ -20,8 +20,9 @@ type Config struct {
 	MinBufLen int // Minimum buffer length
 }
 
-func NewChunkReader(r io.Reader) *ChunkReader {
-	cr, err := NewChunkReaderEx(r, Config{})
+// New creates and returns a new ChunkReader for r with default configuration.
+func New(r io.Reader) *ChunkReader {
+	cr, err := NewConfig(r, Config{})
 	if err != nil {
 		panic("default config can't be bad")
 	}
@@ -29,7 +30,8 @@ func NewChunkReader(r io.Reader) *ChunkReader {
 	return cr
 }
 
-func NewChunkReaderEx(r io.Reader, config Config) (*ChunkReader, error) {
+// NewConfig creates and a new ChunkReader for r configured by config.
+func NewConfig(r io.Reader, config Config) (*ChunkReader, error) {
 	if config.MinBufLen == 0 {
 		config.MinBufLen = 4096
 	}
