@@ -27,8 +27,11 @@ type RowDescription struct {
 	Fields []FieldDescription
 }
 
+// Backend identifies this message as sendable by the PostgreSQL backend.
 func (*RowDescription) Backend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *RowDescription) Decode(src []byte) error {
 
 	if len(src) < 2 {
@@ -74,6 +77,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *RowDescription) Encode(dst []byte) []byte {
 	dst = append(dst, 'T')
 	sp := len(dst)
@@ -97,6 +101,7 @@ func (src *RowDescription) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *RowDescription) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type   string

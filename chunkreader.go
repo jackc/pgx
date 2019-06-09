@@ -13,6 +13,7 @@ type ChunkReader interface {
 	Next(n int) (buf []byte, err error)
 }
 
+// NewChunkReader creates and returns a new default ChunkReader.
 func NewChunkReader(r io.Reader) ChunkReader {
 	return chunkreader.New(r)
 }

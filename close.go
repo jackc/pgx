@@ -12,8 +12,11 @@ type Close struct {
 	Name       string
 }
 
+// Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*Close) Frontend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *Close) Decode(src []byte) error {
 	if len(src) < 2 {
 		return &invalidMessageFormatErr{messageType: "Close"}
@@ -32,6 +35,7 @@ func (dst *Close) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *Close) Encode(dst []byte) []byte {
 	dst = append(dst, 'C')
 	sp := len(dst)
@@ -46,6 +50,7 @@ func (src *Close) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *Close) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type       string

@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Frontend acts as a client for the PostgreSQL wire protocol version 3.
 type Frontend struct {
 	cr ChunkReader
 	w  io.Writer
@@ -41,15 +42,18 @@ type Frontend struct {
 	partialMsg bool
 }
 
+// NewFrontend creates a new Frontend.
 func NewFrontend(cr ChunkReader, w io.Writer) (*Frontend, error) {
 	return &Frontend{cr: cr, w: w}, nil
 }
 
+// Send sends a message to the backend.
 func (b *Frontend) Send(msg FrontendMessage) error {
 	_, err := b.w.Write(msg.Encode(nil))
 	return err
 }
 
+// Receive receives a message from the backend.
 func (b *Frontend) Receive() (BackendMessage, error) {
 	if !b.partialMsg {
 		header, err := b.cr.Next(5)

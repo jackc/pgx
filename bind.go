@@ -17,8 +17,11 @@ type Bind struct {
 	ResultFormatCodes    []int16
 }
 
+// Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*Bind) Frontend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *Bind) Decode(src []byte) error {
 	*dst = Bind{}
 
@@ -103,6 +106,7 @@ func (dst *Bind) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *Bind) Encode(dst []byte) []byte {
 	dst = append(dst, 'B')
 	sp := len(dst)
@@ -139,6 +143,7 @@ func (src *Bind) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *Bind) MarshalJSON() ([]byte, error) {
 	formattedParameters := make([]map[string]string, len(src.Parameters))
 	for i, p := range src.Parameters {

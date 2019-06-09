@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Authentication message type constants.
 const (
 	AuthTypeOk                = 0
 	AuthTypeCleartextPassword = 3
@@ -17,6 +18,10 @@ const (
 	AuthTypeSASLFinal         = 12
 )
 
+// Authentication is a message sent from the backend during the authentication process.
+//
+// There are multiple authentication messages that each begin with 'R'. This structure represents all such
+// authentication messages.
 type Authentication struct {
 	Type uint32
 
@@ -30,8 +35,11 @@ type Authentication struct {
 	SASLData []byte
 }
 
+// Backend identifies this message as sendable by the PostgreSQL backend.
 func (*Authentication) Backend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *Authentication) Decode(src []byte) error {
 	*dst = Authentication{Type: binary.BigEndian.Uint32(src[:4])}
 
@@ -58,6 +66,7 @@ func (dst *Authentication) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *Authentication) Encode(dst []byte) []byte {
 	dst = append(dst, 'R')
 	sp := len(dst)
