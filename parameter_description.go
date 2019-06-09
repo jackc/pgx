@@ -12,8 +12,11 @@ type ParameterDescription struct {
 	ParameterOIDs []uint32
 }
 
+// Backend identifies this message as sendable by the PostgreSQL backend.
 func (*ParameterDescription) Backend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *ParameterDescription) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
@@ -35,6 +38,7 @@ func (dst *ParameterDescription) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *ParameterDescription) Encode(dst []byte) []byte {
 	dst = append(dst, 't')
 	sp := len(dst)
@@ -50,6 +54,7 @@ func (src *ParameterDescription) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *ParameterDescription) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type          string

@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Backend acts as a server for the PostgreSQL wire protocol version 3.
 type Backend struct {
 	cr ChunkReader
 	w  io.Writer
@@ -30,15 +31,19 @@ type Backend struct {
 	partialMsg bool
 }
 
+// NewBackend creates a new Backend.
 func NewBackend(cr ChunkReader, w io.Writer) (*Backend, error) {
 	return &Backend{cr: cr, w: w}, nil
 }
 
+// Send sends a message to the frontend.
 func (b *Backend) Send(msg BackendMessage) error {
 	_, err := b.w.Write(msg.Encode(nil))
 	return err
 }
 
+// ReceiveStartupMessage receives the initial startup message. This method is used of the normal Receive method
+// because StartupMessage and SSLRequest are "special" and do not include the message type as the first byte.
 func (b *Backend) ReceiveStartupMessage() (*StartupMessage, error) {
 	buf, err := b.cr.Next(4)
 	if err != nil {
@@ -59,6 +64,7 @@ func (b *Backend) ReceiveStartupMessage() (*StartupMessage, error) {
 	return &b.startupMessage, nil
 }
 
+// Receive receives a message from the frontend.
 func (b *Backend) Receive() (FrontendMessage, error) {
 	if !b.partialMsg {
 		header, err := b.cr.Next(5)

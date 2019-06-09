@@ -13,8 +13,11 @@ type Execute struct {
 	MaxRows uint32
 }
 
+// Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*Execute) Frontend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *Execute) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
@@ -32,6 +35,7 @@ func (dst *Execute) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *Execute) Encode(dst []byte) []byte {
 	dst = append(dst, 'E')
 	sp := len(dst)
@@ -47,6 +51,7 @@ func (src *Execute) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *Execute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type    string

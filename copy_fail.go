@@ -11,8 +11,11 @@ type CopyFail struct {
 	Message string
 }
 
+// Frontend identifies this message as sendable by a PostgreSQL frontend.
 func (*CopyFail) Frontend() {}
 
+// Decode decodes src into dst. src must contain the complete message with the exception of the initial 1 byte message
+// type identifier and 4 byte message length.
 func (dst *CopyFail) Decode(src []byte) error {
 	idx := bytes.IndexByte(src, 0)
 	if idx != len(src)-1 {
@@ -24,6 +27,7 @@ func (dst *CopyFail) Decode(src []byte) error {
 	return nil
 }
 
+// Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
 func (src *CopyFail) Encode(dst []byte) []byte {
 	dst = append(dst, 'f')
 	sp := len(dst)
@@ -37,6 +41,7 @@ func (src *CopyFail) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
 func (src *CopyFail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type    string
