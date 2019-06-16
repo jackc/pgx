@@ -1741,8 +1741,8 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	network, address := c.config.networkAddress()
-	cancelConn, err := c.config.Dial(network, address)
+	addr := c.config.networkAddress()
+	cancelConn, err := c.config.Dial(addr.Network(), addr.String())
 	if err != nil {
 		return err
 	}
