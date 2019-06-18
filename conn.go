@@ -441,7 +441,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		return c, nil
 	}
 
-	// To keep backwards, if specific error type expected.
+	// To keep backwards compatibility, if specific error type expected.
 	if len(errs) == 1 {
 		return nil, errs[0]
 	}
