@@ -57,6 +57,7 @@ func parsepgpass(line, cfgHost, cfgPort, cfgDatabase, cfgUsername string) *strin
 	return &parts[4]
 }
 
+// TODO: Multi-host support
 func pgpass(cfg *ConnConfig) (found bool) {
 	passfile := os.Getenv("PGPASSFILE")
 	if passfile == "" {
