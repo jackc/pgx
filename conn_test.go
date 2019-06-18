@@ -84,6 +84,107 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+
+func TestConnectWithMultiHost(t *testing.T) {
+	t.Parallel()
+
+	if multihostConnConfig == nil {
+		t.Skip("Skipping due to undefined multihostConnConfig")
+	}
+
+	conn, err := pgx.Connect(*multihostConnConfig)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	if _, present := conn.RuntimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
+	if conn.PID() == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	var currentDB string
+	err = conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	}
+
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+
+func TestConnectWithMultiHostWritable(t *testing.T) {
+	t.Parallel()
+
+	if multihostConnConfig == nil {
+		t.Skip("Skipping due to undefined multihostConnConfig")
+	}
+
+	connConfig := *multihostConnConfig
+	connConfig.TargetSessionAttrs = "read-write"
+
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	if _, present := conn.RuntimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
+	if conn.PID() == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	var currentDB string
+	err := conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	}
+
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	}
+
+	var st string
+	err = conn.QueryRow("SHOW transaction_read_only").Scan(&st)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+
+	if st == "on" {
+		t.Error("Connection is not writable")
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnectWithUnixSocketDirectory(t *testing.T) {
 	t.Parallel()
 
