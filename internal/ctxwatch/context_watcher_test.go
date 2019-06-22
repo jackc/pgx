@@ -87,6 +87,9 @@ func TestContextWatcherStress(t *testing.T) {
 		if i%2 == 1 {
 			cancel()
 		}
+
+		// To avoid context leak
+		cancel()
 	}
 
 	actualCancelFuncCalls := atomic.LoadInt64(&cancelFuncCalls)
