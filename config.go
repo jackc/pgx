@@ -121,6 +121,13 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // security guarantees than it would with libpq. Do not rely on this behavior as it
 // may be possible to match libpq in the future. If you need full security use
 // "verify-full".
+//
+// Other known differences with libpq:
+//
+// If a host name resolves into multiple addresses, libpq will try all addresses. pgconn will only try the first.
+//
+// When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
+// does not.
 func ParseConfig(connString string) (*Config, error) {
 	settings := defaultSettings()
 	addEnvSettings(settings)

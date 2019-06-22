@@ -390,7 +390,7 @@ func (pgConn *PgConn) hardClose() error {
 	return pgConn.conn.Close()
 }
 
-// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect deatch of
+// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect death of
 // underlying connection.
 func (pgConn *PgConn) IsAlive() bool {
 	return pgConn.status >= connStatusIdle
