@@ -37,6 +37,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			connString := os.Getenv(tt.env)
 			if connString == "" {
@@ -194,13 +195,13 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 
 	dialCount := 0
 	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		dialCount += 1
+		dialCount++
 		return net.Dial(network, address)
 	}
 
 	acceptConnCount := 0
 	config.AfterConnectFunc = func(ctx context.Context, conn *pgconn.PgConn) error {
-		acceptConnCount += 1
+		acceptConnCount++
 		if acceptConnCount < 2 {
 			return errors.New("reject first conn")
 		}
@@ -302,7 +303,7 @@ func TestConnExecEmpty(t *testing.T) {
 
 	resultCount := 0
 	for multiResult.NextResult() {
-		resultCount += 1
+		resultCount++
 		multiResult.ResultReader().Close()
 	}
 	assert.Equal(t, 0, resultCount)
@@ -753,12 +754,12 @@ func TestConnLocking(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
-	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	_, err = pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, pgconn.ErrConnBusy))
 	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
-	results, err = mrr.ReadAll()
+	results, err := mrr.ReadAll()
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
