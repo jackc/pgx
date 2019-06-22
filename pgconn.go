@@ -241,16 +241,16 @@ func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
 	return nil
 }
 
-func (c *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
+func (pgConn *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	switch msg.Type {
 	case pgproto3.AuthTypeOk:
 	case pgproto3.AuthTypeCleartextPassword:
-		err = c.txPasswordMessage(c.Config.Password)
+		err = pgConn.txPasswordMessage(pgConn.Config.Password)
 	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(c.Config.Password+c.Config.User)+string(msg.Salt[:]))
-		err = c.txPasswordMessage(digestedPassword)
+		digestedPassword := "md5" + hexMD5(hexMD5(pgConn.Config.Password+pgConn.Config.User)+string(msg.Salt[:]))
+		err = pgConn.txPasswordMessage(digestedPassword)
 	case pgproto3.AuthTypeSASL:
-		err = c.scramAuth(msg.SASLAuthMechanisms)
+		err = pgConn.scramAuth(msg.SASLAuthMechanisms)
 	default:
 		err = errors.New("Received unknown authentication message")
 	}
@@ -514,11 +514,11 @@ readloop:
 
 func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 	return &PgError{
-		Severity:         string(msg.Severity),
+		Severity:         msg.Severity,
 		Code:             string(msg.Code),
 		Message:          string(msg.Message),
 		Detail:           string(msg.Detail),
-		Hint:             string(msg.Hint),
+		Hint:             msg.Hint,
 		Position:         msg.Position,
 		InternalPosition: msg.InternalPosition,
 		InternalQuery:    string(msg.InternalQuery),
@@ -527,7 +527,7 @@ func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 		TableName:        string(msg.TableName),
 		ColumnName:       string(msg.ColumnName),
 		DataTypeName:     string(msg.DataTypeName),
-		ConstraintName:   string(msg.ConstraintName),
+		ConstraintName:   msg.ConstraintName,
 		File:             string(msg.File),
 		Line:             msg.Line,
 		Routine:          string(msg.Routine),
@@ -919,7 +919,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		copyDone := &pgproto3.CopyDone{}
 		buf = copyDone.Encode(buf)
 	} else {
-		copyFail := &pgproto3.CopyFail{Error: readErr.Error()}
+		copyFail := &pgproto3.CopyFail{Message: readErr.Error()}
 		buf = copyFail.Encode(buf)
 	}
 	_, err = pgConn.conn.Write(buf)
