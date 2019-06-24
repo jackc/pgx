@@ -452,6 +452,15 @@ func (c *Conn) QueryEx(ctx context.Context, sql string, options *QueryExOptions,
 		return rows, nil
 	}
 
+	if len(args) == 0 {
+		c.lastStmtSent = true
+		if err := c.sendQuery(sql, args...); err != nil {
+			rows.fatal(err)
+			return rows, err
+		}
+		return rows, nil
+	}
+
 	ps, ok := c.preparedStatements[sql]
 	if !ok {
 		var err error
