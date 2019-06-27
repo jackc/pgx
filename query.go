@@ -522,6 +522,10 @@ func (c *Conn) readUntilRowDescription() ([]FieldDescription, error) {
 }
 
 func (c *Conn) sanitizeAndSendSimpleQuery(sql string, args ...interface{}) (err error) {
+	if len(args) == 0 {
+		return c.sendSimpleQuery(sql)
+	}
+
 	if c.RuntimeParams["standard_conforming_strings"] != "on" {
 		return errors.New("simple protocol queries must be run with standard_conforming_strings=on")
 	}
