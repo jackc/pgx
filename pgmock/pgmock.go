@@ -211,9 +211,11 @@ func PgxInitSteps() []Step {
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
 left join pg_namespace nsp on t.typnamespace=nsp.oid
+left join pg_class cls on t.typrelid=cls.oid
 where (
-	  t.typtype in('b', 'p', 'r', 'e')
+	  t.typtype in('b', 'p', 'r', 'e', 'c')
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
+	  and (cls.oid is null or cls.relkind='c')
 	)`,
 		}),
 		ExpectMessage(&pgproto3.Describe{
