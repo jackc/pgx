@@ -3,7 +3,7 @@
 pgx provides lower level access to PostgreSQL than the standard database/sql.
 It remains as similar to the database/sql interface as possible while
 providing better speed and access to PostgreSQL specific features. Import
-github.com/jackc/pgx/stdlib to use pgx as a database/sql compatible driver.
+github.com/jackc/pgx/v4/stdlib to use pgx as a database/sql compatible driver.
 
 Query Interface
 
@@ -13,7 +13,7 @@ pgx implements Query and Scan in the familiar database/sql style.
 
     // Send the query to the server. The returned rows MUST be closed
     // before conn can be used again.
-    rows, err := conn.Query("select generate_series(1,$1)", 10)
+    rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
     if err != nil {
         return err
     }
@@ -45,14 +45,14 @@ pgx also implements QueryRow in the same style as database/sql.
 
     var name string
     var weight int64
-    err := conn.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+    err := conn.QueryRow(context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
     if err != nil {
         return err
     }
 
 Use Exec to execute a query that does not return a result set.
 
-    commandTag, err := conn.Exec("delete from widgets where id=$1", 42)
+    commandTag, err := conn.Exec(context.Background(), "delete from widgets where id=$1", 42)
     if err != nil {
         return err
     }
@@ -62,22 +62,7 @@ Use Exec to execute a query that does not return a result set.
 
 Connection Pool
 
-Connection pool usage is explicit and configurable. In pgx, a connection can be
-created and managed directly, or a connection pool with a configurable maximum
-connections can be used. The connection pool offers an after connect hook that
-allows every connection to be automatically setup before being made available in
-the connection pool.
-
-It delegates methods such as QueryRow to an automatically checked out and
-released connection so you can avoid manually acquiring and releasing
-connections when you do not need that level of control.
-
-    var name string
-    var weight int64
-    err := pool.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
-    if err != nil {
-        return err
-    }
+See sub-package pgxpool for connection pool.
 
 Base Type Mapping
 
@@ -173,16 +158,16 @@ to PostgreSQL.
 
 Transactions
 
-Transactions are started by calling Begin or BeginEx. The BeginEx variant
+Transactions are started by calling Begin. The second argument
 can create a transaction with a specified isolation level.
 
-    tx, err := conn.Begin()
+    tx, err := conn.Begin(context.Background(), nil)
     if err != nil {
         return err
     }
     // Rollback is safe to call even if the tx is already closed, so if
     // the tx commits successfully, this is a no-op
-    defer tx.Rollback()
+    defer tx.Rollback(context.Background())
 
     _, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
     if err != nil {
@@ -207,6 +192,7 @@ implement CopyFromSource to avoid buffering the entire data set in memory.
     }
 
     copyCount, err := conn.CopyFrom(
+        context.Background(),
         pgx.Identifier{"people"},
         []string{"first_name", "last_name", "age"},
         pgx.CopyFromRows(rows),
@@ -216,32 +202,7 @@ CopyFrom can be faster than an insert with as few as 5 rows.
 
 Listen and Notify
 
-pgx can listen to the PostgreSQL notification system with the
-WaitForNotification function. It takes a maximum time to wait for a
-notification.
-
-    err := conn.Exec("listen channelname")
-    if err != nil {
-        return nil
-    }
-
-    if notification, err := conn.WaitForNotification(time.Second); err != nil {
-        // do something with notification
-    }
-
-TLS
-
-The pgx ConnConfig struct has a TLSConfig field. If this field is
-nil, then TLS will be disabled. If it is present, then it will be used to
-configure the TLS connection. This allows total configuration of the TLS
-connection.
-
-pgx has never explicitly supported Postgres < 9.6's `ssl_renegotiation` option.
-As of v3.3.0, it doesn't send `ssl_renegotiation: 0` either to support Redshift
-(https://github.com/jackc/pgx/pull/476). If you need TLS Renegotiation,
-consider supplying `ConnConfig.TLSConfig` with a non-zero `Renegotiation`
-value and if it's not the default on your server, set `ssl_renegotiation`
-via `ConnConfig.RuntimeParams`.
+Use the underlying pgconn.PgConn for listen and notify.
 
 Logging
 
