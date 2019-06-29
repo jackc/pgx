@@ -3,17 +3,28 @@
 
 # pgx - PostgreSQL Driver and Toolkit
 
-pgx is a pure Go driver and toolkit for PostgreSQL. pgx is different from other drivers such as [pq](http://godoc.org/github.com/lib/pq) because, while it can operate as a database/sql compatible driver, pgx is also usable directly. It offers a native interface similar to database/sql that offers better performance and more features.
+pgx is a pure Go driver and toolkit for PostgreSQL. It is usable through database/sql but also offers a native interface similar to database/sql that offers better performance and more features.
 
+## Example Usage
 
 ```go
+conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+if err != nil {
+    fmt.Fprintf(os.Stderr, "Unable to connection to database: %v\n", err)
+    os.Exit(1)
+}
+
 var name string
 var weight int64
-err := conn.QueryRow("select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
+err := conn.QueryRow(context.Background(), "select name, weight from widgets where id=$1", 42).Scan(&name, &weight)
 if err != nil {
     return err
 }
 ```
+
+## Prerelease v4
+
+This is the `v4` branch. `v4` is still under development but is ready for testing. See [v4 milestone](https://github.com/jackc/pgx/milestone/2) for currently known outstanding issues.
 
 ## Features
 
@@ -35,20 +46,21 @@ pgx supports many additional features beyond what is available through database/
 * Large object support
 * NULL mapping to Null* struct or pointer to pointer.
 * Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
-* Logical replication connections, including receiving WAL and sending standby status updates
 * Notice response handling (this is different than listen / notify)
 
-## Performance
+## Related Libraries
 
-pgx performs roughly equivalent to [go-pg](https://github.com/go-pg/pg) and is almost always faster than [pq](http://godoc.org/github.com/lib/pq). When parsing large result sets the percentage difference can be significant (16483 queries/sec for pgx vs. 10106 queries/sec for pq -- 63% faster).
+pgx is part of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed from pgx for lower-level control.
 
-In many use cases a significant cause of latency is network round trips between the application and the server. pgx supports query batching to bundle multiple queries into a single round trip. Even in the case of a connection with the lowest possible latency, a local Unix domain socket, batching as few as three queries together can yield an improvement of 57%. With a typical network connection the results can be even more substantial.
+## github.com/jackc/pgconn
 
-See this [gist](https://gist.github.com/jackc/4996e8648a0c59839bff644f49d6e434) for the underlying benchmark results or checkout [go_db_bench](https://github.com/jackc/go_db_bench) to run tests for yourself.
+pgconn is a lower-level PostgreSQL database driver that operates at nearly the same level is the C library libpq.
 
-In addition to the native driver, pgx also includes a number of packages that provide additional functionality.
+## github.com/jackc/pgx/v4/pgxpool
 
-## github.com/jackc/pgx/stdlib
+pgxpool is a connection pool for pgx. pgx is entirely decoupled from its default pool implementation. This means pgx can be used with a different pool without any pool at all.
+
+## github.com/jackc/pgx/v4/stdlib
 
 database/sql compatibility layer for pgx. pgx can be used as a normal database/sql driver, but at any time the native interface may be acquired for more performance or PostgreSQL specific functionality.
 
@@ -60,9 +72,28 @@ Approximately 60 PostgreSQL types are supported including uuid, hstore, json, by
 
 pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire protocol. This is useful for implementing very low level PostgreSQL tooling.
 
-## github.com/jackc/pgx/pgmock
+## github.com/jackc/pgx/v4/pgmock
 
 pgmock offers the ability to create a server that mocks the PostgreSQL wire protocol. This is used internally to test pgx by purposely inducing unusual errors. pgproto3 and pgmock together provide most of the foundational tooling required to implement a PostgreSQL proxy or MitM (such as for a custom connection pooler).
+
+## github.com/jackc/tern
+
+tern is a stand-alone SQL migration system.
+
+## Alternatives
+
+* [pq](http://godoc.org/github.com/lib/pq)
+* [go-pg](https://github.com/go-pg/pg)
+
+For normal queries with small result sets all drivers perform similarly, but pgx can have a significant advantage with large result sets or when lower level features are used.  But for most application use cases the performance difference will be irrelevant. See [go_db_bench](https://github.com/jackc/go_db_bench) to run tests for yourself.
+
+The primary difference between the drivers is features and API style.
+
+pq is exclusively used with database/sql. go-pg does not use database/sql at all. pgx supports database/sql as well as a faster and more featureful native interface.
+
+go-pg has an ORM and schema migration support baked in. pq and pgx do not.
+
+When possible, pgx decouples functionality into separate packages to make it easy to reuse outside of pgx and replace functionality inside. For example, the [pgtype](https://github.com/jackc/pgtype) package that provides support for PostgreSQL types is usable with pq and database/sql and the bundled connection pool is entirely replaceable.
 
 ## Documentation
 
@@ -97,4 +128,4 @@ PGX_TEST_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
 
 ## Version Policy
 
-pgx follows semantic versioning for the documented public API on stable releases. Branch `v3` is the latest stable release. `master` can contain new features or behavior that will change or be removed before being merged to the stable `v3` branch (in practice, this occurs very rarely). `v2` is the previous stable release.
+pgx follows semantic versioning for the documented public API on stable releases. This is the prerelease of `v4`. Branch `v3` is the latest stable release. `master` can contain new features or behavior that will change or be removed before being merged to the stable `v3` branch (in practice, this occurs very rarely).
