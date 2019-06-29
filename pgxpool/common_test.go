@@ -1,4 +1,4 @@
-package pool_test
+package pgxpool_test
 
 import (
 	"context"
