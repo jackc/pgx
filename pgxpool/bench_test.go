@@ -1,4 +1,4 @@
-package pool_test
+package pgxpool_test
 
 import (
 	"context"
@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pool"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkAcquireAndRelease(b *testing.B) {
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(b, err)
 	defer pool.Close()
 
@@ -26,7 +26,7 @@ func BenchmarkAcquireAndRelease(b *testing.B) {
 }
 
 func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(b, err)
 
 	config.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
@@ -34,7 +34,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 		return err
 	}
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	conn, err := db.Acquire(context.Background())
@@ -57,7 +57,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 }
 
 func BenchmarkMinimalPreparedSelect(b *testing.B) {
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(b, err)
 
 	config.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
@@ -65,7 +65,7 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 		return err
 	}
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	var n int64

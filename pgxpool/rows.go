@@ -1,4 +1,4 @@
-package pool
+package pgxpool
 
 import (
 	"github.com/jackc/pgproto3/v2"

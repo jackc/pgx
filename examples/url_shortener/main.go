@@ -8,11 +8,11 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/log/log15adapter"
-	"github.com/jackc/pgx/v4/pool"
+	"github.com/jackc/pgx/v4/pgxpool"
 	log "gopkg.in/inconshreveable/log15.v2"
 )
 
-var db *pool.Pool
+var db *pgxpool.Pool
 
 // afterConnect creates the prepared statements that this application uses
 func afterConnect(ctx context.Context, conn *pgx.Conn) (err error) {
@@ -95,7 +95,7 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 func main() {
 	logger := log15adapter.NewLogger(log.New("module", "pgx"))
 
-	poolConfig, err := pool.ParseConfig(os.Getenv("DATABASE_URL"))
+	poolConfig, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Crit("Unable to parse DATABASE_URL", "error", err)
 		os.Exit(1)
@@ -104,7 +104,7 @@ func main() {
 	poolConfig.AfterConnect = afterConnect
 	poolConfig.ConnConfig.Logger = logger
 
-	db, err = pool.ConnectConfig(context.Background(), poolConfig)
+	db, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
 	if err != nil {
 		log.Crit("Unable to create connection pool", "error", err)
 		os.Exit(1)

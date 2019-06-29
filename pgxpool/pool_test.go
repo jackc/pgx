@@ -1,4 +1,4 @@
-package pool_test
+package pgxpool_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pool"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +15,7 @@ import (
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	pool.Close()
 }
@@ -23,7 +23,7 @@ func TestConnect(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig("pool_max_conns=42")
+	config, err := pgxpool.ParseConfig("pool_max_conns=42")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
@@ -34,7 +34,7 @@ func TestConnectCancel(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	assert.Nil(t, pool)
 	assert.Equal(t, context.Canceled, err)
 }
@@ -42,7 +42,7 @@ func TestConnectCancel(t *testing.T) {
 func TestPoolAcquireAndConnRelease(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -54,7 +54,7 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 func TestPoolAfterConnect(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
 	config.AfterConnect = func(ctx context.Context, c *pgx.Conn) error {
@@ -62,7 +62,7 @@ func TestPoolAfterConnect(t *testing.T) {
 		return err
 	}
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -75,7 +75,7 @@ func TestPoolAfterConnect(t *testing.T) {
 func TestPoolBeforeAcquire(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
 	acquireAttempts := 0
@@ -85,11 +85,11 @@ func TestPoolBeforeAcquire(t *testing.T) {
 		return acquireAttempts%2 == 0
 	}
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
-	conns := make([]*pool.Conn, 4)
+	conns := make([]*pgxpool.Conn, 4)
 	for i := range conns {
 		conns[i], err = db.Acquire(context.Background())
 		assert.NoError(t, err)
@@ -116,7 +116,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 func TestPoolAfterRelease(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
 	afterReleaseCount := 0
@@ -126,7 +126,7 @@ func TestPoolAfterRelease(t *testing.T) {
 		return afterReleaseCount%2 == 1
 	}
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -146,7 +146,7 @@ func TestPoolAfterRelease(t *testing.T) {
 func TestPoolAcquireAllIdle(t *testing.T) {
 	t.Parallel()
 
-	db, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	db, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -158,7 +158,7 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 	}
 	waitForReleaseToComplete()
 
-	conns = make([]*pool.Conn, 3)
+	conns = make([]*pgxpool.Conn, 3)
 	for i := range conns {
 		conns[i], err = db.Acquire(context.Background())
 		assert.NoError(t, err)
@@ -182,12 +182,12 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
 	config.MaxConnLifetime = 250 * time.Millisecond
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
@@ -205,13 +205,13 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	t.Parallel()
 
-	config, err := pool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
 	config.MaxConnLifetime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
-	db, err := pool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
@@ -226,7 +226,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -236,7 +236,7 @@ func TestPoolExec(t *testing.T) {
 func TestPoolQuery(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -265,7 +265,7 @@ func TestPoolQuery(t *testing.T) {
 func TestPoolQueryRow(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -280,7 +280,7 @@ func TestPoolQueryRow(t *testing.T) {
 func TestPoolSendBatch(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -300,7 +300,7 @@ func TestPoolCopyFrom(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -343,7 +343,7 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -381,7 +381,7 @@ func TestConnReleaseClosesConnInTransaction(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -414,7 +414,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	pool, err := pool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -434,7 +434,7 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 

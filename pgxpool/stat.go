@@ -1,4 +1,4 @@
-package pool
+package pgxpool
 
 import (
 	"time"
