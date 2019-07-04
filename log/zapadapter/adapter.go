@@ -19,7 +19,7 @@ func (pl *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{
 	fields := make([]zapcore.Field, len(data))
 	i := 0
 	for k, v := range data {
-		fields[i] = zap.Reflect(k, v)
+		fields[i] = zap.Any(k, v)
 		i++
 	}
 
