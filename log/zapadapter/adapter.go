@@ -21,7 +21,7 @@ func (pl *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data 
 	fields := make([]zapcore.Field, len(data))
 	i := 0
 	for k, v := range data {
-		fields[i] = zap.Reflect(k, v)
+		fields[i] = zap.Any(k, v)
 		i++
 	}
 
