@@ -404,11 +404,9 @@ func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
 left join pg_namespace nsp on t.typnamespace=nsp.oid
-left join pg_class cls on t.typrelid=cls.oid
 where (
-	  t.typtype in('b', 'p', 'r', 'e', 'c')
+	  t.typtype in('b', 'p', 'r', 'e')
 	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
-	  and (cls.oid is null or cls.relkind='c')
 	)`
 	)
 
@@ -425,6 +423,10 @@ where (
 	}
 
 	if err = c.initConnInfoDomains(cinfo); err != nil {
+		return nil, err
+	}
+
+	if err = c.initConnInfoComposite(cinfo); err != nil {
 		return nil, err
 	}
 
@@ -535,6 +537,43 @@ where t.typtype = 'd'
 				OID:   d.oid,
 			})
 		}
+	}
+
+	return nil
+}
+
+func (c *Conn) initConnInfoComposite(cinfo *pgtype.ConnInfo) error {
+	nameOIDs := make(map[string]pgtype.OID, 1)
+
+	rows, err := c.Query(`select t.oid, t.typname
+from pg_type t
+	join pg_class cls on t.typrelid=cls.oid
+where t.typtype = 'c'
+	and cls.relkind='c'`)
+	if err != nil {
+		return err
+	}
+
+	for rows.Next() {
+		var oid pgtype.OID
+		var name pgtype.Text
+		if err := rows.Scan(&oid, &name); err != nil {
+			return err
+		}
+
+		nameOIDs[name.String] = oid
+	}
+
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+
+	for name, oid := range nameOIDs {
+		cinfo.RegisterDataType(pgtype.DataType{
+			Value: &pgtype.Record{},
+			Name:  name,
+			OID:   oid,
+		})
 	}
 
 	return nil
