@@ -79,6 +79,10 @@ func (t TargetSessionType) isValid() error {
 	return errors.New("invalid value for target_session_attrs, expected \"any\" or \"read-write\"")
 }
 
+func (t TargetSessionType) writableRequired() bool {
+	return t == ReadWriteTargetSession
+}
+
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	// Name of host to connect to. (e.g. localhost)
@@ -436,7 +440,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 			continue
 		}
 
-		err = c.writable()
+		err = c.checkWritable()
 		if err != nil {
 			c.die(err)
 
@@ -470,8 +474,8 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	return nil, errors.New(strings.Join(errmsgs, ";"))
 }
 
-func (c *Conn) writable() error {
-	if c.config.TargetSessionAttrs == "" || c.config.TargetSessionAttrs == AnyTargetSession {
+func (c *Conn) checkWritable() error {
+	if !c.config.TargetSessionAttrs.writableRequired() {
 		return nil
 	}
 
@@ -485,7 +489,7 @@ func (c *Conn) writable() error {
 
 	switch st {
 	case "on":
-		return errors.New("writable connection disabled by server")
+		return errors.New("writable transactions disabled by server")
 	case "off":
 		// If transaction_read_only = off, then connection is writable.
 		return nil
