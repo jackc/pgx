@@ -61,6 +61,24 @@ type NoticeHandler func(*Conn, *Notice)
 // DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(network, addr string) (net.Conn, error)
 
+// TargetSessionType represents target session attrs configuration parameter.
+type TargetSessionType string
+
+// Block enumerates available values for TargetSessionType.
+const (
+	AnyTargetSession       = "any"
+	ReadWriteTargetSession = "read-write"
+)
+
+func (t TargetSessionType) isValid() error {
+	switch t {
+	case "", AnyTargetSession, ReadWriteTargetSession:
+		return nil
+	}
+
+	return errors.New("invalid value for target_session_attrs, expected \"any\" or \"read-write\"")
+}
+
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
 	// Name of host to connect to. (e.g. localhost)
@@ -120,7 +138,7 @@ type ConnConfig struct {
 	// If multiple hosts were specified in the connection string,
 	// any remaining servers will be tried just as if the connection attempt had failed.
 	// The default value of this parameter, any, regards all connections as acceptable.
-	TargetSessionAttrs string
+	TargetSessionAttrs TargetSessionType
 }
 
 // hostAddr represents network end point defined as hostname or IP + port.
@@ -357,10 +375,8 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		}
 	}
 
-	if c.config.TargetSessionAttrs != "" &&
-		c.config.TargetSessionAttrs != "any" &&
-		c.config.TargetSessionAttrs != "read-write" {
-		return nil, errors.New("invalid value for target_session_attrs, expected \"any\" or \"read-write\"")
+	if err := c.config.TargetSessionAttrs.isValid(); err != nil {
+		return nil, err
 	}
 
 	c.onNotice = config.OnNotice
@@ -455,7 +471,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 }
 
 func (c *Conn) writable() error {
-	if c.config.TargetSessionAttrs == "" || c.config.TargetSessionAttrs == "any" {
+	if c.config.TargetSessionAttrs == "" || c.config.TargetSessionAttrs == AnyTargetSession {
 		return nil
 	}
 

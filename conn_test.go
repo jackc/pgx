@@ -138,7 +138,7 @@ func TestConnectWithMultiHostWritable(t *testing.T) {
 	}
 
 	connConfig := *multihostConnConfig
-	connConfig.TargetSessionAttrs = "read-write"
+	connConfig.TargetSessionAttrs = pgx.ReadWriteTargetSession
 
 	conn := mustConnect(t, connConfig)
 	defer closeConn(t, conn)
