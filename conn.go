@@ -462,12 +462,12 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		return nil, errs[0]
 	}
 
-	var errmsg string
+	errmsgs := make([]string, len(errs))
 	for _, err := range errs {
-		errmsg += "; " + err.Error()
+		errmsgs = append(errmsgs, err.Error())
 	}
 
-	return nil, errors.New(errmsg)
+	return nil, errors.New(strings.Join(errmsgs, ";"))
 }
 
 func (c *Conn) writable() error {
