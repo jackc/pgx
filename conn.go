@@ -1016,6 +1016,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 	if cp.Password == "" {
 		pgpass(&cp)
 	}
+
 	return cp, nil
 }
 
@@ -1181,7 +1182,7 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // PGSSLROOTCERT
 // PGAPPNAME
 // PGCONNECT_TIMEOUT
-// TODO: PGTARGETSESSIONATTRS support
+// PGTARGETSESSIONATTRS
 // @see: https://www.postgresql.org/docs/10/libpq-envars.html
 //
 // Important TLS Security Notes:
@@ -1226,6 +1227,11 @@ func ParseEnvLibpq() (ConnConfig, error) {
 		} else {
 			return cc, err
 		}
+	}
+
+	cc.TargetSessionAttrs = TargetSessionType(os.Getenv("PGTARGETSESSIONATTRS"))
+	if err := cc.TargetSessionAttrs.isValid(); err != nil {
+		return cc, err
 	}
 
 	tlsArgs := configTLSArgs{
