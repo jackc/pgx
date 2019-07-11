@@ -108,7 +108,6 @@ type ConnConfig struct {
 	Port     uint16
 	Database string
 	User     string // default: OS user name
-	// TODO: Allow password to be different for each host/port pair if a password file is used
 	Password          string
 	TLSConfig         *tls.Config // config for TLS connection -- nil disables TLS
 	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
