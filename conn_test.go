@@ -622,6 +622,38 @@ func TestParseURI(t *testing.T) {
 				RuntimeParams:     map[string]string{},
 			},
 		},
+		{
+			url: "postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "foo.example.com:5432,bar.example.com:5432",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "postgres://jack@localhost,10.10.20.30/mydb?application_name=pgxtest&target_session_attrs=read-write",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost,10.10.20.30",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams: map[string]string{
+					"application_name": "pgxtest",
+				},
+				TargetSessionAttrs: pgx.ReadWriteTargetSession,
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -746,6 +778,50 @@ func TestParseDSN(t *testing.T) {
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
 				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=localhost1,localhost2 dbname=mydb connect_timeout=10",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost1,localhost2",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				Dial:              (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 5 * time.Minute}).Dial,
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=100.200.220.50,localhost43 port=5432,5433 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "100.200.220.50:5432,localhost43:5433",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=localhost dbname=mydb target_session_attrs=read-write",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+				TargetSessionAttrs: pgx.ReadWriteTargetSession,
 			},
 		},
 	}
