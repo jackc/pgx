@@ -36,10 +36,10 @@ type Config struct {
 
 	Fallbacks []*FallbackConfig
 
-	// AfterConnectFunc is called after successful connection. It can be used to set up the connection or to validate that
+	// AfterConnect is called after successful connection. It can be used to set up the connection or to validate that
 	// server is acceptable. If this returns an error the connection is closed and the next fallback config is tried. This
 	// allows implementing high availability behavior such as libpq does with target_session_attrs.
-	AfterConnectFunc AfterConnectFunc
+	AfterConnect AfterConnectFunc
 
 	// OnNotice is a callback function called when a notice response is received.
 	OnNotice NoticeHandler
@@ -245,7 +245,7 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	if settings["target_session_attrs"] == "read-write" {
-		config.AfterConnectFunc = AfterConnectTargetSessionAttrsReadWrite
+		config.AfterConnect = AfterConnectTargetSessionAttrsReadWrite
 	} else if settings["target_session_attrs"] != "any" {
 		return nil, errors.Errorf("unknown target_session_attrs value: %v", settings["target_session_attrs"])
 	}
