@@ -187,7 +187,7 @@ func TestConnectWithFallback(t *testing.T) {
 	closeConn(t, conn)
 }
 
-func TestConnectWithAfterConnect(t *testing.T) {
+func TestConnectWithValidateConnect(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
@@ -200,7 +200,7 @@ func TestConnectWithAfterConnect(t *testing.T) {
 	}
 
 	acceptConnCount := 0
-	config.AfterConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
+	config.ValidateConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
 		acceptConnCount++
 		if acceptConnCount < 2 {
 			return errors.New("reject first conn")
@@ -226,19 +226,40 @@ func TestConnectWithAfterConnect(t *testing.T) {
 	assert.True(t, acceptConnCount > 1)
 }
 
-func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
+func TestConnectWithValidateConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
-	config.AfterConnect = pgconn.AfterConnectTargetSessionAttrsReadWrite
+	config.ValidateConnect = pgconn.ValidateConnectTargetSessionAttrsReadWrite
 	config.RuntimeParams["default_transaction_read_only"] = "on"
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	if !assert.NotNil(t, err) {
 		conn.Close(context.Background())
 	}
+}
+
+func TestConnectWithAfterConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	config.AfterConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
+		_, err := conn.Exec(ctx, "set search_path to foobar;").ReadAll()
+		return err
+	}
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	results, err := conn.Exec(context.Background(), "show search_path;").ReadAll()
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+
+	assert.Equal(t, []byte("foobar"), results[0].Rows[0][0])
 }
 
 func TestConnPrepareSyntaxError(t *testing.T) {

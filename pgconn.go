@@ -122,13 +122,25 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	for _, fc := range fallbackConfigs {
 		pgConn, err = connect(ctx, config, fc)
 		if err == nil {
-			return pgConn, nil
+			break
 		} else if err, ok := err.(*PgError); ok {
 			return nil, err
 		}
 	}
 
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+
+	if config.AfterConnect != nil {
+		err := config.AfterConnect(ctx, pgConn)
+		if err != nil {
+			pgConn.conn.Close()
+			return nil, errors.Errorf("AfterConnect: %v", err)
+		}
+	}
+
+	return pgConn, nil
 }
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
@@ -201,11 +213,11 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
-			if config.AfterConnect != nil {
-				err := config.AfterConnect(ctx, pgConn)
+			if config.ValidateConnect != nil {
+				err := config.ValidateConnect(ctx, pgConn)
 				if err != nil {
 					pgConn.conn.Close()
-					return nil, errors.Errorf("AfterConnect: %v", err)
+					return nil, errors.Errorf("ValidateConnect: %v", err)
 				}
 			}
 			return pgConn, nil
