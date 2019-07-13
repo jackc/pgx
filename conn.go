@@ -467,8 +467,8 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 	}
 
 	errmsgs := make([]string, len(errs))
-	for _, err := range errs {
-		errmsgs = append(errmsgs, err.Error())
+	for i, err := range errs {
+		errmsgs[i] = err.Error()
 	}
 
 	return nil, errors.New(strings.Join(errmsgs, ";"))
