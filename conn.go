@@ -471,7 +471,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		errmsgs[i] = err.Error()
 	}
 
-	return nil, errors.New(strings.Join(errmsgs, ";"))
+	return nil, errors.New(strings.Join(errmsgs, "; "))
 }
 
 func (c *Conn) checkWritable() error {
