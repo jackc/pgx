@@ -201,11 +201,11 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
-			if config.AfterConnectFunc != nil {
-				err := config.AfterConnectFunc(ctx, pgConn)
+			if config.AfterConnect != nil {
+				err := config.AfterConnect(ctx, pgConn)
 				if err != nil {
 					pgConn.conn.Close()
-					return nil, errors.Errorf("AfterConnectFunc: %v", err)
+					return nil, errors.Errorf("AfterConnect: %v", err)
 				}
 			}
 			return pgConn, nil

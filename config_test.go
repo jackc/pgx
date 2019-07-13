@@ -378,14 +378,14 @@ func TestParseConfig(t *testing.T) {
 			name:       "target_session_attrs",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&target_session_attrs=read-write",
 			config: &pgconn.Config{
-				User:             "jack",
-				Password:         "secret",
-				Host:             "localhost",
-				Port:             5432,
-				Database:         "mydb",
-				TLSConfig:        nil,
-				RuntimeParams:    map[string]string{},
-				AfterConnectFunc: pgconn.AfterConnectTargetSessionAttrsReadWrite,
+				User:          "jack",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+				AfterConnect:  pgconn.AfterConnectTargetSessionAttrsReadWrite,
 			},
 		},
 	}
@@ -416,7 +416,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName 
 	assert.Equalf(t, expected.RuntimeParams, actual.RuntimeParams, "%s - RuntimeParams", testName)
 
 	// Can't test function equality, so just test that they are set or not.
-	assert.Equalf(t, expected.AfterConnectFunc == nil, actual.AfterConnectFunc == nil, "%s - AfterConnectFunc", testName)
+	assert.Equalf(t, expected.AfterConnect == nil, actual.AfterConnect == nil, "%s - AfterConnect", testName)
 
 	if assert.Equalf(t, expected.TLSConfig == nil, actual.TLSConfig == nil, "%s - TLSConfig", testName) {
 		if expected.TLSConfig != nil {

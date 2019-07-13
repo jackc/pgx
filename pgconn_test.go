@@ -187,7 +187,7 @@ func TestConnectWithFallback(t *testing.T) {
 	closeConn(t, conn)
 }
 
-func TestConnectWithAfterConnectFunc(t *testing.T) {
+func TestConnectWithAfterConnect(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
@@ -200,7 +200,7 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 	}
 
 	acceptConnCount := 0
-	config.AfterConnectFunc = func(ctx context.Context, conn *pgconn.PgConn) error {
+	config.AfterConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
 		acceptConnCount++
 		if acceptConnCount < 2 {
 			return errors.New("reject first conn")
@@ -232,7 +232,7 @@ func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
-	config.AfterConnectFunc = pgconn.AfterConnectTargetSessionAttrsReadWrite
+	config.AfterConnect = pgconn.AfterConnectTargetSessionAttrsReadWrite
 	config.RuntimeParams["default_transaction_read_only"] = "on"
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
