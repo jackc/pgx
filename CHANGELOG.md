@@ -1,3 +1,21 @@
+# 3.5.0 (June 29, 2019)
+
+## Features
+
+* Protocol support for PortalSuspended message (avivklas)
+* Read OIDs for composite types on connection init (Nick Jones)
+
+## Fixes
+
+* Hstore can have empty keys (Josh Leverette)
+* Fix -0 value for numeric type (David Hudson)
+* Log error message on rows-close error (Euan Kemp)
+
+## Changes
+
+* Explicitly cast binary string to bytea in simple protocol (jinhua luo)
+* Skip parse and sanitize simple query when no arguments (jinhua luo)
+
 # 3.4.0 (May 3, 2019)
 
 ## Features
