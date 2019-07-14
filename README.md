@@ -15,6 +15,10 @@ if err != nil {
 }
 ```
 
+## v4 Coming Soon
+
+This is the current stable v3 version. v4 is currently is in prelease status. Consider using [v4](https://github.com/jackc/pgx/tree/v4) for new development or test upgrading existing applications.
+
 ## Features
 
 pgx supports many additional features beyond what is available through database/sql.

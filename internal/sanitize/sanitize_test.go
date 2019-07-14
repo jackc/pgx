@@ -108,7 +108,7 @@ func TestQuerySanitize(t *testing.T) {
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{[]byte{0, 1, 2, 3, 255}},
-			expected: `select '\x00010203ff'`,
+			expected: `select '\x00010203ff'::bytea`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
