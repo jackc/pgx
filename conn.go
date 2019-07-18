@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math"
 	"net"
 	"net/url"
 	"os"
@@ -61,12 +62,52 @@ type NoticeHandler func(*Conn, *Notice)
 // DialFunc is a function that can be used to connect to a PostgreSQL server
 type DialFunc func(network, addr string) (net.Conn, error)
 
+// TargetSessionType represents target session attrs configuration parameter.
+type TargetSessionType string
+
+// Block enumerates available values for TargetSessionType.
+const (
+	AnyTargetSession       = "any"
+	ReadWriteTargetSession = "read-write"
+)
+
+func (t TargetSessionType) isValid() error {
+	switch t {
+	case "", AnyTargetSession, ReadWriteTargetSession:
+		return nil
+	}
+
+	return errors.New("invalid value for target_session_attrs, expected \"any\" or \"read-write\"")
+}
+
+func (t TargetSessionType) writableRequired() bool {
+	return t == ReadWriteTargetSession
+}
+
 // ConnConfig contains all the options used to establish a connection.
 type ConnConfig struct {
-	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port              uint16 // default: 5432
-	Database          string
-	User              string // default: OS user name
+	// Name of host to connect to. (e.g. localhost)
+	// If a host name begins with a slash, it specifies Unix-domain communication
+	// rather than TCP/IP communication; the value is the name of the directory
+	// in which the socket file is stored. (e.g. /private/tmp)
+	// The default behavior when host is not specified, or is empty, is to connect to localhost.
+	//
+	// A comma-separated list of host names is also accepted,
+	// in which case each host name in the list is tried in order;
+	// an empty item in the list selects the default behavior as explained above.
+	// @see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS
+	Host string
+
+	// Port number to connect to at the server host,
+	// or socket file name extension for Unix-domain connections.
+	// An empty or zero value, specifies the default port number — 5432.
+	//
+	// If multiple hosts were given in the Host parameter, then
+	// this parameter may specify a single port number to be used for all hosts,
+	// or for those that haven't port explicitly defined.
+	Port     uint16
+	Database string
+	User     string // default: OS user name
 	Password          string
 	TLSConfig         *tls.Config // config for TLS connection -- nil disables TLS
 	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
@@ -89,22 +130,94 @@ type ConnConfig struct {
 	// used by default. The same functionality can be controlled on a per query
 	// basis by setting QueryExOptions.SimpleProtocol.
 	PreferSimpleProtocol bool
+
+	// TargetSessionAttr allows to specify which servers are accepted for this connection.
+	//  "any", meaning that any kind of servers can be accepted. This is as well the default value.
+	//	"read-write", to disallow connections to read-only servers, hot standbys for example.
+	// @see https://www.postgresql.org/message-id/CAD__OuhqPRGpcsfwPHz_PDqAGkoqS1UvnUnOnAB-LBWBW=wu4A@mail.gmail.com
+	// @see https://paquier.xyz/postgresql-2/postgres-10-libpq-read-write/
+	//
+	// The query SHOW transaction_read_only will be sent upon any successful connection;
+	// if it returns on, the connection will be closed.
+	// If multiple hosts were specified in the connection string,
+	// any remaining servers will be tried just as if the connection attempt had failed.
+	// The default value of this parameter, any, regards all connections as acceptable.
+	TargetSessionAttrs TargetSessionType
 }
 
-func (cc *ConnConfig) networkAddress() (network, address string) {
-	network = "tcp"
-	address = fmt.Sprintf("%s:%d", cc.Host, cc.Port)
-	// See if host is a valid path, if yes connect with a socket
-	if _, err := os.Stat(cc.Host); err == nil {
-		// For backward compatibility accept socket file paths -- but directories are now preferred
-		network = "unix"
-		address = cc.Host
-		if !strings.Contains(address, "/.s.PGSQL.") {
-			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatInt(int64(cc.Port), 10)
-		}
+// hostAddr represents network end point defined as hostname or IP + port.
+type hostAddr struct {
+	Host string
+	Port uint16
+}
+
+// Network returns the address's network name, "tcp".
+func (a *hostAddr) Network() string { return "tcp" }
+
+// String implements net.Addr String method.
+func (a *hostAddr) String() string {
+	if a == nil {
+		return "<nil>"
 	}
 
-	return network, address
+	return net.JoinHostPort(a.Host, strconv.Itoa(int(a.Port)))
+}
+
+func (cc *ConnConfig) networkAddresses() ([]net.Addr, error) {
+	// See if host is a valid path, if yes connect with a unix socket
+	if _, err := os.Stat(cc.Host); err == nil {
+		// For backward compatibility accept socket file paths -- but directories are now preferred
+		network := "unix"
+		address := cc.Host
+
+		if !strings.Contains(address, "/.s.PGSQL.") {
+			address = filepath.Join(address, ".s.PGSQL.") + strconv.FormatUint(uint64(cc.Port), 10)
+		}
+
+		addrs := []net.Addr{
+			&net.UnixAddr{Name: address, Net: network},
+		}
+
+		return addrs, nil
+	}
+
+	if cc.Host == "" {
+		addrs := []net.Addr{
+			&net.TCPAddr{Port: int(cc.Port)},
+		}
+
+		return addrs, nil
+	}
+
+	var addrs []net.Addr
+
+	hostports := strings.Split(cc.Host, ",")
+	for i, hostport := range hostports {
+		if hostport == "" {
+			return nil, fmt.Errorf("multi-host part %d is empty, at least host or port must be defined", i)
+		}
+
+		// It's not possible to use net.TCPAddr here, cuz host may be hostname.
+		addr := hostAddr{
+			Host: hostport,
+			Port: cc.Port,
+		}
+
+		pos := strings.IndexByte(hostport, ':')
+		if pos != -1 {
+			p, err := strconv.ParseUint(hostport[pos+1:], 10, 16)
+			if err != nil {
+				return nil, fmt.Errorf("multi-host part %d (%s) has invalid port format", i, hostport)
+			}
+
+			addr.Host = hostport[:pos]
+			addr.Port = uint16(p)
+		}
+
+		addrs = append(addrs, &addr)
+	}
+
+	return addrs, nil
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -145,6 +258,10 @@ type Conn struct {
 	ConnInfo *pgtype.ConnInfo
 
 	frontend *pgproto3.Frontend
+
+	// In case of Multiple Hosts we need to know what addr was used to connect.
+	// This address will be used to send a cancellation request.
+	addr net.Addr
 }
 
 // PreparedStatement is a description of a prepared statement
@@ -262,33 +379,123 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		}
 	}
 
+	if err := c.config.TargetSessionAttrs.isValid(); err != nil {
+		return nil, err
+	}
+
 	c.onNotice = config.OnNotice
 
-	network, address := c.config.networkAddress()
 	if c.config.Dial == nil {
 		d := defaultDialer()
 		c.config.Dial = d.Dial
 	}
 
-	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"network": network, "address": address})
-	}
-	err = c.connect(config, network, address, config.TLSConfig)
-	if err != nil && config.UseFallbackTLS {
-		if c.shouldLog(LogLevelInfo) {
-			c.log(LogLevelInfo, "connect with TLSConfig failed, trying FallbackTLSConfig", map[string]interface{}{"err": err})
-		}
-		err = c.connect(config, network, address, config.FallbackTLSConfig)
-	}
-
+	addrs, err := c.config.networkAddresses()
 	if err != nil {
-		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, "connect failed", map[string]interface{}{"err": err})
-		}
 		return nil, err
 	}
 
-	return c, nil
+	var errs []error
+	for _, addr := range addrs {
+		network, address := addr.Network(), addr.String()
+
+		if c.shouldLog(LogLevelInfo) {
+			c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{
+				"network": network,
+				"address": address,
+			})
+		}
+
+		err = c.connect(config, network, address, config.TLSConfig)
+		if err != nil && config.UseFallbackTLS {
+			if c.shouldLog(LogLevelInfo) {
+				c.log(LogLevelInfo, "connect with TLSConfig failed, trying FallbackTLSConfig", map[string]interface{}{
+					"err":     err,
+					"network": network,
+					"address": address,
+				})
+			}
+			err = c.connect(config, network, address, config.FallbackTLSConfig)
+		}
+
+		if err != nil {
+			if c.shouldLog(LogLevelError) {
+				c.log(LogLevelError, "connect failed", map[string]interface{}{
+					"err":     err,
+					"network": network,
+					"address": address,
+				})
+			}
+
+			// On any auth errors return immediately
+			if pgErr, ok := err.(PgError); ok {
+				switch pgErr.Code {
+				// @see: https://www.postgresql.org/docs/current/errcodes-appendix.html
+				case "28000", "28P01": // Invalid Authorization Specification
+					return nil, pgErr
+				}
+			}
+
+			errs = append(errs, err)
+			continue
+		}
+
+		err = c.checkWritable()
+		if err != nil {
+			c.die(err)
+
+			if c.shouldLog(LogLevelInfo) {
+				c.log(LogLevelInfo, "host is not writable", map[string]interface{}{
+					"err":     err,
+					"network": network,
+					"address": address,
+				})
+			}
+
+			errs = append(errs, err)
+			continue
+		}
+
+		c.addr = addr
+
+		return c, nil
+	}
+
+	// To keep backwards compatibility, if specific error type expected.
+	if len(errs) == 1 {
+		return nil, errs[0]
+	}
+
+	errmsgs := make([]string, len(errs))
+	for i, err := range errs {
+		errmsgs[i] = err.Error()
+	}
+
+	return nil, errors.New(strings.Join(errmsgs, "; "))
+}
+
+func (c *Conn) checkWritable() error {
+	if !c.config.TargetSessionAttrs.writableRequired() {
+		return nil
+	}
+
+	var st string
+	err := c.QueryRowEx(context.Background(), "SHOW transaction_read_only", &QueryExOptions{SimpleProtocol: true}).
+		Scan(&st)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to fetch \"transaction_read_only\" state")
+	}
+
+	switch st {
+	case "on":
+		return errors.New("writable transactions disabled by server")
+	case "off":
+		// If transaction_read_only = off, then connection is writable.
+		return nil
+	}
+
+	return errors.New("unexpected \"transaction_read_only\" status")
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
@@ -711,6 +918,10 @@ func (old ConnConfig) Merge(other ConnConfig) ConnConfig {
 
 	cc.PreferSimpleProtocol = old.PreferSimpleProtocol || other.PreferSimpleProtocol
 
+	if other.TargetSessionAttrs != "" {
+		cc.TargetSessionAttrs = other.TargetSessionAttrs
+	}
+
 	cc.RuntimeParams = make(map[string]string)
 	for k, v := range old.RuntimeParams {
 		cc.RuntimeParams[k] = v
@@ -738,16 +949,26 @@ func ParseURI(uri string) (ConnConfig, error) {
 		cp.Password, _ = url.User.Password()
 	}
 
-	parts := strings.SplitN(url.Host, ":", 2)
-	cp.Host = parts[0]
-	if len(parts) == 2 {
-		p, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return cp, err
+	hasMuliHosts := strings.IndexByte(url.Host, ',') != -1
+	if !hasMuliHosts {
+		parts := strings.SplitN(url.Host, ":", 2)
+		cp.Host = parts[0]
+		if len(parts) == 2 {
+			p, err := strconv.ParseUint(parts[1], 10, 16)
+			if err != nil {
+				return cp, err
+			}
+			cp.Port = uint16(p)
 		}
-		cp.Port = uint16(p)
+	} else {
+		cp.Host = url.Host
 	}
+
 	cp.Database = strings.TrimLeft(url.Path, "/")
+	cp.TargetSessionAttrs = TargetSessionType(url.Query().Get("target_session_attrs"))
+	if err := cp.TargetSessionAttrs.isValid(); err != nil {
+		return cp, err
+	}
 
 	if pgtimeout := url.Query().Get("connect_timeout"); pgtimeout != "" {
 		timeout, err := strconv.ParseInt(pgtimeout, 10, 64)
@@ -771,11 +992,12 @@ func ParseURI(uri string) (ConnConfig, error) {
 	}
 
 	ignoreKeys := map[string]struct{}{
-		"connect_timeout": {},
-		"sslcert":         {},
-		"sslkey":          {},
-		"sslmode":         {},
-		"sslrootcert":     {},
+		"connect_timeout":      {},
+		"sslcert":              {},
+		"sslkey":               {},
+		"sslmode":              {},
+		"sslrootcert":          {},
+		"target_session_attrs": {},
 	}
 
 	cp.RuntimeParams = make(map[string]string)
@@ -795,6 +1017,7 @@ func ParseURI(uri string) (ConnConfig, error) {
 	if cp.Password == "" {
 		pgpass(&cp)
 	}
+
 	return cp, nil
 }
 
@@ -820,6 +1043,7 @@ func ParseDSN(s string) (ConnConfig, error) {
 
 	cp.RuntimeParams = make(map[string]string)
 
+	var hostval, portval string
 	for _, b := range m {
 		switch b[1] {
 		case "user":
@@ -827,13 +1051,9 @@ func ParseDSN(s string) (ConnConfig, error) {
 		case "password":
 			cp.Password = b[2]
 		case "host":
-			cp.Host = b[2]
+			hostval = b[2]
 		case "port":
-			p, err := strconv.ParseUint(b[2], 10, 16)
-			if err != nil {
-				return cp, err
-			}
-			cp.Port = uint16(p)
+			portval = b[2]
 		case "dbname":
 			cp.Database = b[2]
 		case "sslmode":
@@ -852,23 +1072,93 @@ func ParseDSN(s string) (ConnConfig, error) {
 			d := defaultDialer()
 			d.Timeout = time.Duration(timeout) * time.Second
 			cp.Dial = d.Dial
+		case "target_session_attrs":
+			cp.TargetSessionAttrs = TargetSessionType(b[2])
+			if err := cp.TargetSessionAttrs.isValid(); err != nil {
+				return cp, err
+			}
 		default:
 			cp.RuntimeParams[b[1]] = b[2]
 		}
 	}
 
-	err := configTLS(tlsArgs, &cp)
+	host, port, err := parseHostPortDSN(hostval, portval)
 	if err != nil {
 		return cp, err
 	}
+
+	cp.Host, cp.Port = host, port
+
+	err = configTLS(tlsArgs, &cp)
+	if err != nil {
+		return cp, err
+	}
+
 	if cp.Password == "" {
 		pgpass(&cp)
 	}
+
 	return cp, nil
 }
 
-// ParseConnectionString parses either a URI or a DSN connection string.
-// see ParseURI and ParseDSN for details.
+func parseHostPortDSN(hostval, portval string) (host string, port uint16, err error) {
+	if portval == "" {
+		return hostval, 0, nil
+	}
+
+	hosts := strings.Split(hostval, ",")
+	ports := strings.Split(portval, ",")
+
+	if len(ports) == 1 {
+		port, err := parsePort(portval)
+		if err != nil {
+			return "", 0, errors.Errorf("invalid port: %v", err)
+		}
+
+		return hostval, port, nil
+	}
+
+	if len(hosts) != len(ports) {
+		return "", 0, errors.New("the number of hosts and ports must be the same")
+	}
+
+	hostports := make([]string, len(hosts))
+	for i, host := range hosts {
+		hostports[i] = host + ":" + ports[i]
+	}
+
+	return strings.Join(hostports, ","), 0, nil
+}
+
+func parsePort(s string) (uint16, error) {
+	port, err := strconv.ParseUint(s, 10, 16)
+	if err != nil {
+		return 0, err
+	}
+	if port < 1 || port > math.MaxUint16 {
+		return 0, errors.New("outside range")
+	}
+	return uint16(port), nil
+}
+
+// ParseConnectionString parses either a URI or a DSN connection string and builds ConnConfig.
+//
+//   # Example DSN
+//   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca
+//
+//   # Example URL
+//   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca
+//
+// ParseConnectionString supports specifying multiple hosts in similar manner to libpq.
+// Host and port may include comma separated values that will be tried in order.
+// This can be used as part of a high availability system.
+// See https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS for more information.
+//
+//   # Example URL
+//   postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb
+//
+//   # Example DSN
+//   user=jack password=secret host=host1,host2,host3 port=5432,5433,5434 dbname=mydb sslmode=verify-ca
 func ParseConnectionString(s string) (ConnConfig, error) {
 	if u, err := url.Parse(s); err == nil && u.Scheme != "" {
 		return ParseURI(s)
@@ -893,6 +1183,8 @@ func ParseConnectionString(s string) (ConnConfig, error) {
 // PGSSLROOTCERT
 // PGAPPNAME
 // PGCONNECT_TIMEOUT
+// PGTARGETSESSIONATTRS
+// @see: https://www.postgresql.org/docs/10/libpq-envars.html
 //
 // Important TLS Security Notes:
 // ParseEnvLibpq tries to match libpq behavior with regard to PGSSLMODE. This
@@ -936,6 +1228,11 @@ func ParseEnvLibpq() (ConnConfig, error) {
 		} else {
 			return cc, err
 		}
+	}
+
+	cc.TargetSessionAttrs = TargetSessionType(os.Getenv("PGTARGETSESSIONATTRS"))
+	if err := cc.TargetSessionAttrs.isValid(); err != nil {
+		return cc, err
 	}
 
 	tlsArgs := configTLSArgs{
@@ -1653,8 +1950,7 @@ func quoteIdentifier(s string) string {
 }
 
 func doCancel(c *Conn) error {
-	network, address := c.config.networkAddress()
-	cancelConn, err := c.config.Dial(network, address)
+	cancelConn, err := c.config.Dial(c.addr.Network(), c.addr.String())
 	if err != nil {
 		return err
 	}
