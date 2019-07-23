@@ -84,6 +84,107 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+
+func TestConnectWithMultiHost(t *testing.T) {
+	t.Parallel()
+
+	if multihostConnConfig == nil {
+		t.Skip("Skipping due to undefined multihostConnConfig")
+	}
+
+	conn, err := pgx.Connect(*multihostConnConfig)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	if _, present := conn.RuntimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
+	if conn.PID() == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	var currentDB string
+	err = conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	}
+
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+
+func TestConnectWithMultiHostWritable(t *testing.T) {
+	t.Parallel()
+
+	if multihostConnConfig == nil {
+		t.Skip("Skipping due to undefined multihostConnConfig")
+	}
+
+	connConfig := *multihostConnConfig
+	connConfig.TargetSessionAttrs = pgx.ReadWriteTargetSession
+
+	conn := mustConnect(t, connConfig)
+	defer closeConn(t, conn)
+
+	if _, present := conn.RuntimeParams["server_version"]; !present {
+		t.Error("Runtime parameters not stored")
+	}
+
+	if conn.PID() == 0 {
+		t.Error("Backend PID not stored")
+	}
+
+	var currentDB string
+	err := conn.QueryRow("select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != defaultConnConfig.Database {
+		t.Errorf("Did not connect to specified database (%v)", defaultConnConfig.Database)
+	}
+
+	var user string
+	err = conn.QueryRow("select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != defaultConnConfig.User {
+		t.Errorf("Did not connect as specified user (%v)", defaultConnConfig.User)
+	}
+
+	var st string
+	err = conn.QueryRow("SHOW transaction_read_only").Scan(&st)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+
+	if st == "on" {
+		t.Error("Connection is not writable")
+	}
+
+	err = conn.Close()
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
 func TestConnectWithUnixSocketDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -521,6 +622,38 @@ func TestParseURI(t *testing.T) {
 				RuntimeParams:     map[string]string{},
 			},
 		},
+		{
+			url: "postgres://jack:secret@foo.example.com:5432,bar.example.com:5432/mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "secret",
+				Host:     "foo.example.com:5432,bar.example.com:5432",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "postgres://jack@localhost,10.10.20.30/mydb?application_name=pgxtest&target_session_attrs=read-write",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost,10.10.20.30",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams: map[string]string{
+					"application_name": "pgxtest",
+				},
+				TargetSessionAttrs: pgx.ReadWriteTargetSession,
+			},
+		},
 	}
 
 	for i, tt := range tests {
@@ -645,6 +778,50 @@ func TestParseDSN(t *testing.T) {
 				UseFallbackTLS:    true,
 				FallbackTLSConfig: nil,
 				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=localhost1,localhost2 dbname=mydb connect_timeout=10",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost1,localhost2",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				Dial:              (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 5 * time.Minute}).Dial,
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=100.200.220.50,localhost43 port=5432,5433 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "100.200.220.50:5432,localhost43:5433",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack host=localhost dbname=mydb target_session_attrs=read-write",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+				TargetSessionAttrs: pgx.ReadWriteTargetSession,
 			},
 		},
 	}
