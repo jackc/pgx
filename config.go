@@ -22,6 +22,7 @@ import (
 )
 
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
+type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 
 // Config is the settings used to establish a connection to a PostgreSQL server.
 type Config struct {
@@ -36,10 +37,15 @@ type Config struct {
 
 	Fallbacks []*FallbackConfig
 
-	// AfterConnectFunc is called after successful connection. It can be used to set up the connection or to validate that
-	// server is acceptable. If this returns an error the connection is closed and the next fallback config is tried. This
-	// allows implementing high availability behavior such as libpq does with target_session_attrs.
-	AfterConnectFunc AfterConnectFunc
+	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
+	// It can be used validate that server is acceptable. If this returns an error the connection is closed and the next
+	// fallback config is tried. This allows implementing high availability behavior such as libpq does with
+	// target_session_attrs.
+	ValidateConnect ValidateConnectFunc
+
+	// AfterConnect is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
+	// or prepare statements). If this returns an error the connection attempt fails.
+	AfterConnect AfterConnectFunc
 
 	// OnNotice is a callback function called when a notice response is received.
 	OnNotice NoticeHandler
@@ -121,6 +127,13 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // security guarantees than it would with libpq. Do not rely on this behavior as it
 // may be possible to match libpq in the future. If you need full security use
 // "verify-full".
+//
+// Other known differences with libpq:
+//
+// If a host name resolves into multiple addresses, libpq will try all addresses. pgconn will only try the first.
+//
+// When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
+// does not.
 func ParseConfig(connString string) (*Config, error) {
 	settings := defaultSettings()
 	addEnvSettings(settings)
@@ -238,7 +251,7 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	if settings["target_session_attrs"] == "read-write" {
-		config.AfterConnectFunc = AfterConnectTargetSessionAttrsReadWrite
+		config.ValidateConnect = ValidateConnectTargetSessionAttrsReadWrite
 	} else if settings["target_session_attrs"] != "any" {
 		return nil, errors.Errorf("unknown target_session_attrs value: %v", settings["target_session_attrs"])
 	}
@@ -474,9 +487,9 @@ func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
 	return d.DialContext, nil
 }
 
-// AfterConnectTargetSessionAttrsReadWrite is an AfterConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsReadWrite is an ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
-func AfterConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
+func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "show transaction_read_only", nil, nil, nil, nil).Read()
 	if result.Err != nil {
 		return result.Err

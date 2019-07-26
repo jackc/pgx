@@ -20,6 +20,7 @@ func BenchmarkConnect(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
+		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
 			connString := os.Getenv(bm.env)
 			if connString == "" {
@@ -54,12 +55,12 @@ func BenchmarkExec(b *testing.B) {
 
 			rowCount := 0
 			for rr.NextRow() {
-				rowCount += 1
+				rowCount++
 				if len(rr.Values()) != len(expectedValues) {
 					b.Fatalf("unexpected number of values: %d", len(rr.Values()))
 				}
 				for i := range rr.Values() {
-					if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+					if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
 						b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
 					}
 				}
@@ -101,12 +102,12 @@ func BenchmarkExecPossibleToCancel(b *testing.B) {
 
 			rowCount := 0
 			for rr.NextRow() {
-				rowCount += 1
+				rowCount++
 				if len(rr.Values()) != len(expectedValues) {
 					b.Fatalf("unexpected number of values: %d", len(rr.Values()))
 				}
 				for i := range rr.Values() {
-					if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+					if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
 						b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
 					}
 				}
@@ -145,12 +146,12 @@ func BenchmarkExecPrepared(b *testing.B) {
 
 		rowCount := 0
 		for rr.NextRow() {
-			rowCount += 1
+			rowCount++
 			if len(rr.Values()) != len(expectedValues) {
 				b.Fatalf("unexpected number of values: %d", len(rr.Values()))
 			}
 			for i := range rr.Values() {
-				if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+				if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
 					b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
 				}
 			}
@@ -191,7 +192,7 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 				b.Fatalf("unexpected number of values: %d", len(rr.Values()))
 			}
 			for i := range rr.Values() {
-				if bytes.Compare(rr.Values()[i], expectedValues[i]) != 0 {
+				if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
 					b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
 				}
 			}
