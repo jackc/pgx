@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
@@ -170,7 +171,12 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		func() { pgConn.conn.SetDeadline(time.Time{}) },
 	)
 
-	pgConn.Frontend, err = pgproto3.NewFrontend(pgproto3.NewChunkReader(pgConn.conn), pgConn.conn)
+	cr, err := chunkreader.NewConfig(pgConn.conn, chunkreader.Config{MinBufLen: config.MinReadBufferSize})
+	if err != nil {
+		return nil, err
+	}
+
+	pgConn.Frontend, err = pgproto3.NewFrontend(cr, pgConn.conn)
 	if err != nil {
 		return nil, err
 	}
