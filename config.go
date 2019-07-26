@@ -37,6 +37,9 @@ type Config struct {
 
 	Fallbacks []*FallbackConfig
 
+	// MinReadBufferSize used to configure size of connection read buffer.
+	MinReadBufferSize int
+
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used validate that server is acceptable. If this returns an error the connection is closed and the next
 	// fallback config is tried. This allows implementing high availability behavior such as libpq does with
