@@ -122,13 +122,25 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	for _, fc := range fallbackConfigs {
 		pgConn, err = connect(ctx, config, fc)
 		if err == nil {
-			return pgConn, nil
+			break
 		} else if err, ok := err.(*PgError); ok {
 			return nil, err
 		}
 	}
 
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+
+	if config.AfterConnect != nil {
+		err := config.AfterConnect(ctx, pgConn)
+		if err != nil {
+			pgConn.conn.Close()
+			return nil, errors.Errorf("AfterConnect: %v", err)
+		}
+	}
+
+	return pgConn, nil
 }
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
@@ -201,11 +213,11 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
-			if config.AfterConnectFunc != nil {
-				err := config.AfterConnectFunc(ctx, pgConn)
+			if config.ValidateConnect != nil {
+				err := config.ValidateConnect(ctx, pgConn)
 				if err != nil {
 					pgConn.conn.Close()
-					return nil, errors.Errorf("AfterConnectFunc: %v", err)
+					return nil, errors.Errorf("ValidateConnect: %v", err)
 				}
 			}
 			return pgConn, nil
@@ -241,16 +253,16 @@ func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
 	return nil
 }
 
-func (c *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
+func (pgConn *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
 	switch msg.Type {
 	case pgproto3.AuthTypeOk:
 	case pgproto3.AuthTypeCleartextPassword:
-		err = c.txPasswordMessage(c.Config.Password)
+		err = pgConn.txPasswordMessage(pgConn.Config.Password)
 	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(c.Config.Password+c.Config.User)+string(msg.Salt[:]))
-		err = c.txPasswordMessage(digestedPassword)
+		digestedPassword := "md5" + hexMD5(hexMD5(pgConn.Config.Password+pgConn.Config.User)+string(msg.Salt[:]))
+		err = pgConn.txPasswordMessage(digestedPassword)
 	case pgproto3.AuthTypeSASL:
-		err = c.scramAuth(msg.SASLAuthMechanisms)
+		err = pgConn.scramAuth(msg.SASLAuthMechanisms)
 	default:
 		err = errors.New("Received unknown authentication message")
 	}
@@ -390,7 +402,7 @@ func (pgConn *PgConn) hardClose() error {
 	return pgConn.conn.Close()
 }
 
-// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect deatch of
+// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect death of
 // underlying connection.
 func (pgConn *PgConn) IsAlive() bool {
 	return pgConn.status >= connStatusIdle
@@ -514,11 +526,11 @@ readloop:
 
 func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 	return &PgError{
-		Severity:         string(msg.Severity),
+		Severity:         msg.Severity,
 		Code:             string(msg.Code),
 		Message:          string(msg.Message),
 		Detail:           string(msg.Detail),
-		Hint:             string(msg.Hint),
+		Hint:             msg.Hint,
 		Position:         msg.Position,
 		InternalPosition: msg.InternalPosition,
 		InternalQuery:    string(msg.InternalQuery),
@@ -527,7 +539,7 @@ func errorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 		TableName:        string(msg.TableName),
 		ColumnName:       string(msg.ColumnName),
 		DataTypeName:     string(msg.DataTypeName),
-		ConstraintName:   string(msg.ConstraintName),
+		ConstraintName:   msg.ConstraintName,
 		File:             string(msg.File),
 		Line:             msg.Line,
 		Routine:          string(msg.Routine),
@@ -919,7 +931,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		copyDone := &pgproto3.CopyDone{}
 		buf = copyDone.Encode(buf)
 	} else {
-		copyFail := &pgproto3.CopyFail{Error: readErr.Error()}
+		copyFail := &pgproto3.CopyFail{Message: readErr.Error()}
 		buf = copyFail.Encode(buf)
 	}
 	_, err = pgConn.conn.Write(buf)

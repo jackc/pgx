@@ -37,6 +37,7 @@ func TestConnect(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			connString := os.Getenv(tt.env)
 			if connString == "" {
@@ -186,7 +187,7 @@ func TestConnectWithFallback(t *testing.T) {
 	closeConn(t, conn)
 }
 
-func TestConnectWithAfterConnectFunc(t *testing.T) {
+func TestConnectWithValidateConnect(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
@@ -194,13 +195,13 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 
 	dialCount := 0
 	config.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
-		dialCount += 1
+		dialCount++
 		return net.Dial(network, address)
 	}
 
 	acceptConnCount := 0
-	config.AfterConnectFunc = func(ctx context.Context, conn *pgconn.PgConn) error {
-		acceptConnCount += 1
+	config.ValidateConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
+		acceptConnCount++
 		if acceptConnCount < 2 {
 			return errors.New("reject first conn")
 		}
@@ -225,19 +226,40 @@ func TestConnectWithAfterConnectFunc(t *testing.T) {
 	assert.True(t, acceptConnCount > 1)
 }
 
-func TestConnectWithAfterConnectTargetSessionAttrsReadWrite(t *testing.T) {
+func TestConnectWithValidateConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	t.Parallel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 
-	config.AfterConnectFunc = pgconn.AfterConnectTargetSessionAttrsReadWrite
+	config.ValidateConnect = pgconn.ValidateConnectTargetSessionAttrsReadWrite
 	config.RuntimeParams["default_transaction_read_only"] = "on"
 
 	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	if !assert.NotNil(t, err) {
 		conn.Close(context.Background())
 	}
+}
+
+func TestConnectWithAfterConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	config.AfterConnect = func(ctx context.Context, conn *pgconn.PgConn) error {
+		_, err := conn.Exec(ctx, "set search_path to foobar;").ReadAll()
+		return err
+	}
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	results, err := conn.Exec(context.Background(), "show search_path;").ReadAll()
+	require.NoError(t, err)
+	defer closeConn(t, conn)
+
+	assert.Equal(t, []byte("foobar"), results[0].Rows[0][0])
 }
 
 func TestConnPrepareSyntaxError(t *testing.T) {
@@ -302,7 +324,7 @@ func TestConnExecEmpty(t *testing.T) {
 
 	resultCount := 0
 	for multiResult.NextResult() {
-		resultCount += 1
+		resultCount++
 		multiResult.ResultReader().Close()
 	}
 	assert.Equal(t, 0, resultCount)
@@ -753,12 +775,12 @@ func TestConnLocking(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
-	results, err := pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	_, err = pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, pgconn.ErrConnBusy))
 	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
 
-	results, err = mrr.ReadAll()
+	results, err := mrr.ReadAll()
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
