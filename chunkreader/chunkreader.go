@@ -28,7 +28,11 @@ func NewChunkReader(r io.Reader) *ChunkReader {
 
 func NewChunkReaderEx(r io.Reader, options Options) (*ChunkReader, error) {
 	if options.MinBufLen == 0 {
-		options.MinBufLen = 4096
+		// By historical reasons Postgres currently has 8KB send buffer inside,
+		// so here we want to have at least the same size buffer.
+		// @see https://github.com/postgres/postgres/blob/249d64999615802752940e017ee5166e726bc7cd/src/backend/libpq/pqcomm.c#L134
+		// @see https://www.postgresql.org/message-id/0cdc5485-cb3c-5e16-4a46-e3b2f7a41322%40ya.ru
+		options.MinBufLen = 8192
 	}
 
 	return &ChunkReader{
