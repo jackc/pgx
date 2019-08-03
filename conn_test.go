@@ -647,6 +647,10 @@ func TestIdentifierSanitize(t *testing.T) {
 			ident:    pgx.Identifier{`you should " not do this`, `please don't`},
 			expected: `"you should "" not do this"."please don't"`,
 		},
+		{
+			ident:    pgx.Identifier{`you should ` + string([]byte{0}) + `not do this`},
+			expected: `"you should not do this"`,
+		},
 	}
 
 	for i, tt := range tests {
