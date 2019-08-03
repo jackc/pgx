@@ -3,6 +3,8 @@
 package log15adapter
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v4"
 )
 
@@ -24,7 +26,7 @@ func NewLogger(l Log15Logger) *Logger {
 	return &Logger{l: l}
 }
 
-func (l *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	logArgs := make([]interface{}, 0, len(data))
 	for k, v := range data {
 		logArgs = append(logArgs, k, v)

@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 
@@ -44,7 +45,7 @@ func (ll LogLevel) String() string {
 // Logger is the interface used to get logging from pgx internals.
 type Logger interface {
 	// Log a message at the given level with data key/value pairs. data may be nil.
-	Log(level LogLevel, msg string, data map[string]interface{})
+	Log(ctx context.Context, level LogLevel, msg string, data map[string]interface{})
 }
 
 // LogLevelFromString converts log level string to constant

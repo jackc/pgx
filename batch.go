@@ -1,6 +1,8 @@
 package pgx
 
 import (
+	"context"
+
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	errors "golang.org/x/xerrors"
@@ -47,6 +49,7 @@ type BatchResults interface {
 }
 
 type batchResults struct {
+	ctx  context.Context
 	conn *Conn
 	mrr  *pgconn.MultiResultReader
 	err  error
@@ -71,7 +74,7 @@ func (br *batchResults) ExecResults() (pgconn.CommandTag, error) {
 
 // QueryResults reads the results from the next query in the batch as if the query has been sent with Query.
 func (br *batchResults) QueryResults() (Rows, error) {
-	rows := br.conn.getRows("batch query", nil)
+	rows := br.conn.getRows(br.ctx, "batch query", nil)
 
 	if br.err != nil {
 		rows.err = br.err

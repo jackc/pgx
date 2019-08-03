@@ -543,8 +543,36 @@ type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *testLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+	data["ctxdata"] = ctx.Value("ctxdata")
 	l.logs = append(l.logs, testLog{lvl: level, msg: msg, data: data})
+}
+
+func TestLogPassesContext(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx := context.WithValue(context.Background(), "ctxdata", "foo")
+
+	l1 := &testLogger{}
+	oldLogger := conn.SetLogger(l1)
+	if oldLogger != nil {
+		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
+	}
+
+	if _, err := conn.Exec(ctx, ";"); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(l1.logs) != 1 {
+		t.Fatal("Expected new logger l1 to be called once, but it wasn't")
+	}
+
+	if l1.logs[0].data["ctxdata"] != "foo" {
+		t.Fatal("Expected context data to be passed to logger, but it wasn't")
+	}
 }
 
 func TestSetLogger(t *testing.T) {

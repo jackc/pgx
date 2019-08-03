@@ -146,7 +146,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.logger = c.config.Logger
 
 	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
+		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
 	}
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
@@ -155,7 +155,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, "connect failed", map[string]interface{}{"err": err})
+			c.log(ctx, LogLevelError, "connect failed", map[string]interface{}{"err": err})
 		}
 		return nil, err
 	}
@@ -184,7 +184,7 @@ func (c *Conn) Close(ctx context.Context) error {
 	err := c.pgConn.Close(ctx)
 	c.causeOfDeath = errors.New("Closed")
 	if c.shouldLog(LogLevelInfo) {
-		c.log(LogLevelInfo, "closed connection", nil)
+		c.log(ctx, LogLevelInfo, "closed connection", nil)
 	}
 	return err
 }
@@ -205,7 +205,7 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedState
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
-				c.log(LogLevelError, "Prepare failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
+				c.log(ctx, LogLevelError, "Prepare failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
 			}
 		}()
 	}
@@ -307,7 +307,7 @@ func (c *Conn) shouldLog(lvl LogLevel) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
-func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
+func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[string]interface{}) {
 	if data == nil {
 		data = map[string]interface{}{}
 	}
@@ -315,7 +315,7 @@ func (c *Conn) log(lvl LogLevel, msg string, data map[string]interface{}) {
 		data["pid"] = c.pgConn.PID()
 	}
 
-	c.logger.Log(lvl, msg, data)
+	c.logger.Log(ctx, lvl, msg, data)
 }
 
 // SetLogger replaces the current logger and returns the previous logger.
@@ -386,14 +386,14 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	commandTag, err := c.exec(ctx, sql, arguments...)
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
+			c.log(ctx, LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
 		}
 		return commandTag, err
 	}
 
 	if c.shouldLog(LogLevelInfo) {
 		endTime := time.Now()
-		c.log(LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
+		c.log(ctx, LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
 	}
 
 	return commandTag, err
@@ -518,7 +518,7 @@ optionLoop:
 
 }
 
-func (c *Conn) getRows(sql string, args []interface{}) *connRows {
+func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *connRows {
 	if len(c.preallocatedRows) == 0 {
 		c.preallocatedRows = make([]connRows, 64)
 	}
@@ -526,6 +526,7 @@ func (c *Conn) getRows(sql string, args []interface{}) *connRows {
 	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
 	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
 
+	r.ctx = ctx
 	r.logger = c
 	r.connInfo = c.ConnInfo
 	r.startTime = time.Now()
@@ -568,7 +569,7 @@ optionLoop:
 		}
 	}
 
-	rows := c.getRows(sql, args)
+	rows := c.getRows(ctx, sql, args)
 
 	var err error
 	if simpleProtocol {
@@ -727,6 +728,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	mrr := c.pgConn.ExecBatch(ctx, batch)
 
 	return &batchResults{
+		ctx:  ctx,
 		conn: c,
 		mrr:  mrr,
 	}

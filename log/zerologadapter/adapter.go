@@ -2,6 +2,8 @@
 package zerologadapter
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/rs/zerolog"
 )
@@ -18,7 +20,7 @@ func NewLogger(logger zerolog.Logger) *Logger {
 	}
 }
 
-func (pl *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (pl *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	var zlevel zerolog.Level
 	switch level {
 	case pgx.LogLevelNone:
