@@ -78,7 +78,8 @@ type Identifier []string
 func (ident Identifier) Sanitize() string {
 	parts := make([]string, len(ident))
 	for i := range ident {
-		parts[i] = `"` + strings.Replace(ident[i], `"`, `""`, -1) + `"`
+		s := strings.Replace(ident[i], string([]byte{0}), "", -1)
+		parts[i] = `"` + strings.Replace(s, `"`, `""`, -1) + `"`
 	}
 	return strings.Join(parts, ".")
 }
