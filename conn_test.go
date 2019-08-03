@@ -84,7 +84,6 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-
 func TestConnectWithMultiHost(t *testing.T) {
 	t.Parallel()
 
@@ -128,7 +127,6 @@ func TestConnectWithMultiHost(t *testing.T) {
 		t.Fatal("Unable to close connection")
 	}
 }
-
 
 func TestConnectWithMultiHostWritable(t *testing.T) {
 	t.Parallel()
@@ -818,9 +816,9 @@ func TestParseDSN(t *testing.T) {
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
 				},
-				UseFallbackTLS:    true,
-				FallbackTLSConfig: nil,
-				RuntimeParams:     map[string]string{},
+				UseFallbackTLS:     true,
+				FallbackTLSConfig:  nil,
+				RuntimeParams:      map[string]string{},
 				TargetSessionAttrs: pgx.ReadWriteTargetSession,
 			},
 		},
@@ -2319,6 +2317,24 @@ func TestSetLogLevel(t *testing.T) {
 	}
 }
 
+func TestIdentifierSanitizeNullSentToServer(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	ident := pgx.Identifier{"foo" + string([]byte{0}) + "bar"}
+
+	var n int64
+	err := conn.QueryRow(`select 1 as ` + ident.Sanitize()).Scan(&n)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatal("unexpected n")
+	}
+}
+
 func TestIdentifierSanitize(t *testing.T) {
 	t.Parallel()
 
@@ -2345,6 +2361,10 @@ func TestIdentifierSanitize(t *testing.T) {
 		{
 			ident:    pgx.Identifier{`you should " not do this`, `please don't`},
 			expected: `"you should "" not do this"."please don't"`,
+		},
+		{
+			ident:    pgx.Identifier{`you should ` + string([]byte{0}) + `not do this`},
+			expected: `"you should not do this"`,
 		},
 	}
 

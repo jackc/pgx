@@ -105,9 +105,9 @@ type ConnConfig struct {
 	// If multiple hosts were given in the Host parameter, then
 	// this parameter may specify a single port number to be used for all hosts,
 	// or for those that haven't port explicitly defined.
-	Port     uint16
-	Database string
-	User     string // default: OS user name
+	Port              uint16
+	Database          string
+	User              string // default: OS user name
 	Password          string
 	TLSConfig         *tls.Config // config for TLS connection -- nil disables TLS
 	UseFallbackTLS    bool        // Try FallbackTLSConfig if connecting with TLSConfig fails. Used for preferring TLS, but allowing unencrypted, or vice-versa
@@ -307,7 +307,8 @@ type Identifier []string
 func (ident Identifier) Sanitize() string {
 	parts := make([]string, len(ident))
 	for i := range ident {
-		parts[i] = `"` + strings.Replace(ident[i], `"`, `""`, -1) + `"`
+		s := strings.Replace(ident[i], string([]byte{0}), "", -1)
+		parts[i] = `"` + strings.Replace(s, `"`, `""`, -1) + `"`
 	}
 	return strings.Join(parts, ".")
 }
