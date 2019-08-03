@@ -2,6 +2,8 @@
 package zapadapter
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v4"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -15,7 +17,7 @@ func NewLogger(logger *zap.Logger) *Logger {
 	return &Logger{logger: logger.WithOptions(zap.AddCallerSkip(1))}
 }
 
-func (pl *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (pl *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	fields := make([]zapcore.Field, len(data))
 	i := 0
 	for k, v := range data {

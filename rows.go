@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"time"
@@ -70,11 +71,12 @@ func (r *connRow) Scan(dest ...interface{}) (err error) {
 
 type rowLog interface {
 	shouldLog(lvl LogLevel) bool
-	log(lvl LogLevel, msg string, data map[string]interface{})
+	log(ctx context.Context, lvl LogLevel, msg string, data map[string]interface{})
 }
 
 // connRows implements the Rows interface for Conn.Query.
 type connRows struct {
+	ctx       context.Context
 	logger    rowLog
 	connInfo  *pgtype.ConnInfo
 	values    [][]byte
@@ -119,10 +121,10 @@ func (rows *connRows) Close() {
 		if rows.err == nil {
 			if rows.logger.shouldLog(LogLevelInfo) {
 				endTime := time.Now()
-				rows.logger.log(LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
+				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 			}
 		} else if rows.logger.shouldLog(LogLevelError) {
-			rows.logger.log(LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
+			rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
 		}
 	}
 }

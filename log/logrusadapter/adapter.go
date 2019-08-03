@@ -3,6 +3,8 @@
 package logrusadapter
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v4"
 	"github.com/sirupsen/logrus"
 )
@@ -15,7 +17,7 @@ func NewLogger(l logrus.FieldLogger) *Logger {
 	return &Logger{l: l}
 }
 
-func (l *Logger) Log(level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
 	var logger logrus.FieldLogger
 	if data != nil {
 		logger = l.l.WithFields(data)
