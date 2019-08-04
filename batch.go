@@ -135,7 +135,7 @@ func (b *Batch) Send(ctx context.Context, txOptions *TxOptions) error {
 
 	_, err = b.conn.conn.Write(buf)
 	if err != nil {
-		b.conn.die(err)
+		b.die(err)
 		return err
 	}
 
@@ -281,10 +281,13 @@ func (b *Batch) die(err error) {
 	}
 
 	b.err = err
-	b.conn.die(err)
+	if b.conn != nil {
+		err = b.conn.termContext(err)
+		b.conn.die(err)
 
-	if b.conn != nil && b.connPool != nil {
-		b.connPool.Release(b.conn)
+		if b.connPool != nil {
+			b.connPool.Release(b.conn)
+		}
 	}
 }
 
