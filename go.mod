@@ -5,9 +5,9 @@ go 1.12
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/jackc/pgconn v0.0.0-20190528115420-71ec1f782113
+	github.com/jackc/pgconn v0.0.0-20190806220711-f0b479097a48
 	github.com/jackc/pgio v1.0.0
-	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190420180111-c116219b62db
+	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190609003834-432c2951c711
 	github.com/jackc/pgtype v0.0.0-20190421001408-4ed0de4755e0
 	github.com/jackc/puddle v0.0.0-20190413234325-e4ced69a3a2b
 	github.com/mattn/go-colorable v0.1.1 // indirect
