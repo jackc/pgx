@@ -1151,7 +1151,10 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 				return nil, rr.err
 			}
 
-			switch msg.(type) {
+			switch msg := msg.(type) {
+			// Detect a deferred constraint violation where the ErrorResponse is sent after CommandComplete.
+			case *pgproto3.ErrorResponse:
+				rr.err = errorResponseToPgError(msg)
 			case *pgproto3.ReadyForQuery:
 				rr.pgConn.contextWatcher.Unwatch()
 				rr.pgConn.unlock()
