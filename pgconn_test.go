@@ -381,6 +381,34 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	_, err = pgConn.Exec(context.Background(), `update t set n=n+1 where id='b' returning *`).ReadAll()
+	require.NotNil(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecContextCanceled(t *testing.T) {
 	t.Parallel()
 
@@ -433,6 +461,33 @@ func TestConnExecParams(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, "SELECT 1", string(commandTag))
 	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecParamsDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	result := pgConn.ExecParams(context.Background(), `update t set n=n+1 where id='b' returning *`, nil, nil, nil, nil).Read()
+	require.NotNil(t, result.Err)
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(result.Err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
 
 	ensureConnValid(t, pgConn)
 }
@@ -681,6 +736,36 @@ func TestConnExecBatch(t *testing.T) {
 	require.Len(t, results[2].Rows, 1)
 	require.Equal(t, "ExecParams 2", string(results[2].Rows[0][0]))
 	assert.Equal(t, "SELECT 1", string(results[2].CommandTag))
+}
+
+func TestConnExecBatchDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	batch := &pgconn.Batch{}
+
+	batch.ExecParams(`update t set n=n+1 where id='b' returning *`, nil, nil, nil, nil)
+	_, err = pgConn.ExecBatch(context.Background(), batch).ReadAll()
+	require.NotNil(t, err)
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
 }
 
 func TestConnExecBatchPrecanceled(t *testing.T) {
