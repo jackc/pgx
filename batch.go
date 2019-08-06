@@ -268,6 +268,23 @@ func (b *Batch) Close() (err error) {
 		}
 	}
 
+	for b.conn.pendingReadyForQueryCount > 0 {
+		msg, err := b.conn.rxMsg()
+		if err != nil {
+			return err
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ErrorResponse:
+			return b.conn.rxErrorResponse(msg)
+		default:
+			err = b.conn.processContextFreeMsg(msg)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	if err = b.conn.ensureConnectionReadyForQuery(); err != nil {
 		return err
 	}

@@ -701,3 +701,55 @@ func TestTxBeginBatchRollback(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestConnBeginBatchDeferredError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`)
+
+	batch := conn.BeginBatch()
+	batch.Queue(`update t set n=n+1 where id='b' returning *`,
+		nil,
+		nil,
+		[]int16{pgx.BinaryFormatCode},
+	)
+
+	err := batch.Send(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rows, err := batch.QueryResults()
+	if err != nil {
+		t.Error(err)
+	}
+
+	for rows.Next() {
+		var id string
+		var n int32
+		err = rows.Scan(&id, &n)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err = batch.Close()
+	if err == nil {
+		t.Fatal("expected error 23505 but got none")
+	}
+
+	if err, ok := err.(pgx.PgError); !ok || err.Code != "23505" {
+		t.Fatalf("expected error 23505, got %v", err)
+	}
+
+	ensureConnValid(t, conn)
+}
