@@ -39,7 +39,7 @@ func New(r io.Reader) *ChunkReader {
 // NewConfig creates and a new ChunkReader for r configured by config.
 func NewConfig(r io.Reader, config Config) (*ChunkReader, error) {
 	if config.MinBufLen == 0 {
-		config.MinBufLen = 4096
+		config.MinBufLen = 8192
 	}
 
 	return &ChunkReader{
