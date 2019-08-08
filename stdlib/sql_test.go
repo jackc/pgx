@@ -565,6 +565,7 @@ func TestConnBeginTxIsolation(t *testing.T) {
 		{sqlIso: sql.LevelDefault, pgIso: defaultIsoLevel},
 		{sqlIso: sql.LevelReadUncommitted, pgIso: "read uncommitted"},
 		{sqlIso: sql.LevelReadCommitted, pgIso: "read committed"},
+		{sqlIso: sql.LevelRepeatableRead, pgIso: "repeatable read"},
 		{sqlIso: sql.LevelSnapshot, pgIso: "repeatable read"},
 		{sqlIso: sql.LevelSerializable, pgIso: "serializable"},
 	}
