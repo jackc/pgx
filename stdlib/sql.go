@@ -277,7 +277,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		pgxOpts.IsoLevel = pgx.ReadUncommitted
 	case sql.LevelReadCommitted:
 		pgxOpts.IsoLevel = pgx.ReadCommitted
-	case sql.LevelSnapshot:
+	case sql.LevelRepeatableRead, sql.LevelSnapshot:
 		pgxOpts.IsoLevel = pgx.RepeatableRead
 	case sql.LevelSerializable:
 		pgxOpts.IsoLevel = pgx.Serializable
