@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgpassfile"
+	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
 )
 
@@ -26,19 +28,17 @@ type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 
 // Config is the settings used to establish a connection to a PostgreSQL server.
 type Config struct {
-	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port          uint16
-	Database      string
-	User          string
-	Password      string
-	TLSConfig     *tls.Config       // nil disables TLS
-	DialFunc      DialFunc          // e.g. net.Dialer.DialContext
-	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	Port              uint16
+	Database          string
+	User              string
+	Password          string
+	TLSConfig         *tls.Config // nil disables TLS
+	DialFunc          DialFunc    // e.g. net.Dialer.DialContext
+	BuildFrontendFunc BuildFrontendFunc
+	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
 	Fallbacks []*FallbackConfig
-
-	// MinReadBufferSize used to configure size of connection read buffer.
-	MinReadBufferSize int
 
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used validate that server is acceptable. If this returns an error the connection is closed and the next
@@ -474,6 +474,14 @@ func parsePort(s string) (uint16, error) {
 
 func makeDefaultDialer() *net.Dialer {
 	return &net.Dialer{KeepAlive: 5 * time.Minute}
+}
+
+func makeDefaultBuildFrontendFunc() BuildFrontendFunc {
+	return func(r io.Reader) Frontend {
+		frontend, _ := pgproto3.NewFrontend(pgproto3.NewChunkReader(r), nil)
+
+		return frontend
+	}
 }
 
 func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
