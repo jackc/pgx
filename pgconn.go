@@ -40,8 +40,11 @@ type Notification struct {
 	Payload string
 }
 
-// DialFunc is a function that can be used to connect to a PostgreSQL server
+// DialFunc is a function that can be used to connect to a PostgreSQL server.
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
+// BuildFrontendFunc is a function that can be used to create Frontend implementation for connection.
+type BuildFrontendFunc func(r io.Reader) Frontend
 
 // NoticeHandler is a function that can handle notices received from the PostgreSQL server. Notices can be received at
 // any time, usually during handling of a query response. The *PgConn is provided so the handler is aware of the origin
@@ -55,6 +58,11 @@ type NoticeHandler func(*PgConn, *Notice)
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
 
+// Frontend used to receive messages from backend.
+type Frontend interface {
+	Receive() (pgproto3.BackendMessage, error)
+}
+
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn          // the underlying TCP or unix domain socket connection
@@ -62,7 +70,7 @@ type PgConn struct {
 	secretKey         uint32            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	TxStatus          byte
-	Frontend          *pgproto3.Frontend
+	frontend          Frontend
 
 	Config *Config
 
@@ -104,6 +112,9 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	}
 	if config.DialFunc == nil {
 		config.DialFunc = makeDefaultDialer().DialContext
+	}
+	if config.BuildFrontendFunc == nil {
+		config.BuildFrontendFunc = makeDefaultBuildFrontendFunc()
 	}
 	if config.RuntimeParams == nil {
 		config.RuntimeParams = make(map[string]string)
@@ -170,10 +181,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		func() { pgConn.conn.SetDeadline(time.Time{}) },
 	)
 
-	pgConn.Frontend, err = pgproto3.NewFrontend(pgproto3.NewChunkReader(pgConn.conn), pgConn.conn)
-	if err != nil {
-		return nil, err
-	}
+	pgConn.frontend = config.BuildFrontendFunc(pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: pgproto3.ProtocolVersionNumber,
@@ -292,7 +300,7 @@ func (pgConn *PgConn) signalMessage() chan struct{} {
 
 	ch := make(chan struct{})
 	go func() {
-		pgConn.bufferingReceiveMsg, pgConn.bufferingReceiveErr = pgConn.Frontend.Receive()
+		pgConn.bufferingReceiveMsg, pgConn.bufferingReceiveErr = pgConn.frontend.Receive()
 		pgConn.bufferingReceiveMux.Unlock()
 		close(ch)
 	}()
@@ -312,10 +320,10 @@ func (pgConn *PgConn) ReceiveMessage() (pgproto3.BackendMessage, error) {
 
 		// If a timeout error happened in the background try the read again.
 		if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-			msg, err = pgConn.Frontend.Receive()
+			msg, err = pgConn.frontend.Receive()
 		}
 	} else {
-		msg, err = pgConn.Frontend.Receive()
+		msg, err = pgConn.frontend.Receive()
 	}
 
 	if err != nil {
