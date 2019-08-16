@@ -214,7 +214,7 @@ left join pg_namespace nsp on t.typnamespace=nsp.oid
 left join pg_class cls on t.typrelid=cls.oid
 where (
 	  t.typtype in('b', 'p', 'r', 'e', 'c')
-	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
+	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r', 'c'))
 	  and (cls.oid is null or cls.relkind='c')
 	)`,
 		}),
