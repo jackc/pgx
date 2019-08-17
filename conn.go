@@ -317,26 +317,6 @@ func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[strin
 	c.logger.Log(ctx, lvl, msg, data)
 }
 
-// SetLogger replaces the current logger and returns the previous logger.
-func (c *Conn) SetLogger(logger Logger) Logger {
-	oldLogger := c.logger
-	c.logger = logger
-	return oldLogger
-}
-
-// SetLogLevel replaces the current log level and returns the previous log
-// level.
-func (c *Conn) SetLogLevel(lvl LogLevel) (LogLevel, error) {
-	oldLvl := c.logLevel
-
-	if lvl < LogLevelNone || lvl > LogLevelTrace {
-		return oldLvl, ErrInvalidLogLevel
-	}
-
-	c.logLevel = lvl
-	return lvl, nil
-}
-
 func quoteIdentifier(s string) string {
 	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
 }
