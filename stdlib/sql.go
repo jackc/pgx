@@ -484,7 +484,7 @@ func namedValueToInterface(argsV []driver.NamedValue) []interface{} {
 	return args
 }
 
-type wrapTx struct{ tx *pgx.Tx }
+type wrapTx struct{ tx pgx.Tx }
 
 func (wtx wrapTx) Commit() error { return wtx.tx.Commit(context.Background()) }
 

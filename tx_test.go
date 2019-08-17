@@ -232,102 +232,121 @@ func TestBeginReadOnly(t *testing.T) {
 	}
 }
 
-func TestTxStatus(t *testing.T) {
+func TestTxNestedTransactionCommit(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
+
+	createSql := `
+    create temporary table foo(
+      id integer,
+      unique (id) initially deferred
+    );
+  `
+
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
 
 	tx, err := conn.Begin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if status := tx.Status(); status != pgx.TxStatusInProgress {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
+	_, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
+	if err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
-	if err := tx.Rollback(context.Background()); err != nil {
+	nestedTx, err := tx.Begin(context.Background())
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if status := tx.Status(); status != pgx.TxStatusRollbackSuccess {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusRollbackSuccess, status)
+	_, err = nestedTx.Exec(context.Background(), "insert into foo(id) values (2)")
+	if err != nil {
+		t.Fatalf("nestedTx.Exec failed: %v", err)
+	}
+
+	err = nestedTx.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("nestedTx.Commit failed: %v", err)
+	}
+
+	err = tx.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("tx.Commit failed: %v", err)
+	}
+
+	var n int64
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 }
 
-func TestTxStatusErrorInTransactions(t *testing.T) {
+func TestTxNestedTransactionRollback(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
+
+	createSql := `
+    create temporary table foo(
+      id integer,
+      unique (id) initially deferred
+    );
+  `
+
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
 
 	tx, err := conn.Begin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if status := tx.Status(); status != pgx.TxStatusInProgress {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
+	_, err = tx.Exec(context.Background(), "insert into foo(id) values (1)")
+	if err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
-	_, err = tx.Exec(context.Background(), "savepoint s")
+	nestedTx, err := tx.Begin(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = tx.Exec(context.Background(), "syntax error")
-	if err == nil {
-		t.Fatal("expected an error but did not get one")
-	}
-
-	if status := tx.Status(); status != pgx.TxStatusInFailure {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInFailure, status)
-	}
-
-	_, err = tx.Exec(context.Background(), "rollback to s")
+	_, err = nestedTx.Exec(context.Background(), "insert into foo(id) values (2)")
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("nestedTx.Exec failed: %v", err)
 	}
 
-	if status := tx.Status(); status != pgx.TxStatusInProgress {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusInProgress, status)
-	}
-
-	if err := tx.Rollback(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-
-	if status := tx.Status(); status != pgx.TxStatusRollbackSuccess {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusRollbackSuccess, status)
-	}
-}
-
-func TestTxErr(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	tx, err := conn.Begin(context.Background())
+	err = nestedTx.Rollback(context.Background())
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("nestedTx.Rollback failed: %v", err)
 	}
 
-	// Purposely break transaction
-	if _, err := tx.Exec(context.Background(), "syntax error"); err == nil {
-		t.Fatal("Unexpected success")
+	_, err = tx.Exec(context.Background(), "insert into foo(id) values (3)")
+	if err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
 	}
 
-	if err := tx.Commit(context.Background()); err != pgx.ErrTxCommitRollback {
-		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
+	err = tx.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("tx.Commit failed: %v", err)
 	}
 
-	if status := tx.Status(); status != pgx.TxStatusCommitFailure {
-		t.Fatalf("Expected status to be %v, but it was %v", pgx.TxStatusRollbackSuccess, status)
+	var n int64
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
-
-	if err := tx.Err(); err != pgx.ErrTxCommitRollback {
-		t.Fatalf("Expected error %v, got %v", pgx.ErrTxCommitRollback, err)
+	if n != 2 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 }

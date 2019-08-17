@@ -66,11 +66,11 @@ func (c *Conn) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNam
 	return c.Conn().CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
-func (c *Conn) Begin(ctx context.Context) (*pgx.Tx, error) {
+func (c *Conn) Begin(ctx context.Context) (pgx.Tx, error) {
 	return c.Conn().Begin(ctx)
 }
 
-func (c *Conn) BeginEx(ctx context.Context, txOptions pgx.TxOptions) (*pgx.Tx, error) {
+func (c *Conn) BeginEx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
 	return c.Conn().BeginEx(ctx, txOptions)
 }
 
