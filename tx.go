@@ -67,7 +67,6 @@ func (txOptions TxOptions) beginSQL() string {
 }
 
 var ErrTxClosed = errors.New("tx is closed")
-var ErrTxInFailure = errors.New("tx failed")
 
 // ErrTxCommitRollback occurs when an error has occurred in a transaction and
 // Commit() is called. PostgreSQL accepts COMMIT on aborted transactions, but
