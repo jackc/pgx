@@ -551,100 +551,27 @@ func (l *testLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, da
 func TestLogPassesContext(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	l1 := &testLogger{}
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = l1
+
+	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
 
-	ctx := context.WithValue(context.Background(), "ctxdata", "foo")
+	l1.logs = l1.logs[0:0] // Clear logs written when establishing connection
 
-	l1 := &testLogger{}
-	oldLogger := conn.SetLogger(l1)
-	if oldLogger != nil {
-		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
-	}
+	ctx := context.WithValue(context.Background(), "ctxdata", "foo")
 
 	if _, err := conn.Exec(ctx, ";"); err != nil {
 		t.Fatal(err)
 	}
 
 	if len(l1.logs) != 1 {
-		t.Fatal("Expected new logger l1 to be called once, but it wasn't")
+		t.Fatal("Expected logger to be called once, but it wasn't")
 	}
 
 	if l1.logs[0].data["ctxdata"] != "foo" {
 		t.Fatal("Expected context data to be passed to logger, but it wasn't")
-	}
-}
-
-func TestSetLogger(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	l1 := &testLogger{}
-	oldLogger := conn.SetLogger(l1)
-	if oldLogger != nil {
-		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", nil, oldLogger)
-	}
-
-	if _, err := conn.Exec(context.Background(), "listen foo"); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(l1.logs) == 0 {
-		t.Fatal("Expected new logger l1 to be called, but it wasn't")
-	}
-
-	l2 := &testLogger{}
-	oldLogger = conn.SetLogger(l2)
-	if oldLogger != l1 {
-		t.Fatalf("Expected conn.SetLogger to return %v, but it was %v", l1, oldLogger)
-	}
-
-	if _, err := conn.Exec(context.Background(), "listen bar"); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(l2.logs) == 0 {
-		t.Fatal("Expected new logger l2 to be called, but it wasn't")
-	}
-}
-
-func TestSetLogLevel(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	logger := &testLogger{}
-	conn.SetLogger(logger)
-
-	if _, err := conn.SetLogLevel(0); err != pgx.ErrInvalidLogLevel {
-		t.Fatal("SetLogLevel with invalid level did not return error")
-	}
-
-	if _, err := conn.SetLogLevel(pgx.LogLevelNone); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := conn.Exec(context.Background(), "listen foo"); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(logger.logs) != 0 {
-		t.Fatalf("Expected logger not to be called, but it was: %v", logger.logs)
-	}
-
-	if _, err := conn.SetLogLevel(pgx.LogLevelTrace); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := conn.Exec(context.Background(), "listen bar"); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(logger.logs) == 0 {
-		t.Fatal("Expected logger to be called, but it wasn't")
 	}
 }
 

@@ -205,45 +205,49 @@ func (dl discardLogger) Log(ctx context.Context, level pgx.LogLevel, msg string,
 }
 
 func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
-	defer closeConn(b, conn)
-
 	var logger discardLogger
-	conn.SetLogger(logger)
-	conn.SetLogLevel(pgx.LogLevelTrace)
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = logger
+	config.LogLevel = pgx.LogLevelTrace
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
 func BenchmarkSelectWithLoggingDebugWithDiscard(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
-	defer closeConn(b, conn)
-
 	var logger discardLogger
-	conn.SetLogger(logger)
-	conn.SetLogLevel(pgx.LogLevelDebug)
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = logger
+	config.LogLevel = pgx.LogLevelDebug
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
 func BenchmarkSelectWithLoggingInfoWithDiscard(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
-	defer closeConn(b, conn)
-
 	var logger discardLogger
-	conn.SetLogger(logger)
-	conn.SetLogLevel(pgx.LogLevelInfo)
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = logger
+	config.LogLevel = pgx.LogLevelInfo
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
 
 	benchmarkSelectWithLog(b, conn)
 }
 
 func BenchmarkSelectWithLoggingErrorWithDiscard(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
-	defer closeConn(b, conn)
-
 	var logger discardLogger
-	conn.SetLogger(logger)
-	conn.SetLogLevel(pgx.LogLevelError)
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = logger
+	config.LogLevel = pgx.LogLevelError
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
 
 	benchmarkSelectWithLog(b, conn)
 }
