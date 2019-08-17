@@ -149,7 +149,7 @@ func underlyingTimeType(val interface{}) (interface{}, bool) {
 	switch refVal.Kind() {
 	case reflect.Ptr:
 		if refVal.IsNil() {
-			return time.Time{}, false
+			return nil, false
 		}
 		convVal := refVal.Elem().Interface()
 		return convVal, true
@@ -160,7 +160,7 @@ func underlyingTimeType(val interface{}) (interface{}, bool) {
 		return refVal.Convert(timeType).Interface(), true
 	}
 
-	return time.Time{}, false
+	return nil, false
 }
 
 // underlyingUUIDType gets the underlying type that can be converted to [16]byte
