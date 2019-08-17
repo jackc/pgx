@@ -22,7 +22,7 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx, err := conn.Begin(ctx, nil)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,7 +135,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tx, err := conn.Begin(ctx, nil)
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	rows.Close()
 
 	// Start a new transaction
-	tx2, err := conn.Begin(ctx, nil)
+	tx2, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

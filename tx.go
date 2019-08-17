@@ -50,11 +50,7 @@ type TxOptions struct {
 	DeferrableMode TxDeferrableMode
 }
 
-func (txOptions *TxOptions) beginSQL() string {
-	if txOptions == nil {
-		return "begin"
-	}
-
+func (txOptions TxOptions) beginSQL() string {
 	buf := &bytes.Buffer{}
 	buf.WriteString("begin")
 	if txOptions.IsoLevel != "" {
@@ -78,9 +74,15 @@ var ErrTxInFailure = errors.New("tx failed")
 // it is treated as ROLLBACK.
 var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 
-// BeginEx starts a transaction with txOptions determining the transaction mode. txOptions can be nil. Unlike
-// database/sql, the context only affects the begin command. i.e. there is no auto-rollback on context cancelation.
-func (c *Conn) Begin(ctx context.Context, txOptions *TxOptions) (*Tx, error) {
+// Begin starts a transaction. Unlike database/sql, the context only affects the begin command. i.e. there is no
+// auto-rollback on context cancelation.
+func (c *Conn) Begin(ctx context.Context) (*Tx, error) {
+	return c.BeginEx(ctx, TxOptions{})
+}
+
+// BeginEx starts a transaction with txOptions determining the transaction mode. Unlike database/sql, the context only
+// affects the begin command. i.e. there is no auto-rollback on context cancelation.
+func (c *Conn) BeginEx(ctx context.Context, txOptions TxOptions) (*Tx, error) {
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or

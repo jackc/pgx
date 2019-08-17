@@ -16,7 +16,7 @@ func TestTxExec(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background(), nil)
+	tx, err := pool.Begin(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback(context.Background())
 
@@ -30,7 +30,7 @@ func TestTxQuery(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background(), nil)
+	tx, err := pool.Begin(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback(context.Background())
 
@@ -44,7 +44,7 @@ func TestTxQueryRow(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background(), nil)
+	tx, err := pool.Begin(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback(context.Background())
 
@@ -58,7 +58,7 @@ func TestTxSendBatch(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background(), nil)
+	tx, err := pool.Begin(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback(context.Background())
 
@@ -72,7 +72,7 @@ func TestTxCopyFrom(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background(), nil)
+	tx, err := pool.Begin(context.Background())
 	require.NoError(t, err)
 	defer tx.Rollback(context.Background())
 
