@@ -13,12 +13,7 @@ import (
 //
 // For more details see: http://www.postgresql.org/docs/current/static/largeobjects.html
 type LargeObjects struct {
-	tx *Tx
-}
-
-// LargeObjects returns a LargeObjects instance for the transaction.
-func (tx *Tx) LargeObjects() LargeObjects {
-	return LargeObjects{tx: tx}
+	tx Tx
 }
 
 type LargeObjectMode int32
@@ -84,7 +79,7 @@ func (o *LargeObjects) Unlink(ctx context.Context, oid pgtype.OID) error {
 //    io.Closer
 type LargeObject struct {
 	ctx context.Context
-	tx  *Tx
+	tx  Tx
 	fd  int32
 }
 
