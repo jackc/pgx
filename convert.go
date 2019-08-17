@@ -163,6 +163,27 @@ func underlyingTimeType(val interface{}) (interface{}, bool) {
 	return time.Time{}, false
 }
 
+// underlyingUUIDType gets the underlying type that can be converted to [16]byte
+func underlyingUUIDType(val interface{}) (interface{}, bool) {
+	refVal := reflect.ValueOf(val)
+
+	switch refVal.Kind() {
+	case reflect.Ptr:
+		if refVal.IsNil() {
+			return time.Time{}, false
+		}
+		convVal := refVal.Elem().Interface()
+		return convVal, true
+	}
+
+	uuidType := reflect.TypeOf([16]byte{})
+	if refVal.Type().ConvertibleTo(uuidType) {
+		return refVal.Convert(uuidType).Interface(), true
+	}
+
+	return nil, false
+}
+
 // underlyingSliceType gets the underlying slice type
 func underlyingSliceType(val interface{}) (interface{}, bool) {
 	refVal := reflect.ValueOf(val)
@@ -397,6 +418,14 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 		if baseElemType, ok := kindTypes[dstVal.Type().Elem().Kind()]; ok {
 			baseSliceType := reflect.PtrTo(reflect.SliceOf(baseElemType))
 			nextDst := dstPtr.Convert(baseSliceType)
+			return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
+		}
+	}
+
+	if dstVal.Kind() == reflect.Array {
+		if baseElemType, ok := kindTypes[dstVal.Type().Elem().Kind()]; ok {
+			baseArrayType := reflect.PtrTo(reflect.ArrayOf(dstVal.Len(), baseElemType))
+			nextDst := dstPtr.Convert(baseArrayType)
 			return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
 		}
 	}

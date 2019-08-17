@@ -39,7 +39,7 @@ func (dst *UUID) Set(src interface{}) error {
 		}
 		*dst = UUID{Bytes: uuid, Status: Present}
 	default:
-		if originalSrc, ok := underlyingPtrType(src); ok {
+		if originalSrc, ok := underlyingUUIDType(src); ok {
 			return dst.Set(originalSrc)
 		}
 		return errors.Errorf("cannot convert %v to UUID", value)
