@@ -35,9 +35,8 @@ type ConnConfig struct {
 	PreferSimpleProtocol bool
 }
 
-// Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
-// Use ConnPool to manage access to multiple database connections from multiple
-// goroutines.
+// Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
+// to multiple database connections from multiple goroutines.
 type Conn struct {
 	pgConn             *pgconn.PgConn
 	config             *ConnConfig // config used when establishing this connection
