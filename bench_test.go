@@ -413,7 +413,7 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	for i := 0; i < b.N; i++ {
 		src := newBenchmarkWriteTableCopyFromSrc(n)
 
-		tx, err := conn.Begin(context.Background(), nil)
+		tx, err := conn.Begin(context.Background())
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -452,7 +452,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	}
 	resetQuery()
 
-	tx, err := conn.Begin(context.Background(), nil)
+	tx, err := conn.Begin(context.Background())
 	if err != nil {
 		return 0, err
 	}
