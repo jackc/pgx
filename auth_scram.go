@@ -74,7 +74,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 }
 
 func (c *PgConn) rxAuthMsg(typ uint32) (*pgproto3.Authentication, error) {
-	msg, err := c.ReceiveMessage()
+	msg, err := c.receiveMessage()
 	if err != nil {
 		return nil, err
 	}
