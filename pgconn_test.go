@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
 
 	"github.com/stretchr/testify/assert"
@@ -1412,6 +1413,45 @@ func TestConnCancelRequest(t *testing.T) {
 
 	require.IsType(t, &pgconn.PgError{}, err)
 	require.Equal(t, "57014", err.(*pgconn.PgError).Code)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnSendBytesAndReceiveMessage(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	queryMsg := pgproto3.Query{String: "select 42"}
+	buf := queryMsg.Encode(nil)
+
+	err = pgConn.SendBytes(ctx, buf)
+	require.NoError(t, err)
+
+	msg, err := pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok := msg.(*pgproto3.RowDescription)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.DataRow)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.CommandComplete)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.ReadyForQuery)
+	require.True(t, ok)
 
 	ensureConnValid(t, pgConn)
 }
