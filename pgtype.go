@@ -342,7 +342,27 @@ func (ci *ConnInfo) Scan(oid OID, formatCode int16, buf []byte, dest interface{}
 			return value.AssignTo(dest)
 		}
 	}
-	return errors.Errorf("unknown oid: %v", oid)
+
+	return scanUnknownType(oid, formatCode, buf, dest)
+}
+
+func scanUnknownType(oid OID, formatCode int16, buf []byte, dest interface{}) error {
+	switch dest := dest.(type) {
+	case *string:
+		if formatCode == BinaryFormatCode {
+			return errors.Errorf("unknown oid %d in binary format cannot be scanned into %t", oid, dest)
+		}
+		*dest = string(buf)
+		return nil
+	case *[]byte:
+		*dest = buf
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dest); retry {
+			return scanUnknownType(oid, formatCode, buf, nextDst)
+		}
+		return errors.Errorf("unknown oid %d cannot be scanned into %t", oid, dest)
+	}
 }
 
 var nameValues map[string]Value
