@@ -88,6 +88,10 @@ Approximately 60 PostgreSQL types are supported including uuid, hstore, json, by
 
 pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire protocol. This is useful for implementing very low level PostgreSQL tooling.
 
+## github.com/jackc/pglogrepl
+
+pglogrepl provides function to act as a client for PostgreSQL logical replication.
+
 ## github.com/jackc/pgx/v4/pgmock
 
 pgmock offers the ability to create a server that mocks the PostgreSQL wire protocol. This is used internally to test pgx by purposely inducing unusual errors. pgproto3 and pgmock together provide most of the foundational tooling required to implement a PostgreSQL proxy or MitM (such as for a custom connection pooler).
