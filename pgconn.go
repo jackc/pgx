@@ -361,6 +361,9 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 	defer pgConn.contextWatcher.Unwatch()
 
 	msg, err := pgConn.receiveMessage()
+	if err != nil {
+		err = linkErrors(ctx.Err(), err)
+	}
 	return msg, err
 }
 
