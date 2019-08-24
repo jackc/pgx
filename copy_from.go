@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/jackc/pgconn"
 	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
 )
@@ -116,7 +117,7 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	return commandTag.RowsAffected(), err
 }
 
-func (ct *copyFrom) buildCopyBuf(buf []byte, ps *PreparedStatement) (bool, []byte, error) {
+func (ct *copyFrom) buildCopyBuf(buf []byte, ps *pgconn.PreparedStatementDescription) (bool, []byte, error) {
 
 	for ct.rowSrc.Next() {
 		values, err := ct.rowSrc.Values()
@@ -129,7 +130,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, ps *PreparedStatement) (bool, []byt
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
 		for i, val := range values {
-			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, uint32(ps.FieldDescriptions[i].DataTypeOID), val)
+			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, ps.Fields[i].DataTypeOID, val)
 			if err != nil {
 				return false, nil, err
 			}
