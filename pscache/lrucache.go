@@ -22,7 +22,7 @@ type LRUCache struct {
 	psNamePrefix string
 }
 
-// NewLRUCache creates a new LRUCache. mode is either PrepareMode or DescribeMode. cap is the maximum size of the cache.
+// NewLRUCache creates a new LRUCache. mode is either ModePrepare or ModeDescribe. cap is the maximum size of the cache.
 func NewLRUCache(conn *pgconn.PgConn, mode int, cap int) *LRUCache {
 	mustBeValidMode(mode)
 	mustBeValidCap(cap)
@@ -86,14 +86,14 @@ func (c *LRUCache) Cap() int {
 	return c.cap
 }
 
-// Mode returns the mode of the cache (PrepareMode or DescribeMode)
+// Mode returns the mode of the cache (ModePrepare or ModeDescribe)
 func (c *LRUCache) Mode() int {
 	return c.mode
 }
 
 func (c *LRUCache) prepare(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
 	var name string
-	if c.mode == PrepareMode {
+	if c.mode == ModePrepare {
 		name = fmt.Sprintf("%s_%d", c.psNamePrefix, c.prepareCount)
 		c.prepareCount += 1
 	}
@@ -104,7 +104,7 @@ func (c *LRUCache) prepare(ctx context.Context, sql string) (*pgconn.PreparedSta
 func (c *LRUCache) removeOldest(ctx context.Context) error {
 	oldest := c.l.Back()
 	c.l.Remove(oldest)
-	if c.mode == PrepareMode {
+	if c.mode == ModePrepare {
 		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", oldest.Value.(*pgconn.PreparedStatementDescription).Name)).Close()
 	}
 	return nil

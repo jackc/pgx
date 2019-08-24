@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	PrepareMode  = iota // Cache should prepare named statements.
-	DescribeMode        // Cache should prepare the anonymous prepared statement to only fetch the description of the statement.
+	ModePrepare  = iota // Cache should prepare named statements.
+	ModeDescribe        // Cache should prepare the anonymous prepared statement to only fetch the description of the statement.
 )
 
 // Cache prepares and caches prepared statement descriptions.
@@ -26,11 +26,11 @@ type Cache interface {
 	// Cap returns the maximum number of cached prepared statement descriptions.
 	Cap() int
 
-	// Mode returns the mode of the cache (PrepareMode or DescribeMode)
+	// Mode returns the mode of the cache (ModePrepare or ModeDescribe)
 	Mode() int
 }
 
-// New returns the preferred cache implementation for mode and cap. mode is either PrepareMode or DescribeMode. cap is
+// New returns the preferred cache implementation for mode and cap. mode is either ModePrepare or ModeDescribe. cap is
 // the maximum size of the cache.
 func New(conn *pgconn.PgConn, mode int, cap int) Cache {
 	mustBeValidMode(mode)
@@ -40,8 +40,8 @@ func New(conn *pgconn.PgConn, mode int, cap int) Cache {
 }
 
 func mustBeValidMode(mode int) {
-	if mode != PrepareMode && mode != DescribeMode {
-		panic("mode must be PrepareMode or DescribeMode")
+	if mode != ModePrepare && mode != ModeDescribe {
+		panic("mode must be ModePrepare or ModeDescribe")
 	}
 }
 
