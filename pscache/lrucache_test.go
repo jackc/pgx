@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLRUCachePrepareMode(t *testing.T) {
+func TestLRUCacheModePrepare(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -22,10 +22,10 @@ func TestLRUCachePrepareMode(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := pscache.NewLRUCache(conn, pscache.PrepareMode, 2)
+	cache := pscache.NewLRUCache(conn, pscache.ModePrepare, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
-	require.EqualValues(t, pscache.PrepareMode, cache.Mode())
+	require.EqualValues(t, pscache.ModePrepare, cache.Mode())
 
 	psd, err := cache.Get(ctx, "select 1")
 	require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestLRUCachePrepareMode(t *testing.T) {
 	require.Empty(t, fetchServerStatements(t, ctx, conn))
 }
 
-func TestLRUCacheDescribeMode(t *testing.T) {
+func TestLRUCacheModeDescribe(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -67,10 +67,10 @@ func TestLRUCacheDescribeMode(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := pscache.NewLRUCache(conn, pscache.DescribeMode, 2)
+	cache := pscache.NewLRUCache(conn, pscache.ModeDescribe, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
-	require.EqualValues(t, pscache.DescribeMode, cache.Mode())
+	require.EqualValues(t, pscache.ModeDescribe, cache.Mode())
 
 	psd, err := cache.Get(ctx, "select 1")
 	require.NoError(t, err)
