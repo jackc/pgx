@@ -263,6 +263,14 @@ func TestConnectWithAfterConnect(t *testing.T) {
 	assert.Equal(t, []byte("foobar"), results[0].Rows[0][0])
 }
 
+func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
+	t.Parallel()
+
+	config := &pgconn.Config{}
+
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgconn.ConnectConfig(context.Background(), config) })
+}
+
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 
