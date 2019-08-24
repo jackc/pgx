@@ -174,7 +174,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		func() { pgConn.conn.SetDeadline(time.Time{}) },
 	)
 
-	pgConn.frontend = config.BuildFrontendFunc(pgConn.conn)
+	pgConn.frontend = config.BuildFrontend(pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: pgproto3.ProtocolVersionNumber,
