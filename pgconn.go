@@ -791,18 +791,17 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 }
 
 func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]byte) *ResultReader {
-	if err := pgConn.lock(); err != nil {
-		return &ResultReader{
-			closed: true,
-			err:    linkErrors(err, ErrNoBytesSent),
-		}
-	}
-
 	pgConn.resultReader = ResultReader{
 		pgConn: pgConn,
 		ctx:    ctx,
 	}
 	result := &pgConn.resultReader
+
+	if err := pgConn.lock(); err != nil {
+		result.concludeCommand(nil, linkErrors(err, ErrNoBytesSent))
+		result.closed = true
+		return result
+	}
 
 	if len(paramValues) > math.MaxUint16 {
 		result.concludeCommand(nil, errors.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
