@@ -42,7 +42,7 @@ func TestConnect(t *testing.T) {
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 
-	conn, err := pgx.ConnectConfig(context.Background(), &config)
+	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
@@ -94,6 +94,14 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
+	t.Parallel()
+
+	config := &pgx.ConnConfig{}
+
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgx.ConnectConfig(context.Background(), config) })
 }
 
 func TestExec(t *testing.T) {

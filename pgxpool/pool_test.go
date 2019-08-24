@@ -39,6 +39,14 @@ func TestConnectCancel(t *testing.T) {
 	assert.Equal(t, context.Canceled, err)
 }
 
+func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
+	t.Parallel()
+
+	config := &pgxpool.Config{}
+
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgxpool.ConnectConfig(context.Background(), config) })
+}
+
 func TestPoolAcquireAndConnRelease(t *testing.T) {
 	t.Parallel()
 
