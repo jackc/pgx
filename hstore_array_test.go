@@ -14,14 +14,14 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
-	var hstoreOID pgtype.OID
+	var hstoreOID uint32
 	err := conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='hstore';").Scan(&hstoreOID)
 	if err != nil {
 		t.Fatalf("did not find hstore OID, %v", err)
 	}
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.Hstore{}, Name: "hstore", OID: hstoreOID})
 
-	var hstoreArrayOID pgtype.OID
+	var hstoreArrayOID uint32
 	err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='_hstore';").Scan(&hstoreArrayOID)
 	if err != nil {
 		t.Fatalf("did not find _hstore OID, %v", err)
@@ -70,7 +70,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		Status:     pgtype.Present,
 	}
 
-	ps, err := conn.Prepare(context.Background(), "test", "select $1::hstore[]")
+	_, err = conn.Prepare(context.Background(), "test", "select $1::hstore[]")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	}
 
 	for _, fc := range formats {
-		ps.FieldDescriptions[0].FormatCode = fc.formatCode
+		queryResultFormats := pgx.QueryResultFormats{fc.formatCode}
 		vEncoder := testutil.ForceEncoder(src, fc.formatCode)
 		if vEncoder == nil {
 			t.Logf("%#v does not implement %v", src, fc.name)
@@ -92,7 +92,7 @@ func TestHstoreArrayTranscode(t *testing.T) {
 		}
 
 		var result pgtype.HstoreArray
-		err := conn.QueryRow(context.Background(), "test", vEncoder).Scan(&result)
+		err := conn.QueryRow(context.Background(), "test", queryResultFormats, vEncoder).Scan(&result)
 		if err != nil {
 			t.Errorf("%v: %v", fc.name, err)
 			continue
