@@ -26,17 +26,17 @@ func TestConnSendBatch(t *testing.T) {
 	batch := &pgx.Batch{}
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q1", 1},
-		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q2", 2},
-		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2)",
 		[]interface{}{"q3", 3},
-		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 	batch.Queue("select id, description, amount from ledger order by id",
@@ -374,7 +374,7 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
 		[]interface{}{"q1", 1},
-		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 
@@ -420,7 +420,7 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	)
 	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
 		[]interface{}{"q1", 1},
-		[]pgtype.OID{pgtype.VarcharOID, pgtype.Int4OID},
+		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
 		nil,
 	)
 
@@ -467,7 +467,7 @@ func TestTxSendBatch(t *testing.T) {
 	batch := &pgx.Batch{}
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
-		[]pgtype.OID{pgtype.VarcharOID},
+		[]uint32{pgtype.VarcharOID},
 		[]int16{pgx.BinaryFormatCode},
 	)
 
@@ -483,13 +483,13 @@ func TestTxSendBatch(t *testing.T) {
 	batch = &pgx.Batch{}
 	batch.Queue("insert into ledger2(id,amount) values($1, $2)",
 		[]interface{}{id, 2},
-		[]pgtype.OID{pgtype.Int4OID, pgtype.Int4OID},
+		[]uint32{pgtype.Int4OID, pgtype.Int4OID},
 		nil,
 	)
 
 	batch.Queue("select amount from ledger2 where id = $1",
 		[]interface{}{id},
-		[]pgtype.OID{pgtype.Int4OID},
+		[]uint32{pgtype.Int4OID},
 		nil,
 	)
 
@@ -542,7 +542,7 @@ func TestTxSendBatchRollback(t *testing.T) {
 	batch := &pgx.Batch{}
 	batch.Queue("insert into ledger1(description) values($1) returning id",
 		[]interface{}{"q1"},
-		[]pgtype.OID{pgtype.VarcharOID},
+		[]uint32{pgtype.VarcharOID},
 		[]int16{pgx.BinaryFormatCode},
 	)
 

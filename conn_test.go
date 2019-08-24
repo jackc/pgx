@@ -764,7 +764,7 @@ func TestConnInitConnInfo(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// spot check that the standard postgres type names aren't qualified
-	nameOIDs := map[string]pgtype.OID{
+	nameOIDs := map[string]uint32{
 		"_int8": pgtype.Int8ArrayOID,
 		"int8":  pgtype.Int8OID,
 		"json":  pgtype.JSONOID,
@@ -829,7 +829,7 @@ func TestDomainType(t *testing.T) {
 		t.Fatalf("Expected n to be 42, but was %v", n)
 	}
 
-	var uint64OID pgtype.OID
+	var uint64OID uint32
 	err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
 	if err != nil {
 		t.Fatalf("did not find uint64 OID, %v", err)

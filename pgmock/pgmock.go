@@ -252,7 +252,7 @@ where (
 	}
 
 	rowVals := []struct {
-		oid  pgtype.OID
+		oid  uint32
 		name string
 	}{
 		{16, "bool"},
