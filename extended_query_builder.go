@@ -17,7 +17,7 @@ type extendedQueryBuilder struct {
 	resetCount int
 }
 
-func (eqb *extendedQueryBuilder) AppendParam(ci *pgtype.ConnInfo, oid pgtype.OID, arg interface{}) error {
+func (eqb *extendedQueryBuilder) AppendParam(ci *pgtype.ConnInfo, oid uint32, arg interface{}) error {
 	f := chooseParameterFormatCode(ci, oid, arg)
 	eqb.paramFormats = append(eqb.paramFormats, f)
 
@@ -62,7 +62,7 @@ func (eqb *extendedQueryBuilder) Reset() {
 
 }
 
-func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, oid pgtype.OID, arg interface{}) ([]byte, error) {
+func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, oid uint32, arg interface{}) ([]byte, error) {
 	if arg == nil {
 		return nil, nil
 	}

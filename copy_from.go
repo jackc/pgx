@@ -7,7 +7,6 @@ import (
 	"io"
 
 	"github.com/jackc/pgio"
-	"github.com/jackc/pgtype"
 	errors "golang.org/x/xerrors"
 )
 
@@ -130,7 +129,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, ps *PreparedStatement) (bool, []byt
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
 		for i, val := range values {
-			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, pgtype.OID(ps.FieldDescriptions[i].DataTypeOID), val)
+			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, uint32(ps.FieldDescriptions[i].DataTypeOID), val)
 			if err != nil {
 				return false, nil, err
 			}

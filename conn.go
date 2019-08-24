@@ -66,7 +66,7 @@ type PreparedStatement struct {
 	Name              string
 	SQL               string
 	FieldDescriptions []pgproto3.FieldDescription
-	ParameterOIDs     []pgtype.OID
+	ParameterOIDs     []uint32
 }
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
@@ -230,12 +230,12 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (ps *PreparedState
 	ps = &PreparedStatement{
 		Name:              psd.Name,
 		SQL:               psd.SQL,
-		ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
+		ParameterOIDs:     make([]uint32, len(psd.ParamOIDs)),
 		FieldDescriptions: psd.Fields,
 	}
 
 	for i := range ps.ParameterOIDs {
-		ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
+		ps.ParameterOIDs[i] = uint32(psd.ParamOIDs[i])
 	}
 
 	if name != "" {
@@ -363,15 +363,15 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return err
 }
 
-func connInfoFromRows(rows Rows, err error) (map[string]pgtype.OID, error) {
+func connInfoFromRows(rows Rows, err error) (map[string]uint32, error) {
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	nameOIDs := make(map[string]pgtype.OID, 256)
+	nameOIDs := make(map[string]uint32, 256)
 	for rows.Next() {
-		var oid pgtype.OID
+		var oid uint32
 		var name pgtype.Text
 		if err = rows.Scan(&oid, &name); err != nil {
 			return nil, err
@@ -480,7 +480,7 @@ func (c *Conn) execPrepared(ctx context.Context, ps *PreparedStatement, argument
 	}
 
 	for i := range ps.FieldDescriptions {
-		if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
+		if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.FieldDescriptions[i].DataTypeOID)); ok {
 			if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 				c.eqb.AppendResultFormat(BinaryFormatCode)
 			} else {
@@ -518,7 +518,7 @@ type QuerySimpleProtocol bool
 type QueryResultFormats []int16
 
 // QueryResultFormatsByOID controls the result format (text=0, binary=1) of a query by the result column OID.
-type QueryResultFormatsByOID map[pgtype.OID]int16
+type QueryResultFormatsByOID map[uint32]int16
 
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
@@ -585,12 +585,12 @@ optionLoop:
 		ps = &PreparedStatement{
 			Name:              psd.Name,
 			SQL:               psd.SQL,
-			ParameterOIDs:     make([]pgtype.OID, len(psd.ParamOIDs)),
+			ParameterOIDs:     make([]uint32, len(psd.ParamOIDs)),
 			FieldDescriptions: psd.Fields,
 		}
 
 		for i := range ps.ParameterOIDs {
-			ps.ParameterOIDs[i] = pgtype.OID(psd.ParamOIDs[i])
+			ps.ParameterOIDs[i] = uint32(psd.ParamOIDs[i])
 		}
 	}
 	rows.sql = ps.SQL
@@ -612,13 +612,13 @@ optionLoop:
 	if resultFormatsByOID != nil {
 		resultFormats = make([]int16, len(ps.FieldDescriptions))
 		for i := range resultFormats {
-			resultFormats[i] = resultFormatsByOID[pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)]
+			resultFormats[i] = resultFormatsByOID[uint32(ps.FieldDescriptions[i].DataTypeOID)]
 		}
 	}
 
 	if resultFormats == nil {
 		for i := range ps.FieldDescriptions {
-			if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
+			if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.FieldDescriptions[i].DataTypeOID)); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 					c.eqb.AppendResultFormat(BinaryFormatCode)
 				} else {
@@ -651,7 +651,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	for _, bi := range b.items {
 		c.eqb.Reset()
 
-		var parameterOIDs []pgtype.OID
+		var parameterOIDs []uint32
 		ps := c.preparedStatements[bi.query]
 
 		if ps != nil {
@@ -678,7 +678,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			if resultFormats == nil {
 
 				for i := range ps.FieldDescriptions {
-					if dt, ok := c.ConnInfo.DataTypeForOID(pgtype.OID(ps.FieldDescriptions[i].DataTypeOID)); ok {
+					if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.FieldDescriptions[i].DataTypeOID)); ok {
 						if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 							c.eqb.AppendResultFormat(BinaryFormatCode)
 						} else {

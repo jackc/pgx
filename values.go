@@ -124,7 +124,7 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
-func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype.OID, arg interface{}) ([]byte, error) {
+func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
 	if arg == nil {
 		return pgio.AppendInt32(buf, -1), nil
 	}
@@ -209,7 +209,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid pgtype
 // chooseParameterFormatCode determines the correct format code for an
 // argument to a prepared statement. It defaults to TextFormatCode if no
 // determination can be made.
-func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid pgtype.OID, arg interface{}) int16 {
+func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{}) int16 {
 	switch arg.(type) {
 	case pgtype.BinaryEncoder:
 		return BinaryFormatCode

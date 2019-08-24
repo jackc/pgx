@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/jackc/pgtype"
 	errors "golang.org/x/xerrors"
 )
 
@@ -24,7 +23,7 @@ const (
 )
 
 // Create creates a new large object. If oid is zero, the server assigns an unused OID.
-func (o *LargeObjects) Create(ctx context.Context, oid pgtype.OID) (pgtype.OID, error) {
+func (o *LargeObjects) Create(ctx context.Context, oid uint32) (uint32, error) {
 	_, err := o.tx.Prepare(ctx, "lo_create", "select lo_create($1)")
 	if err != nil {
 		return 0, err
@@ -36,7 +35,7 @@ func (o *LargeObjects) Create(ctx context.Context, oid pgtype.OID) (pgtype.OID, 
 
 // Open opens an existing large object with the given mode. ctx will also be used for all operations on the opened large
 // object.
-func (o *LargeObjects) Open(ctx context.Context, oid pgtype.OID, mode LargeObjectMode) (*LargeObject, error) {
+func (o *LargeObjects) Open(ctx context.Context, oid uint32, mode LargeObjectMode) (*LargeObject, error) {
 	_, err := o.tx.Prepare(ctx, "lo_open", "select lo_open($1, $2)")
 	if err != nil {
 		return nil, err
@@ -51,7 +50,7 @@ func (o *LargeObjects) Open(ctx context.Context, oid pgtype.OID, mode LargeObjec
 }
 
 // Unlink removes a large object from the database.
-func (o *LargeObjects) Unlink(ctx context.Context, oid pgtype.OID) error {
+func (o *LargeObjects) Unlink(ctx context.Context, oid uint32) error {
 	_, err := o.tx.Prepare(ctx, "lo_unlink", "select lo_unlink($1)")
 	if err != nil {
 		return err
