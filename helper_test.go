@@ -17,14 +17,14 @@ func mustConnectString(t testing.TB, connString string) *pgx.Conn {
 	return conn
 }
 
-func mustParseConfig(t testing.TB, connString string) pgx.ConnConfig {
-	config, err := pgconn.ParseConfig(connString)
+func mustParseConfig(t testing.TB, connString string) *pgx.ConnConfig {
+	config, err := pgx.ParseConfig(connString)
 	require.Nil(t, err)
-	return pgx.ConnConfig{Config: *config}
+	return config
 }
 
-func mustConnect(t testing.TB, config pgx.ConnConfig) *pgx.Conn {
-	conn, err := pgx.ConnectConfig(context.Background(), &config)
+func mustConnect(t testing.TB, config *pgx.ConnConfig) *pgx.Conn {
+	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}

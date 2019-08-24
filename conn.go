@@ -20,7 +20,8 @@ const (
 	connStatusBusy
 )
 
-// ConnConfig contains all the options used to establish a connection.
+// ConnConfig contains all the options used to establish a connection. It must be created by ParseConfig and
+// then it can be modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type ConnConfig struct {
 	pgconn.Config
 	Logger   Logger
@@ -33,6 +34,8 @@ type ConnConfig struct {
 	// used by default. The same functionality can be controlled on a per query basis by setting
 	// QueryExOptions.SimpleProtocol.
 	PreferSimpleProtocol bool
+
+	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
@@ -113,35 +116,40 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
-// Connect establishes a connection with a PostgreSQL server with a configuration struct.
+// Connect establishes a connection with a PostgreSQL server with a configuration struct. connConfig must have been
+// created by ParseConfig.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
+// ParseConfig creates a ConnConfig from a connection string. See pgconn.ParseConfig for details.
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 	connConfig := &ConnConfig{
-		Config: *config,
+		Config:               *config,
+		createdByParseConfig: true,
+		LogLevel:             LogLevelInfo,
 	}
 
 	return connConfig, nil
 }
 
 func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
+	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
+	// zero values.
+	if !config.createdByParseConfig {
+		panic("config must be created by ParseConfig")
+	}
+
 	c = new(Conn)
 
 	c.config = config
 	c.ConnInfo = pgtype.NewConnInfo()
 
-	if c.config.LogLevel != 0 {
-		c.logLevel = c.config.LogLevel
-	} else {
-		// Preserve pre-LogLevel behavior by defaulting to LogLevelDebug
-		c.logLevel = LogLevelDebug
-	}
+	c.logLevel = c.config.LogLevel
 	c.logger = c.config.Logger
 
 	if c.shouldLog(LogLevelInfo) {

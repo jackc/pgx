@@ -75,8 +75,8 @@ type Pool struct {
 	closeChan         chan struct{}
 }
 
-// Config is the configuration struct for creating a pool. It is highly recommended to modify a Config returned by
-// ParseConfig rather than to construct a Config from scratch.
+// Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
+// modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type Config struct {
 	ConnConfig *pgx.ConnConfig
 
@@ -100,6 +100,8 @@ type Config struct {
 
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
+
+	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -114,8 +116,14 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 }
 
 // ConnectConfig creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
-// connection.
+// connection. config must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
+	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
+	// zero values.
+	if !config.createdByParseConfig {
+		panic("config must be created by ParseConfig")
+	}
+
 	p := &Pool{
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
@@ -192,7 +200,10 @@ func ParseConfig(connString string) (*Config, error) {
 		return nil, err
 	}
 
-	config := &Config{ConnConfig: connConfig}
+	config := &Config{
+		ConnConfig:           connConfig,
+		createdByParseConfig: true,
+	}
 
 	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_max_conns"]; ok {
 		delete(connConfig.Config.RuntimeParams, "pool_max_conns")
