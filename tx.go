@@ -95,7 +95,7 @@ type Tx interface {
 	SendBatch(ctx context.Context, b *Batch) BatchResults
 	LargeObjects() LargeObjects
 
-	Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error)
+	Prepare(ctx context.Context, name, sql string) (*pgconn.PreparedStatementDescription, error)
 
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (Rows, error)
@@ -174,7 +174,7 @@ func (tx *dbTx) Exec(ctx context.Context, sql string, arguments ...interface{}) 
 }
 
 // Prepare delegates to the underlying *Conn
-func (tx *dbTx) Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error) {
+func (tx *dbTx) Prepare(ctx context.Context, name, sql string) (*pgconn.PreparedStatementDescription, error) {
 	if tx.closed {
 		return nil, ErrTxClosed
 	}
@@ -264,7 +264,7 @@ func (sp *dbSavepoint) Exec(ctx context.Context, sql string, arguments ...interf
 }
 
 // Prepare delegates to the underlying Tx
-func (sp *dbSavepoint) Prepare(ctx context.Context, name, sql string) (*PreparedStatement, error) {
+func (sp *dbSavepoint) Prepare(ctx context.Context, name, sql string) (*pgconn.PreparedStatementDescription, error) {
 	if sp.closed {
 		return nil, ErrTxClosed
 	}

@@ -164,12 +164,12 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	name := fmt.Sprintf("pgx_%d", c.psCount)
 	c.psCount++
 
-	ps, err := c.conn.Prepare(ctx, name, query)
+	psd, err := c.conn.Prepare(ctx, name, query)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Stmt{ps: ps, conn: c}, nil
+	return &Stmt{psd: psd, conn: c}, nil
 }
 
 func (c *Conn) Close() error {
@@ -265,16 +265,16 @@ func (c *Conn) Ping(ctx context.Context) error {
 }
 
 type Stmt struct {
-	ps   *pgx.PreparedStatement
+	psd  *pgconn.PreparedStatementDescription
 	conn *Conn
 }
 
 func (s *Stmt) Close() error {
-	return s.conn.conn.Deallocate(context.Background(), s.ps.Name)
+	return s.conn.conn.Deallocate(context.Background(), s.psd.Name)
 }
 
 func (s *Stmt) NumInput() int {
-	return len(s.ps.ParameterOIDs)
+	return len(s.psd.ParamOIDs)
 }
 
 func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
@@ -282,7 +282,7 @@ func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
 }
 
 func (s *Stmt) ExecContext(ctx context.Context, argsV []driver.NamedValue) (driver.Result, error) {
-	return s.conn.ExecContext(ctx, s.ps.Name, argsV)
+	return s.conn.ExecContext(ctx, s.psd.Name, argsV)
 }
 
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
@@ -290,7 +290,7 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (driver.Rows, error) {
-	return s.conn.QueryContext(ctx, s.ps.Name, argsV)
+	return s.conn.QueryContext(ctx, s.psd.Name, argsV)
 }
 
 type Rows struct {

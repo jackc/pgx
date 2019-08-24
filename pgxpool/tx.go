@@ -46,7 +46,7 @@ func (tx *Tx) LargeObjects() pgx.LargeObjects {
 	return tx.t.LargeObjects()
 }
 
-func (tx *Tx) Prepare(ctx context.Context, name, sql string) (*pgx.PreparedStatement, error) {
+func (tx *Tx) Prepare(ctx context.Context, name, sql string) (*pgconn.PreparedStatementDescription, error) {
 	return tx.t.Prepare(ctx, name, sql)
 }
 
