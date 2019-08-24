@@ -29,15 +29,15 @@ type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
-	Port              uint16
-	Database          string
-	User              string
-	Password          string
-	TLSConfig         *tls.Config // nil disables TLS
-	DialFunc          DialFunc    // e.g. net.Dialer.DialContext
-	BuildFrontendFunc BuildFrontendFunc
-	RuntimeParams     map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	Port          uint16
+	Database      string
+	User          string
+	Password      string
+	TLSConfig     *tls.Config // nil disables TLS
+	DialFunc      DialFunc    // e.g. net.Dialer.DialContext
+	BuildFrontend BuildFrontendFunc
+	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
 	Fallbacks []*FallbackConfig
 
@@ -165,7 +165,7 @@ func ParseConfig(connString string) (*Config, error) {
 		User:                 settings["user"],
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
-		BuildFrontendFunc:    makeDefaultBuildFrontendFunc(),
+		BuildFrontend:        makeDefaultBuildFrontendFunc(),
 	}
 
 	if connectTimeout, present := settings["connect_timeout"]; present {
