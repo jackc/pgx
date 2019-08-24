@@ -99,25 +99,18 @@ func Connect(ctx context.Context, connString string) (*PgConn, error) {
 	return ConnectConfig(ctx, config)
 }
 
-// Connect establishes a connection to a PostgreSQL server using config. ctx can be used to cancel a connect attempt.
+// Connect establishes a connection to a PostgreSQL server using config. config must have been constructed with
+// ParseConfig. ctx can be used to cancel a connect attempt.
 //
 // If config.Fallbacks are present they will sequentially be tried in case of error establishing network connection. An
 // authentication error will terminate the chain of attempts (like libpq:
 // https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
 // if all attempts fail the last error is returned.
 func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err error) {
-	// For convenience set a few defaults if not already set. This makes it simpler to directly construct a config.
-	if config.Port == 0 {
-		config.Port = 5432
-	}
-	if config.DialFunc == nil {
-		config.DialFunc = makeDefaultDialer().DialContext
-	}
-	if config.BuildFrontendFunc == nil {
-		config.BuildFrontendFunc = makeDefaultBuildFrontendFunc()
-	}
-	if config.RuntimeParams == nil {
-		config.RuntimeParams = make(map[string]string)
+	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
+	// zero values.
+	if !config.createdByParseConfig {
+		panic("config must be created by ParseConfig")
 	}
 
 	// Simplify usage by treating primary config and fallbacks the same.

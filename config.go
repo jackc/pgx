@@ -26,7 +26,8 @@ import (
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
 type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 
-// Config is the settings used to establish a connection to a PostgreSQL server.
+// Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig and
+// then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	Host              string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
 	Port              uint16
@@ -55,6 +56,8 @@ type Config struct {
 
 	// OnNotification is a callback function called when a notification from the LISTEN/NOTIFY system is received.
 	OnNotification NotificationHandler
+
+	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
@@ -157,10 +160,12 @@ func ParseConfig(connString string) (*Config, error) {
 	}
 
 	config := &Config{
-		Database:      settings["database"],
-		User:          settings["user"],
-		Password:      settings["password"],
-		RuntimeParams: make(map[string]string),
+		createdByParseConfig: true,
+		Database:             settings["database"],
+		User:                 settings["user"],
+		Password:             settings["password"],
+		RuntimeParams:        make(map[string]string),
+		BuildFrontendFunc:    makeDefaultBuildFrontendFunc(),
 	}
 
 	if connectTimeout, present := settings["connect_timeout"]; present {
