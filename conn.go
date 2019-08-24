@@ -154,10 +154,6 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
-		return nil, err
-	}
-
-	if err != nil {
 		if c.shouldLog(LogLevelError) {
 			c.log(ctx, LogLevelError, "connect failed", map[string]interface{}{"err": err})
 		}
