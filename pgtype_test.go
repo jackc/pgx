@@ -42,7 +42,7 @@ func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 }
 
 func TestConnInfoScanUnknownOID(t *testing.T) {
-	unknownOID := pgtype.OID(999999)
+	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")
 	ci := pgtype.NewConnInfo()
 

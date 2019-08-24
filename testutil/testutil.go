@@ -225,12 +225,12 @@ func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFun
 	for i, tt := range tests {
 		for _, fc := range formats {
 			psName := fmt.Sprintf("test%d", i)
-			ps, err := conn.Prepare(context.Background(), psName, tt.SQL)
+			_, err := conn.Prepare(context.Background(), psName, tt.SQL)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			ps.FieldDescriptions[0].FormatCode = fc.formatCode
+			queryResultFormats := pgx.QueryResultFormats{fc.formatCode}
 			if ForceEncoder(tt.Value, fc.formatCode) == nil {
 				t.Logf("Skipping: %#v does not implement %v", tt.Value, fc.name)
 				continue
@@ -243,7 +243,7 @@ func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFun
 			}
 
 			result := reflect.New(reflect.TypeOf(derefV))
-			err = conn.QueryRow(context.Background(), psName).Scan(result.Interface())
+			err = conn.QueryRow(context.Background(), psName, queryResultFormats).Scan(result.Interface())
 			if err != nil {
 				t.Errorf("%v %d: %v", fc.name, i, err)
 			}

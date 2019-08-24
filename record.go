@@ -91,7 +91,7 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		if len(src[rp:]) < 8 {
 			return errors.Errorf("Record incomplete %v", src)
 		}
-		fieldOID := OID(binary.BigEndian.Uint32(src[rp:]))
+		fieldOID := binary.BigEndian.Uint32(src[rp:])
 		rp += 4
 
 		fieldLen := int(int32(binary.BigEndian.Uint32(src[rp:])))

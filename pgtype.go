@@ -163,18 +163,18 @@ var errBadStatus = errors.New("invalid status")
 type DataType struct {
 	Value Value
 	Name  string
-	OID   OID
+	OID   uint32
 }
 
 type ConnInfo struct {
-	oidToDataType         map[OID]*DataType
+	oidToDataType         map[uint32]*DataType
 	nameToDataType        map[string]*DataType
 	reflectTypeToDataType map[reflect.Type]*DataType
 }
 
 func NewConnInfo() *ConnInfo {
 	ci := &ConnInfo{
-		oidToDataType:         make(map[OID]*DataType, 128),
+		oidToDataType:         make(map[uint32]*DataType, 128),
 		nameToDataType:        make(map[string]*DataType, 128),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, 128),
 	}
@@ -246,7 +246,7 @@ func NewConnInfo() *ConnInfo {
 	return ci
 }
 
-func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
+func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]uint32) {
 	for name, oid := range nameOIDs {
 		var value Value
 		if t, ok := nameValues[name]; ok {
@@ -264,7 +264,7 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
 }
 
-func (ci *ConnInfo) DataTypeForOID(oid OID) (*DataType, bool) {
+func (ci *ConnInfo) DataTypeForOID(oid uint32) (*DataType, bool) {
 	dt, ok := ci.oidToDataType[oid]
 	return dt, ok
 }
@@ -282,7 +282,7 @@ func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
 // DeepCopy makes a deep copy of the ConnInfo.
 func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	ci2 := &ConnInfo{
-		oidToDataType:         make(map[OID]*DataType, len(ci.oidToDataType)),
+		oidToDataType:         make(map[uint32]*DataType, len(ci.oidToDataType)),
 		nameToDataType:        make(map[string]*DataType, len(ci.nameToDataType)),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, len(ci.reflectTypeToDataType)),
 	}
@@ -298,7 +298,7 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	return ci2
 }
 
-func (ci *ConnInfo) Scan(oid OID, formatCode int16, buf []byte, dest interface{}) error {
+func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
 	if dest, ok := dest.(BinaryDecoder); ok && formatCode == BinaryFormatCode {
 		return dest.DecodeBinary(ci, buf)
 	}
@@ -346,7 +346,7 @@ func (ci *ConnInfo) Scan(oid OID, formatCode int16, buf []byte, dest interface{}
 	return scanUnknownType(oid, formatCode, buf, dest)
 }
 
-func scanUnknownType(oid OID, formatCode int16, buf []byte, dest interface{}) error {
+func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
 	switch dest := dest.(type) {
 	case *string:
 		if formatCode == BinaryFormatCode {

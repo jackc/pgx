@@ -85,14 +85,13 @@ func TestRecordTranscode(t *testing.T) {
 
 	for i, tt := range tests {
 		psName := fmt.Sprintf("test%d", i)
-		ps, err := conn.Prepare(context.Background(), psName, tt.sql)
+		_, err := conn.Prepare(context.Background(), psName, tt.sql)
 		if err != nil {
 			t.Fatal(err)
 		}
-		ps.FieldDescriptions[0].FormatCode = pgx.BinaryFormatCode
 
 		var result pgtype.Record
-		if err := conn.QueryRow(context.Background(), psName).Scan(&result); err != nil {
+		if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
 			t.Errorf("%d: %v", i, err)
 			continue
 		}
