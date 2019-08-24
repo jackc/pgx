@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	errors "golang.org/x/xerrors"
 )
@@ -408,6 +409,140 @@ func TestPrepareIdempotency(t *testing.T) {
 		t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
 		return
 	}
+}
+
+func TestListenNotify(t *testing.T) {
+	t.Parallel()
+
+	listener := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, listener)
+
+	mustExec(t, listener, "listen chat")
+
+	notifier := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, notifier)
+
+	mustExec(t, notifier, "notify chat")
+
+	// when notification is waiting on the socket to be read
+	notification, err := listener.WaitForNotification(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "chat", notification.Channel)
+
+	// when notification has already been read during previous query
+	mustExec(t, notifier, "notify chat")
+	rows, _ := listener.Query(context.Background(), "select 1")
+	rows.Close()
+	require.NoError(t, rows.Err())
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	cancelFn()
+	notification, err = listener.WaitForNotification(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "chat", notification.Channel)
+
+	// when timeout occurs
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	notification, err = listener.WaitForNotification(ctx)
+	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+
+	// listener can listen again after a timeout
+	mustExec(t, notifier, "notify chat")
+	notification, err = listener.WaitForNotification(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "chat", notification.Channel)
+}
+
+func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
+	t.Parallel()
+
+	listenerDone := make(chan bool)
+	go func() {
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+		defer closeConn(t, conn)
+		defer func() {
+			listenerDone <- true
+		}()
+
+		mustExec(t, conn, "listen busysafe")
+
+		for i := 0; i < 5000; i++ {
+			var sum int32
+			var rowCount int32
+
+			rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 100)
+			if err != nil {
+				t.Fatalf("conn.Query failed: %v", err)
+			}
+
+			for rows.Next() {
+				var n int32
+				rows.Scan(&n)
+				sum += n
+				rowCount++
+			}
+
+			if rows.Err() != nil {
+				t.Fatalf("conn.Query failed: %v", err)
+			}
+
+			if sum != 5050 {
+				t.Fatalf("Wrong rows sum: %v", sum)
+			}
+
+			if rowCount != 100 {
+				t.Fatalf("Wrong number of rows: %v", rowCount)
+			}
+
+			time.Sleep(1 * time.Microsecond)
+		}
+	}()
+
+	go func() {
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+		defer closeConn(t, conn)
+
+		for i := 0; i < 100000; i++ {
+			mustExec(t, conn, "notify busysafe, 'hello'")
+			time.Sleep(1 * time.Microsecond)
+		}
+	}()
+
+	<-listenerDone
+}
+
+func TestListenNotifySelfNotification(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, "listen self")
+
+	// Notify self and WaitForNotification immediately
+	mustExec(t, conn, "notify self")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	notification, err := conn.WaitForNotification(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "self", notification.Channel)
+
+	// Notify self and do something else before WaitForNotification
+	mustExec(t, conn, "notify self")
+
+	rows, _ := conn.Query(context.Background(), "select 1")
+	rows.Close()
+	if rows.Err() != nil {
+		t.Fatalf("Unexpected error on Query: %v", rows.Err())
+	}
+
+	ctx, cncl := context.WithTimeout(context.Background(), time.Second)
+	defer cncl()
+	notification, err = conn.WaitForNotification(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "self", notification.Channel)
 }
 
 func TestFatalRxError(t *testing.T) {

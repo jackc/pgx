@@ -55,17 +55,19 @@ func listen() {
 	}
 	defer conn.Release()
 
-	// TODO - determine how listen should be handled in pgx vs. pgconn
+	_, err = conn.Exec(context.Background(), "listen chat")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error listening to chat channel:", err)
+		os.Exit(1)
+	}
 
-	conn.Exec(context.Background(), "listen chat")
+	for {
+		notification, err := conn.Conn().WaitForNotification(context.Background())
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
+			os.Exit(1)
+		}
 
-	// for {
-	// 	notification, err := conn.WaitForNotification(context.Background())
-	// 	if err != nil {
-	// 		fmt.Fprintln(os.Stderr, "Error waiting for notification:", err)
-	// 		os.Exit(1)
-	// 	}
-
-	// 	fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
-	// }
+		fmt.Println("PID:", notification.PID, "Channel:", notification.Channel, "Payload:", notification.Payload)
+	}
 }

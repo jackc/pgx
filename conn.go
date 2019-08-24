@@ -49,6 +49,8 @@ type Conn struct {
 
 	causeOfDeath error
 
+	notifications []*pgconn.Notification
+
 	doneChan   chan struct{}
 	closedChan chan error
 
@@ -144,13 +146,21 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		panic("config must be created by ParseConfig")
 	}
 
-	c = new(Conn)
+	c = &Conn{
+		config:   config,
+		ConnInfo: pgtype.NewConnInfo(),
+		logLevel: config.LogLevel,
+		logger:   config.Logger,
+	}
 
-	c.config = config
-	c.ConnInfo = pgtype.NewConnInfo()
-
-	c.logLevel = c.config.LogLevel
-	c.logger = c.config.Logger
+	// Only install pgx notification system if no other callback handler is present.
+	if config.Config.OnNotification == nil {
+		config.Config.OnNotification = c.bufferNotifications
+	} else {
+		if c.shouldLog(LogLevelDebug) {
+			c.log(ctx, LogLevelDebug, "pgx notification handler disabled by application supplied OnNotification", map[string]interface{}{"host": config.Config.Host})
+		}
+	}
 
 	if c.shouldLog(LogLevelInfo) {
 		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
@@ -245,6 +255,30 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	delete(c.preparedStatements, name)
 	_, err := c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(name)).ReadAll()
 	return err
+}
+
+func (c *Conn) bufferNotifications(_ *pgconn.PgConn, n *pgconn.Notification) {
+	c.notifications = append(c.notifications, n)
+}
+
+// WaitForNotification waits for a PostgreSQL notification. It wraps the underlying pgconn notification system in a
+// slightly more convenient form.
+func (c *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, error) {
+	var n *pgconn.Notification
+
+	// Return already received notification immediately
+	if len(c.notifications) > 0 {
+		n = c.notifications[0]
+		c.notifications = c.notifications[1:]
+		return n, nil
+	}
+
+	err := c.pgConn.WaitForNotification(ctx)
+	if len(c.notifications) > 0 {
+		n = c.notifications[0]
+		c.notifications = c.notifications[1:]
+	}
+	return n, err
 }
 
 func (c *Conn) IsAlive() bool {
