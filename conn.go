@@ -69,11 +69,6 @@ type PreparedStatement struct {
 	ParameterOIDs     []pgtype.OID
 }
 
-// PrepareExOptions is an option struct that can be passed to PrepareEx
-type PrepareExOptions struct {
-	ParameterOIDs []pgtype.OID
-}
-
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
 // multiple parts such as ["schema", "table"] or ["table", "column"].
 type Identifier []string
