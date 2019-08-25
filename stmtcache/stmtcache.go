@@ -15,7 +15,7 @@ const (
 // Cache prepares and caches prepared statement descriptions.
 type Cache interface {
 	// Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
-	Get(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error)
+	Get(ctx context.Context, sql string) (*pgconn.StatementDescription, error)
 
 	// Clear removes all entries in the cache. Any prepared statements will be deallocated from the PostgreSQL session.
 	Clear(ctx context.Context) error

@@ -517,15 +517,16 @@ func (ct CommandTag) String() string {
 	return string(ct)
 }
 
-type PreparedStatementDescription struct {
+type StatementDescription struct {
 	Name      string
 	SQL       string
 	ParamOIDs []uint32
 	Fields    []pgproto3.FieldDescription
 }
 
-// Prepare creates a prepared statement.
-func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) (*PreparedStatementDescription, error) {
+// Prepare creates a prepared statement. If the name is empty, the anonymous prepared statement will be used. This
+// allows Prepare to also to describe statements without creating a server-side prepared statement.
+func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) (*StatementDescription, error) {
 	if err := pgConn.lock(); err != nil {
 		return nil, linkErrors(err, ErrNoBytesSent)
 	}
@@ -553,7 +554,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 		return nil, linkErrors(ctx.Err(), err)
 	}
 
-	psd := &PreparedStatementDescription{Name: name, SQL: sql}
+	psd := &StatementDescription{Name: name, SQL: sql}
 
 	var parseErr error
 
