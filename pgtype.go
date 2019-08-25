@@ -170,6 +170,8 @@ type ConnInfo struct {
 	oidToDataType         map[uint32]*DataType
 	nameToDataType        map[string]*DataType
 	reflectTypeToDataType map[reflect.Type]*DataType
+	oidToParamFormatCode  map[uint32]int16
+	oidToResultFormatCode map[uint32]int16
 }
 
 func NewConnInfo() *ConnInfo {
@@ -177,6 +179,8 @@ func NewConnInfo() *ConnInfo {
 		oidToDataType:         make(map[uint32]*DataType, 128),
 		nameToDataType:        make(map[string]*DataType, 128),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, 128),
+		oidToParamFormatCode:  make(map[uint32]int16, 128),
+		oidToResultFormatCode: make(map[uint32]int16, 128),
 	}
 
 	ci.RegisterDataType(DataType{Value: &ACLItemArray{}, Name: "_aclitem", OID: ACLItemArrayOID})
@@ -262,6 +266,22 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
 	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
+
+	{
+		var formatCode int16
+		if _, ok := t.Value.(BinaryEncoder); ok {
+			formatCode = BinaryFormatCode
+		}
+		ci.oidToParamFormatCode[t.OID] = formatCode
+	}
+
+	{
+		var formatCode int16
+		if _, ok := t.Value.(BinaryDecoder); ok {
+			formatCode = BinaryFormatCode
+		}
+		ci.oidToResultFormatCode[t.OID] = formatCode
+	}
 }
 
 func (ci *ConnInfo) DataTypeForOID(oid uint32) (*DataType, bool) {
@@ -277,6 +297,22 @@ func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
 func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
 	dt, ok := ci.reflectTypeToDataType[reflect.ValueOf(v).Type()]
 	return dt, ok
+}
+
+func (ci *ConnInfo) ParamFormatCodeForOID(oid uint32) int16 {
+	fc, ok := ci.oidToParamFormatCode[oid]
+	if ok {
+		return fc
+	}
+	return TextFormatCode
+}
+
+func (ci *ConnInfo) ResultFormatCodeForOID(oid uint32) int16 {
+	fc, ok := ci.oidToResultFormatCode[oid]
+	if ok {
+		return fc
+	}
+	return TextFormatCode
 }
 
 // DeepCopy makes a deep copy of the ConnInfo.
