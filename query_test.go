@@ -1566,28 +1566,28 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestQueryPreparedStatementCacheModes(t *testing.T) {
+func TestQueryStatementCacheModes(t *testing.T) {
 	t.Parallel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 
 	tests := []struct {
-		name                        string
-		buildPreparedStatementCache pgx.BuildPreparedStatementCacheFunc
+		name                string
+		buildStatementCache pgx.BuildStatementCacheFunc
 	}{
 		{
-			name:                        "disabled",
-			buildPreparedStatementCache: nil,
+			name:                "disabled",
+			buildStatementCache: nil,
 		},
 		{
 			name: "prepare",
-			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
 				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
 			},
 		},
 		{
 			name: "describe",
-			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
 				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
 			},
 		},
@@ -1595,7 +1595,7 @@ func TestQueryPreparedStatementCacheModes(t *testing.T) {
 
 	for _, tt := range tests {
 		func() {
-			config.BuildPreparedStatementCache = tt.buildPreparedStatementCache
+			config.BuildStatementCache = tt.buildStatementCache
 			conn := mustConnect(t, config)
 			defer closeConn(t, conn)
 
