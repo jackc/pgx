@@ -146,10 +146,9 @@ Raw Bytes Mapping
 
 Transactions
 
-Transactions are started by calling Begin. The second argument can create a transaction with a specified isolation
-level.
+Transactions are started by calling Begin.
 
-    tx, err := conn.Begin(context.Background(), nil)
+    tx, err := conn.Begin(context.Background())
     if err != nil {
         return err
     }
@@ -166,6 +165,11 @@ level.
     if err != nil {
         return err
     }
+
+The Tx returned from Begin also implements the Begin method. This can be used to implement pseudo nested transactions.
+These are internally implemented with savepoints.
+
+Use BeginTx to control the transaction mode.
 
 Prepared Statements
 

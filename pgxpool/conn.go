@@ -70,8 +70,8 @@ func (c *Conn) Begin(ctx context.Context) (pgx.Tx, error) {
 	return c.Conn().Begin(ctx)
 }
 
-func (c *Conn) BeginEx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
-	return c.Conn().BeginEx(ctx, txOptions)
+func (c *Conn) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
+	return c.Conn().BeginTx(ctx, txOptions)
 }
 
 func (c *Conn) Conn() *pgx.Conn {
