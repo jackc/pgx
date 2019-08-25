@@ -40,10 +40,10 @@ func NewLRU(conn *pgconn.PgConn, mode int, cap int) *LRU {
 }
 
 // Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
-func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
+func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.StatementDescription, error) {
 	if el, ok := c.m[sql]; ok {
 		c.l.MoveToFront(el)
-		return el.Value.(*pgconn.PreparedStatementDescription), nil
+		return el.Value.(*pgconn.StatementDescription), nil
 	}
 
 	if c.l.Len() == c.cap {
@@ -91,7 +91,7 @@ func (c *LRU) Mode() int {
 	return c.mode
 }
 
-func (c *LRU) prepare(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
+func (c *LRU) prepare(ctx context.Context, sql string) (*pgconn.StatementDescription, error) {
 	var name string
 	if c.mode == ModePrepare {
 		name = fmt.Sprintf("%s_%d", c.psNamePrefix, c.prepareCount)
@@ -105,7 +105,7 @@ func (c *LRU) removeOldest(ctx context.Context) error {
 	oldest := c.l.Back()
 	c.l.Remove(oldest)
 	if c.mode == ModePrepare {
-		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", oldest.Value.(*pgconn.PreparedStatementDescription).Name)).Close()
+		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", oldest.Value.(*pgconn.StatementDescription).Name)).Close()
 	}
 	return nil
 }
