@@ -463,10 +463,9 @@ func (pgConn *PgConn) hardClose() error {
 	return pgConn.conn.Close()
 }
 
-// TODO - rethink how to report status. At the moment this is just a temporary measure so pgx.Conn can detect death of
-// underlying connection.
-func (pgConn *PgConn) IsAlive() bool {
-	return pgConn.status >= connStatusIdle
+// IsClosed reports if the connection has been closed.
+func (pgConn *PgConn) IsClosed() bool {
+	return pgConn.status < connStatusIdle
 }
 
 // lock locks the connection. It panics if the connection is already locked or is closed.
