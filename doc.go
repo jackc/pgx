@@ -206,5 +206,10 @@ Logging
 pgx defines a simple logger interface. Connections optionally accept a logger that satisfies this interface. Set
 LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus, and
 the testing log are provided in the log directory.
+
+PgBouncer
+
+pgx is compatible with PgBouncer in two modes. One is when the connection has a statement cache in "describe" mode. The
+other is when the connection is using the simple protocol. This can be set with the PreferSimpleProtocol config option.
 */
 package pgx

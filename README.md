@@ -146,6 +146,8 @@ Now you can run the tests:
 PGX_TEST_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
 ```
 
+In addition there are tests specific for PgBouncer that will be run if the `PGX_TEST_PGBOUNCER_CONN_STRING` is set.
+
 ## Version Policy
 
 pgx follows semantic versioning for the documented public API on stable releases. This is the prerelease of `v4`. Branch `v3` is the latest stable release. `master` can contain new features or behavior that will change or be removed before being merged to the stable `v3` branch (in practice, this occurs very rarely).
