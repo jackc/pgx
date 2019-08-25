@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLRUCacheModePrepare(t *testing.T) {
+func TestLRUModePrepare(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -22,7 +22,7 @@ func TestLRUCacheModePrepare(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := stmtcache.NewLRUCache(conn, stmtcache.ModePrepare, 2)
+	cache := stmtcache.NewLRU(conn, stmtcache.ModePrepare, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
 	require.EqualValues(t, stmtcache.ModePrepare, cache.Mode())
@@ -57,7 +57,7 @@ func TestLRUCacheModePrepare(t *testing.T) {
 	require.Empty(t, fetchServerStatements(t, ctx, conn))
 }
 
-func TestLRUCacheModeDescribe(t *testing.T) {
+func TestLRUModeDescribe(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
@@ -67,7 +67,7 @@ func TestLRUCacheModeDescribe(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := stmtcache.NewLRUCache(conn, stmtcache.ModeDescribe, 2)
+	cache := stmtcache.NewLRU(conn, stmtcache.ModeDescribe, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
 	require.EqualValues(t, stmtcache.ModeDescribe, cache.Mode())

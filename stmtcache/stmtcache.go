@@ -36,7 +36,7 @@ func New(conn *pgconn.PgConn, mode int, cap int) Cache {
 	mustBeValidMode(mode)
 	mustBeValidCap(cap)
 
-	return NewLRUCache(conn, mode, cap)
+	return NewLRU(conn, mode, cap)
 }
 
 func mustBeValidMode(mode int) {
