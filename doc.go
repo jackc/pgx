@@ -1,8 +1,7 @@
 // Package pgx is a PostgreSQL database driver.
 /*
-pgx provides lower level access to PostgreSQL than the standard database/sql.
-It remains as similar to the database/sql interface as possible while
-providing better speed and access to PostgreSQL specific features. Import
+pgx provides lower level access to PostgreSQL than the standard database/sql. It remains as similar to the database/sql
+interface as possible while providing better speed and access to PostgreSQL specific features. Import
 github.com/jackc/pgx/v4/stdlib to use pgx as a database/sql compatible driver.
 
 Query Interface
@@ -66,8 +65,7 @@ See sub-package pgxpool for connection pool.
 
 Base Type Mapping
 
-pgx maps between all common base types directly between Go and PostgreSQL. In
-particular:
+pgx maps between all common base types directly between Go and PostgreSQL. In particular:
 
     Go           PostgreSQL
     -----------------------
@@ -100,9 +98,8 @@ particular:
 
 Null Mapping
 
-pgx can map nulls in two ways. The first is package pgtype provides types that
-have a data field and a status field. They work in a similar fashion to
-database/sql. The second is to use a pointer to a pointer.
+pgx can map nulls in two ways. The first is package pgtype provides types that have a data field and a status field.
+They work in a similar fashion to database/sql. The second is to use a pointer to a pointer.
 
     var foo pgtype.Varchar
     var bar *string
@@ -113,53 +110,44 @@ database/sql. The second is to use a pointer to a pointer.
 
 Array Mapping
 
-pgx maps between int16, int32, int64, float32, float64, and string Go slices
-and the equivalent PostgreSQL array type. Go slices of native types do not
-support nulls, so if a PostgreSQL array that contains a null is read into a
-native Go slice an error will occur. The pgtype package includes many more
-array types for PostgreSQL types that do not directly map to native Go types.
+pgx maps between int16, int32, int64, float32, float64, and string Go slices and the equivalent PostgreSQL array type.
+Go slices of native types do not support nulls, so if a PostgreSQL array that contains a null is read into a native Go
+slice an error will occur. The pgtype package includes many more array types for PostgreSQL types that do not directly
+map to native Go types.
 
 JSON and JSONB Mapping
 
-pgx includes built-in support to marshal and unmarshal between Go types and
-the PostgreSQL JSON and JSONB.
+pgx includes built-in support to marshal and unmarshal between Go types and the PostgreSQL JSON and JSONB.
 
 Inet and CIDR Mapping
 
-pgx encodes from net.IPNet to and from inet and cidr PostgreSQL types. In
-addition, as a convenience pgx will encode from a net.IP; it will assume a /32
-netmask for IPv4 and a /128 for IPv6.
+pgx encodes from net.IPNet to and from inet and cidr PostgreSQL types. In addition, as a convenience pgx will encode
+from a net.IP; it will assume a /32 netmask for IPv4 and a /128 for IPv6.
 
 Custom Type Support
 
-pgx includes support for the common data types like integers, floats, strings,
-dates, and times that have direct mappings between Go and SQL. In addition,
-pgx uses the github.com/jackc/pgx/pgtype library to support more types. See
-documention for that library for instructions on how to implement custom
-types.
+pgx includes support for the common data types like integers, floats, strings, dates, and times that have direct
+mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgx/pgtype library to support more types. See
+documention for that library for instructions on how to implement custom types.
 
-See example_custom_type_test.go for an example of a custom type for the
-PostgreSQL point type.
+See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
 
-pgx also includes support for custom types implementing the database/sql.Scanner
-and database/sql/driver.Valuer interfaces.
+pgx also includes support for custom types implementing the database/sql.Scanner and database/sql/driver.Valuer
+interfaces.
 
-If pgx does cannot natively encode a type and that type is a renamed type (e.g.
-type MyTime time.Time) pgx will attempt to encode the underlying type. While
-this is usually desired behavior it can produce suprising behavior if one the
-underlying type and the renamed type each implement database/sql interfaces and
-the other implements pgx interfaces. It is recommended that this situation be
-avoided by implementing pgx interfaces on the renamed type.
+If pgx does cannot natively encode a type and that type is a renamed type (e.g. type MyTime time.Time) pgx will attempt
+to encode the underlying type. While this is usually desired behavior it can produce suprising behavior if one the
+underlying type and the renamed type each implement database/sql interfaces and the other implements pgx interfaces. It
+is recommended that this situation be avoided by implementing pgx interfaces on the renamed type.
 
 Raw Bytes Mapping
 
-[]byte passed as arguments to Query, QueryRow, and Exec are passed unmodified
-to PostgreSQL.
+[]byte passed as arguments to Query, QueryRow, and Exec are passed unmodified to PostgreSQL.
 
 Transactions
 
-Transactions are started by calling Begin. The second argument
-can create a transaction with a specified isolation level.
+Transactions are started by calling Begin. The second argument can create a transaction with a specified isolation
+level.
 
     tx, err := conn.Begin(context.Background(), nil)
     if err != nil {
@@ -187,10 +175,9 @@ automatically prepared on first execution and the prepared statement is reused o
 
 Copy Protocol
 
-Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL
-copy protocol. CopyFrom accepts a CopyFromSource interface. If the data is already
-in a [][]interface{} use CopyFromRows to wrap it in a CopyFromSource interface. Or
-implement CopyFromSource to avoid buffering the entire data set in memory.
+Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL copy protocol. CopyFrom accepts a
+CopyFromSource interface. If the data is already in a [][]interface{} use CopyFromRows to wrap it in a CopyFromSource
+interface. Or implement CopyFromSource to avoid buffering the entire data set in memory.
 
     rows := [][]interface{}{
         {"John", "Smith", int32(36)},
@@ -212,9 +199,8 @@ Use the underlying pgconn.PgConn for listen and notify.
 
 Logging
 
-pgx defines a simple logger interface. Connections optionally accept a logger
-that satisfies this interface. Set LogLevel to control logging verbosity.
-Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus, and
+pgx defines a simple logger interface. Connections optionally accept a logger that satisfies this interface. Set
+LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus, and
 the testing log are provided in the log directory.
 */
 package pgx
