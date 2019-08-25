@@ -19,7 +19,7 @@ func TestPgbouncerStatementCacheDescribe(t *testing.T) {
 	}
 
 	config := mustParseConfig(t, connString)
-	config.BuildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
 		return stmtcache.New(conn, stmtcache.ModeDescribe, 1024)
 	}
 
@@ -33,7 +33,7 @@ func TestPgbouncerSimpleProtocol(t *testing.T) {
 	}
 
 	config := mustParseConfig(t, connString)
-	config.BuildPreparedStatementCache = nil
+	config.BuildStatementCache = nil
 	config.PreferSimpleProtocol = true
 
 	testPgbouncer(t, config, 10, 100)

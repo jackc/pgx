@@ -17,7 +17,7 @@ import (
 
 func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildPreparedStatementCache = nil
+	config.BuildStatementCache = nil
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -39,7 +39,7 @@ func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
 
 func BenchmarkMinimalUnpreparedSelectWithStatementCacheModeDescribe(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
 		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
 	}
 
@@ -63,7 +63,7 @@ func BenchmarkMinimalUnpreparedSelectWithStatementCacheModeDescribe(b *testing.B
 
 func BenchmarkMinimalUnpreparedSelectWithStatementCacheModePrepare(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
 		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
 	}
 

@@ -29,9 +29,9 @@ type ConnConfig struct {
 	Logger   Logger
 	LogLevel LogLevel
 
-	// BuildPreparedStatementCache creates the stmtcache.Cache implementation for connections created with this config. Set
+	// BuildStatementCache creates the stmtcache.Cache implementation for connections created with this config. Set
 	// to nil to disable automatic prepared statements.
-	BuildPreparedStatementCache BuildPreparedStatementCacheFunc
+	BuildStatementCache BuildStatementCacheFunc
 
 	// PreferSimpleProtocol disables implicit prepared statement usage. By default pgx automatically uses the extended
 	// protocol. This can improve performance due to being able to use the binary format. It also does not rely on client
@@ -44,8 +44,8 @@ type ConnConfig struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
-// BuildPreparedStatementCacheFunc is a function that can be used to create a stmtcache.Cache implementation for connection.
-type BuildPreparedStatementCacheFunc func(conn *pgconn.PgConn) stmtcache.Cache
+// BuildStatementCacheFunc is a function that can be used to create a stmtcache.Cache implementation for connection.
+type BuildStatementCacheFunc func(conn *pgconn.PgConn) stmtcache.Cache
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
 // to multiple database connections from multiple goroutines.
@@ -138,7 +138,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		return nil, err
 	}
 
-	var buildPreparedStatementCache BuildPreparedStatementCacheFunc
+	var buildStatementCache BuildStatementCacheFunc
 	statementCacheCapacity := 512
 	statementCacheMode := stmtcache.ModePrepare
 	if s, ok := config.RuntimeParams["statement_cache_capacity"]; ok {
@@ -163,16 +163,16 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	}
 
 	if statementCacheCapacity > 0 {
-		buildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		buildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
 			return stmtcache.New(conn, statementCacheMode, statementCacheCapacity)
 		}
 	}
 
 	connConfig := &ConnConfig{
-		Config:                      *config,
-		createdByParseConfig:        true,
-		LogLevel:                    LogLevelInfo,
-		BuildPreparedStatementCache: buildPreparedStatementCache,
+		Config:               *config,
+		createdByParseConfig: true,
+		LogLevel:             LogLevelInfo,
+		BuildStatementCache:  buildStatementCache,
 	}
 
 	return connConfig, nil
@@ -217,8 +217,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
 
-	if c.config.BuildPreparedStatementCache != nil {
-		c.stmtcache = c.config.BuildPreparedStatementCache(c.pgConn)
+	if c.config.BuildStatementCache != nil {
+		c.stmtcache = c.config.BuildStatementCache(c.pgConn)
 	}
 
 	// Replication connections can't execute the queries to

@@ -111,28 +111,28 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 
 	config, err := pgx.ParseConfig("statement_cache_capacity=0")
 	require.NoError(t, err)
-	require.Nil(t, config.BuildPreparedStatementCache)
+	require.Nil(t, config.BuildStatementCache)
 
 	config, err = pgx.ParseConfig("statement_cache_capacity=42")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildPreparedStatementCache)
-	c := config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, config.BuildStatementCache)
+	c := config.BuildStatementCache(nil)
 	require.NotNil(t, c)
 	require.Equal(t, 42, c.Cap())
 	require.Equal(t, stmtcache.ModePrepare, c.Mode())
 
 	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=prepare")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildPreparedStatementCache)
-	c = config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, config.BuildStatementCache)
+	c = config.BuildStatementCache(nil)
 	require.NotNil(t, c)
 	require.Equal(t, 42, c.Cap())
 	require.Equal(t, stmtcache.ModePrepare, c.Mode())
 
 	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=describe")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildPreparedStatementCache)
-	c = config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, config.BuildStatementCache)
+	c = config.BuildStatementCache(nil)
 	require.NotNil(t, c)
 	require.Equal(t, 42, c.Cap())
 	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
@@ -318,28 +318,28 @@ func TestExecExtendedProtocol(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestExecPreparedStatementCacheModes(t *testing.T) {
+func TestExecStatementCacheModes(t *testing.T) {
 	t.Parallel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 
 	tests := []struct {
-		name                        string
-		buildPreparedStatementCache pgx.BuildPreparedStatementCacheFunc
+		name                string
+		buildStatementCache pgx.BuildStatementCacheFunc
 	}{
 		{
-			name:                        "disabled",
-			buildPreparedStatementCache: nil,
+			name:                "disabled",
+			buildStatementCache: nil,
 		},
 		{
 			name: "prepare",
-			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
 				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
 			},
 		},
 		{
 			name: "describe",
-			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
 				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
 			},
 		},
@@ -347,7 +347,7 @@ func TestExecPreparedStatementCacheModes(t *testing.T) {
 
 	for _, tt := range tests {
 		func() {
-			config.BuildPreparedStatementCache = tt.buildPreparedStatementCache
+			config.BuildStatementCache = tt.buildStatementCache
 			conn := mustConnect(t, config)
 			defer closeConn(t, conn)
 
