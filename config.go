@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
@@ -140,6 +141,11 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
 // does not.
+//
+// In addition, ParseConfig accepts the following options:
+//
+// 	min_read_buffer_size
+// 		The minimum size of the internal read buffer. Default 8192.
 func ParseConfig(connString string) (*Config, error) {
 	settings := defaultSettings()
 	addEnvSettings(settings)
@@ -159,13 +165,18 @@ func ParseConfig(connString string) (*Config, error) {
 		}
 	}
 
+	minReadBufferSize, err := strconv.ParseInt(settings["min_read_buffer_size"], 10, 32)
+	if err != nil {
+		return nil, errors.Errorf("cannot parse min_read_buffer_size: %w", err)
+	}
+
 	config := &Config{
 		createdByParseConfig: true,
 		Database:             settings["database"],
 		User:                 settings["user"],
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
-		BuildFrontend:        makeDefaultBuildFrontendFunc(),
+		BuildFrontend:        makeDefaultBuildFrontendFunc(int(minReadBufferSize)),
 	}
 
 	if connectTimeout, present := settings["connect_timeout"]; present {
@@ -192,6 +203,7 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslcert":              struct{}{},
 		"sslrootcert":          struct{}{},
 		"target_session_attrs": struct{}{},
+		"min_read_buffer_size": struct{}{},
 	}
 
 	for k, v := range settings {
@@ -283,6 +295,8 @@ func defaultSettings() map[string]string {
 	}
 
 	settings["target_session_attrs"] = "any"
+
+	settings["min_read_buffer_size"] = "8192"
 
 	return settings
 }
@@ -481,9 +495,13 @@ func makeDefaultDialer() *net.Dialer {
 	return &net.Dialer{KeepAlive: 5 * time.Minute}
 }
 
-func makeDefaultBuildFrontendFunc() BuildFrontendFunc {
+func makeDefaultBuildFrontendFunc(minBufferLen int) BuildFrontendFunc {
 	return func(r io.Reader, w io.Writer) Frontend {
-		frontend, _ := pgproto3.NewFrontend(pgproto3.NewChunkReader(r), w)
+		cr, err := chunkreader.NewConfig(r, chunkreader.Config{MinBufLen: minBufferLen})
+		if err != nil {
+			panic(fmt.Sprintf("BUG: chunkreader.NewConfig failed: %v", err))
+		}
+		frontend, _ := pgproto3.NewFrontend(cr, w)
 
 		return frontend
 	}
