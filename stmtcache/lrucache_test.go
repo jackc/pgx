@@ -1,4 +1,4 @@
-package pscache_test
+package stmtcache_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgconn/pscache"
+	"github.com/jackc/pgconn/stmtcache"
 
 	"github.com/stretchr/testify/require"
 )
@@ -22,10 +22,10 @@ func TestLRUCacheModePrepare(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := pscache.NewLRUCache(conn, pscache.ModePrepare, 2)
+	cache := stmtcache.NewLRUCache(conn, stmtcache.ModePrepare, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
-	require.EqualValues(t, pscache.ModePrepare, cache.Mode())
+	require.EqualValues(t, stmtcache.ModePrepare, cache.Mode())
 
 	psd, err := cache.Get(ctx, "select 1")
 	require.NoError(t, err)
@@ -67,10 +67,10 @@ func TestLRUCacheModeDescribe(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
-	cache := pscache.NewLRUCache(conn, pscache.ModeDescribe, 2)
+	cache := stmtcache.NewLRUCache(conn, stmtcache.ModeDescribe, 2)
 	require.EqualValues(t, 0, cache.Len())
 	require.EqualValues(t, 2, cache.Cap())
-	require.EqualValues(t, pscache.ModeDescribe, cache.Mode())
+	require.EqualValues(t, stmtcache.ModeDescribe, cache.Mode())
 
 	psd, err := cache.Get(ctx, "select 1")
 	require.NoError(t, err)
