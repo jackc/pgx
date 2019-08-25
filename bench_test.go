@@ -255,7 +255,7 @@ func BenchmarkPointerPointerWithPresentValues(b *testing.B) {
 		if record.sex == nil || *record.sex != "male" {
 			b.Fatalf("bad value for sex: %v", record.sex)
 		}
-		if record.birthDate == nil || *record.birthDate != time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local) {
+		if record.birthDate == nil || *record.birthDate != time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) {
 			b.Fatalf("bad value for birthDate: %v", record.birthDate)
 		}
 		if record.lastLoginTime == nil || *record.lastLoginTime != time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local) {
@@ -372,7 +372,7 @@ func benchmarkSelectWithLog(b *testing.B, conn *pgx.Conn) {
 		if record.sex != "male" {
 			b.Fatalf("bad value for sex: %v", record.sex)
 		}
-		if record.birthDate != time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local) {
+		if record.birthDate != time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC) {
 			b.Fatalf("bad value for birthDate: %v", record.birthDate)
 		}
 		if record.lastLoginTime != time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local) {
