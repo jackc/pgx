@@ -57,8 +57,6 @@ type Conn struct {
 	logger             Logger
 	logLevel           LogLevel
 
-	causeOfDeath error
-
 	notifications []*pgconn.Notification
 
 	doneChan   chan struct{}
@@ -233,12 +231,11 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 // Close closes a connection. It is safe to call Close on a already closed
 // connection.
 func (c *Conn) Close(ctx context.Context) error {
-	if !c.IsAlive() {
+	if c.IsClosed() {
 		return nil
 	}
 
 	err := c.pgConn.Close(ctx)
-	c.causeOfDeath = errors.New("Closed")
 	if c.shouldLog(LogLevelInfo) {
 		c.log(ctx, LogLevelInfo, "closed connection", nil)
 	}
@@ -310,12 +307,8 @@ func (c *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, e
 	return n, err
 }
 
-func (c *Conn) IsAlive() bool {
-	return c.pgConn.IsAlive()
-}
-
-func (c *Conn) CauseOfDeath() error {
-	return c.causeOfDeath
+func (c *Conn) IsClosed() bool {
+	return c.pgConn.IsClosed()
 }
 
 // Processes messages that are not exclusive to one context such as
@@ -362,11 +355,9 @@ func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
 }
 
 func (c *Conn) die(err error) {
-	if !c.IsAlive() {
+	if c.IsClosed() {
 		return
 	}
-
-	c.causeOfDeath = err
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // force immediate hard cancel
