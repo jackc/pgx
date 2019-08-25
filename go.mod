@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/jackc/pgconn v0.0.0-20190825004843-78abbdf1d7ee
+	github.com/jackc/pgconn v0.0.0-20190825013903-da9fc85c4404
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190609003834-432c2951c711
 	github.com/jackc/pgtype v0.0.0-20190824184912-ab885b375b90

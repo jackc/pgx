@@ -52,7 +52,7 @@ type BuildPreparedStatementCacheFunc func(conn *pgconn.PgConn) stmtcache.Cache
 type Conn struct {
 	pgConn             *pgconn.PgConn
 	config             *ConnConfig // config used when establishing this connection
-	preparedStatements map[string]*pgconn.PreparedStatementDescription
+	preparedStatements map[string]*pgconn.StatementDescription
 	stmtcache          stmtcache.Cache
 	logger             Logger
 	logLevel           LogLevel
@@ -212,7 +212,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		return nil, err
 	}
 
-	c.preparedStatements = make(map[string]*pgconn.PreparedStatementDescription)
+	c.preparedStatements = make(map[string]*pgconn.StatementDescription)
 	c.doneChan = make(chan struct{})
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
@@ -251,11 +251,11 @@ func (c *Conn) Close(ctx context.Context) error {
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
-func (c *Conn) Prepare(ctx context.Context, name, sql string) (psd *pgconn.PreparedStatementDescription, err error) {
+func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error) {
 	if name != "" {
 		var ok bool
-		if psd, ok = c.preparedStatements[name]; ok && psd.SQL == sql {
-			return psd, nil
+		if sd, ok = c.preparedStatements[name]; ok && sd.SQL == sql {
+			return sd, nil
 		}
 	}
 
@@ -267,16 +267,16 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (psd *pgconn.Prepa
 		}()
 	}
 
-	psd, err = c.pgConn.Prepare(ctx, name, sql, nil)
+	sd, err = c.pgConn.Prepare(ctx, name, sql, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	if name != "" {
-		c.preparedStatements[name] = psd
+		c.preparedStatements[name] = sd
 	}
 
-	return psd, nil
+	return sd, nil
 }
 
 // Deallocate released a prepared statement
@@ -428,8 +428,8 @@ func connInfoFromRows(rows Rows, err error) (map[string]uint32, error) {
 // is used and the connection must be returned to the same state before any *pgx.Conn methods are again used.
 func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 
-// StmtCache returns the statement cache used for this connection.
-func (c *Conn) StmtCache() stmtcache.Cache { return c.stmtcache }
+// StatementCache returns the statement cache used for this connection.
+func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
@@ -470,8 +470,8 @@ optionLoop:
 		return c.execSimpleProtocol(ctx, sql, arguments)
 	}
 
-	if ps, ok := c.preparedStatements[sql]; ok {
-		return c.execPrepared(ctx, ps, arguments)
+	if sd, ok := c.preparedStatements[sql]; ok {
+		return c.execPrepared(ctx, sd, arguments)
 	}
 
 	if len(arguments) == 0 {
@@ -479,22 +479,22 @@ optionLoop:
 	}
 
 	if c.stmtcache != nil {
-		ps, err := c.stmtcache.Get(ctx, sql)
+		sd, err := c.stmtcache.Get(ctx, sql)
 		if err != nil {
 			return nil, err
 		}
 
 		if c.stmtcache.Mode() == stmtcache.ModeDescribe {
-			return c.execParams(ctx, ps, arguments)
+			return c.execParams(ctx, sd, arguments)
 		}
-		return c.execPrepared(ctx, ps, arguments)
+		return c.execPrepared(ctx, sd, arguments)
 	}
 
-	ps, err := c.Prepare(ctx, "", sql)
+	sd, err := c.Prepare(ctx, "", sql)
 	if err != nil {
 		return nil, err
 	}
-	return c.execPrepared(ctx, ps, arguments)
+	return c.execPrepared(ctx, sd, arguments)
 }
 
 func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []interface{}) (commandTag pgconn.CommandTag, err error) {
@@ -513,7 +513,7 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 	return commandTag, err
 }
 
-func (c *Conn) execParamsAndPreparedPrefix(ps *pgconn.PreparedStatementDescription, arguments []interface{}) error {
+func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, arguments []interface{}) error {
 	c.eqb.Reset()
 
 	args, err := convertDriverValuers(arguments)
@@ -522,14 +522,14 @@ func (c *Conn) execParamsAndPreparedPrefix(ps *pgconn.PreparedStatementDescripti
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.ConnInfo, ps.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.ConnInfo, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	for i := range ps.Fields {
-		if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.Fields[i].DataTypeOID)); ok {
+	for i := range sd.Fields {
+		if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
 			if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 				c.eqb.AppendResultFormat(BinaryFormatCode)
 			} else {
@@ -541,23 +541,23 @@ func (c *Conn) execParamsAndPreparedPrefix(ps *pgconn.PreparedStatementDescripti
 	return nil
 }
 
-func (c *Conn) execParams(ctx context.Context, ps *pgconn.PreparedStatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
-	err := c.execParamsAndPreparedPrefix(ps, arguments)
+func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
+	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
 		return nil, err
 	}
 
-	result := c.pgConn.ExecParams(ctx, ps.SQL, c.eqb.paramValues, ps.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats).Read()
+	result := c.pgConn.ExecParams(ctx, sd.SQL, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats).Read()
 	return result.CommandTag, result.Err
 }
 
-func (c *Conn) execPrepared(ctx context.Context, ps *pgconn.PreparedStatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
-	err := c.execParamsAndPreparedPrefix(ps, arguments)
+func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
+	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
 		return nil, err
 	}
 
-	result := c.pgConn.ExecPrepared(ctx, ps.Name, c.eqb.paramValues, c.eqb.paramFormats, c.eqb.resultFormats).Read()
+	result := c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, c.eqb.resultFormats).Read()
 	return result.CommandTag, result.Err
 }
 
@@ -637,28 +637,28 @@ optionLoop:
 
 	c.eqb.Reset()
 
-	ps, ok := c.preparedStatements[sql]
+	sd, ok := c.preparedStatements[sql]
 	if !ok {
 		if c.stmtcache != nil {
-			ps, err = c.stmtcache.Get(ctx, sql)
+			sd, err = c.stmtcache.Get(ctx, sql)
 			if err != nil {
 				rows.fatal(err)
 				return rows, rows.err
 			}
 		} else {
-			ps, err = c.pgConn.Prepare(ctx, "", sql, nil)
+			sd, err = c.pgConn.Prepare(ctx, "", sql, nil)
 			if err != nil {
 				rows.fatal(err)
 				return rows, rows.err
 			}
 		}
 	}
-	if len(ps.ParamOIDs) != len(args) {
-		rows.fatal(errors.Errorf("expected %d arguments, got %d", len(ps.ParamOIDs), len(args)))
+	if len(sd.ParamOIDs) != len(args) {
+		rows.fatal(errors.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(args)))
 		return rows, rows.err
 	}
 
-	rows.sql = ps.SQL
+	rows.sql = sd.SQL
 
 	args, err = convertDriverValuers(args)
 	if err != nil {
@@ -667,7 +667,7 @@ optionLoop:
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.ConnInfo, ps.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.ConnInfo, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
@@ -675,15 +675,15 @@ optionLoop:
 	}
 
 	if resultFormatsByOID != nil {
-		resultFormats = make([]int16, len(ps.Fields))
+		resultFormats = make([]int16, len(sd.Fields))
 		for i := range resultFormats {
-			resultFormats[i] = resultFormatsByOID[uint32(ps.Fields[i].DataTypeOID)]
+			resultFormats[i] = resultFormatsByOID[uint32(sd.Fields[i].DataTypeOID)]
 		}
 	}
 
 	if resultFormats == nil {
-		for i := range ps.Fields {
-			if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.Fields[i].DataTypeOID)); ok {
+		for i := range sd.Fields {
+			if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
 				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 					c.eqb.AppendResultFormat(BinaryFormatCode)
 				} else {
@@ -696,9 +696,9 @@ optionLoop:
 	}
 
 	if c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe {
-		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, ps.ParamOIDs, c.eqb.paramFormats, resultFormats)
+		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 	} else {
-		rows.resultReader = c.pgConn.ExecPrepared(ctx, ps.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
+		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 	}
 
 	return rows, rows.err
@@ -721,10 +721,10 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		c.eqb.Reset()
 
 		var parameterOIDs []uint32
-		ps := c.preparedStatements[bi.query]
+		sd := c.preparedStatements[bi.query]
 
-		if ps != nil {
-			parameterOIDs = ps.ParamOIDs
+		if sd != nil {
+			parameterOIDs = sd.ParamOIDs
 		} else {
 			parameterOIDs = bi.parameterOIDs
 		}
@@ -742,12 +742,12 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 
 		}
 
-		if ps != nil {
+		if sd != nil {
 			resultFormats := bi.resultFormatCodes
 			if resultFormats == nil {
 
-				for i := range ps.Fields {
-					if dt, ok := c.ConnInfo.DataTypeForOID(uint32(ps.Fields[i].DataTypeOID)); ok {
+				for i := range sd.Fields {
+					if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
 						if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
 							c.eqb.AppendResultFormat(BinaryFormatCode)
 						} else {
@@ -759,7 +759,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 				resultFormats = c.eqb.resultFormats
 			}
 
-			batch.ExecPrepared(ps.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
+			batch.ExecPrepared(sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 		} else {
 			oids := make([]uint32, len(parameterOIDs))
 			for i := 0; i < len(parameterOIDs); i++ {
