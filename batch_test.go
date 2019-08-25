@@ -6,8 +6,9 @@ import (
 	"testing"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnSendBatch(t *testing.T) {
@@ -24,31 +25,11 @@ func TestConnSendBatch(t *testing.T) {
 	mustExec(t, conn, sql)
 
 	batch := &pgx.Batch{}
-	batch.Queue("insert into ledger(description, amount) values($1, $2)",
-		[]interface{}{"q1", 1},
-		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
-		nil,
-	)
-	batch.Queue("insert into ledger(description, amount) values($1, $2)",
-		[]interface{}{"q2", 2},
-		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
-		nil,
-	)
-	batch.Queue("insert into ledger(description, amount) values($1, $2)",
-		[]interface{}{"q3", 3},
-		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
-		nil,
-	)
-	batch.Queue("select id, description, amount from ledger order by id",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode, pgx.TextFormatCode, pgx.BinaryFormatCode},
-	)
-	batch.Queue("select sum(amount) from ledger",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q1", 1)
+	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q2", 2)
+	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q3", 3)
+	batch.Queue("select id, description, amount from ledger order by id")
+	batch.Queue("select sum(amount) from ledger")
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -171,11 +152,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 
 	queryCount := 3
 	for i := 0; i < queryCount; i++ {
-		batch.Queue("ps1",
-			[]interface{}{5},
-			nil,
-			nil,
-		)
+		batch.Queue("ps1", 5)
 	}
 
 	br := conn.SendBatch(context.Background(), batch)
@@ -216,16 +193,8 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	defer closeConn(t, conn)
 
 	batch := &pgx.Batch{}
-	batch.Queue("select n from generate_series(0,5) n",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
-	batch.Queue("select n from generate_series(0,5) n",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("select n from generate_series(0,5) n")
+	batch.Queue("select n from generate_series(0,5) n")
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -284,16 +253,8 @@ func TestConnSendBatchQueryError(t *testing.T) {
 	defer closeConn(t, conn)
 
 	batch := &pgx.Batch{}
-	batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
-	batch.Queue("select n from generate_series(0,5) n",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0")
+	batch.Queue("select n from generate_series(0,5) n")
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -331,11 +292,7 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	defer closeConn(t, conn)
 
 	batch := &pgx.Batch{}
-	batch.Queue("select 1 1",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("select 1 1")
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -367,16 +324,8 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	mustExec(t, conn, sql)
 
 	batch := &pgx.Batch{}
-	batch.Queue("select 1",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
-	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
-		[]interface{}{"q1", 1},
-		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
-		nil,
-	)
+	batch.Queue("select 1")
+	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)", "q1", 1)
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -413,16 +362,8 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	mustExec(t, conn, sql)
 
 	batch := &pgx.Batch{}
-	batch.Queue("select 1 union all select 2 union all select 3",
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
-	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)",
-		[]interface{}{"q1", 1},
-		[]uint32{pgtype.VarcharOID, pgtype.Int4OID},
-		nil,
-	)
+	batch.Queue("select 1 union all select 2 union all select 3")
+	batch.Queue("insert into ledger(description, amount) values($1, $2),($1, $2)", "q1", 1)
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -465,11 +406,7 @@ func TestTxSendBatch(t *testing.T) {
 
 	tx, _ := conn.Begin(context.Background())
 	batch := &pgx.Batch{}
-	batch.Queue("insert into ledger1(description) values($1) returning id",
-		[]interface{}{"q1"},
-		[]uint32{pgtype.VarcharOID},
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("insert into ledger1(description) values($1) returning id", "q1")
 
 	br := tx.SendBatch(context.Background(), batch)
 
@@ -481,17 +418,8 @@ func TestTxSendBatch(t *testing.T) {
 	br.Close()
 
 	batch = &pgx.Batch{}
-	batch.Queue("insert into ledger2(id,amount) values($1, $2)",
-		[]interface{}{id, 2},
-		[]uint32{pgtype.Int4OID, pgtype.Int4OID},
-		nil,
-	)
-
-	batch.Queue("select amount from ledger2 where id = $1",
-		[]interface{}{id},
-		[]uint32{pgtype.Int4OID},
-		nil,
-	)
+	batch.Queue("insert into ledger2(id,amount) values($1, $2)", id, 2)
+	batch.Queue("select amount from ledger2 where id = $1", id)
 
 	br = tx.SendBatch(context.Background(), batch)
 
@@ -540,11 +468,7 @@ func TestTxSendBatchRollback(t *testing.T) {
 
 	tx, _ := conn.Begin(context.Background())
 	batch := &pgx.Batch{}
-	batch.Queue("insert into ledger1(description) values($1) returning id",
-		[]interface{}{"q1"},
-		[]uint32{pgtype.VarcharOID},
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue("insert into ledger1(description) values($1) returning id", "q1")
 
 	br := tx.SendBatch(context.Background(), batch)
 
@@ -582,11 +506,7 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 
 	batch := &pgx.Batch{}
 
-	batch.Queue(`update t set n=n+1 where id='b' returning *`,
-		nil,
-		nil,
-		[]int16{pgx.BinaryFormatCode},
-	)
+	batch.Queue(`update t set n=n+1 where id='b' returning *`)
 
 	br := conn.SendBatch(context.Background(), batch)
 
@@ -614,4 +534,64 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnSendBatchNoStatementCache(t *testing.T) {
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = nil
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	testConnSendBatch(t, conn, 3)
+}
+
+func TestConnSendBatchPrepareStatementCache(t *testing.T) {
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+	}
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	testConnSendBatch(t, conn, 3)
+}
+
+func TestConnSendBatchDescribeStatementCache(t *testing.T) {
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+	}
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	testConnSendBatch(t, conn, 3)
+}
+
+func testConnSendBatch(t *testing.T, conn *pgx.Conn, queryCount int) {
+	batch := &pgx.Batch{}
+	for j := 0; j < queryCount; j++ {
+		batch.Queue("select n from generate_series(0,5) n")
+	}
+
+	br := conn.SendBatch(context.Background(), batch)
+
+	for j := 0; j < queryCount; j++ {
+		rows, err := br.QueryResults()
+		require.NoError(t, err)
+
+		for k := 0; rows.Next(); k++ {
+			var n int
+			err := rows.Scan(&n)
+			require.NoError(t, err)
+			require.Equal(t, k, n)
+		}
+
+		require.NoError(t, rows.Err())
+	}
+
+	err := br.Close()
+	require.NoError(t, err)
 }
