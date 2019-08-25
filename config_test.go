@@ -561,3 +561,15 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 
 	assertConfigsEqual(t, expected, actual, "passfile")
 }
+
+func TestParseConfigExtractsMinReadBufferSize(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig("min_read_buffer_size=0")
+	require.NoError(t, err)
+	_, present := config.RuntimeParams["min_read_buffer_size"]
+	require.False(t, present)
+
+	// The buffer size is internal so there isn't much that can be done to test it other than see that the runtime param
+	// was removed.
+}
