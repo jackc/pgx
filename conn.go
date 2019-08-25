@@ -520,13 +520,7 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 	}
 
 	for i := range sd.Fields {
-		if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
-			if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-				c.eqb.AppendResultFormat(BinaryFormatCode)
-			} else {
-				c.eqb.AppendResultFormat(TextFormatCode)
-			}
-		}
+		c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 	}
 
 	return nil
@@ -674,13 +668,7 @@ optionLoop:
 
 	if resultFormats == nil {
 		for i := range sd.Fields {
-			if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
-				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-					c.eqb.AppendResultFormat(BinaryFormatCode)
-				} else {
-					c.eqb.AppendResultFormat(TextFormatCode)
-				}
-			}
+			c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		resultFormats = c.eqb.resultFormats
@@ -761,13 +749,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		for i := range sd.Fields {
-			if dt, ok := c.ConnInfo.DataTypeForOID(uint32(sd.Fields[i].DataTypeOID)); ok {
-				if _, ok := dt.Value.(pgtype.BinaryDecoder); ok {
-					c.eqb.AppendResultFormat(BinaryFormatCode)
-				} else {
-					c.eqb.AppendResultFormat(TextFormatCode)
-				}
-			}
+			c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		if sd.Name == "" {

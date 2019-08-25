@@ -217,13 +217,7 @@ func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{})
 		return TextFormatCode
 	}
 
-	if dt, ok := ci.DataTypeForOID(oid); ok {
-		if _, ok := dt.Value.(pgtype.BinaryEncoder); ok {
-			return BinaryFormatCode
-		}
-	}
-
-	return TextFormatCode
+	return ci.ParamFormatCodeForOID(oid)
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {
