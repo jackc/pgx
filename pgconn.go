@@ -44,7 +44,7 @@ type Notification struct {
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // BuildFrontendFunc is a function that can be used to create Frontend implementation for connection.
-type BuildFrontendFunc func(r io.Reader) Frontend
+type BuildFrontendFunc func(r io.Reader, w io.Writer) Frontend
 
 // NoticeHandler is a function that can handle notices received from the PostgreSQL server. Notices can be received at
 // any time, usually during handling of a query response. The *PgConn is provided so the handler is aware of the origin
@@ -174,7 +174,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		func() { pgConn.conn.SetDeadline(time.Time{}) },
 	)
 
-	pgConn.frontend = config.BuildFrontend(pgConn.conn)
+	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: pgproto3.ProtocolVersionNumber,

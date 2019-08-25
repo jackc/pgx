@@ -482,8 +482,8 @@ func makeDefaultDialer() *net.Dialer {
 }
 
 func makeDefaultBuildFrontendFunc() BuildFrontendFunc {
-	return func(r io.Reader) Frontend {
-		frontend, _ := pgproto3.NewFrontend(pgproto3.NewChunkReader(r), nil)
+	return func(r io.Reader, w io.Writer) Frontend {
+		frontend, _ := pgproto3.NewFrontend(pgproto3.NewChunkReader(r), w)
 
 		return frontend
 	}
