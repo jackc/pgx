@@ -33,7 +33,7 @@ func TestConnSendBatch(t *testing.T) {
 
 	br := conn.SendBatch(context.Background(), batch)
 
-	ct, err := br.ExecResults()
+	ct, err := br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -41,7 +41,7 @@ func TestConnSendBatch(t *testing.T) {
 		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
 	}
 
-	ct, err = br.ExecResults()
+	ct, err = br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -49,7 +49,7 @@ func TestConnSendBatch(t *testing.T) {
 		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
 	}
 
-	ct, err = br.ExecResults()
+	ct, err = br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -57,7 +57,7 @@ func TestConnSendBatch(t *testing.T) {
 		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
 	}
 
-	rows, err := br.QueryResults()
+	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
 	}
@@ -121,7 +121,7 @@ func TestConnSendBatch(t *testing.T) {
 		t.Fatal(rows.Err())
 	}
 
-	err = br.QueryRowResults().Scan(&amount)
+	err = br.QueryRow().Scan(&amount)
 	if err != nil {
 		t.Error(err)
 	}
@@ -158,7 +158,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 	br := conn.SendBatch(context.Background(), batch)
 
 	for i := 0; i < queryCount; i++ {
-		rows, err := br.QueryResults()
+		rows, err := br.Query()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -198,7 +198,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 
 	br := conn.SendBatch(context.Background(), batch)
 
-	rows, err := br.QueryResults()
+	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
 	}
@@ -219,7 +219,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 
 	rows.Close()
 
-	rows, err = br.QueryResults()
+	rows, err = br.Query()
 	if err != nil {
 		t.Error(err)
 	}
@@ -258,7 +258,7 @@ func TestConnSendBatchQueryError(t *testing.T) {
 
 	br := conn.SendBatch(context.Background(), batch)
 
-	rows, err := br.QueryResults()
+	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
 	}
@@ -297,7 +297,7 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	br := conn.SendBatch(context.Background(), batch)
 
 	var n int32
-	err := br.QueryRowResults().Scan(&n)
+	err := br.QueryRow().Scan(&n)
 	if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "42601") {
 		t.Errorf("rows.Err() => %v, want error code %v", err, 42601)
 	}
@@ -330,12 +330,12 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	br := conn.SendBatch(context.Background(), batch)
 
 	var value int
-	err := br.QueryRowResults().Scan(&value)
+	err := br.QueryRow().Scan(&value)
 	if err != nil {
 		t.Error(err)
 	}
 
-	ct, err := br.ExecResults()
+	ct, err := br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -367,13 +367,13 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 
 	br := conn.SendBatch(context.Background(), batch)
 
-	rows, err := br.QueryResults()
+	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
 	}
 	rows.Close()
 
-	ct, err := br.ExecResults()
+	ct, err := br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -411,7 +411,7 @@ func TestTxSendBatch(t *testing.T) {
 	br := tx.SendBatch(context.Background(), batch)
 
 	var id int
-	err := br.QueryRowResults().Scan(&id)
+	err := br.QueryRow().Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
@@ -423,7 +423,7 @@ func TestTxSendBatch(t *testing.T) {
 
 	br = tx.SendBatch(context.Background(), batch)
 
-	ct, err := br.ExecResults()
+	ct, err := br.Exec()
 	if err != nil {
 		t.Error(err)
 	}
@@ -432,7 +432,7 @@ func TestTxSendBatch(t *testing.T) {
 	}
 
 	var amount int
-	err = br.QueryRowResults().Scan(&amount)
+	err = br.QueryRow().Scan(&amount)
 	if err != nil {
 		t.Error(err)
 	}
@@ -473,7 +473,7 @@ func TestTxSendBatchRollback(t *testing.T) {
 	br := tx.SendBatch(context.Background(), batch)
 
 	var id int
-	err := br.QueryRowResults().Scan(&id)
+	err := br.QueryRow().Scan(&id)
 	if err != nil {
 		t.Error(err)
 	}
@@ -510,7 +510,7 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 
 	br := conn.SendBatch(context.Background(), batch)
 
-	rows, err := br.QueryResults()
+	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
 	}
@@ -579,7 +579,7 @@ func testConnSendBatch(t *testing.T, conn *pgx.Conn, queryCount int) {
 	br := conn.SendBatch(context.Background(), batch)
 
 	for j := 0; j < queryCount; j++ {
-		rows, err := br.QueryResults()
+		rows, err := br.Query()
 		require.NoError(t, err)
 
 		for k := 0; rows.Next(); k++ {

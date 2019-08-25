@@ -75,11 +75,11 @@ func testSendBatch(t *testing.T, db sendBatcher) {
 
 	var err error
 	var n int32
-	err = br.QueryRowResults().Scan(&n)
+	err = br.QueryRow().Scan(&n)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, n)
 
-	err = br.QueryRowResults().Scan(&n)
+	err = br.QueryRow().Scan(&n)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 2, n)
 
