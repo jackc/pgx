@@ -157,7 +157,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	if !c.conn.IsAlive() {
+	if c.conn.IsClosed() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -181,7 +181,7 @@ func (c *Conn) Begin() (driver.Tx, error) {
 }
 
 func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	if !c.conn.IsAlive() {
+	if c.conn.IsClosed() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -218,7 +218,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 }
 
 func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Result, error) {
-	if !c.conn.IsAlive() {
+	if c.conn.IsClosed() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -236,7 +236,7 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 }
 
 func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Rows, error) {
-	if !c.conn.IsAlive() {
+	if c.conn.IsClosed() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -257,7 +257,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
-	if !c.conn.IsAlive() {
+	if c.conn.IsClosed() {
 		return driver.ErrBadConn
 	}
 

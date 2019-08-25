@@ -657,8 +657,8 @@ func TestFatalRxError(t *testing.T) {
 
 	wg.Wait()
 
-	if conn.IsAlive() {
-		t.Fatal("Connection should not be live but was")
+	if !conn.IsClosed() {
+		t.Fatal("Connection should be closed")
 	}
 }
 
@@ -684,8 +684,8 @@ func TestFatalTxError(t *testing.T) {
 				t.Fatal("Expected error but none occurred")
 			}
 
-			if conn.IsAlive() {
-				t.Fatalf("Connection should not be live but was. Previous Query err: %v", err)
+			if !conn.IsClosed() {
+				t.Fatalf("Connection should be closed but isn't. Previous Query err: %v", err)
 			}
 		}()
 	}

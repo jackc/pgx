@@ -6,7 +6,7 @@ require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
-	github.com/jackc/pgconn v0.0.0-20190825013903-da9fc85c4404
+	github.com/jackc/pgconn v0.0.0-20190825044326-6feea0c1c57d
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190609003834-432c2951c711
 	github.com/jackc/pgtype v0.0.0-20190824184912-ab885b375b90
@@ -28,7 +28,7 @@ require (
 	golang.org/x/net v0.0.0-20190813141303-74dc4d7220e7 // indirect
 	golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // indirect
 	golang.org/x/text v0.3.2 // indirect
-	golang.org/x/tools v0.0.0-20190824210100-c2567a220953 // indirect
+	golang.org/x/tools v0.0.0-20190825031127-d72b05d2b1b6 // indirect
 	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )

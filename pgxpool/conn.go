@@ -27,7 +27,7 @@ func (c *Conn) Release() {
 	c.res = nil
 
 	now := time.Now()
-	if !conn.IsAlive() || conn.PgConn().TxStatus != 'I' || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
+	if conn.IsClosed() || conn.PgConn().TxStatus != 'I' || (now.Sub(res.CreationTime()) > c.p.maxConnLifetime) {
 		res.Destroy()
 		return
 	}
