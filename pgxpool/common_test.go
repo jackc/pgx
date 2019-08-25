@@ -68,8 +68,8 @@ type sendBatcher interface {
 
 func testSendBatch(t *testing.T, db sendBatcher) {
 	batch := &pgx.Batch{}
-	batch.Queue("select 1", nil, nil, nil)
-	batch.Queue("select 2", nil, nil, nil)
+	batch.Queue("select 1")
+	batch.Queue("select 2")
 
 	br := db.SendBatch(context.Background(), batch)
 

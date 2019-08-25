@@ -710,12 +710,41 @@ func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
 	benchmarkWriteNRowsViaCopy(b, 10000)
 }
 
-func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+func BenchmarkMultipleQueriesNonBatchNoStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = nil
+
+	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
 
-	queryCount := 3
+	benchmarkMultipleQueriesNonBatch(b, conn, 3)
+}
 
+func BenchmarkMultipleQueriesNonBatchPrepareStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	benchmarkMultipleQueriesNonBatch(b, conn, 3)
+}
+
+func BenchmarkMultipleQueriesNonBatchDescribeStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	benchmarkMultipleQueriesNonBatch(b, conn, 3)
+}
+
+func benchmarkMultipleQueriesNonBatch(b *testing.B, conn *pgx.Conn, queryCount int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < queryCount; j++ {
@@ -741,21 +770,46 @@ func BenchmarkMultipleQueriesNonBatch(b *testing.B) {
 	}
 }
 
-func BenchmarkMultipleQueriesBatch(b *testing.B) {
-	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+func BenchmarkMultipleQueriesBatchNoStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = nil
+
+	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
 
-	queryCount := 3
+	benchmarkMultipleQueriesBatch(b, conn, 3)
+}
 
+func BenchmarkMultipleQueriesBatchPrepareStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	benchmarkMultipleQueriesBatch(b, conn, 3)
+}
+
+func BenchmarkMultipleQueriesBatchDescribeStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	benchmarkMultipleQueriesBatch(b, conn, 3)
+}
+
+func benchmarkMultipleQueriesBatch(b *testing.B, conn *pgx.Conn, queryCount int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		batch := &pgx.Batch{}
 		for j := 0; j < queryCount; j++ {
-			batch.Queue("select n from generate_series(0,5) n",
-				nil,
-				nil,
-				[]int16{pgx.BinaryFormatCode},
-			)
+			batch.Queue("select n from generate_series(0,5) n")
 		}
 
 		br := conn.SendBatch(context.Background(), batch)

@@ -8,10 +8,8 @@ import (
 )
 
 type batchItem struct {
-	query             string
-	arguments         []interface{}
-	parameterOIDs     []uint32
-	resultFormatCodes []int16
+	query     string
+	arguments []interface{}
 }
 
 // Batch queries are a way of bundling multiple queries together to avoid
@@ -20,15 +18,11 @@ type Batch struct {
 	items []*batchItem
 }
 
-// Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement. parameterOIDs and
-// resultFormatCodes should be nil if query is a prepared statement. Otherwise, parameterOIDs are required if there are
-// parameters and resultFormatCodes are required if there is a result.
-func (b *Batch) Queue(query string, arguments []interface{}, parameterOIDs []uint32, resultFormatCodes []int16) {
+// Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement.
+func (b *Batch) Queue(query string, arguments ...interface{}) {
 	b.items = append(b.items, &batchItem{
-		query:             query,
-		arguments:         arguments,
-		parameterOIDs:     parameterOIDs,
-		resultFormatCodes: resultFormatCodes,
+		query:     query,
+		arguments: arguments,
 	})
 }
 
