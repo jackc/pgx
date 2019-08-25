@@ -9,10 +9,10 @@ import (
 	"github.com/jackc/pgconn"
 )
 
-var lruCacheCount uint64
+var lruCount uint64
 
-// LRUCache implements cache with a Least Recently Used (LRU) cache.
-type LRUCache struct {
+// LRU implements Cache with a Least Recently Used (LRU) cache.
+type LRU struct {
 	conn         *pgconn.PgConn
 	mode         int
 	cap          int
@@ -22,14 +22,14 @@ type LRUCache struct {
 	psNamePrefix string
 }
 
-// NewLRUCache creates a new LRUCache. mode is either ModePrepare or ModeDescribe. cap is the maximum size of the cache.
-func NewLRUCache(conn *pgconn.PgConn, mode int, cap int) *LRUCache {
+// NewLRU creates a new LRU. mode is either ModePrepare or ModeDescribe. cap is the maximum size of the cache.
+func NewLRU(conn *pgconn.PgConn, mode int, cap int) *LRU {
 	mustBeValidMode(mode)
 	mustBeValidCap(cap)
 
-	n := atomic.AddUint64(&lruCacheCount, 1)
+	n := atomic.AddUint64(&lruCount, 1)
 
-	return &LRUCache{
+	return &LRU{
 		conn:         conn,
 		mode:         mode,
 		cap:          cap,
@@ -40,7 +40,7 @@ func NewLRUCache(conn *pgconn.PgConn, mode int, cap int) *LRUCache {
 }
 
 // Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
-func (c *LRUCache) Get(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
+func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
 	if el, ok := c.m[sql]; ok {
 		c.l.MoveToFront(el)
 		return el.Value.(*pgconn.PreparedStatementDescription), nil
@@ -65,7 +65,7 @@ func (c *LRUCache) Get(ctx context.Context, sql string) (*pgconn.PreparedStateme
 }
 
 // Clear removes all entries in the cache. Any prepared statements will be deallocated from the PostgreSQL session.
-func (c *LRUCache) Clear(ctx context.Context) error {
+func (c *LRU) Clear(ctx context.Context) error {
 	for c.l.Len() > 0 {
 		err := c.removeOldest(ctx)
 		if err != nil {
@@ -77,21 +77,21 @@ func (c *LRUCache) Clear(ctx context.Context) error {
 }
 
 // Len returns the number of cached prepared statement descriptions.
-func (c *LRUCache) Len() int {
+func (c *LRU) Len() int {
 	return c.l.Len()
 }
 
 // Cap returns the maximum number of cached prepared statement descriptions.
-func (c *LRUCache) Cap() int {
+func (c *LRU) Cap() int {
 	return c.cap
 }
 
 // Mode returns the mode of the cache (ModePrepare or ModeDescribe)
-func (c *LRUCache) Mode() int {
+func (c *LRU) Mode() int {
 	return c.mode
 }
 
-func (c *LRUCache) prepare(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
+func (c *LRU) prepare(ctx context.Context, sql string) (*pgconn.PreparedStatementDescription, error) {
 	var name string
 	if c.mode == ModePrepare {
 		name = fmt.Sprintf("%s_%d", c.psNamePrefix, c.prepareCount)
@@ -101,7 +101,7 @@ func (c *LRUCache) prepare(ctx context.Context, sql string) (*pgconn.PreparedSta
 	return c.conn.Prepare(ctx, name, sql, nil)
 }
 
-func (c *LRUCache) removeOldest(ctx context.Context) error {
+func (c *LRU) removeOldest(ctx context.Context) error {
 	oldest := c.l.Back()
 	c.l.Remove(oldest)
 	if c.mode == ModePrepare {
