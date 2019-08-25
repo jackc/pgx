@@ -433,7 +433,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	}
 	err = multiResult.Close()
 	assert.Equal(t, context.DeadlineExceeded, err)
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecContextPrecanceled(t *testing.T) {
@@ -566,7 +566,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecParamsPrecanceled(t *testing.T) {
@@ -692,7 +692,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.Equal(t, context.DeadlineExceeded, err)
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecPreparedPrecanceled(t *testing.T) {
@@ -1142,7 +1142,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnCopyToPrecanceled(t *testing.T) {
@@ -1233,7 +1233,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	assert.True(t, errors.Is(err, context.DeadlineExceeded))
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnCopyFromPrecanceled(t *testing.T) {
