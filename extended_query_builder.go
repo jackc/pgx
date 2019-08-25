@@ -59,7 +59,6 @@ func (eqb *extendedQueryBuilder) Reset() {
 			eqb.resultFormats = make([]int16, 0, cap(eqb.resultFormats)/2)
 		}
 	}
-
 }
 
 func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, oid uint32, arg interface{}) ([]byte, error) {

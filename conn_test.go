@@ -11,9 +11,9 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	errors "github.com/jackc/pgx/v4/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestCrateDBConnect(t *testing.T) {
@@ -313,7 +313,6 @@ func TestExecSimpleProtocol(t *testing.T) {
 	if string(commandTag) != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
-
 }
 
 func TestPrepare(t *testing.T) {

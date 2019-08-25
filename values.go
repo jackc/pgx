@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 // PostgreSQL format codes

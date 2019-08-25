@@ -506,7 +506,6 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	}
 
 	return rowCount, nil
-
 }
 
 func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
@@ -525,7 +524,8 @@ func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
 		src := newBenchmarkWriteTableCopyFromSrc(n)
 
 		_, err := multiInsert(conn, "t",
-			[]string{"varchar_1",
+			[]string{
+				"varchar_1",
 				"varchar_2",
 				"varchar_null_1",
 				"date_1",
@@ -537,7 +537,8 @@ func benchmarkWriteNRowsViaMultiInsert(b *testing.B, n int) {
 				"tstz_2",
 				"bool_1",
 				"bool_2",
-				"bool_3"},
+				"bool_3",
+			},
 			src)
 		if err != nil {
 			b.Fatal(err)
@@ -558,7 +559,8 @@ func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
 
 		_, err := conn.CopyFrom(context.Background(),
 			pgx.Identifier{"t"},
-			[]string{"varchar_1",
+			[]string{
+				"varchar_1",
 				"varchar_2",
 				"varchar_null_1",
 				"date_1",
@@ -570,7 +572,8 @@ func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
 				"tstz_2",
 				"bool_1",
 				"bool_2",
-				"bool_3"},
+				"bool_3",
+			},
 			src)
 		if err != nil {
 			b.Fatal(err)

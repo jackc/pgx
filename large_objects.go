@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 // LargeObjects is a structure used to access the large objects API. It is only valid within the transaction where it

@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/jackc/pgconn"
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 type TxIsoLevel string

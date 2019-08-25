@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgtype"
 	satori "github.com/jackc/pgtype/ext/satori-uuid"
 	"github.com/jackc/pgx/v4"
+	errors "github.com/jackc/pgx/v4/errors"
 	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
-	errors "golang.org/x/xerrors"
 )
 
 func TestConnQueryScan(t *testing.T) {
@@ -465,7 +465,6 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 			ensureConnValid(t, conn)
 		}()
 	}
-
 }
 
 func TestQueryEncodeError(t *testing.T) {
@@ -903,7 +902,6 @@ func TestQueryRowUnknownType(t *testing.T) {
 
 	if actual != expected {
 		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
-
 	}
 
 	ensureConnValid(t, conn)

@@ -22,3 +22,7 @@ _testmain.go
 *.exe
 
 .envrc
+
+
+# iginore jetbrains's IDE folder
+.idea/

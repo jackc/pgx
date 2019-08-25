@@ -5,7 +5,7 @@ import (
 	"net"
 	"reflect"
 
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
@@ -224,7 +224,8 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{
+					Name:                 []byte("oid"),
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -232,7 +233,8 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{
+					Name:                 []byte("typname"),
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -450,7 +452,8 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{
+					Name:                 []byte("oid"),
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -458,7 +461,8 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{
+					Name:                 []byte("typname"),
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -491,7 +495,8 @@ where (
 		SendMessage(&pgproto3.ParameterDescription{}),
 		SendMessage(&pgproto3.RowDescription{
 			Fields: []pgproto3.FieldDescription{
-				{Name: []byte("oid"),
+				{
+					Name:                 []byte("oid"),
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,
@@ -499,7 +504,8 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typname"),
+				{
+					Name:                 []byte("typname"),
 					TableOID:             1247,
 					TableAttributeNumber: 1,
 					DataTypeOID:          19,
@@ -507,7 +513,8 @@ where (
 					TypeModifier:         -1,
 					Format:               0,
 				},
-				{Name: []byte("typbasetype"),
+				{
+					Name:                 []byte("typbasetype"),
 					TableOID:             1247,
 					TableAttributeNumber: 65534,
 					DataTypeOID:          26,

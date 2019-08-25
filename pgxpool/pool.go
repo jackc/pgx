@@ -8,8 +8,8 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	errors "github.com/jackc/pgx/v4/errors"
 	"github.com/jackc/puddle"
-	errors "golang.org/x/xerrors"
 )
 
 var defaultMaxConns = int32(4)
@@ -366,6 +366,7 @@ func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 func (p *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
 	return p.BeginEx(ctx, pgx.TxOptions{})
 }
+
 func (p *Pool) BeginEx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {

@@ -7,7 +7,7 @@ import (
 	"io"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
@@ -117,7 +117,6 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 }
 
 func (ct *copyFrom) buildCopyBuf(buf []byte, ps *PreparedStatement) (bool, []byte, error) {
-
 	for ct.rowSrc.Next() {
 		values, err := ct.rowSrc.Values()
 		if err != nil {

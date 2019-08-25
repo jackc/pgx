@@ -9,7 +9,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)

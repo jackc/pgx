@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 // Part is either a string or an int. A string is raw SQL. An int is a

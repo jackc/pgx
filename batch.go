@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgconn"
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 type batchItem struct {
@@ -98,7 +98,6 @@ func (br *batchResults) QueryResults() (Rows, error) {
 func (br *batchResults) QueryRowResults() Row {
 	rows, _ := br.QueryResults()
 	return (*connRow)(rows.(*connRows))
-
 }
 
 // Close closes the batch operation. Any error that occured during a batch operation may have made it impossible to

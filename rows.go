@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"

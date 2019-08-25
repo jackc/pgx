@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	errors "golang.org/x/xerrors"
+	errors "github.com/jackc/pgx/v4/errors"
 )
 
 // The values for log levels are chosen such that the zero value means that no
