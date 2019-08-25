@@ -364,15 +364,15 @@ func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 }
 
 func (p *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
-	return p.BeginEx(ctx, pgx.TxOptions{})
+	return p.BeginTx(ctx, pgx.TxOptions{})
 }
-func (p *Pool) BeginEx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
+func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := c.BeginEx(ctx, txOptions)
+	t, err := c.BeginTx(ctx, txOptions)
 	if err != nil {
 		return nil, err
 	}

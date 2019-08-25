@@ -209,7 +209,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		pgxOpts.AccessMode = pgx.ReadOnly
 	}
 
-	tx, err := c.conn.BeginEx(ctx, pgxOpts)
+	tx, err := c.conn.BeginTx(ctx, pgxOpts)
 	if err != nil {
 		return nil, err
 	}
