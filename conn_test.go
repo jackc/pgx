@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
@@ -103,6 +104,38 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	config := &pgx.ConnConfig{}
 
 	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgx.ConnectConfig(context.Background(), config) })
+}
+
+func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgx.ParseConfig("statement_cache_capacity=0")
+	require.NoError(t, err)
+	require.Nil(t, config.BuildPreparedStatementCache)
+
+	config, err = pgx.ParseConfig("statement_cache_capacity=42")
+	require.NoError(t, err)
+	require.NotNil(t, config.BuildPreparedStatementCache)
+	c := config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, c)
+	require.Equal(t, 42, c.Cap())
+	require.Equal(t, stmtcache.ModePrepare, c.Mode())
+
+	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=prepare")
+	require.NoError(t, err)
+	require.NotNil(t, config.BuildPreparedStatementCache)
+	c = config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, c)
+	require.Equal(t, 42, c.Cap())
+	require.Equal(t, stmtcache.ModePrepare, c.Mode())
+
+	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=describe")
+	require.NoError(t, err)
+	require.NotNil(t, config.BuildPreparedStatementCache)
+	c = config.BuildPreparedStatementCache(nil)
+	require.NotNil(t, c)
+	require.Equal(t, 42, c.Cap())
+	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
 }
 
 func TestExec(t *testing.T) {
@@ -283,6 +316,56 @@ func TestExecExtendedProtocol(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestExecPreparedStatementCacheModes(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+
+	tests := []struct {
+		name                        string
+		buildPreparedStatementCache pgx.BuildPreparedStatementCacheFunc
+	}{
+		{
+			name:                        "disabled",
+			buildPreparedStatementCache: nil,
+		},
+		{
+			name: "prepare",
+			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+			},
+		},
+		{
+			name: "describe",
+			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		func() {
+			config.BuildPreparedStatementCache = tt.buildPreparedStatementCache
+			conn := mustConnect(t, config)
+			defer closeConn(t, conn)
+
+			commandTag, err := conn.Exec(context.Background(), "select 1")
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, "SELECT 1", string(commandTag), tt.name)
+
+			commandTag, err = conn.Exec(context.Background(), "select 1 union all select 1")
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, "SELECT 2", string(commandTag), tt.name)
+
+			commandTag, err = conn.Exec(context.Background(), "select 1")
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, "SELECT 1", string(commandTag), tt.name)
+
+			ensureConnValid(t, conn)
+		}()
+	}
 }
 
 func TestExecSimpleProtocol(t *testing.T) {
@@ -652,9 +735,12 @@ func TestCatchSimultaneousConnectionQueries(t *testing.T) {
 	}
 	defer rows1.Close()
 
-	_, err = conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	if !errors.Is(err, pgconn.ErrConnBusy) {
-		t.Fatalf("conn.Query should have failed with pgconn.ErrConnBusy, but it was %v", err)
+	rows2, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
+	require.NoError(t, err)
+	require.NotNil(t, rows2)
+	require.False(t, rows2.Next())
+	if !errors.Is(rows2.Err(), pgconn.ErrConnBusy) {
+		t.Fatalf("conn.Query should have failed with pgconn.ErrConnBusy, but it was %v", rows2.Err())
 	}
 }
 

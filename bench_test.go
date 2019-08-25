@@ -9,9 +9,81 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
+
+func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildPreparedStatementCache = nil
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	var n int64
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := conn.QueryRow(context.Background(), "select $1::int8", i).Scan(&n)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if n != int64(i) {
+			b.Fatalf("expected %d, got %d", i, n)
+		}
+	}
+}
+
+func BenchmarkMinimalUnpreparedSelectWithStatementCacheModeDescribe(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	var n int64
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := conn.QueryRow(context.Background(), "select $1::int8", i).Scan(&n)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if n != int64(i) {
+			b.Fatalf("expected %d, got %d", i, n)
+		}
+	}
+}
+
+func BenchmarkMinimalUnpreparedSelectWithStatementCacheModePrepare(b *testing.B) {
+	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildPreparedStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
+		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+	}
+
+	conn := mustConnect(b, config)
+	defer closeConn(b, conn)
+
+	var n int64
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		err := conn.QueryRow(context.Background(), "select $1::int8", i).Scan(&n)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if n != int64(i) {
+			b.Fatalf("expected %d, got %d", i, n)
+		}
+	}
+}
 
 func BenchmarkMinimalPreparedSelect(b *testing.B) {
 	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))

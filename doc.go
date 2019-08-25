@@ -179,6 +179,12 @@ can create a transaction with a specified isolation level.
         return err
     }
 
+Prepared Statements
+
+Prepared statements can be manually created with the Prepare method. However, this is rarely necessary because pgx
+includes an automatic statement cache by default. Queries run through the normal Query, QueryRow, and Exec functions are
+automatically prepared on first execution and the prepared statement is reused on subsequent executions.
+
 Copy Protocol
 
 Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL

@@ -13,11 +13,13 @@ import (
 
 	"github.com/cockroachdb/apd"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
 	satori "github.com/jackc/pgtype/ext/satori-uuid"
 	"github.com/jackc/pgx/v4"
 	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
 	errors "golang.org/x/xerrors"
 )
 
@@ -1562,4 +1564,55 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestQueryPreparedStatementCacheModes(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+
+	tests := []struct {
+		name                        string
+		buildPreparedStatementCache pgx.BuildPreparedStatementCacheFunc
+	}{
+		{
+			name:                        "disabled",
+			buildPreparedStatementCache: nil,
+		},
+		{
+			name: "prepare",
+			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+			},
+		},
+		{
+			name: "describe",
+			buildPreparedStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		func() {
+			config.BuildPreparedStatementCache = tt.buildPreparedStatementCache
+			conn := mustConnect(t, config)
+			defer closeConn(t, conn)
+
+			var n int
+			err := conn.QueryRow(context.Background(), "select 1").Scan(&n)
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, 1, n, tt.name)
+
+			err = conn.QueryRow(context.Background(), "select 2").Scan(&n)
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, 2, n, tt.name)
+
+			err = conn.QueryRow(context.Background(), "select 1").Scan(&n)
+			assert.NoError(t, err, tt.name)
+			assert.Equal(t, 1, n, tt.name)
+
+			ensureConnValid(t, conn)
+		}()
+	}
 }
