@@ -9,15 +9,15 @@ type errBatchResults struct {
 	err error
 }
 
-func (br errBatchResults) ExecResults() (pgconn.CommandTag, error) {
+func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
 	return nil, br.err
 }
 
-func (br errBatchResults) QueryResults() (pgx.Rows, error) {
+func (br errBatchResults) Query() (pgx.Rows, error) {
 	return errRows{err: br.err}, br.err
 }
 
-func (br errBatchResults) QueryRowResults() pgx.Row {
+func (br errBatchResults) QueryRow() pgx.Row {
 	return errRow{err: br.err}
 }
 
@@ -30,16 +30,16 @@ type poolBatchResults struct {
 	c  *Conn
 }
 
-func (br *poolBatchResults) ExecResults() (pgconn.CommandTag, error) {
-	return br.br.ExecResults()
+func (br *poolBatchResults) Exec() (pgconn.CommandTag, error) {
+	return br.br.Exec()
 }
 
-func (br *poolBatchResults) QueryResults() (pgx.Rows, error) {
-	return br.br.QueryResults()
+func (br *poolBatchResults) Query() (pgx.Rows, error) {
+	return br.br.Query()
 }
 
-func (br *poolBatchResults) QueryRowResults() pgx.Row {
-	return br.br.QueryRowResults()
+func (br *poolBatchResults) QueryRow() pgx.Row {
+	return br.br.QueryRow()
 }
 
 func (br *poolBatchResults) Close() error {

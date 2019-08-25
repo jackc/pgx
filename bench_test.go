@@ -815,7 +815,7 @@ func benchmarkMultipleQueriesBatch(b *testing.B, conn *pgx.Conn, queryCount int)
 		br := conn.SendBatch(context.Background(), batch)
 
 		for j := 0; j < queryCount; j++ {
-			rows, err := br.QueryResults()
+			rows, err := br.Query()
 			if err != nil {
 				b.Fatal(err)
 			}
