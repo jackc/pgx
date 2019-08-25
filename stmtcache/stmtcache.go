@@ -1,5 +1,5 @@
-// Package pscache is a cache that can be used to implement lazy, automatic prepared statements.
-package pscache
+// Package stmtcache is a cache that can be used to implement lazy prepared statements.
+package stmtcache
 
 import (
 	"context"

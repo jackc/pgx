@@ -1,4 +1,4 @@
-package pscache
+package stmtcache
 
 import (
 	"container/list"
