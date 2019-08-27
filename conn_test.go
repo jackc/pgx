@@ -14,7 +14,6 @@ import (
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestCrateDBConnect(t *testing.T) {
@@ -200,9 +199,7 @@ func TestExecFailureWithArguments(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 }
 
 func TestExecContextWithoutCancelation(t *testing.T) {
@@ -221,9 +218,7 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 	if string(commandTag) != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 }
 
 func TestExecContextFailureWithoutCancelation(t *testing.T) {
@@ -239,18 +234,15 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 
 	rows, _ := conn.Query(context.Background(), "select 1")
 	rows.Close()
 	if rows.Err() != nil {
 		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
+
 }
 
 func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
@@ -266,9 +258,7 @@ func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected SQL syntax error")
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 }
 
 func TestExecFailureCloseBefore(t *testing.T) {
@@ -278,12 +268,8 @@ func TestExecFailureCloseBefore(t *testing.T) {
 	closeConn(t, conn)
 
 	_, err := conn.Exec(context.Background(), "select 1")
-	if err == nil {
-		t.Fatal("Expected network error")
-	}
-	if !errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected no bytes to be sent to server")
-	}
+	require.Error(t, err)
+	assert.True(t, pgconn.SafeToRetry(err))
 }
 
 func TestExecExtendedProtocol(t *testing.T) {
@@ -528,7 +514,7 @@ func TestListenNotify(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 	notification, err = listener.WaitForNotification(ctx)
-	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+	assert.True(t, pgconn.Timeout(err))
 
 	// listener can listen again after a timeout
 	mustExec(t, notifier, "notify chat")
@@ -720,45 +706,6 @@ func TestInsertTimestampArray(t *testing.T) {
 	// Accept parameters
 	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); string(results) != "INSERT 0 1" {
 		t.Errorf("Unexpected results from Exec: %v", results)
-	}
-}
-
-func TestCatchSimultaneousConnectionQueries(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	rows1, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-	defer rows1.Close()
-
-	rows2, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	require.NoError(t, err)
-	require.NotNil(t, rows2)
-	require.False(t, rows2.Next())
-	if !errors.Is(rows2.Err(), pgconn.ErrConnBusy) {
-		t.Fatalf("conn.Query should have failed with pgconn.ErrConnBusy, but it was %v", rows2.Err())
-	}
-}
-
-func TestCatchSimultaneousConnectionQueryAndExec(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-	defer rows.Close()
-
-	_, err = conn.Exec(context.Background(), "create temporary table foo(spice timestamp[])")
-	if !errors.Is(err, pgconn.ErrConnBusy) {
-		t.Fatalf("conn.Exec should have failed with pgconn.ErrConnBusy, but it was %v", err)
 	}
 }
 
