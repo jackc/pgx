@@ -165,7 +165,7 @@ func (rows *connRows) nextColumn() ([]byte, *pgproto3.FieldDescription, bool) {
 		return nil, nil, false
 	}
 	if len(rows.FieldDescriptions()) <= rows.columnIdx {
-		rows.fatal(ProtocolError("No next column available"))
+		rows.fatal(errors.New("No next column available"))
 		return nil, nil, false
 	}
 

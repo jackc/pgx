@@ -89,13 +89,6 @@ var ErrNoRows = errors.New("no rows in result set")
 // ErrInvalidLogLevel occurs on attempt to set an invalid log level.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
-// ProtocolError occurs when unexpected data is received from PostgreSQL
-type ProtocolError string
-
-func (e ProtocolError) Error() string {
-	return string(e)
-}
-
 // Connect establishes a connection with a PostgreSQL server with a connection string. See
 // pgconn.Connect for details.
 func Connect(ctx context.Context, connString string) (*Conn, error) {
