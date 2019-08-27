@@ -86,9 +86,6 @@ func (ident Identifier) Sanitize() string {
 // ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
 
-// ErrDeadConn occurs on an attempt to use a dead connection
-var ErrDeadConn = errors.New("conn is dead")
-
 // ErrInvalidLogLevel occurs on attempt to set an invalid log level.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
