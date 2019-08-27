@@ -89,10 +89,6 @@ var ErrNoRows = errors.New("no rows in result set")
 // ErrDeadConn occurs on an attempt to use a dead connection
 var ErrDeadConn = errors.New("conn is dead")
 
-// ErrTLSRefused occurs when the connection attempt requires TLS and the
-// PostgreSQL server refuses to use TLS
-var ErrTLSRefused = pgconn.ErrTLSRefused
-
 // ErrInvalidLogLevel occurs on attempt to set an invalid log level.
 var ErrInvalidLogLevel = errors.New("invalid log level")
 
@@ -221,7 +217,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 
 	// Replication connections can't execute the queries to
 	// populate the c.PgTypes and c.pgsqlAfInet
-	if _, ok := c.pgConn.Config.RuntimeParams["replication"]; ok {
+	if _, ok := config.Config.RuntimeParams["replication"]; ok {
 		return c, nil
 	}
 

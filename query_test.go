@@ -20,7 +20,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
-	errors "golang.org/x/xerrors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConnQueryScan(t *testing.T) {
@@ -288,9 +288,7 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 	rows.Close()
 
 	ensureConnValid(t, conn)
@@ -480,9 +478,7 @@ func TestQueryEncodeError(t *testing.T) {
 	if err != nil {
 		t.Errorf("conn.Query failure: %v", err)
 	}
-	if errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	assert.False(t, pgconn.SafeToRetry(err))
 	defer rows.Close()
 
 	rows.Next()
@@ -1309,12 +1305,8 @@ func TestQueryCloseBefore(t *testing.T) {
 	closeConn(t, conn)
 
 	_, err := conn.Query(context.Background(), "select 1")
-	if err == nil {
-		t.Fatal("Expected network error")
-	}
-	if !errors.Is(err, pgconn.ErrNoBytesSent) {
-		t.Error("Expected bytes to be sent to server")
-	}
+	require.Error(t, err)
+	assert.True(t, pgconn.SafeToRetry(err))
 }
 
 func TestRowsFromResultReader(t *testing.T) {
