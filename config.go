@@ -155,19 +155,19 @@ func ParseConfig(connString string) (*Config, error) {
 		if strings.HasPrefix(connString, "postgres://") {
 			err := addURLSettings(settings, connString)
 			if err != nil {
-				return nil, err
+				return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
 			}
 		} else {
 			err := addDSNSettings(settings, connString)
 			if err != nil {
-				return nil, err
+				return nil, &parseConfigError{connString: connString, msg: "failed to parse as DSN", err: err}
 			}
 		}
 	}
 
 	minReadBufferSize, err := strconv.ParseInt(settings["min_read_buffer_size"], 10, 32)
 	if err != nil {
-		return nil, errors.Errorf("cannot parse min_read_buffer_size: %w", err)
+		return nil, &parseConfigError{connString: connString, msg: "cannot parse min_read_buffer_size", err: err}
 	}
 
 	config := &Config{
@@ -182,7 +182,7 @@ func ParseConfig(connString string) (*Config, error) {
 	if connectTimeout, present := settings["connect_timeout"]; present {
 		dialFunc, err := makeConnectTimeoutDialFunc(connectTimeout)
 		if err != nil {
-			return nil, err
+			return nil, &parseConfigError{connString: connString, msg: "invalid connect_timeout", err: err}
 		}
 		config.DialFunc = dialFunc
 	} else {
@@ -228,7 +228,7 @@ func ParseConfig(connString string) (*Config, error) {
 
 		port, err := parsePort(portStr)
 		if err != nil {
-			return nil, errors.Errorf("invalid port: %w", err)
+			return nil, &parseConfigError{connString: connString, msg: "invalid port", err: err}
 		}
 
 		var tlsConfigs []*tls.Config
@@ -240,7 +240,7 @@ func ParseConfig(connString string) (*Config, error) {
 			var err error
 			tlsConfigs, err = configTLS(settings)
 			if err != nil {
-				return nil, err
+				return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
 			}
 		}
 
@@ -273,7 +273,7 @@ func ParseConfig(connString string) (*Config, error) {
 	if settings["target_session_attrs"] == "read-write" {
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsReadWrite
 	} else if settings["target_session_attrs"] != "any" {
-		return nil, errors.Errorf("unknown target_session_attrs value: %v", settings["target_session_attrs"])
+		return nil, &parseConfigError{connString: connString, msg: fmt.Sprintf("unknown target_session_attrs value: %v", settings["target_session_attrs"])}
 	}
 
 	return config, nil
