@@ -627,10 +627,9 @@ func TestFatalRxError(t *testing.T) {
 		var n int32
 		var s string
 		err := conn.QueryRow(context.Background(), "select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
-		if err == pgx.ErrDeadConn {
-		} else if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Severity == "FATAL" {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Severity == "FATAL" {
 		} else {
-			t.Fatalf("Expected QueryRow Scan to return fatal PgError or ErrDeadConn, but instead received %v", err)
+			t.Fatalf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
 		}
 	}()
 
