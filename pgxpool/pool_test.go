@@ -360,17 +360,17 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 
 	pid := c.Conn().PgConn().PID()
 
-	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus())
 
 	_, err = c.Exec(ctx, "begin")
 	assert.NoError(t, err)
 
-	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus())
 
 	_, err = c.Exec(ctx, "selct")
 	assert.Error(t, err)
 
-	assert.Equal(t, byte('E'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('E'), c.Conn().PgConn().TxStatus())
 
 	c.Release()
 	waitForReleaseToComplete()
@@ -379,7 +379,7 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotEqual(t, pid, c.Conn().PgConn().PID())
-	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus())
 
 	c.Release()
 }
@@ -398,12 +398,12 @@ func TestConnReleaseClosesConnInTransaction(t *testing.T) {
 
 	pid := c.Conn().PgConn().PID()
 
-	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus())
 
 	_, err = c.Exec(ctx, "begin")
 	assert.NoError(t, err)
 
-	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('T'), c.Conn().PgConn().TxStatus())
 
 	c.Release()
 	waitForReleaseToComplete()
@@ -412,7 +412,7 @@ func TestConnReleaseClosesConnInTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotEqual(t, pid, c.Conn().PgConn().PID())
-	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus)
+	assert.Equal(t, byte('I'), c.Conn().PgConn().TxStatus())
 
 	c.Release()
 }
