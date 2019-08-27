@@ -31,7 +31,7 @@ const clientNonceLen = 18
 
 // Perform SCRAM authentication.
 func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
-	sc, err := newScramClient(serverAuthMechanisms, c.Config.Password)
+	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
 	if err != nil {
 		return err
 	}

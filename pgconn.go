@@ -69,10 +69,10 @@ type PgConn struct {
 	pid               uint32            // backend pid
 	secretKey         uint32            // key to use to send a cancel query message to the server
 	parameterStatuses map[string]string // parameters that have been reported by the server
-	TxStatus          byte
+	txStatus          byte
 	frontend          Frontend
 
-	Config *Config
+	config *Config
 
 	status byte // One of connStatus* constants
 
@@ -149,7 +149,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
 	pgConn := new(PgConn)
-	pgConn.Config = config
+	pgConn.config = config
 	pgConn.wbuf = make([]byte, 0, 1024)
 
 	var err error
@@ -261,9 +261,9 @@ func (pgConn *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error
 	switch msg.Type {
 	case pgproto3.AuthTypeOk:
 	case pgproto3.AuthTypeCleartextPassword:
-		err = pgConn.txPasswordMessage(pgConn.Config.Password)
+		err = pgConn.txPasswordMessage(pgConn.config.Password)
 	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(pgConn.Config.Password+pgConn.Config.User)+string(msg.Salt[:]))
+		digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
 		err = pgConn.txPasswordMessage(digestedPassword)
 	case pgproto3.AuthTypeSASL:
 		err = pgConn.scramAuth(msg.SASLAuthMechanisms)
@@ -390,7 +390,7 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 
 	switch msg := msg.(type) {
 	case *pgproto3.ReadyForQuery:
-		pgConn.TxStatus = msg.TxStatus
+		pgConn.txStatus = msg.TxStatus
 	case *pgproto3.ParameterStatus:
 		pgConn.parameterStatuses[msg.Name] = msg.Value
 	case *pgproto3.ErrorResponse:
@@ -399,12 +399,12 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 			return nil, ErrorResponseToPgError(msg)
 		}
 	case *pgproto3.NoticeResponse:
-		if pgConn.Config.OnNotice != nil {
-			pgConn.Config.OnNotice(pgConn, noticeResponseToNotice(msg))
+		if pgConn.config.OnNotice != nil {
+			pgConn.config.OnNotice(pgConn, noticeResponseToNotice(msg))
 		}
 	case *pgproto3.NotificationResponse:
-		if pgConn.Config.OnNotification != nil {
-			pgConn.Config.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
+		if pgConn.config.OnNotification != nil {
+			pgConn.config.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
 		}
 	}
 
@@ -419,6 +419,11 @@ func (pgConn *PgConn) Conn() net.Conn {
 // PID returns the backend PID.
 func (pgConn *PgConn) PID() uint32 {
 	return pgConn.pid
+}
+
+// TxStatus returns the current TxStatus as reported by the server.
+func (pgConn *PgConn) TxStatus() byte {
+	return pgConn.txStatus
 }
 
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
@@ -618,7 +623,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.
 	serverAddr := pgConn.conn.RemoteAddr()
-	cancelConn, err := pgConn.Config.DialFunc(ctx, serverAddr.Network(), serverAddr.String())
+	cancelConn, err := pgConn.config.DialFunc(ctx, serverAddr.Network(), serverAddr.String())
 	if err != nil {
 		return err
 	}
