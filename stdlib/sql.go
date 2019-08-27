@@ -75,7 +75,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"net"
 	"reflect"
 	"strings"
 	"sync"
@@ -227,8 +226,7 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 	commandTag, err := c.conn.Exec(ctx, query, args...)
 	// if we got a network error before we had a chance to send the query, retry
 	if err != nil {
-		var netErr net.Error
-		if is := errors.As(err, &netErr); is && errors.Is(err, pgconn.ErrNoBytesSent) {
+		if pgconn.SafeToRetry(err) {
 			return nil, driver.ErrBadConn
 		}
 	}
@@ -245,7 +243,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
-		if errors.Is(err, pgconn.ErrNoBytesSent) {
+		if pgconn.SafeToRetry(err) {
 			return nil, driver.ErrBadConn
 		}
 		return nil, err

@@ -895,8 +895,8 @@ func TestStmtExecContextCancel(t *testing.T) {
 	defer cancel()
 
 	_, err = stmt.ExecContext(ctx, 42)
-	if err != context.DeadlineExceeded {
-		t.Errorf("err => %v, want %v", err, context.DeadlineExceeded)
+	if !pgconn.Timeout(err) {
+		t.Errorf("expected timeout error, got %v", err)
 	}
 
 	ensureConnValid(t, db)
