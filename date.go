@@ -125,7 +125,7 @@ func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -147,7 +147,7 @@ func (src *Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, s...), nil
 }
 
-func (src *Date) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Date) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -195,7 +195,7 @@ func (dst *Date) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Date) Value() (driver.Value, error) {
+func (src Date) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		if src.InfinityModifier != None {

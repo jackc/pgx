@@ -41,12 +41,12 @@ func (dst *BPChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src *BPChar) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Text)(src).EncodeText(ci, buf)
+func (src BPChar) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Text)(src).EncodeText(ci, buf)
 }
 
-func (src *BPChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Text)(src).EncodeBinary(ci, buf)
+func (src BPChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Text)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -55,12 +55,12 @@ func (dst *BPChar) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *BPChar) Value() (driver.Value, error) {
-	return (*Text)(src).Value()
+func (src BPChar) Value() (driver.Value, error) {
+	return (Text)(src).Value()
 }
 
-func (src *BPChar) MarshalJSON() ([]byte, error) {
-	return (*Text)(src).MarshalJSON()
+func (src BPChar) MarshalJSON() ([]byte, error) {
+	return (Text)(src).MarshalJSON()
 }
 
 func (dst *BPChar) UnmarshalJSON(b []byte) error {

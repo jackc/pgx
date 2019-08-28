@@ -455,7 +455,7 @@ func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
 	return accum, rp, digits
 }
 
-func (src *Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -469,7 +469,7 @@ func (src *Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -580,7 +580,7 @@ func (dst *Numeric) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Numeric) Value() (driver.Value, error) {
+func (src Numeric) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		buf, err := src.EncodeText(nil, nil)

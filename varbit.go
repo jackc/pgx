@@ -75,7 +75,7 @@ func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -96,7 +96,7 @@ func (src *Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Varbit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Varbit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -128,6 +128,6 @@ func (dst *Varbit) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Varbit) Value() (driver.Value, error) {
+func (src Varbit) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }

@@ -95,7 +95,7 @@ func (dst *Circle) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Circle) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Circle) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -112,7 +112,7 @@ func (src *Circle) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Circle) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Circle) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -146,6 +146,6 @@ func (dst *Circle) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Circle) Value() (driver.Value, error) {
+func (src Circle) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }

@@ -22,10 +22,10 @@ func (dst *CIDR) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Inet)(dst).DecodeBinary(ci, src)
 }
 
-func (src *CIDR) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Inet)(src).EncodeText(ci, buf)
+func (src CIDR) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Inet)(src).EncodeText(ci, buf)
 }
 
-func (src *CIDR) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Inet)(src).EncodeBinary(ci, buf)
+func (src CIDR) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Inet)(src).EncodeBinary(ci, buf)
 }

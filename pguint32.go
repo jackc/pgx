@@ -102,7 +102,7 @@ func (dst *pguint32) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *pguint32) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src pguint32) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -113,7 +113,7 @@ func (src *pguint32) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, strconv.FormatUint(uint64(src.Uint), 10)...), nil
 }
 
-func (src *pguint32) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src pguint32) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -150,7 +150,7 @@ func (dst *pguint32) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *pguint32) Value() (driver.Value, error) {
+func (src pguint32) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		return int64(src.Uint), nil

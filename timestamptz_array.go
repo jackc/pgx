@@ -169,7 +169,7 @@ func (dst *TimestamptzArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *TimestamptzArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src TimestamptzArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -226,7 +226,7 @@ func (src *TimestamptzArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error
 	return buf, nil
 }
 
-func (src *TimestamptzArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src TimestamptzArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -289,7 +289,7 @@ func (dst *TimestamptzArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *TimestamptzArray) Value() (driver.Value, error) {
+func (src TimestamptzArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

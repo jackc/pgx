@@ -117,7 +117,7 @@ func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -128,7 +128,7 @@ func (src *UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, src.UUID.String()...), nil
 }
 
-func (src *UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -157,6 +157,6 @@ func (dst *UUID) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *UUID) Value() (driver.Value, error) {
+func (src UUID) Value() (driver.Value, error) {
 	return pgtype.EncodeValueText(src)
 }

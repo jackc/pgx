@@ -24,8 +24,8 @@ func (dst *GenericText) DecodeText(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeText(ci, src)
 }
 
-func (src *GenericText) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Text)(src).EncodeText(ci, buf)
+func (src GenericText) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Text)(src).EncodeText(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -34,6 +34,6 @@ func (dst *GenericText) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *GenericText) Value() (driver.Value, error) {
-	return (*Text)(src).Value()
+func (src GenericText) Value() (driver.Value, error) {
+	return (Text)(src).Value()
 }

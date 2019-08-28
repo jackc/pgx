@@ -39,12 +39,12 @@ func (dst *Name) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Name) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Text)(src).EncodeText(ci, buf)
+func (src Name) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Text)(src).EncodeText(ci, buf)
 }
 
-func (src *Name) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Text)(src).EncodeBinary(ci, buf)
+func (src Name) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Text)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -53,6 +53,6 @@ func (dst *Name) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Name) Value() (driver.Value, error) {
-	return (*Text)(src).Value()
+func (src Name) Value() (driver.Value, error) {
+	return (Text)(src).Value()
 }

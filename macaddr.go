@@ -107,7 +107,7 @@ func (dst *Macaddr) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Macaddr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Macaddr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -119,7 +119,7 @@ func (src *Macaddr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 // EncodeBinary encodes src into w.
-func (src *Macaddr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Macaddr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -150,6 +150,6 @@ func (dst *Macaddr) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Macaddr) Value() (driver.Value, error) {
+func (src Macaddr) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }
