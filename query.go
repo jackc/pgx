@@ -39,7 +39,7 @@ func (src *Query) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *Query) MarshalJSON() ([]byte, error) {
+func (src Query) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type   string
 		String string

@@ -53,7 +53,7 @@ func (src *ParameterStatus) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (ps *ParameterStatus) MarshalJSON() ([]byte, error) {
+func (ps ParameterStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type  string
 		Name  string

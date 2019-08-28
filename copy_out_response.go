@@ -60,7 +60,7 @@ func (src *CopyOutResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *CopyOutResponse) MarshalJSON() ([]byte, error) {
+func (src CopyOutResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type              string
 		ColumnFormatCodes []uint16

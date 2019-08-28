@@ -73,7 +73,7 @@ func (src *Parse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *Parse) MarshalJSON() ([]byte, error) {
+func (src Parse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type          string
 		Name          string

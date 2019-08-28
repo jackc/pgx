@@ -32,7 +32,7 @@ func (src *SASLResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *SASLResponse) MarshalJSON() ([]byte, error) {
+func (src SASLResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type string
 		Data string

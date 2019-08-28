@@ -55,7 +55,7 @@ func (src *ParameterDescription) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *ParameterDescription) MarshalJSON() ([]byte, error) {
+func (src ParameterDescription) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type          string
 		ParameterOIDs []uint32

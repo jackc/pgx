@@ -56,7 +56,7 @@ func (src *SASLInitialResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *SASLInitialResponse) MarshalJSON() ([]byte, error) {
+func (src SASLInitialResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type          string
 		AuthMechanism string

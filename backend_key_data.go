@@ -38,7 +38,7 @@ func (src *BackendKeyData) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *BackendKeyData) MarshalJSON() ([]byte, error) {
+func (src BackendKeyData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type      string
 		ProcessID uint32

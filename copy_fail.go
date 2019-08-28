@@ -42,7 +42,7 @@ func (src *CopyFail) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *CopyFail) MarshalJSON() ([]byte, error) {
+func (src CopyFail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type    string
 		Message string

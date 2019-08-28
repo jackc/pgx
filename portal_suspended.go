@@ -25,7 +25,7 @@ func (src *PortalSuspended) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *PortalSuspended) MarshalJSON() ([]byte, error) {
+func (src PortalSuspended) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type string
 	}{
