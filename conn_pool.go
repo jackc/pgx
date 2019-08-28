@@ -341,7 +341,8 @@ func (p *ConnPool) afterConnectionCreated(c *Conn) (*Conn, error) {
 	}
 
 	for _, ps := range p.preparedStatements {
-		if _, err := c.Prepare(ps.Name, ps.SQL); err != nil {
+		opts := &PrepareExOptions{ParameterOIDs: ps.ParameterOIDs}
+		if _, err := c.PrepareEx(context.Background(), ps.Name, ps.SQL, opts); err != nil {
 			c.die(err)
 			return nil, err
 		}
