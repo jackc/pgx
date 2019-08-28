@@ -136,7 +136,7 @@ func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 // EncodeText writes the text encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src *Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -163,7 +163,7 @@ func (src *Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
-func (src *Timestamp) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Timestamp) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -211,7 +211,7 @@ func (dst *Timestamp) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Timestamp) Value() (driver.Value, error) {
+func (src Timestamp) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		if src.InfinityModifier != None {

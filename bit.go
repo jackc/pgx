@@ -22,8 +22,8 @@ func (dst *Bit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Varbit)(dst).DecodeBinary(ci, src)
 }
 
-func (src *Bit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Varbit)(src).EncodeBinary(ci, buf)
+func (src Bit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Varbit)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -32,6 +32,6 @@ func (dst *Bit) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Bit) Value() (driver.Value, error) {
-	return (*Varbit)(src).Value()
+func (src Bit) Value() (driver.Value, error) {
+	return (Varbit)(src).Value()
 }

@@ -134,7 +134,7 @@ func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil

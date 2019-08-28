@@ -96,7 +96,7 @@ func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -113,7 +113,7 @@ func (src *Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *Bool) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Bool) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -153,7 +153,7 @@ func (dst *Bool) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Bool) Value() (driver.Value, error) {
+func (src Bool) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		return src.Bool, nil

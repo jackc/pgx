@@ -124,7 +124,7 @@ func (dst *ACLItemArray) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *ACLItemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src ACLItemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -200,7 +200,7 @@ func (dst *ACLItemArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *ACLItemArray) Value() (driver.Value, error) {
+func (src ACLItemArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

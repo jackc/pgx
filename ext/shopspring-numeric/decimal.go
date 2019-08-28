@@ -257,7 +257,7 @@ func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *Numeric) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src Numeric) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -268,7 +268,7 @@ func (src *Numeric) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) 
 	return append(buf, src.Decimal.String()...), nil
 }
 
-func (src *Numeric) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+func (src Numeric) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case pgtype.Null:
 		return nil, nil
@@ -306,7 +306,7 @@ func (dst *Numeric) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Numeric) Value() (driver.Value, error) {
+func (src Numeric) Value() (driver.Value, error) {
 	switch src.Status {
 	case pgtype.Present:
 		return src.Decimal.Value()

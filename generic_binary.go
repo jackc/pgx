@@ -24,8 +24,8 @@ func (dst *GenericBinary) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Bytea)(dst).DecodeBinary(ci, src)
 }
 
-func (src *GenericBinary) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (*Bytea)(src).EncodeBinary(ci, buf)
+func (src GenericBinary) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (Bytea)(src).EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -34,6 +34,6 @@ func (dst *GenericBinary) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *GenericBinary) Value() (driver.Value, error) {
-	return (*Bytea)(src).Value()
+func (src GenericBinary) Value() (driver.Value, error) {
+	return (Bytea)(src).Value()
 }

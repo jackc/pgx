@@ -39,6 +39,6 @@ func (dst *Unknown) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Unknown) Value() (driver.Value, error) {
-	return (*Text)(src).Value()
+func (src Unknown) Value() (driver.Value, error) {
+	return (Text)(src).Value()
 }

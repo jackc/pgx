@@ -92,7 +92,7 @@ func (dst *Text) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
 }
 
-func (src *Text) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Text) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -103,7 +103,7 @@ func (src *Text) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, src.String...), nil
 }
 
-func (src *Text) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src Text) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return src.EncodeText(ci, buf)
 }
 
@@ -127,7 +127,7 @@ func (dst *Text) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *Text) Value() (driver.Value, error) {
+func (src Text) Value() (driver.Value, error) {
 	switch src.Status {
 	case Present:
 		return src.String, nil
@@ -138,7 +138,7 @@ func (src *Text) Value() (driver.Value, error) {
 	}
 }
 
-func (src *Text) MarshalJSON() ([]byte, error) {
+func (src Text) MarshalJSON() ([]byte, error) {
 	switch src.Status {
 	case Present:
 		return json.Marshal(src.String)
