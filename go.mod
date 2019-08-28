@@ -6,8 +6,8 @@ require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/jackc/pgconn v0.0.0-20190827231150-66aaed7c9eb0
 	github.com/jackc/pgio v1.0.0
-	github.com/jackc/pgproto3/v2 v2.0.0-alpha1.0.20190609003834-432c2951c711
-	github.com/jackc/pgtype v0.0.0-20190825053211-b1e25e4ea49c
+	github.com/jackc/pgproto3/v2 v2.0.0-rc1
+	github.com/jackc/pgtype v0.0.0-20190828014616-a8802b16cc59
 	github.com/jackc/puddle v0.0.0-20190608224051-11cab39313c9
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
