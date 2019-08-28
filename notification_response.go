@@ -57,7 +57,7 @@ func (src *NotificationResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *NotificationResponse) MarshalJSON() ([]byte, error) {
+func (src NotificationResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type    string
 		PID     uint32

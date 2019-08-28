@@ -57,7 +57,7 @@ func (src *FunctionCallResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *FunctionCallResponse) MarshalJSON() ([]byte, error) {
+func (src FunctionCallResponse) MarshalJSON() ([]byte, error) {
 	var formattedValue map[string]string
 	var hasNonPrintable bool
 	for _, b := range src.Result {

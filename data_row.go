@@ -85,7 +85,7 @@ func (src *DataRow) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *DataRow) MarshalJSON() ([]byte, error) {
+func (src DataRow) MarshalJSON() ([]byte, error) {
 	formattedValues := make([]map[string]string, len(src.Values))
 	for i, v := range src.Values {
 		if v == nil {

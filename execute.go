@@ -52,7 +52,7 @@ func (src *Execute) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *Execute) MarshalJSON() ([]byte, error) {
+func (src Execute) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type    string
 		Portal  string

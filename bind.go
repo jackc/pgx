@@ -144,7 +144,7 @@ func (src *Bind) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *Bind) MarshalJSON() ([]byte, error) {
+func (src Bind) MarshalJSON() ([]byte, error) {
 	formattedParameters := make([]map[string]string, len(src.Parameters))
 	for i, p := range src.Parameters {
 		if p == nil {

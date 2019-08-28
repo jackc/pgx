@@ -102,7 +102,7 @@ func (src *RowDescription) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *RowDescription) MarshalJSON() ([]byte, error) {
+func (src RowDescription) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type   string
 		Fields []FieldDescription

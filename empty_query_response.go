@@ -25,7 +25,7 @@ func (src *EmptyQueryResponse) Encode(dst []byte) []byte {
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
-func (src *EmptyQueryResponse) MarshalJSON() ([]byte, error) {
+func (src EmptyQueryResponse) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		Type string
 	}{
