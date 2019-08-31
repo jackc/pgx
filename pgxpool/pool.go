@@ -68,7 +68,7 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 type Pool struct {
 	p                 *puddle.Pool
 	afterConnect      func(context.Context, *pgx.Conn) error
-	beforeAcquire     func(*pgx.Conn) bool
+	beforeAcquire     func(context.Context, *pgx.Conn) bool
 	afterRelease      func(*pgx.Conn) bool
 	maxConnLifetime   time.Duration
 	healthCheckPeriod time.Duration
@@ -86,7 +86,7 @@ type Config struct {
 	// BeforeAcquire is called before before a connection is acquired from the pool. It must return true to allow the
 	// acquision or false to indicate that the connection should be destroyed and a different connection should be
 	// acquired.
-	BeforeAcquire func(*pgx.Conn) bool
+	BeforeAcquire func(context.Context, *pgx.Conn) bool
 
 	// AfterRelease is called after a connection is released, but before it is returned to the pool. It must return true to
 	// return the connection to the pool or false to destroy the connection.
@@ -289,7 +289,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 		}
 
 		cr := res.Value().(*connResource)
-		if p.beforeAcquire == nil || p.beforeAcquire(cr.conn) {
+		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
 			return cr.getConn(p, res), nil
 		}
 
@@ -299,12 +299,12 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
-func (p *Pool) AcquireAllIdle() []*Conn {
+func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	resources := p.p.AcquireAllIdle()
 	conns := make([]*Conn, 0, len(resources))
 	for _, res := range resources {
 		cr := res.Value().(*connResource)
-		if p.beforeAcquire == nil || p.beforeAcquire(cr.conn) {
+		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
 			conns = append(conns, cr.getConn(p, res))
 		} else {
 			res.Destroy()
