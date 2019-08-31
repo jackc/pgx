@@ -2,6 +2,7 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ type Backend struct {
 
 	// Frontend message flyweights
 	bind            Bind
+	cancelRequest   CancelRequest
 	_close          Close
 	copyFail        CopyFail
 	describe        Describe
@@ -22,6 +24,7 @@ type Backend struct {
 	parse           Parse
 	passwordMessage PasswordMessage
 	query           Query
+	sslRequest      SSLRequest
 	startupMessage  StartupMessage
 	sync            Sync
 	terminate       Terminate
@@ -42,9 +45,10 @@ func (b *Backend) Send(msg BackendMessage) error {
 	return err
 }
 
-// ReceiveStartupMessage receives the initial startup message. This method is used of the normal Receive method
-// because StartupMessage and SSLRequest are "special" and do not include the message type as the first byte.
-func (b *Backend) ReceiveStartupMessage() (*StartupMessage, error) {
+// ReceiveStartupMessage receives the initial connection message. This method is used of the normal Receive method
+// because the initial connection message is "special" and does not include the message type as the first byte. This
+// will return either a StartupMessage, SSLRequest, or CancelRequest.
+func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 	buf, err := b.cr.Next(4)
 	if err != nil {
 		return nil, err
@@ -56,12 +60,30 @@ func (b *Backend) ReceiveStartupMessage() (*StartupMessage, error) {
 		return nil, err
 	}
 
-	err = b.startupMessage.Decode(buf)
-	if err != nil {
-		return nil, err
-	}
+	code := binary.BigEndian.Uint32(buf)
 
-	return &b.startupMessage, nil
+	switch code {
+	case ProtocolVersionNumber:
+		err = b.startupMessage.Decode(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &b.startupMessage, nil
+	case sslRequestNumber:
+		err = b.sslRequest.Decode(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &b.sslRequest, nil
+	case cancelRequestCode:
+		err = b.cancelRequest.Decode(buf)
+		if err != nil {
+			return nil, err
+		}
+		return &b.cancelRequest, nil
+	default:
+		return nil, fmt.Errorf("unknown startup message code: %d", code)
+	}
 }
 
 // Receive receives a message from the frontend.
