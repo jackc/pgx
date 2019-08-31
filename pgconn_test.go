@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgmock"
 	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
 
@@ -71,6 +72,67 @@ func TestConnectTLS(t *testing.T) {
 	}
 
 	closeConn(t, conn)
+}
+
+type pgmockWaitStep time.Duration
+
+func (s pgmockWaitStep) Step(*pgproto3.Backend) error {
+	time.Sleep(time.Duration(s))
+	return nil
+}
+
+func TestConnectWithContextThatTimesOut(t *testing.T) {
+	t.Parallel()
+
+	script := &pgmock.Script{
+		Steps: []pgmock.Step{
+			pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersionNumber, Parameters: map[string]string{}}),
+			pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+			pgmockWaitStep(time.Millisecond * 500),
+			pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}),
+			pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		},
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	serverErrChan := make(chan error, 1)
+	go func() {
+		defer close(serverErrChan)
+
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(time.Millisecond * 450))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		err = script.Run(pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+	}()
+
+	parts := strings.Split(ln.Addr().String(), ":")
+	host := parts[0]
+	port := parts[1]
+	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+	tooLate := time.Now().Add(time.Millisecond * 500)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	_, err = pgconn.Connect(ctx, connStr)
+	require.True(t, pgconn.Timeout(err), err)
+	require.True(t, time.Now().Before(tooLate))
 }
 
 func TestConnectInvalidUser(t *testing.T) {

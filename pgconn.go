@@ -174,6 +174,9 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		func() { pgConn.conn.SetDeadline(time.Time{}) },
 	)
 
+	pgConn.contextWatcher.Watch(ctx)
+	defer pgConn.contextWatcher.Unwatch()
+
 	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
