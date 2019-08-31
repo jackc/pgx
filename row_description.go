@@ -23,6 +23,27 @@ type FieldDescription struct {
 	Format               int16
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
+func (fd FieldDescription) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name                 string
+		TableOID             uint32
+		TableAttributeNumber uint16
+		DataTypeOID          uint32
+		DataTypeSize         int16
+		TypeModifier         int32
+		Format               int16
+	}{
+		Name:                 string(fd.Name),
+		TableOID:             fd.TableOID,
+		TableAttributeNumber: fd.TableAttributeNumber,
+		DataTypeOID:          fd.DataTypeOID,
+		DataTypeSize:         fd.DataTypeSize,
+		TypeModifier:         fd.TypeModifier,
+		Format:               fd.Format,
+	})
+}
+
 type RowDescription struct {
 	Fields []FieldDescription
 }
