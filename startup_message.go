@@ -9,10 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	ProtocolVersionNumber = 196608 // 3.0
-	sslRequestNumber      = 80877103
-)
+const ProtocolVersionNumber = 196608 // 3.0
 
 type StartupMessage struct {
 	ProtocolVersion uint32
@@ -31,10 +28,6 @@ func (dst *StartupMessage) Decode(src []byte) error {
 
 	dst.ProtocolVersion = binary.BigEndian.Uint32(src)
 	rp := 4
-
-	if dst.ProtocolVersion == sslRequestNumber {
-		return errors.Errorf("can't handle ssl connection request")
-	}
 
 	if dst.ProtocolVersion != ProtocolVersionNumber {
 		return errors.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
