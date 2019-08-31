@@ -210,11 +210,28 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		case *pgproto3.BackendKeyData:
 			pgConn.pid = msg.ProcessID
 			pgConn.secretKey = msg.SecretKey
-		case *pgproto3.Authentication:
-			if err = pgConn.rxAuthenticationX(msg); err != nil {
+
+		case *pgproto3.AuthenticationOk:
+		case *pgproto3.AuthenticationCleartextPassword:
+			err = pgConn.txPasswordMessage(pgConn.config.Password)
+			if err != nil {
 				pgConn.conn.Close()
-				return nil, &connectError{config: config, msg: "failed handle authentication message", err: err}
+				return nil, &connectError{config: config, msg: "failed to write password message", err: err}
 			}
+		case *pgproto3.AuthenticationMD5Password:
+			digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
+			err = pgConn.txPasswordMessage(digestedPassword)
+			if err != nil {
+				pgConn.conn.Close()
+				return nil, &connectError{config: config, msg: "failed to write password message", err: err}
+			}
+		case *pgproto3.AuthenticationSASL:
+			err = pgConn.scramAuth(msg.AuthMechanisms)
+			if err != nil {
+				pgConn.conn.Close()
+				return nil, &connectError{config: config, msg: "failed SASL auth", err: err}
+			}
+
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
 			if config.ValidateConnect != nil {
@@ -255,23 +272,6 @@ func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
 	pgConn.conn = tls.Client(pgConn.conn, tlsConfig)
 
 	return nil
-}
-
-func (pgConn *PgConn) rxAuthenticationX(msg *pgproto3.Authentication) (err error) {
-	switch msg.Type {
-	case pgproto3.AuthTypeOk:
-	case pgproto3.AuthTypeCleartextPassword:
-		err = pgConn.txPasswordMessage(pgConn.config.Password)
-	case pgproto3.AuthTypeMD5Password:
-		digestedPassword := "md5" + hexMD5(hexMD5(pgConn.config.Password+pgConn.config.User)+string(msg.Salt[:]))
-		err = pgConn.txPasswordMessage(digestedPassword)
-	case pgproto3.AuthTypeSASL:
-		err = pgConn.scramAuth(msg.SASLAuthMechanisms)
-	default:
-		err = errors.New("Received unknown authentication message")
-	}
-
-	return
 }
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {

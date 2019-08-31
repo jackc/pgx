@@ -501,7 +501,7 @@ func makeDefaultBuildFrontendFunc(minBufferLen int) BuildFrontendFunc {
 		if err != nil {
 			panic(fmt.Sprintf("BUG: chunkreader.NewConfig failed: %v", err))
 		}
-		frontend, _ := pgproto3.NewFrontend(cr, w)
+		frontend := pgproto3.NewFrontend(cr, w)
 
 		return frontend
 	}
