@@ -12,10 +12,7 @@ func TestBackendReceiveInterrupted(t *testing.T) {
 	server := &interruptReader{}
 	server.push([]byte{'Q', 0, 0, 0, 6})
 
-	backend, err := pgproto3.NewBackend(pgproto3.NewChunkReader(server), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	backend := pgproto3.NewBackend(pgproto3.NewChunkReader(server), nil)
 
 	msg, err := backend.Receive()
 	if err == nil {

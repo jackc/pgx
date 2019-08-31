@@ -42,8 +42,8 @@ type Frontend struct {
 }
 
 // NewFrontend creates a new Frontend.
-func NewFrontend(cr ChunkReader, w io.Writer) (*Frontend, error) {
-	return &Frontend{cr: cr, w: w}, nil
+func NewFrontend(cr ChunkReader, w io.Writer) *Frontend {
+	return &Frontend{cr: cr, w: w}
 }
 
 // Send sends a message to the backend.

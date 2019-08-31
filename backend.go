@@ -33,8 +33,8 @@ type Backend struct {
 }
 
 // NewBackend creates a new Backend.
-func NewBackend(cr ChunkReader, w io.Writer) (*Backend, error) {
-	return &Backend{cr: cr, w: w}, nil
+func NewBackend(cr ChunkReader, w io.Writer) *Backend {
+	return &Backend{cr: cr, w: w}
 }
 
 // Send sends a message to the frontend.
