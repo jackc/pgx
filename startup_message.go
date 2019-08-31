@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
 )
 
 const ProtocolVersionNumber = 196608 // 3.0
@@ -23,14 +24,14 @@ func (*StartupMessage) Frontend() {}
 // type identifier and 4 byte message length.
 func (dst *StartupMessage) Decode(src []byte) error {
 	if len(src) < 4 {
-		return errors.Errorf("startup message too short")
+		return errors.New("startup message too short")
 	}
 
 	dst.ProtocolVersion = binary.BigEndian.Uint32(src)
 	rp := 4
 
 	if dst.ProtocolVersion != ProtocolVersionNumber {
-		return errors.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
+		return fmt.Errorf("Bad startup message version number. Expected %d, got %d", ProtocolVersionNumber, dst.ProtocolVersion)
 	}
 
 	dst.Parameters = make(map[string]string)
@@ -53,7 +54,7 @@ func (dst *StartupMessage) Decode(src []byte) error {
 
 		if len(src[rp:]) == 1 {
 			if src[rp] != 0 {
-				return errors.Errorf("Bad startup message last byte. Expected 0, got %d", src[rp])
+				return fmt.Errorf("Bad startup message last byte. Expected 0, got %d", src[rp])
 			}
 			break
 		}

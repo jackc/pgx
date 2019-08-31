@@ -1,9 +1,8 @@
 package pgproto3_test
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/pkg/errors"
 
 	"github.com/jackc/pgproto3/v2"
 )

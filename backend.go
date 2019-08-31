@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 )
 
 // Backend acts as a server for the PostgreSQL wire protocol version 3.
@@ -124,7 +122,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	case 'X':
 		msg = &b.terminate
 	default:
-		return nil, errors.Errorf("unknown message type: %c", b.msgType)
+		return nil, fmt.Errorf("unknown message type: %c", b.msgType)
 	}
 
 	msgBody, err := b.cr.Next(b.bodyLen)

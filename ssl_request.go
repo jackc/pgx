@@ -3,9 +3,9 @@ package pgproto3
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
 )
 
 const sslRequestNumber = 80877103
@@ -18,13 +18,13 @@ func (*SSLRequest) Frontend() {}
 
 func (dst *SSLRequest) Decode(src []byte) error {
 	if len(src) < 4 {
-		return errors.Errorf("ssl request too short")
+		return errors.New("ssl request too short")
 	}
 
 	requestCode := binary.BigEndian.Uint32(src)
 
 	if requestCode != sslRequestNumber {
-		return errors.Errorf("bad ssl request code")
+		return errors.New("bad ssl request code")
 	}
 
 	return nil
