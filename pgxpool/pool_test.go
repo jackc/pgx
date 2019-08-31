@@ -88,7 +88,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 
 	acquireAttempts := 0
 
-	config.BeforeAcquire = func(c *pgx.Conn) bool {
+	config.BeforeAcquire = func(ctx context.Context, c *pgx.Conn) bool {
 		acquireAttempts += 1
 		return acquireAttempts%2 == 0
 	}
@@ -110,7 +110,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 
 	assert.EqualValues(t, 8, acquireAttempts)
 
-	conns = db.AcquireAllIdle()
+	conns = db.AcquireAllIdle(context.Background())
 	assert.Len(t, conns, 2)
 
 	for _, c := range conns {
@@ -158,7 +158,7 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	conns := db.AcquireAllIdle()
+	conns := db.AcquireAllIdle(context.Background())
 	assert.Len(t, conns, 1)
 
 	for _, c := range conns {
@@ -179,7 +179,7 @@ func TestPoolAcquireAllIdle(t *testing.T) {
 	}
 	waitForReleaseToComplete()
 
-	conns = db.AcquireAllIdle()
+	conns = db.AcquireAllIdle(context.Background())
 	assert.Len(t, conns, 3)
 
 	for _, c := range conns {
