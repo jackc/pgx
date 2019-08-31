@@ -13,9 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgmock"
 	"github.com/jackc/pgx/v4/stdlib"
 )
 
@@ -665,23 +663,6 @@ func TestBeginTxContextCancel(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
-}
-
-func acceptStandardPgxConn(backend *pgproto3.Backend) error {
-	script := pgmock.Script{
-		Steps: pgmock.AcceptUnauthenticatedConnRequestSteps(),
-	}
-
-	err := script.Run(backend)
-	if err != nil {
-		return err
-	}
-
-	typeScript := pgmock.Script{
-		Steps: pgmock.PgxInitSteps(),
-	}
-
-	return typeScript.Run(backend)
 }
 
 func TestAcquireConn(t *testing.T) {
