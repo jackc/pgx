@@ -3,9 +3,9 @@ package pgproto3
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
 )
 
 // Authentication message type constants.
@@ -60,7 +60,7 @@ func (dst *Authentication) Decode(src []byte) error {
 	case AuthTypeSASLContinue, AuthTypeSASLFinal:
 		dst.SASLData = src[4:]
 	default:
-		return errors.Errorf("unknown authentication type: %d", dst.Type)
+		return fmt.Errorf("unknown authentication type: %d", dst.Type)
 	}
 
 	return nil

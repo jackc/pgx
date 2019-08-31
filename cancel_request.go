@@ -3,9 +3,9 @@ package pgproto3
 import (
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 
 	"github.com/jackc/pgio"
-	"github.com/pkg/errors"
 )
 
 const cancelRequestCode = 80877102
@@ -20,13 +20,13 @@ func (*CancelRequest) Frontend() {}
 
 func (dst *CancelRequest) Decode(src []byte) error {
 	if len(src) != 12 {
-		return errors.Errorf("bad cancel request size")
+		return errors.New("bad cancel request size")
 	}
 
 	requestCode := binary.BigEndian.Uint32(src)
 
 	if requestCode != cancelRequestCode {
-		return errors.Errorf("bad cancel request code")
+		return errors.New("bad cancel request code")
 	}
 
 	dst.ProcessID = binary.BigEndian.Uint32(src[4:])

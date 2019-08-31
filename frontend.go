@@ -2,9 +2,8 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
 )
 
 // Frontend acts as a client for the PostgreSQL wire protocol version 3.
@@ -115,7 +114,7 @@ func (b *Frontend) Receive() (BackendMessage, error) {
 	case 'Z':
 		msg = &b.readyForQuery
 	default:
-		return nil, errors.Errorf("unknown message type: %c", b.msgType)
+		return nil, fmt.Errorf("unknown message type: %c", b.msgType)
 	}
 
 	msgBody, err := b.cr.Next(b.bodyLen)
