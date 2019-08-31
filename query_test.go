@@ -161,6 +161,51 @@ func TestConnQueryValues(t *testing.T) {
 	}
 }
 
+// https://github.com/jackc/pgx/issues/478
+func TestConnQueryReadRowMultipleTimes(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	var rowCount int32
+
+	rows, err := conn.Query(context.Background(), "select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n", 10)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	for rows.Next() {
+		rowCount++
+
+		for i := 0; i < 2; i++ {
+			values, err := rows.Values()
+			require.NoError(t, err)
+			require.Len(t, values, 5)
+			require.Equal(t, "foo", values[0])
+			require.Equal(t, "bar", values[1])
+			require.Equal(t, rowCount, values[2])
+			require.Nil(t, values[3])
+			require.Equal(t, rowCount, values[4])
+
+			var a, b string
+			var c int32
+			var d pgtype.Unknown
+			var e int32
+
+			err = rows.Scan(&a, &b, &c, &d, &e)
+			require.NoError(t, err)
+			require.Equal(t, "foo", a)
+			require.Equal(t, "bar", b)
+			require.Equal(t, rowCount, c)
+			require.Equal(t, pgtype.Null, d.Status)
+			require.Equal(t, rowCount, e)
+		}
+	}
+
+	require.NoError(t, rows.Err())
+	require.Equal(t, int32(10), rowCount)
+}
+
 // https://github.com/jackc/pgx/issues/386
 func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
 	t.Parallel()

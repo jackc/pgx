@@ -81,7 +81,6 @@ type connRows struct {
 	connInfo  *pgtype.ConnInfo
 	values    [][]byte
 	rowCount  int
-	columnIdx int
 	err       error
 	startTime time.Time
 	sql       string
@@ -151,28 +150,12 @@ func (rows *connRows) Next() bool {
 
 	if rows.resultReader.NextRow() {
 		rows.rowCount++
-		rows.columnIdx = 0
 		rows.values = rows.resultReader.Values()
 		return true
 	} else {
 		rows.Close()
 		return false
 	}
-}
-
-func (rows *connRows) nextColumn() ([]byte, *pgproto3.FieldDescription, bool) {
-	if rows.closed {
-		return nil, nil, false
-	}
-	if len(rows.FieldDescriptions()) <= rows.columnIdx {
-		rows.fatal(errors.New("No next column available"))
-		return nil, nil, false
-	}
-
-	buf := rows.values[rows.columnIdx]
-	fd := &rows.FieldDescriptions()[rows.columnIdx]
-	rows.columnIdx++
-	return buf, fd, true
 }
 
 func (rows *connRows) Scan(dest ...interface{}) error {
@@ -183,7 +166,8 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 	}
 
 	for i, d := range dest {
-		buf, fd, _ := rows.nextColumn()
+		buf := rows.values[i]
+		fd := &rows.FieldDescriptions()[i]
 
 		if d == nil {
 			continue
@@ -206,8 +190,9 @@ func (rows *connRows) Values() ([]interface{}, error) {
 
 	values := make([]interface{}, 0, len(rows.FieldDescriptions()))
 
-	for range rows.FieldDescriptions() {
-		buf, fd, _ := rows.nextColumn()
+	for i := range rows.FieldDescriptions() {
+		buf := rows.values[i]
+		fd := &rows.FieldDescriptions()[i]
 
 		if buf == nil {
 			values = append(values, nil)
