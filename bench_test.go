@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -504,6 +505,13 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	}
 }
 
+type queryArgs []interface{}
+
+func (qa *queryArgs) Append(v interface{}) string {
+	*qa = append(*qa, v)
+	return "$" + strconv.Itoa(len(*qa))
+}
+
 // note this function is only used for benchmarks -- it doesn't escape tableName
 // or columnNames
 func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc pgx.CopyFromSource) (int, error) {
@@ -512,7 +520,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	rowCount := 0
 
 	sqlBuf := &bytes.Buffer{}
-	args := make(pgx.QueryArgs, 0)
+	args := make(queryArgs, 0)
 
 	resetQuery := func() {
 		sqlBuf.Reset()
