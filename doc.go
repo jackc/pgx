@@ -175,7 +175,8 @@ Prepared Statements
 
 Prepared statements can be manually created with the Prepare method. However, this is rarely necessary because pgx
 includes an automatic statement cache by default. Queries run through the normal Query, QueryRow, and Exec functions are
-automatically prepared on first execution and the prepared statement is reused on subsequent executions.
+automatically prepared on first execution and the prepared statement is reused on subsequent executions. See ParseConfig
+for information on how to customize or disable the statement cache.
 
 Copy Protocol
 
@@ -204,8 +205,8 @@ Use the underlying pgconn.PgConn for listen and notify.
 Logging
 
 pgx defines a simple logger interface. Connections optionally accept a logger that satisfies this interface. Set
-LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus, and
-the testing log are provided in the log directory.
+LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus,
+go.uber.org/zap, github.com/rs/zerolog, and the testing log are provided in the log directory.
 
 PgBouncer
 
