@@ -21,7 +21,12 @@ type Rows interface {
 	// to call Close after rows is already closed.
 	Close()
 
+	// Err returns any error that occurred while reading.
 	Err() error
+
+	// CommandTag returns the command tag from this query. It is only available after Rows is closed.
+	CommandTag() pgconn.CommandTag
+
 	FieldDescriptions() []pgproto3.FieldDescription
 
 	// Next prepares the next row for reading. It returns true if there is another
@@ -76,16 +81,17 @@ type rowLog interface {
 
 // connRows implements the Rows interface for Conn.Query.
 type connRows struct {
-	ctx       context.Context
-	logger    rowLog
-	connInfo  *pgtype.ConnInfo
-	values    [][]byte
-	rowCount  int
-	err       error
-	startTime time.Time
-	sql       string
-	args      []interface{}
-	closed    bool
+	ctx        context.Context
+	logger     rowLog
+	connInfo   *pgtype.ConnInfo
+	values     [][]byte
+	rowCount   int
+	err        error
+	commandTag pgconn.CommandTag
+	startTime  time.Time
+	sql        string
+	args       []interface{}
+	closed     bool
 
 	resultReader      *pgconn.ResultReader
 	multiResultReader *pgconn.MultiResultReader
@@ -103,7 +109,8 @@ func (rows *connRows) Close() {
 	rows.closed = true
 
 	if rows.resultReader != nil {
-		_, closeErr := rows.resultReader.Close()
+		var closeErr error
+		rows.commandTag, closeErr = rows.resultReader.Close()
 		if rows.err == nil {
 			rows.err = closeErr
 		}
@@ -126,6 +133,10 @@ func (rows *connRows) Close() {
 			rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args)})
 		}
 	}
+}
+
+func (rows *connRows) CommandTag() pgconn.CommandTag {
+	return rows.commandTag
 }
 
 func (rows *connRows) Err() error {
