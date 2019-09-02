@@ -14,32 +14,9 @@ import (
 
 var db *pgxpool.Pool
 
-// afterConnect creates the prepared statements that this application uses
-func afterConnect(ctx context.Context, conn *pgx.Conn) (err error) {
-	_, err = conn.Prepare(ctx, "getUrl", `
-    select url from shortened_urls where id=$1
-  `)
-	if err != nil {
-		return
-	}
-
-	_, err = conn.Prepare(ctx, "deleteUrl", `
-    delete from shortened_urls where id=$1
-  `)
-	if err != nil {
-		return
-	}
-
-	_, err = conn.Prepare(ctx, "putUrl", `
-    insert into shortened_urls(id, url) values ($1, $2)
-    on conflict (id) do update set url=excluded.url
-  `)
-	return
-}
-
 func getUrlHandler(w http.ResponseWriter, req *http.Request) {
 	var url string
-	err := db.QueryRow(context.Background(), "getUrl", req.URL.Path).Scan(&url)
+	err := db.QueryRow(context.Background(), "select url from shortened_urls where id=$1", req.URL.Path).Scan(&url)
 	switch err {
 	case nil:
 		http.Redirect(w, req, url, http.StatusSeeOther)
@@ -60,7 +37,8 @@ func putUrlHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if _, err := db.Exec(context.Background(), "putUrl", id, url); err == nil {
+	if _, err := db.Exec(context.Background(), `insert into shortened_urls(id, url) values ($1, $2)
+	on conflict (id) do update set url=excluded.url`, id, url); err == nil {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -68,7 +46,7 @@ func putUrlHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func deleteUrlHandler(w http.ResponseWriter, req *http.Request) {
-	if _, err := db.Exec(context.Background(), "deleteUrl", req.URL.Path); err == nil {
+	if _, err := db.Exec(context.Background(), "delete from shortened_urls where id=$1", req.URL.Path); err == nil {
 		w.WriteHeader(http.StatusOK)
 	} else {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -101,7 +79,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	poolConfig.AfterConnect = afterConnect
 	poolConfig.ConnConfig.Logger = logger
 
 	db, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
