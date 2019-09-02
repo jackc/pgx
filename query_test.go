@@ -48,12 +48,27 @@ func TestConnQueryScan(t *testing.T) {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
 
+	assert.Equal(t, "SELECT 10", string(rows.CommandTag()))
+
 	if rowCount != 10 {
 		t.Error("Select called onDataRow wrong number of times")
 	}
 	if sum != 55 {
 		t.Error("Wrong values returned")
 	}
+}
+
+func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query(context.Background(), "create temporary table t (id serial);")
+	assert.NoError(t, err)
+	rows.Close()
+	assert.NoError(t, rows.Err())
+	assert.Equal(t, "CREATE TABLE", string(rows.CommandTag()))
 }
 
 func TestConnQueryScanWithManyColumns(t *testing.T) {
