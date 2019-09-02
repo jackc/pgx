@@ -80,6 +80,7 @@ pgx supports many additional features beyond what is available through database/
 * NULL mapping to Null* struct or pointer to pointer.
 * Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
 * Notice response handling (this is different than listen / notify)
+* Simulated nested transactions with savepoints
 
 ## Performance
 
