@@ -4,6 +4,24 @@ pgx provides lower level access to PostgreSQL than the standard database/sql. It
 interface as possible while providing better speed and access to PostgreSQL specific features. Import
 github.com/jackc/pgx/v4/stdlib to use pgx as a database/sql compatible driver.
 
+Establishing a Connection
+
+The primary way of establishing a connection is with `pgx.Connect`.
+
+    conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+
+The database connection string can be in URL or DSN format. Both PostgreSQL settings and pgx settings can be specified
+here. In addition, a config struct can be created by `ParseConfig` and modified before establishing the connection with
+`ConnectConfig`.
+
+    config, err := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        // ...
+    }
+    config.Logger = log15adapter.NewLogger(log.New("module", "pgx"))
+
+    conn, err := pgx.ConnectConfig(context.Background(), config)
+
 Query Interface
 
 pgx implements Query and Scan in the familiar database/sql style.
@@ -61,7 +79,7 @@ Use Exec to execute a query that does not return a result set.
 
 Connection Pool
 
-See sub-package pgxpool for connection pool.
+See sub-package pgxpool for a connection pool.
 
 Base Type Mapping
 
@@ -200,13 +218,29 @@ CopyFrom can be faster than an insert with as few as 5 rows.
 
 Listen and Notify
 
-Use the underlying pgconn.PgConn for listen and notify.
+pgx can listen to the PostgreSQL notification system with the `Conn.WaitForNotification` method. It blocks until a
+context is received or the context is canceled.
+
+    _, err := conn.Exec(context.Background(), "listen channelname")
+    if err != nil {
+        return nil
+    }
+
+    if notification, err := conn.WaitForNotification(context.Background()); err != nil {
+        // do something with notification
+    }
+
 
 Logging
 
 pgx defines a simple logger interface. Connections optionally accept a logger that satisfies this interface. Set
 LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus,
 go.uber.org/zap, github.com/rs/zerolog, and the testing log are provided in the log directory.
+
+Lower Level PostgreSQL Functionality
+
+pgx is implemented on top of github.com/jackc/pgconn a lower level PostgreSQL driver. The Conn.PgConn() method can be
+used to access this lower layer.
 
 PgBouncer
 
