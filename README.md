@@ -12,7 +12,7 @@ proxies, load balancers, logical replication clients, etc.
 
 ## v4
 
-This is the `v4` branch. `v4` is in release candate state but is not officially released.
+This is the `v4` branch. `v4` is in release candidate state but is not officially released.
 
 ## Example Usage
 
