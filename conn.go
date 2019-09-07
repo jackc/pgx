@@ -611,12 +611,14 @@ func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {
 	end
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
+left join pg_class base_cls ON base_type.typrelid = base_cls.oid
 left join pg_namespace nsp on t.typnamespace=nsp.oid
 left join pg_class cls on t.typrelid=cls.oid
 where (
 	  t.typtype in('b', 'p', 'r', 'e', 'c')
-	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
+	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r', 'c'))
 	  and (cls.oid is null or cls.relkind='c')
+	  and (base_cls.oid is null or base_cls.relkind = 'c')
 	)`
 	)
 
