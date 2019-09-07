@@ -28,12 +28,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	log.Println("Listening on", ln.Addr())
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Println("Accepted connection from", conn.RemoteAddr())
 
 		b := NewPgFortuneBackend(conn, func() ([]byte, error) {
 			return exec.Command("sh", "-c", options.responseCommand).CombinedOutput()
@@ -43,6 +45,7 @@ func main() {
 			if err != nil {
 				log.Println(err)
 			}
+			log.Println("Closed connection from", conn.RemoteAddr())
 		}()
 	}
 }
