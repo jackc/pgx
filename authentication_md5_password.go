@@ -37,7 +37,7 @@ func (dst *AuthenticationMD5Password) Decode(src []byte) error {
 func (src *AuthenticationMD5Password) Encode(dst []byte) []byte {
 	dst = append(dst, 'R')
 	dst = pgio.AppendInt32(dst, 12)
-	dst = pgio.AppendUint32(dst, AuthTypeOk)
+	dst = pgio.AppendUint32(dst, AuthTypeMD5Password)
 	dst = append(dst, src.Salt[:]...)
 	return dst
 }
