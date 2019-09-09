@@ -43,8 +43,8 @@
 //
 // AcquireConn and ReleaseConn acquire and release a *pgx.Conn from the standard
 // database/sql.DB connection pool. This allows operations that must be
-// performed on a single connection, but should not be run in a transaction or
-// to use pgx specific functionality.
+// performed on a single connection without running in a transaction, and it
+// supports operations that use pgx specific functionality.
 //
 //	conn, err := stdlib.AcquireConn(db)
 //	if err != nil {
@@ -277,7 +277,7 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 		pgxOpts.IsoLevel = pgx.ReadUncommitted
 	case sql.LevelReadCommitted:
 		pgxOpts.IsoLevel = pgx.ReadCommitted
-	case sql.LevelSnapshot:
+	case sql.LevelRepeatableRead, sql.LevelSnapshot:
 		pgxOpts.IsoLevel = pgx.RepeatableRead
 	case sql.LevelSerializable:
 		pgxOpts.IsoLevel = pgx.Serializable

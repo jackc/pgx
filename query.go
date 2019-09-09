@@ -69,6 +69,25 @@ func (rows *Rows) Close() {
 		return
 	}
 
+	// If there is no error and a batch operation is not in progress read until we get the ReadyForQuery message or the
+	// ErrorResponse. This is necessary to detect a deferred constraint violation where the ErrorResponse is sent after
+	// CommandComplete.
+	if rows.err == nil && rows.batch == nil && rows.conn.pendingReadyForQueryCount == 1 {
+		for rows.conn.pendingReadyForQueryCount > 0 {
+			msg, err := rows.conn.rxMsg()
+			if err != nil {
+				rows.err = err
+				break
+			}
+
+			err = rows.conn.processContextFreeMsg(msg)
+			if err != nil {
+				rows.err = err
+				break
+			}
+		}
+	}
+
 	if rows.unlockConn {
 		rows.conn.unlock()
 		rows.unlockConn = false

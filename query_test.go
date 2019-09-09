@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
-	"github.com/satori/go.uuid"
+	uuid "github.com/satori/go.uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -422,6 +422,47 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 		}()
 	}
 
+}
+
+// https://github.com/jackc/pgx/issues/570
+func TestConnQueryDeferredError(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnect(t, *defaultConnConfig)
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table t (
+	id text primary key,
+	n int not null,
+	unique (n) deferrable initially deferred
+);
+
+insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`)
+
+	rows, err := conn.Query(`update t set n=n+1 where id='b' returning *`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id string
+		var n int32
+		err = rows.Scan(&id, &n)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if rows.Err() == nil {
+		t.Fatal("expected error 23505 but got none")
+	}
+
+	if err, ok := rows.Err().(pgx.PgError); !ok || err.Code != "23505" {
+		t.Fatalf("expected error 23505, got %v", err)
+	}
+
+	ensureConnValid(t, conn)
 }
 
 func TestQueryEncodeError(t *testing.T) {
