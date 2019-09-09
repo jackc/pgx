@@ -225,7 +225,7 @@ notification.
         return nil
     }
 
-    if notification, err := conn.WaitForNotification(time.Second); err != nil {
+    if notification, err := conn.WaitForNotification(context.TODO()); err != nil {
         // do something with notification
     }
 

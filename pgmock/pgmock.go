@@ -210,6 +210,7 @@ func PgxInitSteps() []Step {
 	end
 from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
+left join pg_class base_cls ON base_type.typrelid = base_cls.oid
 left join pg_namespace nsp on t.typnamespace=nsp.oid
 where (
 	  t.typtype in('b', 'p', 'r', 'e')

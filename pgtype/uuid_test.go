@@ -15,6 +15,8 @@ func TestUUIDTranscode(t *testing.T) {
 	})
 }
 
+type SomeUUIDType [16]byte
+
 func TestUUIDSet(t *testing.T) {
 	successfulTests := []struct {
 		source interface{}
@@ -30,6 +32,10 @@ func TestUUIDSet(t *testing.T) {
 		},
 		{
 			source: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+		},
+		{
+			source: SomeUUIDType{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
 			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
 		},
 		{
@@ -82,6 +88,21 @@ func TestUUIDAssignTo(t *testing.T) {
 		}
 
 		if bytes.Compare(dst, expected) != 0 {
+			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
+		}
+	}
+
+	{
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		var dst SomeUUIDType
+		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+
+		err := src.AssignTo(&dst)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if dst != expected {
 			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
 		}
 	}
