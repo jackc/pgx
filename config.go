@@ -152,7 +152,7 @@ func ParseConfig(connString string) (*Config, error) {
 
 	if connString != "" {
 		// connString may be a database URL or a DSN
-		if strings.HasPrefix(connString, "postgres://") {
+		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
 			err := addURLSettings(settings, connString)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
