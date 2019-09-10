@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -298,6 +299,39 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	}
 
 	ensureConnValid(t, conn)
+}
+
+func TestConnQueryRawValues(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	var rowCount int32
+
+	rows, err := conn.Query(
+		context.Background(),
+		"select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n",
+		pgx.QuerySimpleProtocol(true),
+		10,
+	)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	for rows.Next() {
+		rowCount++
+
+		rawValues := rows.RawValues()
+		assert.Len(t, rawValues, 5)
+		assert.Equal(t, "foo", string(rawValues[0]))
+		assert.Equal(t, "bar", string(rawValues[1]))
+		assert.Equal(t, strconv.FormatInt(int64(rowCount), 10), string(rawValues[2]))
+		assert.Nil(t, rawValues[3])
+		assert.Equal(t, strconv.FormatInt(int64(rowCount), 10), string(rawValues[4]))
+	}
+
+	require.NoError(t, rows.Err())
+	assert.EqualValues(t, 10, rowCount)
 }
 
 // Test that a connection stays valid when query results are closed early

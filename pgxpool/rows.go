@@ -17,6 +17,7 @@ func (errRows) FieldDescriptions() []pgproto3.FieldDescription { return nil }
 func (errRows) Next() bool                                     { return false }
 func (e errRows) Scan(dest ...interface{}) error               { return e.err }
 func (e errRows) Values() ([]interface{}, error)               { return nil, e.err }
+func (e errRows) RawValues() [][]byte                          { return nil }
 
 type errRow struct {
 	err error
@@ -79,6 +80,10 @@ func (rows *poolRows) Values() ([]interface{}, error) {
 		rows.Close()
 	}
 	return values, err
+}
+
+func (rows *poolRows) RawValues() [][]byte {
+	return rows.r.RawValues()
 }
 
 type poolRow struct {
