@@ -1367,7 +1367,7 @@ func TestQueryCloseBefore(t *testing.T) {
 	assert.True(t, pgconn.SafeToRetry(err))
 }
 
-func TestRowsFromResultReader(t *testing.T) {
+func TestScanRow(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -1377,26 +1377,19 @@ func TestRowsFromResultReader(t *testing.T) {
 
 	var sum, rowCount int32
 
-	rows := pgx.RowsFromResultReader(conn.ConnInfo(), resultReader)
-	defer rows.Close()
-
-	for rows.Next() {
+	for resultReader.NextRow() {
 		var n int32
-		rows.Scan(&n)
+		err := pgx.ScanRow(conn.ConnInfo(), resultReader.FieldDescriptions(), resultReader.Values(), &n)
+		assert.NoError(t, err)
 		sum += n
 		rowCount++
 	}
 
-	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: %v", rows.Err())
-	}
+	_, err := resultReader.Close()
 
-	if rowCount != 10 {
-		t.Error("wrong number of rows")
-	}
-	if sum != 55 {
-		t.Error("Wrong values returned")
-	}
+	require.NoError(t, err)
+	assert.EqualValues(t, 10, rowCount)
+	assert.EqualValues(t, 55, sum)
 }
 
 func TestConnSimpleProtocol(t *testing.T) {
