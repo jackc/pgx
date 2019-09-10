@@ -40,8 +40,12 @@ type Rows interface {
 	// copy the raw bytes received from PostgreSQL. nil will skip the value entirely.
 	Scan(dest ...interface{}) error
 
-	// Values returns an array of the row values
+	// Values returns the decoded row values.
 	Values() ([]interface{}, error)
+
+	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid until the next Next
+	// call or the Rows is closed. However, the underlying byte data is safe to retain a reference to and mutate.
+	RawValues() [][]byte
 }
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
@@ -247,6 +251,10 @@ func (rows *connRows) Values() ([]interface{}, error) {
 	}
 
 	return values, rows.Err()
+}
+
+func (rows *connRows) RawValues() [][]byte {
+	return rows.resultReader.Values()
 }
 
 type scanArgError struct {
