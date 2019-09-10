@@ -561,6 +561,10 @@ type QueryResultFormatsByOID map[uint32]int16
 
 // Query executes sql with args. If there is an error the returned Rows will be returned in an error state. So it is
 // allowed to ignore the error returned from Query and handle it in Rows.
+//
+// For extra control over how the query is executed, the types QuerySimpleProtocol, QueryResultFormats, and
+// QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
+// needed. See the documentation for those types for details.
 func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
