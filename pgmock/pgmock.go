@@ -212,12 +212,9 @@ from pg_type t
 left join pg_type base_type on t.typelem=base_type.oid
 left join pg_class base_cls ON base_type.typrelid = base_cls.oid
 left join pg_namespace nsp on t.typnamespace=nsp.oid
-left join pg_class cls on t.typrelid=cls.oid
 where (
-	  t.typtype in('b', 'p', 'r', 'e', 'c')
-	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r', 'c'))
-	  and (cls.oid is null or cls.relkind='c')
-	  and (base_cls.oid is null or base_cls.relkind = 'c')
+	  t.typtype in('b', 'p', 'r', 'e')
+	  and (base_type.oid is null or base_type.typtype in('b', 'p', 'r'))
 	)`,
 		}),
 		ExpectMessage(&pgproto3.Describe{
@@ -524,6 +521,47 @@ where (
 		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
 		ExpectMessage(&pgproto3.Bind{
 			ResultFormatCodes: []int16{1, 1, 1},
+		}),
+		ExpectMessage(&pgproto3.Execute{}),
+		ExpectMessage(&pgproto3.Sync{}),
+		SendMessage(&pgproto3.BindComplete{}),
+		SendMessage(&pgproto3.CommandComplete{CommandTag: "SELECT 0"}),
+		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+	}...)
+
+	steps = append(steps, []Step{
+		ExpectMessage(&pgproto3.Parse{
+			Query: "select t.oid, t.typname\nfrom pg_type t\n\tjoin pg_class cls on t.typrelid=cls.oid\nwhere t.typtype = 'c'\n\tand cls.relkind='c'",
+		}),
+		ExpectMessage(&pgproto3.Describe{
+			ObjectType: 'S',
+		}),
+		ExpectMessage(&pgproto3.Sync{}),
+		SendMessage(&pgproto3.ParseComplete{}),
+		SendMessage(&pgproto3.ParameterDescription{}),
+		SendMessage(&pgproto3.RowDescription{
+			Fields: []pgproto3.FieldDescription{
+				{Name: "oid",
+					TableOID:             1247,
+					TableAttributeNumber: 65534,
+					DataTypeOID:          26,
+					DataTypeSize:         4,
+					TypeModifier:         -1,
+					Format:               0,
+				},
+				{Name: "typname",
+					TableOID:             1247,
+					TableAttributeNumber: 1,
+					DataTypeOID:          19,
+					DataTypeSize:         64,
+					TypeModifier:         -1,
+					Format:               0,
+				},
+			},
+		}),
+		SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		ExpectMessage(&pgproto3.Bind{
+			ResultFormatCodes: []int16{1, 1},
 		}),
 		ExpectMessage(&pgproto3.Execute{}),
 		ExpectMessage(&pgproto3.Sync{}),
