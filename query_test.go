@@ -965,42 +965,6 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 	}
 }
 
-func TestQueryRowUnknownType(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	// Clear existing type mappings
-	conn.ConnInfo = pgtype.NewConnInfo()
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{
-		Value: &pgtype.GenericText{},
-		Name:  "point",
-		OID:   600,
-	})
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{
-		Value: &pgtype.Int4{},
-		Name:  "int4",
-		OID:   pgtype.Int4OID,
-	})
-
-	sql := "select $1::point"
-	expected := "(1,0)"
-	var actual string
-
-	err := conn.QueryRow(context.Background(), sql, expected).Scan(&actual)
-	if err != nil {
-		t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
-	}
-
-	if actual != expected {
-		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
-
-	}
-
-	ensureConnValid(t, conn)
-}
-
 func TestQueryRowErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1197,7 +1161,7 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
 		Value: &satori.UUID{},
 		Name:  "uuid",
 		OID:   2950,
@@ -1413,7 +1377,7 @@ func TestRowsFromResultReader(t *testing.T) {
 
 	var sum, rowCount int32
 
-	rows := pgx.RowsFromResultReader(conn.ConnInfo, resultReader)
+	rows := pgx.RowsFromResultReader(conn.ConnInfo(), resultReader)
 	defer rows.Close()
 
 	for rows.Next() {

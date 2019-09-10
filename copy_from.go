@@ -130,7 +130,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
 		for i, val := range values {
-			buf, err = encodePreparedStatementArgument(ct.conn.ConnInfo, buf, sd.Fields[i].DataTypeOID, val)
+			buf, err = encodePreparedStatementArgument(ct.conn.connInfo, buf, sd.Fields[i].DataTypeOID, val)
 			if err != nil {
 				return false, nil, err
 			}

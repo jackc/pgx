@@ -803,11 +803,11 @@ func TestConnInitConnInfo(t *testing.T) {
 		"text":  pgtype.TextOID,
 	}
 	for name, oid := range nameOIDs {
-		dtByName, ok := conn.ConnInfo.DataTypeForName(name)
+		dtByName, ok := conn.ConnInfo().DataTypeForName(name)
 		if !ok {
 			t.Fatalf("Expected type named %v to be present", name)
 		}
-		dtByOID, ok := conn.ConnInfo.DataTypeForOID(oid)
+		dtByOID, ok := conn.ConnInfo().DataTypeForOID(oid)
 		if !ok {
 			t.Fatalf("Expected type OID %v to be present", oid)
 		}
@@ -866,7 +866,7 @@ func TestDomainType(t *testing.T) {
 	if err != nil {
 		t.Fatalf("did not find uint64 OID, %v", err)
 	}
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
 
 	// String is still an acceptable argument after registration
 	err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)

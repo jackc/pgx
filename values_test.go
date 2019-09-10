@@ -80,7 +80,7 @@ func TestJSONAndJSONBTranscode(t *testing.T) {
 	defer closeConn(t, conn)
 
 	for _, typename := range []string{"json", "jsonb"} {
-		if _, ok := conn.ConnInfo.DataTypeForName(typename); !ok {
+		if _, ok := conn.ConnInfo().DataTypeForName(typename); !ok {
 			continue // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 

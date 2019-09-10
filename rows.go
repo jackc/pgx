@@ -188,7 +188,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		err := rows.connInfo.Scan(uint32(fd.DataTypeOID), fd.Format, buf, d)
+		err := rows.connInfo.Scan(fd.DataTypeOID, fd.Format, buf, d)
 		if err != nil {
 			rows.fatal(scanArgError{col: i, err: err})
 			return err
@@ -214,7 +214,7 @@ func (rows *connRows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		if dt, ok := rows.connInfo.DataTypeForOID(uint32(fd.DataTypeOID)); ok {
+		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
 			value := reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(pgtype.Value)
 
 			switch fd.Format {
