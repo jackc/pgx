@@ -81,7 +81,7 @@ func Example_CustomType() {
 	}
 
 	// Override registered handler for point
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
 		Value: &Point{},
 		Name:  "point",
 		OID:   600,

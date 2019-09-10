@@ -133,7 +133,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 	defer closeConn(t, conn)
 
 	for _, typeName := range []string{"json", "jsonb"} {
-		if _, ok := conn.ConnInfo.DataTypeForName(typeName); !ok {
+		if _, ok := conn.ConnInfo().DataTypeForName(typeName); !ok {
 			return // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 	}

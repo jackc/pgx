@@ -62,7 +62,7 @@ type Conn struct {
 	doneChan   chan struct{}
 	closedChan chan error
 
-	ConnInfo *pgtype.ConnInfo
+	connInfo *pgtype.ConnInfo
 
 	wbuf             []byte
 	preallocatedRows []connRows
@@ -171,7 +171,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 
 	c = &Conn{
 		config:   config,
-		ConnInfo: pgtype.NewConnInfo(),
+		connInfo: pgtype.NewConnInfo(),
 		logLevel: config.LogLevel,
 		logger:   config.Logger,
 	}
@@ -408,6 +408,9 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 // StatementCache returns the statement cache used for this connection.
 func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 
+// ConnInfo returns the connection info used for this connection.
+func (c *Conn) ConnInfo() *pgtype.ConnInfo { return c.connInfo }
+
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
@@ -499,14 +502,14 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.ConnInfo, sd.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range sd.Fields {
-		c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+		c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 	}
 
 	return nil
@@ -542,7 +545,7 @@ func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *con
 
 	r.ctx = ctx
 	r.logger = c
-	r.connInfo = c.ConnInfo
+	r.connInfo = c.connInfo
 	r.startTime = time.Now()
 	r.sql = sql
 	r.args = args
@@ -642,7 +645,7 @@ optionLoop:
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.ConnInfo, sd.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
@@ -658,7 +661,7 @@ optionLoop:
 
 	if resultFormats == nil {
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		resultFormats = c.eqb.resultFormats
@@ -732,14 +735,14 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		for i := range args {
-			err = c.eqb.AppendParam(c.ConnInfo, sd.ParamOIDs[i], args[i])
+			err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
 		}
 
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo.ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		if sd.Name == "" {
@@ -770,7 +773,7 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	var err error
 	valueArgs := make([]interface{}, len(args))
 	for i, a := range args {
-		valueArgs[i], err = convertSimpleArgument(c.ConnInfo, a)
+		valueArgs[i], err = convertSimpleArgument(c.connInfo, a)
 		if err != nil {
 			return "", err
 		}

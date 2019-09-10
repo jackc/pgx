@@ -310,7 +310,7 @@ func (r *Rows) Columns() []string {
 
 // ColumnTypeDatabaseTypeName return the database system type name.
 func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
-	if dt, ok := r.conn.conn.ConnInfo.DataTypeForOID(r.rows.FieldDescriptions()[index].DataTypeOID); ok {
+	if dt, ok := r.conn.conn.ConnInfo().DataTypeForOID(r.rows.FieldDescriptions()[index].DataTypeOID); ok {
 		return strings.ToUpper(dt.Name)
 	}
 
