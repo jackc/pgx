@@ -718,6 +718,38 @@ func TestParseDSN(t *testing.T) {
 			},
 		},
 		{
+			url: "user=jack\\'s password=secret host=localhost port=5432 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack's",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user=jack password=sooper\\\\secret host=localhost port=5432 dbname=mydb",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Password: "sooper\\secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
 			url: "user=jack host=localhost port=5432 dbname=mydb",
 			connParams: pgx.ConnConfig{
 				User:     "jack",
@@ -820,6 +852,62 @@ func TestParseDSN(t *testing.T) {
 				FallbackTLSConfig:  nil,
 				RuntimeParams:      map[string]string{},
 				TargetSessionAttrs: pgx.ReadWriteTargetSession,
+			},
+		},
+		{
+			url: "user='jack' host='localhost' dbname='mydb'",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user='jack\\'s' host='localhost' dbname='mydb'",
+			connParams: pgx.ConnConfig{
+				User:     "jack's",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user='jack' password='' host='localhost' dbname='mydb'",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
+			},
+		},
+		{
+			url: "user = 'jack' password = '' host = 'localhost' dbname = 'mydb'",
+			connParams: pgx.ConnConfig{
+				User:     "jack",
+				Host:     "localhost",
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				UseFallbackTLS:    true,
+				FallbackTLSConfig: nil,
+				RuntimeParams:     map[string]string{},
 			},
 		},
 	}
