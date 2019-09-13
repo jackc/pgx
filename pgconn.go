@@ -163,6 +163,17 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 	var configs []*FallbackConfig
 
 	for _, fb := range fallbacks {
+		// skip resolve for unix sockets
+		if strings.HasPrefix(fb.Host, "/") {
+			configs = append(configs, &FallbackConfig{
+				Host:      fb.Host,
+				Port:      fb.Port,
+				TLSConfig: fb.TLSConfig,
+			})
+
+			continue
+		}
+
 		ips, err := lookupFn(ctx, fb.Host)
 		if err != nil {
 			return nil, err
