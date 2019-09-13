@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgmock"
+	"github.com/jackc/pgproto3/v2"
 	errors "golang.org/x/xerrors"
 
 	"github.com/stretchr/testify/assert"
@@ -72,6 +74,67 @@ func TestConnectTLS(t *testing.T) {
 	closeConn(t, conn)
 }
 
+type pgmockWaitStep time.Duration
+
+func (s pgmockWaitStep) Step(*pgproto3.Backend) error {
+	time.Sleep(time.Duration(s))
+	return nil
+}
+
+func TestConnectWithContextThatTimesOut(t *testing.T) {
+	t.Parallel()
+
+	script := &pgmock.Script{
+		Steps: []pgmock.Step{
+			pgmock.ExpectAnyMessage(&pgproto3.StartupMessage{ProtocolVersion: pgproto3.ProtocolVersionNumber, Parameters: map[string]string{}}),
+			pgmock.SendMessage(&pgproto3.AuthenticationOk{}),
+			pgmockWaitStep(time.Millisecond * 500),
+			pgmock.SendMessage(&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}),
+			pgmock.SendMessage(&pgproto3.ReadyForQuery{TxStatus: 'I'}),
+		},
+	}
+
+	ln, err := net.Listen("tcp", "127.0.0.1:")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	serverErrChan := make(chan error, 1)
+	go func() {
+		defer close(serverErrChan)
+
+		conn, err := ln.Accept()
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+		defer conn.Close()
+
+		err = conn.SetDeadline(time.Now().Add(time.Millisecond * 450))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+
+		err = script.Run(pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn))
+		if err != nil {
+			serverErrChan <- err
+			return
+		}
+	}()
+
+	parts := strings.Split(ln.Addr().String(), ":")
+	host := parts[0]
+	port := parts[1]
+	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
+	tooLate := time.Now().Add(time.Millisecond * 500)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+	defer cancel()
+	_, err = pgconn.Connect(ctx, connStr)
+	require.True(t, pgconn.Timeout(err), err)
+	require.True(t, time.Now().Before(tooLate))
+}
+
 func TestConnectInvalidUser(t *testing.T) {
 	t.Parallel()
 
@@ -85,14 +148,11 @@ func TestConnectInvalidUser(t *testing.T) {
 
 	config.User = "pgxinvalidusertest"
 
-	conn, err := pgconn.ConnectConfig(context.Background(), config)
-	if err == nil {
-		conn.Close(context.Background())
-		t.Fatal("expected err but got none")
-	}
-	pgErr, ok := err.(*pgconn.PgError)
+	_, err = pgconn.ConnectConfig(context.Background(), config)
+	require.Error(t, err)
+	pgErr, ok := errors.Unwrap(err).(*pgconn.PgError)
 	if !ok {
-		t.Fatalf("Expected to receive a PgError, instead received: %v", err)
+		t.Fatalf("Expected to receive a wrapped PgError, instead received: %v", err)
 	}
 	if pgErr.Code != "28000" && pgErr.Code != "28P01" {
 		t.Fatalf("Expected to receive a PgError with code 28000 or 28P01, instead received: %v", pgErr)
@@ -262,6 +322,14 @@ func TestConnectWithAfterConnect(t *testing.T) {
 	assert.Equal(t, []byte("foobar"), results[0].Rows[0][0])
 }
 
+func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
+	t.Parallel()
+
+	config := &pgconn.Config{}
+
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgconn.ConnectConfig(context.Background(), config) })
+}
+
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 
@@ -289,7 +357,7 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 	assert.Nil(t, psd)
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -381,6 +449,34 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	_, err = pgConn.Exec(context.Background(), `update t set n=n+1 where id='b' returning *`).ReadAll()
+	require.NotNil(t, err)
+
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecContextCanceled(t *testing.T) {
 	t.Parallel()
 
@@ -395,8 +491,8 @@ func TestConnExecContextCanceled(t *testing.T) {
 	for multiResult.NextResult() {
 	}
 	err = multiResult.Close()
-	assert.Equal(t, context.DeadlineExceeded, err)
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgconn.Timeout(err))
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecContextPrecanceled(t *testing.T) {
@@ -411,7 +507,7 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 	_, err = pgConn.Exec(ctx, "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -433,6 +529,33 @@ func TestConnExecParams(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, "SELECT 1", string(commandTag))
 	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecParamsDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	result := pgConn.ExecParams(context.Background(), `update t set n=n+1 where id='b' returning *`, nil, nil, nil, nil).Read()
+	require.NotNil(t, result.Err)
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(result.Err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
 
 	ensureConnValid(t, pgConn)
 }
@@ -500,9 +623,9 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
-	assert.Equal(t, context.DeadlineExceeded, err)
+	assert.True(t, pgconn.Timeout(err))
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecParamsPrecanceled(t *testing.T) {
@@ -517,7 +640,7 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 	result := pgConn.ExecParams(ctx, "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil).Read()
 	require.Error(t, result.Err)
 	assert.True(t, errors.Is(result.Err, context.Canceled))
-	assert.True(t, errors.Is(result.Err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(result.Err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -627,8 +750,8 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
-	assert.Equal(t, context.DeadlineExceeded, err)
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgconn.Timeout(err))
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnExecPreparedPrecanceled(t *testing.T) {
@@ -646,7 +769,7 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
 	require.Error(t, result.Err)
 	assert.True(t, errors.Is(result.Err, context.Canceled))
-	assert.True(t, errors.Is(result.Err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(result.Err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -683,6 +806,36 @@ func TestConnExecBatch(t *testing.T) {
 	assert.Equal(t, "SELECT 1", string(results[2].CommandTag))
 }
 
+func TestConnExecBatchDeferredError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null,
+		unique (n) deferrable initially deferred
+	);
+
+	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	batch := &pgconn.Batch{}
+
+	batch.ExecParams(`update t set n=n+1 where id='b' returning *`, nil, nil, nil, nil)
+	_, err = pgConn.ExecBatch(context.Background(), batch).ReadAll()
+	require.NotNil(t, err)
+	var pgErr *pgconn.PgError
+	require.True(t, errors.As(err, &pgErr))
+	require.Equal(t, "23505", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecBatchPrecanceled(t *testing.T) {
 	t.Parallel()
 
@@ -704,7 +857,7 @@ func TestConnExecBatchPrecanceled(t *testing.T) {
 	_, err = pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -777,8 +930,8 @@ func TestConnLocking(t *testing.T) {
 	mrr := pgConn.Exec(context.Background(), "select 'Hello, world'")
 	_, err = pgConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, pgconn.ErrConnBusy))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.Equal(t, "conn busy", err.Error())
+	assert.True(t, pgconn.SafeToRetry(err))
 
 	results, err := mrr.ReadAll()
 	assert.NoError(t, err)
@@ -935,7 +1088,7 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
 	err = pgConn.WaitForNotification(ctx)
 	cancel()
-	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+	assert.True(t, pgconn.Timeout(err))
 
 	ensureConnValid(t, pgConn)
 }
@@ -1045,10 +1198,10 @@ func TestConnCopyToCanceled(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
-	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+	assert.Error(t, err)
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnCopyToPrecanceled(t *testing.T) {
@@ -1065,7 +1218,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select * from generate_series(1,1000)) to stdout")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(err))
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	ensureConnValid(t, pgConn)
@@ -1137,9 +1290,9 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	cancel()
 	assert.Equal(t, int64(0), ct.RowsAffected())
-	assert.True(t, errors.Is(err, context.DeadlineExceeded))
+	assert.Error(t, err)
 
-	assert.False(t, pgConn.IsAlive())
+	assert.True(t, pgConn.IsClosed())
 }
 
 func TestConnCopyFromPrecanceled(t *testing.T) {
@@ -1173,7 +1326,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
-	assert.True(t, errors.Is(err, pgconn.ErrNoBytesSent))
+	assert.True(t, pgconn.SafeToRetry(err))
 	assert.Equal(t, pgconn.CommandTag(nil), ct)
 
 	ensureConnValid(t, pgConn)
@@ -1327,6 +1480,45 @@ func TestConnCancelRequest(t *testing.T) {
 
 	require.IsType(t, &pgconn.PgError{}, err)
 	require.Equal(t, "57014", err.(*pgconn.PgError).Code)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnSendBytesAndReceiveMessage(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	queryMsg := pgproto3.Query{String: "select 42"}
+	buf := queryMsg.Encode(nil)
+
+	err = pgConn.SendBytes(ctx, buf)
+	require.NoError(t, err)
+
+	msg, err := pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok := msg.(*pgproto3.RowDescription)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.DataRow)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.CommandComplete)
+	require.True(t, ok)
+
+	msg, err = pgConn.ReceiveMessage(ctx)
+	require.NoError(t, err)
+	_, ok = msg.(*pgproto3.ReadyForQuery)
+	require.True(t, ok)
 
 	ensureConnValid(t, pgConn)
 }

@@ -31,7 +31,7 @@ const clientNonceLen = 18
 
 // Perform SCRAM authentication.
 func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
-	sc, err := newScramClient(serverAuthMechanisms, c.Config.Password)
+	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
 	if err != nil {
 		return err
 	}
@@ -47,11 +47,11 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	}
 
 	// Receive server-first-message payload in a AuthenticationSASLContinue.
-	authMsg, err := c.rxAuthMsg(pgproto3.AuthTypeSASLContinue)
+	saslContinue, err := c.rxSASLContinue()
 	if err != nil {
 		return err
 	}
-	err = sc.recvServerFirstMessage(authMsg.SASLData)
+	err = sc.recvServerFirstMessage(saslContinue.Data)
 	if err != nil {
 		return err
 	}
@@ -66,27 +66,37 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	}
 
 	// Receive server-final-message payload in a AuthenticationSASLFinal.
-	authMsg, err = c.rxAuthMsg(pgproto3.AuthTypeSASLFinal)
+	saslFinal, err := c.rxSASLFinal()
 	if err != nil {
 		return err
 	}
-	return sc.recvServerFinalMessage(authMsg.SASLData)
+	return sc.recvServerFinalMessage(saslFinal.Data)
 }
 
-func (c *PgConn) rxAuthMsg(typ uint32) (*pgproto3.Authentication, error) {
-	msg, err := c.ReceiveMessage()
+func (c *PgConn) rxSASLContinue() (*pgproto3.AuthenticationSASLContinue, error) {
+	msg, err := c.receiveMessage()
 	if err != nil {
 		return nil, err
 	}
-	authMsg, ok := msg.(*pgproto3.Authentication)
-	if !ok {
-		return nil, errors.New("unexpected message type")
-	}
-	if authMsg.Type != typ {
-		return nil, errors.New("unexpected auth type")
+	saslContinue, ok := msg.(*pgproto3.AuthenticationSASLContinue)
+	if ok {
+		return saslContinue, nil
 	}
 
-	return authMsg, nil
+	return nil, errors.New("expected AuthenticationSASLContinue message but received unexpected message")
+}
+
+func (c *PgConn) rxSASLFinal() (*pgproto3.AuthenticationSASLFinal, error) {
+	msg, err := c.receiveMessage()
+	if err != nil {
+		return nil, err
+	}
+	saslFinal, ok := msg.(*pgproto3.AuthenticationSASLFinal)
+	if ok {
+		return saslFinal, nil
+	}
+
+	return nil, errors.New("expected AuthenticationSASLFinal message but received unexpected message")
 }
 
 type scramClient struct {

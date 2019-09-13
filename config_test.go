@@ -215,6 +215,18 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
+			name:       "database url postgresql protocol",
+			connString: "postgresql://jack@localhost:5432/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
 			name:       "DSN everything",
 			connString: "user=jack password=secret host=localhost port=5432 database=mydb sslmode=disable application_name=pgxtest search_path=myschema",
 			config: &pgconn.Config{
@@ -560,4 +572,16 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	assert.NoError(t, err)
 
 	assertConfigsEqual(t, expected, actual, "passfile")
+}
+
+func TestParseConfigExtractsMinReadBufferSize(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig("min_read_buffer_size=0")
+	require.NoError(t, err)
+	_, present := config.RuntimeParams["min_read_buffer_size"]
+	require.False(t, present)
+
+	// The buffer size is internal so there isn't much that can be done to test it other than see that the runtime param
+	// was removed.
 }

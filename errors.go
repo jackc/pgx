@@ -2,22 +2,31 @@ package pgconn
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"strings"
 
 	errors "golang.org/x/xerrors"
 )
 
-// ErrTLSRefused occurs when the connection attempt requires TLS and the
-// PostgreSQL server refuses to use TLS
-var ErrTLSRefused = errors.New("server refused TLS connection")
+// SafeToRetry checks if the err is guaranteed to have occurred before sending any data to the server.
+func SafeToRetry(err error) bool {
+	if e, ok := err.(interface{ SafeToRetry() bool }); ok {
+		return e.SafeToRetry()
+	}
+	return false
+}
 
-// ErrConnBusy occurs when the connection is busy (for example, in the middle of reading query results) and another
-// action is attempted.
-var ErrConnBusy = errors.New("conn is busy")
+// Timeout checks if err was was caused by a timeout. To be specific, it is true if err is or was caused by a
+// context.Canceled, context.Canceled or an implementer of net.Error where Timeout() is true.
+func Timeout(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
 
-// ErrNoBytesSent is used to annotate an error that occurred without sending any bytes to the server. This can be used
-// to implement safe retry logic. ErrNoBytesSent will never occur alone. It will always be wrapped by another error.
-var ErrNoBytesSent = errors.New("no bytes sent to server")
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
+}
 
 // PgError represents an error reported by the PostgreSQL server. See
 // http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
@@ -46,44 +55,107 @@ func (pe *PgError) Error() string {
 	return pe.Severity + ": " + pe.Message + " (SQLSTATE " + pe.Code + ")"
 }
 
-// linkedError connects two errors as if err wrapped next.
-type linkedError struct {
-	err  error
-	next error
+type connectError struct {
+	config *Config
+	msg    string
+	err    error
 }
 
-func (le *linkedError) Error() string {
-	return le.err.Error()
-}
-
-func (le *linkedError) Is(target error) bool {
-	return errors.Is(le.err, target)
-}
-
-func (le *linkedError) As(target interface{}) bool {
-	return errors.As(le.err, target)
-}
-
-func (le *linkedError) Unwrap() error {
-	return le.next
-}
-
-// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
-// true. Otherwise returns err.
-func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
-	if err, ok := err.(net.Error); ok && err.Timeout() && ctx.Err() != nil {
-		return ctx.Err()
+func (e *connectError) Error() string {
+	sb := &strings.Builder{}
+	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.config.Host, e.config.User, e.config.Database, e.msg)
+	if e.err != nil {
+		fmt.Fprintf(sb, " (%s)", e.err.Error())
 	}
-	return err
+	return sb.String()
 }
 
-// linkErrors connects outer and inner as if the the fully unwrapped outer wrapped inner. If either outer or inner is nil then the other is returned.
-func linkErrors(outer, inner error) error {
-	if outer == nil {
-		return inner
+func (e *connectError) Unwrap() error {
+	return e.err
+}
+
+type connLockError struct {
+	status string
+}
+
+func (e *connLockError) SafeToRetry() bool {
+	return true // a lock failure by definition happens before the connection is used.
+}
+
+func (e *connLockError) Error() string {
+	return e.status
+}
+
+type parseConfigError struct {
+	connString string
+	msg        string
+	err        error
+}
+
+func (e *parseConfigError) Error() string {
+	if e.err == nil {
+		return fmt.Sprintf("cannot parse `%s`: %s", e.connString, e.msg)
 	}
-	if inner == nil {
-		return outer
+	return fmt.Sprintf("cannot parse `%s`: %s (%s)", e.connString, e.msg, e.err.Error())
+}
+
+func (e *parseConfigError) Unwrap() error {
+	return e.err
+}
+
+type pgconnError struct {
+	msg         string
+	err         error
+	safeToRetry bool
+}
+
+func (e *pgconnError) Error() string {
+	if e.msg == "" {
+		return e.err.Error()
 	}
-	return &linkedError{err: outer, next: inner}
+	if e.err == nil {
+		return e.msg
+	}
+	return fmt.Sprintf("%s: %s", e.msg, e.err.Error())
+}
+
+func (e *pgconnError) SafeToRetry() bool {
+	return e.safeToRetry
+}
+
+func (e *pgconnError) Unwrap() error {
+	return e.err
+}
+
+type contextAlreadyDoneError struct {
+	err error
+}
+
+func (e *contextAlreadyDoneError) Error() string {
+	return fmt.Sprintf("context already done: %s", e.err.Error())
+}
+
+func (e *contextAlreadyDoneError) SafeToRetry() bool {
+	return true
+}
+
+func (e *contextAlreadyDoneError) Unwrap() error {
+	return e.err
+}
+
+type writeError struct {
+	err         error
+	safeToRetry bool
+}
+
+func (e *writeError) Error() string {
+	return fmt.Sprintf("write failed: %s", e.err.Error())
+}
+
+func (e *writeError) SafeToRetry() bool {
+	return e.safeToRetry
+}
+
+func (e *writeError) Unwrap() error {
+	return e.err
 }
