@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
-	satori "github.com/jackc/pgx/pgtype/ext/satori-uuid"
-	uuid "github.com/satori/go.uuid"
+	gofrs "github.com/jackc/pgx/pgtype/ext/gofrs-uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -1140,7 +1140,7 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 	defer closeConn(t, conn)
 
 	conn.ConnInfo.RegisterDataType(pgtype.DataType{
-		Value: &satori.UUID{},
+		Value: &gofrs.UUID{},
 		Name:  "uuid",
 		OID:   2950,
 	})

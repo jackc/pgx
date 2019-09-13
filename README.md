@@ -85,11 +85,11 @@ skip tests for connection types that are not configured.
 To setup the normal test environment, first install these dependencies:
 
     go get github.com/cockroachdb/apd
+    go get github.com/gofrs/uuid
     go get github.com/hashicorp/go-version
     go get github.com/jackc/fake
     go get github.com/lib/pq
     go get github.com/pkg/errors
-    go get github.com/satori/go.uuid
     go get github.com/shopspring/decimal
     go get github.com/sirupsen/logrus
     go get go.uber.org/zap
