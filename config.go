@@ -37,6 +37,7 @@ type Config struct {
 	Password      string
 	TLSConfig     *tls.Config // nil disables TLS
 	DialFunc      DialFunc    // e.g. net.Dialer.DialContext
+	LookupFunc    LookupFunc  // e.g. net.Resolver.LookupHost
 	BuildFrontend BuildFrontendFunc
 	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
@@ -77,7 +78,7 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 		address = filepath.Join(host, ".s.PGSQL.") + strconv.FormatInt(int64(port), 10)
 	} else {
 		network = "tcp"
-		address = fmt.Sprintf("%s:%d", host, port)
+		address = net.JoinHostPort(host, strconv.Itoa(int(port)))
 	}
 	return network, address
 }
@@ -189,6 +190,8 @@ func ParseConfig(connString string) (*Config, error) {
 		defaultDialer := makeDefaultDialer()
 		config.DialFunc = defaultDialer.DialContext
 	}
+
+	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
 		"host":                 struct{}{},
@@ -493,6 +496,10 @@ func parsePort(s string) (uint16, error) {
 
 func makeDefaultDialer() *net.Dialer {
 	return &net.Dialer{KeepAlive: 5 * time.Minute}
+}
+
+func makeDefaultResolver() *net.Resolver {
+	return net.DefaultResolver
 }
 
 func makeDefaultBuildFrontendFunc(minBufferLen int) BuildFrontendFunc {
