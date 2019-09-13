@@ -15,7 +15,7 @@ reads all rows into memory.
 
 Executing Multiple Queries in a Single Round Trip
 
-Exec and ExecBatch can execute multiple queries in a single round trip. The return readers that iterate over each query
+Exec and ExecBatch can execute multiple queries in a single round trip. They return readers that iterate over each query
 result. The ReadAll method reads all query results into memory.
 
 Context Support
