@@ -39,18 +39,6 @@ func releaseAllConnections(pool *pgx.ConnPool, connections []*pgx.Conn) {
 	}
 }
 
-func acquireWithTimeTaken(pool *pgx.ConnPool) (*pgx.Conn, time.Duration, error) {
-	startTime := time.Now()
-	c, err := pool.Acquire()
-	return c, time.Since(startTime), err
-}
-
-func acquireExWithTimeTaken(pool *pgx.ConnPool, ctx context.Context) (*pgx.Conn, time.Duration, error) {
-	startTime := time.Now()
-	c, err := pool.AcquireEx(ctx)
-	return c, time.Since(startTime), err
-}
-
 func TestNewConnPool(t *testing.T) {
 	t.Parallel()
 
@@ -282,11 +270,14 @@ func TestPoolWithAcquireTimeoutSet(t *testing.T) {
 	defer releaseAllConnections(pool, allConnections)
 
 	// ... then try to consume 1 more. It should fail after a short timeout.
-	_, timeTaken, err := acquireWithTimeTaken(pool)
+	startTime := time.Now()
+	_, err = pool.Acquire()
 
 	if err == nil || err != pgx.ErrAcquireTimeout {
 		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
+
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < connAllocTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
 	}
@@ -302,6 +293,8 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 	// Consume all connections ...
 	allConnections := acquireAllConnections(t, pool, maxConnections)
 
+	startTime := time.Now()
+
 	// ... then try to consume 1 more. It should hang forever.
 	// To unblock it we release the previously taken connection in a goroutine.
 	stopDeadWaitTimeout := 5 * time.Second
@@ -310,12 +303,13 @@ func TestPoolWithoutAcquireTimeoutSet(t *testing.T) {
 	})
 	defer timer.Stop()
 
-	conn, timeTaken, err := acquireWithTimeTaken(pool)
+	conn, err := pool.Acquire()
 	if err == nil {
 		pool.Release(conn)
 	} else {
 		t.Fatalf("Expected error to be nil, instead it was '%v'", err)
 	}
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < stopDeadWaitTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", stopDeadWaitTimeout, timeTaken)
 	}
@@ -339,16 +333,18 @@ func TestPoolWithAcquireExContextTimeoutSet(t *testing.T) {
 	allConnections := acquireAllConnections(t, pool, config.MaxConnections)
 	defer releaseAllConnections(pool, allConnections)
 
+	startTime := time.Now()
 	ctxTimeout := 2 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	// ... then try to consume 1 more. It should fail after a short timeout.
-	_, timeTaken, err := acquireExWithTimeTaken(pool, ctx)
+	_, err = pool.AcquireEx(ctx)
 
 	if err == nil || err != pgx.ErrAcquireTimeout {
 		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < ctxTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", ctxTimeout, timeTaken)
 	}
@@ -374,16 +370,18 @@ func TestPoolWithAcquireExPoolTimeoutLower(t *testing.T) {
 	allConnections := acquireAllConnections(t, pool, config.MaxConnections)
 	defer releaseAllConnections(pool, allConnections)
 
+	startTime := time.Now()
 	ctxTimeout := 5 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	// ... then try to consume 1 more. It should fail after a short timeout.
-	_, timeTaken, err := acquireExWithTimeTaken(pool, ctx)
+	_, err = pool.AcquireEx(ctx)
 
 	if err == nil || err != pgx.ErrAcquireTimeout {
 		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < connAllocTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", connAllocTimeout, timeTaken)
 	}
@@ -412,16 +410,18 @@ func TestPoolWithAcquireExPoolTimeoutHigher(t *testing.T) {
 	allConnections := acquireAllConnections(t, pool, config.MaxConnections)
 	defer releaseAllConnections(pool, allConnections)
 
+	startTime := time.Now()
 	ctxTimeout := 2 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
 	defer cancel()
 
 	// ... then try to consume 1 more. It should fail after a short timeout.
-	_, timeTaken, err := acquireExWithTimeTaken(pool, ctx)
+	_, err = pool.AcquireEx(ctx)
 
 	if err == nil || err != pgx.ErrAcquireTimeout {
 		t.Fatalf("Expected error to be pgx.ErrAcquireTimeout, instead it was '%v'", err)
 	}
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < ctxTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", ctxTimeout, timeTaken)
 	}
@@ -442,18 +442,20 @@ func TestPoolWithoutAcquireExTimeoutSet(t *testing.T) {
 
 	// ... then try to consume 1 more. It should hang forever.
 	// To unblock it we release the previously taken connection in a goroutine.
+	startTime := time.Now()
 	stopDeadWaitTimeout := 5 * time.Second
 	timer := time.AfterFunc(stopDeadWaitTimeout+100*time.Millisecond, func() {
 		releaseAllConnections(pool, allConnections)
 	})
 	defer timer.Stop()
 
-	conn, timeTaken, err := acquireExWithTimeTaken(pool, context.Background())
+	conn, err := pool.AcquireEx(context.Background())
 	if err == nil {
 		pool.Release(conn)
 	} else {
 		t.Fatalf("Expected error to be nil, instead it was '%v'", err)
 	}
+	timeTaken := time.Now().Sub(startTime)
 	if timeTaken < stopDeadWaitTimeout {
 		t.Fatalf("Expected connection allocation time to be at least %v, instead it was '%v'", stopDeadWaitTimeout, timeTaken)
 	}
