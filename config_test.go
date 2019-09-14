@@ -228,7 +228,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "DSN everything",
-			connString: "user=jack password=secret host=localhost port=5432 database=mydb sslmode=disable application_name=pgxtest search_path=myschema",
+			connString: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable application_name=pgxtest search_path=myschema",
 			config: &pgconn.Config{
 				User:      "jack",
 				Password:  "secret",
@@ -240,6 +240,80 @@ func TestParseConfig(t *testing.T) {
 					"application_name": "pgxtest",
 					"search_path":      "myschema",
 				},
+			},
+		},
+		{
+			name:       "DSN with escaped single quote",
+			connString: "user=jack\\'s password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack's",
+				Password:      "secret",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with escaped backslash",
+			connString: "user=jack password=sooper\\\\secret host=localhost port=5432 dbname=mydb sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "sooper\\secret",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with single quoted values",
+			connString: "user='jack' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &pgconn.Config{
+				User:          "jack",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with single quoted value with escaped single quote",
+			connString: "user='jack\\'s' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &pgconn.Config{
+				User:          "jack's",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with empty single quoted value",
+			connString: "user='jack' password='' host='localhost' dbname='mydb' sslmode='disable'",
+			config: &pgconn.Config{
+				User:          "jack",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "DSN with space between key and value",
+			connString: "user = 'jack' password = '' host = 'localhost' dbname = 'mydb' sslmode='disable'",
+			config: &pgconn.Config{
+				User:          "jack",
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
 			},
 		},
 		{
@@ -294,7 +368,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "DSN multiple hosts one port",
-			connString: "user=jack password=secret host=foo,bar,baz port=5432 database=mydb sslmode=disable",
+			connString: "user=jack password=secret host=foo,bar,baz port=5432 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
 				Password:      "secret",
@@ -319,7 +393,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "DSN multiple hosts multiple ports",
-			connString: "user=jack password=secret host=foo,bar,baz port=1,2,3 database=mydb sslmode=disable",
+			connString: "user=jack password=secret host=foo,bar,baz port=1,2,3 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
 				Password:      "secret",
@@ -344,7 +418,7 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "multiple hosts and fallback tsl",
-			connString: "user=jack password=secret host=foo,bar,baz database=mydb sslmode=prefer",
+			connString: "user=jack password=secret host=foo,bar,baz dbname=mydb sslmode=prefer",
 			config: &pgconn.Config{
 				User:     "jack",
 				Password: "secret",

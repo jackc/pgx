@@ -45,7 +45,7 @@ create database pgx_test;
 Now you can run the tests:
 
 ```
-PGX_TEST_CONN_STRING="host=/var/run/postgresql database=pgx_test" go test ./...
+PGX_TEST_CONN_STRING="host=/var/run/postgresql dbname=pgx_test" go test ./...
 ```
 
 ### Connection and Authentication Tests

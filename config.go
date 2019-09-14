@@ -13,7 +13,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -389,13 +388,65 @@ func addURLSettings(settings map[string]string, connString string) error {
 	return nil
 }
 
-var dsnRegexp = regexp.MustCompile(`([a-zA-Z_]+)=((?:"[^"]+")|(?:[^ ]+))`)
+var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 func addDSNSettings(settings map[string]string, s string) error {
-	m := dsnRegexp.FindAllStringSubmatch(s, -1)
+	nameMap := map[string]string{
+		"dbname": "database",
+	}
 
-	for _, b := range m {
-		settings[b[1]] = b[2]
+	for len(s) > 0 {
+		var key, val string
+		eqIdx := strings.IndexRune(s, '=')
+		if eqIdx < 0 {
+			return errors.New("invalid dsn")
+		}
+
+		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
+		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
+		if s[0] != '\'' {
+			end := 0
+			for ; end < len(s); end++ {
+				if asciiSpace[s[end]] == 1 {
+					break
+				}
+				if s[end] == '\\' {
+					end++
+				}
+			}
+			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			if end == len(s) {
+				s = ""
+			} else {
+				s = s[end+1:]
+			}
+		} else { // quoted string
+			s = s[1:]
+			end := 0
+			for ; end < len(s); end++ {
+				if s[end] == '\'' {
+					break
+				}
+				if s[end] == '\\' {
+					end++
+				}
+			}
+			if end == len(s) {
+				return errors.New("unterminated quoted string in connection info string")
+			}
+			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
+			if end == len(s) {
+				s = ""
+			} else {
+				s = s[end+1:]
+			}
+		}
+
+		if k, ok := nameMap[key]; ok {
+			key = k
+		}
+
+		settings[key] = val
 	}
 
 	return nil
