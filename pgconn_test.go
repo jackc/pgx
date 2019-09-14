@@ -188,6 +188,24 @@ func TestConnectCustomDialer(t *testing.T) {
 	closeConn(t, conn)
 }
 
+func TestConnectCustomLookup(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	looked := false
+	config.LookupFunc = func(ctx context.Context, host string) (addrs []string, err error) {
+		looked = true
+		return net.LookupHost(host)
+	}
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	require.True(t, looked)
+	closeConn(t, conn)
+}
+
 func TestConnectWithRuntimeParams(t *testing.T) {
 	t.Parallel()
 
