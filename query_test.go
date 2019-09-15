@@ -16,9 +16,9 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
-	satori "github.com/jackc/pgtype/ext/satori-uuid"
+	gofrs "github.com/jackc/pgtype/ext/gofrs-uuid"
 	"github.com/jackc/pgx/v4"
-	uuid "github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1162,7 +1162,7 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 	defer closeConn(t, conn)
 
 	conn.ConnInfo().RegisterDataType(pgtype.DataType{
-		Value: &satori.UUID{},
+		Value: &gofrs.UUID{},
 		Name:  "uuid",
 		OID:   2950,
 	})
