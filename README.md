@@ -10,10 +10,6 @@ The toolkit part is a related set of packages that implement PostgreSQL function
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
 proxies, load balancers, logical replication clients, etc.
 
-## v4
-
-This is the `v4` branch. `v4` is in release candidate state but is not officially released.
-
 ## Example Usage
 
 ```go
@@ -179,4 +175,4 @@ In addition there are tests specific for PgBouncer that will be run if the `PGX_
 
 ## Version Policy
 
-pgx follows semantic versioning for the documented public API on stable releases. This is the prerelease of `v4`. Branch `v3` is the latest stable release. `master` can contain new features or behavior that will change or be removed before being merged to the stable `v3` branch (in practice, this occurs very rarely).
+pgx follows semantic versioning for the documented public API on stable releases. `v4` is the latest stable major version.

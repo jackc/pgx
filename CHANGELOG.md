@@ -1,6 +1,7 @@
-# 4.0.0 (Release candidate)
+# 4.0.0 (September 14, 2019)
 
-v4 is a major release with many significant changes. The most significant are included below.
+v4 is a major release with many significant changes some of which are breaking changes. The most significant are
+included below.
 
 * Simplified establishing a connection with a connection string.
 * All potentially blocking operations now require a context.Context. The non-context aware functions have been removed.
@@ -11,7 +12,7 @@ v4 is a major release with many significant changes. The most significant are in
 * `Rows` and `Tx` are now interfaces.
 * The connection pool as been decoupled from pgx and is now a separate, included package (github.com/jackc/pgx/v4/pgxpool).
 * pgtype has been spun off to a separate package (github.com/jackc/pgtype).
-* pgproto3 has been spun off to a separate package (github.com/jackc/pgproto3).
+* pgproto3 has been spun off to a separate package (github.com/jackc/pgproto3/v2).
 * Logical replication support has been spun off to a separate package (github.com/jackc/pglogrepl).
 * Lower level PostgreSQL functionality is now implemented in a separate package (github.com/jackc/pgconn).
 * Tests are now configured with environment variables.
