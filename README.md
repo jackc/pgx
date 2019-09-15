@@ -15,10 +15,9 @@ if err != nil {
 }
 ```
 
-## v4 Coming Soon
+## v4
 
-This is the current stable v3 version. v4 is currently is in release candidate status. Consider using
-[v4](https://github.com/jackc/pgx/tree/v4) for new development or test upgrading existing applications.
+This is the `v3` version. `v4` has been released. Please use that for new development.
 
 ## Features
 
