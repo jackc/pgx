@@ -1,3 +1,29 @@
+# 3.6.0 (September 14, 2019)
+
+## Features
+
+* Improve zap logger (Nicholas Wilson)
+* Improve composite type support (David)
+* Connect multi-host support (Artemiy Ryabinkov)
+* Improve UUID to any [16]byte conversion (Nicholas Wilson)
+* Add database/sql repeatable read transaction support (Nathaniel Caza)
+* Load user-defined array type oids (Dmitriy Garanzha)
+* Add ConnPool.AcquireEx (Kale Blankenship)
+
+## Fixes
+
+* Remove 0 bytes when sanitizing identifiers
+* Terminate context prior to releasing when killing batch connection (Andrew S. Brown)
+* Do not ignore PostgreSQL errors from deferred constraints
+* Correct example for WaitForNotification (Ian Stapleton Cordasco)
+* Include ParameterOIDs when preparing statements on new pool connections (Kale Blankenship)
+* Fix DSN parsing with single quoted values (Joshua Barone)
+
+## Changes
+
+* Adjust default read buffer to match default PostgreSQL send buffer (Artemiy Ryabinkov)
+* Add https://github.com/gofrs/uuid extension (David Hudson)
+
 # 3.5.0 (June 29, 2019)
 
 ## Features
