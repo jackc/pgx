@@ -58,32 +58,32 @@ encode and decode values for PostgreSQL.
 
 pgx supports many additional features beyond what is available through database/sql.
 
-* Support for approximately 60 different PostgreSQL types
-* Automatic statement preparation and caching
-* Batch queries
-* Single-round trip query mode
-* Full TLS connection control
-* Binary format support for custom types (can be much faster)
-* Copy protocol support for faster bulk data loads
-* Extendable logging support including built-in support for log15, logrus, zap, and zerolog
-* Connection pool with after connect hook to do arbitrary connection setup
-* Listen / notify
-* PostgreSQL array to Go slice mapping for integers, floats, and strings
-* Hstore support
-* JSON and JSONB support
-* Maps inet and cidr PostgreSQL types to net.IPNet and net.IP
-* Large object support
+* Support for approximately 60 different PostgreSQL types.
+* Automatic statement preparation and caching.
+* Batch queries.
+* Single-round trip query mode.
+* Full TLS connection control.
+* Binary format support for custom types (can be much faster).
+* Copy protocol support for faster bulk data loads.
+* Extendable logging support including built-in support for log15, logrus, zap, and zerolog.
+* Connection pool with after connect hook to do arbitrary connection setup.
+* Listen / notify.
+* PostgreSQL array to Go slice mapping for integers, floats, and strings.
+* Hstore support.
+* JSON and JSONB support.
+* Maps inet and cidr PostgreSQL types to net.IPNet and net.IP.
+* Large object support.
 * NULL mapping to Null* struct or pointer to pointer.
-* Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
-* Notice response handling (this is different than listen / notify)
-* Simulated nested transactions with savepoints
+* Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types.
+* Notice response handling (this is different than listen / notify).
+* Simulated nested transactions with savepoints.
 
 ## Performance
 
 There are three areas in particular where pgx can provide a significant performance advantage over the standard
 `database/sql` interface and/or other drivers.
 
-1. PostgreSQL specific types - Types such as arrays can be parsed much quicker because pgx uses the binary format
+1. PostgreSQL specific types - Types such as arrays can be parsed much quicker because pgx uses the binary format.
 2. Automatic statement preparation and caching - pgx will prepare and cache statements by default. This can provide an
    significant free improvement to code that does not explicitly use prepared statements. Under certain workloads it
    performs nearly 3x the queries per second.
@@ -96,11 +96,11 @@ from pgx for lower-level control.
 
 ## github.com/jackc/pgconn
 
-pgconn is a lower-level PostgreSQL database driver that operates at nearly the same level is the C library libpq.
+pgconn is a lower-level PostgreSQL database driver that operates at nearly the same level as the C library libpq.
 
 ## github.com/jackc/pgx/v4/pgxpool
 
-pgxpool is a connection pool for pgx. pgx is entirely decoupled from its default pool implementation. This means pgx can be used with a different pool without any pool at all.
+pgxpool is a connection pool for pgx. pgx is entirely decoupled from its default pool implementation. This means pgx can be used with a different pool or without any pool at all.
 
 ## github.com/jackc/pgx/v4/stdlib
 
