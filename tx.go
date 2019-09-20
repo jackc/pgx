@@ -159,6 +159,7 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 	}
 
 	_, err := tx.conn.Exec(ctx, "rollback")
+	tx.closed = true
 	if err != nil {
 		// A rollback failure leaves the connection in an undefined state
 		tx.conn.die(errors.Errorf("rollback failed: %w", err))
