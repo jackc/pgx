@@ -66,7 +66,7 @@ const (
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
-	DaterangeOID        = 3812
+	DaterangeOID        = 3912
 	Int4rangeOID        = 3904
 	NumrangeOID         = 3906
 	TsrangeOID          = 3908
