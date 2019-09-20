@@ -86,9 +86,20 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (*dbTx, error) 
 }
 
 type Tx interface {
-	// Begin starts a pseudo nested transaction
+	// Begin starts a pseudo nested transaction.
 	Begin(ctx context.Context) (Tx, error)
+
+	// Commit commits the transaction if this is a real transaction or releases the savepoint if this is a pseudo nested
+	// transaction. Commit will return ErrTxClosed if the Tx is already closed, but is otherwise safe to call multiple
+	// times. If the commit fails with a rollback status (e.g. a deferred constraint was violated) then
+	// ErrTxCommitRollback will be returned. Any other failure of a real transaction will result in the connection being
+	// closed.
 	Commit(ctx context.Context) error
+
+	// Rollback rolls back the transaction if this is a real transaction or rolls back to the savepoint if this is a
+	// pseudo nested transaction. Rollback will return ErrTxClosed if the Tx is already closed, but is otherwise safe to
+	// call multiple times. Hence, a defer tx.Rollback() is safe even if tx.Commit() will be called first in a non-error
+	// condition. Any other failure of a real transaction will result in the connection being closed.
 	Rollback(ctx context.Context) error
 
 	CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error)
