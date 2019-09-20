@@ -104,8 +104,10 @@ func (c *LRU) prepare(ctx context.Context, sql string) (*pgconn.StatementDescrip
 func (c *LRU) removeOldest(ctx context.Context) error {
 	oldest := c.l.Back()
 	c.l.Remove(oldest)
+	psd := oldest.Value.(*pgconn.StatementDescription)
+	delete(c.m, psd.SQL)
 	if c.mode == ModePrepare {
-		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", oldest.Value.(*pgconn.StatementDescription).Name)).Close()
+		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", psd.Name)).Close()
 	}
 	return nil
 }

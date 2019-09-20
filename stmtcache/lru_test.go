@@ -2,6 +2,8 @@ package stmtcache_test
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
 	"testing"
 	"time"
@@ -55,6 +57,30 @@ func TestLRUModePrepare(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 0, cache.Len())
 	require.Empty(t, fetchServerStatements(t, ctx, conn))
+}
+
+func TestLRUModePrepareStress(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+
+	cache := stmtcache.NewLRU(conn, stmtcache.ModePrepare, 8)
+	require.EqualValues(t, 0, cache.Len())
+	require.EqualValues(t, 8, cache.Cap())
+	require.EqualValues(t, stmtcache.ModePrepare, cache.Mode())
+
+	for i := 0; i < 1000; i++ {
+		psd, err := cache.Get(ctx, fmt.Sprintf("select %d", rand.Intn(50)))
+		require.NoError(t, err)
+		require.NotNil(t, psd)
+		result := conn.ExecPrepared(ctx, psd.Name, nil, nil, nil).Read()
+		require.NoError(t, result.Err)
+	}
 }
 
 func TestLRUModeDescribe(t *testing.T) {
