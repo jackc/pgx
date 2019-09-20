@@ -685,7 +685,8 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Ro
 }
 
 // SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless
-// explicit transaction control statements are executed.
+// explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
+// is used again.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	distinctUnpreparedQueries := map[string]struct{}{}
 

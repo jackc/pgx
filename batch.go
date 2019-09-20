@@ -36,8 +36,9 @@ type BatchResults interface {
 	// QueryRow reads the results from the next query in the batch as if the query has been sent with Conn.QueryRow.
 	QueryRow() Row
 
-	// Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
-	// resyncronize the connection with the server. In this case the underlying connection will have been closed.
+	// Close closes the batch operation. This must be called before the underlying connection can be used again. Any error
+	// that occurred during a batch operation may have made it impossible to resyncronize the connection with the server.
+	// In this case the underlying connection will have been closed.
 	Close() error
 }
 
