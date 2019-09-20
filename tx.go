@@ -241,6 +241,10 @@ func (sp *dbSavepoint) Begin(ctx context.Context) (Tx, error) {
 
 // Commit releases the savepoint essentially committing the pseudo nested transaction.
 func (sp *dbSavepoint) Commit(ctx context.Context) error {
+	if sp.closed {
+		return ErrTxClosed
+	}
+
 	_, err := sp.Exec(ctx, "release savepoint sp_"+strconv.FormatInt(sp.savepointNum, 10))
 	sp.closed = true
 	return err
@@ -250,6 +254,10 @@ func (sp *dbSavepoint) Commit(ctx context.Context) error {
 // ErrTxClosed if the dbSavepoint is already closed, but is otherwise safe to call multiple times. Hence, a defer sp.Rollback()
 // is safe even if sp.Commit() will be called first in a non-error condition.
 func (sp *dbSavepoint) Rollback(ctx context.Context) error {
+	if sp.closed {
+		return ErrTxClosed
+	}
+
 	_, err := sp.Exec(ctx, "rollback to savepoint sp_"+strconv.FormatInt(sp.savepointNum, 10))
 	sp.closed = true
 	return err
