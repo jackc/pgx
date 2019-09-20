@@ -43,6 +43,9 @@ type Notification struct {
 // DialFunc is a function that can be used to connect to a PostgreSQL server.
 type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
+// LookupFunc is a function that can be used to lookup IPs addrs from host.
+type LookupFunc func(ctx context.Context, host string) (addrs []string, err error)
+
 // BuildFrontendFunc is a function that can be used to create Frontend implementation for connection.
 type BuildFrontendFunc func(r io.Reader, w io.Writer) Frontend
 
@@ -123,6 +126,15 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
 
+	fallbackConfigs, err = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
+	if err != nil {
+		return nil, &connectError{config: config, msg: "hostname resolving error", err: err}
+	}
+
+	if len(fallbackConfigs) == 0 {
+		return nil, &connectError{config: config, msg: "hostname resolving error", err: errors.New("ip addr wasn't found")}
+	}
+
 	for _, fc := range fallbackConfigs {
 		pgConn, err = connect(ctx, config, fc)
 		if err == nil {
@@ -145,6 +157,38 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	}
 
 	return pgConn, nil
+}
+
+func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, error) {
+	var configs []*FallbackConfig
+
+	for _, fb := range fallbacks {
+		// skip resolve for unix sockets
+		if strings.HasPrefix(fb.Host, "/") {
+			configs = append(configs, &FallbackConfig{
+				Host:      fb.Host,
+				Port:      fb.Port,
+				TLSConfig: fb.TLSConfig,
+			})
+
+			continue
+		}
+
+		ips, err := lookupFn(ctx, fb.Host)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, ip := range ips {
+			configs = append(configs, &FallbackConfig{
+				Host:      ip,
+				Port:      fb.Port,
+				TLSConfig: fb.TLSConfig,
+			})
+		}
+	}
+
+	return configs, nil
 }
 
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
