@@ -1,3 +1,10 @@
+# 4.0.1 (September 19, 2019)
+
+* Fix statement cache cleanup.
+* Corrected daterange OID.
+* Fix Tx when committing or rolling back multiple times in certain cases.
+* Improve documentation.
+
 # 4.0.0 (September 14, 2019)
 
 v4 is a major release with many significant changes some of which are breaking changes. The most significant are
