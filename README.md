@@ -58,25 +58,25 @@ encode and decode values for PostgreSQL.
 
 pgx supports many additional features beyond what is available through database/sql.
 
-* Support for approximately 60 different PostgreSQL types.
-* Automatic statement preparation and caching.
-* Batch queries.
-* Single-round trip query mode.
-* Full TLS connection control.
-* Binary format support for custom types (can be much faster).
-* Copy protocol support for faster bulk data loads.
-* Extendable logging support including built-in support for log15, logrus, zap, and zerolog.
-* Connection pool with after connect hook to do arbitrary connection setup.
-* Listen / notify.
-* PostgreSQL array to Go slice mapping for integers, floats, and strings.
-* Hstore support.
-* JSON and JSONB support.
-* Maps inet and cidr PostgreSQL types to net.IPNet and net.IP.
-* Large object support.
-* NULL mapping to Null* struct or pointer to pointer.
-* Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types.
-* Notice response handling (this is different than listen / notify).
-* Simulated nested transactions with savepoints.
+* Support for approximately 60 different PostgreSQL types
+* Automatic statement preparation and caching
+* Batch queries
+* Single-round trip query mode
+* Full TLS connection control
+* Binary format support for custom types (can be much faster)
+* Copy protocol support for faster bulk data loads
+* Extendable logging support including built-in support for log15, logrus, zap, and zerolog
+* Connection pool with after connect hook to do arbitrary connection setup
+* Listen / notify
+* PostgreSQL array to Go slice mapping for integers, floats, and strings
+* Hstore support
+* JSON and JSONB support
+* Maps inet and cidr PostgreSQL types to net.IPNet and net.IP
+* Large object support
+* NULL mapping to Null* struct or pointer to pointer
+* Supports database/sql.Scanner and database/sql/driver.Valuer interfaces for custom types
+* Notice response handling (this is different than listen / notify)
+* Simulated nested transactions with savepoints
 
 ## Performance
 
