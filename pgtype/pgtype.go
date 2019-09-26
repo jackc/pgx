@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"reflect"
+	"sync"
 
 	"github.com/pkg/errors"
 )
@@ -142,6 +143,7 @@ type DataType struct {
 }
 
 type ConnInfo struct {
+	sync.RWMutex
 	oidToDataType         map[OID]*DataType
 	nameToDataType        map[string]*DataType
 	reflectTypeToDataType map[reflect.Type]*DataType
@@ -168,28 +170,38 @@ func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]OID) {
 }
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
+	ci.Lock()
+	defer ci.Unlock()
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
 	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
 }
 
 func (ci *ConnInfo) DataTypeForOID(oid OID) (*DataType, bool) {
+	ci.RLock()
+	defer ci.RUnlock()
 	dt, ok := ci.oidToDataType[oid]
 	return dt, ok
 }
 
 func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
+	ci.RLock()
+	defer ci.RUnlock()
 	dt, ok := ci.nameToDataType[name]
 	return dt, ok
 }
 
 func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
+	ci.RLock()
+	defer ci.RUnlock()
 	dt, ok := ci.reflectTypeToDataType[reflect.ValueOf(v).Type()]
 	return dt, ok
 }
 
 // DeepCopy makes a deep copy of the ConnInfo.
 func (ci *ConnInfo) DeepCopy() *ConnInfo {
+	ci.RLock()
+	defer ci.RUnlock()
 	ci2 := &ConnInfo{
 		oidToDataType:         make(map[OID]*DataType, len(ci.oidToDataType)),
 		nameToDataType:        make(map[string]*DataType, len(ci.nameToDataType)),
