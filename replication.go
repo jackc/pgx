@@ -165,7 +165,7 @@ func ReplicationConnect(config ConnConfig) (r *ReplicationConn, err error) {
 	config.RuntimeParams["replication"] = "database"
 	config.PreferSimpleProtocol = true
 
-	c, err := Connect(config)
+	c, err := connect(config, minimalConnInfo.DeepCopy())
 	if err != nil {
 		return
 	}
