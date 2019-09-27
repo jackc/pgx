@@ -26,6 +26,14 @@ func (src *Bit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return (*Varbit)(src).EncodeBinary(ci, buf)
 }
 
+func (dst *Bit) DecodeText(ci *ConnInfo, src []byte) error {
+	return (*Varbit)(dst).DecodeText(ci, src)
+}
+
+func (src *Bit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	return (*Varbit)(src).EncodeText(ci, buf)
+}
+
 // Scan implements the database/sql Scanner interface.
 func (dst *Bit) Scan(src interface{}) error {
 	return (*Varbit)(dst).Scan(src)
