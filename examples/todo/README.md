@@ -40,7 +40,7 @@ Or you can prefix the todo execution with the environment variables:
 
 ## Update a task
 
-    ./todo add 1 'Learn more go'
+    ./todo update 1 'Learn more go'
 
 ## Delete a task
 
