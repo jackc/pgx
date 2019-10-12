@@ -210,6 +210,26 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 	assert.EqualValues(t, 0, stats.TotalConns())
 }
 
+func TestConnReleaseClosesBusyConn(t *testing.T) {
+	t.Parallel()
+
+	db, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+
+	_, err = c.Query(context.Background(), "select generate_series(1,10)")
+	require.NoError(t, err)
+
+	c.Release()
+	waitForReleaseToComplete()
+
+	stats := db.Stat()
+	assert.EqualValues(t, 0, stats.TotalConns())
+}
+
 func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	t.Parallel()
 
