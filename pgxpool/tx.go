@@ -61,3 +61,7 @@ func (tx *Tx) Query(ctx context.Context, sql string, args ...interface{}) (pgx.R
 func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	return tx.t.QueryRow(ctx, sql, args...)
 }
+
+func (tx *Tx) Conn() *pgx.Conn {
+	return tx.t.Conn()
+}

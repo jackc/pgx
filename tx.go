@@ -111,6 +111,9 @@ type Tx interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
+
+	// Conn returns the underlying *Conn that on which this transaction is executing.
+	Conn() *Conn
 }
 
 // dbTx represents a database transaction.
@@ -234,6 +237,10 @@ func (tx *dbTx) LargeObjects() LargeObjects {
 	return LargeObjects{tx: tx}
 }
 
+func (tx *dbTx) Conn() *Conn {
+	return tx.conn
+}
+
 // dbSavepoint represents a nested transaction implemented by a savepoint.
 type dbSavepoint struct {
 	tx           Tx
@@ -329,4 +336,8 @@ func (sp *dbSavepoint) SendBatch(ctx context.Context, b *Batch) BatchResults {
 
 func (sp *dbSavepoint) LargeObjects() LargeObjects {
 	return LargeObjects{tx: sp}
+}
+
+func (sp *dbSavepoint) Conn() *Conn {
+	return sp.tx.Conn()
 }
