@@ -67,13 +67,13 @@ var ErrTxCommitRollback = errors.New("commit unexpectedly resulted in rollback")
 
 // Begin starts a transaction. Unlike database/sql, the context only affects the begin command. i.e. there is no
 // auto-rollback on context cancellation.
-func (c *Conn) Begin(ctx context.Context) (*dbTx, error) {
+func (c *Conn) Begin(ctx context.Context) (Tx, error) {
 	return c.BeginTx(ctx, TxOptions{})
 }
 
 // BeginTx starts a transaction with txOptions determining the transaction mode. Unlike database/sql, the context only
 // affects the begin command. i.e. there is no auto-rollback on context cancellation.
-func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (*dbTx, error) {
+func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or

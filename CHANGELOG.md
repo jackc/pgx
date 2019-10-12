@@ -1,3 +1,7 @@
+# Unreleased
+
+* Conn.Begin and Conn.BeginTx return a Tx interface instead of the internal dbTx struct. This is necessary for the Conn.Begin method to signature as other methods that begin a transaction. This is technically a breaking change but practically is just a bug fix that is extremely unlikely to break any existing code.
+
 # 4.0.1 (September 19, 2019)
 
 * Fix statement cache cleanup.
