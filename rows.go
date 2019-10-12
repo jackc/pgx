@@ -16,6 +16,11 @@ import (
 // Rows is the result set returned from *Conn.Query. Rows must be closed before
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
 // calling Next() until it returns false, or when a fatal error occurs.
+//
+// Rows is an interface instead of a struct to allow tests to mock Query. However,
+// adding a method to an interface is technically a breaking change. Because of this
+// the Rows interface is partially excluded from semantic version requirements.
+// Methods will not be removed or changed, but new methods may be added.
 type Rows interface {
 	// Close closes the rows, making the connection ready for use again. It is safe
 	// to call Close after rows is already closed.
@@ -49,6 +54,11 @@ type Rows interface {
 }
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
+//
+// Row is an interface instead of a struct to allow tests to mock QueryRow. However,
+// adding a method to an interface is technically a breaking change. Because of this
+// the Row interface is partially excluded from semantic version requirements.
+// Methods will not be removed or changed, but new methods may be added.
 type Row interface {
 	// Scan works the same as Rows. with the following exceptions. If no
 	// rows were found it returns ErrNoRows. If multiple rows are returned it
