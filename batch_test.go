@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -133,6 +134,47 @@ func TestConnSendBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnSendBatchMany(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	sql := `create temporary table ledger(
+	  id serial primary key,
+	  description varchar not null,
+	  amount int not null
+	);`
+	mustExec(t, conn, sql)
+
+	batch := &pgx.Batch{}
+
+	numInserts := 1000
+
+	for i := 0; i < numInserts; i++ {
+		batch.Queue("insert into ledger(description, amount) values($1, $2)", "q1", 1)
+	}
+	batch.Queue("select count(*) from ledger")
+
+	br := conn.SendBatch(context.Background(), batch)
+
+	for i := 0; i < numInserts; i++ {
+		ct, err := br.Exec()
+		assert.NoError(t, err)
+		assert.EqualValues(t, 1, ct.RowsAffected())
+	}
+
+	var actualInserts int
+	err := br.QueryRow().Scan(&actualInserts)
+	assert.NoError(t, err)
+	assert.EqualValues(t, numInserts, actualInserts)
+
+	err = br.Close()
+	require.NoError(t, err)
 
 	ensureConnValid(t, conn)
 }
