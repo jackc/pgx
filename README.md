@@ -10,6 +10,8 @@ The toolkit part is a related set of packages that implement PostgreSQL function
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
 proxies, load balancers, logical replication clients, etc.
 
+The current release of pgx `v4` requires Go modules. Checkout and vendor branch `v3` to use the previous version.
+
 ## Example Usage
 
 ```go
