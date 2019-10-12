@@ -1,4 +1,4 @@
-# Unreleased
+# 4.1.0 (October 12, 2019)
 
 ## Potentially Breaking Changes
 
@@ -10,6 +10,7 @@ Technically, two changes are breaking changes, but in practice these are extreme
 ## Fixes
 
 * Releasing a busy connection closes the connection instead of returning an unusable connection to the pool
+* Do not mutate config.Config.OnNotification in connect
 
 # 4.0.1 (September 19, 2019)
 
