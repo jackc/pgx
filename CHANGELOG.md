@@ -7,6 +7,10 @@ Technically, two changes are breaking changes, but in practice these are extreme
 * Conn.Begin and Conn.BeginTx return a Tx interface instead of the internal dbTx struct. This is necessary for the Conn.Begin method to signature as other methods that begin a transaction.
 * Add Conn() to Tx interface. This is necessary to allow code using a Tx to access the *Conn (and pgconn.PgConn) on which the Tx is executing.
 
+## Fixes
+
+* Releasing a busy connection closes the connection instead of returning an unusable connection to the pool
+
 # 4.0.1 (September 19, 2019)
 
 * Fix statement cache cleanup.
