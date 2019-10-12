@@ -520,6 +520,11 @@ func (pgConn *PgConn) IsClosed() bool {
 	return pgConn.status < connStatusIdle
 }
 
+// IsBusy reports if the connection is busy.
+func (pgConn *PgConn) IsBusy() bool {
+	return pgConn.status == connStatusBusy
+}
+
 // lock locks the connection.
 func (pgConn *PgConn) lock() error {
 	switch pgConn.status {
