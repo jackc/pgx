@@ -67,6 +67,13 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		return nil, nil
 	}
 
+	refVal := reflect.ValueOf(arg)
+	argIsPtr := refVal.Kind() == reflect.Ptr
+
+	if argIsPtr && refVal.IsNil() {
+		return nil, nil
+	}
+
 	if eqb.paramValueBytes == nil {
 		eqb.paramValueBytes = make([]byte, 0, 128)
 	}
@@ -100,12 +107,9 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		return []byte(arg), nil
 	}
 
-	refVal := reflect.ValueOf(arg)
-
-	if refVal.Kind() == reflect.Ptr {
-		if refVal.IsNil() {
-			return nil, nil
-		}
+	if argIsPtr {
+		// We have already checked that arg is not pointing to nil,
+		// so it is safe to dereference here.
 		arg = refVal.Elem().Interface()
 		return eqb.encodeExtendedParamValue(ci, oid, arg)
 	}
