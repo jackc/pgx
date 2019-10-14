@@ -108,9 +108,9 @@ pgxpool is a connection pool for pgx. pgx is entirely decoupled from its default
 
 database/sql compatibility layer for pgx. pgx can be used as a normal database/sql driver, but at any time the native interface may be acquired for more performance or PostgreSQL specific functionality.
 
-## github.com/jackc/pgx/pgtype
+## github.com/jackc/pgtype
 
-Approximately 60 PostgreSQL types are supported including uuid, hstore, json, bytea, numeric, interval, inet, and arrays. These types support database/sql interfaces and are usable even outside of pgx. They are fully tested in pgx and pq. They also support a higher performance interface when used with the pgx driver.
+Over 70 PostgreSQL types are supported including uuid, hstore, json, bytea, numeric, interval, inet, and arrays. These types support database/sql interfaces and are usable even outside of pgx. They are fully tested in pgx and pq. They also support a higher performance interface when used with the pgx driver.
 
 ## github.com/jackc/pgproto3
 
@@ -120,7 +120,7 @@ pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire pro
 
 pglogrepl provides functionality to act as a client for PostgreSQL logical replication.
 
-## github.com/jackc/pgx/pgmock
+## github.com/jackc/pgmock
 
 pgmock offers the ability to create a server that mocks the PostgreSQL wire protocol. This is used internally to test pgx by purposely inducing unusual errors. pgproto3 and pgmock together provide most of the foundational tooling required to implement a PostgreSQL proxy or MitM (such as for a custom connection pooler).
 
