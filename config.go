@@ -43,9 +43,8 @@ type Config struct {
 	Fallbacks []*FallbackConfig
 
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
-	// It can be used validate that server is acceptable. If this returns an error the connection is closed and the next
-	// fallback config is tried. This allows implementing high availability behavior such as libpq does with
-	// target_session_attrs.
+	// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
+	// fallback config is tried. This allows implementing high availability behavior such as libpq does with target_session_attrs.
 	ValidateConnect ValidateConnectFunc
 
 	// AfterConnect is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
