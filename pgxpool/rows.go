@@ -47,7 +47,7 @@ func (rows *poolRows) Err() error {
 }
 
 func (rows *poolRows) CommandTag() pgconn.CommandTag {
-	return rows.CommandTag()
+	return rows.r.CommandTag()
 }
 
 func (rows *poolRows) FieldDescriptions() []pgproto3.FieldDescription {
