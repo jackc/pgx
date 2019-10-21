@@ -1,3 +1,7 @@
+# 4.1.1 (October 21, 2019)
+
+* Fix pgxpool Rows.CommandTag() infinite loop / typo
+
 # 4.1.0 (October 12, 2019)
 
 ## Potentially Breaking Changes
