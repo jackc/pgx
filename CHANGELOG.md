@@ -1,3 +1,8 @@
+# 4.1.2 (October 22, 2019)
+
+* Fix dbSavepoint.Begin recursive self call
+* Upgrade pgtype to v1.0.2 - fix scan pointer to pointer
+
 # 4.1.1 (October 21, 2019)
 
 * Fix pgxpool Rows.CommandTag() infinite loop / typo
