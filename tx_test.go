@@ -269,6 +269,21 @@ func TestTxNestedTransactionCommit(t *testing.T) {
 		t.Fatalf("nestedTx.Exec failed: %v", err)
 	}
 
+	doubleNestedTx, err := nestedTx.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = doubleNestedTx.Exec(context.Background(), "insert into foo(id) values (3)")
+	if err != nil {
+		t.Fatalf("doubleNestedTx.Exec failed: %v", err)
+	}
+
+	err = doubleNestedTx.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("doubleNestedTx.Commit failed: %v", err)
+	}
+
 	err = nestedTx.Commit(context.Background())
 	if err != nil {
 		t.Fatalf("nestedTx.Commit failed: %v", err)
@@ -284,7 +299,7 @@ func TestTxNestedTransactionCommit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("QueryRow Scan failed: %v", err)
 	}
-	if n != 2 {
+	if n != 3 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
 }
