@@ -261,7 +261,7 @@ func (sp *dbSavepoint) Begin(ctx context.Context) (Tx, error) {
 		return nil, ErrTxClosed
 	}
 
-	return sp.Begin(ctx)
+	return sp.tx.Begin(ctx)
 }
 
 // Commit releases the savepoint essentially committing the pseudo nested transaction.
