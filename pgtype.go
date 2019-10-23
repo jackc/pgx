@@ -379,6 +379,24 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interfac
 		}
 	}
 
+	// We might be given a pointer to something that implements the decoder interface(s),
+	// even though the pointer itself doesn't.
+	refVal := reflect.ValueOf(dest)
+	if refVal.Kind() == reflect.Ptr && refVal.Type().Elem().Kind() == reflect.Ptr {
+		// If the database returned NULL, then we set dest as nil to indicate that.
+		if buf == nil {
+			nilPtr := reflect.Zero(refVal.Type().Elem())
+			refVal.Elem().Set(nilPtr)
+			return nil
+		}
+
+		// We need to allocate an element, and set the destination to it
+		// Then we can retry as that element.
+		elemPtr := reflect.New(refVal.Type().Elem().Elem())
+		refVal.Elem().Set(elemPtr)
+		return ci.Scan(oid, formatCode, buf, elemPtr.Interface())
+	}
+
 	return scanUnknownType(oid, formatCode, buf, dest)
 }
 
