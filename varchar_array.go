@@ -42,6 +42,18 @@ func (dst *VarcharArray) Set(src interface{}) error {
 			}
 		}
 
+	case []Varchar:
+		if value == nil {
+			*dst = VarcharArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = VarcharArray{Status: Present}
+		} else {
+			*dst = VarcharArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -168,7 +180,7 @@ func (dst *VarcharArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src VarcharArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *VarcharArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -225,7 +237,7 @@ func (src VarcharArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src VarcharArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *VarcharArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -288,7 +300,7 @@ func (dst *VarcharArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src VarcharArray) Value() (driver.Value, error) {
+func (src *VarcharArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

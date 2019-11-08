@@ -42,6 +42,18 @@ func (dst *HstoreArray) Set(src interface{}) error {
 			}
 		}
 
+	case []Hstore:
+		if value == nil {
+			*dst = HstoreArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = HstoreArray{Status: Present}
+		} else {
+			*dst = HstoreArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -168,7 +180,7 @@ func (dst *HstoreArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src HstoreArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *HstoreArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -225,7 +237,7 @@ func (src HstoreArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src HstoreArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *HstoreArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -288,7 +300,7 @@ func (dst *HstoreArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src HstoreArray) Value() (driver.Value, error) {
+func (src *HstoreArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

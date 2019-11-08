@@ -40,6 +40,18 @@ func (dst *ACLItemArray) Set(src interface{}) error {
 			}
 		}
 
+	case []ACLItem:
+		if value == nil {
+			*dst = ACLItemArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = ACLItemArray{Status: Present}
+		} else {
+			*dst = ACLItemArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -124,7 +136,7 @@ func (dst *ACLItemArray) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src ACLItemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *ACLItemArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -200,7 +212,7 @@ func (dst *ACLItemArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src ACLItemArray) Value() (driver.Value, error) {
+func (src *ACLItemArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

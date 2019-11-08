@@ -23,6 +23,7 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	<% go_array_types.split(",").each do |t| %>
+	<% if t != pgtype_element_type %>
 	case <%= t %>:
 		if value == nil {
 			*dst = <%= pgtype_array_type %>{Status: Null}
@@ -42,6 +43,19 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 			}
 		}
 	<% end %>
+	<% end %>
+	case []<%= pgtype_element_type %>:
+		if value == nil {
+			*dst = <%= pgtype_array_type %>{Status: Null}
+		} else if len(value) == 0 {
+			*dst = <%= pgtype_array_type %>{Status: Present}
+		} else {
+			*dst = <%= pgtype_array_type %>{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status    : Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)

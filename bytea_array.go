@@ -42,6 +42,18 @@ func (dst *ByteaArray) Set(src interface{}) error {
 			}
 		}
 
+	case []Bytea:
+		if value == nil {
+			*dst = ByteaArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = ByteaArray{Status: Present}
+		} else {
+			*dst = ByteaArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -168,7 +180,7 @@ func (dst *ByteaArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src ByteaArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *ByteaArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -225,7 +237,7 @@ func (src ByteaArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src ByteaArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *ByteaArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -288,7 +300,7 @@ func (dst *ByteaArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src ByteaArray) Value() (driver.Value, error) {
+func (src *ByteaArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

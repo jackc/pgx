@@ -42,6 +42,18 @@ func (dst *Float8Array) Set(src interface{}) error {
 			}
 		}
 
+	case []Float8:
+		if value == nil {
+			*dst = Float8Array{Status: Null}
+		} else if len(value) == 0 {
+			*dst = Float8Array{Status: Present}
+		} else {
+			*dst = Float8Array{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -168,7 +180,7 @@ func (dst *Float8Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Float8Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *Float8Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -225,7 +237,7 @@ func (src Float8Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src Float8Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *Float8Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -288,7 +300,7 @@ func (dst *Float8Array) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Float8Array) Value() (driver.Value, error) {
+func (src *Float8Array) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
