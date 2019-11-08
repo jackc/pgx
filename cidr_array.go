@@ -62,6 +62,18 @@ func (dst *CIDRArray) Set(src interface{}) error {
 			}
 		}
 
+	case []CIDR:
+		if value == nil {
+			*dst = CIDRArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = CIDRArray{Status: Present}
+		} else {
+			*dst = CIDRArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -197,7 +209,7 @@ func (dst *CIDRArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -254,7 +266,7 @@ func (src CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src CIDRArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *CIDRArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -317,7 +329,7 @@ func (dst *CIDRArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src CIDRArray) Value() (driver.Value, error) {
+func (src *CIDRArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

@@ -43,6 +43,18 @@ func (dst *TimestampArray) Set(src interface{}) error {
 			}
 		}
 
+	case []Timestamp:
+		if value == nil {
+			*dst = TimestampArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TimestampArray{Status: Present}
+		} else {
+			*dst = TimestampArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -169,7 +181,7 @@ func (dst *TimestampArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src TimestampArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *TimestampArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -226,7 +238,7 @@ func (src TimestampArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src TimestampArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *TimestampArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -289,7 +301,7 @@ func (dst *TimestampArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src TimestampArray) Value() (driver.Value, error) {
+func (src *TimestampArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err

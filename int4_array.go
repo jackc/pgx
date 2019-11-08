@@ -23,25 +23,6 @@ func (dst *Int4Array) Set(src interface{}) error {
 
 	switch value := src.(type) {
 
-	case []int:
-		if value == nil {
-			*dst = Int4Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int4Array{Status: Present}
-		} else {
-			elements := make([]Int4, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int4Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
 	case []int32:
 		if value == nil {
 			*dst = Int4Array{Status: Null}
@@ -80,6 +61,18 @@ func (dst *Int4Array) Set(src interface{}) error {
 			}
 		}
 
+	case []Int4:
+		if value == nil {
+			*dst = Int4Array{Status: Null}
+		} else if len(value) == 0 {
+			*dst = Int4Array{Status: Present}
+		} else {
+			*dst = Int4Array{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -215,7 +208,7 @@ func (dst *Int4Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src Int4Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *Int4Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -272,7 +265,7 @@ func (src Int4Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src Int4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src *Int4Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -335,7 +328,7 @@ func (dst *Int4Array) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Int4Array) Value() (driver.Value, error) {
+func (src *Int4Array) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
