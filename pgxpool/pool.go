@@ -333,10 +333,10 @@ func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.
 	if err != nil {
 		return errRows{err: err}, err
 	}
+	defer c.Release()
 
 	rows, err := c.Query(ctx, sql, args...)
 	if err != nil {
-		c.Release()
 		return errRows{err: err}, err
 	}
 
@@ -348,6 +348,7 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	if err != nil {
 		return errRow{err: err}
 	}
+	defer c.Release()
 
 	row := c.QueryRow(ctx, sql, args...)
 	return c.getPoolRow(row)
