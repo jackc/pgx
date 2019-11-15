@@ -23,7 +23,7 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	<% go_array_types.split(",").each do |t| %>
-	<% if t != pgtype_element_type %>
+	<% if t != "[]#{pgtype_element_type}" %>
 	case <%= t %>:
 		if value == nil {
 			*dst = <%= pgtype_array_type %>{Status: Null}
@@ -184,7 +184,7 @@ func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) erro
 }
 <% end %>
 
-func (src *<%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src <%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -242,7 +242,7 @@ func (src *<%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byt
 }
 
 <% if binary_format == "true" %>
-	func (src *<%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+	func (src <%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		switch src.Status {
 		case Null:
 			return nil, nil
@@ -306,7 +306,7 @@ func (dst *<%= pgtype_array_type %>) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *<%= pgtype_array_type %>) Value() (driver.Value, error) {
+func (src <%= pgtype_array_type %>) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
