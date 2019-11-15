@@ -209,7 +209,7 @@ func (dst *CIDRArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -266,7 +266,7 @@ func (src *CIDRArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *CIDRArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src CIDRArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -329,7 +329,7 @@ func (dst *CIDRArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *CIDRArray) Value() (driver.Value, error) {
+func (src CIDRArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
