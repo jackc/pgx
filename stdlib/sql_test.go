@@ -15,6 +15,8 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func closeDB(t *testing.T, db *sql.DB) {
@@ -286,20 +288,6 @@ func TestConnQuery(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
-}
-
-type testLog struct {
-	lvl  pgx.LogLevel
-	msg  string
-	data map[string]interface{}
-}
-
-type testLogger struct {
-	logs []testLog
-}
-
-func (l *testLogger) Log(lvl pgx.LogLevel, msg string, data map[string]interface{}) {
-	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
 }
 
 func TestConnQueryNull(t *testing.T) {
@@ -1131,4 +1119,41 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 	}
 
 	ensureConnValid(t, db)
+}
+
+type testLog struct {
+	lvl  pgx.LogLevel
+	msg  string
+	data map[string]interface{}
+}
+
+type testLogger struct {
+	logs []testLog
+}
+
+func (l *testLogger) Log(ctx context.Context, lvl pgx.LogLevel, msg string, data map[string]interface{}) {
+	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
+}
+
+func TestRegisterConnConfig(t *testing.T) {
+	connConfig, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	logger := &testLogger{}
+	connConfig.Logger = logger
+
+	connStr := stdlib.RegisterConnConfig(connConfig)
+	defer stdlib.UnregisterConnConfig(connStr)
+
+	db, err := sql.Open("pgx", connStr)
+	require.NoError(t, err)
+	defer closeDB(t, db)
+
+	var n int64
+	err = db.QueryRow("select 1").Scan(&n)
+	require.NoError(t, err)
+
+	l := logger.logs[len(logger.logs)-1]
+	assert.Equal(t, "Query", l.msg)
+	assert.Equal(t, "select 1", l.data["sql"])
 }
