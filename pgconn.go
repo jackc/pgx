@@ -492,15 +492,13 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
 
-	_, err := pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
-	if err != nil {
-		return err
-	}
-
-	_, err = pgConn.conn.Read(make([]byte, 1))
-	if err != io.EOF {
-		return err
-	}
+	// Ignore any errors sending Terminate message and waiting for server to close connection.
+	// This mimics the behavior of libpq PQfinish. It calls closePGconn which calls sendTerminateConn which purposefully
+	// ignores errors.
+	//
+	// See https://github.com/jackc/pgx/issues/637
+	pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
+	pgConn.conn.Read(make([]byte, 1))
 
 	return pgConn.conn.Close()
 }
