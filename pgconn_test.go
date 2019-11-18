@@ -191,7 +191,12 @@ func TestConnectCustomDialer(t *testing.T) {
 func TestConnectCustomLookup(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
+	}
+
+	config, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
 	looked := false
