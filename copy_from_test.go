@@ -435,3 +435,101 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestConnCopyFromWithNoCustomQueryConflict(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b varchar not null,
+		UNIQUE(a)
+	)`)
+
+	inputRows := [][]interface{}{
+		{int32(1), "abc"},
+		{int32(2), "def"},
+		{int32(3), "ghi"},
+	}
+
+	duplicateRows := [][]interface{}{
+		{int32(2), "efg"},
+	}
+
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(append(inputRows, duplicateRows...)))
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "23505" {
+		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+	if int(copyCount) != 0 {
+		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", 0, copyCount)
+	}
+}
+
+func TestConnCopyFromWithCustomQueryAndConflict(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		a int4,
+		b varchar not null,
+		UNIQUE(a)
+	)`)
+
+	inputRows := [][]interface{}{
+		{int32(1), "abc"},
+		{int32(2), "def"},
+		{int32(3), "ghi"},
+	}
+
+	duplicateRows := [][]interface{}{
+		{int32(2), "efg"},
+	}
+
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b"}, pgx.CopyFromRows(append(inputRows, duplicateRows...)), pgx.WithQueryTemplate(`CREATE TEMP TABLE tmp_table
+		ON COMMIT DROP
+		AS
+		SELECT *
+		FROM {{ .TableName }}
+		WITH NO DATA;
+
+		COPY tmp_table ({{ .ColumnNames }}) FROM stdin binary;
+
+		INSERT INTO {{ .TableName }}
+			SELECT * FROM tmp_table
+		ON CONFLICT DO NOTHING;`))
+
+	if err != nil {
+		t.Errorf("Unexpected error for CopyFrom: %v", err)
+	}
+	if int(copyCount) != len(inputRows) {
+		t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
+	}
+
+	rows, err := conn.Query(context.Background(), "select * from foo")
+	if err != nil {
+		t.Errorf("Unexpected error for Query: %v", err)
+	}
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		if err != nil {
+			t.Errorf("Unexpected error for rows.Values(): %v", err)
+		}
+		outputRows = append(outputRows, row)
+	}
+
+	if rows.Err() != nil {
+		t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+	}
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+	}
+
+	ensureConnValid(t, conn)
+}

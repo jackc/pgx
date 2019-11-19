@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"text/template"
+
+	"strings"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgio"
@@ -56,6 +59,7 @@ type copyFrom struct {
 	columnNames   []string
 	rowSrc        CopyFromSource
 	readerErrChan chan error
+	queryTemplate string
 }
 
 func (ct *copyFrom) run(ctx context.Context) (int64, error) {
@@ -112,7 +116,24 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		w.Close()
 	}()
 
-	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
+	tmpl, err := template.New("").Parse(ct.queryTemplate)
+	if err != nil {
+		return 0, fmt.Errorf("Could not parse query template: %w", err)
+	}
+
+	sw := &strings.Builder{}
+	err = tmpl.Execute(sw, map[string]interface{}{
+		"TableName":   quotedTableName,
+		"ColumnNames": quotedColumnNames,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("Could not execute query template: %w", err)
+	}
+
+	qry := sw.String()
+
+	// https://www.postgresql.org/docs/9.5/sql-insert.html
+	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, qry)
 
 	return commandTag.RowsAffected(), err
 }
@@ -144,19 +165,30 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 	return false, buf, nil
 }
 
+func WithQueryTemplate(template string) func(*copyFrom) {
+	return func(cf *copyFrom) {
+		cf.queryTemplate = template
+	}
+}
+
 // CopyFrom uses the PostgreSQL copy protocol to perform bulk data insertion.
 // It returns the number of rows copied and an error.
 //
 // CopyFrom requires all values use the binary format. Almost all types
 // implemented by pgx use the binary format by default. Types implementing
 // Encoder can only be used if they encode to the binary format.
-func (c *Conn) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
+func (c *Conn) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource, opts ...func(*copyFrom)) (int64, error) {
 	ct := &copyFrom{
 		conn:          c,
 		tableName:     tableName,
 		columnNames:   columnNames,
 		rowSrc:        rowSrc,
 		readerErrChan: make(chan error),
+		queryTemplate: `copy {{ .TableName }} ( {{ .ColumnNames }} ) from stdin binary;`,
+	}
+
+	for _, opt := range opts {
+		opt(ct)
 	}
 
 	return ct.run(ctx)
