@@ -527,6 +527,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	t.Parallel()
 
 	listenerDone := make(chan bool)
+	notifierDone := make(chan bool)
 	go func() {
 		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 		defer closeConn(t, conn)
@@ -547,7 +548,9 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 			for rows.Next() {
 				var n int32
-				rows.Scan(&n)
+				if err := rows.Scan(&n); err != nil {
+					t.Fatalf("Row scan failed: %v", err)
+				}
 				sum += n
 				rowCount++
 			}
@@ -571,6 +574,9 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	go func() {
 		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 		defer closeConn(t, conn)
+		defer func() {
+			notifierDone <- true
+		}()
 
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
@@ -579,6 +585,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	}()
 
 	<-listenerDone
+	<-notifierDone
 }
 
 func TestListenNotifySelfNotification(t *testing.T) {
