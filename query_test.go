@@ -549,11 +549,13 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 
 			for rows.Next() {
 				var n int32
-				rows.Scan(&n)
+				if err := rows.Scan(&n); err != nil {
+					t.Fatalf("Row scan failed: %v", err)
+				}
 			}
 
-			if err, ok := rows.Err().(*pgconn.PgError); !ok {
-				t.Fatalf("Expected pgx.PgError, got %v", err)
+			if _, ok := rows.Err().(*pgconn.PgError); !ok {
+				t.Fatalf("Expected pgx.PgError, got %v", rows.Err())
 			}
 
 			ensureConnValid(t, conn)
