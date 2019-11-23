@@ -196,6 +196,7 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 	config.MaxConnLifetime = 250 * time.Millisecond
 
 	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
@@ -240,6 +241,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
 	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
 	defer db.Close()
 
 	c, err := db.Acquire(context.Background())
@@ -449,7 +451,8 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
-	c.Conn().Close(ctx)
+	err = c.Conn().Close(ctx)
+	require.NoError(t, err)
 
 	assert.EqualValues(t, 1, pool.Stat().TotalConns())
 
