@@ -60,6 +60,13 @@ func TestInt4ArraySet(t *testing.T) {
 		expectedError bool
 	}{
 		{
+			source: []int64{1},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
 			source: []int32{1},
 			result: pgtype.Int4Array{
 				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
@@ -76,6 +83,13 @@ func TestInt4ArraySet(t *testing.T) {
 		{
 			source:        []int{1, math.MaxInt32 + 1, 2},
 			expectedError: true,
+		},
+		{
+			source: []uint64{1},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
 		},
 		{
 			source: []uint32{1},
