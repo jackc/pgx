@@ -58,7 +58,42 @@ func TestInt2ArraySet(t *testing.T) {
 		result pgtype.Int2Array
 	}{
 		{
+			source: []int64{1},
+			result: pgtype.Int2Array{
+				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []int32{1},
+			result: pgtype.Int2Array{
+				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
 			source: []int16{1},
+			result: pgtype.Int2Array{
+				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []int{1},
+			result: pgtype.Int2Array{
+				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []uint64{1},
+			result: pgtype.Int2Array{
+				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []uint32{1},
 			result: pgtype.Int2Array{
 				Elements:   []pgtype.Int2{{Int: 1, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
