@@ -74,6 +74,13 @@ func TestInt4ArraySet(t *testing.T) {
 				Status:     pgtype.Present},
 		},
 		{
+			source: []int16{1},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
 			source: []int{1},
 			result: pgtype.Int4Array{
 				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
@@ -93,6 +100,13 @@ func TestInt4ArraySet(t *testing.T) {
 		},
 		{
 			source: []uint32{1},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: []uint16{1},
 			result: pgtype.Int4Array{
 				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},

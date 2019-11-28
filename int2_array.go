@@ -156,6 +156,25 @@ func (dst *Int2Array) Set(src interface{}) error {
 			}
 		}
 
+	case []uint:
+		if value == nil {
+			*dst = Int2Array{Status: Null}
+		} else if len(value) == 0 {
+			*dst = Int2Array{Status: Present}
+		} else {
+			elements := make([]Int2, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = Int2Array{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Int2:
 		if value == nil {
 			*dst = Int2Array{Status: Null}
@@ -250,6 +269,15 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 
 		case *[]int:
 			*v = make([]int, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]uint:
+			*v = make([]uint, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
