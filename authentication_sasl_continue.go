@@ -40,7 +40,6 @@ func (src *AuthenticationSASLContinue) Encode(dst []byte) []byte {
 	dst = pgio.AppendInt32(dst, -1)
 	dst = pgio.AppendUint32(dst, AuthTypeSASLContinue)
 
-	dst = pgio.AppendInt32(dst, int32(len(src.Data)))
 	dst = append(dst, src.Data...)
 
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
