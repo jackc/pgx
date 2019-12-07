@@ -114,6 +114,12 @@ var (
 	fakeTxConns map[*pgx.Conn]*sql.Tx
 )
 
+// GetDefaultDriver returns the driver initialized in the init function
+// and used when the pgx driver is registered.
+func GetDefaultDriver() driver.Driver {
+	return pgxDriver
+}
+
 type Driver struct {
 	configMutex sync.Mutex
 	configs     map[string]*pgx.ConnConfig
