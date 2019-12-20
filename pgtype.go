@@ -52,6 +52,7 @@ const (
 	BPCharOID           = 1042
 	VarcharOID          = 1043
 	DateOID             = 1082
+	TimeOID             = 1083
 	TimestampOID        = 1114
 	TimestampArrayOID   = 1115
 	DateArrayOID        = 1182
@@ -237,6 +238,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Record{}, Name: "record", OID: RecordOID})
 	ci.RegisterDataType(DataType{Value: &Text{}, Name: "text", OID: TextOID})
 	ci.RegisterDataType(DataType{Value: &TID{}, Name: "tid", OID: TIDOID})
+	ci.RegisterDataType(DataType{Value: &Time{}, Name: "time", OID: TimeOID})
 	ci.RegisterDataType(DataType{Value: &Timestamp{}, Name: "timestamp", OID: TimestampOID})
 	ci.RegisterDataType(DataType{Value: &Timestamptz{}, Name: "timestamptz", OID: TimestamptzOID})
 	ci.RegisterDataType(DataType{Value: &Tsrange{}, Name: "tsrange", OID: TsrangeOID})
