@@ -28,7 +28,6 @@ env:
     - PGVERSION=9.6 PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 port=6543 user=pgx_replication password=secret dbname=pgx_test"
     - PGVERSION=9.5
     - PGVERSION=9.4
-    - PGVERSION=9.3
 
 cache:
   directories:
