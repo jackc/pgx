@@ -24,8 +24,8 @@ env:
     - PGX_TEST_PLAIN_PASSWORD_CONN_STRING=postgres://pgx_pw:secret@127.0.0.1/pgx_test
   matrix:
     - CRATEVERSION=2.1 PGX_TEST_CRATEDB_CONN_STRING="host=127.0.0.1 port=6543 user=pgx dbname=pgx_test"
-    - PGVERSION=10 PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 port=6543 user=pgx_replication password=secret dbname=pgx_test"
-    - PGVERSION=9.6 PGX_TEST_REPLICATION_CONN_STRING="host=127.0.0.1 port=6543 user=pgx_replication password=secret dbname=pgx_test"
+    - PGVERSION=10
+    - PGVERSION=9.6
     - PGVERSION=9.5
     - PGVERSION=9.4
 
