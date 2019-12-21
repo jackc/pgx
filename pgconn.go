@@ -1022,6 +1022,8 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			switch msg := msg.(type) {
 			case *pgproto3.ErrorResponse:
 				pgErr = ErrorResponseToPgError(msg)
+			default:
+				signalMessageChan = pgConn.signalMessage()
 			}
 		default:
 		}
