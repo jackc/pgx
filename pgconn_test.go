@@ -1444,7 +1444,7 @@ func TestConnCopyFromQueryNoTableError(t *testing.T) {
 
 	srcBuf := &bytes.Buffer{}
 
-	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "cropy foo to stdout")
+	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "copy foo to stdout")
 	require.Error(t, err)
 	assert.IsType(t, &pgconn.PgError{}, err)
 	assert.Equal(t, int64(0), res.RowsAffected())
