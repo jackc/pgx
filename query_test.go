@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
 	gofrs "github.com/jackc/pgtype/ext/gofrs-uuid"
 	"github.com/jackc/pgx/v4"
-	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -582,7 +582,7 @@ func TestQueryEncodeError(t *testing.T) {
 	if rows.Err() == nil {
 		t.Error("Expected rows.Err() to return error, but it didn't")
 	}
-	if rows.Err().Error() != `ERROR: invalid input syntax for integer: "wrong" (SQLSTATE 22P02)` {
+	if !strings.Contains(rows.Err().Error(), "SQLSTATE 22P02") {
 		t.Error("Expected rows.Err() to return different error:", rows.Err())
 	}
 }
