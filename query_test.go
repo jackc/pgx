@@ -485,7 +485,7 @@ func TestQueryEncodeError(t *testing.T) {
 	if rows.Err() == nil {
 		t.Error("Expected rows.Err() to return error, but it didn't")
 	}
-	if rows.Err().Error() != `ERROR: invalid input syntax for integer: "wrong" (SQLSTATE 22P02)` {
+	if !strings.Contains(rows.Err().Error(), "SQLSTATE 22P02") {
 		t.Error("Expected rows.Err() to return different error:", rows.Err())
 	}
 }
