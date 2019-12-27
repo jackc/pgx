@@ -27,6 +27,36 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	testLargeObjects(t, ctx, tx)
+}
+
+func TestLargeObjectsPreferSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config.PreferSimpleProtocol = true
+
+	conn, err := pgx.ConnectConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testLargeObjects(t, ctx, tx)
+}
+
+func testLargeObjects(t *testing.T, ctx context.Context, tx pgx.Tx) {
 	lo := tx.LargeObjects()
 
 	id, err := lo.Create(ctx, 0)
