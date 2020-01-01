@@ -14,9 +14,14 @@ func BenchmarkConnect(b *testing.B) {
 	benchmarks := []struct {
 		name string
 		env  string
+		ctx  context.Context
 	}{
-		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING"},
-		{"TCP", "PGX_TEST_TCP_CONN_STRING"},
+		// The first benchmark in the list sometimes executes faster, no matter how
+		// you reorder it. Nil context is still faster on average.
+		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING", context.Background()},
+		{"TCP", "PGX_TEST_TCP_CONN_STRING", context.Background()},
+		{"Unix socket nil context", "PGX_TEST_UNIX_SOCKET_CONN_STRING", nil},
+		{"TCP nil context", "PGX_TEST_TCP_CONN_STRING", nil},
 	}
 
 	for _, bm := range benchmarks {
@@ -28,10 +33,10 @@ func BenchmarkConnect(b *testing.B) {
 			}
 
 			for i := 0; i < b.N; i++ {
-				conn, err := pgconn.Connect(context.Background(), connString)
+				conn, err := pgconn.Connect(bm.ctx, connString)
 				require.Nil(b, err)
 
-				err = conn.Close(context.Background())
+				err = conn.Close(bm.ctx)
 				require.Nil(b, err)
 			}
 		})
@@ -39,46 +44,58 @@ func BenchmarkConnect(b *testing.B) {
 }
 
 func BenchmarkExec(b *testing.B) {
-	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
-	require.Nil(b, err)
-	defer closeConn(b, conn)
-
 	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
+	benchmarks := []struct {
+		name string
+		ctx  context.Context
+	}{
+		{"background context", context.Background()},
+		{"nil context", nil},
+	}
 
-	b.ResetTimer()
+	for _, bm := range benchmarks {
+		bm := bm
+		b.Run(bm.name, func(b *testing.B) {
+			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+			require.Nil(b, err)
+			defer closeConn(b, conn)
 
-	for i := 0; i < b.N; i++ {
-		mrr := conn.Exec(context.Background(), "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
+			b.ResetTimer()
 
-		for mrr.NextResult() {
-			rr := mrr.ResultReader()
+			for i := 0; i < b.N; i++ {
+				mrr := conn.Exec(bm.ctx, "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date")
 
-			rowCount := 0
-			for rr.NextRow() {
-				rowCount++
-				if len(rr.Values()) != len(expectedValues) {
-					b.Fatalf("unexpected number of values: %d", len(rr.Values()))
-				}
-				for i := range rr.Values() {
-					if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
-						b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+				for mrr.NextResult() {
+					rr := mrr.ResultReader()
+
+					rowCount := 0
+					for rr.NextRow() {
+						rowCount++
+						if len(rr.Values()) != len(expectedValues) {
+							b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+						}
+						for i := range rr.Values() {
+							if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
+								b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+							}
+						}
+					}
+					_, err = rr.Close()
+
+					if err != nil {
+						b.Fatal(err)
+					}
+					if rowCount != 1 {
+						b.Fatalf("unexpected rowCount: %d", rowCount)
 					}
 				}
-			}
-			_, err = rr.Close()
 
-			if err != nil {
-				b.Fatal(err)
+				err := mrr.Close()
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
-			if rowCount != 1 {
-				b.Fatalf("unexpected rowCount: %d", rowCount)
-			}
-		}
-
-		err := mrr.Close()
-		if err != nil {
-			b.Fatal(err)
-		}
+		})
 	}
 }
 
@@ -130,40 +147,53 @@ func BenchmarkExecPossibleToCancel(b *testing.B) {
 }
 
 func BenchmarkExecPrepared(b *testing.B) {
-	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
-	require.Nil(b, err)
-	defer closeConn(b, conn)
-
-	_, err = conn.Prepare(context.Background(), "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
-	require.Nil(b, err)
-
 	expectedValues := [][]byte{[]byte("hello"), []byte("42"), []byte("2019-01-01")}
 
-	b.ResetTimer()
+	benchmarks := []struct {
+		name string
+		ctx  context.Context
+	}{
+		{"background context", context.Background()},
+		{"nil context", nil},
+	}
 
-	for i := 0; i < b.N; i++ {
-		rr := conn.ExecPrepared(context.Background(), "ps1", nil, nil, nil)
+	for _, bm := range benchmarks {
+		bm := bm
+		b.Run(bm.name, func(b *testing.B) {
+			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+			require.Nil(b, err)
+			defer closeConn(b, conn)
 
-		rowCount := 0
-		for rr.NextRow() {
-			rowCount++
-			if len(rr.Values()) != len(expectedValues) {
-				b.Fatalf("unexpected number of values: %d", len(rr.Values()))
-			}
-			for i := range rr.Values() {
-				if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
-					b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+			_, err = conn.Prepare(bm.ctx, "ps1", "select 'hello'::text as a, 42::int4 as b, '2019-01-01'::date", nil)
+			require.Nil(b, err)
+
+			b.ResetTimer()
+
+			for i := 0; i < b.N; i++ {
+				rr := conn.ExecPrepared(bm.ctx, "ps1", nil, nil, nil)
+
+				rowCount := 0
+				for rr.NextRow() {
+					rowCount++
+					if len(rr.Values()) != len(expectedValues) {
+						b.Fatalf("unexpected number of values: %d", len(rr.Values()))
+					}
+					for i := range rr.Values() {
+						if !bytes.Equal(rr.Values()[i], expectedValues[i]) {
+							b.Fatalf("unexpected values: %s %s", rr.Values()[i], expectedValues[i])
+						}
+					}
+				}
+				_, err = rr.Close()
+
+				if err != nil {
+					b.Fatal(err)
+				}
+				if rowCount != 1 {
+					b.Fatalf("unexpected rowCount: %d", rowCount)
 				}
 			}
-		}
-		_, err = rr.Close()
-
-		if err != nil {
-			b.Fatal(err)
-		}
-		if rowCount != 1 {
-			b.Fatalf("unexpected rowCount: %d", rowCount)
-		}
+		})
 	}
 }
 
