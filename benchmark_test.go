@@ -18,8 +18,10 @@ func BenchmarkConnect(b *testing.B) {
 	}{
 		// The first benchmark in the list sometimes executes faster, no matter how
 		// you reorder it. Nil context is still faster on average.
-		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING", context.Background()},
-		{"TCP", "PGX_TEST_TCP_CONN_STRING", context.Background()},
+		//
+		// Using and empty context other than context.Background() to compare.
+		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING", context.TODO()},
+		{"TCP", "PGX_TEST_TCP_CONN_STRING", context.TODO()},
 		{"Unix socket nil context", "PGX_TEST_UNIX_SOCKET_CONN_STRING", nil},
 		{"TCP nil context", "PGX_TEST_TCP_CONN_STRING", nil},
 	}
@@ -49,7 +51,8 @@ func BenchmarkExec(b *testing.B) {
 		name string
 		ctx  context.Context
 	}{
-		{"background context", context.Background()},
+		// Using and empty context other than context.Background() to compare.
+		{"empty context", context.TODO()},
 		{"nil context", nil},
 	}
 
@@ -153,7 +156,8 @@ func BenchmarkExecPrepared(b *testing.B) {
 		name string
 		ctx  context.Context
 	}{
-		{"background context", context.Background()},
+		// Using and empty context other than context.Background() to compare.
+		{"empty context", context.TODO()},
 		{"nil context", nil},
 	}
 
