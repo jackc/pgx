@@ -29,3 +29,25 @@ func ensureConnValid(t *testing.T, pgConn *pgconn.PgConn) {
 	assert.Equal(t, "2", string(result.Rows[1][0]))
 	assert.Equal(t, "3", string(result.Rows[2][0]))
 }
+
+// Run subtest both with a context.Background() and nil context
+func splitOnContext(t *testing.T, test func(t *testing.T, ctx context.Context)) {
+	t.Helper()
+
+	cases := [...]struct {
+		name string
+		ctx  context.Context
+	}{
+		{"background context", context.Background()},
+		{"nil context", nil},
+	}
+
+	for i := range cases {
+		c := cases[i]
+		t.Run(c.name, func(t *testing.T) {
+			t.Helper()
+			t.Parallel()
+			test(t, c.ctx)
+		})
+	}
+}
