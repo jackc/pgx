@@ -22,9 +22,7 @@ Context Support
 
 All potentially blocking operations take a context.Context. If a context is canceled while the method is in progress the
 method immediately returns. In most circumstances, this will close the underlying connection.
-
-A nil context can be passed for convenience. This has the same effect as passing context.Background() with an additional
-slight performance increase, if you don't need the operation to be cancellable.
+A nil context can be passed for convenience. This has the same effect as passing context.Background().
 
 The CancelRequest method may be used to request the PostgreSQL server cancel an in-progress query without forcing the
 client to abort.

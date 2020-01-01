@@ -366,7 +366,9 @@ func (pgConn *PgConn) SendBytes(ctx context.Context, buf []byte) error {
 	}
 	defer pgConn.unlock()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			return &contextAlreadyDoneError{err: ctx.Err()}
@@ -398,7 +400,9 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 	}
 	defer pgConn.unlock()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			return nil, &contextAlreadyDoneError{err: ctx.Err()}
@@ -497,7 +501,9 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 
 	defer pgConn.conn.Close()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		pgConn.contextWatcher.Watch(ctx)
 		defer pgConn.contextWatcher.Unwatch()
 	}
@@ -596,7 +602,9 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	}
 	defer pgConn.unlock()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			return nil, &contextAlreadyDoneError{err: ctx.Err()}
@@ -695,7 +703,9 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	}
 	defer cancelConn.Close()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		contextWatcher := ctxwatch.NewContextWatcher(
 			func() { cancelConn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
 			func() { cancelConn.SetDeadline(time.Time{}) },
@@ -730,7 +740,9 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	}
 	defer pgConn.unlock()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -772,7 +784,11 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		ctx:    ctx,
 	}
 	multiResult := &pgConn.multiResultReader
-	if ctx != nil {
+	switch ctx {
+	case nil:
+		pgConn.multiResultReader.ctx = context.Background()
+	case context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			multiResult.closed = true
@@ -782,8 +798,6 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		default:
 		}
 		pgConn.contextWatcher.Watch(ctx)
-	} else {
-		pgConn.multiResultReader.ctx = context.Background()
 	}
 
 	buf := pgConn.wbuf
@@ -885,7 +899,9 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 		return result
 	}
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			result.concludeCommand(nil, &contextAlreadyDoneError{err: ctx.Err()})
@@ -921,7 +937,9 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		return nil, err
 	}
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			pgConn.unlock()
@@ -982,7 +1000,9 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 	defer pgConn.unlock()
 
-	if ctx != nil {
+	switch ctx {
+	case nil, context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			return nil, &contextAlreadyDoneError{err: ctx.Err()}
@@ -1376,7 +1396,11 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 		ctx:    ctx,
 	}
 	multiResult := &pgConn.multiResultReader
-	if ctx != nil {
+	switch ctx {
+	case nil:
+		pgConn.multiResultReader.ctx = context.Background()
+	case context.Background():
+	default:
 		select {
 		case <-ctx.Done():
 			multiResult.closed = true
@@ -1386,8 +1410,6 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 		default:
 		}
 		pgConn.contextWatcher.Watch(ctx)
-	} else {
-		pgConn.multiResultReader.ctx = context.Background()
 	}
 
 	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
