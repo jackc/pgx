@@ -501,6 +501,10 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 }
 
 func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, arguments []interface{}) error {
+	if len(sd.ParamOIDs) != len(arguments) {
+		return errors.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(arguments))
+	}
+
 	c.eqb.Reset()
 
 	args, err := convertDriverValuers(arguments)
