@@ -200,6 +200,12 @@ func TestExecFailureWithArguments(t *testing.T) {
 		t.Fatal("Expected SQL syntax error")
 	}
 	assert.False(t, pgconn.SafeToRetry(err))
+
+	_, err = conn.Exec(context.Background(), "select $1::varchar(1);", "1", "2")
+	if err == nil {
+		t.Fatal("Expected pgx arguments count error", err)
+	}
+	assert.Equal(t, "expected 1 arguments, got 2", err.Error())
 }
 
 func TestExecContextWithoutCancelation(t *testing.T) {
