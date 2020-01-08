@@ -1507,6 +1507,49 @@ func TestConnCancelRequest(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/659
+func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pid := pgConn.PID()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	multiResult := pgConn.Exec(ctx, "select 'Hello, world', pg_sleep(30)")
+
+	for multiResult.NextResult() {
+	}
+	err = multiResult.Close()
+	assert.True(t, pgconn.Timeout(err))
+	assert.True(t, pgConn.IsClosed())
+
+	otherConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, otherConn)
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	for {
+		result := otherConn.ExecParams(ctx,
+			`select 1 from pg_stat_activity where pid=$1`,
+			[][]byte{[]byte(strconv.FormatInt(int64(pid), 10))},
+			nil,
+			nil,
+			nil,
+		).Read()
+		require.NoError(t, result.Err)
+
+		if len(result.Rows) == 0 {
+			break
+		}
+	}
+}
+
 func TestConnSendBytesAndReceiveMessage(t *testing.T) {
 	t.Parallel()
 
