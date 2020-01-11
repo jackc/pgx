@@ -14,16 +14,9 @@ func BenchmarkConnect(b *testing.B) {
 	benchmarks := []struct {
 		name string
 		env  string
-		ctx  context.Context
 	}{
-		// The first benchmark in the list sometimes executes faster, no matter how
-		// you reorder it. Nil context is still faster on average.
-		//
-		// Using and empty context other than context.Background() to compare.
-		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING", context.TODO()},
-		{"TCP", "PGX_TEST_TCP_CONN_STRING", context.TODO()},
-		{"Unix socket nil context", "PGX_TEST_UNIX_SOCKET_CONN_STRING", nil},
-		{"TCP nil context", "PGX_TEST_TCP_CONN_STRING", nil},
+		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING"},
+		{"TCP", "PGX_TEST_TCP_CONN_STRING"},
 	}
 
 	for _, bm := range benchmarks {
@@ -35,10 +28,10 @@ func BenchmarkConnect(b *testing.B) {
 			}
 
 			for i := 0; i < b.N; i++ {
-				conn, err := pgconn.Connect(bm.ctx, connString)
+				conn, err := pgconn.Connect(context.Background(), connString)
 				require.Nil(b, err)
 
-				err = conn.Close(bm.ctx)
+				err = conn.Close(context.Background())
 				require.Nil(b, err)
 			}
 		})
@@ -51,9 +44,10 @@ func BenchmarkExec(b *testing.B) {
 		name string
 		ctx  context.Context
 	}{
-		// Using and empty context other than context.Background() to compare.
+		// Using an empty context other than context.Background() to compare
+		// performance
+		{"background context", context.Background()},
 		{"empty context", context.TODO()},
-		{"nil context", nil},
 	}
 
 	for _, bm := range benchmarks {
@@ -156,9 +150,10 @@ func BenchmarkExecPrepared(b *testing.B) {
 		name string
 		ctx  context.Context
 	}{
-		// Using and empty context other than context.Background() to compare.
+		// Using an empty context other than context.Background() to compare
+		// performance
+		{"background context", context.Background()},
 		{"empty context", context.TODO()},
-		{"nil context", nil},
 	}
 
 	for _, bm := range benchmarks {

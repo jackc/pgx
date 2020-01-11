@@ -11,13 +11,13 @@ low-level access to PostgreSQL functionality.
 ## Example Usage
 
 ```go
-pgConn, err := pgconn.Connect(nil, os.Getenv("DATABASE_URL"))
+pgConn, err := pgconn.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 if err != nil {
 	log.Fatalln("pgconn failed to connect:", err)
 }
 defer pgConn.Close()
 
-result := pgConn.ExecParams(nil, "SELECT email FROM users WHERE id=$1", [][]byte{[]byte("123")}, nil, nil, nil)
+result := pgConn.ExecParams(context.Background(), "SELECT email FROM users WHERE id=$1", [][]byte{[]byte("123")}, nil, nil, nil)
 for result.NextRow() {
 	fmt.Println("User 123 has email:", string(result.Values()[0]))
 }
