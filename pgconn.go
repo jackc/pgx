@@ -372,7 +372,7 @@ func (pgConn *PgConn) SendBytes(ctx context.Context, buf []byte) error {
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		return &writeError{err: err, safeToRetry: n == 0}
 	}
 
@@ -431,7 +431,7 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	if err != nil {
 		// Close on anything other than timeout error - everything else is fatal
 		if err, ok := err.(net.Error); !(ok && err.Timeout()) {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 		}
 
 		return nil, err
@@ -444,7 +444,7 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 		pgConn.parameterStatuses[msg.Name] = msg.Value
 	case *pgproto3.ErrorResponse:
 		if msg.Severity == "FATAL" {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 			return nil, ErrorResponseToPgError(msg)
 		}
 	case *pgproto3.NoticeResponse:
@@ -507,9 +507,9 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	return pgConn.conn.Close()
 }
 
-// ayncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
+// asyncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
 // connection.
-func (pgConn *PgConn) ayncClose() {
+func (pgConn *PgConn) asyncClose() {
 	if pgConn.status == connStatusClosed {
 		return
 	}
@@ -680,7 +680,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		return nil, &pgconnError{msg: "write failed", err: err, safeToRetry: n == 0}
 	}
 
@@ -692,7 +692,7 @@ readloop:
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 			return nil, err
 		}
 
@@ -852,7 +852,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		pgConn.contextWatcher.Unwatch()
 		multiResult.closed = true
 		multiResult.err = &writeError{err: err, safeToRetry: n == 0}
@@ -965,7 +965,7 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		result.concludeCommand(nil, &writeError{err: err, safeToRetry: n == 0})
 		pgConn.contextWatcher.Unwatch()
 		result.closed = true
@@ -996,7 +996,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		pgConn.unlock()
 		return nil, &writeError{err: err, safeToRetry: n == 0}
 	}
@@ -1007,7 +1007,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 			return nil, err
 		}
 
@@ -1016,7 +1016,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		case *pgproto3.CopyData:
 			_, err := w.Write(msg.Data)
 			if err != nil {
-				pgConn.ayncClose()
+				pgConn.asyncClose()
 				return nil, err
 			}
 		case *pgproto3.ReadyForQuery:
@@ -1056,7 +1056,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		return nil, &writeError{err: err, safeToRetry: n == 0}
 	}
 
@@ -1067,7 +1067,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for pendingCopyInResponse {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 			return nil, err
 		}
 
@@ -1096,7 +1096,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 			_, err = pgConn.conn.Write(buf)
 			if err != nil {
-				pgConn.ayncClose()
+				pgConn.asyncClose()
 				return nil, err
 			}
 		}
@@ -1105,7 +1105,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		case <-signalMessageChan:
 			msg, err := pgConn.receiveMessage()
 			if err != nil {
-				pgConn.ayncClose()
+				pgConn.asyncClose()
 				return nil, err
 			}
 
@@ -1129,7 +1129,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 	_, err = pgConn.conn.Write(buf)
 	if err != nil {
-		pgConn.ayncClose()
+		pgConn.asyncClose()
 		return nil, err
 	}
 
@@ -1137,7 +1137,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.ayncClose()
+			pgConn.asyncClose()
 			return nil, err
 		}
 
@@ -1182,7 +1182,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 		mrr.pgConn.contextWatcher.Unwatch()
 		mrr.err = err
 		mrr.closed = true
-		mrr.pgConn.ayncClose()
+		mrr.pgConn.asyncClose()
 		return nil, mrr.err
 	}
 
@@ -1371,7 +1371,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 		rr.pgConn.contextWatcher.Unwatch()
 		rr.closed = true
 		if rr.multiResultReader == nil {
-			rr.pgConn.ayncClose()
+			rr.pgConn.asyncClose()
 		}
 
 		return nil, rr.err
