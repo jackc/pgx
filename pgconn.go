@@ -518,13 +518,14 @@ func (pgConn *PgConn) ayncClose() {
 	go func() {
 		defer pgConn.conn.Close()
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+		deadline := time.Now().Add(time.Second * 15)
+
+		ctx, cancel := context.WithDeadline(context.Background(), deadline)
 		defer cancel()
 
 		pgConn.CancelRequest(ctx)
 
-		pgConn.contextWatcher.Watch(ctx)
-		defer pgConn.contextWatcher.Unwatch()
+		pgConn.conn.SetDeadline(deadline)
 
 		pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
 		pgConn.conn.Read(make([]byte, 1))
