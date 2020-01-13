@@ -1,3 +1,7 @@
+# 1.2.1 (January 13, 2020)
+
+* Fix data race in context cancellation introduced in v1.2.0.
+
 # 1.2.0 (January 11, 2020)
 
 ## Features
