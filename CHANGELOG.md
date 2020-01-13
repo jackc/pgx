@@ -1,3 +1,7 @@
+# 4.2.1 (January 13, 2020)
+
+* Update pgconn to v1.2.1 (fixes context cancellation data race introduced in v1.2.0))
+
 # 4.2.0 (January 11, 2020)
 
 * Update pgconn to v1.2.0.
