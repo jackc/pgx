@@ -1609,6 +1609,9 @@ func TestHijackAndConstruct(t *testing.T) {
 	hc, err := origConn.Hijack()
 	require.NoError(t, err)
 
+	_, err = origConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	require.Error(t, err)
+
 	newConn, err := pgconn.Construct(hc)
 	require.NoError(t, err)
 
