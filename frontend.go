@@ -58,12 +58,19 @@ func (f *Frontend) Send(msg FrontendMessage) error {
 	return err
 }
 
+func translateEOFtoErrUnexpectedEOF(err error) error {
+	if err == io.EOF {
+		return io.ErrUnexpectedEOF
+	}
+	return err
+}
+
 // Receive receives a message from the backend.
 func (f *Frontend) Receive() (BackendMessage, error) {
 	if !f.partialMsg {
 		header, err := f.cr.Next(5)
 		if err != nil {
-			return nil, err
+			return nil, translateEOFtoErrUnexpectedEOF(err)
 		}
 
 		f.msgType = header[0]
@@ -73,7 +80,7 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 
 	msgBody, err := f.cr.Next(f.bodyLen)
 	if err != nil {
-		return nil, err
+		return nil, translateEOFtoErrUnexpectedEOF(err)
 	}
 
 	f.partialMsg = false
