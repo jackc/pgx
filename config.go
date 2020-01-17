@@ -29,7 +29,7 @@ type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host          string // host (e.g. localhost) or path to unix domain socket directory (e.g. /private/tmp)
+	Host          string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
 	Port          uint16
 	Database      string
 	User          string
