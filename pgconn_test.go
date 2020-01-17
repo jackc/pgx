@@ -1600,6 +1600,32 @@ func TestConnSendBytesAndReceiveMessage(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestHijackAndConstruct(t *testing.T) {
+	t.Parallel()
+
+	origConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	hc, err := origConn.Hijack()
+	require.NoError(t, err)
+
+	newConn, err := pgconn.Construct(hc)
+	require.NoError(t, err)
+
+	defer closeConn(t, newConn)
+
+	results, err := newConn.Exec(context.Background(), "select 'Hello, world'").ReadAll()
+	assert.NoError(t, err)
+
+	assert.Len(t, results, 1)
+	assert.Nil(t, results[0].Err)
+	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Len(t, results[0].Rows, 1)
+	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
+
+	ensureConnValid(t, newConn)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	if err != nil {

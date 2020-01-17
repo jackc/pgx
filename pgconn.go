@@ -27,6 +27,8 @@ const (
 	connStatusBusy
 )
 
+const wbufLen = 1024
+
 // Notice represents a notice response message reported by the PostgreSQL server. Be aware that this is distinct from
 // LISTEN/NOTIFY notification.
 type Notice PgError
@@ -192,7 +194,7 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
 	pgConn := new(PgConn)
 	pgConn.config = config
-	pgConn.wbuf = make([]byte, 0, 1024)
+	pgConn.wbuf = make([]byte, 0, wbufLen)
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
@@ -1480,4 +1482,69 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 	}
 
 	return strings.Replace(s, "'", "''", -1), nil
+}
+
+// HijackedConn is the result of hijacking a connection.
+//
+// Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
+// compatibility.
+type HijackedConn struct {
+	Conn              net.Conn          // the underlying TCP or unix domain socket connection
+	PID               uint32            // backend pid
+	SecretKey         uint32            // key to use to send a cancel query message to the server
+	ParameterStatuses map[string]string // parameters that have been reported by the server
+	TxStatus          byte
+	Frontend          Frontend
+	Config            *Config
+}
+
+// Hijack extracts the internal connection data. pgConn must be in an idle state. pgConn is unusable after hijacking.
+// Hijacking is typically only useful when using pgconn to establish a connection, but taking complete control of the
+// raw connection after that (e.g. a load balancer or proxy).
+//
+// Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
+// compatibility.
+func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
+	if err := pgConn.lock(); err != nil {
+		return nil, err
+	}
+	pgConn.status = connStatusClosed
+
+	return &HijackedConn{
+		Conn:              pgConn.conn,
+		PID:               pgConn.pid,
+		SecretKey:         pgConn.secretKey,
+		ParameterStatuses: pgConn.parameterStatuses,
+		TxStatus:          pgConn.txStatus,
+		Frontend:          pgConn.frontend,
+		Config:            pgConn.config,
+	}, nil
+}
+
+// Construct created a PgConn from an already established connection to a PostgreSQL server. This is the inverse of
+// PgConn.Hijack. The connection must be in an idle state.
+//
+// Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
+// compatibility.
+func Construct(hc *HijackedConn) (*PgConn, error) {
+	pgConn := &PgConn{
+		conn:              hc.Conn,
+		pid:               hc.PID,
+		secretKey:         hc.SecretKey,
+		parameterStatuses: hc.ParameterStatuses,
+		txStatus:          hc.TxStatus,
+		frontend:          hc.Frontend,
+		config:            hc.Config,
+
+		status: connStatusIdle,
+
+		wbuf: make([]byte, 0, wbufLen),
+	}
+
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
+		func() { pgConn.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
+		func() { pgConn.conn.SetDeadline(time.Time{}) },
+	)
+
+	return pgConn, nil
 }
