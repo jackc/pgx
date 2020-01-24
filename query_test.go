@@ -197,6 +197,33 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 	require.Equal(t, "({1},)", values[0])
 }
 
+func TestConnQueryValuesWithUnknownOID(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, "create type fruit as enum('orange', 'apple', 'pear')")
+	require.NoError(t, err)
+
+	rows, err := conn.Query(context.Background(), "select 'orange'::fruit")
+	require.NoError(t, err)
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+
+	values, err := rows.Values()
+	require.NoError(t, err)
+	require.Equal(t, "orange", values[0])
+}
+
 // https://github.com/jackc/pgx/issues/478
 func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 	t.Parallel()

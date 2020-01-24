@@ -237,7 +237,24 @@ func (rows *connRows) Values() ([]interface{}, error) {
 				rows.fatal(errors.New("Unknown format code"))
 			}
 		} else {
-			rows.fatal(errors.New("Unknown type"))
+			switch fd.Format {
+			case TextFormatCode:
+				decoder := &pgtype.GenericText{}
+				err := decoder.DecodeText(rows.connInfo, buf)
+				if err != nil {
+					rows.fatal(err)
+				}
+				values = append(values, decoder.Get())
+			case BinaryFormatCode:
+				decoder := &pgtype.GenericBinary{}
+				err := decoder.DecodeBinary(rows.connInfo, buf)
+				if err != nil {
+					rows.fatal(err)
+				}
+				values = append(values, decoder.Get())
+			default:
+				rows.fatal(errors.New("Unknown format code"))
+			}
 		}
 
 		if rows.Err() != nil {
