@@ -1,3 +1,8 @@
+# 1.3.0 (January 23, 2020)
+
+* Add Hijack and Construct.
+* Update pgproto3 to v2.0.1.
+
 # 1.2.1 (January 13, 2020)
 
 * Fix data race in context cancellation introduced in v1.2.0.
