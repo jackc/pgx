@@ -284,3 +284,153 @@ func TestDatabaseSQLSuccessfulNormalizeEqFunc(t testing.TB, driverName string, t
 		}
 	}
 }
+
+func TestGoZeroToNullConversion(t testing.TB, pgTypeName string, zero interface{}) {
+	TestPgxGoZeroToNullConversion(t, pgTypeName, zero)
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+		TestDatabaseSQLGoZeroToNullConversion(t, driverName, pgTypeName, zero)
+	}
+}
+
+func TestNullToGoZeroConversion(t testing.TB, pgTypeName string, zero interface{}) {
+	TestPgxNullToGoZeroConversion(t, pgTypeName, zero)
+	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
+		TestDatabaseSQLNullToGoZeroConversion(t, driverName, pgTypeName, zero)
+	}
+}
+
+func TestPgxGoZeroToNullConversion(t testing.TB, pgTypeName string, zero interface{}) {
+	conn := MustConnectPgx(t)
+	defer MustCloseContext(t, conn)
+
+	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select $1::%s is null", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	formats := []struct {
+		name       string
+		formatCode int16
+	}{
+		{name: "TextFormat", formatCode: pgx.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+	}
+
+	for _, paramFormat := range formats {
+		vEncoder := ForceEncoder(zero, paramFormat.formatCode)
+		if vEncoder == nil {
+			t.Logf("Skipping Param %s: %#v does not implement %v for encoding", paramFormat.name, zero, paramFormat.name)
+			continue
+		}
+
+		var result bool
+		err := conn.QueryRow(context.Background(), "test", vEncoder).Scan(&result)
+		if err != nil {
+			t.Errorf("Param %s: %v", paramFormat.name, err)
+		}
+
+		if !result {
+			t.Errorf("Param %s: did not convert zero to null", paramFormat.name)
+		}
+	}
+}
+
+func TestPgxNullToGoZeroConversion(t testing.TB, pgTypeName string, zero interface{}) {
+	conn := MustConnectPgx(t)
+	defer MustCloseContext(t, conn)
+
+	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select null::%s", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	formats := []struct {
+		name       string
+		formatCode int16
+	}{
+		{name: "TextFormat", formatCode: pgx.TextFormatCode},
+		{name: "BinaryFormat", formatCode: pgx.BinaryFormatCode},
+	}
+
+	for _, resultFormat := range formats {
+
+		switch resultFormat.formatCode {
+		case pgx.TextFormatCode:
+			if _, ok := zero.(pgtype.TextEncoder); !ok {
+				t.Logf("Skipping Result %s: %#v does not implement %v for decoding", resultFormat.name, zero, resultFormat.name)
+				continue
+			}
+		case pgx.BinaryFormatCode:
+			if _, ok := zero.(pgtype.BinaryEncoder); !ok {
+				t.Logf("Skipping Result %s: %#v does not implement %v for decoding", resultFormat.name, zero, resultFormat.name)
+				continue
+			}
+		}
+
+		// Derefence value if it is a pointer
+		derefZero := zero
+		refVal := reflect.ValueOf(zero)
+		if refVal.Kind() == reflect.Ptr {
+			derefZero = refVal.Elem().Interface()
+		}
+
+		result := reflect.New(reflect.TypeOf(derefZero))
+
+		err := conn.QueryRow(context.Background(), "test").Scan(result.Interface())
+		if err != nil {
+			t.Errorf("Result %s: %v", resultFormat.name, err)
+		}
+
+		if !reflect.DeepEqual(result.Elem().Interface(), derefZero) {
+			t.Errorf("Result %s: did not convert null to zero", resultFormat.name)
+		}
+	}
+}
+
+func TestDatabaseSQLGoZeroToNullConversion(t testing.TB, driverName, pgTypeName string, zero interface{}) {
+	conn := MustConnectDatabaseSQL(t, driverName)
+	defer MustClose(t, conn)
+
+	ps, err := conn.Prepare(fmt.Sprintf("select $1::%s is null", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var result bool
+	err = ps.QueryRow(zero).Scan(&result)
+	if err != nil {
+		t.Errorf("%v %v", driverName, err)
+	}
+
+	if !result {
+		t.Errorf("%v: did not convert zero to null", driverName)
+	}
+}
+
+func TestDatabaseSQLNullToGoZeroConversion(t testing.TB, driverName, pgTypeName string, zero interface{}) {
+	conn := MustConnectDatabaseSQL(t, driverName)
+	defer MustClose(t, conn)
+
+	ps, err := conn.Prepare(fmt.Sprintf("select null::%s", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Derefence value if it is a pointer
+	derefZero := zero
+	refVal := reflect.ValueOf(zero)
+	if refVal.Kind() == reflect.Ptr {
+		derefZero = refVal.Elem().Interface()
+	}
+
+	result := reflect.New(reflect.TypeOf(derefZero))
+
+	err = ps.QueryRow().Scan(result.Interface())
+	if err != nil {
+		t.Errorf("%v %v", driverName, err)
+	}
+
+	if !reflect.DeepEqual(result.Elem().Interface(), derefZero) {
+		t.Errorf("%s: did not convert null to zero", driverName)
+	}
+}
