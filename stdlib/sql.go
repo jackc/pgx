@@ -126,29 +126,18 @@ type Driver struct {
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	var connConfig *pgx.ConnConfig
-
-	d.configMutex.Lock()
-	connConfig = d.configs[name]
-	d.configMutex.Unlock()
-
-	if connConfig == nil {
-		var err error
-		connConfig, err = pgx.ParseConfig(name)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Ensure eventual timeout
 	defer cancel()
-	conn, err := pgx.ConnectConfig(ctx, connConfig)
+
+	connector, err := d.OpenConnector(name)
 	if err != nil {
 		return nil, err
 	}
+	return connector.Connect(ctx)
+}
 
-	c := &Conn{conn: conn, driver: d, connConfig: *connConfig}
-	return c, nil
+func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
+	return &driverConnector{driver: d, name: name}, nil
 }
 
 func (d *Driver) registerConnConfig(c *pgx.ConnConfig) string {
@@ -163,6 +152,39 @@ func (d *Driver) unregisterConnConfig(connStr string) {
 	d.configMutex.Lock()
 	delete(d.configs, connStr)
 	d.configMutex.Unlock()
+}
+
+type driverConnector struct {
+	driver *Driver
+	name   string
+}
+
+func (dc *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	var connConfig *pgx.ConnConfig
+
+	dc.driver.configMutex.Lock()
+	connConfig = dc.driver.configs[dc.name]
+	dc.driver.configMutex.Unlock()
+
+	if connConfig == nil {
+		var err error
+		connConfig, err = pgx.ParseConfig(dc.name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	conn, err := pgx.ConnectConfig(ctx, connConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &Conn{conn: conn, driver: dc.driver, connConfig: *connConfig}
+	return c, nil
+}
+
+func (dc *driverConnector) Driver() driver.Driver {
+	return dc.driver
 }
 
 // RegisterConnConfig registers a ConnConfig and returns the connection string to use with Open.
