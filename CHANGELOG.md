@@ -1,3 +1,10 @@
+# 4.3.0 (January 23, 2020)
+
+* Fix Rows.Values panic when unable to decode
+* Add Rows.Values support for unknown types
+* Add DriverContext support for stdlib (Alex Gaynor)
+* Update pgproto3 to v2.0.1 to never return an io.EOF as it would be misinterpreted by database/sql. Instead return io.UnexpectedEOF.
+
 # 4.2.1 (January 13, 2020)
 
 * Update pgconn to v1.2.1 (fixes context cancellation data race introduced in v1.2.0))
