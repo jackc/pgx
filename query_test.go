@@ -177,6 +177,26 @@ func TestConnQueryValues(t *testing.T) {
 	}
 }
 
+// https://github.com/jackc/pgx/issues/666
+func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	// Note that this relies on pgtype.Record not supporting the text protocol. This seems safe as it is impossible to
+	// decode the text protocol because unlike the binary protocal there is no way to determine the OIDs of the elements.
+	rows, err := conn.Query(context.Background(), "select (array[1::oid], null)", pgx.QueryResultFormats{pgx.TextFormatCode})
+	require.NoError(t, err)
+	defer rows.Close()
+
+	require.True(t, rows.Next())
+
+	values, err := rows.Values()
+	require.NoError(t, err)
+	require.Equal(t, "({1},)", values[0])
+}
+
 // https://github.com/jackc/pgx/issues/478
 func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 	t.Parallel()
