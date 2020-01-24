@@ -2,7 +2,7 @@
 /*
 Sometimes the distinction between a zero value and a NULL value is not useful at the application level. For example,
 in PostgreSQL an empty string may be stored as NULL. There is usually no application level distinction between an
-empty string and a NULL string. Package zeronull implements types that seemlessly convert between PostgreSQL NULL and
+empty string and a NULL string. Package zeronull implements types that seamlessly convert between PostgreSQL NULL and
 the zero value.
 
 It is recommended to convert types at usage time rather than instantiate these types directly. In the example below,
