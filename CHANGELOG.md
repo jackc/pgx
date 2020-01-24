@@ -1,3 +1,7 @@
+# 3.6.2 (January 24, 2020)
+
+* Fix Rows.Values() fallback to generic decoder (Matt Jibson)
+
 # 3.6.1 (January 11, 2020)
 
 ## Features
