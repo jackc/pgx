@@ -214,8 +214,8 @@ func (rows *connRows) Values() ([]interface{}, error) {
 
 			switch fd.Format {
 			case TextFormatCode:
-				decoder := value.(pgtype.TextDecoder)
-				if decoder == nil {
+				decoder, ok := value.(pgtype.TextDecoder)
+				if !ok {
 					decoder = &pgtype.GenericText{}
 				}
 				err := decoder.DecodeText(rows.connInfo, buf)
@@ -224,8 +224,8 @@ func (rows *connRows) Values() ([]interface{}, error) {
 				}
 				values = append(values, decoder.(pgtype.Value).Get())
 			case BinaryFormatCode:
-				decoder := value.(pgtype.BinaryDecoder)
-				if decoder == nil {
+				decoder, ok := value.(pgtype.BinaryDecoder)
+				if !ok {
 					decoder = &pgtype.GenericBinary{}
 				}
 				err := decoder.DecodeBinary(rows.connInfo, buf)
