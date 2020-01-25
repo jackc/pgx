@@ -88,7 +88,7 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 // Tx represents a database transaction.
 //
 // Tx is an interface instead of a struct to enable connection pools to be implemented without relying on internal pgx
-// state, to support psuedo-nested transactions with savepoints, and to allow tests to mock transactions. However,
+// state, to support pseudo-nested transactions with savepoints, and to allow tests to mock transactions. However,
 // adding a method to an interface is technically a breaking change. If new methods are added to Conn it may be
 // desirable to add them to Tx as well. Because of this the Tx interface is partially excluded from semantic version
 // requirements. Methods will not be removed or changed, but new methods may be added.
