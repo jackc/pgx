@@ -152,13 +152,17 @@ func (src Text) MarshalJSON() ([]byte, error) {
 }
 
 func (dst *Text) UnmarshalJSON(b []byte) error {
-	var s string
+	var s *string
 	err := json.Unmarshal(b, &s)
 	if err != nil {
 		return err
 	}
 
-	*dst = Text{String: s, Status: Present}
+	if s == nil {
+		*dst = Text{Status: Null}
+	} else {
+		*dst = Text{String: *s, Status: Present}
+	}
 
 	return nil
 }
