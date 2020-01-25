@@ -201,13 +201,17 @@ func (src Int4) MarshalJSON() ([]byte, error) {
 }
 
 func (dst *Int4) UnmarshalJSON(b []byte) error {
-	var n int32
+	var n *int32
 	err := json.Unmarshal(b, &n)
 	if err != nil {
 		return err
 	}
 
-	*dst = Int4{Int: n, Status: Present}
+	if n == nil {
+		*dst = Int4{Status: Null}
+	} else {
+		*dst = Int4{Int: *n, Status: Present}
+	}
 
 	return nil
 }
