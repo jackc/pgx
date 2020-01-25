@@ -185,7 +185,7 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Note that this relies on pgtype.Record not supporting the text protocol. This seems safe as it is impossible to
-	// decode the text protocol because unlike the binary protocal there is no way to determine the OIDs of the elements.
+	// decode the text protocol because unlike the binary protocol there is no way to determine the OIDs of the elements.
 	rows, err := conn.Query(context.Background(), "select (array[1::oid], null)", pgx.QueryResultFormats{pgx.TextFormatCode})
 	require.NoError(t, err)
 	defer rows.Close()
