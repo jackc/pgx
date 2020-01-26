@@ -1101,6 +1101,9 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 				_, writeErr := pgConn.conn.Write(buf)
 				if writeErr != nil {
+					// Write errors are always fatal, but we can't use asyncClose because we are in a different goroutine.
+					pgConn.conn.Close()
+
 					copyErrChan <- writeErr
 					return
 				}
