@@ -1085,7 +1085,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 	// Send copy data
 	abortCopyChan := make(chan struct{})
-	copyErrChan := make(chan error)
+	copyErrChan := make(chan error, 1)
 	signalMessageChan := pgConn.signalMessage()
 
 	go func() {
