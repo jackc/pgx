@@ -1463,6 +1463,46 @@ func TestConnCopyFromQueryNoTableError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgconn/issues/21
+func TestConnCopyFromNoticeResponseReceivedMidStream(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(ctx, `create temporary table sentences(
+		t text,
+		ts tsvector
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	_, err = pgConn.Exec(ctx, `create function pg_temp.sentences_trigger() returns trigger as $$
+	begin
+	  new.ts := to_tsvector(new.t);
+		return new;
+	end
+	$$ language plpgsql;`).ReadAll()
+	require.NoError(t, err)
+
+	_, err = pgConn.Exec(ctx, `create trigger sentences_update before insert on sentences for each row execute procedure pg_temp.sentences_trigger();`).ReadAll()
+	require.NoError(t, err)
+
+	longString := make([]byte, 10001)
+	for i := range longString {
+		longString[i] = 'x'
+	}
+
+	buf := &bytes.Buffer{}
+	for i := 0; i < 1000; i++ {
+		buf.Write([]byte(fmt.Sprintf("%s\n", string(longString))))
+	}
+
+	_, err = pgConn.CopyFrom(ctx, buf, "COPY sentences(t) FROM STDIN WITH (FORMAT csv)")
+	require.NoError(t, err)
+}
+
 func TestConnEscapeString(t *testing.T) {
 	t.Parallel()
 
