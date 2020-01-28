@@ -122,6 +122,26 @@ func TestTextAssignTo(t *testing.T) {
 	}
 }
 
+func TestTextMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Text
+		result string
+	}{
+		{source: pgtype.Text{String: "", Status: pgtype.Null}, result: "null"},
+		{source: pgtype.Text{String: "a", Status: pgtype.Present}, result: "\"a\""},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
 func TestTextUnmarshalJSON(t *testing.T) {
 	successfulTests := []struct {
 		source string

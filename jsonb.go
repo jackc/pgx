@@ -68,3 +68,11 @@ func (dst *JSONB) Scan(src interface{}) error {
 func (src JSONB) Value() (driver.Value, error) {
 	return (JSON)(src).Value()
 }
+
+func (src JSONB) MarshalJSON() ([]byte, error) {
+	return (JSON)(src).MarshalJSON()
+}
+
+func (dst *JSONB) UnmarshalJSON(b []byte) error {
+	return (*JSON)(dst).UnmarshalJSON(b)
+}

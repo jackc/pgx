@@ -134,3 +134,44 @@ func TestJSONAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestJSONMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.JSON
+		result string
+	}{
+		{source: pgtype.JSON{Status: pgtype.Null}, result: "null"},
+		{source: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Status: pgtype.Present}, result: "{\"a\": 1}"},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestJSONUnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.JSON
+	}{
+		{source: "null", result: pgtype.JSON{Status: pgtype.Null}},
+		{source: "{\"a\": 1}", result: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Status: pgtype.Present}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.JSON
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r.Bytes) != string(tt.result.Bytes) || r.Status != tt.result.Status {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}
