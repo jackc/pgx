@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgio"
@@ -219,4 +220,60 @@ func (src Timestamptz) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func (src Timestamptz) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return nil, errUndefined
+	}
+
+	if src.Status != Present {
+		return nil, errBadStatus
+	}
+
+	var s string
+
+	switch src.InfinityModifier {
+	case None:
+		s = src.Time.Format(time.RFC3339Nano)
+	case Infinity:
+		s = "infinity"
+	case NegativeInfinity:
+		s = "-infinity"
+	}
+
+	return json.Marshal(s)
+}
+
+func (dst *Timestamptz) UnmarshalJSON(b []byte) error {
+	var s *string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	if s == nil {
+		*dst = Timestamptz{Status: Null}
+		return nil
+	}
+
+	switch *s {
+	case "infinity":
+		*dst = Timestamptz{Status: Present, InfinityModifier: Infinity}
+	case "-infinity":
+		*dst = Timestamptz{Status: Present, InfinityModifier: -Infinity}
+	default:
+		// PostgreSQL uses ISO 8601 for to_json function and casting from a string to timestamptz
+		tim, err := time.Parse(time.RFC3339Nano, *s)
+		if err != nil {
+			return err
+		}
+
+		*dst = Timestamptz{Time: tim, Status: Present}
+	}
+
+	return nil
 }

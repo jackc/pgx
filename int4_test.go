@@ -142,6 +142,26 @@ func TestInt4AssignTo(t *testing.T) {
 	}
 }
 
+func TestInt4MarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Int4
+		result string
+	}{
+		{source: pgtype.Int4{Int: 0, Status: pgtype.Null}, result: "null"},
+		{source: pgtype.Int4{Int: 1, Status: pgtype.Present}, result: "1"},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
 func TestInt4UnmarshalJSON(t *testing.T) {
 	successfulTests := []struct {
 		source string
