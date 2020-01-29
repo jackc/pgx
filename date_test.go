@@ -116,3 +116,52 @@ func TestDateAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestDateMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Date
+		result string
+	}{
+		{source: pgtype.Date{Status: pgtype.Null}, result: "null"},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, result: "\"infinity\""},
+		{source: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, result: "\"-infinity\""},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestDateUnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Date
+	}{
+		{source: "null", result: pgtype.Date{Status: pgtype.Null}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
+		{source: "\"infinity\"", result: pgtype.Date{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
+		{source: "\"-infinity\"", result: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Date
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if r.Time.Year() != tt.result.Time.Year() || r.Time.Month() != tt.result.Time.Month() || r.Time.Day() != tt.result.Time.Day() || r.Status != tt.result.Status || r.InfinityModifier != tt.result.InfinityModifier {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}

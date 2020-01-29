@@ -165,3 +165,26 @@ func (src JSON) Value() (driver.Value, error) {
 		return nil, errUndefined
 	}
 }
+
+func (src JSON) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		return src.Bytes, nil
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return nil, errUndefined
+	}
+
+	return nil, errBadStatus
+}
+
+func (dst *JSON) UnmarshalJSON(b []byte) error {
+	if b == nil || string(b) == "null" {
+		*dst = JSON{Status: Null}
+	} else {
+		*dst = JSON{Bytes: b, Status: Present}
+	}
+	return nil
+
+}
