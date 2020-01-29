@@ -120,3 +120,50 @@ func TestTimestamptzAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestTimestamptzMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Timestamptz
+		result string
+	}{
+		{source: pgtype.Timestamptz{Status: pgtype.Null}, result: "null"},
+		{source: pgtype.Timestamptz{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29T10:05:45-06:00\""},
+		{source: pgtype.Timestamptz{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29T10:05:45.555-06:00\""},
+		{source: pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, result: "\"infinity\""},
+		{source: pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, result: "\"-infinity\""},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestTimestamptzUnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Timestamptz
+	}{
+		{source: "null", result: pgtype.Timestamptz{Status: pgtype.Null}},
+		{source: "\"2012-03-29T10:05:45-06:00\"", result: pgtype.Timestamptz{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
+		{source: "\"2012-03-29T10:05:45.555-06:00\"", result: pgtype.Timestamptz{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
+		{source: "\"infinity\"", result: pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
+		{source: "\"-infinity\"", result: pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Timestamptz
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if !r.Time.Equal(tt.result.Time) || r.Status != tt.result.Status || r.InfinityModifier != tt.result.InfinityModifier {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}

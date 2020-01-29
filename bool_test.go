@@ -95,3 +95,46 @@ func TestBoolAssignTo(t *testing.T) {
 		}
 	}
 }
+
+func TestBoolMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Bool
+		result string
+	}{
+		{source: pgtype.Bool{Status: pgtype.Null}, result: "null"},
+		{source: pgtype.Bool{Bool: true, Status: pgtype.Present}, result: "true"},
+		{source: pgtype.Bool{Bool: false, Status: pgtype.Present}, result: "false"},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestBoolUnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Bool
+	}{
+		{source: "null", result: pgtype.Bool{Status: pgtype.Null}},
+		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
+		{source: "false", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Bool
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}

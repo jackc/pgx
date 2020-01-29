@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgio"
@@ -207,4 +208,59 @@ func (src Date) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func (src Date) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return nil, errUndefined
+	}
+
+	if src.Status != Present {
+		return nil, errBadStatus
+	}
+
+	var s string
+
+	switch src.InfinityModifier {
+	case None:
+		s = src.Time.Format("2006-01-02")
+	case Infinity:
+		s = "infinity"
+	case NegativeInfinity:
+		s = "-infinity"
+	}
+
+	return json.Marshal(s)
+}
+
+func (dst *Date) UnmarshalJSON(b []byte) error {
+	var s *string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	if s == nil {
+		*dst = Date{Status: Null}
+		return nil
+	}
+
+	switch *s {
+	case "infinity":
+		*dst = Date{Status: Present, InfinityModifier: Infinity}
+	case "-infinity":
+		*dst = Date{Status: Present, InfinityModifier: -Infinity}
+	default:
+		t, err := time.ParseInLocation("2006-01-02", *s, time.UTC)
+		if err != nil {
+			return err
+		}
+
+		*dst = Date{Time: t, Status: Present}
+	}
+
+	return nil
 }
