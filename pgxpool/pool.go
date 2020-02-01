@@ -191,6 +191,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 // pool_max_conns: integer greater than 0
 // pool_max_conn_lifetime: duration string
+// pool_max_conn_idle_time: duration string
 // pool_health_check_period: duration string
 //
 // See Config for definitions of these arguments.
