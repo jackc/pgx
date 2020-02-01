@@ -14,6 +14,7 @@ import (
 
 var defaultMaxConns = int32(4)
 var defaultMaxConnLifetime = time.Hour
+var defaultMaxConnIdleTime = time.Minute * 30
 var defaultHealthCheckPeriod = time.Minute
 
 type connResource struct {
@@ -71,6 +72,7 @@ type Pool struct {
 	beforeAcquire     func(context.Context, *pgx.Conn) bool
 	afterRelease      func(*pgx.Conn) bool
 	maxConnLifetime   time.Duration
+	maxConnIdleTime   time.Duration
 	healthCheckPeriod time.Duration
 	closeChan         chan struct{}
 }
@@ -92,8 +94,11 @@ type Config struct {
 	// return the connection to the pool or false to destroy the connection.
 	AfterRelease func(*pgx.Conn) bool
 
-	// MaxConnLifetime is the duration after which a connection will be automatically closed.
+	// MaxConnLifetime is the duration since creation after which a connection will be automatically closed.
 	MaxConnLifetime time.Duration
+
+	// MaxConnIdleTime is the duration after which an idle connection will be automatically closed by the health check.
+	MaxConnIdleTime time.Duration
 
 	// MaxConns is the maximum size of the pool.
 	MaxConns int32
@@ -129,6 +134,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
 		maxConnLifetime:   config.MaxConnLifetime,
+		maxConnIdleTime:   config.MaxConnIdleTime,
 		healthCheckPeriod: config.HealthCheckPeriod,
 		closeChan:         make(chan struct{}),
 	}
@@ -185,6 +191,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 // pool_max_conns: integer greater than 0
 // pool_max_conn_lifetime: duration string
+// pool_max_conn_idle_time: duration string
 // pool_health_check_period: duration string
 //
 // See Config for definitions of these arguments.
@@ -233,6 +240,17 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConnLifetime = defaultMaxConnLifetime
 	}
 
+	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_max_conn_idle_time"]; ok {
+		delete(connConfig.Config.RuntimeParams, "pool_max_conn_idle_time")
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			return nil, errors.Errorf("invalid pool_max_conn_idle_time: %w", err)
+		}
+		config.MaxConnIdleTime = d
+	} else {
+		config.MaxConnIdleTime = defaultMaxConnIdleTime
+	}
+
 	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_health_check_period"]; ok {
 		delete(connConfig.Config.RuntimeParams, "pool_health_check_period")
 		d, err := time.ParseDuration(s)
@@ -275,8 +293,10 @@ func (p *Pool) checkIdleConnsHealth() {
 	for _, res := range resources {
 		if now.Sub(res.CreationTime()) > p.maxConnLifetime {
 			res.Destroy()
+		} else if res.IdleDuration() > p.maxConnIdleTime {
+			res.Destroy()
 		} else {
-			res.Release()
+			res.ReleaseUnused()
 		}
 	}
 }
