@@ -692,6 +692,39 @@ func TestAcquireConn(t *testing.T) {
 	ensureConnValid(t, db)
 }
 
+// https://github.com/jackc/pgx/issues/673
+func TestReleaseConnWithTxInProgress(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(t, db)
+
+	c1, err := stdlib.AcquireConn(db)
+	require.NoError(t, err)
+
+	_, err = c1.Exec(context.Background(), "begin")
+	require.NoError(t, err)
+
+	c1PID := c1.PgConn().PID()
+
+	err = stdlib.ReleaseConn(db, c1)
+	require.NoError(t, err)
+
+	c2, err := stdlib.AcquireConn(db)
+	require.NoError(t, err)
+
+	c2PID := c2.PgConn().PID()
+
+	err = stdlib.ReleaseConn(db, c2)
+	require.NoError(t, err)
+
+	require.NotEqual(t, c1PID, c2PID)
+
+	// Releasing a conn with a tx in progress should close the connection
+	stats := db.Stats()
+	require.Equal(t, 1, stats.OpenConnections)
+
+	ensureConnValid(t, db)
+}
+
 func TestConnPingContextSuccess(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
