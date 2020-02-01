@@ -570,6 +570,12 @@ func ReleaseConn(db *sql.DB, conn *pgx.Conn) error {
 	var tx *sql.Tx
 	var ok bool
 
+	if conn.PgConn().IsBusy() || conn.PgConn().TxStatus() != 'I' {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		conn.Close(ctx)
+	}
+
 	fakeTxMutex.Lock()
 	tx, ok = fakeTxConns[conn]
 	if ok {
