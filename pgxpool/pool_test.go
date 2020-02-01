@@ -253,6 +253,29 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	assert.EqualValues(t, 0, stats.TotalConns())
 }
 
+func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MaxConnLifetime = 1 * time.Minute
+	config.MaxConnIdleTime = 100 * time.Millisecond
+	config.HealthCheckPeriod = 150 * time.Millisecond
+
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+	c.Release()
+	time.Sleep(config.HealthCheckPeriod + 50*time.Millisecond)
+
+	stats := db.Stat()
+	assert.EqualValues(t, 0, stats.TotalConns())
+}
+
 func TestPoolExec(t *testing.T) {
 	t.Parallel()
 
