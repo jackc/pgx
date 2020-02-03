@@ -23,10 +23,12 @@ func TestConnect(t *testing.T) {
 func TestParseConfigExtractsPoolArguments(t *testing.T) {
 	t.Parallel()
 
-	config, err := pgxpool.ParseConfig("pool_max_conns=42")
+	config, err := pgxpool.ParseConfig("pool_max_conns=42 pool_min_conns=1")
 	assert.NoError(t, err)
 	assert.EqualValues(t, 42, config.MaxConns)
+	assert.EqualValues(t, 1, config.MinConns)
 	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_max_conns")
+	assert.NotContains(t, config.ConnConfig.Config.RuntimeParams, "pool_min_conns")
 }
 
 func TestConnectCancel(t *testing.T) {
@@ -274,6 +276,25 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
+}
+
+func TestPoolBackgroundChecksMinConns(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.HealthCheckPeriod = 100 * time.Millisecond
+	config.MinConns = 2
+
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	time.Sleep(config.HealthCheckPeriod + 100*time.Millisecond)
+
+	stats := db.Stat()
+	assert.EqualValues(t, 2, stats.TotalConns())
 }
 
 func TestPoolExec(t *testing.T) {

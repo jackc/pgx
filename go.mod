@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
 	github.com/jackc/pgtype v1.1.0
-	github.com/jackc/puddle v1.0.1-0.20200126004755-807afe48a83d
+	github.com/jackc/puddle v1.0.1-0.20200203142542-cde4bcb7af80
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/rs/zerolog v1.15.0
