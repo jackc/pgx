@@ -5,11 +5,11 @@ go 1.12
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/jackc/pgconn v1.3.0
+	github.com/jackc/pgconn v1.3.1
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
-	github.com/jackc/pgtype v1.1.0
-	github.com/jackc/puddle v1.0.1-0.20200203142542-cde4bcb7af80
+	github.com/jackc/pgtype v1.2.0
+	github.com/jackc/puddle v1.1.0
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/rs/zerolog v1.15.0
