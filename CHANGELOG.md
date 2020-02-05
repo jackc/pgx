@@ -1,3 +1,7 @@
+# 1.3.1 (February 5, 2020)
+
+* Fix CopyFrom deadlock when multiple NoticeResponse received during copy
+
 # 1.3.0 (January 23, 2020)
 
 * Add Hijack and Construct.
