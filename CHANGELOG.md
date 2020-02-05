@@ -1,3 +1,12 @@
+# 4.4.0 (February 5, 2020)
+
+* Update puddle to v1.1.0 - fixes possible deadlock when acquire is cancelled
+* Update pgconn to v1.3.1 - fixes CopyFrom deadlock when multiple NoticeResponse received during copy
+* Update pgtype to v1.2.0
+* Add MaxConnIdleTime to pgxpool (Patrick Ellul)
+* Add MinConns to pgxpool (Patrick Ellul)
+* Fix: stdlib.ReleaseConn closes connections left in invalid state
+
 # 4.3.0 (January 23, 2020)
 
 * Fix Rows.Values panic when unable to decode
