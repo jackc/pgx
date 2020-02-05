@@ -323,7 +323,11 @@ func (p *Pool) checkIdleConnsHealth() {
 
 func (p *Pool) checkMinConns() {
 	for i := p.minConns - p.Stat().TotalConns(); i > 0; i-- {
-		go p.p.CreateResource(context.Background())
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			p.p.CreateResource(ctx)
+		}()
 	}
 }
 
