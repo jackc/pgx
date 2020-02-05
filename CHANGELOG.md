@@ -1,3 +1,10 @@
+# 1.2.0 (February 5, 2020)
+
+* Add zeronull package for easier NULL <-> zero conversion
+* Add JSON marshalling for shopspring-numeric extension
+* Add JSON marshalling for Bool, Date, JSON/B, Timestamptz (Jeffrey Stiles)
+* Fix null status in UnmarshalJSON for some types (Jeffrey Stiles)
+
 # 1.1.0 (January 11, 2020)
 
 * Add PostgreSQL time type support
