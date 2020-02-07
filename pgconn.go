@@ -683,7 +683,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.asyncClose()
-		return nil, &pgconnError{msg: "write failed", err: err, safeToRetry: n == 0}
+		return nil, &writeError{err: err, safeToRetry: n == 0}
 	}
 
 	psd := &StatementDescription{Name: name, SQL: sql}
