@@ -351,6 +351,18 @@ func TestPoolQueryRow(t *testing.T) {
 	assert.EqualValues(t, 1, stats.TotalConns())
 }
 
+// https://github.com/jackc/pgx/issues/677
+func TestPoolQueryRowErrNoRows(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	err = pool.QueryRow(context.Background(), "select n from generate_series(1,10) n where n=0").Scan(nil)
+	require.Equal(t, pgx.ErrNoRows, err)
+}
+
 func TestPoolSendBatch(t *testing.T) {
 	t.Parallel()
 
