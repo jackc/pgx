@@ -3,7 +3,7 @@ module github.com/jackc/pgconn
 go 1.12
 
 require (
-	github.com/jackc/chunkreader/v2 v2.0.0
+	github.com/jackc/chunkreader/v2 v2.0.1
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgmock v0.0.0-20190831213851-13a1b77aafa2
 	github.com/jackc/pgpassfile v1.0.0
