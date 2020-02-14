@@ -1,3 +1,8 @@
+# 4.4.1 (February 14, 2020)
+
+* Update pgconn to v1.3.2 - better default read buffer size
+* Fix race in CopyFrom
+
 # 4.4.0 (February 5, 2020)
 
 * Update puddle to v1.1.0 - fixes possible deadlock when acquire is cancelled
