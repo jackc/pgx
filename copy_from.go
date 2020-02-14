@@ -75,8 +75,11 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	}
 
 	r, w := io.Pipe()
+	doneChan := make(chan struct{})
 
 	go func() {
+		defer close(doneChan)
+
 		// Purposely NOT using defer w.Close(). See https://github.com/golang/go/issues/24283.
 		buf := ct.conn.wbuf
 
@@ -113,6 +116,9 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	}()
 
 	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
+
+	r.Close()
+	<-doneChan
 
 	return commandTag.RowsAffected(), err
 }
