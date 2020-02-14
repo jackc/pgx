@@ -1,3 +1,7 @@
+# 1.3.2 (February 14, 2020)
+
+* Update chunkreader to v2.0.1 for optimized default buffer size.
+
 # 1.3.1 (February 5, 2020)
 
 * Fix CopyFrom deadlock when multiple NoticeResponse received during copy
