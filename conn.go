@@ -770,6 +770,8 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		ctx:  ctx,
 		conn: c,
 		mrr:  mrr,
+		b:    b,
+		ix:   0,
 	}
 }
 
