@@ -26,7 +26,7 @@ func (dst *Point) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Point", src)
 }
 
-func (dst *Point) Get() interface{} {
+func (dst Point) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

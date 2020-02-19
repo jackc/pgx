@@ -24,8 +24,8 @@ func (dst *CID) Set(src interface{}) error {
 	return (*pguint32)(dst).Set(src)
 }
 
-func (dst *CID) Get() interface{} {
-	return (*pguint32)(dst).Get()
+func (dst CID) Get() interface{} {
+	return (pguint32)(dst).Get()
 }
 
 // AssignTo assigns from src to dst. Note that as CID is not a general number

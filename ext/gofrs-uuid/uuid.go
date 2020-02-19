@@ -47,7 +47,7 @@ func (dst *UUID) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *UUID) Get() interface{} {
+func (dst UUID) Get() interface{} {
 	switch dst.Status {
 	case pgtype.Present:
 		return dst.UUID

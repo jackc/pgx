@@ -53,7 +53,7 @@ func (dst *JSON) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *JSON) Get() interface{} {
+func (dst JSON) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		var i interface{}

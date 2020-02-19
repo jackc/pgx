@@ -32,7 +32,7 @@ func (dst *TID) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to TID", src)
 }
 
-func (dst *TID) Get() interface{} {
+func (dst TID) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

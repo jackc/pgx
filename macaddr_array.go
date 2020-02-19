@@ -65,7 +65,7 @@ func (dst *MacaddrArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *MacaddrArray) Get() interface{} {
+func (dst MacaddrArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

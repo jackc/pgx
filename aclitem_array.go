@@ -62,7 +62,7 @@ func (dst *ACLItemArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *ACLItemArray) Get() interface{} {
+func (dst ACLItemArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

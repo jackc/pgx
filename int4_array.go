@@ -197,7 +197,7 @@ func (dst *Int4Array) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Int4Array) Get() interface{} {
+func (dst Int4Array) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

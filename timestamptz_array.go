@@ -65,7 +65,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *TimestamptzArray) Get() interface{} {
+func (dst TimestamptzArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

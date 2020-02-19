@@ -33,7 +33,7 @@ func (dst *Record) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Record) Get() interface{} {
+func (dst Record) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Fields

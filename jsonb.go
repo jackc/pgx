@@ -12,8 +12,8 @@ func (dst *JSONB) Set(src interface{}) error {
 	return (*JSON)(dst).Set(src)
 }
 
-func (dst *JSONB) Get() interface{} {
-	return (*JSON)(dst).Get()
+func (dst JSONB) Get() interface{} {
+	return (JSON)(dst).Get()
 }
 
 func (src *JSONB) AssignTo(dst interface{}) error {

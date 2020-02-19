@@ -64,7 +64,7 @@ func (dst *VarcharArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *VarcharArray) Get() interface{} {
+func (dst VarcharArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

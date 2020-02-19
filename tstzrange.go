@@ -19,7 +19,7 @@ func (dst *Tstzrange) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Tstzrange", src)
 }
 
-func (dst *Tstzrange) Get() interface{} {
+func (dst Tstzrange) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

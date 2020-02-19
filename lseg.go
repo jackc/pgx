@@ -21,7 +21,7 @@ func (dst *Lseg) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Lseg", src)
 }
 
-func (dst *Lseg) Get() interface{} {
+func (dst Lseg) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

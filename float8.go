@@ -82,7 +82,7 @@ func (dst *Float8) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Float8) Get() interface{} {
+func (dst Float8) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Float

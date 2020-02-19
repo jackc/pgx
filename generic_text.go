@@ -12,8 +12,8 @@ func (dst *GenericText) Set(src interface{}) error {
 	return (*Text)(dst).Set(src)
 }
 
-func (dst *GenericText) Get() interface{} {
-	return (*Text)(dst).Get()
+func (dst GenericText) Get() interface{} {
+	return (Text)(dst).Get()
 }
 
 func (src *GenericText) AssignTo(dst interface{}) error {

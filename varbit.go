@@ -18,7 +18,7 @@ func (dst *Varbit) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Varbit", src)
 }
 
-func (dst *Varbit) Get() interface{} {
+func (dst Varbit) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

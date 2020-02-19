@@ -45,7 +45,7 @@ func (dst *Time) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Time) Get() interface{} {
+func (dst Time) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Microseconds

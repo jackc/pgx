@@ -44,7 +44,7 @@ func (dst *Interval) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Interval) Get() interface{} {
+func (dst Interval) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

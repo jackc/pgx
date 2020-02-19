@@ -21,7 +21,7 @@ func (dst *Box) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Box", src)
 }
 
-func (dst *Box) Get() interface{} {
+func (dst Box) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

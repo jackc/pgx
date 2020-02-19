@@ -19,7 +19,7 @@ func (dst *Int8range) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Int8range", src)
 }
 
-func (dst *Int8range) Get() interface{} {
+func (dst Int8range) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

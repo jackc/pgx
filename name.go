@@ -23,8 +23,8 @@ func (dst *Name) Set(src interface{}) error {
 	return (*Text)(dst).Set(src)
 }
 
-func (dst *Name) Get() interface{} {
-	return (*Text)(dst).Get()
+func (dst Name) Get() interface{} {
+	return (Text)(dst).Get()
 }
 
 func (src *Name) AssignTo(dst interface{}) error {

@@ -21,7 +21,7 @@ func (dst *<%= range_type %>) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to <%= range_type %>", src)
 }
 
-func (dst *<%= range_type %>) Get() interface{} {
+func (dst <%= range_type %>) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

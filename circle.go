@@ -22,7 +22,7 @@ func (dst *Circle) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Circle", src)
 }
 
-func (dst *Circle) Get() interface{} {
+func (dst Circle) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

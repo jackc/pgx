@@ -10,8 +10,8 @@ func (dst *Bit) Set(src interface{}) error {
 	return (*Varbit)(dst).Set(src)
 }
 
-func (dst *Bit) Get() interface{} {
-	return (*Varbit)(dst).Get()
+func (dst Bit) Get() interface{} {
+	return (Varbit)(dst).Get()
 }
 
 func (src *Bit) AssignTo(dst interface{}) error {

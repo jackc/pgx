@@ -66,7 +66,7 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *<%= pgtype_array_type %>) Get() interface{} {
+func (dst <%= pgtype_array_type %>) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
