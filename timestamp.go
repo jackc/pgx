@@ -30,6 +30,13 @@ func (dst *Timestamp) Set(src interface{}) error {
 		return nil
 	}
 
+	if value, ok := src.(interface{ Get() interface{} }); ok {
+		value2 := value.Get()
+		if value2 != value {
+			return dst.Set(value2)
+		}
+	}
+
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}

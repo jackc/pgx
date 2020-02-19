@@ -24,6 +24,18 @@ type ACLItem struct {
 }
 
 func (dst *ACLItem) Set(src interface{}) error {
+	if src == nil {
+		*dst = ACLItem{Status: Null}
+		return nil
+	}
+
+	if value, ok := src.(interface{ Get() interface{} }); ok {
+		value2 := value.Get()
+		if value2 != value {
+			return dst.Set(value2)
+		}
+	}
+
 	switch value := src.(type) {
 	case string:
 		*dst = ACLItem{String: value, Status: Present}

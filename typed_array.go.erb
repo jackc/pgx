@@ -21,6 +21,13 @@ func (dst *<%= pgtype_array_type %>) Set(src interface{}) error {
 		return nil
 	}
 
+	if value, ok := src.(interface{ Get() interface{} }); ok {
+		value2 := value.Get()
+		if value2 != value {
+			return dst.Set(value2)
+		}
+	}
+
 	switch value := src.(type) {
 	<% go_array_types.split(",").each do |t| %>
 	<% if t != "[]#{pgtype_element_type}" %>
