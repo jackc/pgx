@@ -17,6 +17,11 @@ type UUID struct {
 }
 
 func (dst *UUID) Set(src interface{}) error {
+	if src == nil {
+		*dst = UUID{Status: pgtype.Null}
+		return nil
+	}
+
 	switch value := src.(type) {
 	case uuid.UUID:
 		*dst = UUID{UUID: value, Status: pgtype.Present}
