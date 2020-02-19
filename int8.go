@@ -71,7 +71,7 @@ func (dst *Int8) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Int8) Get() interface{} {
+func (dst Int8) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Int

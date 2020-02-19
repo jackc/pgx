@@ -21,7 +21,7 @@ func (dst *Polygon) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Polygon", src)
 }
 
-func (dst *Polygon) Get() interface{} {
+func (dst Polygon) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

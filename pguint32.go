@@ -39,7 +39,7 @@ func (dst *pguint32) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *pguint32) Get() interface{} {
+func (dst pguint32) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Uint

@@ -14,8 +14,8 @@ func (dst *BPChar) Set(src interface{}) error {
 }
 
 // Get returns underlying value
-func (dst *BPChar) Get() interface{} {
-	return (*Text)(dst).Get()
+func (dst BPChar) Get() interface{} {
+	return (Text)(dst).Get()
 }
 
 // AssignTo assigns from src to dst.

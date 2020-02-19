@@ -62,7 +62,7 @@ func (dst *EnumArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *EnumArray) Get() interface{} {
+func (dst EnumArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

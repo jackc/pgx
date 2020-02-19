@@ -40,7 +40,7 @@ func (dst *Date) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Date) Get() interface{} {
+func (dst Date) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		if dst.InfinityModifier != None {

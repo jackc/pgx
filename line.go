@@ -21,7 +21,7 @@ func (dst *Line) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Line", src)
 }
 
-func (dst *Line) Get() interface{} {
+func (dst Line) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

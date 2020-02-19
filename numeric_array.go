@@ -121,7 +121,7 @@ func (dst *NumericArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *NumericArray) Get() interface{} {
+func (dst NumericArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

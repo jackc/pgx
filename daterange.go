@@ -19,7 +19,7 @@ func (dst *Daterange) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Daterange", src)
 }
 
-func (dst *Daterange) Get() interface{} {
+func (dst Daterange) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

@@ -102,7 +102,7 @@ func (dst *UUIDArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *UUIDArray) Get() interface{} {
+func (dst UUIDArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

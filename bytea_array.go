@@ -64,7 +64,7 @@ func (dst *ByteaArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *ByteaArray) Get() interface{} {
+func (dst ByteaArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

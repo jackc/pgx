@@ -19,7 +19,7 @@ func (dst *Int4range) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Int4range", src)
 }
 
-func (dst *Int4range) Get() interface{} {
+func (dst Int4range) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

@@ -52,7 +52,7 @@ func (dst *Inet) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Inet) Get() interface{} {
+func (dst Inet) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.IPNet

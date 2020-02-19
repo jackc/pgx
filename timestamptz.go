@@ -45,7 +45,7 @@ func (dst *Timestamptz) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Timestamptz) Get() interface{} {
+func (dst Timestamptz) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		if dst.InfinityModifier != None {

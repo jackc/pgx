@@ -18,8 +18,8 @@ func (dst *OIDValue) Set(src interface{}) error {
 	return (*pguint32)(dst).Set(src)
 }
 
-func (dst *OIDValue) Get() interface{} {
-	return (*pguint32)(dst).Get()
+func (dst OIDValue) Get() interface{} {
+	return (pguint32)(dst).Get()
 }
 
 // AssignTo assigns from src to dst. Note that as OIDValue is not a general number

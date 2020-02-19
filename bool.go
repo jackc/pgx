@@ -38,7 +38,7 @@ func (dst *Bool) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Bool) Get() interface{} {
+func (dst Bool) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Bool

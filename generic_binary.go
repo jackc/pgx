@@ -12,8 +12,8 @@ func (dst *GenericBinary) Set(src interface{}) error {
 	return (*Bytea)(dst).Set(src)
 }
 
-func (dst *GenericBinary) Get() interface{} {
-	return (*Bytea)(dst).Get()
+func (dst GenericBinary) Get() interface{} {
+	return (Bytea)(dst).Get()
 }
 
 func (src *GenericBinary) AssignTo(dst interface{}) error {

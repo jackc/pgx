@@ -104,7 +104,7 @@ func (dst *Numeric) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Numeric) Get() interface{} {
+func (dst Numeric) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

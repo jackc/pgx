@@ -15,8 +15,8 @@ func (dst *Unknown) Set(src interface{}) error {
 	return (*Text)(dst).Set(src)
 }
 
-func (dst *Unknown) Get() interface{} {
-	return (*Text)(dst).Get()
+func (dst Unknown) Get() interface{} {
+	return (Text)(dst).Get()
 }
 
 // AssignTo assigns from src to dst. Note that as Unknown is not a general number

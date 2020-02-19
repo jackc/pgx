@@ -80,7 +80,7 @@ func (dst *Int4) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Int4) Get() interface{} {
+func (dst Int4) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Int

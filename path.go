@@ -22,7 +22,7 @@ func (dst *Path) Set(src interface{}) error {
 	return errors.Errorf("cannot convert %v to Path", src)
 }
 
-func (dst *Path) Get() interface{} {
+func (dst Path) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

@@ -64,7 +64,7 @@ func (dst *Float8Array) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Float8Array) Get() interface{} {
+func (dst Float8Array) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

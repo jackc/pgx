@@ -64,7 +64,7 @@ func (dst *HstoreArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *HstoreArray) Get() interface{} {
+func (dst HstoreArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

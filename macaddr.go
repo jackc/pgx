@@ -39,7 +39,7 @@ func (dst *Macaddr) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Macaddr) Get() interface{} {
+func (dst Macaddr) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Addr

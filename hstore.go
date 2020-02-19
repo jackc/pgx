@@ -40,7 +40,7 @@ func (dst *Hstore) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *Hstore) Get() interface{} {
+func (dst Hstore) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst.Map

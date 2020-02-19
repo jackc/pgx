@@ -84,7 +84,7 @@ func (dst *CIDRArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *CIDRArray) Get() interface{} {
+func (dst CIDRArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst

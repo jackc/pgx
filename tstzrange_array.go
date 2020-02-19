@@ -45,7 +45,7 @@ func (dst *TstzrangeArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *TstzrangeArray) Get() interface{} {
+func (dst TstzrangeArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
