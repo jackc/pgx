@@ -26,6 +26,11 @@ func (b *Batch) Queue(query string, arguments ...interface{}) {
 	})
 }
 
+// Len returns number of queries that have been queued so far.
+func (b *Batch) Len() int {
+	return len(b.items)
+}
+
 type BatchResults interface {
 	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec.
 	Exec() (pgconn.CommandTag, error)
