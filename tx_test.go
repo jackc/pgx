@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTransactionSuccessfulCommit(t *testing.T) {
@@ -186,6 +187,25 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	if n != 0 {
 		t.Fatalf("Did not receive correct number of rows: %v", n)
 	}
+}
+
+func TestTransactionRollbackFailsClosesConnection(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+
+	cancel()
+
+	err = tx.Rollback(ctx)
+	require.Error(t, err)
+
+	require.True(t, conn.IsClosed())
 }
 
 func TestBeginIsoLevels(t *testing.T) {
