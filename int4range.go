@@ -16,7 +16,24 @@ type Int4range struct {
 }
 
 func (dst *Int4range) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Int4range", src)
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Int4range{Status: Null}
+		return nil
+	}
+
+	switch value := src.(type) {
+	case Int4range:
+		*dst = value
+	case *Int4range:
+		*dst = *value
+	case string:
+		return dst.DecodeText(nil, []byte(value))
+	default:
+		return errors.Errorf("cannot convert %v to Int4range", src)
+	}
+
+	return nil
 }
 
 func (dst Int4range) Get() interface{} {
