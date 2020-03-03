@@ -18,7 +18,24 @@ type <%= range_type %> struct {
 }
 
 func (dst *<%= range_type %>) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to <%= range_type %>", src)
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = <%= range_type %>{Status: Null}
+		return nil
+	}
+
+	switch value := src.(type) {
+	case <%= range_type %>:
+		*dst = value
+	case *<%= range_type %>:
+		*dst = *value
+	case string:
+		return dst.DecodeText(nil, []byte(value))
+	default:
+		return errors.Errorf("cannot convert %v to <%= range_type %>", src)
+	}
+
+	return nil
 }
 
 func (dst <%= range_type %>) Get() interface{} {

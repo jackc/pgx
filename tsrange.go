@@ -16,7 +16,24 @@ type Tsrange struct {
 }
 
 func (dst *Tsrange) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Tsrange", src)
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Tsrange{Status: Null}
+		return nil
+	}
+
+	switch value := src.(type) {
+	case Tsrange:
+		*dst = value
+	case *Tsrange:
+		*dst = *value
+	case string:
+		return dst.DecodeText(nil, []byte(value))
+	default:
+		return errors.Errorf("cannot convert %v to Tsrange", src)
+	}
+
+	return nil
 }
 
 func (dst Tsrange) Get() interface{} {

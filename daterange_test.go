@@ -65,3 +65,69 @@ func TestDaterangeNormalize(t *testing.T) {
 			a.Upper.InfinityModifier == b.Upper.InfinityModifier
 	})
 }
+
+func TestDaterangeSet(t *testing.T) {
+	successfulTests := []struct {
+		source interface{}
+		result pgtype.Daterange
+	}{
+		{
+			source: nil,
+			result: pgtype.Daterange{Status: pgtype.Null},
+		},
+		{
+			source: &pgtype.Daterange{
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Status:    pgtype.Present,
+			},
+			result: pgtype.Daterange{
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Status:    pgtype.Present,
+			},
+		},
+		{
+			source: pgtype.Daterange{
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Status:    pgtype.Present,
+			},
+			result: pgtype.Daterange{
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Status:    pgtype.Present,
+			},
+		},
+		{
+			source: "[1990-12-31,2028-01-01)",
+			result: pgtype.Daterange{
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Status:    pgtype.Present,
+			},
+		},
+	}
+
+	for i, tt := range successfulTests {
+		var r pgtype.Daterange
+		err := r.Set(tt.source)
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}

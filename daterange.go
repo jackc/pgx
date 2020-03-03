@@ -16,7 +16,24 @@ type Daterange struct {
 }
 
 func (dst *Daterange) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Daterange", src)
+	// untyped nil and typed nil interfaces are different
+	if src == nil {
+		*dst = Daterange{Status: Null}
+		return nil
+	}
+
+	switch value := src.(type) {
+	case Daterange:
+		*dst = value
+	case *Daterange:
+		*dst = *value
+	case string:
+		return dst.DecodeText(nil, []byte(value))
+	default:
+		return errors.Errorf("cannot convert %v to Daterange", src)
+	}
+
+	return nil
 }
 
 func (dst Daterange) Get() interface{} {
