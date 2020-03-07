@@ -668,6 +668,24 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecParamsEmptySQL(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	result := pgConn.ExecParams(ctx, "", nil, nil, nil, nil).Read()
+	assert.Nil(t, result.CommandTag)
+	assert.Len(t, result.Rows, 0)
+	assert.NoError(t, result.Err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
@@ -793,6 +811,27 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 	require.Error(t, result.Err)
 	assert.True(t, errors.Is(result.Err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(result.Err))
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnExecPreparedEmptySQL(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Prepare(ctx, "ps1", "", nil)
+	require.NoError(t, err)
+
+	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
+	assert.Nil(t, result.CommandTag)
+	assert.Len(t, result.Rows, 0)
+	assert.NoError(t, result.Err)
 
 	ensureConnValid(t, pgConn)
 }

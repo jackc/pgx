@@ -1406,6 +1406,8 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 		rr.fieldDescriptions = msg.Fields
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(CommandTag(msg.CommandTag), nil)
+	case *pgproto3.EmptyQueryResponse:
+		rr.concludeCommand(nil, nil)
 	case *pgproto3.ErrorResponse:
 		rr.concludeCommand(nil, ErrorResponseToPgError(msg))
 	}
