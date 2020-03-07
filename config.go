@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgservicefile"
 	errors "golang.org/x/xerrors"
 )
 
@@ -108,6 +109,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // 	 PGUSER
 // 	 PGPASSWORD
 // 	 PGPASSFILE
+// 	 PGSERVICE
+// 	 PGSERVICEFILE
 // 	 PGSSLMODE
 // 	 PGSSLCERT
 // 	 PGSSLKEY
@@ -145,23 +148,38 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // 	min_read_buffer_size
 // 		The minimum size of the internal read buffer. Default 8192.
+// 	servicefile
+// 		libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
+// 		part of the connection string.
 func ParseConfig(connString string) (*Config, error) {
-	settings := defaultSettings()
-	addEnvSettings(settings)
+	defaultSettings := defaultSettings()
+	envSettings := parseEnvSettings()
 
+	connStringSettings := make(map[string]string)
 	if connString != "" {
+		var err error
 		// connString may be a database URL or a DSN
 		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			err := addURLSettings(settings, connString)
+			connStringSettings, err = parseURLSettings(connString)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
 			}
 		} else {
-			err := addDSNSettings(settings, connString)
+			connStringSettings, err = parseDSNSettings(connString)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to parse as DSN", err: err}
 			}
 		}
+	}
+
+	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
+	if service, present := settings["service"]; present {
+		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "failed to read service", err: err}
+		}
+
+		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
 	}
 
 	minReadBufferSize, err := strconv.ParseInt(settings["min_read_buffer_size"], 10, 32)
@@ -205,6 +223,8 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslrootcert":          struct{}{},
 		"target_session_attrs": struct{}{},
 		"min_read_buffer_size": struct{}{},
+		"service":              struct{}{},
+		"servicefile":          struct{}{},
 	}
 
 	for k, v := range settings {
@@ -293,6 +313,7 @@ func defaultSettings() map[string]string {
 	if err == nil {
 		settings["user"] = user.Username
 		settings["passfile"] = filepath.Join(user.HomeDir, ".pgpass")
+		settings["servicefile"] = filepath.Join(user.HomeDir, ".pg_service.conf")
 	}
 
 	settings["target_session_attrs"] = "any"
@@ -321,7 +342,21 @@ func defaultHost() string {
 	return "localhost"
 }
 
-func addEnvSettings(settings map[string]string) {
+func mergeSettings(settingSets ...map[string]string) map[string]string {
+	settings := make(map[string]string)
+
+	for _, s2 := range settingSets {
+		for k, v := range s2 {
+			settings[k] = v
+		}
+	}
+
+	return settings
+}
+
+func parseEnvSettings() map[string]string {
+	settings := make(map[string]string)
+
 	nameMap := map[string]string{
 		"PGHOST":               "host",
 		"PGPORT":               "port",
@@ -336,6 +371,8 @@ func addEnvSettings(settings map[string]string) {
 		"PGSSLCERT":            "sslcert",
 		"PGSSLROOTCERT":        "sslrootcert",
 		"PGTARGETSESSIONATTRS": "target_session_attrs",
+		"PGSERVICE":            "service",
+		"PGSERVICEFILE":        "servicefile",
 	}
 
 	for envname, realname := range nameMap {
@@ -344,12 +381,16 @@ func addEnvSettings(settings map[string]string) {
 			settings[realname] = value
 		}
 	}
+
+	return settings
 }
 
-func addURLSettings(settings map[string]string, connString string) error {
+func parseURLSettings(connString string) (map[string]string, error) {
+	settings := make(map[string]string)
+
 	url, err := url.Parse(connString)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if url.User != nil {
@@ -387,12 +428,14 @@ func addURLSettings(settings map[string]string, connString string) error {
 		settings[k] = v[0]
 	}
 
-	return nil
+	return settings, nil
 }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
-func addDSNSettings(settings map[string]string, s string) error {
+func parseDSNSettings(s string) (map[string]string, error) {
+	settings := make(map[string]string)
+
 	nameMap := map[string]string{
 		"dbname": "database",
 	}
@@ -401,7 +444,7 @@ func addDSNSettings(settings map[string]string, s string) error {
 		var key, val string
 		eqIdx := strings.IndexRune(s, '=')
 		if eqIdx < 0 {
-			return errors.New("invalid dsn")
+			return nil, errors.New("invalid dsn")
 		}
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
@@ -434,7 +477,7 @@ func addDSNSettings(settings map[string]string, s string) error {
 				}
 			}
 			if end == len(s) {
-				return errors.New("unterminated quoted string in connection info string")
+				return nil, errors.New("unterminated quoted string in connection info string")
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
 			if end == len(s) {
@@ -451,7 +494,33 @@ func addDSNSettings(settings map[string]string, s string) error {
 		settings[key] = val
 	}
 
-	return nil
+	return settings, nil
+}
+
+func parseServiceSettings(servicefilePath, serviceName string) (map[string]string, error) {
+	servicefile, err := pgservicefile.ReadServicefile(servicefilePath)
+	if err != nil {
+		fmt.Errorf("failed to read service file: %v", servicefile)
+	}
+
+	service, err := servicefile.GetService(serviceName)
+	if err != nil {
+		fmt.Errorf("unable to find service: %v", servicefile)
+	}
+
+	nameMap := map[string]string{
+		"dbname": "database",
+	}
+
+	settings := make(map[string]string, len(service.Settings))
+	for k, v := range service.Settings {
+		if k2, present := nameMap[k]; present {
+			k = k2
+		}
+		settings[k] = v
+	}
+
+	return settings, nil
 }
 
 type pgTLSArgs struct {
