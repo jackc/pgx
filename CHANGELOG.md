@@ -1,3 +1,11 @@
+# 4.5.0 (March 7, 2020)
+
+* Update to pgconn v1.4.0
+    * Fixes QueryRow with empty SQL
+    * Adds PostgreSQL service file support
+* Add Len() to *pgx.Batch (WGH)
+* Better logging for individual batch items (Ben Bader)
+
 # 4.4.1 (February 14, 2020)
 
 * Update pgconn to v1.3.2 - better default read buffer size
