@@ -648,6 +648,101 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 	assertConfigsEqual(t, expected, actual, "passfile")
 }
 
+func TestParseConfigReadsPgServiceFile(t *testing.T) {
+	t.Parallel()
+
+	tf, err := ioutil.TempFile("", "")
+	require.NoError(t, err)
+
+	defer tf.Close()
+	defer os.Remove(tf.Name())
+
+	_, err = tf.Write([]byte(`
+[abc]
+host=abc.example.com
+port=9999
+dbname=abcdb
+user=abcuser
+
+[def]
+host = def.example.com
+dbname = defdb
+user = defuser
+application_name = spaced string
+`))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		connString string
+		config     *pgconn.Config
+	}{
+		{
+			name:       "abc",
+			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tf.Name(), "abc"),
+			config: &pgconn.Config{
+				Host:     "abc.example.com",
+				Database: "abcdb",
+				User:     "abcuser",
+				Port:     9999,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "abc.example.com",
+						Port:      9999,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "def",
+			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tf.Name(), "def"),
+			config: &pgconn.Config{
+				Host:     "def.example.com",
+				Port:     5432,
+				Database: "defdb",
+				User:     "defuser",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{"application_name": "spaced string"},
+				Fallbacks: []*pgconn.FallbackConfig{
+					&pgconn.FallbackConfig{
+						Host:      "def.example.com",
+						Port:      5432,
+						TLSConfig: nil,
+					},
+				},
+			},
+		},
+		{
+			name:       "conn string has precedence",
+			connString: fmt.Sprintf("postgres://other.example.com:7777/?servicefile=%s&service=%s&sslmode=disable", tf.Name(), "abc"),
+			config: &pgconn.Config{
+				Host:          "other.example.com",
+				Database:      "abcdb",
+				User:          "abcuser",
+				Port:          7777,
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+	}
+
+	for i, tt := range tests {
+		config, err := pgconn.ParseConfig(tt.connString)
+		if !assert.NoErrorf(t, err, "Test %d (%s)", i, tt.name) {
+			continue
+		}
+
+		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
+	}
+}
+
 func TestParseConfigExtractsMinReadBufferSize(t *testing.T) {
 	t.Parallel()
 
