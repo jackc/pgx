@@ -1070,6 +1070,23 @@ func TestQueryRowNoResults(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestQueryRowEmptyQuery(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	var n int32
+	err := conn.QueryRow(ctx, "").Scan(&n)
+	require.Error(t, err)
+	require.False(t, pgconn.Timeout(err))
+
+	ensureConnValid(t, conn)
+}
+
 func TestReadingValueAfterEmptyArray(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
