@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/gofrs/uuid v3.2.0+incompatible
-	github.com/jackc/pgconn v1.3.2
+	github.com/jackc/pgconn v1.4.0
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
 	github.com/jackc/pgtype v1.2.0
@@ -15,7 +15,7 @@ require (
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	go.uber.org/zap v1.10.0
 	golang.org/x/crypto v0.0.0-20190911031432-227b76d455e7 // indirect
 	golang.org/x/sys v0.0.0-20190826190057-c7b8b68b1456 // indirect
