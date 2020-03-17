@@ -304,6 +304,10 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 	// Preload first row because otherwise we won't know what columns are available when database/sql asks.
 	more := rows.Next()
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
 	return &Rows{conn: c, rows: rows, skipNext: true, skipNextMore: more}, nil
 }
 
