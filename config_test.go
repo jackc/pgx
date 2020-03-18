@@ -132,7 +132,9 @@ func TestParseConfig(t *testing.T) {
 				Host:          "localhost",
 				Port:          5432,
 				Database:      "mydb",
-				TLSConfig:     &tls.Config{ServerName: "localhost"},
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
 				RuntimeParams: map[string]string{},
 			},
 		},
