@@ -2,7 +2,6 @@ package pgxpool
 
 import (
 	"context"
-	"runtime"
 	"strconv"
 	"time"
 
@@ -232,9 +231,6 @@ func ParseConfig(connString string) (*Config, error) {
 		config.MaxConns = int32(n)
 	} else {
 		config.MaxConns = defaultMaxConns
-		if numCPU := int32(runtime.NumCPU()); numCPU > config.MaxConns {
-			config.MaxConns = numCPU
-		}
 	}
 
 	if s, ok := config.ConnConfig.Config.RuntimeParams["pool_min_conns"]; ok {
