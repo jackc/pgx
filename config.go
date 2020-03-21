@@ -132,11 +132,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
 // security each sslmode provides.
 //
-// "verify-ca" mode currently is treated as "verify-full". e.g. It has stronger
-// security guarantees than it would with libpq. Do not rely on this behavior as it
-// may be possible to match libpq in the future. If you need full security use
-// "verify-full".
-//
 // Other known differences with libpq:
 //
 // If a host name resolves into multiple addresses, libpq will try all addresses. pgconn will only try the first.
@@ -554,7 +549,41 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		tlsConfig.InsecureSkipVerify = true
 	case "require":
 		tlsConfig.InsecureSkipVerify = sslrootcert == ""
-	case "verify-ca", "verify-full":
+	case "verify-ca":
+		// Don't perform the default certificate verification because it
+		// will verify the hostname. Instead, verify the server's
+		// certificate chain ourselves in VerifyPeerCertificate and
+		// ignore the server name. This emulates libpq's verify-ca
+		// behavior.
+		//
+		// See https://github.com/golang/go/issues/21971#issuecomment-332693931
+		// and https://pkg.go.dev/crypto/tls?tab=doc#example-Config-VerifyPeerCertificate
+		// for more info.
+		tlsConfig.InsecureSkipVerify = true
+		tlsConfig.VerifyPeerCertificate = func(certificates [][]byte, _ [][]*x509.Certificate) error {
+			certs := make([]*x509.Certificate, len(certificates))
+			for i, asn1Data := range certificates {
+				cert, err := x509.ParseCertificate(asn1Data)
+				if err != nil {
+					return errors.New("failed to parse certificate from server: " + err.Error())
+				}
+				certs[i] = cert
+			}
+
+			// Leave DNSName empty to skip hostname verification.
+			opts := x509.VerifyOptions{
+				Roots:         tlsConfig.RootCAs,
+				Intermediates: x509.NewCertPool(),
+			}
+			// Skip the first cert because it's the leaf. All others
+			// are intermediates.
+			for _, cert := range certs[1:] {
+				opts.Intermediates.AddCert(cert)
+			}
+			_, err := certs[0].Verify(opts)
+			return err
+		}
+	case "verify-full":
 		tlsConfig.ServerName = host
 	default:
 		return nil, errors.New("sslmode is invalid")
