@@ -58,13 +58,13 @@ The pgx interface is faster and exposes more features.
 
 The `database/sql` interface only allows the underlying driver to return or receive the following types: `int64`,
 `float64`, `bool`, `[]byte`, `string`, `time.Time`, or `nil`. Handling other types requires implementing the
-`database/sql.Scanner` and the `database/sq/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster,which is what the pgx interface uses.
+`database/sql.Scanner` and the `database/sq/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
 
 ## Features
 
 pgx supports many features beyond what is available through `database/sql`:
 
-* Support for approximately 60 different PostgreSQL types
+* Support for approximately 70 different PostgreSQL types
 * Automatic statement preparation and caching
 * Batch queries
 * Single-round trip query mode
@@ -73,7 +73,7 @@ pgx supports many features beyond what is available through `database/sql`:
 * Copy protocol support for faster bulk data loads
 * Extendable logging support including built-in support for `log15adapter`, [`logrus`](https://github.com/sirupsen/logrus), [`zap`](https://github.com/uber-go/zap), and [`zerolog`](https://github.com/rs/zerolog)
 * Connection pool with after-connect hook for arbitrary connection setup
-* listen/notify
+* Listen / notify
 * Conversion of PostgreSQL arrays to Go slice mappings for integers, floats, and strings
 * Hstore support
 * JSON and JSONB support
@@ -105,6 +105,7 @@ pgx also can perform better when using PostgreSQL-specific data types or query b
 [go_db_bench](https://github.com/jackc/go_db_bench) for some database driver benchmarks.
 
 ### Compatibility with `database/sql`
+
 pq is exclusively used with `database/sql`. go-pg does not use `database/sql` at all. pgx supports `database/sql` as well as
 its own interface.
 
