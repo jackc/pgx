@@ -2,6 +2,7 @@ package sanitize_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v4/internal/sanitize"
 )
@@ -129,6 +130,11 @@ func TestQuerySanitize(t *testing.T) {
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{`foo\'bar`},
 			expected: `select 'foo\''bar'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
+			args:     []interface{}{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
+			expected: `insert '2020-03-01 23:59:59.999999Z'`,
 		},
 	}
 
