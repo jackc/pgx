@@ -160,7 +160,7 @@ func (src Timestamptz) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 	switch src.InfinityModifier {
 	case None:
-		s = src.Time.UTC().Format(pgTimestamptzSecondFormat)
+		s = src.Time.UTC().Truncate(time.Microsecond).Format(pgTimestamptzSecondFormat)
 	case Infinity:
 		s = "infinity"
 	case NegativeInfinity:

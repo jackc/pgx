@@ -32,6 +32,51 @@ func TestTimestamptzTranscode(t *testing.T) {
 	})
 }
 
+func TestTimestamptzNanosecondsTruncated(t *testing.T) {
+	tests := []struct {
+		input    time.Time
+		expected time.Time
+	}{
+		{time.Date(2020, 1, 1, 0, 0, 0, 999999999, time.Local), time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local)},
+		{time.Date(2020, 1, 1, 0, 0, 0, 999999001, time.Local), time.Date(2020, 1, 1, 0, 0, 0, 999999000, time.Local)},
+	}
+	for i, tt := range tests {
+		{
+			tstz := pgtype.Timestamptz{Time: tt.input, Status: pgtype.Present}
+			buf, err := tstz.EncodeText(nil, nil)
+			if err != nil {
+				t.Errorf("%d. EncodeText failed - %v", i, err)
+			}
+
+			tstz.DecodeText(nil, buf)
+			if err != nil {
+				t.Errorf("%d. DecodeText failed - %v", i, err)
+			}
+
+			if !(tstz.Status == pgtype.Present && tstz.Time.Equal(tt.expected)) {
+				t.Errorf("%d. EncodeText did not truncate nanoseconds", i)
+			}
+		}
+
+		{
+			tstz := pgtype.Timestamptz{Time: tt.input, Status: pgtype.Present}
+			buf, err := tstz.EncodeBinary(nil, nil)
+			if err != nil {
+				t.Errorf("%d. EncodeBinary failed - %v", i, err)
+			}
+
+			tstz.DecodeBinary(nil, buf)
+			if err != nil {
+				t.Errorf("%d. DecodeBinary failed - %v", i, err)
+			}
+
+			if !(tstz.Status == pgtype.Present && tstz.Time.Equal(tt.expected)) {
+				t.Errorf("%d. EncodeBinary did not truncate nanoseconds", i)
+			}
+		}
+	}
+}
+
 func TestTimestamptzSet(t *testing.T) {
 	type _time time.Time
 
