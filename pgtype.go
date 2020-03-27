@@ -406,7 +406,7 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 	switch dest := dest.(type) {
 	case *string:
 		if formatCode == BinaryFormatCode {
-			return errors.Errorf("unknown oid %d in binary format cannot be scanned into %t", oid, dest)
+			return errors.Errorf("unknown oid %d in binary format cannot be scanned into %T", oid, dest)
 		}
 		*dest = string(buf)
 		return nil
@@ -417,7 +417,7 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 		if nextDst, retry := GetAssignToDstType(dest); retry {
 			return scanUnknownType(oid, formatCode, buf, nextDst)
 		}
-		return errors.Errorf("unknown oid %d cannot be scanned into %t", oid, dest)
+		return errors.Errorf("unknown oid %d cannot be scanned into %T", oid, dest)
 	}
 }
 
