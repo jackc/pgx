@@ -153,34 +153,34 @@ pgx follows semantic versioning for the documented public API on stable releases
 pgx is the head of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed
 from pgx for lower-level control.
 
-### github.com/jackc/pgconn
+### [github.com/jackc/pgconn)](https://github.com/jackc/pgconn)
 
 `pgconn` is a lower-level PostgreSQL database driver that operates at nearly the same level as the C library `libpq`.
 
-### github.com/jackc/pgx/v4/pgxpool
+### [github.com/jackc/pgx/v4/pgxpool](https://github.com/jackc/pgx/tree/master/pgxpool)
 
 `pgxpool` is a connection pool for pgx. pgx is entirely decoupled from its default pool implementation. This means that pgx can be used with a different pool. or without any pool at all.
 
-### github.com/jackc/pgx/v4/stdlib
+### [github.com/jackc/pgx/v4/stdlib](https://github.com/jackc/pgx/tree/master/stdlib)
 
 This is a `database/sql` compatibility layer for pgx. pgx can be used as a normal `database/sql` driver, but at any time, the native interface can be acquired for more performance or PostgreSQL specific functionality.
 
-### github.com/jackc/pgtype
+### [github.com/jackc/pgtype](https://github.com/jackc/pgtype)
 
 Over 70 PostgreSQL types are supported including `uuid`, `hstore`, `json`, `bytea`, `numeric`, `interval`, `inet`, and arrays. These types support `database/sql` interfaces and are usable outside of pgx. They are fully tested in pgx and pq. They also support a higher performance interface when used with the pgx driver.
 
-### github.com/jackc/pgproto3
+### [github.com/jackc/pgproto3](https://github.com/jackc/pgproto3)
 
 pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire protocol. This is useful for implementing very low level PostgreSQL tooling.
 
-### github.com/jackc/pglogrepl
+### [github.com/jackc/pglogrepl](https://github.com/jackc/pglogrepl)
 
 pglogrepl provides functionality to act as a client for PostgreSQL logical replication.
 
-### github.com/jackc/pgmock
+### [github.com/jackc/pgmock](https://github.com/jackc/pgmock)
 
 pgmock offers the ability to create a server that mocks the PostgreSQL wire protocol. This is used internally to test pgx by purposely inducing unusual errors. pgproto3 and pgmock together provide most of the foundational tooling required to implement a PostgreSQL proxy or MitM (such as for a custom connection pooler).
 
-### github.com/jackc/tern
+### [github.com/jackc/tern](https://github.com/jackc/pgmock)
 
 tern is a stand-alone SQL migration system.
