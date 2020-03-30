@@ -314,11 +314,11 @@ func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
 		if len(values) != 2 {
 			t.Errorf("Expected rows.Values to return 2 values, but it returned %d", len(values))
 		}
-		if !reflect.DeepEqual(values[0], expected0) {
-			t.Errorf(`Expected values[0] to be %v, but it was %v`, expected0, values[0])
+		if !reflect.DeepEqual(values[0], *expected0) {
+			t.Errorf(`Expected values[0] to be %v, but it was %v`, *expected0, values[0])
 		}
-		if !reflect.DeepEqual(values[1], expected1) {
-			t.Errorf(`Expected values[1] to be %v, but it was %v`, expected1, values[1])
+		if !reflect.DeepEqual(values[1], *expected1) {
+			t.Errorf(`Expected values[1] to be %v, but it was %v`, *expected1, values[1])
 		}
 	}
 
