@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
-	github.com/jackc/pgtype v1.2.0
+	github.com/jackc/pgtype v1.3.0
 	github.com/jackc/puddle v1.1.0
 	github.com/mattn/go-colorable v0.1.2 // indirect
 	github.com/mattn/go-isatty v0.0.9 // indirect
