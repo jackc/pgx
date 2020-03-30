@@ -1,3 +1,12 @@
+# 1.3.0 (March 30, 2020)
+
+* Get implemented on T instead of *T
+* Set will call Get on src if possible
+* Range types Set method supports its own type, string, and nil
+* Date.Set parses string
+* Fix correct format verb for unknown type error (Robert Welin)
+* Truncate nanoseconds in EncodeText for Timestamptz and Timestamp
+
 # 1.2.0 (February 5, 2020)
 
 * Add zeronull package for easier NULL <-> zero conversion
