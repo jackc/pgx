@@ -184,3 +184,7 @@ pgmock offers the ability to create a server that mocks the PostgreSQL wire prot
 ### [github.com/jackc/tern](https://github.com/jackc/pgmock)
 
 tern is a stand-alone SQL migration system.
+
+### [github.com/jackc/pgerrcode](https://github.com/jackc/pgerrcode)
+
+pgerrcode contains constants for the PostgreSQL error codes.
