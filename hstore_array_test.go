@@ -19,14 +19,14 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("did not find hstore OID, %v", err)
 	}
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.Hstore{}, Name: "hstore", OID: hstoreOID})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.Hstore{}, Name: "hstore", OID: hstoreOID})
 
 	var hstoreArrayOID uint32
 	err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='_hstore';").Scan(&hstoreArrayOID)
 	if err != nil {
 		t.Fatalf("did not find _hstore OID, %v", err)
 	}
-	conn.ConnInfo.RegisterDataType(pgtype.DataType{Value: &pgtype.HstoreArray{}, Name: "_hstore", OID: hstoreArrayOID})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.HstoreArray{}, Name: "_hstore", OID: hstoreArrayOID})
 
 	text := func(s string) pgtype.Text {
 		return pgtype.Text{String: s, Status: pgtype.Present}

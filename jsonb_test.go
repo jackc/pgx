@@ -12,7 +12,7 @@ import (
 func TestJSONBTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
-	if _, ok := conn.ConnInfo.DataTypeForName("jsonb"); !ok {
+	if _, ok := conn.ConnInfo().DataTypeForName("jsonb"); !ok {
 		t.Skip("Skipping due to no jsonb type")
 	}
 
