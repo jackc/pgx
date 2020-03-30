@@ -1,3 +1,8 @@
+# 1.5.0 (March 30, 2020)
+
+* Update golang.org/x/crypto for security fix
+* Implement "verify-ca" SSL mode (Greg Curtis)
+
 # 1.4.0 (March 7, 2020)
 
 * Fix ExecParams and ExecPrepared handling of empty query.
