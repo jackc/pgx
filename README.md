@@ -181,7 +181,7 @@ pglogrepl provides functionality to act as a client for PostgreSQL logical repli
 
 pgmock offers the ability to create a server that mocks the PostgreSQL wire protocol. This is used internally to test pgx by purposely inducing unusual errors. pgproto3 and pgmock together provide most of the foundational tooling required to implement a PostgreSQL proxy or MitM (such as for a custom connection pooler).
 
-### [github.com/jackc/tern](https://github.com/jackc/pgmock)
+### [github.com/jackc/tern](https://github.com/jackc/tern)
 
 tern is a stand-alone SQL migration system.
 
