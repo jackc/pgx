@@ -10,6 +10,7 @@ import (
 )
 
 var errUndefined = errors.New("cannot encode status undefined")
+var errBadStatus = errors.New("invalid status")
 
 type UUID struct {
 	UUID   uuid.UUID
@@ -171,4 +172,33 @@ func (dst *UUID) Scan(src interface{}) error {
 // Value implements the database/sql/driver Valuer interface.
 func (src UUID) Value() (driver.Value, error) {
 	return pgtype.EncodeValueText(src)
+}
+
+func (src UUID) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case pgtype.Present:
+		return []byte(`"` + src.UUID.String() + `"`), nil
+	case pgtype.Null:
+		return []byte("null"), nil
+	case pgtype.Undefined:
+		return nil, errUndefined
+	}
+
+	return nil, errBadStatus
+}
+
+func (dst *UUID) UnmarshalJSON(b []byte) error {
+	u := uuid.NullUUID{}
+	err := u.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+
+	status := pgtype.Null
+	if u.Valid {
+		status = pgtype.Present
+	}
+	*dst = UUID{UUID: u.UUID, Status: status}
+
+	return nil
 }
