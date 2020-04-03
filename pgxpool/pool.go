@@ -171,11 +171,9 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			return cr, nil
 		},
 		func(value interface{}) {
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				value.(*connResource).conn.Close(ctx)
-				cancel()
-			}()
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			value.(*connResource).conn.Close(ctx)
+			cancel()
 		},
 		config.MaxConns,
 	)
