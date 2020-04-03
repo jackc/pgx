@@ -279,8 +279,6 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 }
 
 func TestPoolBackgroundChecksMinConns(t *testing.T) {
-	t.Parallel()
-
 	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
