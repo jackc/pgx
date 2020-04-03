@@ -41,6 +41,23 @@ func TestConnectCancel(t *testing.T) {
 	assert.Equal(t, context.Canceled, err)
 }
 
+func TestLazyConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	assert.NoError(t, err)
+	config.LazyConnect = true
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	pool, err := pgxpool.ConnectConfig(ctx, config)
+	assert.NoError(t, err)
+
+	_, err = pool.Exec(ctx, "SELECT 1")
+	assert.Equal(t, context.Canceled, err)
+}
+
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	t.Parallel()
 
