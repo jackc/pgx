@@ -112,6 +112,11 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
+	// If set to true, pool doesn't do any I/O operation on initialization.
+	// And connects to the server only when the pool starts to be used.
+	// The default is false.
+	LazyConnect bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -180,13 +185,15 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	go p.backgroundHealthCheck()
 
-	// Initially establish one connection
-	res, err := p.p.Acquire(ctx)
-	if err != nil {
-		p.p.Close()
-		return nil, err
+	if !config.LazyConnect {
+		// Initially establish one connection
+		res, err := p.p.Acquire(ctx)
+		if err != nil {
+			p.p.Close()
+			return nil, err
+		}
+		res.Release()
 	}
-	res.Release()
 
 	return p, nil
 }
