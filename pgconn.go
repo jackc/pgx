@@ -494,6 +494,13 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	defer pgConn.conn.Close()
 
 	if ctx != context.Background() {
+		// Close may be called while a cancellable query is in progress. This will most often be triggered by panic when
+		// a defer closes the connection (possibly indirectly via a transaction or a connection pool). Unwatch to end any
+		// previous watch. It is safe to Unwatch regardless of whether a watch is already is progress.
+		//
+		// See https://github.com/jackc/pgconn/issues/29
+		pgConn.contextWatcher.Unwatch()
+
 		pgConn.contextWatcher.Watch(ctx)
 		defer pgConn.contextWatcher.Unwatch()
 	}

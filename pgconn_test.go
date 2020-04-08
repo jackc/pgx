@@ -1708,6 +1708,19 @@ func TestHijackAndConstruct(t *testing.T) {
 	ensureConnValid(t, newConn)
 }
 
+func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	ctx, _ := context.WithCancel(context.Background())
+	pgConn.Exec(ctx, "select n from generate_series(1,10) n")
+
+	closeCtx, _ := context.WithCancel(context.Background())
+	pgConn.Close(closeCtx)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	if err != nil {
