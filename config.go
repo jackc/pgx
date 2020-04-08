@@ -548,7 +548,17 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	case "allow", "prefer":
 		tlsConfig.InsecureSkipVerify = true
 	case "require":
-		tlsConfig.InsecureSkipVerify = sslrootcert == ""
+		// According to PostgreSQL documentation, if a root CA file exists,
+		// the behavior of sslmode=require should be the same as that of verify-ca
+		//
+		// See https://www.postgresql.org/docs/12/libpq-ssl.html
+		if sslrootcert != "" {
+			goto nextCase
+		}
+		tlsConfig.InsecureSkipVerify = true
+		break
+	nextCase:
+		fallthrough
 	case "verify-ca":
 		// Don't perform the default certificate verification because it
 		// will verify the hostname. Instead, verify the server's
