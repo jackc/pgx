@@ -429,6 +429,7 @@ func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, er
 
 	t, err := c.BeginTx(ctx, txOptions)
 	if err != nil {
+		c.Release()
 		return nil, err
 	}
 

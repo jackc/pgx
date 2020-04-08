@@ -555,3 +555,26 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 		<-done
 	}
 }
+
+func TestConnReleaseWhenBeginFail(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	db, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer db.Close()
+
+	tx, err := db.BeginTx(ctx, pgx.TxOptions{
+		IsoLevel: pgx.TxIsoLevel("foo"),
+	})
+	assert.Error(t, err)
+	if !assert.Zero(t, tx) {
+		err := tx.Rollback(ctx)
+		assert.NoError(t, err)
+	}
+
+	stats := db.Stat()
+	assert.EqualValues(t, 0, stats.TotalConns())
+}
