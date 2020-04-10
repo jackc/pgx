@@ -158,6 +158,51 @@ to encode the underlying type. While this is usually desired behavior it can pro
 underlying type and the renamed type each implement database/sql interfaces and the other implements pgx interfaces. It
 is recommended that this situation be avoided by implementing pgx interfaces on the renamed type.
 
+Composite types and row values
+
+Row values and composite types are represented as pgtype.Record (https://pkg.go.dev/github.com/jackc/pgtype?tab=doc#Record).
+It is possible to get values of your custom type by implementing DecodeBinary interface. Decoding into
+pgtype.Record first can simplify process by avoiding dealing with raw protocol directly.
+
+For example:
+
+    type MyType struct {
+        a int
+        b *string
+    }
+
+    func (t *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
+        r := pgtype.Record{
+            Fields: []pgtype.Value{&pgtype.Int4{}, &pgtype.Text{}},
+        }
+
+        if err := r.DecodeBinary(ci, src); err != nil {
+            return err
+        }
+
+        if r.Status != pgtype.Present {
+            t = nil
+            return nil
+        }
+
+        a := r.Fields[0].(*pgtype.Int4)
+        b := r.Fields[1].(*pgtype.Text)
+
+        // types compatibility are checked by AssignTo
+        if err := a.AssignTo(&t.a); err != nil {
+            return err
+        }
+
+        // AssignTo also deals with null value handling
+        if err := b.AssignTo(&t.b); err != nil {
+            return err
+        }
+        return nil
+    }
+
+    result := MyType{}
+	err := conn.QueryRow(context.Background(), "select row(1, 'foo'::text)").Scan(&r)
+
 Raw Bytes Mapping
 
 []byte passed as arguments to Query, QueryRow, and Exec are passed unmodified to PostgreSQL.
