@@ -167,8 +167,8 @@ pgtype.Record first can simplify process by avoiding dealing with raw protocol d
 For example:
 
     type MyType struct {
-        a int
-        b *string
+        a int      // NULL will cause decoding error
+        b *string  // there can be NULL in this position in SQL
     }
 
     func (t *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
@@ -181,14 +181,14 @@ For example:
         }
 
         if r.Status != pgtype.Present {
-            t = nil
-            return nil
+            return errors.New("BUG: decoding should not be called on NULL value")
         }
 
         a := r.Fields[0].(*pgtype.Int4)
         b := r.Fields[1].(*pgtype.Text)
 
-        // types compatibility are checked by AssignTo
+        // type compatibility is checked by AssignTo
+        // only lossless assignments will succeed
         if err := a.AssignTo(&t.a); err != nil {
             return err
         }
@@ -201,7 +201,7 @@ For example:
     }
 
     result := MyType{}
-	err := conn.QueryRow(context.Background(), "select row(1, 'foo'::text)").Scan(&r)
+    err := conn.QueryRow(context.Background(), "select row(1, 'foo'::text)", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&r)
 
 Raw Bytes Mapping
 
