@@ -115,6 +115,10 @@ go-pg is a PostgreSQL client and ORM. It includes many features that traditional
 
 pgx is "closer to the metal" and such abstractions are beyond the scope of the pgx project, which first and foremost, aims to be a performant driver and toolkit.
 
+## API documentation
+
+Full go doc style documentation for the package can be viewed online without installing this package by using the GoDev site here: https://pkg.go.dev/github.com/jackc/pgx/v4
+
 ## Testing
 
 pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE` environment
