@@ -433,6 +433,44 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 	return nil, false
 }
 
+// ScanRowValue assigns ROW()'s fields to destination Values.
+// Argument types are checked and error is returned if SQL field value
+// can't be assigned to corresponding destionation Value without loss
+// of information. Number of fields have to match number of destination values.
+//
+// Values must implement BinaryDecoder interface otherwise error is returned.
+// ScanRowValue takes ownership of src, caller MUST not use it after call
+func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
+	fieldIter, err := newFieldIterator(src)
+	if err != nil {
+		return err
+	}
+
+	if len(dst) != fieldIter.fieldCount {
+		return errors.Errorf("can't scan row value, number of fields don't match: row fields count=%d desired fields count=%d", fieldIter.fieldCount, len(dst))
+	}
+
+	_, fieldBytes, eof, err := fieldIter.next()
+	for i := 0; !eof; i++ {
+		if err != nil {
+			return err
+		}
+
+		binaryDecoder, ok := dst[i].(BinaryDecoder)
+		if !ok {
+			return errors.Errorf("record field doesn't implement binary decoding: %s", reflect.TypeOf(dst[i]).Name())
+		}
+
+		if err = binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
+			return err
+		}
+
+		_, fieldBytes, eof, err = fieldIter.next()
+	}
+
+	return nil
+}
+
 func init() {
 	kindTypes = map[reflect.Kind]reflect.Type{
 		reflect.Bool:    reflect.TypeOf(false),
