@@ -1551,6 +1551,238 @@ func TestConnSimpleProtocol(t *testing.T) {
 		}
 	}
 
+	{
+		tests := []struct {
+			expected []string
+		}{
+			{[]string(nil)},
+			{[]string{}},
+			{[]string{"test", "foo", "bar"}},
+			{[]string{`foo'bar"\baz;quz`, `foo'bar"\baz;quz`}},
+		}
+		for i, tt := range tests {
+			var actual []string
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::text[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []int16
+		}{
+			{[]int16(nil)},
+			{[]int16{}},
+			{[]int16{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []int16
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::smallint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []int32
+		}{
+			{[]int32(nil)},
+			{[]int32{}},
+			{[]int32{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []int32
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::int[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []int64
+		}{
+			{[]int64(nil)},
+			{[]int64{}},
+			{[]int64{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []int64
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::bigint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []int
+		}{
+			{[]int(nil)},
+			{[]int{}},
+			{[]int{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []int
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::bigint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []uint16
+		}{
+			{[]uint16(nil)},
+			{[]uint16{}},
+			{[]uint16{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []uint16
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::smallint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []uint32
+		}{
+			{[]uint32(nil)},
+			{[]uint32{}},
+			{[]uint32{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []uint32
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::bigint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []uint64
+		}{
+			{[]uint64(nil)},
+			{[]uint64{}},
+			{[]uint64{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []uint64
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::bigint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []uint
+		}{
+			{[]uint(nil)},
+			{[]uint{}},
+			{[]uint{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []uint
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::bigint[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []float32
+		}{
+			{[]float32(nil)},
+			{[]float32{}},
+			{[]float32{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []float32
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::float4[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
+	{
+		tests := []struct {
+			expected []float64
+		}{
+			{[]float64(nil)},
+			{[]float64{}},
+			{[]float64{1, 2, 3}},
+		}
+		for i, tt := range tests {
+			var actual []float64
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::float8[]",
+				pgx.QuerySimpleProtocol(true),
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	}
+
 	// Test high-level type
 
 	{

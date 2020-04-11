@@ -30,6 +30,24 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return nil, nil
 	}
 
+	setArgAndEncodeTextToString := func(t interface {
+		pgtype.Value
+		pgtype.TextEncoder
+	}) (interface{}, error) {
+		err := t.Set(arg)
+		if err != nil {
+			return nil, err
+		}
+		buf, err := t.EncodeText(ci, nil)
+		if err != nil {
+			return nil, err
+		}
+		if buf == nil {
+			return nil, nil
+		}
+		return string(buf), nil
+	}
+
 	switch arg := arg.(type) {
 
 	// https://github.com/jackc/pgx/issues/409 Changed JSON and JSONB to surface
@@ -68,8 +86,8 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 			return nil, nil
 		}
 		return string(buf), nil
-	case int64:
-		return arg, nil
+	case float32:
+		return float64(arg), nil
 	case float64:
 		return arg, nil
 	case bool:
@@ -86,6 +104,8 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return int64(arg), nil
 	case int32:
 		return int64(arg), nil
+	case int64:
+		return arg, nil
 	case int:
 		return int64(arg), nil
 	case uint8:
@@ -104,8 +124,28 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 			return nil, errors.Errorf("arg too big for int64: %v", arg)
 		}
 		return int64(arg), nil
-	case float32:
-		return float64(arg), nil
+	case []string:
+		return setArgAndEncodeTextToString(&pgtype.TextArray{})
+	case []float32:
+		return setArgAndEncodeTextToString(&pgtype.Float4Array{})
+	case []float64:
+		return setArgAndEncodeTextToString(&pgtype.Float8Array{})
+	case []int16:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []int32:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []int64:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []int:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []uint16:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []uint32:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []uint64:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
+	case []uint:
+		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
 	}
 
 	refVal := reflect.ValueOf(arg)
