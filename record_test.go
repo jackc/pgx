@@ -11,87 +11,128 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+var recordTests = []struct {
+	sql      string
+	expected pgtype.Record
+}{
+	{
+		sql: `select row()`,
+		expected: pgtype.Record{
+			Fields: []pgtype.Value{},
+			Status: pgtype.Present,
+		},
+	},
+	{
+		sql: `select row('foo'::text, 42::int4)`,
+		expected: pgtype.Record{
+			Fields: []pgtype.Value{
+				&pgtype.Text{String: "foo", Status: pgtype.Present},
+				&pgtype.Int4{Int: 42, Status: pgtype.Present},
+			},
+			Status: pgtype.Present,
+		},
+	},
+	{
+		sql: `select row(100.0::float4, 1.09::float4)`,
+		expected: pgtype.Record{
+			Fields: []pgtype.Value{
+				&pgtype.Float4{Float: 100, Status: pgtype.Present},
+				&pgtype.Float4{Float: 1.09, Status: pgtype.Present},
+			},
+			Status: pgtype.Present,
+		},
+	},
+	{
+		sql: `select row('foo'::text, array[1, 2, null, 4]::int4[], 42::int4)`,
+		expected: pgtype.Record{
+			Fields: []pgtype.Value{
+				&pgtype.Text{String: "foo", Status: pgtype.Present},
+				&pgtype.Int4Array{
+					Elements: []pgtype.Int4{
+						{Int: 1, Status: pgtype.Present},
+						{Int: 2, Status: pgtype.Present},
+						{Status: pgtype.Null},
+						{Int: 4, Status: pgtype.Present},
+					},
+					Dimensions: []pgtype.ArrayDimension{{Length: 4, LowerBound: 1}},
+					Status:     pgtype.Present,
+				},
+				&pgtype.Int4{Int: 42, Status: pgtype.Present},
+			},
+			Status: pgtype.Present,
+		},
+	},
+	{
+		sql: `select row(null)`,
+		expected: pgtype.Record{
+			Fields: []pgtype.Value{
+				&pgtype.Unknown{Status: pgtype.Null},
+			},
+			Status: pgtype.Present,
+		},
+	},
+	{
+		sql: `select null::record`,
+		expected: pgtype.Record{
+			Status: pgtype.Null,
+		},
+	},
+}
+
+// row values are binary compatible with records, so we test our helper
+// routines here
+func TestScanRowValue(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	for i := 0; i < len(recordTests); i++ {
+		tt := recordTests[i]
+		psName := fmt.Sprintf("test%d", i)
+		_, err := conn.Prepare(context.Background(), psName, tt.sql)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Run(tt.sql, func(t *testing.T) {
+			desc := append([]pgtype.Value(nil), tt.expected.Fields...)
+
+			var raw pgtype.GenericBinary
+
+			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&raw); err != nil {
+				t.Error(err)
+				return
+			}
+
+			if raw.Status == pgtype.Null {
+				// ScanRowValue deals with complete rows only, NULL values (but NOT null fields)
+				// should be handled by the calling code
+				return
+			}
+
+			if err := pgtype.ScanRowValue(conn.ConnInfo(), raw.Bytes, desc...); err != nil {
+				t.Error(err)
+			}
+
+			// borrow fields from a neighbor test, this makes scan always fail
+			desc = append([]pgtype.Value(nil), recordTests[(i+1)%len(recordTests)].expected.Fields...)
+			if err := pgtype.ScanRowValue(conn.ConnInfo(), raw.Bytes, desc...); err == nil {
+				t.Error("Matching scan didn't fail, despite fields not mathching query result")
+			}
+		})
+	}
+}
+
 func TestRecordTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
-	tests := []struct {
-		sql      string
-		expected pgtype.Record
-	}{
-		{
-			sql: `select row()`,
-			expected: pgtype.Record{
-				Fields: []pgtype.Value{},
-				Status: pgtype.Present,
-			},
-		},
-		{
-			sql: `select row('foo'::text, 42::int4)`,
-			expected: pgtype.Record{
-				Fields: []pgtype.Value{
-					&pgtype.Text{String: "foo", Status: pgtype.Present},
-					&pgtype.Int4{Int: 42, Status: pgtype.Present},
-				},
-				Status: pgtype.Present,
-			},
-		},
-		{
-			sql: `select row(100.0::float4, 1.09::float4)`,
-			expected: pgtype.Record{
-				Fields: []pgtype.Value{
-					&pgtype.Float4{Float: 100, Status: pgtype.Present},
-					&pgtype.Float4{Float: 1.09, Status: pgtype.Present},
-				},
-				Status: pgtype.Present,
-			},
-		},
-		{
-			sql: `select row('foo'::text, array[1, 2, null, 4]::int4[], 42::int4)`,
-			expected: pgtype.Record{
-				Fields: []pgtype.Value{
-					&pgtype.Text{String: "foo", Status: pgtype.Present},
-					&pgtype.Int4Array{
-						Elements: []pgtype.Int4{
-							{Int: 1, Status: pgtype.Present},
-							{Int: 2, Status: pgtype.Present},
-							{Status: pgtype.Null},
-							{Int: 4, Status: pgtype.Present},
-						},
-						Dimensions: []pgtype.ArrayDimension{{Length: 4, LowerBound: 1}},
-						Status:     pgtype.Present,
-					},
-					&pgtype.Int4{Int: 42, Status: pgtype.Present},
-				},
-				Status: pgtype.Present,
-			},
-		},
-		{
-			sql: `select row(null)`,
-			expected: pgtype.Record{
-				Fields: []pgtype.Value{
-					&pgtype.Unknown{Status: pgtype.Null},
-				},
-				Status: pgtype.Present,
-			},
-		},
-		{
-			sql: `select null::record`,
-			expected: pgtype.Record{
-				Status: pgtype.Null,
-			},
-		},
-	}
-
-	for i := 0; i < len(tests); i++ {
-		tt := tests[i]
+	for i, tt := range recordTests {
 		psName := fmt.Sprintf("test%d", i)
 		_, err := conn.Prepare(context.Background(), psName, tt.sql)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		t.Run(fmt.Sprintf("scan %d", i), func(t *testing.T) {
+		t.Run(tt.sql, func(t *testing.T) {
 			var result pgtype.Record
 			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
 				t.Errorf("%v", err)
@@ -100,30 +141,6 @@ func TestRecordTranscode(t *testing.T) {
 
 			if !reflect.DeepEqual(tt.expected, result) {
 				t.Errorf("expected %#v, got %#v", tt.expected, result)
-			}
-		})
-
-		t.Run(fmt.Sprintf("scan MatchFields %d", i), func(t *testing.T) {
-			tt.expected.MatchFields = true
-
-			fieldsCopy := make([]pgtype.Value, len(tt.expected.Fields))
-			reflect.Copy(reflect.ValueOf(fieldsCopy), reflect.ValueOf(tt.expected.Fields))
-
-			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&tt.expected); err != nil {
-				t.Errorf("%d: %v", i, err)
-				return
-			}
-
-			if !reflect.DeepEqual(tt.expected.Fields, fieldsCopy) {
-				t.Errorf("Matching scan succeeded, but modified predefined fields. %d: expected %#v, got %#v", i, tt.expected.Fields, fieldsCopy)
-			}
-
-			// borrow fields from a neighbor test, this makes scan always fail
-			tt.expected.Fields = tests[(i+1)%len(tests)].expected.Fields
-			reflect.Copy(reflect.ValueOf(fieldsCopy), reflect.ValueOf(tt.expected.Fields))
-			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&tt.expected); err == nil {
-				t.Errorf("Matching scan didn't fail, despite fields not mathchin query result. %d: %v", i, err)
-				return
 			}
 		})
 
