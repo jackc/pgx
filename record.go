@@ -78,57 +78,94 @@ func (src *Record) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
+type fieldIter struct {
+	rp         int
+	fieldCount int
+	src        []byte
+}
+
+func newFieldIterator(src []byte) (fieldIter, error) {
+	rp := 0
+	if len(src[rp:]) < 4 {
+		return fieldIter{}, errors.Errorf("Record incomplete %v", src)
+	}
+
+	fieldCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
+	rp += 4
+
+	return fieldIter{
+		rp:         rp,
+		fieldCount: fieldCount,
+		src:        src,
+	}, nil
+}
+
+func (fi *fieldIter) next() (fieldOID uint32, buf []byte, eof bool, err error) {
+	if fi.rp == len(fi.src) {
+		eof = true
+		return
+	}
+
+	if len(fi.src[fi.rp:]) < 8 {
+		err = errors.Errorf("Record incomplete %v", fi.src)
+		return
+	}
+	fieldOID = binary.BigEndian.Uint32(fi.src[fi.rp:])
+	fi.rp += 4
+
+	fieldLen := int(int32(binary.BigEndian.Uint32(fi.src[fi.rp:])))
+	fi.rp += 4
+
+	if fieldLen >= 0 {
+		if len(fi.src[fi.rp:]) < fieldLen {
+			err = errors.Errorf("Record incomplete rp=%d src=%v", fi.rp, fi.src)
+			return
+		}
+		buf = fi.src[fi.rp : fi.rp+fieldLen]
+		fi.rp += fieldLen
+	}
+
+	return
+}
+
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Record{Status: Null}
 		return nil
 	}
 
-	rp := 0
-
-	if len(src[rp:]) < 4 {
-		return errors.Errorf("Record incomplete %v", src)
+	fieldIter, err := newFieldIterator(src)
+	if err != nil {
+		return err
 	}
-	fieldCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
-	rp += 4
 
-	fields := make([]Value, fieldCount)
+	fields := make([]Value, fieldIter.fieldCount)
+	fieldOID, fieldBytes, eof, err := fieldIter.next()
 
-	for i := 0; i < fieldCount; i++ {
-		if len(src[rp:]) < 8 {
-			return errors.Errorf("Record incomplete %v", src)
+	for i := 0; !eof; i++ {
+		if err != nil {
+			return err
 		}
-		fieldOID := binary.BigEndian.Uint32(src[rp:])
-		rp += 4
-
-		fieldLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
-		rp += 4
-
 		var binaryDecoder BinaryDecoder
+
 		if dt, ok := ci.DataTypeForOID(fieldOID); ok {
 			binaryDecoder, _ = dt.Value.(BinaryDecoder)
-		}
-		if binaryDecoder == nil {
+		} else {
 			return errors.Errorf("unknown oid while decoding record: %v", fieldOID)
 		}
 
-		var fieldBytes []byte
-		if fieldLen >= 0 {
-			if len(src[rp:]) < fieldLen {
-				return errors.Errorf("Record incomplete %v", src)
-			}
-			fieldBytes = src[rp : rp+fieldLen]
-			rp += fieldLen
+		if binaryDecoder == nil {
+			return errors.Errorf("no binary decoder registered for: %v", fieldOID)
 		}
 
 		// Duplicate struct to scan into
 		binaryDecoder = reflect.New(reflect.ValueOf(binaryDecoder).Elem().Type()).Interface().(BinaryDecoder)
-
 		if err := binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
 			return err
 		}
 
 		fields[i] = binaryDecoder.(Value)
+		fieldOID, fieldBytes, eof, err = fieldIter.next()
 	}
 
 	*dst = Record{Fields: fields, Status: Present}
