@@ -128,6 +128,25 @@ func (fi *fieldIter) next() (fieldOID uint32, buf []byte, eof bool, err error) {
 	return
 }
 
+func prepareNewBinaryDecoder(ci *ConnInfo, fieldOID uint32, v *Value) (BinaryDecoder, error) {
+	var binaryDecoder BinaryDecoder
+
+	if dt, ok := ci.DataTypeForOID(fieldOID); ok {
+		binaryDecoder, _ = dt.Value.(BinaryDecoder)
+	} else {
+		return nil, errors.Errorf("unknown oid while decoding record: %v", fieldOID)
+	}
+
+	if binaryDecoder == nil {
+		return nil, errors.Errorf("no binary decoder registered for: %v", fieldOID)
+	}
+
+	// Duplicate struct to scan into
+	binaryDecoder = reflect.New(reflect.ValueOf(binaryDecoder).Elem().Type()).Interface().(BinaryDecoder)
+	*v = binaryDecoder.(Value)
+	return binaryDecoder, nil
+}
+
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Record{Status: Null}
@@ -146,25 +165,16 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		if err != nil {
 			return err
 		}
-		var binaryDecoder BinaryDecoder
 
-		if dt, ok := ci.DataTypeForOID(fieldOID); ok {
-			binaryDecoder, _ = dt.Value.(BinaryDecoder)
-		} else {
-			return errors.Errorf("unknown oid while decoding record: %v", fieldOID)
-		}
-
-		if binaryDecoder == nil {
-			return errors.Errorf("no binary decoder registered for: %v", fieldOID)
-		}
-
-		// Duplicate struct to scan into
-		binaryDecoder = reflect.New(reflect.ValueOf(binaryDecoder).Elem().Type()).Interface().(BinaryDecoder)
-		if err := binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
+		binaryDecoder, err := prepareNewBinaryDecoder(ci, fieldOID, &fields[i])
+		if err != nil {
 			return err
 		}
 
-		fields[i] = binaryDecoder.(Value)
+		if err = binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
+			return err
+		}
+
 		fieldOID, fieldBytes, eof, err = fieldIter.next()
 	}
 

@@ -83,22 +83,50 @@ func TestRecordTranscode(t *testing.T) {
 		},
 	}
 
-	for i, tt := range tests {
+	for i := 0; i < len(tests); i++ {
+		tt := tests[i]
 		psName := fmt.Sprintf("test%d", i)
 		_, err := conn.Prepare(context.Background(), psName, tt.sql)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		var result pgtype.Record
-		if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
-			t.Errorf("%d: %v", i, err)
-			continue
-		}
+		t.Run(fmt.Sprintf("scan %d", i), func(t *testing.T) {
+			var result pgtype.Record
+			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
+				t.Errorf("%v", err)
+				return
+			}
 
-		if !reflect.DeepEqual(tt.expected, result) {
-			t.Errorf("%d: expected %#v, got %#v", i, tt.expected, result)
-		}
+			if !reflect.DeepEqual(tt.expected, result) {
+				t.Errorf("expected %#v, got %#v", tt.expected, result)
+			}
+		})
+
+		t.Run(fmt.Sprintf("scan MatchFields %d", i), func(t *testing.T) {
+			tt.expected.MatchFields = true
+
+			fieldsCopy := make([]pgtype.Value, len(tt.expected.Fields))
+			reflect.Copy(reflect.ValueOf(fieldsCopy), reflect.ValueOf(tt.expected.Fields))
+
+			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&tt.expected); err != nil {
+				t.Errorf("%d: %v", i, err)
+				return
+			}
+
+			if !reflect.DeepEqual(tt.expected.Fields, fieldsCopy) {
+				t.Errorf("Matching scan succeeded, but modified predefined fields. %d: expected %#v, got %#v", i, tt.expected.Fields, fieldsCopy)
+			}
+
+			// borrow fields from a neighbor test, this makes scan always fail
+			tt.expected.Fields = tests[(i+1)%len(tests)].expected.Fields
+			reflect.Copy(reflect.ValueOf(fieldsCopy), reflect.ValueOf(tt.expected.Fields))
+			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&tt.expected); err == nil {
+				t.Errorf("Matching scan didn't fail, despite fields not mathchin query result. %d: %v", i, err)
+				return
+			}
+		})
+
 	}
 }
 
