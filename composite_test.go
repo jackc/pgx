@@ -71,7 +71,20 @@ create type mytype as (
 	}
 
 	fmt.Printf("Second row: %v\n", result)
+
+	// Adhoc rows can be decoded inplace without boilerplate (works with composite types too)
+	var isNull bool
+	var a int
+	var b *string
+
+	if err = conn.QueryRow(context.Background(), "select (2, 'bar')::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(pgtype.ROW(&isNull, &a, &b)); err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Adhoc: isNull=%v a=%d b=%s", isNull, a, *b)
+
 	// Output:
 	// First row: a=1 b=foo
 	// Second row: <nil>
+	// Adhoc: isNull=false a=2 b=bar
 }

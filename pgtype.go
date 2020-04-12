@@ -158,6 +158,15 @@ type TextEncoder interface {
 	EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
 }
 
+//The BinaryDecoderFunc type is an adapter to allow the use of ordinary functions as BinaryDecoder types.
+// If f is a function with the appropriate signature, BinaryDecoderFunc(f) is a BinaryDecoder that calls f.
+type BinaryDecoderFunc func(ci *ConnInfo, src []byte) error
+
+// DecodeBinary calls f(ci, src)
+func (f BinaryDecoderFunc) DecodeBinary(ci *ConnInfo, src []byte) error {
+	return f(ci, src)
+}
+
 var errUndefined = errors.New("cannot encode status undefined")
 var errBadStatus = errors.New("invalid status")
 
