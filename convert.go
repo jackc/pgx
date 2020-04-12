@@ -471,6 +471,34 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
 	return nil
 }
 
+// ROW allows deconstructing row values (records and composite types) into
+// fields directly without creating your own type and implementing decoder interfaces
+func ROW(isNull *bool, fields ...interface{}) BinaryDecoderFunc {
+	return func(ci *ConnInfo, src []byte) error {
+		var record Record
+		if err := record.DecodeBinary(ci, src); err != nil {
+			return err
+		}
+
+		if record.Status == Null {
+			*isNull = true
+			return nil
+		}
+
+		if len(record.Fields) != len(fields) {
+			return errors.Errorf("can't scan row value, number of fields don't match: row fields count=%d desired fields count=%d", len(record.Fields), len(fields))
+		}
+
+		for i, f := range record.Fields {
+			if err := f.AssignTo(fields[i]); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+}
+
 func init() {
 	kindTypes = map[reflect.Kind]reflect.Type{
 		reflect.Bool:    reflect.TypeOf(false),
