@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
 )
 
@@ -469,6 +470,38 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
 	}
 
 	return nil
+}
+
+// EncodeRow builds a binary representation of row values (row(), composite types)
+func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
+	fieldBytes := make([]byte, 0, 128)
+
+	newBuf = pgio.AppendUint32(buf, uint32(len(fields)))
+	for _, f := range fields {
+		dt, ok := ci.DataTypeForValue(f)
+		if !ok {
+			return nil, errors.Errorf("Unknown OID for %s", f)
+		}
+		newBuf = pgio.AppendUint32(newBuf, dt.OID)
+
+		if f.Get() != nil {
+			binaryEncoder, ok := f.(BinaryEncoder)
+			if !ok {
+				return nil, errors.Errorf("record field doesn't implement binary encoding: %s", reflect.TypeOf(f).Name())
+			}
+			fieldBytes, err = binaryEncoder.EncodeBinary(ci, fieldBytes[:0])
+			if err != nil {
+				return nil, err
+			}
+
+			newBuf = pgio.AppendUint32(newBuf, uint32(len(fieldBytes)))
+			newBuf = append(newBuf, fieldBytes...)
+		} else {
+			newBuf = pgio.AppendInt32(newBuf, int32(-1))
+		}
+
+	}
+	return
 }
 
 // ROW allows deconstructing row values (records and composite types) into

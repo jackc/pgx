@@ -41,11 +41,32 @@ func (dst *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	return nil
 }
 
-func Example_compositeTypes() {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+func (src MyType) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, err error) {
+	a := pgtype.Int4{src.a, pgtype.Present}
+	var b pgtype.Text
+	if src.b != nil {
+		b = pgtype.Text{*src.b, pgtype.Present}
+	} else {
+		b = pgtype.Text{Status: pgtype.Null}
+	}
+
+	return pgtype.EncodeRow(ci, buf, &a, &b)
+}
+
+func ptrS(s string) *string {
+	return &s
+}
+
+func E(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func Example_compositeTypes() {
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	E(err)
+
 	defer conn.Close(context.Background())
 	_, err = conn.Exec(context.Background(), `drop type if exists mytype;
 
@@ -53,22 +74,21 @@ create type mytype as (
   a int4,
   b text
 );`)
-	if err != nil {
-		panic(err)
-	}
+	E(err)
 	defer conn.Exec(context.Background(), "drop type mytype")
 
 	var result *MyType
-	if err = conn.QueryRow(context.Background(), "select (1,'foo')::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
-		panic(err)
-	}
+
+	// Demonstrates both passing and reading back composite values
+	err = conn.QueryRow(context.Background(), "select $1::mytype",
+		pgx.QueryResultFormats{pgx.BinaryFormatCode}, MyType{1, ptrS("foo")}).Scan(&result)
+	E(err)
 
 	fmt.Printf("First row: a=%d b=%s\n", result.a, *result.b)
 
 	// Because we scan into &*MyType, NULLs are handled generically by assigning nil to result
-	if err = conn.QueryRow(context.Background(), "select NULL::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result); err != nil {
-		panic(err)
-	}
+	err = conn.QueryRow(context.Background(), "select NULL::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&result)
+	E(err)
 
 	fmt.Printf("Second row: %v\n", result)
 
@@ -77,9 +97,8 @@ create type mytype as (
 	var a int
 	var b *string
 
-	if err = conn.QueryRow(context.Background(), "select (2, 'bar')::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(pgtype.ROW(&isNull, &a, &b)); err != nil {
-		panic(err)
-	}
+	err = conn.QueryRow(context.Background(), "select (2, 'bar')::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(pgtype.ROW(&isNull, &a, &b))
+	E(err)
 
 	fmt.Printf("Adhoc: isNull=%v a=%d b=%s", isNull, a, *b)
 
