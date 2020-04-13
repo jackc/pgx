@@ -81,7 +81,8 @@ create type mytype as (
 
 	// Demonstrates both passing and reading back composite values
 	err = conn.QueryRow(context.Background(), "select $1::mytype",
-		pgx.QueryResultFormats{pgx.BinaryFormatCode}, MyType{1, ptrS("foo")}).Scan(&result)
+		pgx.QueryResultFormats{pgx.BinaryFormatCode}, MyType{1, ptrS("foo")}).
+		Scan(&result)
 	E(err)
 
 	fmt.Printf("First row: a=%d b=%s\n", result.a, *result.b)
@@ -92,12 +93,21 @@ create type mytype as (
 
 	fmt.Printf("Second row: %v\n", result)
 
-	// Adhoc rows can be decoded inplace without boilerplate (works with composite types too)
+	//WIP
+	q, err := conn.Prepare(context.Background(), "z", "select $1::mytype")
+	E(err)
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{}), "mytype", q.ParamOIDs[0]})
+
+	// Adhoc rows can be decoded inplace without boilerplate
+	// Composite types can be encoded/decoded inplace
+
 	var isNull bool
 	var a int
 	var b *string
 
-	err = conn.QueryRow(context.Background(), "select (2, 'bar')::mytype", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(pgtype.ROW(&isNull, &a, &b))
+	err = conn.QueryRow(context.Background(), "select row(($1::mytype).a, ($1).b)",
+		pgx.QueryResultFormats{pgx.BinaryFormatCode}, pgtype.Row(2, "bar")).
+		Scan(pgtype.Row(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("Adhoc: isNull=%v a=%d b=%s", isNull, a, *b)

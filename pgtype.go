@@ -167,6 +167,15 @@ func (f BinaryDecoderFunc) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return f(ci, src)
 }
 
+//The BinaryEncoderFunc type is an adapter to allow the use of ordinary functions as BinaryDecoder types.
+// If f is a function with the appropriate signature, BinaryEncoderFunc(f) is a BinaryDecoder that calls f.
+type BinaryEncoderFunc func(ci *ConnInfo, buf []byte) ([]byte, error)
+
+// EncodeBinary calls f(ci, buf)
+func (f BinaryEncoderFunc) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
+	return f(ci, buf)
+}
+
 var errUndefined = errors.New("cannot encode status undefined")
 var errBadStatus = errors.New("invalid status")
 
