@@ -1,8 +1,9 @@
 package pgtype
 
 import (
-	"encoding/binary"
 	"reflect"
+
+	"github.com/jackc/pgtype/binary"
 
 	errors "golang.org/x/xerrors"
 )
@@ -78,56 +79,6 @@ func (src *Record) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
-type fieldIter struct {
-	rp         int
-	fieldCount int
-	src        []byte
-}
-
-func newFieldIterator(src []byte) (fieldIter, error) {
-	rp := 0
-	if len(src[rp:]) < 4 {
-		return fieldIter{}, errors.Errorf("Record incomplete %v", src)
-	}
-
-	fieldCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
-	rp += 4
-
-	return fieldIter{
-		rp:         rp,
-		fieldCount: fieldCount,
-		src:        src,
-	}, nil
-}
-
-func (fi *fieldIter) next() (fieldOID uint32, buf []byte, eof bool, err error) {
-	if fi.rp == len(fi.src) {
-		eof = true
-		return
-	}
-
-	if len(fi.src[fi.rp:]) < 8 {
-		err = errors.Errorf("Record incomplete %v", fi.src)
-		return
-	}
-	fieldOID = binary.BigEndian.Uint32(fi.src[fi.rp:])
-	fi.rp += 4
-
-	fieldLen := int(int32(binary.BigEndian.Uint32(fi.src[fi.rp:])))
-	fi.rp += 4
-
-	if fieldLen >= 0 {
-		if len(fi.src[fi.rp:]) < fieldLen {
-			err = errors.Errorf("Record incomplete rp=%d src=%v", fi.rp, fi.src)
-			return
-		}
-		buf = fi.src[fi.rp : fi.rp+fieldLen]
-		fi.rp += fieldLen
-	}
-
-	return
-}
-
 func prepareNewBinaryDecoder(ci *ConnInfo, fieldOID uint32, v *Value) (BinaryDecoder, error) {
 	var binaryDecoder BinaryDecoder
 
@@ -153,13 +104,13 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	fieldIter, err := newFieldIterator(src)
+	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
 	if err != nil {
 		return err
 	}
 
-	fields := make([]Value, fieldIter.fieldCount)
-	fieldOID, fieldBytes, eof, err := fieldIter.next()
+	fields := make([]Value, fieldCount)
+	fieldOID, fieldBytes, eof, err := fieldIter.Next()
 
 	for i := 0; !eof; i++ {
 		if err != nil {
@@ -175,7 +126,7 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 			return err
 		}
 
-		fieldOID, fieldBytes, eof, err = fieldIter.next()
+		fieldOID, fieldBytes, eof, err = fieldIter.Next()
 	}
 
 	*dst = Record{Fields: fields, Status: Present}

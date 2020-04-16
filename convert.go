@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgtype/binary"
 	errors "golang.org/x/xerrors"
 )
 
@@ -442,16 +442,16 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 // Values must implement BinaryDecoder interface otherwise error is returned.
 // ScanRowValue takes ownership of src, caller MUST not use it after call
 func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
-	fieldIter, err := newFieldIterator(src)
+	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
 	if err != nil {
 		return err
 	}
 
-	if len(dst) != fieldIter.fieldCount {
-		return errors.Errorf("can't scan row value, number of fields don't match: row fields count=%d desired fields count=%d", fieldIter.fieldCount, len(dst))
+	if len(dst) != fieldCount {
+		return errors.Errorf("can't scan row value, number of fields don't match: row fields count=%d desired fields count=%d", fieldCount, len(dst))
 	}
 
-	_, fieldBytes, eof, err := fieldIter.next()
+	_, fieldBytes, eof, err := fieldIter.Next()
 	for i := 0; !eof; i++ {
 		if err != nil {
 			return err
@@ -466,7 +466,7 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
 			return err
 		}
 
-		_, fieldBytes, eof, err = fieldIter.next()
+		_, fieldBytes, eof, err = fieldIter.Next()
 	}
 
 	return nil
@@ -476,14 +476,12 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
 func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
 	fieldBytes := make([]byte, 0, 128)
 
-	newBuf = pgio.AppendUint32(buf, uint32(len(fields)))
+	newBuf = binary.RecordStart(buf, len(fields))
 	for _, f := range fields {
 		dt, ok := ci.DataTypeForValue(f)
 		if !ok {
 			return nil, errors.Errorf("Unknown OID for %s", f)
 		}
-		newBuf = pgio.AppendUint32(newBuf, dt.OID)
-
 		if f.Get() != nil {
 			binaryEncoder, ok := f.(BinaryEncoder)
 			if !ok {
@@ -493,11 +491,9 @@ func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err er
 			if err != nil {
 				return nil, err
 			}
-
-			newBuf = pgio.AppendUint32(newBuf, uint32(len(fieldBytes)))
-			newBuf = append(newBuf, fieldBytes...)
+			newBuf = binary.RecordAdd(newBuf, dt.OID, fieldBytes)
 		} else {
-			newBuf = pgio.AppendInt32(newBuf, int32(-1))
+			newBuf = binary.RecordAddNull(newBuf, dt.OID)
 		}
 
 	}
