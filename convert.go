@@ -434,14 +434,15 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-// ScanRowValue assigns ROW()'s fields to destination Values.
-// Argument types are checked and error is returned if SQL field value
-// can't be assigned to corresponding destionation Value without loss
-// of information. Number of fields have to match number of destination values.
+// ScanRowValue decodes ROW()'s and composite type
+// from src argument using provided decoders. Decoders should match
+// order and count of fields of record being decoded.
 //
-// Values must implement BinaryDecoder interface otherwise error is returned.
+// In practice you can pass pgtype.Value types as decoders, as
+// most of them implement BinaryDecoder interface.
+//
 // ScanRowValue takes ownership of src, caller MUST not use it after call
-func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
+func ScanRowValue(ci *ConnInfo, src []byte, dst ...BinaryDecoder) error {
 	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
 	if err != nil {
 		return err
@@ -457,12 +458,7 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...Value) error {
 			return err
 		}
 
-		binaryDecoder, ok := dst[i].(BinaryDecoder)
-		if !ok {
-			return errors.Errorf("record field doesn't implement binary decoding: %s", reflect.TypeOf(dst[i]).Name())
-		}
-
-		if err = binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
+		if err = dst[i].DecodeBinary(ci, fieldBytes); err != nil {
 			return err
 		}
 
