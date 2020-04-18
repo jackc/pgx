@@ -449,7 +449,7 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...BinaryDecoder) error {
 	}
 
 	if len(dst) != fieldCount {
-		return errors.Errorf("can't scan row value, number of fields don't match: row fields count=%d desired fields count=%d", fieldCount, len(dst))
+		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", fieldCount, len(dst))
 	}
 
 	_, fieldBytes, eof, err := fieldIter.Next()
