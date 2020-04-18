@@ -93,7 +93,10 @@ func TestScanRowValue(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Run(tt.sql, func(t *testing.T) {
-			desc := append([]pgtype.Value(nil), tt.expected.Fields...)
+			desc := []pgtype.BinaryDecoder{}
+			for _, f := range tt.expected.Fields {
+				desc = append(desc, f.(pgtype.BinaryDecoder))
+			}
 
 			var raw pgtype.GenericBinary
 
@@ -113,7 +116,10 @@ func TestScanRowValue(t *testing.T) {
 			}
 
 			// borrow fields from a neighbor test, this makes scan always fail
-			desc = append([]pgtype.Value(nil), recordTests[(i+1)%len(recordTests)].expected.Fields...)
+			desc = desc[:0]
+			for _, f := range recordTests[(i+1)%len(recordTests)].expected.Fields {
+				desc = append(desc, f.(pgtype.BinaryDecoder))
+			}
 			if err := pgtype.ScanRowValue(conn.ConnInfo(), raw.Bytes, desc...); err == nil {
 				t.Error("Matching scan didn't fail, despite fields not mathching query result")
 			}
