@@ -35,10 +35,10 @@ var x []byte
 func BenchmarkBinaryEncodingManual(b *testing.B) {
 	buf := make([]byte, 0, 128)
 	ci := pgtype.NewConnInfo()
+	v := MyCompositeRaw{4, ptrS("ABCDEFG")}
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		v := MyCompositeRaw{4, ptrS("ABCDEFG")}
 		buf, _ = v.EncodeBinary(ci, buf[:0])
 	}
 	x = buf
@@ -47,10 +47,10 @@ func BenchmarkBinaryEncodingManual(b *testing.B) {
 func BenchmarkBinaryEncodingHelper(b *testing.B) {
 	buf := make([]byte, 0, 128)
 	ci := pgtype.NewConnInfo()
+	v := MyType{4, ptrS("ABCDEFG")}
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		v := MyType{4, ptrS("ABCDEFG")}
 		buf, _ = v.EncodeBinary(ci, buf[:0])
 	}
 	x = buf
@@ -59,11 +59,13 @@ func BenchmarkBinaryEncodingHelper(b *testing.B) {
 func BenchmarkBinaryEncodingRow(b *testing.B) {
 	buf := make([]byte, 0, 128)
 	ci := pgtype.NewConnInfo()
+	f1 := 2
+	f2 := ptrS("bar")
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		c := pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{})
-		c.Set(pgtype.Row(2, "bar"))
+		c.Set(pgtype.Row(f1, f2))
 		buf, _ = c.EncodeBinary(ci, buf[:0])
 	}
 	x = buf
