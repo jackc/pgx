@@ -92,6 +92,24 @@ func (src composite) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 	return errors.New("Pass pgtype.Row() to Scan to deconstruct Composite")
 }
 
+// Row method creates composite BinaryEncoder. It's main purpose
+// is to build composite query argument inplace without registering
+// pgtype.Composite in ConnInfo first
+func (src composite) Row(values ...interface{}) BinaryEncoderFunc {
+	return func(ci *ConnInfo, buf []byte) ([]byte, error) {
+		if len(values) != len(src.fields) {
+			return nil, errors.Errorf("Number of fields don't match. Composite has %d fields", len(src.fields))
+		}
+		for i, v := range values {
+			if err := src.fields[i].Set(v); err != nil {
+				return nil, err
+			}
+		}
+		src.status = Present
+		return src.EncodeBinary(ci, buf)
+	}
+}
+
 // DecodeBinary is called when pgtype.Row() is passed to Scan() to
 // deconstruct composite value
 func (r rowValue) DecodeBinary(ci *ConnInfo, src []byte) error {

@@ -110,6 +110,18 @@ func BenchmarkBinaryEncodingRow(b *testing.B) {
 	}
 	x = buf
 }
+func BenchmarkBinaryEncodingRowInplace(b *testing.B) {
+	buf := make([]byte, 0, 128)
+	ci := pgtype.NewConnInfo()
+	f1 := 2
+	f2 := ptrS("bar")
+
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		buf, _ = pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{}).Row(f1, f2).EncodeBinary(ci, buf[:0])
+	}
+	x = buf
+}
 
 var dstRaw MyCompositeRaw
 
