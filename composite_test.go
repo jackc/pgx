@@ -25,28 +25,25 @@ create type mytype as (
 	E(err)
 	defer conn.Exec(context.Background(), "drop type mytype")
 
-	//WIP
-	q, err := conn.Prepare(context.Background(), "z", "select $1::mytype")
-	E(err)
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{}), "mytype", q.ParamOIDs[0]})
-
 	var isNull bool
 	var a int
 	var b *string
 
-	err = conn.QueryRow(context.Background(), "select $1::mytype",
-		pgtype.Row(2, "bar")).
-		Scan(pgtype.Row(&isNull, &a, &b))
+	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
+	c.SetFields(2, "bar")
+
+	err = conn.QueryRow(context.Background(), "select $1::mytype", c).
+		Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("First: isNull=%v a=%d b=%s\n", isNull, a, *b)
 
-	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype").Scan(pgtype.Row(&isNull, &a, &b))
+	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype").Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("Second: isNull=%v a=%d b=%v\n", isNull, a, b)
 
-	err = conn.QueryRow(context.Background(), "select NULL::mytype").Scan(pgtype.Row(&isNull, &a, &b))
+	err = conn.QueryRow(context.Background(), "select NULL::mytype").Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("Third: isNull=%v\n", isNull)
