@@ -101,24 +101,12 @@ func BenchmarkBinaryEncodingRow(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	f1 := 2
 	f2 := ptrS("bar")
+	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		c := pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{})
-		c.Set(pgtype.Row(f1, f2))
+		c.SetFields(f1, f2)
 		buf, _ = c.EncodeBinary(ci, buf[:0])
-	}
-	x = buf
-}
-func BenchmarkBinaryEncodingRowInplace(b *testing.B) {
-	buf := make([]byte, 0, 128)
-	ci := pgtype.NewConnInfo()
-	f1 := 2
-	f2 := ptrS("bar")
-
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		buf, _ = pgtype.Composite(&pgtype.Int4{}, &pgtype.Text{}).Row(f1, f2).EncodeBinary(ci, buf[:0])
 	}
 	x = buf
 }
@@ -156,16 +144,18 @@ func BenchmarkBinaryDecodingHelpers(b *testing.B) {
 var gf1 int
 var gf2 *string
 
-func BenchmarkBinaryDecodingRow(b *testing.B) {
+func BenchmarkBinaryDecodingCompositeScan(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	buf, _ := MyType{4, ptrS("ABCDEFG")}.EncodeBinary(ci, nil)
 	var isNull bool
 	var f1 int
 	var f2 *string
 
+	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
+
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		err := pgtype.Row(&isNull, &f1, &f2).DecodeBinary(ci, buf)
+		err := c.Scan(&isNull, &f1, &f2).DecodeBinary(ci, buf)
 		E(err)
 	}
 	gf1 = f1
