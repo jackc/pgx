@@ -153,7 +153,7 @@ pgx follows semantic versioning for the documented public API on stable releases
 pgx is the head of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed
 from pgx for lower-level control.
 
-### [github.com/jackc/pgconn)](https://github.com/jackc/pgconn)
+### [github.com/jackc/pgconn](https://github.com/jackc/pgconn)
 
 `pgconn` is a lower-level PostgreSQL database driver that operates at nearly the same level as the C library `libpq`.
 
