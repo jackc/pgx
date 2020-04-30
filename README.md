@@ -58,7 +58,7 @@ The pgx interface is faster and exposes more features.
 
 The `database/sql` interface only allows the underlying driver to return or receive the following types: `int64`,
 `float64`, `bool`, `[]byte`, `string`, `time.Time`, or `nil`. Handling other types requires implementing the
-`database/sql.Scanner` and the `database/sq/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
+`database/sql.Scanner` and the `database/sql/driver/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
 
 ## Features
 
