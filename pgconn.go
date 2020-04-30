@@ -1412,7 +1412,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	case *pgproto3.RowDescription:
 		rr.fieldDescriptions = msg.Fields
 	case *pgproto3.CommandComplete:
-		rr.concludeCommand(CommandTag(msg.CommandTag), nil)
+		rr.concludeCommand(CommandTa/g(msg.CommandTag), nil)
 	case *pgproto3.EmptyQueryResponse:
 		rr.concludeCommand(nil, nil)
 	case *pgproto3.ErrorResponse:
@@ -1429,7 +1429,6 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 
 	rr.commandTag = commandTag
 	rr.err = err
-	rr.fieldDescriptions = nil
 	rr.rowValues = nil
 	rr.commandConcluded = true
 }
