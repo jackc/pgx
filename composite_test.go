@@ -25,6 +25,8 @@ create type mytype as (
 	E(err)
 	defer conn.Exec(context.Background(), "drop type mytype")
 
+	qrf := pgx.QueryResultFormats{pgx.BinaryFormatCode}
+
 	var isNull bool
 	var a int
 	var b *string
@@ -32,18 +34,18 @@ create type mytype as (
 	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
 	c.SetFields(2, "bar")
 
-	err = conn.QueryRow(context.Background(), "select $1::mytype", c).
+	err = conn.QueryRow(context.Background(), "select $1::mytype", qrf, c).
 		Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("First: isNull=%v a=%d b=%s\n", isNull, a, *b)
 
-	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype").Scan(c.Scan(&isNull, &a, &b))
+	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype", qrf).Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("Second: isNull=%v a=%d b=%v\n", isNull, a, b)
 
-	err = conn.QueryRow(context.Background(), "select NULL::mytype").Scan(c.Scan(&isNull, &a, &b))
+	err = conn.QueryRow(context.Background(), "select NULL::mytype", qrf).Scan(c.Scan(&isNull, &a, &b))
 	E(err)
 
 	fmt.Printf("Third: isNull=%v\n", isNull)
