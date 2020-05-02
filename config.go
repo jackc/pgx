@@ -30,16 +30,17 @@ type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig and
 // then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
-	Host          string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
-	Port          uint16
-	Database      string
-	User          string
-	Password      string
-	TLSConfig     *tls.Config // nil disables TLS
-	DialFunc      DialFunc    // e.g. net.Dialer.DialContext
-	LookupFunc    LookupFunc  // e.g. net.Resolver.LookupHost
-	BuildFrontend BuildFrontendFunc
-	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+	Host           string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
+	Port           uint16
+	Database       string
+	User           string
+	Password       string
+	TLSConfig      *tls.Config // nil disables TLS
+	ConnectTimeout time.Duration
+	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
+	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
+	BuildFrontend  BuildFrontendFunc
+	RuntimeParams  map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
 	Fallbacks []*FallbackConfig
 
@@ -191,12 +192,13 @@ func ParseConfig(connString string) (*Config, error) {
 		BuildFrontend:        makeDefaultBuildFrontendFunc(int(minReadBufferSize)),
 	}
 
-	if connectTimeout, present := settings["connect_timeout"]; present {
-		dialFunc, err := makeConnectTimeoutDialFunc(connectTimeout)
+	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
+		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
 		if err != nil {
 			return nil, &parseConfigError{connString: connString, msg: "invalid connect_timeout", err: err}
 		}
-		config.DialFunc = dialFunc
+		config.ConnectTimeout = connectTimeout
+		config.DialFunc = makeConnectTimeoutDialFunc(connectTimeout)
 	} else {
 		defaultDialer := makeDefaultDialer()
 		config.DialFunc = defaultDialer.DialContext
@@ -672,18 +674,21 @@ func makeDefaultBuildFrontendFunc(minBufferLen int) BuildFrontendFunc {
 	}
 }
 
-func makeConnectTimeoutDialFunc(s string) (DialFunc, error) {
+func parseConnectTimeoutSetting(s string) (time.Duration, error) {
 	timeout, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if timeout < 0 {
-		return nil, errors.New("negative timeout")
+		return 0, errors.New("negative timeout")
 	}
+	return time.Duration(timeout) * time.Second, nil
+}
 
+func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 	d := makeDefaultDialer()
-	d.Timeout = time.Duration(timeout) * time.Second
-	return d.DialContext, nil
+	d.Timeout = timeout
+	return d.DialContext
 }
 
 // ValidateConnectTargetSessionAttrsReadWrite is an ValidateConnectFunc that implements libpq compatible
