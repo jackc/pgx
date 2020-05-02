@@ -337,12 +337,17 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 }
 
 func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
-	if dest, ok := dest.(BinaryDecoder); ok && formatCode == BinaryFormatCode {
-		return dest.DecodeBinary(ci, buf)
-	}
-
-	if dest, ok := dest.(TextDecoder); ok && formatCode == TextFormatCode {
-		return dest.DecodeText(ci, buf)
+	switch formatCode {
+	case BinaryFormatCode:
+		if dest, ok := dest.(BinaryDecoder); ok {
+			return dest.DecodeBinary(ci, buf)
+		}
+	case TextFormatCode:
+		if dest, ok := dest.(TextDecoder); ok {
+			return dest.DecodeText(ci, buf)
+		}
+	default:
+		return errors.Errorf("unknown format code: %v", formatCode)
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
@@ -366,8 +371,6 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interfac
 			} else {
 				return errors.Errorf("%T is not a pgtype.BinaryDecoder", value)
 			}
-		default:
-			return errors.Errorf("unknown format code: %v", formatCode)
 		}
 
 		if scanner, ok := dest.(sql.Scanner); ok {
