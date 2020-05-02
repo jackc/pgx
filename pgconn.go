@@ -116,6 +116,11 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 		panic("config must be created by ParseConfig")
 	}
 
+	if config.ConnectTimeout != 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, config.ConnectTimeout)
+		defer cancel()
+	}
 	// Simplify usage by treating primary config and fallbacks the same.
 	fallbackConfigs := []*FallbackConfig{
 		{
