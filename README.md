@@ -58,7 +58,7 @@ The pgx interface is faster and exposes more features.
 
 The `database/sql` interface only allows the underlying driver to return or receive the following types: `int64`,
 `float64`, `bool`, `[]byte`, `string`, `time.Time`, or `nil`. Handling other types requires implementing the
-`database/sql.Scanner` and the `database/sq/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
+`database/sql.Scanner` and the `database/sql/driver/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
 
 ## Features
 
@@ -153,7 +153,7 @@ pgx follows semantic versioning for the documented public API on stable releases
 pgx is the head of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed
 from pgx for lower-level control.
 
-### [github.com/jackc/pgconn)](https://github.com/jackc/pgconn)
+### [github.com/jackc/pgconn](https://github.com/jackc/pgconn)
 
 `pgconn` is a lower-level PostgreSQL database driver that operates at nearly the same level as the C library `libpq`.
 
