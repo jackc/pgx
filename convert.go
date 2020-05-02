@@ -442,7 +442,7 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 // most of them implement BinaryDecoder interface.
 //
 // ScanRowValue takes ownership of src, caller MUST not use it after call
-func ScanRowValue(ci *ConnInfo, src []byte, dst ...BinaryDecoder) error {
+func ScanRowValue(ci *ConnInfo, src []byte, dst ...interface{}) error {
 	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
 	if err != nil {
 		return err
@@ -452,17 +452,17 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...BinaryDecoder) error {
 		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", fieldCount, len(dst))
 	}
 
-	_, fieldBytes, eof, err := fieldIter.Next()
+	fieldOID, fieldBytes, eof, err := fieldIter.Next()
 	for i := 0; !eof; i++ {
 		if err != nil {
 			return err
 		}
 
-		if err = dst[i].DecodeBinary(ci, fieldBytes); err != nil {
+		if err = ci.Scan(fieldOID, BinaryFormatCode, fieldBytes, dst[i]); err != nil {
 			return err
 		}
 
-		_, fieldBytes, eof, err = fieldIter.Next()
+		fieldOID, fieldBytes, eof, err = fieldIter.Next()
 	}
 
 	return nil

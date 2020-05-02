@@ -459,8 +459,6 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interfac
 			} else {
 				return errors.Errorf("%T is not a pgtype.TextDecoder", dt.Value)
 			}
-		default:
-			return errors.Errorf("unknown format code: %v", formatCode)
 		}
 
 		if !isFastType {
