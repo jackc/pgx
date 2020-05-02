@@ -225,7 +225,9 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 }
 
 func (c *Conn) Close() error {
-	return c.conn.Close(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	return c.conn.Close(ctx)
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
@@ -325,7 +327,9 @@ type Stmt struct {
 }
 
 func (s *Stmt) Close() error {
-	return s.conn.conn.Deallocate(context.Background(), s.sd.Name)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	return s.conn.conn.Deallocate(ctx, s.sd.Name)
 }
 
 func (s *Stmt) NumInput() int {
