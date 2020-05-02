@@ -250,17 +250,7 @@ func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	buf, err := num.EncodeText(ci, nil)
-	if err != nil {
-		return err
-	}
-
-	dec, err := decimal.NewFromString(string(buf))
-	if err != nil {
-		return err
-	}
-
-	*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+	*dst = Numeric{Decimal: decimal.NewFromBigInt(num.Int, num.Exp), Status: pgtype.Present}
 
 	return nil
 }
