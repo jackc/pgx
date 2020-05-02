@@ -93,7 +93,7 @@ func TestScanRowValue(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Run(tt.sql, func(t *testing.T) {
-			desc := []pgtype.BinaryDecoder{}
+			desc := []interface{}{}
 			for _, f := range tt.expected.Fields {
 				desc = append(desc, f.(pgtype.BinaryDecoder))
 			}

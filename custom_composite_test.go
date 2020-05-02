@@ -20,21 +20,7 @@ func (dst *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return errors.New("NULL values can't be decoded. Scan into a &*MyType to handle NULLs")
 	}
 
-	a := pgtype.Int4{}
-	b := pgtype.Text{}
-
-	if err := pgtype.ScanRowValue(ci, src, &a, &b); err != nil {
-		return err
-	}
-
-	// type compatibility is checked by AssignTo
-	// only lossless assignments will succeed
-	if err := a.AssignTo(&dst.a); err != nil {
-		return err
-	}
-
-	// AssignTo also deals with null value handling
-	if err := b.AssignTo(&dst.b); err != nil {
+	if err := pgtype.ScanRowValue(ci, src, &dst.a, &dst.b); err != nil {
 		return err
 	}
 
