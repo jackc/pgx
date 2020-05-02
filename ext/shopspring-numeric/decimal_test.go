@@ -11,6 +11,7 @@ import (
 	shopspring "github.com/jackc/pgtype/ext/shopspring-numeric"
 	"github.com/jackc/pgtype/testutil"
 	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/require"
 )
 
 func mustParseDecimal(t *testing.T, src string) decimal.Decimal {
@@ -282,5 +283,48 @@ func TestNumericAssignTo(t *testing.T) {
 		if err == nil {
 			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
 		}
+	}
+}
+
+func BenchmarkDecode(b *testing.B) {
+	benchmarks := []struct {
+		name      string
+		numberStr string
+	}{
+		{"Zero", "0"},
+		{"Small", "12345"},
+		{"Medium", "12345.12345"},
+		{"Large", "123457890.1234567890"},
+		{"Huge", "123457890123457890123457890.1234567890123457890123457890"},
+	}
+
+	for _, bm := range benchmarks {
+		src := &shopspring.Numeric{}
+		err := src.Set(bm.numberStr)
+		require.NoError(b, err)
+		textFormat, err := src.EncodeText(nil, nil)
+		require.NoError(b, err)
+		binaryFormat, err := src.EncodeBinary(nil, nil)
+		require.NoError(b, err)
+
+		b.Run(fmt.Sprintf("%s-Text", bm.name), func(b *testing.B) {
+			dst := &shopspring.Numeric{}
+			for i := 0; i < b.N; i++ {
+				err := dst.DecodeText(nil, textFormat)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+
+		b.Run(fmt.Sprintf("%s-Binary", bm.name), func(b *testing.B) {
+			dst := &shopspring.Numeric{}
+			for i := 0; i < b.N; i++ {
+				err := dst.DecodeBinary(nil, binaryFormat)
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
