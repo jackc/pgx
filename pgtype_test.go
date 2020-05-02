@@ -127,3 +127,37 @@ func TestConnInfoScanUnknownOIDToCustomType(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, pCt)
 }
+
+func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 0, 0, 42}
+	var v pgtype.Int4
+
+	for i := 0; i < b.N; i++ {
+		v = pgtype.Int4{}
+		err := ci.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if v != (pgtype.Int4{Int: 42, Status: pgtype.Present}) {
+			b.Fatal("scan failed due to bad value")
+		}
+	}
+}
+
+func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 0, 0, 42}
+	var v int32
+
+	for i := 0; i < b.N; i++ {
+		v = 0
+		err := ci.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if v != 42 {
+			b.Fatal("scan failed due to bad value")
+		}
+	}
+}
