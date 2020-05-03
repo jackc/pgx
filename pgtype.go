@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql"
 	"reflect"
+	"time"
 
 	errors "golang.org/x/xerrors"
 )
@@ -337,17 +338,39 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 }
 
 func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
-	switch formatCode {
-	case BinaryFormatCode:
-		if dest, ok := dest.(BinaryDecoder); ok {
-			return dest.DecodeBinary(ci, buf)
+	isFastType := false
+	switch dest.(type) {
+	case *int16:
+		isFastType = true
+	case *int32:
+		isFastType = true
+	case *int64:
+		isFastType = true
+	case *float32:
+		isFastType = true
+	case *float64:
+		isFastType = true
+	case *string:
+		isFastType = true
+	case *time.Time:
+		isFastType = true
+	case *[]byte:
+		isFastType = true
+	}
+
+	if !isFastType {
+		switch formatCode {
+		case BinaryFormatCode:
+			if dest, ok := dest.(BinaryDecoder); ok {
+				return dest.DecodeBinary(ci, buf)
+			}
+		case TextFormatCode:
+			if dest, ok := dest.(TextDecoder); ok {
+				return dest.DecodeText(ci, buf)
+			}
+		default:
+			return errors.Errorf("unknown format code: %v", formatCode)
 		}
-	case TextFormatCode:
-		if dest, ok := dest.(TextDecoder); ok {
-			return dest.DecodeText(ci, buf)
-		}
-	default:
-		return errors.Errorf("unknown format code: %v", formatCode)
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
@@ -371,17 +394,21 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interfac
 			} else {
 				return errors.Errorf("%T is not a pgtype.BinaryDecoder", value)
 			}
+		default:
+			return errors.Errorf("unknown format code: %v", formatCode)
 		}
 
-		if scanner, ok := dest.(sql.Scanner); ok {
-			sqlSrc, err := DatabaseSQLValue(ci, value)
-			if err != nil {
-				return err
+		if !isFastType {
+			if scanner, ok := dest.(sql.Scanner); ok {
+				sqlSrc, err := DatabaseSQLValue(ci, value)
+				if err != nil {
+					return err
+				}
+				return scanner.Scan(sqlSrc)
 			}
-			return scanner.Scan(sqlSrc)
-		} else {
-			return value.AssignTo(dest)
 		}
+
+		return value.AssignTo(dest)
 	}
 
 	// We might be given a pointer to something that implements the decoder interface(s),
