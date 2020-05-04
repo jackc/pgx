@@ -46,6 +46,7 @@ func (src *NotificationResponse) Encode(dst []byte) []byte {
 	sp := len(dst)
 	dst = pgio.AppendInt32(dst, -1)
 
+	dst = pgio.AppendUint32(dst, src.PID)
 	dst = append(dst, src.Channel...)
 	dst = append(dst, 0)
 	dst = append(dst, src.Payload...)
