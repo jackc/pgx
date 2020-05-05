@@ -125,6 +125,22 @@ type Value interface {
 	AssignTo(dst interface{}) error
 }
 
+// TypeValue represents values where instances represent a type. In the normal pgtype model a Go type maps to a
+// PostgreSQL type and an instance of a Go type maps to a PostgreSQL value of that type. Implementors of TypeValue
+// are different in that an instance represents a PostgreSQL type. This can be useful for representing types such
+// as enums, composites, and arrays.
+//
+// In general, instances of TypeValue should not be used to directly represent a value. It should only be used as an
+// encoder and decoder internal to ConnInfo.
+type TypeValue interface {
+	// CloneTypeValue duplicates a TypeValue including references to internal type information. e.g. the list of members
+	// in an EnumType.
+	CloneTypeValue() Value
+
+	// PgTypeName returns the PostgreSQL name of this type.
+	PgTypeName() string
+}
+
 type BinaryDecoder interface {
 	// DecodeBinary decodes src into BinaryDecoder. If src is nil then the
 	// original SQL value is NULL. BinaryDecoder takes ownership of src. The
@@ -270,9 +286,16 @@ func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]uint32) {
 }
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
+	tv, _ := t.Value.(TypeValue)
+	if tv != nil {
+		t.Value = tv.CloneTypeValue()
+	}
+
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
-	ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
+	if tv == nil {
+		ci.reflectTypeToDataType[reflect.ValueOf(t.Value).Type()] = &t
+	}
 
 	{
 		var formatCode int16
@@ -310,6 +333,11 @@ func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
 }
 
 func (ci *ConnInfo) DataTypeForValue(v Value) (*DataType, bool) {
+	if tv, ok := v.(TypeValue); ok {
+		dt, ok := ci.nameToDataType[tv.PgTypeName()]
+		return dt, ok
+	}
+
 	dt, ok := ci.reflectTypeToDataType[reflect.ValueOf(v).Type()]
 	return dt, ok
 }
@@ -336,11 +364,20 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 		oidToDataType:         make(map[uint32]*DataType, len(ci.oidToDataType)),
 		nameToDataType:        make(map[string]*DataType, len(ci.nameToDataType)),
 		reflectTypeToDataType: make(map[reflect.Type]*DataType, len(ci.reflectTypeToDataType)),
+		oidToParamFormatCode:  make(map[uint32]int16, len(ci.oidToParamFormatCode)),
+		oidToResultFormatCode: make(map[uint32]int16, len(ci.oidToResultFormatCode)),
 	}
 
 	for _, dt := range ci.oidToDataType {
+		var value Value
+		if tv, ok := dt.Value.(TypeValue); ok {
+			value = tv.CloneTypeValue()
+		} else {
+			value = reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value)
+		}
+
 		ci2.RegisterDataType(DataType{
-			Value: reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value),
+			Value: value,
 			Name:  dt.Name,
 			OID:   dt.OID,
 		})
