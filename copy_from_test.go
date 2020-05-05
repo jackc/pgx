@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/require"
 	errors "golang.org/x/xerrors"
 )
 
@@ -121,6 +122,61 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	if !reflect.DeepEqual(inputRows, outputRows) {
 		t.Errorf("Input rows and output rows do not equal")
+	}
+
+	ensureConnValid(t, conn)
+}
+
+func TestConnCopyFromEnum(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `create type color as enum ('blue', 'green', 'orange')`)
+	require.NoError(t, err)
+
+	_, err = tx.Exec(ctx, `create type fruit as enum ('apple', 'orange', 'grape')`)
+	require.NoError(t, err)
+
+	_, err = tx.Exec(ctx, `create table foo(
+		a text,
+		b color,
+		c fruit,
+		d color,
+		e fruit,
+		f text
+	)`)
+	require.NoError(t, err)
+
+	inputRows := [][]interface{}{
+		{"abc", "blue", "grape", "orange", "orange", "def"},
+		{nil, nil, nil, nil, nil, nil},
+	}
+
+	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, err := conn.Query(ctx, "select * from foo")
+	require.NoError(t, err)
+
+	var outputRows [][]interface{}
+	for rows.Next() {
+		row, err := rows.Values()
+		require.NoError(t, err)
+		outputRows = append(outputRows, row)
+	}
+
+	require.NoError(t, rows.Err())
+
+	if !reflect.DeepEqual(inputRows, outputRows) {
+		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
 	}
 
 	ensureConnValid(t, conn)
