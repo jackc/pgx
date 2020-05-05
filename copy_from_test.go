@@ -138,6 +138,12 @@ func TestConnCopyFromEnum(t *testing.T) {
 	require.NoError(t, err)
 	defer tx.Rollback(ctx)
 
+	_, err = tx.Exec(ctx, `drop type if exists color`)
+	require.NoError(t, err)
+
+	_, err = tx.Exec(ctx, `drop type if exists fruit`)
+	require.NoError(t, err)
+
 	_, err = tx.Exec(ctx, `create type color as enum ('blue', 'green', 'orange')`)
 	require.NoError(t, err)
 

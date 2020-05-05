@@ -8,16 +8,13 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
-	github.com/jackc/pgtype v1.3.0
+	github.com/jackc/pgtype v1.3.1-0.20200505182314-3b7c47a2a7da
 	github.com/jackc/puddle v1.1.1
-	github.com/mattn/go-colorable v0.1.2 // indirect
-	github.com/mattn/go-isatty v0.0.9 // indirect
 	github.com/rs/zerolog v1.15.0
-	github.com/shopspring/decimal v0.0.0-20180709203117-cd690d0c9e24
+	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/zap v1.10.0
-	golang.org/x/sys v0.0.0-20190826190057-c7b8b68b1456 // indirect
-	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
