@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
@@ -846,6 +847,105 @@ func benchmarkMultipleQueriesBatch(b *testing.B, conn *pgx.Conn, queryCount int)
 		err := br.Close()
 		if err != nil {
 			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkSelectManyUnknownEnum(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	require.NoError(b, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(context.Background(), "drop type if exists color;")
+	require.NoError(b, err)
+
+	_, err = tx.Exec(ctx, `create type color as enum ('blue', 'green', 'orange')`)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	var x, y, z string
+	for i := 0; i < b.N; i++ {
+		rows, err := conn.Query(ctx, "select 'blue'::color, 'green'::color, 'orange'::color from generate_series(1,10)")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&x, &y, &z)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			if x != "blue" {
+				b.Fatal("unexpected result")
+			}
+			if y != "green" {
+				b.Fatal("unexpected result")
+			}
+			if z != "orange" {
+				b.Fatal("unexpected result")
+			}
+		}
+
+		if rows.Err() != nil {
+			b.Fatal(rows.Err())
+		}
+	}
+}
+
+func BenchmarkSelectManyRegisteredEnum(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	ctx := context.Background()
+	tx, err := conn.Begin(ctx)
+	require.NoError(b, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(context.Background(), "drop type if exists color;")
+	require.NoError(b, err)
+
+	_, err = tx.Exec(ctx, `create type color as enum ('blue', 'green', 'orange')`)
+	require.NoError(b, err)
+
+	var oid uint32
+	err = conn.QueryRow(context.Background(), "select oid from pg_type where typname=$1;", "color").Scan(&oid)
+	require.NoError(b, err)
+
+	et := pgtype.NewEnumType("color", []string{"blue", "green", "orange"})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: et, Name: "color", OID: oid})
+
+	b.ResetTimer()
+	var x, y, z string
+	for i := 0; i < b.N; i++ {
+		rows, err := conn.Query(ctx, "select 'blue'::color, 'green'::color, 'orange'::color from generate_series(1,10)")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		for rows.Next() {
+			err = rows.Scan(&x, &y, &z)
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			if x != "blue" {
+				b.Fatal("unexpected result")
+			}
+			if y != "green" {
+				b.Fatal("unexpected result")
+			}
+			if z != "orange" {
+				b.Fatal("unexpected result")
+			}
+		}
+
+		if rows.Err() != nil {
+			b.Fatal(rows.Err())
 		}
 	}
 }
