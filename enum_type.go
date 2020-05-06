@@ -2,14 +2,19 @@ package pgtype
 
 import errors "golang.org/x/xerrors"
 
-// EnumType represents an enum type. In the normal pgtype model a Go type maps to a PostgreSQL type and an instance
-// of a Go type maps to a PostgreSQL value of that type. EnumType is different in that an instance of EnumType
-// represents a PostgreSQL type. The zero value is not usable -- NewEnumType must be used as a constructor. In general,
-// an EnumType should not be used to represent a value. It should only be used as an encoder and decoder internal to
-// ConnInfo.
-type EnumType struct {
-	String string
-	Status Status
+// EnumType represents a enum type. While it implements Value, this is only in service of its type conversion duties
+// when registered as a data type in a ConnType. It should not be used directly as a Value.
+type EnumType interface {
+	Value
+	TypeValue
+
+	// Members returns possible members of this enumeration. The returned slice must not be modified.
+	Members() []string
+}
+
+type enumType struct {
+	value  string
+	status Status
 
 	pgTypeName string            // PostgreSQL type name
 	members    []string          // enum members
@@ -17,8 +22,8 @@ type EnumType struct {
 }
 
 // NewEnumType initializes a new EnumType. It retains a read-only reference to members. members must not be changed.
-func NewEnumType(pgTypeName string, members []string) *EnumType {
-	et := &EnumType{pgTypeName: pgTypeName, members: members}
+func NewEnumType(pgTypeName string, members []string) EnumType {
+	et := &enumType{pgTypeName: pgTypeName, members: members}
 	et.membersMap = make(map[string]string, len(members))
 	for _, m := range members {
 		et.membersMap[m] = m
@@ -26,10 +31,10 @@ func NewEnumType(pgTypeName string, members []string) *EnumType {
 	return et
 }
 
-func (et *EnumType) CloneTypeValue() Value {
-	return &EnumType{
-		String: et.String,
-		Status: et.Status,
+func (et *enumType) CloneTypeValue() Value {
+	return &enumType{
+		value:  et.value,
+		status: et.status,
 
 		pgTypeName: et.pgTypeName,
 		members:    et.members,
@@ -37,19 +42,19 @@ func (et *EnumType) CloneTypeValue() Value {
 	}
 }
 
-func (et *EnumType) PgTypeName() string {
+func (et *enumType) PgTypeName() string {
 	return et.pgTypeName
 }
 
-func (et *EnumType) Members() []string {
+func (et *enumType) Members() []string {
 	return et.members
 }
 
 // Set assigns src to dst. Set purposely does not check that src is a member. This allows continued error free
 // operation in the event the PostgreSQL enum type is modified during a connection.
-func (dst *EnumType) Set(src interface{}) error {
+func (dst *enumType) Set(src interface{}) error {
 	if src == nil {
-		dst.Status = Null
+		dst.status = Null
 		return nil
 	}
 
@@ -62,21 +67,21 @@ func (dst *EnumType) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case string:
-		dst.String = value
-		dst.Status = Present
+		dst.value = value
+		dst.status = Present
 	case *string:
 		if value == nil {
-			dst.Status = Null
+			dst.status = Null
 		} else {
-			dst.String = *value
-			dst.Status = Present
+			dst.value = *value
+			dst.status = Present
 		}
 	case []byte:
 		if value == nil {
-			dst.Status = Null
+			dst.status = Null
 		} else {
-			dst.String = string(value)
-			dst.Status = Present
+			dst.value = string(value)
+			dst.status = Present
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
@@ -88,27 +93,27 @@ func (dst *EnumType) Set(src interface{}) error {
 	return nil
 }
 
-func (dst EnumType) Get() interface{} {
-	switch dst.Status {
+func (dst enumType) Get() interface{} {
+	switch dst.status {
 	case Present:
-		return dst.String
+		return dst.value
 	case Null:
 		return nil
 	default:
-		return dst.Status
+		return dst.status
 	}
 }
 
-func (src *EnumType) AssignTo(dst interface{}) error {
-	switch src.Status {
+func (src *enumType) AssignTo(dst interface{}) error {
+	switch src.status {
 	case Present:
 		switch v := dst.(type) {
 		case *string:
-			*v = src.String
+			*v = src.value
 			return nil
 		case *[]byte:
-			*v = make([]byte, len(src.String))
-			copy(*v, src.String)
+			*v = make([]byte, len(src.value))
+			copy(*v, src.value)
 			return nil
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {
@@ -123,41 +128,41 @@ func (src *EnumType) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
-func (dst *EnumType) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *enumType) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		dst.Status = Null
+		dst.status = Null
 		return nil
 	}
 
 	// Lookup the string in membersMap to avoid an allocation.
 	if s, found := dst.membersMap[string(src)]; found {
-		dst.String = s
+		dst.value = s
 	} else {
 		// If an enum type is modified after the initial connection it is possible to receive an unexpected value.
 		// Gracefully handle this situation. Purposely NOT modifying members and membersMap to allow for sharing members
 		// and membersMap between connections.
-		dst.String = string(src)
+		dst.value = string(src)
 	}
-	dst.Status = Present
+	dst.status = Present
 
 	return nil
 }
 
-func (dst *EnumType) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *enumType) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
 }
 
-func (src EnumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
+func (src enumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+	switch src.status {
 	case Null:
 		return nil, nil
 	case Undefined:
 		return nil, errUndefined
 	}
 
-	return append(buf, src.String...), nil
+	return append(buf, src.value...), nil
 }
 
-func (src EnumType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src enumType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return src.EncodeText(ci, buf)
 }
