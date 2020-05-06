@@ -1,6 +1,0 @@
-{
-    "go.inferGopath": false,
-    "go.testEnvVars": {
-       "PGX_TEST_DATABASE": "user=postgres database=pgx_test host=127.0.0.1"
-    },
-}
