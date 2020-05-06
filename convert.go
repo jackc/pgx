@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgtype/binary"
 	errors "golang.org/x/xerrors"
 )
 
@@ -431,6 +432,68 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+// ScanRowValue decodes ROW()'s and composite type
+// from src argument using provided decoders. Decoders should match
+// order and count of fields of record being decoded.
+//
+// In practice you can pass pgtype.Value types as decoders, as
+// most of them implement BinaryDecoder interface.
+//
+// ScanRowValue takes ownership of src, caller MUST not use it after call
+func ScanRowValue(ci *ConnInfo, src []byte, dst ...BinaryDecoder) error {
+	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
+	if err != nil {
+		return err
+	}
+
+	if len(dst) != fieldCount {
+		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", fieldCount, len(dst))
+	}
+
+	_, fieldBytes, eof, err := fieldIter.Next()
+	for i := 0; !eof; i++ {
+		if err != nil {
+			return err
+		}
+
+		if err = dst[i].DecodeBinary(ci, fieldBytes); err != nil {
+			return err
+		}
+
+		_, fieldBytes, eof, err = fieldIter.Next()
+	}
+
+	return nil
+}
+
+// EncodeRow builds a binary representation of row values (row(), composite types)
+func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
+	fieldBytes := make([]byte, 0, 128)
+
+	newBuf = binary.RecordStart(buf, len(fields))
+	for _, f := range fields {
+		dt, ok := ci.DataTypeForValue(f)
+		if !ok {
+			return nil, errors.Errorf("Unknown OID for %s", f)
+		}
+		if f.Get() != nil {
+			binaryEncoder, ok := f.(BinaryEncoder)
+			if !ok {
+				return nil, errors.Errorf("record field doesn't implement binary encoding: %s", reflect.TypeOf(f).Name())
+			}
+			fieldBytes, err = binaryEncoder.EncodeBinary(ci, fieldBytes[:0])
+			if err != nil {
+				return nil, err
+			}
+			newBuf = binary.RecordAdd(newBuf, dt.OID, fieldBytes)
+		} else {
+			newBuf = binary.RecordAddNull(newBuf, dt.OID)
+		}
+
+	}
+	return
 }
 
 func init() {
