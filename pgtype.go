@@ -115,8 +115,7 @@ type Value interface {
 	// Set converts and assigns src to itself.
 	Set(src interface{}) error
 
-	// Get returns the simplest representation of Value. If the Value is Null or
-	// Undefined that is the return value. If no simpler representation is
+	// Get returns the simplest representation of Value. If no simpler representation is
 	// possible, then Get() returns Value.
 	Get() interface{}
 
