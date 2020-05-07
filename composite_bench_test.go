@@ -34,29 +34,29 @@ func (dst *MyCompositeRaw) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	a := pgtype.Int4{}
 	b := pgtype.Text{}
 
-	fieldIter, fieldCount, err := pgtype.NewRecordFieldIterator(src)
+	scanner, err := pgtype.NewCompositeBinaryScanner(src)
 	if err != nil {
 		return err
 	}
 
-	if 2 != fieldCount {
-		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=2", fieldCount)
+	if 2 != scanner.FieldCount() {
+		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=2", scanner.FieldCount())
 	}
 
-	_, fieldBytes, eof, err := fieldIter.Next()
-	if eof || err != nil {
-		return errors.New("Bad record")
-	}
-	if err = a.DecodeBinary(ci, fieldBytes); err != nil {
-		return err
+	if scanner.Scan() {
+		if err = a.DecodeBinary(ci, scanner.Bytes()); err != nil {
+			return err
+		}
 	}
 
-	_, fieldBytes, eof, err = fieldIter.Next()
-	if eof || err != nil {
-		return errors.New("Bad record")
+	if scanner.Scan() {
+		if err = b.DecodeBinary(ci, scanner.Bytes()); err != nil {
+			return err
+		}
 	}
-	if err = b.DecodeBinary(ci, fieldBytes); err != nil {
-		return err
+
+	if scanner.Err() != nil {
+		return scanner.Err()
 	}
 
 	dst.A = a.Int

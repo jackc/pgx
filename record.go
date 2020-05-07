@@ -102,29 +102,26 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	fieldIter, fieldCount, err := NewRecordFieldIterator(src)
+	scanner, err := NewCompositeBinaryScanner(src)
 	if err != nil {
 		return err
 	}
 
-	fields := make([]Value, fieldCount)
-	fieldOID, fieldBytes, eof, err := fieldIter.Next()
+	fields := make([]Value, scanner.FieldCount())
 
-	for i := 0; !eof; i++ {
+	for i := 0; scanner.Scan(); i++ {
+		binaryDecoder, err := prepareNewBinaryDecoder(ci, scanner.OID(), &fields[i])
 		if err != nil {
 			return err
 		}
 
-		binaryDecoder, err := prepareNewBinaryDecoder(ci, fieldOID, &fields[i])
-		if err != nil {
+		if err = binaryDecoder.DecodeBinary(ci, scanner.Bytes()); err != nil {
 			return err
 		}
+	}
 
-		if err = binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
-			return err
-		}
-
-		fieldOID, fieldBytes, eof, err = fieldIter.Next()
+	if scanner.Err() != nil {
+		return scanner.Err()
 	}
 
 	*dst = Record{Fields: fields, Status: Present}

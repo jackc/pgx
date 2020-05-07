@@ -84,31 +84,29 @@ func (dst *Composite) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 		return nil
 	}
 
-	fieldIter, fieldCount, err := NewRecordFieldIterator(buf)
+	scanner, err := NewCompositeBinaryScanner(buf)
 	if err != nil {
 		return err
-	} else if len(dst.fields) != fieldCount {
-		return errors.Errorf("SQL composite can't be read, field count mismatch. expected %d , found %d", len(dst.fields), fieldCount)
+	}
+	if len(dst.fields) != scanner.FieldCount() {
+		return errors.Errorf("SQL composite can't be read, field count mismatch. expected %d , found %d", len(dst.fields), scanner.FieldCount())
 	}
 
-	_, fieldBytes, eof, err := fieldIter.Next()
-
-	for i := 0; !eof; i++ {
-		if err != nil {
-			return err
-		}
-
+	for i := 0; scanner.Scan(); i++ {
 		binaryDecoder, ok := dst.fields[i].(BinaryDecoder)
 		if !ok {
 			return errors.New("Composite field doesn't support binary protocol")
 		}
 
-		if err = binaryDecoder.DecodeBinary(ci, fieldBytes); err != nil {
+		if err = binaryDecoder.DecodeBinary(ci, scanner.Bytes()); err != nil {
 			return err
 		}
-
-		_, fieldBytes, eof, err = fieldIter.Next()
 	}
+
+	if scanner.Err() != nil {
+		return scanner.Err()
+	}
+
 	dst.Status = Present
 
 	return nil
@@ -154,56 +152,85 @@ func (dst *Composite) SetFields(values ...interface{}) error {
 	return nil
 }
 
-type RecordFieldIter struct {
+type CompositeBinaryScanner struct {
 	rp  int
 	src []byte
+
+	fieldCount int32
+	fieldBytes []byte
+	fieldOID   uint32
+	err        error
 }
 
-// NewRecordFieldIterator creates iterator over binary representation
-// of record, aka ROW(), aka Composite
-func NewRecordFieldIterator(src []byte) (RecordFieldIter, int, error) {
+// NewCompositeBinaryScanner a scanner over a binary encoded composite balue.
+func NewCompositeBinaryScanner(src []byte) (CompositeBinaryScanner, error) {
 	rp := 0
 	if len(src[rp:]) < 4 {
-		return RecordFieldIter{}, 0, errors.Errorf("Record incomplete %v", src)
+		return CompositeBinaryScanner{}, errors.Errorf("Record incomplete %v", src)
 	}
 
-	fieldCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
+	fieldCount := int32(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
 
-	return RecordFieldIter{
-		rp:  rp,
-		src: src,
-	}, fieldCount, nil
+	return CompositeBinaryScanner{
+		rp:         rp,
+		src:        src,
+		fieldCount: fieldCount,
+	}, nil
 }
 
-// Next returns next field decoded from record. eof is returned if no
-// more fields left to decode.
-func (fi *RecordFieldIter) Next() (fieldOID uint32, buf []byte, eof bool, err error) {
-	if fi.rp == len(fi.src) {
-		eof = true
-		return
+// Scan advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
+// Scan returns false, the Err method can be called to check if any errors occurred.
+func (cfs *CompositeBinaryScanner) Scan() bool {
+	if cfs.err != nil {
+		return false
 	}
 
-	if len(fi.src[fi.rp:]) < 8 {
-		err = errors.Errorf("Record incomplete %v", fi.src)
-		return
+	if cfs.rp == len(cfs.src) {
+		return false
 	}
-	fieldOID = binary.BigEndian.Uint32(fi.src[fi.rp:])
-	fi.rp += 4
 
-	fieldLen := int(int32(binary.BigEndian.Uint32(fi.src[fi.rp:])))
-	fi.rp += 4
+	if len(cfs.src[cfs.rp:]) < 8 {
+		cfs.err = errors.Errorf("Record incomplete %v", cfs.src)
+		return false
+	}
+	cfs.fieldOID = binary.BigEndian.Uint32(cfs.src[cfs.rp:])
+	cfs.rp += 4
+
+	fieldLen := int(int32(binary.BigEndian.Uint32(cfs.src[cfs.rp:])))
+	cfs.rp += 4
 
 	if fieldLen >= 0 {
-		if len(fi.src[fi.rp:]) < fieldLen {
-			err = errors.Errorf("Record incomplete rp=%d src=%v", fi.rp, fi.src)
-			return
+		if len(cfs.src[cfs.rp:]) < fieldLen {
+			cfs.err = errors.Errorf("Record incomplete rp=%d src=%v", cfs.rp, cfs.src)
+			return false
 		}
-		buf = fi.src[fi.rp : fi.rp+fieldLen]
-		fi.rp += fieldLen
+		cfs.fieldBytes = cfs.src[cfs.rp : cfs.rp+fieldLen]
+		cfs.rp += fieldLen
+	} else {
+		cfs.fieldBytes = nil
 	}
 
-	return
+	return true
+}
+
+func (cfs *CompositeBinaryScanner) FieldCount() int {
+	return int(cfs.fieldCount)
+}
+
+// Bytes returns the bytes of the field most recently read by Scan().
+func (cfs *CompositeBinaryScanner) Bytes() []byte {
+	return cfs.fieldBytes
+}
+
+// OID returns the OID of the field most recently read by Scan().
+func (cfs *CompositeBinaryScanner) OID() uint32 {
+	return cfs.fieldOID
+}
+
+// Err returns any error encountered by the scanner.
+func (cfs *CompositeBinaryScanner) Err() error {
+	return cfs.err
 }
 
 // RecordStart adds record header to the buf
