@@ -442,26 +442,24 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 //
 // ScanRowValue takes ownership of src, caller MUST not use it after call
 func ScanRowValue(ci *ConnInfo, src []byte, dst ...interface{}) error {
-	fieldIter, fieldCount, err := NewRecordFieldIterator(src)
+	scanner, err := NewCompositeBinaryScanner(src)
 	if err != nil {
 		return err
 	}
 
-	if len(dst) != fieldCount {
-		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", fieldCount, len(dst))
+	if len(dst) != scanner.FieldCount() {
+		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", scanner.FieldCount(), len(dst))
 	}
 
-	fieldOID, fieldBytes, eof, err := fieldIter.Next()
-	for i := 0; !eof; i++ {
+	for i := 0; scanner.Scan(); i++ {
+		err := ci.Scan(scanner.OID(), BinaryFormatCode, scanner.Bytes(), dst[i])
 		if err != nil {
 			return err
 		}
+	}
 
-		if err = ci.Scan(fieldOID, BinaryFormatCode, fieldBytes, dst[i]); err != nil {
-			return err
-		}
-
-		fieldOID, fieldBytes, eof, err = fieldIter.Next()
+	if scanner.Err() != nil {
+		return scanner.Err()
 	}
 
 	return nil
