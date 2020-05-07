@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/jackc/pgtype/binary"
 	errors "golang.org/x/xerrors"
 )
 
@@ -443,7 +442,7 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 //
 // ScanRowValue takes ownership of src, caller MUST not use it after call
 func ScanRowValue(ci *ConnInfo, src []byte, dst ...interface{}) error {
-	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
+	fieldIter, fieldCount, err := NewRecordFieldIterator(src)
 	if err != nil {
 		return err
 	}
@@ -472,7 +471,7 @@ func ScanRowValue(ci *ConnInfo, src []byte, dst ...interface{}) error {
 func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
 	fieldBytes := make([]byte, 0, 128)
 
-	newBuf = binary.RecordStart(buf, len(fields))
+	newBuf = RecordStart(buf, len(fields))
 	for _, f := range fields {
 		dt, ok := ci.DataTypeForValue(f)
 		if !ok {
@@ -487,9 +486,9 @@ func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err er
 			if err != nil {
 				return nil, err
 			}
-			newBuf = binary.RecordAdd(newBuf, dt.OID, fieldBytes)
+			newBuf = RecordAdd(newBuf, dt.OID, fieldBytes)
 		} else {
-			newBuf = binary.RecordAddNull(newBuf, dt.OID)
+			newBuf = RecordAddNull(newBuf, dt.OID)
 		}
 
 	}

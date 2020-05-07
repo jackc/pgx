@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgtype/binary"
 	errors "golang.org/x/xerrors"
 )
 
@@ -19,14 +18,14 @@ func (src MyCompositeRaw) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf 
 	fieldBytes := make([]byte, 0, 64)
 	fieldBytes, _ = a.EncodeBinary(ci, fieldBytes[:0])
 
-	newBuf = binary.RecordStart(buf, 2)
-	newBuf = binary.RecordAdd(newBuf, pgtype.Int4OID, fieldBytes)
+	newBuf = pgtype.RecordStart(buf, 2)
+	newBuf = pgtype.RecordAdd(newBuf, pgtype.Int4OID, fieldBytes)
 
 	if src.B != nil {
 		fieldBytes, _ = pgtype.Text{*src.B, pgtype.Present}.EncodeBinary(ci, fieldBytes[:0])
-		newBuf = binary.RecordAdd(newBuf, pgtype.TextOID, fieldBytes)
+		newBuf = pgtype.RecordAdd(newBuf, pgtype.TextOID, fieldBytes)
 	} else {
-		newBuf = binary.RecordAddNull(newBuf, pgtype.TextOID)
+		newBuf = pgtype.RecordAddNull(newBuf, pgtype.TextOID)
 	}
 	return
 }
@@ -35,7 +34,7 @@ func (dst *MyCompositeRaw) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	a := pgtype.Int4{}
 	b := pgtype.Text{}
 
-	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
+	fieldIter, fieldCount, err := pgtype.NewRecordFieldIterator(src)
 	if err != nil {
 		return err
 	}
