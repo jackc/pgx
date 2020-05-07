@@ -3,8 +3,6 @@ package pgtype
 import (
 	"reflect"
 
-	"github.com/jackc/pgtype/binary"
-
 	errors "golang.org/x/xerrors"
 )
 
@@ -104,7 +102,7 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	fieldIter, fieldCount, err := binary.NewRecordFieldIterator(src)
+	fieldIter, fieldCount, err := NewRecordFieldIterator(src)
 	if err != nil {
 		return err
 	}
