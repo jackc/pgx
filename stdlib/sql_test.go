@@ -19,6 +19,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func openDB(t testing.TB) *sql.DB {
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
+	}
+
+	return stdlib.OpenDB(*config)
+}
+
 func closeDB(t testing.TB, db *sql.DB) {
 	err := db.Close()
 	if err != nil {
