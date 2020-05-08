@@ -98,11 +98,10 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 }
 
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
-	t.Parallel()
-
 	config := &pgx.ConnConfig{}
-
-	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgx.ConnectConfig(context.Background(), config) })
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() {
+		pgx.ConnectConfig(context.Background(), config)
+	})
 }
 
 func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
@@ -140,131 +139,121 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 func TestExec(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); string(results) != "CREATE TABLE" {
+			t.Error("Unexpected results from Exec")
+		}
 
-	if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); string(results) != "CREATE TABLE" {
-		t.Error("Unexpected results from Exec")
-	}
+		// Accept parameters
+		if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); string(results) != "INSERT 0 1" {
+			t.Errorf("Unexpected results from Exec: %v", results)
+		}
 
-	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); string(results) != "INSERT 0 1" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
+		if results := mustExec(t, conn, "drop table foo;"); string(results) != "DROP TABLE" {
+			t.Error("Unexpected results from Exec")
+		}
 
-	if results := mustExec(t, conn, "drop table foo;"); string(results) != "DROP TABLE" {
-		t.Error("Unexpected results from Exec")
-	}
+		// Multiple statements can be executed -- last command tag is returned
+		if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); string(results) != "DROP TABLE" {
+			t.Error("Unexpected results from Exec")
+		}
 
-	// Multiple statements can be executed -- last command tag is returned
-	if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); string(results) != "DROP TABLE" {
-		t.Error("Unexpected results from Exec")
-	}
+		// Can execute longer SQL strings than sharedBufferSize
+		if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); string(results) != "SELECT 1" {
+			t.Errorf("Unexpected results from Exec: %v", results)
+		}
 
-	// Can execute longer SQL strings than sharedBufferSize
-	if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); string(results) != "SELECT 1" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
-
-	// Exec no-op which does not return a command tag
-	if results := mustExec(t, conn, "--;"); string(results) != "" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
+		// Exec no-op which does not return a command tag
+		if results := mustExec(t, conn, "--;"); string(results) != "" {
+			t.Errorf("Unexpected results from Exec: %v", results)
+		}
+	})
 }
 
 func TestExecFailure(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		if _, err := conn.Exec(context.Background(), "selct;"); err == nil {
+			t.Fatal("Expected SQL syntax error")
+		}
 
-	if _, err := conn.Exec(context.Background(), "selct;"); err == nil {
-		t.Fatal("Expected SQL syntax error")
-	}
-
-	rows, _ := conn.Query(context.Background(), "select 1")
-	rows.Close()
-	if rows.Err() != nil {
-		t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
-	}
+		rows, _ := conn.Query(context.Background(), "select 1")
+		rows.Close()
+		if rows.Err() != nil {
+			t.Fatalf("Exec failure appears to have broken connection: %v", rows.Err())
+		}
+	})
 }
 
 func TestExecFailureWithArguments(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		_, err := conn.Exec(context.Background(), "selct $1;", 1)
+		if err == nil {
+			t.Fatal("Expected SQL syntax error")
+		}
+		assert.False(t, pgconn.SafeToRetry(err))
 
-	_, err := conn.Exec(context.Background(), "selct $1;", 1)
-	if err == nil {
-		t.Fatal("Expected SQL syntax error")
-	}
-	assert.False(t, pgconn.SafeToRetry(err))
-
-	_, err = conn.Exec(context.Background(), "select $1::varchar(1);", "1", "2")
-	if err == nil {
-		t.Fatal("Expected pgx arguments count error", err)
-	}
-	assert.Equal(t, "expected 1 arguments, got 2", err.Error())
+		_, err = conn.Exec(context.Background(), "select $1::varchar(1);", "1", "2")
+		require.Error(t, err)
+	})
 }
 
 func TestExecContextWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	commandTag, err := conn.Exec(ctx, "create temporary table foo(id integer primary key);")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from Exec: %v", commandTag)
-	}
-	assert.False(t, pgconn.SafeToRetry(err))
+		commandTag, err := conn.Exec(ctx, "create temporary table foo(id integer primary key);")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(commandTag) != "CREATE TABLE" {
+			t.Fatalf("Unexpected results from Exec: %v", commandTag)
+		}
+		assert.False(t, pgconn.SafeToRetry(err))
+	})
 }
 
 func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+		_, err := conn.Exec(ctx, "selct;")
+		if err == nil {
+			t.Fatal("Expected SQL syntax error")
+		}
+		assert.False(t, pgconn.SafeToRetry(err))
 
-	_, err := conn.Exec(ctx, "selct;")
-	if err == nil {
-		t.Fatal("Expected SQL syntax error")
-	}
-	assert.False(t, pgconn.SafeToRetry(err))
-
-	rows, _ := conn.Query(context.Background(), "select 1")
-	rows.Close()
-	if rows.Err() != nil {
-		t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
-	}
-	assert.False(t, pgconn.SafeToRetry(err))
-
+		rows, _ := conn.Query(context.Background(), "select 1")
+		rows.Close()
+		if rows.Err() != nil {
+			t.Fatalf("ExecEx failure appears to have broken connection: %v", rows.Err())
+		}
+		assert.False(t, pgconn.SafeToRetry(err))
+	})
 }
 
 func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		ctx, cancelFunc := context.WithCancel(context.Background())
+		defer cancelFunc()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	_, err := conn.Exec(ctx, "selct $1;", 1)
-	if err == nil {
-		t.Fatal("Expected SQL syntax error")
-	}
-	assert.False(t, pgconn.SafeToRetry(err))
+		_, err := conn.Exec(ctx, "selct $1;", 1)
+		if err == nil {
+			t.Fatal("Expected SQL syntax error")
+		}
+		assert.False(t, pgconn.SafeToRetry(err))
+	})
 }
 
 func TestExecFailureCloseBefore(t *testing.T) {
@@ -276,38 +265,6 @@ func TestExecFailureCloseBefore(t *testing.T) {
 	_, err := conn.Exec(context.Background(), "select 1")
 	require.Error(t, err)
 	assert.True(t, pgconn.SafeToRetry(err))
-}
-
-func TestExecExtendedProtocol(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-
-	commandTag, err := conn.Exec(ctx, "create temporary table foo(name varchar primary key);")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "CREATE TABLE" {
-		t.Fatalf("Unexpected results from Exec: %v", commandTag)
-	}
-
-	commandTag, err = conn.Exec(
-		ctx,
-		"insert into foo(name) values($1);",
-		"bar",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(commandTag) != "INSERT 0 1" {
-		t.Fatalf("Unexpected results from ExecEx: %v", commandTag)
-	}
-
-	ensureConnValid(t, conn)
 }
 
 func TestExecStatementCacheModes(t *testing.T) {
@@ -360,7 +317,7 @@ func TestExecStatementCacheModes(t *testing.T) {
 	}
 }
 
-func TestExecSimpleProtocol(t *testing.T) {
+func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -692,33 +649,31 @@ func TestFatalTxError(t *testing.T) {
 func TestInsertBoolArray(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); string(results) != "CREATE TABLE" {
+			t.Error("Unexpected results from Exec")
+		}
 
-	if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); string(results) != "CREATE TABLE" {
-		t.Error("Unexpected results from Exec")
-	}
-
-	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); string(results) != "INSERT 0 1" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
+		// Accept parameters
+		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); string(results) != "INSERT 0 1" {
+			t.Errorf("Unexpected results from Exec: %v", results)
+		}
+	})
 }
 
 func TestInsertTimestampArray(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); string(results) != "CREATE TABLE" {
+			t.Error("Unexpected results from Exec")
+		}
 
-	if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); string(results) != "CREATE TABLE" {
-		t.Error("Unexpected results from Exec")
-	}
-
-	// Accept parameters
-	if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); string(results) != "INSERT 0 1" {
-		t.Errorf("Unexpected results from Exec: %v", results)
-	}
+		// Accept parameters
+		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); string(results) != "INSERT 0 1" {
+			t.Errorf("Unexpected results from Exec: %v", results)
+		}
+	})
 }
 
 type testLog struct {
@@ -833,71 +788,61 @@ func TestConnInitConnInfo(t *testing.T) {
 }
 
 func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		var n uint64
+		err := conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	var n uint64
-	err := conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if n != 42 {
-		t.Fatalf("Expected n to be 42, but was %v", n)
-	}
-
-	ensureConnValid(t, conn)
+		if n != 42 {
+			t.Fatalf("Expected n to be 42, but was %v", n)
+		}
+	})
 }
 
 func TestDomainType(t *testing.T) {
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		var n uint64
 
-	var err error
-	var n uint64
+		// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
 
-	// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
+		err := conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+		require.NoError(t, err)
 
-	// Since it is not registered, pgx does not know how to encode Go uint64 argument.
-	err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
-	if err == nil {
-		t.Fatal("expected error encoding uint64 into unregistered domain")
-	}
+		// A string can be used. But a string cannot be the result because the describe result from the PostgreSQL server gives
+		// the underlying type of numeric.
+		err = conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 42 {
+			t.Fatalf("Expected n to be 42, but was %v", n)
+		}
 
-	// A string can be used. But a string cannot be the result because the describe result from the PostgreSQL server gives
-	// the underlying type of numeric.
-	err = conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != 42 {
-		t.Fatalf("Expected n to be 42, but was %v", n)
-	}
+		var uint64OID uint32
+		err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
+		if err != nil {
+			t.Fatalf("did not find uint64 OID, %v", err)
+		}
+		conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
 
-	var uint64OID uint32
-	err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
-	if err != nil {
-		t.Fatalf("did not find uint64 OID, %v", err)
-	}
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.Numeric{}, Name: "uint64", OID: uint64OID})
+		// String is still an acceptable argument after registration
+		err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 7 {
+			t.Fatalf("Expected n to be 7, but was %v", n)
+		}
 
-	// String is still an acceptable argument after registration
-	err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != 7 {
-		t.Fatalf("Expected n to be 7, but was %v", n)
-	}
-
-	// But a uint64 is acceptable
-	err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n != 24 {
-		t.Fatalf("Expected n to be 24, but was %v", n)
-	}
-
-	ensureConnValid(t, conn)
+		// But a uint64 is acceptable
+		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n != 24 {
+			t.Fatalf("Expected n to be 24, but was %v", n)
+		}
+	})
 }

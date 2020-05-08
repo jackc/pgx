@@ -30,22 +30,9 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return nil, nil
 	}
 
-	setArgAndEncodeTextToString := func(t interface {
-		pgtype.Value
-		pgtype.TextEncoder
-	}) (interface{}, error) {
-		err := t.Set(arg)
-		if err != nil {
-			return nil, err
-		}
-		buf, err := t.EncodeText(ci, nil)
-		if err != nil {
-			return nil, err
-		}
-		if buf == nil {
-			return nil, nil
-		}
-		return string(buf), nil
+	refVal := reflect.ValueOf(arg)
+	if refVal.Kind() == reflect.Ptr && refVal.IsNil() {
+		return nil, nil
 	}
 
 	switch arg := arg.(type) {
@@ -124,36 +111,25 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 			return nil, errors.Errorf("arg too big for int64: %v", arg)
 		}
 		return int64(arg), nil
-	case []string:
-		return setArgAndEncodeTextToString(&pgtype.TextArray{})
-	case []float32:
-		return setArgAndEncodeTextToString(&pgtype.Float4Array{})
-	case []float64:
-		return setArgAndEncodeTextToString(&pgtype.Float8Array{})
-	case []int16:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []int32:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []int64:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []int:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []uint16:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []uint32:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []uint64:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
-	case []uint:
-		return setArgAndEncodeTextToString(&pgtype.Int8Array{})
 	}
 
-	refVal := reflect.ValueOf(arg)
-
-	if refVal.Kind() == reflect.Ptr {
-		if refVal.IsNil() {
+	if dt, found := ci.DataTypeForValue(arg); found {
+		v := dt.Value
+		err := v.Set(arg)
+		if err != nil {
+			return nil, err
+		}
+		buf, err := v.(pgtype.TextEncoder).EncodeText(ci, nil)
+		if err != nil {
+			return nil, err
+		}
+		if buf == nil {
 			return nil, nil
 		}
+		return string(buf), nil
+	}
+
+	if refVal.Kind() == reflect.Ptr {
 		arg = refVal.Elem().Interface()
 		return convertSimpleArgument(ci, arg)
 	}
