@@ -35,8 +35,9 @@ func closeDB(t testing.TB, db *sql.DB) {
 	}
 }
 
-// Do a simple query to ensure the connection is still usable
-func ensureConnValid(t testing.TB, db *sql.DB) {
+// Do a simple query to ensure the DB is still usable. This is of less use in stdlib as the connection pool should
+// cover an broken connections.
+func ensureDBValid(t testing.TB, db *sql.DB) {
 	var sum, rowCount int32
 
 	rows, err := db.Query("select generate_series(1,$1)", 10)
@@ -134,7 +135,7 @@ func TestNormalLifeCycle(t *testing.T) {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestStmtExec(t *testing.T) {
@@ -172,7 +173,7 @@ func TestStmtExec(t *testing.T) {
 		t.Fatalf("tx.Commit unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestQueryCloseRowsEarly(t *testing.T) {
@@ -229,7 +230,7 @@ func TestQueryCloseRowsEarly(t *testing.T) {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnExec(t *testing.T) {
@@ -254,7 +255,7 @@ func TestConnExec(t *testing.T) {
 		t.Fatalf("Expected 1, received %d", n)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQuery(t *testing.T) {
@@ -296,7 +297,7 @@ func TestConnQuery(t *testing.T) {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryNull(t *testing.T) {
@@ -334,7 +335,7 @@ func TestConnQueryNull(t *testing.T) {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryRowByteSlice(t *testing.T) {
@@ -353,7 +354,7 @@ func TestConnQueryRowByteSlice(t *testing.T) {
 		t.Fatalf("Expected %v, but got %v", expected, actual)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryFailure(t *testing.T) {
@@ -365,7 +366,7 @@ func TestConnQueryFailure(t *testing.T) {
 		t.Fatalf("Expected db.Query to return pgconn.PgError, but instead received: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 // Test type that pgx would handle natively in binary, but since it is not a
@@ -387,7 +388,7 @@ func TestConnQueryRowPgxBinary(t *testing.T) {
 		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryRowUnknownType(t *testing.T) {
@@ -407,7 +408,7 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 		t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, expected, actual, sql)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryJSONIntoByteSlice(t *testing.T) {
@@ -443,7 +444,7 @@ func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 		t.Fatalf("db.Exec unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
@@ -481,7 +482,7 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 		t.Fatalf("db.Exec unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestTransactionLifeCycle(t *testing.T) {
@@ -540,7 +541,7 @@ func TestTransactionLifeCycle(t *testing.T) {
 		t.Fatalf("Expected 1 rows due to rollback, instead found %d", n)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnBeginTxIsolation(t *testing.T) {
@@ -599,7 +600,7 @@ func TestConnBeginTxIsolation(t *testing.T) {
 		}
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnBeginTxReadOnly(t *testing.T) {
@@ -622,7 +623,7 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 		t.Errorf("pgReadOnly => %s, want %s", pgReadOnly, "on")
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestBeginTxContextCancel(t *testing.T) {
@@ -659,7 +660,7 @@ func TestBeginTxContextCancel(t *testing.T) {
 		t.Fatalf(`err => %v, want PgError{Code: "42P01"}`, err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestAcquireConn(t *testing.T) {
@@ -698,7 +699,7 @@ func TestAcquireConn(t *testing.T) {
 		}
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 // https://github.com/jackc/pgx/issues/673
@@ -731,7 +732,7 @@ func TestReleaseConnWithTxInProgress(t *testing.T) {
 	stats := db.Stats()
 	require.Equal(t, 1, stats.OpenConnections)
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnPingContextSuccess(t *testing.T) {
@@ -742,7 +743,7 @@ func TestConnPingContextSuccess(t *testing.T) {
 		t.Fatalf("db.PingContext failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnPrepareContextSuccess(t *testing.T) {
@@ -755,7 +756,7 @@ func TestConnPrepareContextSuccess(t *testing.T) {
 	}
 	stmt.Close()
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnExecContextSuccess(t *testing.T) {
@@ -767,7 +768,7 @@ func TestConnExecContextSuccess(t *testing.T) {
 		t.Fatalf("db.ExecContext failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnExecContextFailureRetry(t *testing.T) {
@@ -812,7 +813,7 @@ func TestConnQueryContextSuccess(t *testing.T) {
 		t.Error(rows.Err())
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestConnQueryContextFailureRetry(t *testing.T) {
@@ -861,7 +862,7 @@ func TestRowsColumnTypeDatabaseTypeName(t *testing.T) {
 
 	rows.Close()
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestStmtExecContextSuccess(t *testing.T) {
@@ -884,7 +885,7 @@ func TestStmtExecContextSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestStmtExecContextCancel(t *testing.T) {
@@ -910,7 +911,7 @@ func TestStmtExecContextCancel(t *testing.T) {
 		t.Errorf("expected timeout error, got %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestStmtQueryContextSuccess(t *testing.T) {
@@ -939,7 +940,7 @@ func TestStmtQueryContextSuccess(t *testing.T) {
 		t.Error(rows.Err())
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 func TestRowsColumnTypes(t *testing.T) {
@@ -1141,7 +1142,7 @@ func TestSimpleQueryLifeCycle(t *testing.T) {
 		t.Fatalf("rows.Close unexpectedly failed: %v", err)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 // https://github.com/jackc/pgx/issues/409
@@ -1160,7 +1161,7 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 		t.Fatalf("Expected %v, got %v", []byte("{}"), msg)
 	}
 
-	ensureConnValid(t, db)
+	ensureDBValid(t, db)
 }
 
 type testLog struct {
