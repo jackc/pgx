@@ -949,3 +949,318 @@ func BenchmarkSelectManyRegisteredEnum(b *testing.B) {
 		}
 	}
 }
+
+func getSelectRowsCounts(b *testing.B) []int64 {
+	var rowCounts []int64
+	{
+		s := os.Getenv("PGX_BENCH_SELECT_ROWS_COUNTS")
+		if s != "" {
+			for _, p := range strings.Split(s, " ") {
+				n, err := strconv.ParseInt(p, 10, 64)
+				if err != nil {
+					b.Fatalf("Bad PGX_BENCH_SELECT_ROWS_COUNTS value: %v", err)
+				}
+				rowCounts = append(rowCounts, n)
+			}
+		}
+	}
+
+	if len(rowCounts) == 0 {
+		rowCounts = []int64{1, 10, 100, 1000}
+	}
+
+	return rowCounts
+}
+
+type BenchRowSimple struct {
+	ID         int32
+	FirstName  string
+	LastName   string
+	Sex        string
+	BirthDate  time.Time
+	Weight     int32
+	Height     int32
+	UpdateTime time.Time
+}
+
+func BenchmarkSelectRowsScanSimple(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			br := &BenchRowSimple{}
+			for i := 0; i < b.N; i++ {
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				for rows.Next() {
+					rows.Scan(&br.ID, &br.FirstName, &br.LastName, &br.Sex, &br.BirthDate, &br.Weight, &br.Height, &br.UpdateTime)
+				}
+
+				if rows.Err() != nil {
+					b.Fatal(rows.Err())
+				}
+			}
+		})
+	}
+}
+
+type BenchRowStringBytes struct {
+	ID         int32
+	FirstName  []byte
+	LastName   []byte
+	Sex        []byte
+	BirthDate  time.Time
+	Weight     int32
+	Height     int32
+	UpdateTime time.Time
+}
+
+func BenchmarkSelectRowsScanStringBytes(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			br := &BenchRowStringBytes{}
+			for i := 0; i < b.N; i++ {
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				for rows.Next() {
+					rows.Scan(&br.ID, &br.FirstName, &br.LastName, &br.Sex, &br.BirthDate, &br.Weight, &br.Height, &br.UpdateTime)
+				}
+
+				if rows.Err() != nil {
+					b.Fatal(rows.Err())
+				}
+			}
+		})
+	}
+}
+
+type BenchRowDecoder struct {
+	ID         pgtype.Int4
+	FirstName  pgtype.Text
+	LastName   pgtype.Text
+	Sex        pgtype.Text
+	BirthDate  pgtype.Date
+	Weight     pgtype.Int4
+	Height     pgtype.Int4
+	UpdateTime pgtype.Timestamptz
+}
+
+func BenchmarkSelectRowsScanBinaryDecoder(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			br := &BenchRowDecoder{}
+			for i := 0; i < b.N; i++ {
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				for rows.Next() {
+					rows.Scan(&br.ID, &br.FirstName, &br.LastName, &br.Sex, &br.BirthDate, &br.Weight, &br.Height, &br.UpdateTime)
+				}
+
+				if rows.Err() != nil {
+					b.Fatal(rows.Err())
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsExplicitBinaryDecoding(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			br := &BenchRowDecoder{}
+			for i := 0; i < b.N; i++ {
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				if err != nil {
+					b.Fatal(err)
+				}
+
+				for rows.Next() {
+					rawValues := rows.RawValues()
+
+					err = br.ID.DecodeBinary(conn.ConnInfo(), rawValues[0])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.FirstName.DecodeBinary(conn.ConnInfo(), rawValues[1])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.LastName.DecodeBinary(conn.ConnInfo(), rawValues[2])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.Sex.DecodeBinary(conn.ConnInfo(), rawValues[3])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.BirthDate.DecodeBinary(conn.ConnInfo(), rawValues[4])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.Weight.DecodeBinary(conn.ConnInfo(), rawValues[5])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.Height.DecodeBinary(conn.ConnInfo(), rawValues[6])
+					if err != nil {
+						b.Fatal(err)
+					}
+
+					err = br.UpdateTime.DecodeBinary(conn.ConnInfo(), rawValues[7])
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+
+				if rows.Err() != nil {
+					b.Fatal(rows.Err())
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsPgConnExecText(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				mrr := conn.PgConn().Exec(context.Background(), fmt.Sprintf("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, %d) n", rowCount))
+				for mrr.NextResult() {
+					rr := mrr.ResultReader()
+					for rr.NextRow() {
+						rr.Values()
+					}
+				}
+
+				err := mrr.Close()
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsPgConnExecParams(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			formats := []struct {
+				name string
+				code int16
+			}{
+				{"text", pgx.TextFormatCode},
+				{"binary", pgx.BinaryFormatCode},
+			}
+			for _, format := range formats {
+				b.Run(format.name, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						rr := conn.PgConn().ExecParams(
+							context.Background(),
+							"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n",
+							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
+							nil,
+							nil,
+							[]int16{format.code},
+						)
+						for rr.NextRow() {
+							rr.Values()
+						}
+
+						_, err := rr.Close()
+						if err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	_, err := conn.PgConn().Prepare(context.Background(), "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", nil)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			formats := []struct {
+				name string
+				code int16
+			}{
+				{"text", pgx.TextFormatCode},
+				{"binary", pgx.BinaryFormatCode},
+			}
+			for _, format := range formats {
+				b.Run(format.name, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						rr := conn.PgConn().ExecPrepared(
+							context.Background(),
+							"ps1",
+							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
+							nil,
+							[]int16{format.code},
+						)
+						for rr.NextRow() {
+							rr.Values()
+						}
+
+						_, err := rr.Close()
+						if err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		})
+	}
+}
