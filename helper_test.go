@@ -2,12 +2,52 @@ package pgx_test
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
 )
+
+func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
+	t.Run("SimpleProto",
+		func(t *testing.T) {
+			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+
+			config.PreferSimpleProtocol = true
+			conn, err := pgx.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			defer func() {
+				err := conn.Close(context.Background())
+				require.NoError(t, err)
+			}()
+
+			f(t, conn)
+
+			ensureConnValid(t, conn)
+		},
+	)
+
+	t.Run("DefaultProto",
+		func(t *testing.T) {
+			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+
+			conn, err := pgx.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			defer func() {
+				err := conn.Close(context.Background())
+				require.NoError(t, err)
+			}()
+
+			f(t, conn)
+
+			ensureConnValid(t, conn)
+		},
+	)
+}
 
 func mustConnectString(t testing.TB, connString string) *pgx.Conn {
 	conn, err := pgx.Connect(context.Background(), connString)

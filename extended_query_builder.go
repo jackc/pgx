@@ -134,6 +134,28 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		return eqb.encodeExtendedParamValue(ci, oid, value)
 	}
 
+	// There is no data type registered for the destination OID, but maybe there is data type registered for the arg
+	// type. If so use it's text encoder (if available).
+	if dt, ok := ci.DataTypeForValue(arg); ok {
+		value := dt.Value
+		if textEncoder, ok := value.(pgtype.TextEncoder); ok {
+			err := value.Set(arg)
+			if err != nil {
+				return nil, err
+			}
+
+			buf, err = textEncoder.EncodeText(ci, eqb.paramValueBytes)
+			if err != nil {
+				return nil, err
+			}
+			if buf == nil {
+				return nil, nil
+			}
+			eqb.paramValueBytes = buf
+			return eqb.paramValueBytes[pos:], nil
+		}
+	}
+
 	if strippedArg, ok := stripNamedType(&refVal); ok {
 		return eqb.encodeExtendedParamValue(ci, oid, strippedArg)
 	}
