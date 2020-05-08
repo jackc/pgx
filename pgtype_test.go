@@ -104,28 +104,37 @@ func (ct *pgCustomType) DecodeText(ci *pgtype.ConnInfo, buf []byte) error {
 	return nil
 }
 
-func TestConnInfoScanUnknownOIDToCustomType(t *testing.T) {
-	unknownOID := uint32(999999)
+func TestConnInfoScanUnregisteredOIDToCustomType(t *testing.T) {
+	unregisteredOID := uint32(999999)
 	ci := pgtype.NewConnInfo()
 
 	var ct pgCustomType
-	err := ci.Scan(unknownOID, pgx.TextFormatCode, []byte("(foo,bar)"), &ct)
+	err := ci.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &ct)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", ct.a)
 	assert.Equal(t, "bar", ct.b)
 
 	// Scan value into pointer to custom type
 	var pCt *pgCustomType
-	err = ci.Scan(unknownOID, pgx.TextFormatCode, []byte("(foo,bar)"), &pCt)
+	err = ci.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &pCt)
 	assert.NoError(t, err)
 	require.NotNil(t, pCt)
 	assert.Equal(t, "foo", pCt.a)
 	assert.Equal(t, "bar", pCt.b)
 
 	// Scan null into pointer to custom type
-	err = ci.Scan(unknownOID, pgx.TextFormatCode, nil, &pCt)
+	err = ci.Scan(unregisteredOID, pgx.TextFormatCode, nil, &pCt)
 	assert.NoError(t, err)
 	assert.Nil(t, pCt)
+}
+
+func TestConnInfoScanUnknownOIDTextFormat(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+
+	var n int32
+	err := ci.Scan(0, pgx.TextFormatCode, []byte("123"), &n)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 123, n)
 }
 
 func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
