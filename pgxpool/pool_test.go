@@ -108,7 +108,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 	acquireAttempts := 0
 
 	config.BeforeAcquire = func(ctx context.Context, c *pgx.Conn) bool {
-		acquireAttempts += 1
+		acquireAttempts++
 		return acquireAttempts%2 == 0
 	}
 
@@ -149,7 +149,7 @@ func TestPoolAfterRelease(t *testing.T) {
 	afterReleaseCount := 0
 
 	config.AfterRelease = func(c *pgx.Conn) bool {
-		afterReleaseCount += 1
+		afterReleaseCount++
 		return afterReleaseCount%2 == 1
 	}
 

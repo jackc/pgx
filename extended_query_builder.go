@@ -40,7 +40,7 @@ func (eqb *extendedQueryBuilder) Reset() {
 	eqb.paramFormats = eqb.paramFormats[0:0]
 	eqb.resultFormats = eqb.resultFormats[0:0]
 
-	eqb.resetCount += 1
+	eqb.resetCount++
 
 	// Every so often shrink our reserved memory if it is abnormally high
 	if eqb.resetCount%128 == 0 {
