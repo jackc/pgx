@@ -140,7 +140,7 @@ func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
 		return nil, ErrTxClosed
 	}
 
-	tx.savepointNum += 1
+	tx.savepointNum++
 	_, err := tx.conn.Exec(ctx, "savepoint sp_"+strconv.FormatInt(tx.savepointNum, 10))
 	if err != nil {
 		return nil, err
