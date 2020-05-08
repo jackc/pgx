@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql"
 	"reflect"
-	"time"
 
 	errors "golang.org/x/xerrors"
 )
@@ -404,39 +403,17 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 }
 
 func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
-	isFastType := false
-	switch dest.(type) {
-	case *int16:
-		isFastType = true
-	case *int32:
-		isFastType = true
-	case *int64:
-		isFastType = true
-	case *float32:
-		isFastType = true
-	case *float64:
-		isFastType = true
-	case *string:
-		isFastType = true
-	case *time.Time:
-		isFastType = true
-	case *[]byte:
-		isFastType = true
-	}
-
-	if !isFastType {
-		switch formatCode {
-		case BinaryFormatCode:
-			if dest, ok := dest.(BinaryDecoder); ok {
-				return dest.DecodeBinary(ci, buf)
-			}
-		case TextFormatCode:
-			if dest, ok := dest.(TextDecoder); ok {
-				return dest.DecodeText(ci, buf)
-			}
-		default:
-			return errors.Errorf("unknown format code: %v", formatCode)
+	switch formatCode {
+	case BinaryFormatCode:
+		if dest, ok := dest.(BinaryDecoder); ok {
+			return dest.DecodeBinary(ci, buf)
 		}
+	case TextFormatCode:
+		if dest, ok := dest.(TextDecoder); ok {
+			return dest.DecodeText(ci, buf)
+		}
+	default:
+		return errors.Errorf("unknown format code: %v", formatCode)
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
@@ -461,17 +438,20 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, buf []byte, dest interfac
 			}
 		}
 
-		if !isFastType {
-			if scanner, ok := dest.(sql.Scanner); ok {
-				sqlSrc, err := DatabaseSQLValue(ci, dt.Value)
-				if err != nil {
-					return err
-				}
-				return scanner.Scan(sqlSrc)
-			}
+		assignToErr := dt.Value.AssignTo(dest)
+		if assignToErr == nil {
+			return nil
 		}
 
-		return dt.Value.AssignTo(dest)
+		if scanner, ok := dest.(sql.Scanner); ok {
+			sqlSrc, err := DatabaseSQLValue(ci, dt.Value)
+			if err != nil {
+				return err
+			}
+			return scanner.Scan(sqlSrc)
+		}
+
+		return assignToErr
 	}
 
 	// We might be given a pointer to something that implements the decoder interface(s),
