@@ -993,7 +993,7 @@ func BenchmarkSelectRowsScanSimple(b *testing.B) {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
 			for i := 0; i < b.N; i++ {
-				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -1031,7 +1031,7 @@ func BenchmarkSelectRowsScanStringBytes(b *testing.B) {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowStringBytes{}
 			for i := 0; i < b.N; i++ {
-				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -1059,7 +1059,7 @@ type BenchRowDecoder struct {
 	UpdateTime pgtype.Timestamptz
 }
 
-func BenchmarkSelectRowsScanBinaryDecoder(b *testing.B) {
+func BenchmarkSelectRowsScanDecoder(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
@@ -1067,20 +1067,37 @@ func BenchmarkSelectRowsScanBinaryDecoder(b *testing.B) {
 
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
-			br := &BenchRowDecoder{}
-			for i := 0; i < b.N; i++ {
-				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
-				if err != nil {
-					b.Fatal(err)
-				}
+			formats := []struct {
+				name string
+				code int16
+			}{
+				{"text", pgx.TextFormatCode},
+				{"binary", pgx.BinaryFormatCode},
+			}
+			for _, format := range formats {
+				b.Run(format.name, func(b *testing.B) {
 
-				for rows.Next() {
-					rows.Scan(&br.ID, &br.FirstName, &br.LastName, &br.Sex, &br.BirthDate, &br.Weight, &br.Height, &br.UpdateTime)
-				}
+					br := &BenchRowDecoder{}
+					for i := 0; i < b.N; i++ {
+						rows, err := conn.Query(
+							context.Background(),
+							"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n",
+							pgx.QueryResultFormats{format.code},
+							rowCount,
+						)
+						if err != nil {
+							b.Fatal(err)
+						}
 
-				if rows.Err() != nil {
-					b.Fatal(rows.Err())
-				}
+						for rows.Next() {
+							rows.Scan(&br.ID, &br.FirstName, &br.LastName, &br.Sex, &br.BirthDate, &br.Weight, &br.Height, &br.UpdateTime)
+						}
+
+						if rows.Err() != nil {
+							b.Fatal(rows.Err())
+						}
+					}
+				})
 			}
 		})
 	}
@@ -1096,7 +1113,7 @@ func BenchmarkSelectRowsExplicitBinaryDecoding(b *testing.B) {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowDecoder{}
 			for i := 0; i < b.N; i++ {
-				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				rows, err := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -1162,7 +1179,7 @@ func BenchmarkSelectRowsPgConnExecText(b *testing.B) {
 	for _, rowCount := range rowCounts {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				mrr := conn.PgConn().Exec(context.Background(), fmt.Sprintf("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, %d) n", rowCount))
+				mrr := conn.PgConn().Exec(context.Background(), fmt.Sprintf("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + %d) n", rowCount))
 				for mrr.NextResult() {
 					rr := mrr.ResultReader()
 					for rr.NextRow() {
@@ -1199,7 +1216,7 @@ func BenchmarkSelectRowsPgConnExecParams(b *testing.B) {
 					for i := 0; i < b.N; i++ {
 						rr := conn.PgConn().ExecParams(
 							context.Background(),
-							"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n",
+							"select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n",
 							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
 							nil,
 							nil,
@@ -1226,7 +1243,7 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 
 	rowCounts := getSelectRowsCounts(b)
 
-	_, err := conn.PgConn().Prepare(context.Background(), "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", nil)
+	_, err := conn.PgConn().Prepare(context.Background(), "ps1", "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 + $1) n", nil)
 	if err != nil {
 		b.Fatal(err)
 	}
