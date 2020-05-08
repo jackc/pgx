@@ -19,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func closeDB(t *testing.T, db *sql.DB) {
+func closeDB(t testing.TB, db *sql.DB) {
 	err := db.Close()
 	if err != nil {
 		t.Fatalf("db.Close unexpectedly failed: %v", err)
@@ -27,7 +27,7 @@ func closeDB(t *testing.T, db *sql.DB) {
 }
 
 // Do a simple query to ensure the connection is still usable
-func ensureConnValid(t *testing.T, db *sql.DB) {
+func ensureConnValid(t testing.TB, db *sql.DB) {
 	var sum, rowCount int32
 
 	rows, err := db.Query("select generate_series(1,$1)", 10)

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v4/stdlib"
 )
 
-func openDB(t *testing.T) *sql.DB {
+func openDB(t testing.TB) *sql.DB {
 	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatalf("pgx.ParseConnectionString failed: %v", err)
