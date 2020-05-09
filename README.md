@@ -144,6 +144,10 @@ PGX_TEST_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
 
 In addition, there are tests specific for PgBouncer that will be executed if `PGX_TEST_PGBOUNCER_CONN_STRING` is set.
 
+## Supported Go and PostgreSQL Versions
+
+pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.13 and higher and PostgreSQL 9.5 and higher.
+
 ## Version Policy
 
 pgx follows semantic versioning for the documented public API on stable releases. `v4` is the latest stable major version.
