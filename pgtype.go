@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"net"
 	"reflect"
@@ -197,6 +198,14 @@ func (f BinaryEncoderFunc) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte
 
 var errUndefined = errors.New("cannot encode status undefined")
 var errBadStatus = errors.New("invalid status")
+
+type nullAssignmentError struct {
+	dst interface{}
+}
+
+func (e *nullAssignmentError) Error() string {
+	return fmt.Sprintf("cannot assign NULL to %T", e.dst)
+}
 
 type DataType struct {
 	Value Value
