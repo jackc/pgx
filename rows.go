@@ -109,6 +109,9 @@ type connRows struct {
 
 	resultReader      *pgconn.ResultReader
 	multiResultReader *pgconn.MultiResultReader
+
+	scanPlans []pgtype.ScanPlan
+	dstValues []interface{}
 }
 
 func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
@@ -184,10 +187,42 @@ func (rows *connRows) Next() bool {
 }
 
 func (rows *connRows) Scan(dest ...interface{}) error {
-	err := ScanRow(rows.connInfo, rows.FieldDescriptions(), rows.values, dest...)
-	if err != nil {
+	ci := rows.connInfo
+	fieldDescriptions := rows.FieldDescriptions()
+	values := rows.values
+
+	if len(fieldDescriptions) != len(values) {
+		err := errors.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 		rows.fatal(err)
 		return err
+	}
+	if len(fieldDescriptions) != len(dest) {
+		err := errors.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
+		rows.fatal(err)
+		return err
+	}
+
+	if rows.scanPlans == nil {
+		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
+		rows.dstValues = make([]interface{}, len(values))
+	}
+
+	for i, dst := range dest {
+		if dst == nil {
+			continue
+		}
+
+		if dst != rows.dstValues[i] {
+			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dest[i])
+			rows.dstValues[i] = dst
+		}
+
+		err := rows.scanPlans[i].Scan(ci, fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dst)
+		if err != nil {
+			err = scanArgError{col: i, err: err}
+			rows.fatal(err)
+			return err
+		}
 	}
 
 	return nil
@@ -278,8 +313,7 @@ func (e scanArgError) Error() string {
 	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
 }
 
-// ScanRow decodes raw row data into dest. This is a low level function used internally to to implement the Rows
-// interface Scan method. It can be used to scan rows read from the lower level pgconn interface.
+// ScanRow decodes raw row data into dest. It can be used to scan rows read from the lower level pgconn interface.
 //
 // connInfo - OID to Go type mapping.
 // fieldDescriptions - OID and format of values
