@@ -369,7 +369,7 @@ func NullAssignTo(dst interface{}) error {
 
 	// AssignTo dst must always be a pointer
 	if dstPtr.Kind() != reflect.Ptr {
-		return errors.Errorf("cannot assign NULL to %T", dst)
+		return &nullAssignmentError{dst: dst}
 	}
 
 	dstVal := dstPtr.Elem()
@@ -380,7 +380,7 @@ func NullAssignTo(dst interface{}) error {
 		return nil
 	}
 
-	return errors.Errorf("cannot assign NULL to %T", dst)
+	return &nullAssignmentError{dst: dst}
 }
 
 var kindTypes map[reflect.Kind]reflect.Type
