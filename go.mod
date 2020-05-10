@@ -9,7 +9,7 @@ require (
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
-	github.com/jackc/pgtype v1.3.1-0.20200510045248-7e66ab1e146c
+	github.com/jackc/pgtype v1.3.1-0.20200510190516-8cd94a14c75a
 	github.com/jackc/puddle v1.1.1
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
