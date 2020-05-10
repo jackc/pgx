@@ -113,6 +113,10 @@ func (src *JSON) AssignTo(dst interface{}) error {
 	return nil
 }
 
+func (JSON) PreferredResultFormat() int16 {
+	return TextFormatCode
+}
+
 func (dst *JSON) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = JSON{Status: Null}
@@ -125,6 +129,10 @@ func (dst *JSON) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *JSON) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
+}
+
+func (JSON) PreferredParamFormat() int16 {
+	return TextFormatCode
 }
 
 func (src JSON) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {

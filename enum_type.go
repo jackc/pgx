@@ -128,6 +128,10 @@ func (src *enumType) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
+func (enumType) PreferredResultFormat() int16 {
+	return TextFormatCode
+}
+
 func (dst *enumType) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		dst.status = Null
@@ -150,6 +154,10 @@ func (dst *enumType) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *enumType) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
+}
+
+func (enumType) PreferredParamFormat() int16 {
+	return TextFormatCode
 }
 
 func (src enumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {

@@ -142,6 +142,18 @@ type TypeValue interface {
 	TypeName() string
 }
 
+// ResultFormatPreferrer allows a type to specify its preferred result format instead of it being inferred from
+// whether it is also a BinaryDecoder.
+type ResultFormatPreferrer interface {
+	PreferredResultFormat() int16
+}
+
+// ParamFormatPreferrer allows a type to specify its preferred param format instead of it being inferred from
+// whether it is also a BinaryEncoder.
+type ParamFormatPreferrer interface {
+	PreferredParamFormat() int16
+}
+
 type BinaryDecoder interface {
 	// DecodeBinary decodes src into BinaryDecoder. If src is nil then the
 	// original SQL value is NULL. BinaryDecoder takes ownership of src. The
@@ -364,7 +376,9 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 
 	{
 		var formatCode int16
-		if _, ok := t.Value.(BinaryEncoder); ok {
+		if pfp, ok := t.Value.(ParamFormatPreferrer); ok {
+			formatCode = pfp.PreferredParamFormat()
+		} else if _, ok := t.Value.(BinaryEncoder); ok {
 			formatCode = BinaryFormatCode
 		}
 		ci.oidToParamFormatCode[t.OID] = formatCode
@@ -372,7 +386,9 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 
 	{
 		var formatCode int16
-		if _, ok := t.Value.(BinaryDecoder); ok {
+		if rfp, ok := t.Value.(ResultFormatPreferrer); ok {
+			formatCode = rfp.PreferredResultFormat()
+		} else if _, ok := t.Value.(BinaryDecoder); ok {
 			formatCode = BinaryFormatCode
 		}
 		ci.oidToResultFormatCode[t.OID] = formatCode

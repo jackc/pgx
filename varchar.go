@@ -23,12 +23,20 @@ func (src *Varchar) AssignTo(dst interface{}) error {
 	return (*Text)(src).AssignTo(dst)
 }
 
+func (Varchar) PreferredResultFormat() int16 {
+	return TextFormatCode
+}
+
 func (dst *Varchar) DecodeText(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeText(ci, src)
 }
 
 func (dst *Varchar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return (*Text)(dst).DecodeBinary(ci, src)
+}
+
+func (Varchar) PreferredParamFormat() int16 {
+	return TextFormatCode
 }
 
 func (src Varchar) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {

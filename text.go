@@ -85,6 +85,10 @@ func (src *Text) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
+func (Text) PreferredResultFormat() int16 {
+	return TextFormatCode
+}
+
 func (dst *Text) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Text{Status: Null}
@@ -97,6 +101,10 @@ func (dst *Text) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *Text) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
+}
+
+func (Text) PreferredParamFormat() int16 {
+	return TextFormatCode
 }
 
 func (src Text) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
