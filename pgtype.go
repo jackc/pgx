@@ -128,10 +128,8 @@ type Value interface {
 	AssignTo(dst interface{}) error
 }
 
-// TypeValue represents values where instances represent a type. In the normal pgtype model a Go type maps to a
-// PostgreSQL type and an instance of a Go type maps to a PostgreSQL value of that type. Implementors of TypeValue
-// are different in that an instance represents a PostgreSQL type. This can be useful for representing types such
-// as enums, composites, and arrays.
+// TypeValue represents values where instances can represent different PostgreSQL types. This can be useful for
+// representing types such as enums, composites, and arrays.
 //
 // In general, instances of TypeValue should not be used to directly represent a value. It should only be used as an
 // encoder and decoder internal to ConnInfo.
@@ -140,8 +138,8 @@ type TypeValue interface {
 	// in an EnumType.
 	CloneTypeValue() Value
 
-	// PgTypeName returns the PostgreSQL name of this type.
-	PgTypeName() string
+	// TypeName returns the PostgreSQL name of this type.
+	TypeName() string
 }
 
 type BinaryDecoder interface {
@@ -433,7 +431,7 @@ func (ci *ConnInfo) DataTypeForValue(v interface{}) (*DataType, bool) {
 	}
 
 	if tv, ok := v.(TypeValue); ok {
-		dt, ok := ci.nameToDataType[tv.PgTypeName()]
+		dt, ok := ci.nameToDataType[tv.TypeName()]
 		return dt, ok
 	}
 
