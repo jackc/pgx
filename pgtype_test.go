@@ -170,3 +170,41 @@ func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 0, 0, 42}
+	var v pgtype.Int4
+
+	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+
+	for i := 0; i < b.N; i++ {
+		v = pgtype.Int4{}
+		err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if v != (pgtype.Int4{Int: 42, Status: pgtype.Present}) {
+			b.Fatal("scan failed due to bad value")
+		}
+	}
+}
+
+func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 0, 0, 42}
+	var v int32
+
+	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+
+	for i := 0; i < b.N; i++ {
+		v = 0
+		err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if v != 42 {
+			b.Fatal("scan failed due to bad value")
+		}
+	}
+}
