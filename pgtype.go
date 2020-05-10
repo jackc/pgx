@@ -474,35 +474,44 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	return ci2
 }
 
-// ScanPlan is a precompiled plan to scan into a particular destination. This requires care to use as it always scans
-// to the same destination.
-//
-// This is a very low-level optimization. It should only be used to implement a PostgreSQL driver or custom type.
+// ScanPlan is a precompiled plan to scan into a type of destination.
 type ScanPlan interface {
-	// Scan scans src into dst. All parameters except src MUST be the same as were passed to PlanScan when this was
-	// created.
+	// Scan scans src into dst. If the dst type has changed in an incompatible way a ScanPlan should automatically
+	// replan and scan.
 	Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error
 }
 
-type scanPlanDstBinaryDecoder struct {
-	d BinaryDecoder
+type scanPlanDstBinaryDecoder struct{}
+
+func (scanPlanDstBinaryDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if d, ok := (dst).(BinaryDecoder); ok {
+		return d.DecodeBinary(ci, src)
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-func (plan scanPlanDstBinaryDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.d.DecodeBinary(ci, src)
-}
-
-type scanPlanDstTextDecoder struct {
-	d TextDecoder
-}
+type scanPlanDstTextDecoder struct{}
 
 func (plan scanPlanDstTextDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.d.DecodeText(ci, src)
+	if d, ok := (dst).(TextDecoder); ok {
+		return d.DecodeText(ci, src)
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
 type scanPlanDataTypeSQLScanner DataType
 
 func (plan *scanPlanDataTypeSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner, ok := dst.(sql.Scanner)
+	if !ok {
+		newPlan := ci.PlanScan(oid, formatCode, src, dst)
+		return newPlan.Scan(ci, oid, formatCode, src, dst)
+	}
+
 	dt := (*DataType)(plan)
 	var err error
 	switch formatCode {
@@ -515,7 +524,6 @@ func (plan *scanPlanDataTypeSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCod
 		return err
 	}
 
-	scanner := dst.(sql.Scanner)
 	sqlSrc, err := DatabaseSQLValue(ci, dt.Value)
 	if err != nil {
 		return err
@@ -538,7 +546,18 @@ func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode 
 		return err
 	}
 
-	return dt.Value.AssignTo(dst)
+	assignToErr := dt.Value.AssignTo(dst)
+	if assignToErr == nil {
+		return nil
+	}
+
+	// assignToErr might have failed because the type of destination has changed
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	if newPlan, sameType := newPlan.(*scanPlanDataTypeAssignTo); !sameType {
+		return newPlan.Scan(ci, oid, formatCode, src, dst)
+	}
+
+	return assignToErr
 }
 
 type scanPlanSQLScanner struct{}
@@ -578,9 +597,9 @@ func (scanPlanReflection) Scan(ci *ConnInfo, oid uint32, formatCode int16, src [
 	return scanUnknownType(oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryInt16 int16
+type scanPlanBinaryInt16 struct{}
 
-func (plan *scanPlanBinaryInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
@@ -589,13 +608,18 @@ func (plan *scanPlanBinaryInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16
 		return errors.Errorf("invalid length for int2: %v", len(src))
 	}
 
-	*plan = scanPlanBinaryInt16(binary.BigEndian.Uint16(src))
-	return nil
+	if p, ok := (dst).(*int16); ok {
+		*p = int16(binary.BigEndian.Uint16(src))
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryInt32 int32
+type scanPlanBinaryInt32 struct{}
 
-func (plan *scanPlanBinaryInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
@@ -604,13 +628,18 @@ func (plan *scanPlanBinaryInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16
 		return errors.Errorf("invalid length for int4: %v", len(src))
 	}
 
-	*plan = scanPlanBinaryInt32(binary.BigEndian.Uint32(src))
-	return nil
+	if p, ok := (dst).(*int32); ok {
+		*p = int32(binary.BigEndian.Uint32(src))
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryInt64 int64
+type scanPlanBinaryInt64 struct{}
 
-func (plan *scanPlanBinaryInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
@@ -619,13 +648,18 @@ func (plan *scanPlanBinaryInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16
 		return errors.Errorf("invalid length for int8: %v", len(src))
 	}
 
-	*plan = scanPlanBinaryInt64(binary.BigEndian.Uint64(src))
-	return nil
+	if p, ok := (dst).(*int64); ok {
+		*p = int64(binary.BigEndian.Uint64(src))
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryFloat32 float32
+type scanPlanBinaryFloat32 struct{}
 
-func (plan *scanPlanBinaryFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
@@ -634,14 +668,19 @@ func (plan *scanPlanBinaryFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int
 		return errors.Errorf("invalid length for int4: %v", len(src))
 	}
 
-	n := int32(binary.BigEndian.Uint32(src))
-	*plan = scanPlanBinaryFloat32(math.Float32frombits(uint32(n)))
-	return nil
+	if p, ok := (dst).(*float32); ok {
+		n := int32(binary.BigEndian.Uint32(src))
+		*p = float32(math.Float32frombits(uint32(n)))
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryFloat64 float64
+type scanPlanBinaryFloat64 struct{}
 
-func (plan *scanPlanBinaryFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
@@ -650,73 +689,88 @@ func (plan *scanPlanBinaryFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int
 		return errors.Errorf("invalid length for int8: %v", len(src))
 	}
 
-	n := int64(binary.BigEndian.Uint64(src))
-	*plan = scanPlanBinaryFloat64(math.Float64frombits(uint64(n)))
-	return nil
+	if p, ok := (dst).(*float64); ok {
+		n := int64(binary.BigEndian.Uint64(src))
+		*p = float64(math.Float64frombits(uint64(n)))
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanBinaryBytes []byte
+type scanPlanBinaryBytes struct{}
 
-func (plan *scanPlanBinaryBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	*plan = scanPlanBinaryBytes(src)
-	return nil
+func (scanPlanBinaryBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if p, ok := (dst).(*[]byte); ok {
+		*p = src
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanString string
+type scanPlanString struct{}
 
-func (plan *scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return errors.Errorf("cannot scan null into %T", dst)
 	}
 
-	*plan = scanPlanString(src)
-	return nil
+	if p, ok := (dst).(*string); ok {
+		*p = string(src)
+		return nil
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
 // PlanScan prepares a plan to scan a value into dst.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, buf []byte, dst interface{}) ScanPlan {
 	switch formatCode {
 	case BinaryFormatCode:
-		switch d := dst.(type) {
+		switch dst.(type) {
 		case *string:
 			switch oid {
 			case TextOID, VarcharOID:
-				return (*scanPlanString)(d)
+				return scanPlanString{}
 			}
 		case *int16:
 			if oid == Int2OID {
-				return (*scanPlanBinaryInt16)(d)
+				return scanPlanBinaryInt16{}
 			}
 		case *int32:
 			if oid == Int4OID {
-				return (*scanPlanBinaryInt32)(d)
+				return scanPlanBinaryInt32{}
 			}
 		case *int64:
 			if oid == Int8OID {
-				return (*scanPlanBinaryInt64)(d)
+				return scanPlanBinaryInt64{}
 			}
 		case *float32:
 			if oid == Float4OID {
-				return (*scanPlanBinaryFloat32)(d)
+				return scanPlanBinaryFloat32{}
 			}
 		case *float64:
 			if oid == Float8OID {
-				return (*scanPlanBinaryFloat64)(d)
+				return scanPlanBinaryFloat64{}
 			}
 		case *[]byte:
 			switch oid {
 			case ByteaOID, TextOID, VarcharOID:
-				return (*scanPlanBinaryBytes)(d)
+				return scanPlanBinaryBytes{}
 			}
 		case BinaryDecoder:
-			return scanPlanDstBinaryDecoder{d: d}
+			return scanPlanDstBinaryDecoder{}
 		}
 	case TextFormatCode:
-		switch d := dst.(type) {
+		switch dst.(type) {
 		case *string:
-			return (*scanPlanString)(d)
+			return scanPlanString{}
 		case TextDecoder:
-			return scanPlanDstTextDecoder{d: d}
+			return scanPlanDstTextDecoder{}
 		}
 	}
 
