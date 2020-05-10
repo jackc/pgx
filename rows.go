@@ -111,7 +111,6 @@ type connRows struct {
 	multiResultReader *pgconn.MultiResultReader
 
 	scanPlans []pgtype.ScanPlan
-	dstValues []interface{}
 }
 
 func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
@@ -204,17 +203,17 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 	if rows.scanPlans == nil {
 		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
-		rows.dstValues = make([]interface{}, len(values))
+		for i, dst := range dest {
+			if dst == nil {
+				continue
+			}
+			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dest[i])
+		}
 	}
 
 	for i, dst := range dest {
 		if dst == nil {
 			continue
-		}
-
-		if dst != rows.dstValues[i] {
-			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dest[i])
-			rows.dstValues[i] = dst
 		}
 
 		err := rows.scanPlans[i].Scan(ci, fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dst)
