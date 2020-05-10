@@ -16,14 +16,14 @@ type enumType struct {
 	value  string
 	status Status
 
-	pgTypeName string            // PostgreSQL type name
+	typeName   string            // PostgreSQL type name
 	members    []string          // enum members
 	membersMap map[string]string // map to quickly lookup member and reuse string instead of allocating
 }
 
 // NewEnumType initializes a new EnumType. It retains a read-only reference to members. members must not be changed.
-func NewEnumType(pgTypeName string, members []string) EnumType {
-	et := &enumType{pgTypeName: pgTypeName, members: members}
+func NewEnumType(typeName string, members []string) EnumType {
+	et := &enumType{typeName: typeName, members: members}
 	et.membersMap = make(map[string]string, len(members))
 	for _, m := range members {
 		et.membersMap[m] = m
@@ -36,14 +36,14 @@ func (et *enumType) CloneTypeValue() Value {
 		value:  et.value,
 		status: et.status,
 
-		pgTypeName: et.pgTypeName,
+		typeName:   et.typeName,
 		members:    et.members,
 		membersMap: et.membersMap,
 	}
 }
 
-func (et *enumType) PgTypeName() string {
-	return et.pgTypeName
+func (et *enumType) TypeName() string {
+	return et.typeName
 }
 
 func (et *enumType) Members() []string {
@@ -87,7 +87,7 @@ func (dst *enumType) Set(src interface{}) error {
 		if originalSrc, ok := underlyingStringType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to enum %s", value, dst.pgTypeName)
+		return errors.Errorf("cannot convert %v to enum %s", value, dst.typeName)
 	}
 
 	return nil
