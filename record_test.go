@@ -79,54 +79,6 @@ var recordTests = []struct {
 	},
 }
 
-// row values are binary compatible with records, so we test our helper
-// routines here
-func TestScanRowValue(t *testing.T) {
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
-
-	for i := 0; i < len(recordTests); i++ {
-		tt := recordTests[i]
-		psName := fmt.Sprintf("test%d", i)
-		_, err := conn.Prepare(context.Background(), psName, tt.sql)
-		if err != nil {
-			t.Fatal(err)
-		}
-		t.Run(tt.sql, func(t *testing.T) {
-			desc := []interface{}{}
-			for _, f := range tt.expected.Fields {
-				desc = append(desc, f.(pgtype.BinaryDecoder))
-			}
-
-			var raw pgtype.GenericBinary
-
-			if err := conn.QueryRow(context.Background(), psName, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&raw); err != nil {
-				t.Error(err)
-				return
-			}
-
-			if raw.Status == pgtype.Null {
-				// ScanRowValue deals with complete rows only, NULL values (but NOT null fields)
-				// should be handled by the calling code
-				return
-			}
-
-			if err := pgtype.ScanRowValue(conn.ConnInfo(), raw.Bytes, desc...); err != nil {
-				t.Error(err)
-			}
-
-			// borrow fields from a neighbor test, this makes scan always fail
-			desc = desc[:0]
-			for _, f := range recordTests[(i+1)%len(recordTests)].expected.Fields {
-				desc = append(desc, f.(pgtype.BinaryDecoder))
-			}
-			if err := pgtype.ScanRowValue(conn.ConnInfo(), raw.Bytes, desc...); err == nil {
-				t.Error("Matching scan didn't fail, despite fields not mathching query result")
-			}
-		})
-	}
-}
-
 func TestRecordTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
