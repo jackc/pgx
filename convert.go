@@ -433,38 +433,6 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-// ScanRowValue decodes ROW()'s and composite type
-// from src argument using provided decoders. Decoders should match
-// order and count of fields of record being decoded.
-//
-// In practice you can pass pgtype.Value types as decoders, as
-// most of them implement BinaryDecoder interface.
-//
-// ScanRowValue takes ownership of src, caller MUST not use it after call
-func ScanRowValue(ci *ConnInfo, src []byte, dst ...interface{}) error {
-	scanner, err := NewCompositeBinaryScanner(src)
-	if err != nil {
-		return err
-	}
-
-	if len(dst) != scanner.FieldCount() {
-		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=%d", scanner.FieldCount(), len(dst))
-	}
-
-	for i := 0; scanner.Scan(); i++ {
-		err := ci.Scan(scanner.OID(), BinaryFormatCode, scanner.Bytes(), dst[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	if scanner.Err() != nil {
-		return scanner.Err()
-	}
-
-	return nil
-}
-
 // EncodeRow builds a binary representation of row values (row(), composite types)
 func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
 	fieldBytes := make([]byte, 0, 128)

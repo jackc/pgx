@@ -20,7 +20,7 @@ func (dst *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return errors.New("NULL values can't be decoded. Scan into a &*MyType to handle NULLs")
 	}
 
-	if err := pgtype.ScanRowValue(ci, src, &dst.a, &dst.b); err != nil {
+	if err := (pgtype.CompositeFields{&dst.a, &dst.b}).DecodeBinary(ci, src); err != nil {
 		return err
 	}
 

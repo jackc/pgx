@@ -233,6 +233,96 @@ func (cfs *CompositeBinaryScanner) Err() error {
 	return cfs.err
 }
 
+type CompositeTextScanner struct {
+	rp  int
+	src []byte
+
+	fieldBytes []byte
+	err        error
+}
+
+// NewCompositeTextScanner a scanner over a text encoded composite balue.
+func NewCompositeTextScanner(src []byte) (CompositeTextScanner, error) {
+	if len(src) < 2 {
+		return CompositeTextScanner{}, errors.Errorf("Record incomplete %v", src)
+	}
+
+	if src[0] != '(' {
+		return CompositeTextScanner{}, errors.Errorf("composite text format must start with '('")
+	}
+
+	if src[len(src)-1] != ')' {
+		return CompositeTextScanner{}, errors.Errorf("composite text format must end with ')'")
+	}
+
+	return CompositeTextScanner{
+		rp:  1,
+		src: src,
+	}, nil
+}
+
+// Scan advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
+// Scan returns false, the Err method can be called to check if any errors occurred.
+func (cfs *CompositeTextScanner) Scan() bool {
+	if cfs.err != nil {
+		return false
+	}
+
+	if cfs.rp == len(cfs.src) {
+		return false
+	}
+
+	switch cfs.src[cfs.rp] {
+	case ',', ')': // null
+		cfs.rp++
+		cfs.fieldBytes = nil
+		return true
+	case '"': // quoted value
+		cfs.rp++
+		cfs.fieldBytes = make([]byte, 0, 16)
+		for {
+			ch := cfs.src[cfs.rp]
+
+			if ch == '"' {
+				cfs.rp++
+				if cfs.src[cfs.rp] == '"' {
+					cfs.fieldBytes = append(cfs.fieldBytes, '"')
+					cfs.rp++
+				} else {
+					break
+				}
+			} else {
+				cfs.fieldBytes = append(cfs.fieldBytes, ch)
+				cfs.rp++
+			}
+		}
+		cfs.rp++
+		return true
+	default: // unquoted value
+		start := cfs.rp
+		for {
+			ch := cfs.src[cfs.rp]
+			if ch == ',' || ch == ')' {
+				break
+			}
+			cfs.rp++
+		}
+		cfs.fieldBytes = cfs.src[start:cfs.rp]
+		cfs.rp++
+		return true
+	}
+}
+
+// Bytes returns the bytes of the field most recently read by Scan().
+func (cfs *CompositeTextScanner) Bytes() []byte {
+	return cfs.fieldBytes
+}
+
+// Err returns any error encountered by the scanner.
+func (cfs *CompositeTextScanner) Err() error {
+	return cfs.err
+}
+
 // RecordStart adds record header to the buf
 func RecordStart(buf []byte, fieldCount int) []byte {
 	return pgio.AppendUint32(buf, uint32(fieldCount))
