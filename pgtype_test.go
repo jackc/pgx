@@ -64,6 +64,13 @@ func TestConnInfoParamFormatCodeForOID(t *testing.T) {
 	assert.Equal(t, int16(pgtype.BinaryFormatCode), ci.ParamFormatCodeForOID(pgtype.Int4OID))
 }
 
+func TestConnInfoScanNilIsNoOp(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+
+	err := ci.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), nil)
+	assert.NoError(t, err)
+}
+
 func TestConnInfoScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")

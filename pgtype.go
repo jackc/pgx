@@ -833,6 +833,10 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, buf []byte, dst inter
 }
 
 func (ci *ConnInfo) Scan(oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if dst == nil {
+		return nil
+	}
+
 	plan := ci.PlanScan(oid, formatCode, src, dst)
 	return plan.Scan(ci, oid, formatCode, src, dst)
 }
