@@ -142,6 +142,15 @@ type TypeValue interface {
 	TypeName() string
 }
 
+// ValueTranscoder is a value that implements the text and binary encoding and decoding interfaces.
+type ValueTranscoder interface {
+	Value
+	TextEncoder
+	BinaryEncoder
+	TextDecoder
+	BinaryDecoder
+}
+
 // ResultFormatPreferrer allows a type to specify its preferred result format instead of it being inferred from
 // whether it is also a BinaryDecoder.
 type ResultFormatPreferrer interface {
