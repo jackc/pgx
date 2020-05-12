@@ -100,7 +100,7 @@ func BenchmarkBinaryEncodingComposite(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	f1 := 2
 	f2 := ptrS("bar")
-	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
+	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -164,7 +164,7 @@ func BenchmarkBinaryDecodingCompositeScan(b *testing.B) {
 	var f1 int
 	var f2 *string
 
-	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
+	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {

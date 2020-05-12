@@ -7,23 +7,23 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type Composite struct {
+type CompositeType struct {
 	fields []Value
 	Status Status
 }
 
-// NewComposite creates a Composite object, which acts as a "schema" for
+// NewCompositeType creates a Composite object, which acts as a "schema" for
 // SQL composite values.
 // To pass Composite as SQL parameter first set it's fields, either by
-// passing initialized Value{} instances to NewComposite or by calling
+// passing initialized Value{} instances to NewCompositeType or by calling
 // SetFields method
 // To read composite fields back pass result of Scan() method
 // to query Scan function.
-func NewComposite(fields ...Value) *Composite {
-	return &Composite{fields, Present}
+func NewCompositeType(fields ...Value) *CompositeType {
+	return &CompositeType{fields, Present}
 }
 
-func (src Composite) Get() interface{} {
+func (src CompositeType) Get() interface{} {
 	switch src.Status {
 	case Present:
 		return src
@@ -35,9 +35,9 @@ func (src Composite) Get() interface{} {
 }
 
 // Set is called internally when passing query arguments.
-func (dst *Composite) Set(src interface{}) error {
+func (dst *CompositeType) Set(src interface{}) error {
 	if src == nil {
-		*dst = Composite{Status: Null}
+		*dst = CompositeType{Status: Null}
 		return nil
 	}
 
@@ -60,11 +60,11 @@ func (dst *Composite) Set(src interface{}) error {
 }
 
 // AssignTo should never be called on composite value directly
-func (src Composite) AssignTo(dst interface{}) error {
+func (src CompositeType) AssignTo(dst interface{}) error {
 	return errors.New("Pass Composite.Scan() to deconstruct composite")
 }
 
-func (src Composite) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
+func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -78,7 +78,7 @@ func (src Composite) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err 
 // Opposite to Record, fields in a composite act as a "schema"
 // and decoding fails if SQL value can't be assigned due to
 // type mismatch
-func (dst *Composite) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
+func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 	if buf == nil {
 		dst.Status = Null
 		return nil
@@ -118,7 +118,7 @@ func (dst *Composite) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 // Rest of arguments are set in the order of fields in the composite
 //
 // Use of Scan method doesn't modify original composite
-func (src Composite) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFunc {
+func (src CompositeType) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFunc {
 	return func(ci *ConnInfo, buf []byte) error {
 		if err := src.DecodeBinary(ci, buf); err != nil {
 			return err
@@ -139,7 +139,7 @@ func (src Composite) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFunc {
 }
 
 // SetFields sets Composite's fields to corresponding values
-func (dst *Composite) SetFields(values ...interface{}) error {
+func (dst *CompositeType) SetFields(values ...interface{}) error {
 	if len(values) != len(dst.fields) {
 		return errors.Errorf("Number of fields don't match. Composite has %d fields", len(dst.fields))
 	}
