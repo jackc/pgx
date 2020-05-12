@@ -4,14 +4,7 @@ import errors "golang.org/x/xerrors"
 
 // EnumType represents a enum type. While it implements Value, this is only in service of its type conversion duties
 // when registered as a data type in a ConnType. It should not be used directly as a Value.
-type EnumType interface {
-	TypeValue
-
-	// Members returns possible members of this enumeration. The returned slice must not be modified.
-	Members() []string
-}
-
-type enumType struct {
+type EnumType struct {
 	value  string
 	status Status
 
@@ -21,8 +14,8 @@ type enumType struct {
 }
 
 // NewEnumType initializes a new EnumType. It retains a read-only reference to members. members must not be changed.
-func NewEnumType(typeName string, members []string) EnumType {
-	et := &enumType{typeName: typeName, members: members}
+func NewEnumType(typeName string, members []string) *EnumType {
+	et := &EnumType{typeName: typeName, members: members}
 	et.membersMap = make(map[string]string, len(members))
 	for _, m := range members {
 		et.membersMap[m] = m
@@ -30,8 +23,8 @@ func NewEnumType(typeName string, members []string) EnumType {
 	return et
 }
 
-func (et *enumType) NewTypeValue() Value {
-	return &enumType{
+func (et *EnumType) NewTypeValue() Value {
+	return &EnumType{
 		value:  et.value,
 		status: et.status,
 
@@ -41,17 +34,17 @@ func (et *enumType) NewTypeValue() Value {
 	}
 }
 
-func (et *enumType) TypeName() string {
+func (et *EnumType) TypeName() string {
 	return et.typeName
 }
 
-func (et *enumType) Members() []string {
+func (et *EnumType) Members() []string {
 	return et.members
 }
 
 // Set assigns src to dst. Set purposely does not check that src is a member. This allows continued error free
 // operation in the event the PostgreSQL enum type is modified during a connection.
-func (dst *enumType) Set(src interface{}) error {
+func (dst *EnumType) Set(src interface{}) error {
 	if src == nil {
 		dst.status = Null
 		return nil
@@ -92,7 +85,7 @@ func (dst *enumType) Set(src interface{}) error {
 	return nil
 }
 
-func (dst enumType) Get() interface{} {
+func (dst EnumType) Get() interface{} {
 	switch dst.status {
 	case Present:
 		return dst.value
@@ -103,7 +96,7 @@ func (dst enumType) Get() interface{} {
 	}
 }
 
-func (src *enumType) AssignTo(dst interface{}) error {
+func (src *EnumType) AssignTo(dst interface{}) error {
 	switch src.status {
 	case Present:
 		switch v := dst.(type) {
@@ -127,11 +120,11 @@ func (src *enumType) AssignTo(dst interface{}) error {
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
-func (enumType) PreferredResultFormat() int16 {
+func (EnumType) PreferredResultFormat() int16 {
 	return TextFormatCode
 }
 
-func (dst *enumType) DecodeText(ci *ConnInfo, src []byte) error {
+func (dst *EnumType) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		dst.status = Null
 		return nil
@@ -151,15 +144,15 @@ func (dst *enumType) DecodeText(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (dst *enumType) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (dst *EnumType) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return dst.DecodeText(ci, src)
 }
 
-func (enumType) PreferredParamFormat() int16 {
+func (EnumType) PreferredParamFormat() int16 {
 	return TextFormatCode
 }
 
-func (src enumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src EnumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.status {
 	case Null:
 		return nil, nil
@@ -170,6 +163,6 @@ func (src enumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return append(buf, src.value...), nil
 }
 
-func (src enumType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src EnumType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return src.EncodeText(ci, buf)
 }
