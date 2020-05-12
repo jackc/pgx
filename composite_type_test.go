@@ -12,7 +12,7 @@ import (
 )
 
 func TestCompositeTypeSetAndGet(t *testing.T) {
-	ct := pgtype.NewCompositeType(&pgtype.Text{}, &pgtype.Int4{})
+	ct := pgtype.NewCompositeType("test", &pgtype.Text{}, &pgtype.Int4{})
 	assert.Equal(t, pgtype.Undefined, ct.Get())
 
 	nilTests := []struct {
@@ -54,7 +54,7 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 }
 
 func TestCompositeTypeAssignTo(t *testing.T) {
-	ct := pgtype.NewCompositeType(&pgtype.Text{}, &pgtype.Int4{})
+	ct := pgtype.NewCompositeType("test", &pgtype.Text{}, &pgtype.Int4{})
 
 	{
 		err := ct.Set([]interface{}{"foo", int32(42)})
@@ -161,7 +161,7 @@ func Example_composite() {
 		return
 	}
 
-	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
+	c := pgtype.NewCompositeType("mytype", &pgtype.Int4{}, &pgtype.Text{})
 	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: c, Name: "mytype", OID: oid})
 
 	var a int
