@@ -25,7 +25,7 @@ func NewArrayType(typeName string, newElement func() ValueTranscoder) *ArrayType
 	return &ArrayType{typeName: typeName, newElement: newElement}
 }
 
-func (at *ArrayType) CloneTypeValue() Value {
+func (at *ArrayType) NewTypeValue() Value {
 	return &ArrayType{
 		elements:   at.elements,
 		dimensions: at.dimensions,

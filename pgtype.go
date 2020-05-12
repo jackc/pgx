@@ -134,9 +134,9 @@ type Value interface {
 // In general, instances of TypeValue should not be used to directly represent a value. It should only be used as an
 // encoder and decoder internal to ConnInfo.
 type TypeValue interface {
-	// CloneTypeValue duplicates a TypeValue including references to internal type information. e.g. the list of members
+	// NewTypeValue creates a TypeValue including references to internal type information. e.g. the list of members
 	// in an EnumType.
-	CloneTypeValue() Value
+	NewTypeValue() Value
 
 	// TypeName returns the PostgreSQL name of this type.
 	TypeName() string
@@ -359,7 +359,7 @@ func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]uint32) {
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
 	if tv, ok := t.Value.(TypeValue); ok {
-		t.Value = tv.CloneTypeValue()
+		t.Value = tv.NewTypeValue()
 	}
 
 	ci.oidToDataType[t.OID] = &t
@@ -469,7 +469,7 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	for _, dt := range ci.oidToDataType {
 		var value Value
 		if tv, ok := dt.Value.(TypeValue); ok {
-			value = tv.CloneTypeValue()
+			value = tv.NewTypeValue()
 		} else {
 			value = reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value)
 		}
