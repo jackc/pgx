@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"testing"
 
+	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
 	errors "golang.org/x/xerrors"
 )
@@ -12,22 +13,22 @@ type MyCompositeRaw struct {
 	B *string
 }
 
-func (src MyCompositeRaw) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, err error) {
-	a := pgtype.Int4{src.A, pgtype.Present}
+func (src MyCompositeRaw) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
+	buf = pgio.AppendUint32(buf, 2)
 
-	fieldBytes := make([]byte, 0, 64)
-	fieldBytes, _ = a.EncodeBinary(ci, fieldBytes[:0])
+	buf = pgio.AppendUint32(buf, pgtype.Int4OID)
+	buf = pgio.AppendInt32(buf, 4)
+	buf = pgio.AppendInt32(buf, src.A)
 
-	newBuf = pgtype.RecordStart(buf, 2)
-	newBuf = pgtype.RecordAdd(newBuf, pgtype.Int4OID, fieldBytes)
-
+	buf = pgio.AppendUint32(buf, pgtype.TextOID)
 	if src.B != nil {
-		fieldBytes, _ = pgtype.Text{*src.B, pgtype.Present}.EncodeBinary(ci, fieldBytes[:0])
-		newBuf = pgtype.RecordAdd(newBuf, pgtype.TextOID, fieldBytes)
+		buf = pgio.AppendInt32(buf, int32(len(*src.B)))
+		buf = append(buf, (*src.B)...)
 	} else {
-		newBuf = pgtype.RecordAddNull(newBuf, pgtype.TextOID)
+		buf = pgio.AppendInt32(buf, -1)
 	}
-	return
+
+	return buf, nil
 }
 
 func (dst *MyCompositeRaw) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {

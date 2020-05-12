@@ -1,9 +1,6 @@
 package pgtype
 
 import (
-	"encoding/binary"
-
-	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
 )
 
@@ -143,7 +140,7 @@ func (cf CompositeFields) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 // * Integer types must be exact matches. e.g. A Go int32 into a PostgreSQL bigint will fail.
 // * No dereferencing will be done. e.g. *Text must be used instead of Text.
 func (cf CompositeFields) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	buf = pgio.AppendUint32(buf, uint32(len(cf)))
+	b := NewCompositeBinaryBuilder(ci, buf)
 
 	for _, f := range cf {
 		dt, ok := ci.DataTypeForValue(f)
@@ -151,38 +148,20 @@ func (cf CompositeFields) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error)
 			return nil, errors.Errorf("Unknown OID for %#v", f)
 		}
 
-		buf = pgio.AppendUint32(buf, dt.OID)
-		lengthPos := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-
 		if binaryEncoder, ok := f.(BinaryEncoder); ok {
-			fieldBuf, err := binaryEncoder.EncodeBinary(ci, buf)
-			if err != nil {
-				return nil, err
-			}
-			if fieldBuf != nil {
-				binary.BigEndian.PutUint32(buf[lengthPos:], uint32(len(fieldBuf)-len(buf)))
-				buf = fieldBuf
-			}
+			b.AppendEncoder(dt.OID, binaryEncoder)
 		} else {
 			err := dt.Value.Set(f)
 			if err != nil {
 				return nil, err
 			}
 			if binaryEncoder, ok := dt.Value.(BinaryEncoder); ok {
-				fieldBuf, err := binaryEncoder.EncodeBinary(ci, buf)
-				if err != nil {
-					return nil, err
-				}
-				if fieldBuf != nil {
-					binary.BigEndian.PutUint32(buf[lengthPos:], uint32(len(fieldBuf)-len(buf)))
-					buf = fieldBuf
-				}
+				b.AppendEncoder(dt.OID, binaryEncoder)
 			} else {
 				return nil, errors.Errorf("Cannot encode binary format for %v", f)
 			}
 		}
 	}
 
-	return buf, nil
+	return b.Finish()
 }

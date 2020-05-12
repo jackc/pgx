@@ -350,22 +350,74 @@ func (cfs *CompositeTextScanner) Err() error {
 	return cfs.err
 }
 
-// RecordStart adds record header to the buf
-func RecordStart(buf []byte, fieldCount int) []byte {
-	return pgio.AppendUint32(buf, uint32(fieldCount))
+type CompositeBinaryBuilder struct {
+	ci         *ConnInfo
+	buf        []byte
+	startIdx   int
+	fieldCount uint32
+	err        error
 }
 
-// RecordAdd adds record field to the buf
-func RecordAdd(buf []byte, oid uint32, fieldBytes []byte) []byte {
-	buf = pgio.AppendUint32(buf, oid)
-	buf = pgio.AppendUint32(buf, uint32(len(fieldBytes)))
-	buf = append(buf, fieldBytes...)
-	return buf
+func NewCompositeBinaryBuilder(ci *ConnInfo, buf []byte) *CompositeBinaryBuilder {
+	startIdx := len(buf)
+	buf = append(buf, 0, 0, 0, 0) // allocate room for number of fields
+	return &CompositeBinaryBuilder{ci: ci, buf: buf, startIdx: startIdx}
 }
 
-// RecordAddNull adds null value as a field to the buf
-func RecordAddNull(buf []byte, oid uint32) []byte {
-	return pgio.AppendInt32(buf, int32(-1))
+func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field interface{}) {
+	if b.err != nil {
+		return
+	}
+
+	dt, ok := b.ci.DataTypeForOID(oid)
+	if !ok {
+		b.err = errors.Errorf("unknown data type for OID: %d", oid)
+		return
+	}
+
+	err := dt.Value.Set(field)
+	if err != nil {
+		b.err = err
+		return
+	}
+
+	binaryEncoder, ok := dt.Value.(BinaryEncoder)
+	if !ok {
+		b.err = errors.Errorf("unable to encode binary for OID: %d", oid)
+		return
+	}
+
+	b.AppendEncoder(oid, binaryEncoder)
+}
+
+func (b *CompositeBinaryBuilder) AppendEncoder(oid uint32, field BinaryEncoder) {
+	if b.err != nil {
+		return
+	}
+
+	b.buf = pgio.AppendUint32(b.buf, oid)
+	lengthPos := len(b.buf)
+	b.buf = pgio.AppendInt32(b.buf, -1)
+	fieldBuf, err := field.EncodeBinary(b.ci, b.buf)
+	if err != nil {
+		b.err = err
+		return
+	}
+	if fieldBuf != nil {
+		binary.BigEndian.PutUint32(b.buf[lengthPos:], uint32(len(fieldBuf)-len(b.buf)))
+		b.buf = fieldBuf
+	}
+
+	b.fieldCount++
+}
+
+func (b *CompositeBinaryBuilder) Finish() ([]byte, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+
+	binary.BigEndian.PutUint32(b.buf[b.startIdx:], b.fieldCount)
+	return b.buf, nil
 }
 
 var quoteCompositeReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
