@@ -36,7 +36,7 @@ func (src MyType) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, 
 		b = pgtype.Text{Status: pgtype.Null}
 	}
 
-	return pgtype.EncodeRow(ci, buf, &a, &b)
+	return (pgtype.CompositeFields{&a, &b}).EncodeBinary(ci, buf)
 }
 
 func ptrS(s string) *string {

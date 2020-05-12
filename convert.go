@@ -433,25 +433,6 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-// EncodeRow builds a binary representation of row values (row(), composite types)
-func EncodeRow(ci *ConnInfo, buf []byte, fields ...Value) (newBuf []byte, err error) {
-	b := NewCompositeBinaryBuilder(ci, buf)
-
-	for _, f := range fields {
-		dt, ok := ci.DataTypeForValue(f)
-		if !ok {
-			return nil, errors.Errorf("Unknown OID for %s", f)
-		}
-		binaryEncoder, ok := f.(BinaryEncoder)
-		if !ok {
-			return nil, errors.Errorf("record field doesn't implement binary encoding: %s", reflect.TypeOf(f).Name())
-		}
-		b.AppendEncoder(dt.OID, binaryEncoder)
-	}
-
-	return b.Finish()
-}
-
 func init() {
 	kindTypes = map[reflect.Kind]reflect.Type{
 		reflect.Bool:    reflect.TypeOf(false),
