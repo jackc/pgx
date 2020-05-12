@@ -20,19 +20,10 @@ func (cf CompositeFields) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return errors.Errorf("cannot decode unexpected null into CompositeFields")
 	}
 
-	scanner, err := NewCompositeBinaryScanner(src)
-	if err != nil {
-		return err
-	}
-	if len(cf) != scanner.FieldCount() {
-		return errors.Errorf("SQL composite can't be read, field count mismatch. expected %d , found %d", len(cf), scanner.FieldCount())
-	}
+	scanner := NewCompositeBinaryScanner(ci, src)
 
-	for i := 0; scanner.Scan(); i++ {
-		err := ci.Scan(scanner.OID(), BinaryFormatCode, scanner.Bytes(), cf[i])
-		if err != nil {
-			return err
-		}
+	for _, f := range cf {
+		scanner.ScanValue(f)
 	}
 
 	if scanner.Err() != nil {
@@ -51,28 +42,14 @@ func (cf CompositeFields) DecodeText(ci *ConnInfo, src []byte) error {
 		return errors.Errorf("cannot decode unexpected null into CompositeFields")
 	}
 
-	scanner, err := NewCompositeTextScanner(src)
-	if err != nil {
-		return err
-	}
+	scanner := NewCompositeTextScanner(ci, src)
 
-	fieldCount := 0
-
-	for i := 0; scanner.Scan(); i++ {
-		err := ci.Scan(0, TextFormatCode, scanner.Bytes(), cf[i])
-		if err != nil {
-			return err
-		}
-
-		fieldCount += 1
+	for _, f := range cf {
+		scanner.ScanValue(f)
 	}
 
 	if scanner.Err() != nil {
 		return scanner.Err()
-	}
-
-	if len(cf) != fieldCount {
-		return errors.Errorf("SQL composite can't be read, field count mismatch. expected %d , found %d", len(cf), fieldCount)
 	}
 
 	return nil

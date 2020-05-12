@@ -5,7 +5,6 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
-	errors "golang.org/x/xerrors"
 )
 
 type MyCompositeRaw struct {
@@ -35,26 +34,9 @@ func (dst *MyCompositeRaw) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	a := pgtype.Int4{}
 	b := pgtype.Text{}
 
-	scanner, err := pgtype.NewCompositeBinaryScanner(src)
-	if err != nil {
-		return err
-	}
-
-	if 2 != scanner.FieldCount() {
-		return errors.Errorf("can't scan row value, number of fields don't match: found=%d expected=2", scanner.FieldCount())
-	}
-
-	if scanner.Scan() {
-		if err = a.DecodeBinary(ci, scanner.Bytes()); err != nil {
-			return err
-		}
-	}
-
-	if scanner.Scan() {
-		if err = b.DecodeBinary(ci, scanner.Bytes()); err != nil {
-			return err
-		}
-	}
+	scanner := pgtype.NewCompositeBinaryScanner(ci, src)
+	scanner.ScanDecoder(&a)
+	scanner.ScanDecoder(&b)
 
 	if scanner.Err() != nil {
 		return scanner.Err()
