@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"encoding/binary"
+	"strings"
 
 	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
@@ -365,4 +366,17 @@ func RecordAdd(buf []byte, oid uint32, fieldBytes []byte) []byte {
 // RecordAddNull adds null value as a field to the buf
 func RecordAddNull(buf []byte, oid uint32) []byte {
 	return pgio.AppendInt32(buf, int32(-1))
+}
+
+var quoteCompositeReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
+func quoteCompositeField(src string) string {
+	return `"` + quoteCompositeReplacer.Replace(src) + `"`
+}
+
+func QuoteCompositeFieldIfNeeded(src string) string {
+	if src == "" || src[0] == ' ' || src[len(src)-1] == ' ' || strings.ContainsAny(src, `(),"\`) {
+		return quoteCompositeField(src)
+	}
+	return src
 }
