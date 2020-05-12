@@ -177,6 +177,27 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
 	return nil
 }
 
+func (dst *CompositeType) DecodeText(ci *ConnInfo, buf []byte) error {
+	if buf == nil {
+		dst.status = Null
+		return nil
+	}
+
+	scanner := NewCompositeTextScanner(ci, buf)
+
+	for _, f := range dst.fields {
+		scanner.ScanDecoder(f)
+	}
+
+	if scanner.Err() != nil {
+		return scanner.Err()
+	}
+
+	dst.status = Present
+
+	return nil
+}
+
 type CompositeBinaryScanner struct {
 	ci  *ConnInfo
 	rp  int
@@ -471,6 +492,77 @@ func (b *CompositeBinaryBuilder) Finish() ([]byte, error) {
 	}
 
 	binary.BigEndian.PutUint32(b.buf[b.startIdx:], b.fieldCount)
+	return b.buf, nil
+}
+
+type CompositeTextBuilder struct {
+	ci         *ConnInfo
+	buf        []byte
+	startIdx   int
+	fieldCount uint32
+	err        error
+	fieldBuf   [32]byte
+}
+
+func NewCompositeTextBuilder(ci *ConnInfo, buf []byte) *CompositeTextBuilder {
+	buf = append(buf, '(') // allocate room for number of fields
+	return &CompositeTextBuilder{ci: ci, buf: buf}
+}
+
+func (b *CompositeTextBuilder) AppendValue(field interface{}) {
+	if b.err != nil {
+		return
+	}
+
+	if field == nil {
+		b.buf = append(b.buf, ',')
+		return
+	}
+
+	dt, ok := b.ci.DataTypeForValue(field)
+	if !ok {
+		b.err = errors.Errorf("unknown data type for field: %v", field)
+		return
+	}
+
+	err := dt.Value.Set(field)
+	if err != nil {
+		b.err = err
+		return
+	}
+
+	textEncoder, ok := dt.Value.(TextEncoder)
+	if !ok {
+		b.err = errors.Errorf("unable to encode text for value: %v", field)
+		return
+	}
+
+	b.AppendEncoder(textEncoder)
+}
+
+func (b *CompositeTextBuilder) AppendEncoder(field TextEncoder) {
+	if b.err != nil {
+		return
+	}
+
+	fieldBuf, err := field.EncodeText(b.ci, b.fieldBuf[0:0])
+	if err != nil {
+		b.err = err
+		return
+	}
+	if fieldBuf != nil {
+		b.buf = append(b.buf, QuoteCompositeFieldIfNeeded(string(fieldBuf))...)
+	}
+
+	b.buf = append(b.buf, ',')
+}
+
+func (b *CompositeTextBuilder) Finish() ([]byte, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+
+	b.buf[len(b.buf)-1] = ')'
 	return b.buf, nil
 }
 
