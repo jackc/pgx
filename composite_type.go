@@ -567,7 +567,7 @@ func (b *CompositeTextBuilder) AppendEncoder(field TextEncoder) {
 		return
 	}
 	if fieldBuf != nil {
-		b.buf = append(b.buf, QuoteCompositeFieldIfNeeded(string(fieldBuf))...)
+		b.buf = append(b.buf, quoteCompositeFieldIfNeeded(string(fieldBuf))...)
 	}
 
 	b.buf = append(b.buf, ',')
@@ -588,7 +588,7 @@ func quoteCompositeField(src string) string {
 	return `"` + quoteCompositeReplacer.Replace(src) + `"`
 }
 
-func QuoteCompositeFieldIfNeeded(src string) string {
+func quoteCompositeFieldIfNeeded(src string) string {
 	if src == "" || src[0] == ' ' || src[len(src)-1] == ' ' || strings.ContainsAny(src, `(),"\`) {
 		return quoteCompositeField(src)
 	}
