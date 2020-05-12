@@ -9,7 +9,7 @@ import (
 
 type CompositeType struct {
 	fields []Value
-	Status Status
+	status Status
 }
 
 // NewCompositeType creates a Composite object, which acts as a "schema" for
@@ -24,20 +24,20 @@ func NewCompositeType(fields ...Value) *CompositeType {
 }
 
 func (src CompositeType) Get() interface{} {
-	switch src.Status {
+	switch src.status {
 	case Present:
 		return src
 	case Null:
 		return nil
 	default:
-		return src.Status
+		return src.status
 	}
 }
 
 // Set is called internally when passing query arguments.
 func (dst *CompositeType) Set(src interface{}) error {
 	if src == nil {
-		*dst = CompositeType{Status: Null}
+		*dst = CompositeType{status: Null}
 		return nil
 	}
 
@@ -51,7 +51,7 @@ func (dst *CompositeType) Set(src interface{}) error {
 				return err
 			}
 		}
-		dst.Status = Present
+		dst.status = Present
 	default:
 		return errors.Errorf("Can not convert %v to Composite", src)
 	}
@@ -65,7 +65,7 @@ func (src CompositeType) AssignTo(dst interface{}) error {
 }
 
 func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
-	switch src.Status {
+	switch src.status {
 	case Null:
 		return nil, nil
 	case Undefined:
@@ -80,7 +80,7 @@ func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, 
 // type mismatch
 func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 	if buf == nil {
-		dst.Status = Null
+		dst.status = Null
 		return nil
 	}
 
@@ -107,7 +107,7 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 		return scanner.Err()
 	}
 
-	dst.Status = Present
+	dst.status = Present
 
 	return nil
 }
@@ -124,7 +124,7 @@ func (src CompositeType) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFun
 			return err
 		}
 
-		if src.Status == Null {
+		if src.status == Null {
 			*isNull = true
 			return nil
 		}
@@ -148,7 +148,7 @@ func (dst *CompositeType) SetFields(values ...interface{}) error {
 			return err
 		}
 	}
-	dst.Status = Present
+	dst.status = Present
 	return nil
 }
 
