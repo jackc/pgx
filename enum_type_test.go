@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupEnum(t *testing.T, conn *pgx.Conn) pgtype.EnumType {
+func setupEnum(t *testing.T, conn *pgx.Conn) *pgtype.EnumType {
 	_, err := conn.Exec(context.Background(), "drop type if exists pgtype_enum_color;")
 	require.NoError(t, err)
 
