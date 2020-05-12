@@ -7,8 +7,10 @@ import (
 	"testing"
 
 	"github.com/jackc/pgtype"
+	"github.com/jackc/pgtype/testutil"
 	pgx "github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCompositeTypeSetAndGet(t *testing.T) {
@@ -127,6 +129,47 @@ func TestCompositeTypeAssignTo(t *testing.T) {
 		assert.NotNil(t, dst)
 		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
 		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
+	}
+}
+
+func TestCompositeTypeTranscode(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	_, err := conn.Exec(context.Background(), `drop type if exists ct_test;
+
+create type ct_test as (
+	a text,
+  b int4
+);`)
+	require.NoError(t, err)
+	defer conn.Exec(context.Background(), "drop type ct_test")
+
+	var oid uint32
+	err = conn.QueryRow(context.Background(), `select 'ct_test'::regtype::oid`).Scan(&oid)
+	require.NoError(t, err)
+
+	defer conn.Exec(context.Background(), "drop type ct_test")
+
+	ct := pgtype.NewCompositeType("ct_test", &pgtype.Text{}, &pgtype.Int4{})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: ct, Name: "ct_test", OID: oid})
+
+	// Use simple protocol to force text or binary encoding
+	simpleProtocols := []bool{true, false}
+
+	var a string
+	var b int32
+
+	for _, simpleProtocol := range simpleProtocols {
+		err := conn.QueryRow(context.Background(), "select $1::ct_test", pgx.QuerySimpleProtocol(simpleProtocol),
+			pgtype.CompositeFields{"hi", int32(42)},
+		).Scan(
+			[]interface{}{&a, &b},
+		)
+		if assert.NoErrorf(t, err, "Simple Protocol: %v", simpleProtocol) {
+			assert.EqualValuesf(t, "hi", a, "Simple Protocol: %v", simpleProtocol)
+			assert.EqualValuesf(t, 42, b, "Simple Protocol: %v", simpleProtocol)
+		}
 	}
 }
 

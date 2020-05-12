@@ -58,52 +58,17 @@ func (cf CompositeFields) DecodeText(ci *ConnInfo, src []byte) error {
 // EncodeText encodes composite fields into the text format. Prefer registering a CompositeType to using
 // CompositeFields to encode directly.
 func (cf CompositeFields) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	buf = append(buf, '(')
-
-	fieldBuf := make([]byte, 0, 32)
+	b := NewCompositeTextBuilder(ci, buf)
 
 	for _, f := range cf {
-		if f != nil {
-			fieldBuf = fieldBuf[0:0]
-			if textEncoder, ok := f.(TextEncoder); ok {
-				var err error
-				fieldBuf, err = textEncoder.EncodeText(ci, fieldBuf)
-				if err != nil {
-					return nil, err
-				}
-				if fieldBuf != nil {
-					buf = append(buf, QuoteCompositeFieldIfNeeded(string(fieldBuf))...)
-				}
-			} else {
-				dt, ok := ci.DataTypeForValue(f)
-				if !ok {
-					return nil, errors.Errorf("Unknown data type for %#v", f)
-				}
-
-				err := dt.Value.Set(f)
-				if err != nil {
-					return nil, err
-				}
-
-				if textEncoder, ok := dt.Value.(TextEncoder); ok {
-					var err error
-					fieldBuf, err = textEncoder.EncodeText(ci, fieldBuf)
-					if err != nil {
-						return nil, err
-					}
-					if fieldBuf != nil {
-						buf = append(buf, QuoteCompositeFieldIfNeeded(string(fieldBuf))...)
-					}
-				} else {
-					return nil, errors.Errorf("Cannot encode text format for %v", f)
-				}
-			}
+		if textEncoder, ok := f.(TextEncoder); ok {
+			b.AppendEncoder(textEncoder)
+		} else {
+			b.AppendValue(f)
 		}
-		buf = append(buf, ',')
 	}
 
-	buf[len(buf)-1] = ')'
-	return buf, nil
+	return b.Finish()
 }
 
 // EncodeBinary encodes composite fields into the binary format. Unlike CompositeType the schema of the destination is
