@@ -31,7 +31,7 @@ create type mytype as (
 	var a int
 	var b *string
 
-	c := pgtype.NewComposite(&pgtype.Int4{}, &pgtype.Text{})
+	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
 	c.SetFields(2, "bar")
 
 	err = conn.QueryRow(context.Background(), "select $1::mytype", qrf, c).
