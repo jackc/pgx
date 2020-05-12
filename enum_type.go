@@ -31,7 +31,7 @@ func NewEnumType(typeName string, members []string) EnumType {
 	return et
 }
 
-func (et *enumType) CloneTypeValue() Value {
+func (et *enumType) NewTypeValue() Value {
 	return &enumType{
 		value:  et.value,
 		status: et.status,
