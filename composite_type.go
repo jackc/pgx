@@ -20,13 +20,17 @@ type CompositeType struct {
 // To read composite fields back pass result of Scan() method
 // to query Scan function.
 func NewCompositeType(fields ...Value) *CompositeType {
-	return &CompositeType{fields, Present}
+	return &CompositeType{fields, Undefined}
 }
 
 func (src CompositeType) Get() interface{} {
 	switch src.status {
 	case Present:
-		return src
+		results := make([]interface{}, len(src.fields))
+		for i := range results {
+			results[i] = src.fields[i].Get()
+		}
+		return results
 	case Null:
 		return nil
 	default:
@@ -34,17 +38,16 @@ func (src CompositeType) Get() interface{} {
 	}
 }
 
-// Set is called internally when passing query arguments.
 func (dst *CompositeType) Set(src interface{}) error {
 	if src == nil {
-		*dst = CompositeType{status: Null}
+		dst.status = Null
 		return nil
 	}
 
 	switch value := src.(type) {
-	case []Value:
+	case []interface{}:
 		if len(value) != len(dst.fields) {
-			return errors.Errorf("Number of fields don't match. Composite has %d fields", len(dst.fields))
+			return errors.Errorf("Number of fields don't match. CompositeType has %d fields", len(dst.fields))
 		}
 		for i, v := range value {
 			if err := dst.fields[i].Set(v); err != nil {
@@ -52,6 +55,12 @@ func (dst *CompositeType) Set(src interface{}) error {
 			}
 		}
 		dst.status = Present
+	case *[]interface{}:
+		if value == nil {
+			dst.status = Null
+			return nil
+		}
+		return dst.Set(*value)
 	default:
 		return errors.Errorf("Can not convert %v to Composite", src)
 	}
@@ -136,20 +145,6 @@ func (src CompositeType) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFun
 		}
 		return nil
 	}
-}
-
-// SetFields sets Composite's fields to corresponding values
-func (dst *CompositeType) SetFields(values ...interface{}) error {
-	if len(values) != len(dst.fields) {
-		return errors.Errorf("Number of fields don't match. Composite has %d fields", len(dst.fields))
-	}
-	for i, v := range values {
-		if err := dst.fields[i].Set(v); err != nil {
-			return err
-		}
-	}
-	dst.status = Present
-	return nil
 }
 
 type CompositeBinaryScanner struct {

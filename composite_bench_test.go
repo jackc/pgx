@@ -104,7 +104,7 @@ func BenchmarkBinaryEncodingComposite(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		c.SetFields(f1, f2)
+		c.Set([]interface{}{f1, f2})
 		buf, _ = c.EncodeBinary(ci, buf[:0])
 	}
 	x = buf
