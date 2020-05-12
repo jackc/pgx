@@ -53,49 +53,144 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 	}
 }
 
-//ExampleComposite demonstrates use of Row() function to pass and receive
-// back composite types without creating boilderplate custom types.
+func TestCompositeTypeAssignTo(t *testing.T) {
+	ct := pgtype.NewCompositeType(&pgtype.Text{}, &pgtype.Int4{})
+
+	{
+		err := ct.Set([]interface{}{"foo", int32(42)})
+		assert.NoError(t, err)
+
+		var a string
+		var b int32
+
+		err = ct.AssignTo([]interface{}{&a, &b})
+		assert.NoError(t, err)
+
+		assert.Equal(t, "foo", a)
+		assert.Equal(t, int32(42), b)
+	}
+
+	{
+		err := ct.Set([]interface{}{"foo", int32(42)})
+		assert.NoError(t, err)
+
+		var a pgtype.Text
+		var b pgtype.Int4
+
+		err = ct.AssignTo([]interface{}{&a, &b})
+		assert.NoError(t, err)
+
+		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
+		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
+	}
+
+	// Allow nil destination component as no-op
+	{
+		err := ct.Set([]interface{}{"foo", int32(42)})
+		assert.NoError(t, err)
+
+		var b int32
+
+		err = ct.AssignTo([]interface{}{nil, &b})
+		assert.NoError(t, err)
+
+		assert.Equal(t, int32(42), b)
+	}
+
+	// *[]interface{} dest when null
+	{
+		err := ct.Set(nil)
+		assert.NoError(t, err)
+
+		var a pgtype.Text
+		var b pgtype.Int4
+		dst := []interface{}{&a, &b}
+
+		err = ct.AssignTo(&dst)
+		assert.NoError(t, err)
+
+		assert.Nil(t, dst)
+	}
+
+	// *[]interface{} dest when not null
+	{
+		err := ct.Set([]interface{}{"foo", int32(42)})
+		assert.NoError(t, err)
+
+		var a pgtype.Text
+		var b pgtype.Int4
+		dst := []interface{}{&a, &b}
+
+		err = ct.AssignTo(&dst)
+		assert.NoError(t, err)
+
+		assert.NotNil(t, dst)
+		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
+		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
+	}
+}
+
 func Example_composite() {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
-	E(err)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	defer conn.Close(context.Background())
-	_, err = conn.Exec(context.Background(), `drop type if exists mytype;
+	_, err = conn.Exec(context.Background(), `drop type if exists mytype;`)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-create type mytype as (
+	_, err = conn.Exec(context.Background(), `create type mytype as (
   a int4,
   b text
 );`)
-	E(err)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer conn.Exec(context.Background(), "drop type mytype")
 
-	qrf := pgx.QueryResultFormats{pgx.BinaryFormatCode}
+	var oid uint32
+	err = conn.QueryRow(context.Background(), `select 'mytype'::regtype::oid`).Scan(&oid)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	var isNull bool
+	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: c, Name: "mytype", OID: oid})
+
 	var a int
 	var b *string
 
-	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
-	c.Set([]interface{}{2, "bar"})
+	err = conn.QueryRow(context.Background(), "select $1::mytype", []interface{}{2, "bar"}).Scan([]interface{}{&a, &b})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	err = conn.QueryRow(context.Background(), "select $1::mytype", qrf, c).
-		Scan(c.Scan(&isNull, &a, &b))
+	fmt.Printf("First: a=%d b=%s\n", a, *b)
+
+	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype").Scan([]interface{}{&a, &b})
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Printf("Second: a=%d b=%v\n", a, b)
+
+	scanTarget := []interface{}{&a, &b}
+	err = conn.QueryRow(context.Background(), "select NULL::mytype").Scan(&scanTarget)
 	E(err)
 
-	fmt.Printf("First: isNull=%v a=%d b=%s\n", isNull, a, *b)
-
-	err = conn.QueryRow(context.Background(), "select (1, NULL)::mytype", qrf).Scan(c.Scan(&isNull, &a, &b))
-	E(err)
-
-	fmt.Printf("Second: isNull=%v a=%d b=%v\n", isNull, a, b)
-
-	err = conn.QueryRow(context.Background(), "select NULL::mytype", qrf).Scan(c.Scan(&isNull, &a, &b))
-	E(err)
-
-	fmt.Printf("Third: isNull=%v\n", isNull)
+	fmt.Printf("Third: isNull=%v\n", scanTarget == nil)
 
 	// Output:
-	// First: isNull=false a=2 b=bar
-	// Second: isNull=false a=1 b=<nil>
+	// First: a=2 b=bar
+	// Second: a=1 b=<nil>
 	// Third: isNull=true
 }
