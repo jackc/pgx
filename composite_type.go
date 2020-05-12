@@ -70,7 +70,45 @@ func (dst *CompositeType) Set(src interface{}) error {
 
 // AssignTo should never be called on composite value directly
 func (src CompositeType) AssignTo(dst interface{}) error {
-	return errors.New("Pass Composite.Scan() to deconstruct composite")
+	switch src.status {
+	case Present:
+		switch v := dst.(type) {
+		case []interface{}:
+			if len(v) != len(src.fields) {
+				return errors.Errorf("Number of fields don't match. CompositeType has %d fields", len(src.fields))
+			}
+			for i := range src.fields {
+				if v[i] == nil {
+					continue
+				}
+
+				assignToErr := src.fields[i].AssignTo(v[i])
+				if assignToErr != nil {
+					// Try to use get / set instead -- this avoids every type having to be able to AssignTo type of self.
+					setSucceeded := false
+					if setter, ok := v[i].(Value); ok {
+						err := setter.Set(src.fields[i].Get())
+						setSucceeded = err == nil
+					}
+					if !setSucceeded {
+						return errors.Errorf("unable to assign to dst[%d]: %v", i, assignToErr)
+					}
+				}
+
+			}
+			return nil
+		case *[]interface{}:
+			return src.AssignTo(*v)
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
+			return errors.Errorf("unable to assign to %T", dst)
+		}
+	case Null:
+		return NullAssignTo(dst)
+	}
+	return errors.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
@@ -119,32 +157,6 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 	dst.status = Present
 
 	return nil
-}
-
-// Scan is a helper function to perform "nested" scan of
-// a composite value when scanning a query result row.
-// isNull is set if scanned value is NULL
-// Rest of arguments are set in the order of fields in the composite
-//
-// Use of Scan method doesn't modify original composite
-func (src CompositeType) Scan(isNull *bool, dst ...interface{}) BinaryDecoderFunc {
-	return func(ci *ConnInfo, buf []byte) error {
-		if err := src.DecodeBinary(ci, buf); err != nil {
-			return err
-		}
-
-		if src.status == Null {
-			*isNull = true
-			return nil
-		}
-
-		for i, f := range src.fields {
-			if err := f.AssignTo(dst[i]); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 }
 
 type CompositeBinaryScanner struct {

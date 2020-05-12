@@ -160,7 +160,6 @@ var gf2 *string
 func BenchmarkBinaryDecodingCompositeScan(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	buf, _ := MyType{4, ptrS("ABCDEFG")}.EncodeBinary(ci, nil)
-	var isNull bool
 	var f1 int
 	var f2 *string
 
@@ -168,8 +167,14 @@ func BenchmarkBinaryDecodingCompositeScan(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		err := c.Scan(&isNull, &f1, &f2).DecodeBinary(ci, buf)
-		E(err)
+		err := c.DecodeBinary(ci, buf)
+		if err != nil {
+			b.Fatal(err)
+		}
+		err = c.AssignTo([]interface{}{&f1, &f2})
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 	gf1 = f1
 	gf2 = f2
