@@ -130,6 +130,23 @@ func TestCompositeTypeAssignTo(t *testing.T) {
 		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
 		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
 	}
+
+	// Struct fields positionally via reflection
+	{
+		err := ct.Set([]interface{}{"foo", int32(42)})
+		assert.NoError(t, err)
+
+		s := struct {
+			A string
+			B int32
+		}{}
+
+		err = ct.AssignTo(&s)
+		if assert.NoError(t, err) {
+			assert.Equal(t, "foo", s.A)
+			assert.Equal(t, int32(42), s.B)
+		}
+	}
 }
 
 func TestCompositeTypeTranscode(t *testing.T) {
