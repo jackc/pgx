@@ -12,7 +12,7 @@ type CompositeType struct {
 	status Status
 
 	typeName string
-	fields   []Value
+	fields   []ValueTranscoder
 }
 
 // NewCompositeType creates a Composite object, which acts as a "schema" for
@@ -22,7 +22,7 @@ type CompositeType struct {
 // SetFields method
 // To read composite fields back pass result of Scan() method
 // to query Scan function.
-func NewCompositeType(typeName string, fields ...Value) *CompositeType {
+func NewCompositeType(typeName string, fields ...ValueTranscoder) *CompositeType {
 	return &CompositeType{typeName: typeName, fields: fields}
 }
 
@@ -44,11 +44,11 @@ func (src CompositeType) Get() interface{} {
 func (ct *CompositeType) NewTypeValue() Value {
 	a := &CompositeType{
 		typeName: ct.typeName,
-		fields:   make([]Value, len(ct.fields)),
+		fields:   make([]ValueTranscoder, len(ct.fields)),
 	}
 
 	for i := range ct.fields {
-		a.fields[i] = NewValue(ct.fields[i])
+		a.fields[i] = NewValue(ct.fields[i]).(ValueTranscoder)
 	}
 
 	return a
@@ -138,36 +138,34 @@ func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, 
 	case Undefined:
 		return nil, errUndefined
 	}
-	return EncodeRow(ci, buf, src.fields...)
+
+	b := NewCompositeBinaryBuilder(ci, buf)
+	for _, f := range src.fields {
+		dt, ok := ci.DataTypeForValue(f)
+		if !ok {
+			return nil, errors.Errorf("unknown oid")
+		}
+
+		b.AppendEncoder(dt.OID, f)
+	}
+
+	return b.Finish()
 }
 
 // DecodeBinary implements BinaryDecoder interface.
 // Opposite to Record, fields in a composite act as a "schema"
 // and decoding fails if SQL value can't be assigned due to
 // type mismatch
-func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
+func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
 	if buf == nil {
 		dst.status = Null
 		return nil
 	}
 
-	scanner, err := NewCompositeBinaryScanner(buf)
-	if err != nil {
-		return err
-	}
-	if len(dst.fields) != scanner.FieldCount() {
-		return errors.Errorf("SQL composite can't be read, field count mismatch. expected %d , found %d", len(dst.fields), scanner.FieldCount())
-	}
+	scanner := NewCompositeBinaryScanner(ci, buf)
 
-	for i := 0; scanner.Scan(); i++ {
-		binaryDecoder, ok := dst.fields[i].(BinaryDecoder)
-		if !ok {
-			return errors.New("Composite field doesn't support binary protocol")
-		}
-
-		if err = binaryDecoder.DecodeBinary(ci, scanner.Bytes()); err != nil {
-			return err
-		}
+	for _, f := range dst.fields {
+		scanner.ScanDecoder(f)
 	}
 
 	if scanner.Err() != nil {
@@ -180,6 +178,7 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) (err error) {
 }
 
 type CompositeBinaryScanner struct {
+	ci  *ConnInfo
 	rp  int
 	src []byte
 
@@ -190,25 +189,52 @@ type CompositeBinaryScanner struct {
 }
 
 // NewCompositeBinaryScanner a scanner over a binary encoded composite balue.
-func NewCompositeBinaryScanner(src []byte) (CompositeBinaryScanner, error) {
+func NewCompositeBinaryScanner(ci *ConnInfo, src []byte) *CompositeBinaryScanner {
 	rp := 0
 	if len(src[rp:]) < 4 {
-		return CompositeBinaryScanner{}, errors.Errorf("Record incomplete %v", src)
+		return &CompositeBinaryScanner{err: errors.Errorf("Record incomplete %v", src)}
 	}
 
 	fieldCount := int32(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
 
-	return CompositeBinaryScanner{
+	return &CompositeBinaryScanner{
+		ci:         ci,
 		rp:         rp,
 		src:        src,
 		fieldCount: fieldCount,
-	}, nil
+	}
 }
 
-// Scan advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
-// Scan returns false, the Err method can be called to check if any errors occurred.
-func (cfs *CompositeBinaryScanner) Scan() bool {
+// ScanDecoder calls Next and decodes the result with d.
+func (cfs *CompositeBinaryScanner) ScanDecoder(d BinaryDecoder) {
+	if cfs.err != nil {
+		return
+	}
+
+	if cfs.Next() {
+		cfs.err = d.DecodeBinary(cfs.ci, cfs.fieldBytes)
+	} else {
+		cfs.err = errors.New("read past end of composite")
+	}
+}
+
+// ScanDecoder calls Next and scans the result into d.
+func (cfs *CompositeBinaryScanner) ScanValue(d interface{}) {
+	if cfs.err != nil {
+		return
+	}
+
+	if cfs.Next() {
+		cfs.err = cfs.ci.Scan(cfs.OID(), BinaryFormatCode, cfs.Bytes(), d)
+	} else {
+		cfs.err = errors.New("read past end of composite")
+	}
+}
+
+// Next advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
+// Next returns false, the Err method can be called to check if any errors occurred.
+func (cfs *CompositeBinaryScanner) Next() bool {
 	if cfs.err != nil {
 		return false
 	}
@@ -261,6 +287,7 @@ func (cfs *CompositeBinaryScanner) Err() error {
 }
 
 type CompositeTextScanner struct {
+	ci  *ConnInfo
 	rp  int
 	src []byte
 
@@ -268,29 +295,56 @@ type CompositeTextScanner struct {
 	err        error
 }
 
-// NewCompositeTextScanner a scanner over a text encoded composite balue.
-func NewCompositeTextScanner(src []byte) (CompositeTextScanner, error) {
+// NewCompositeTextScanner a scanner over a text encoded composite value.
+func NewCompositeTextScanner(ci *ConnInfo, src []byte) *CompositeTextScanner {
 	if len(src) < 2 {
-		return CompositeTextScanner{}, errors.Errorf("Record incomplete %v", src)
+		return &CompositeTextScanner{err: errors.Errorf("Record incomplete %v", src)}
 	}
 
 	if src[0] != '(' {
-		return CompositeTextScanner{}, errors.Errorf("composite text format must start with '('")
+		return &CompositeTextScanner{err: errors.Errorf("composite text format must start with '('")}
 	}
 
 	if src[len(src)-1] != ')' {
-		return CompositeTextScanner{}, errors.Errorf("composite text format must end with ')'")
+		return &CompositeTextScanner{err: errors.Errorf("composite text format must end with ')'")}
 	}
 
-	return CompositeTextScanner{
+	return &CompositeTextScanner{
+		ci:  ci,
 		rp:  1,
 		src: src,
-	}, nil
+	}
 }
 
-// Scan advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
-// Scan returns false, the Err method can be called to check if any errors occurred.
-func (cfs *CompositeTextScanner) Scan() bool {
+// ScanDecoder calls Next and decodes the result with d.
+func (cfs *CompositeTextScanner) ScanDecoder(d TextDecoder) {
+	if cfs.err != nil {
+		return
+	}
+
+	if cfs.Next() {
+		cfs.err = d.DecodeText(cfs.ci, cfs.fieldBytes)
+	} else {
+		cfs.err = errors.New("read past end of composite")
+	}
+}
+
+// ScanDecoder calls Next and scans the result into d.
+func (cfs *CompositeTextScanner) ScanValue(d interface{}) {
+	if cfs.err != nil {
+		return
+	}
+
+	if cfs.Next() {
+		cfs.err = cfs.ci.Scan(0, TextFormatCode, cfs.Bytes(), d)
+	} else {
+		cfs.err = errors.New("read past end of composite")
+	}
+}
+
+// Next advances the scanner to the next field. It returns false after the last field is read or an error occurs. After
+// Next returns false, the Err method can be called to check if any errors occurred.
+func (cfs *CompositeTextScanner) Next() bool {
 	if cfs.err != nil {
 		return false
 	}

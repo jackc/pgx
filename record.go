@@ -102,14 +102,11 @@ func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	scanner, err := NewCompositeBinaryScanner(src)
-	if err != nil {
-		return err
-	}
+	scanner := NewCompositeBinaryScanner(ci, src)
 
 	fields := make([]Value, scanner.FieldCount())
 
-	for i := 0; scanner.Scan(); i++ {
+	for i := 0; scanner.Next(); i++ {
 		binaryDecoder, err := prepareNewBinaryDecoder(ci, scanner.OID(), &fields[i])
 		if err != nil {
 			return err
