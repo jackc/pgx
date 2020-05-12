@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"encoding/binary"
+	"reflect"
 	"strings"
 
 	"github.com/jackc/pgio"
@@ -102,24 +103,19 @@ func (src CompositeType) AssignTo(dst interface{}) error {
 					continue
 				}
 
-				assignToErr := src.fields[i].AssignTo(v[i])
-				if assignToErr != nil {
-					// Try to use get / set instead -- this avoids every type having to be able to AssignTo type of self.
-					setSucceeded := false
-					if setter, ok := v[i].(Value); ok {
-						err := setter.Set(src.fields[i].Get())
-						setSucceeded = err == nil
-					}
-					if !setSucceeded {
-						return errors.Errorf("unable to assign to dst[%d]: %v", i, assignToErr)
-					}
+				err := assignToOrSet(src.fields[i], v[i])
+				if err != nil {
+					return errors.Errorf("unable to assign to dst[%d]: %v", i, err)
 				}
-
 			}
 			return nil
 		case *[]interface{}:
 			return src.AssignTo(*v)
 		default:
+			if isPtrStruct, err := src.assignToPtrStruct(dst); isPtrStruct {
+				return err
+			}
+
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
@@ -129,6 +125,62 @@ func (src CompositeType) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
+}
+
+func assignToOrSet(src Value, dst interface{}) error {
+	assignToErr := src.AssignTo(dst)
+	if assignToErr != nil {
+		// Try to use get / set instead -- this avoids every type having to be able to AssignTo type of self.
+		setSucceeded := false
+		if setter, ok := dst.(Value); ok {
+			err := setter.Set(src.Get())
+			setSucceeded = err == nil
+		}
+		if !setSucceeded {
+			return assignToErr
+		}
+	}
+
+	return nil
+}
+
+func (src CompositeType) assignToPtrStruct(dst interface{}) (bool, error) {
+	dstValue := reflect.ValueOf(dst)
+	if dstValue.Kind() != reflect.Ptr {
+		return false, nil
+	}
+
+	if dstValue.IsNil() {
+		return false, nil
+	}
+
+	dstElemValue := dstValue.Elem()
+	dstElemType := dstElemValue.Type()
+
+	if dstElemType.Kind() != reflect.Struct {
+		return false, nil
+	}
+
+	exportedFields := make([]int, 0, dstElemType.NumField())
+	for i := 0; i < dstElemType.NumField(); i++ {
+		sf := dstElemType.Field(i)
+		if sf.PkgPath == "" {
+			exportedFields = append(exportedFields, i)
+		}
+	}
+
+	if len(exportedFields) != len(src.fields) {
+		return false, nil
+	}
+
+	for i := range exportedFields {
+		err := assignToOrSet(src.fields[i], dstElemValue.Field(exportedFields[i]).Addr().Interface())
+		if err != nil {
+			return true, errors.Errorf("unable to assign to field %s: %v", dstElemType.Field(exportedFields[i]).Name, err)
+		}
+	}
+
+	return true, nil
 }
 
 func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
