@@ -360,9 +360,7 @@ func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]uint32) {
 }
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
-	if tv, ok := t.Value.(TypeValue); ok {
-		t.Value = tv.NewTypeValue()
-	}
+	t.Value = NewValue(t.Value)
 
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
@@ -469,15 +467,8 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	ci2 := newConnInfo()
 
 	for _, dt := range ci.oidToDataType {
-		var value Value
-		if tv, ok := dt.Value.(TypeValue); ok {
-			value = tv.NewTypeValue()
-		} else {
-			value = reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(Value)
-		}
-
 		ci2.RegisterDataType(DataType{
-			Value: value,
+			Value: NewValue(dt.Value),
 			Name:  dt.Name,
 			OID:   dt.OID,
 		})
@@ -841,6 +832,15 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 			return scanUnknownType(oid, formatCode, buf, nextDst)
 		}
 		return errors.Errorf("unknown oid %d cannot be scanned into %T", oid, dest)
+	}
+}
+
+// NewValue returns a new instance of the same type as v.
+func NewValue(v Value) Value {
+	if tv, ok := v.(TypeValue); ok {
+		return tv.NewTypeValue()
+	} else {
+		return reflect.New(reflect.ValueOf(v).Elem().Type()).Interface().(Value)
 	}
 }
 

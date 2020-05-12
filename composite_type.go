@@ -8,8 +8,10 @@ import (
 )
 
 type CompositeType struct {
-	fields []Value
 	status Status
+
+	typeName string
+	fields   []Value
 }
 
 // NewCompositeType creates a Composite object, which acts as a "schema" for
@@ -19,8 +21,8 @@ type CompositeType struct {
 // SetFields method
 // To read composite fields back pass result of Scan() method
 // to query Scan function.
-func NewCompositeType(fields ...Value) *CompositeType {
-	return &CompositeType{fields, Undefined}
+func NewCompositeType(typeName string, fields ...Value) *CompositeType {
+	return &CompositeType{typeName: typeName, fields: fields}
 }
 
 func (src CompositeType) Get() interface{} {
@@ -36,6 +38,23 @@ func (src CompositeType) Get() interface{} {
 	default:
 		return src.status
 	}
+}
+
+func (ct *CompositeType) NewTypeValue() Value {
+	a := &CompositeType{
+		typeName: ct.typeName,
+		fields:   make([]Value, len(ct.fields)),
+	}
+
+	for i := range ct.fields {
+		a.fields[i] = NewValue(ct.fields[i])
+	}
+
+	return a
+}
+
+func (ct *CompositeType) TypeName() string {
+	return ct.typeName
 }
 
 func (dst *CompositeType) Set(src interface{}) error {
