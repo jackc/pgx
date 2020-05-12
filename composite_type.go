@@ -198,6 +198,22 @@ func (dst *CompositeType) DecodeText(ci *ConnInfo, buf []byte) error {
 	return nil
 }
 
+func (src CompositeType) EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
+	switch src.status {
+	case Null:
+		return nil, nil
+	case Undefined:
+		return nil, errUndefined
+	}
+
+	b := NewCompositeTextBuilder(ci, buf)
+	for _, f := range src.fields {
+		b.AppendEncoder(f)
+	}
+
+	return b.Finish()
+}
+
 type CompositeBinaryScanner struct {
 	ci  *ConnInfo
 	rp  int
