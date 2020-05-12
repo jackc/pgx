@@ -4,10 +4,54 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"testing"
 
 	"github.com/jackc/pgtype"
 	pgx "github.com/jackc/pgx/v4"
+	"github.com/stretchr/testify/assert"
 )
+
+func TestCompositeTypeSetAndGet(t *testing.T) {
+	ct := pgtype.NewCompositeType(&pgtype.Text{}, &pgtype.Int4{})
+	assert.Equal(t, pgtype.Undefined, ct.Get())
+
+	nilTests := []struct {
+		src interface{}
+	}{
+		{nil},                   // nil interface
+		{(*[]interface{})(nil)}, // typed nil
+	}
+
+	for i, tt := range nilTests {
+		err := ct.Set(tt.src)
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equal(t, nil, ct.Get())
+	}
+
+	compatibleValuesTests := []struct {
+		src      []interface{}
+		expected []interface{}
+	}{
+		{
+			src:      []interface{}{"foo", int32(42)},
+			expected: []interface{}{"foo", int32(42)},
+		},
+		{
+			src:      []interface{}{nil, nil},
+			expected: []interface{}{nil, nil},
+		},
+		{
+			src:      []interface{}{&pgtype.Text{String: "hi", Status: pgtype.Present}, &pgtype.Int4{Int: 7, Status: pgtype.Present}},
+			expected: []interface{}{"hi", int32(7)},
+		},
+	}
+
+	for i, tt := range compatibleValuesTests {
+		err := ct.Set(tt.src)
+		assert.NoErrorf(t, err, "%d", i)
+		assert.EqualValues(t, tt.expected, ct.Get())
+	}
+}
 
 //ExampleComposite demonstrates use of Row() function to pass and receive
 // back composite types without creating boilderplate custom types.
@@ -32,7 +76,7 @@ create type mytype as (
 	var b *string
 
 	c := pgtype.NewCompositeType(&pgtype.Int4{}, &pgtype.Text{})
-	c.SetFields(2, "bar")
+	c.Set([]interface{}{2, "bar"})
 
 	err = conn.QueryRow(context.Background(), "select $1::mytype", qrf, c).
 		Scan(c.Scan(&isNull, &a, &b))
