@@ -5,7 +5,6 @@ import errors "golang.org/x/xerrors"
 // EnumType represents a enum type. While it implements Value, this is only in service of its type conversion duties
 // when registered as a data type in a ConnType. It should not be used directly as a Value.
 type EnumType interface {
-	Value
 	TypeValue
 
 	// Members returns possible members of this enumeration. The returned slice must not be modified.

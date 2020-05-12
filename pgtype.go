@@ -128,12 +128,14 @@ type Value interface {
 	AssignTo(dst interface{}) error
 }
 
-// TypeValue represents values where instances can represent different PostgreSQL types. This can be useful for
+// TypeValue is a Value where instances can represent different PostgreSQL types. This can be useful for
 // representing types such as enums, composites, and arrays.
 //
 // In general, instances of TypeValue should not be used to directly represent a value. It should only be used as an
 // encoder and decoder internal to ConnInfo.
 type TypeValue interface {
+	Value
+
 	// NewTypeValue creates a TypeValue including references to internal type information. e.g. the list of members
 	// in an EnumType.
 	NewTypeValue() Value
