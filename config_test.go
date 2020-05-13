@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/user"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgconn"
 	"github.com/stretchr/testify/assert"
@@ -127,11 +128,11 @@ func TestParseConfig(t *testing.T) {
 			name:       "sslmode verify-ca",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=verify-ca",
 			config: &pgconn.Config{
-				User:          "jack",
-				Password:      "secret",
-				Host:          "localhost",
-				Port:          5432,
-				Database:      "mydb",
+				User:     "jack",
+				Password: "secret",
+				Host:     "localhost",
+				Port:     5432,
+				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
 				},
@@ -153,14 +154,15 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "database url everything",
-			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema",
+			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema&connect_timeout=5",
 			config: &pgconn.Config{
-				User:      "jack",
-				Password:  "secret",
-				Host:      "localhost",
-				Port:      5432,
-				Database:  "mydb",
-				TLSConfig: nil,
+				User:           "jack",
+				Password:       "secret",
+				Host:           "localhost",
+				Port:           5432,
+				Database:       "mydb",
+				TLSConfig:      nil,
+				ConnectTimeout: 5 * time.Second,
 				RuntimeParams: map[string]string{
 					"application_name": "pgxtest",
 					"search_path":      "myschema",
@@ -230,14 +232,15 @@ func TestParseConfig(t *testing.T) {
 		},
 		{
 			name:       "DSN everything",
-			connString: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable application_name=pgxtest search_path=myschema",
+			connString: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable application_name=pgxtest search_path=myschema connect_timeout=5",
 			config: &pgconn.Config{
-				User:      "jack",
-				Password:  "secret",
-				Host:      "localhost",
-				Port:      5432,
-				Database:  "mydb",
-				TLSConfig: nil,
+				User:           "jack",
+				Password:       "secret",
+				Host:           "localhost",
+				Port:           5432,
+				Database:       "mydb",
+				TLSConfig:      nil,
+				ConnectTimeout: 5 * time.Second,
 				RuntimeParams: map[string]string{
 					"application_name": "pgxtest",
 					"search_path":      "myschema",
@@ -501,6 +504,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName 
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)
 	assert.Equalf(t, expected.User, actual.User, "%s - User", testName)
 	assert.Equalf(t, expected.Password, actual.Password, "%s - Password", testName)
+	assert.Equalf(t, expected.ConnectTimeout, actual.ConnectTimeout, "%s - ConnectTimeout", testName)
 	assert.Equalf(t, expected.RuntimeParams, actual.RuntimeParams, "%s - RuntimeParams", testName)
 
 	// Can't test function equality, so just test that they are set or not.
@@ -590,13 +594,14 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 				"PGAPPNAME":         "pgxtest",
 			},
 			config: &pgconn.Config{
-				Host:          "123.123.123.123",
-				Port:          7777,
-				Database:      "foo",
-				User:          "bar",
-				Password:      "baz",
-				TLSConfig:     nil,
-				RuntimeParams: map[string]string{"application_name": "pgxtest"},
+				Host:           "123.123.123.123",
+				Port:           7777,
+				Database:       "foo",
+				User:           "bar",
+				Password:       "baz",
+				ConnectTimeout: 10 * time.Second,
+				TLSConfig:      nil,
+				RuntimeParams:  map[string]string{"application_name": "pgxtest"},
 			},
 		},
 	}
