@@ -291,18 +291,15 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 }
 
 func (src *Numeric) toFloat64() (float64, error) {
-	f, err := strconv.ParseFloat(src.Int.String(), 64)
+	buf := make([]byte, 0, 32)
+
+	buf = append(buf, src.Int.String()...)
+	buf = append(buf, 'e')
+	buf = append(buf, strconv.FormatInt(int64(src.Exp), 10)...)
+
+	f, err := strconv.ParseFloat(string(buf), 64)
 	if err != nil {
 		return 0, err
-	}
-	if src.Exp > 0 {
-		for i := 0; i < int(src.Exp); i++ {
-			f *= 10
-		}
-	} else if src.Exp < 0 {
-		for i := 0; i > int(src.Exp); i-- {
-			f /= 10
-		}
 	}
 	return f, nil
 }
