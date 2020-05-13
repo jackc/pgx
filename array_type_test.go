@@ -10,7 +10,7 @@ import (
 )
 
 func TestArrayTypeValue(t *testing.T) {
-	arrayType := pgtype.NewArrayType("_text", func() pgtype.ValueTranscoder { return &pgtype.Text{} })
+	arrayType := pgtype.NewArrayType("_text", pgtype.TextOID, func() pgtype.ValueTranscoder { return &pgtype.Text{} })
 
 	err := arrayType.Set(nil)
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestArrayTypeTranscode(t *testing.T) {
 	defer testutil.MustCloseContext(t, conn)
 
 	conn.ConnInfo().RegisterDataType(pgtype.DataType{
-		Value: pgtype.NewArrayType("_text", func() pgtype.ValueTranscoder { return &pgtype.Text{} }),
+		Value: pgtype.NewArrayType("_text", pgtype.TextOID, func() pgtype.ValueTranscoder { return &pgtype.Text{} }),
 		Name:  "_text",
 		OID:   pgtype.TextArrayOID,
 	})

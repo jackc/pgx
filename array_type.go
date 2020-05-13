@@ -18,11 +18,12 @@ type ArrayType struct {
 	status     Status
 
 	typeName   string
+	elementOID uint32
 	newElement func() ValueTranscoder
 }
 
-func NewArrayType(typeName string, newElement func() ValueTranscoder) *ArrayType {
-	return &ArrayType{typeName: typeName, newElement: newElement}
+func NewArrayType(typeName string, elementOID uint32, newElement func() ValueTranscoder) *ArrayType {
+	return &ArrayType{typeName: typeName, elementOID: elementOID, newElement: newElement}
 }
 
 func (at *ArrayType) NewTypeValue() Value {
@@ -32,6 +33,7 @@ func (at *ArrayType) NewTypeValue() Value {
 		status:     at.status,
 
 		typeName:   at.typeName,
+		elementOID: at.elementOID,
 		newElement: at.newElement,
 	}
 }
@@ -281,15 +283,7 @@ func (src ArrayType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 	arrayHeader := ArrayHeader{
 		Dimensions: src.dimensions,
-	}
-
-	{
-		value := src.newElement()
-		if dt, ok := ci.DataTypeForValue(value); ok {
-			arrayHeader.ElementOID = int32(dt.OID)
-		} else {
-			return nil, errors.Errorf("unable to find oid for element type %v", value)
-		}
+		ElementOID: int32(src.elementOID),
 	}
 
 	for i := range src.elements {
