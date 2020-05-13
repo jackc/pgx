@@ -189,7 +189,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 		// Initially establish one connection
 		res, err := p.p.Acquire(ctx)
 		if err != nil {
-			p.p.Close()
+			p.Close()
 			return nil, err
 		}
 		res.Release()
