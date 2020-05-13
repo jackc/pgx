@@ -77,6 +77,7 @@ func (src *UUID) AssignTo(dst interface{}) error {
 		switch v := dst.(type) {
 		case *uuid.UUID:
 			*v = src.UUID
+			return nil
 		case *[16]byte:
 			*v = [16]byte(src.UUID)
 			return nil
