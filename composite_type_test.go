@@ -14,7 +14,12 @@ import (
 )
 
 func TestCompositeTypeSetAndGet(t *testing.T) {
-	ct := pgtype.NewCompositeType("test", &pgtype.Text{}, &pgtype.Int4{})
+	ci := pgtype.NewConnInfo()
+	ct, err := pgtype.NewCompositeType("test", []pgtype.CompositeTypeField{
+		{"a", pgtype.TextOID},
+		{"b", pgtype.Int4OID},
+	}, ci)
+	require.NoError(t, err)
 	assert.Equal(t, pgtype.Undefined, ct.Get())
 
 	nilTests := []struct {
@@ -56,7 +61,12 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 }
 
 func TestCompositeTypeAssignTo(t *testing.T) {
-	ct := pgtype.NewCompositeType("test", &pgtype.Text{}, &pgtype.Int4{})
+	ci := pgtype.NewConnInfo()
+	ct, err := pgtype.NewCompositeType("test", []pgtype.CompositeTypeField{
+		{"a", pgtype.TextOID},
+		{"b", pgtype.Int4OID},
+	}, ci)
+	require.NoError(t, err)
 
 	{
 		err := ct.Set([]interface{}{"foo", int32(42)})
@@ -168,8 +178,12 @@ create type ct_test as (
 
 	defer conn.Exec(context.Background(), "drop type ct_test")
 
-	ct := pgtype.NewCompositeType("ct_test", &pgtype.Text{}, &pgtype.Int4{})
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: ct, Name: "ct_test", OID: oid})
+	ct, err := pgtype.NewCompositeType("ct_test", []pgtype.CompositeTypeField{
+		{"a", pgtype.TextOID},
+		{"b", pgtype.Int4OID},
+	}, conn.ConnInfo())
+	require.NoError(t, err)
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: ct, Name: ct.TypeName(), OID: oid})
 
 	// Use simple protocol to force text or binary encoding
 	simpleProtocols := []bool{true, false}
@@ -221,8 +235,15 @@ func Example_composite() {
 		return
 	}
 
-	c := pgtype.NewCompositeType("mytype", &pgtype.Int4{}, &pgtype.Text{})
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: c, Name: "mytype", OID: oid})
+	ct, err := pgtype.NewCompositeType("mytype", []pgtype.CompositeTypeField{
+		{"a", pgtype.Int4OID},
+		{"b", pgtype.TextOID},
+	}, conn.ConnInfo())
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: ct, Name: ct.TypeName(), OID: oid})
 
 	var a int
 	var b *string
