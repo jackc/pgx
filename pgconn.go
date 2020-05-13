@@ -1429,7 +1429,6 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 
 	rr.commandTag = commandTag
 	rr.err = err
-	rr.fieldDescriptions = nil
 	rr.rowValues = nil
 	rr.commandConcluded = true
 }
