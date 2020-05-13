@@ -5,6 +5,7 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
+	"github.com/stretchr/testify/require"
 )
 
 type MyCompositeRaw struct {
@@ -83,7 +84,11 @@ func BenchmarkBinaryEncodingComposite(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	f1 := 2
 	f2 := ptrS("bar")
-	c := pgtype.NewCompositeType("test", &pgtype.Int4{}, &pgtype.Text{})
+	c, err := pgtype.NewCompositeType("test", []pgtype.CompositeTypeField{
+		{"a", pgtype.Int4OID},
+		{"b", pgtype.TextOID},
+	}, ci)
+	require.NoError(b, err)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -146,7 +151,11 @@ func BenchmarkBinaryDecodingCompositeScan(b *testing.B) {
 	var f1 int
 	var f2 *string
 
-	c := pgtype.NewCompositeType("test", &pgtype.Int4{}, &pgtype.Text{})
+	c, err := pgtype.NewCompositeType("test", []pgtype.CompositeTypeField{
+		{"a", pgtype.Int4OID},
+		{"b", pgtype.TextOID},
+	}, ci)
+	require.NoError(b, err)
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
