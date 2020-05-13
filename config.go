@@ -401,13 +401,19 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	var hosts []string
 	var ports []string
 	for _, host := range strings.Split(url.Host, ",") {
-		parts := strings.SplitN(host, ":", 2)
-		if parts[0] != "" {
-			hosts = append(hosts, parts[0])
+		if host == "" {
+			continue
 		}
-		if len(parts) == 2 {
-			ports = append(ports, parts[1])
+		if isIPOnly(host) {
+			hosts = append(hosts, strings.Trim(host, "[]"))
+			continue
 		}
+		h, p, err := net.SplitHostPort(host)
+		if err != nil {
+			return nil, errors.Errorf("failed to split host:port in '%s', err: %w", host, err)
+		}
+		hosts = append(hosts, h)
+		ports = append(ports, p)
 	}
 	if len(hosts) > 0 {
 		settings["host"] = strings.Join(hosts, ",")
@@ -426,6 +432,10 @@ func parseURLSettings(connString string) (map[string]string, error) {
 	}
 
 	return settings, nil
+}
+
+func isIPOnly(host string) bool {
+	return net.ParseIP(strings.Trim(host, "[]")) != nil || !strings.Contains(host, ":")
 }
 
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
