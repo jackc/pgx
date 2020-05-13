@@ -266,6 +266,7 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(42), Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
+		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Status: pgtype.Present}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgtype/issues/27
 	}
 
 	for i, tt := range simpleTests {
