@@ -28,6 +28,7 @@ func TestCrateDBConnect(t *testing.T) {
 	require.Nil(t, err)
 	defer closeConn(t, conn)
 
+	assert.Equal(t, connString, conn.Config().ConnString())
 	assert.Equal(t, connString, conn.ConnString())
 
 	var result int
@@ -43,15 +44,16 @@ func TestCrateDBConnect(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
-	connStr := os.Getenv("PGX_TEST_DATABASE")
-	config := mustParseConfig(t, connStr)
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	config := mustParseConfig(t, connString)
 
 	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	assert.Equal(t, connStr, conn.ConnString())
+	assert.Equal(t, connString, conn.Config().ConnString())
+	assert.Equal(t, connString, conn.ConnString())
 
 	var currentDB string
 	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
@@ -113,7 +115,7 @@ func TestConfigContainsConnStr(t *testing.T) {
 	connStr := os.Getenv("PGX_TEST_DATABASE")
 	config, err := pgx.ParseConfig(connStr)
 	require.NoError(t, err)
-	assert.Equal(t, connStr, config.ConnString)
+	assert.Equal(t, connStr, config.ConnString())
 }
 
 func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {

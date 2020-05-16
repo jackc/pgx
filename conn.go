@@ -30,7 +30,7 @@ type ConnConfig struct {
 	LogLevel LogLevel
 
 	// Original connection string that was parsed into config.
-	ConnString string
+	connString string
 
 	// BuildStatementCache creates the stmtcache.Cache implementation for connections created with this config. Set
 	// to nil to disable automatic prepared statements.
@@ -46,6 +46,8 @@ type ConnConfig struct {
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
+
+func (cc *ConnConfig) ConnString() string { return cc.connString }
 
 // BuildStatementCacheFunc is a function that can be used to create a stmtcache.Cache implementation for connection.
 type BuildStatementCacheFunc func(conn *pgconn.PgConn) stmtcache.Cache
@@ -160,7 +162,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		createdByParseConfig: true,
 		LogLevel:             LogLevelInfo,
 		BuildStatementCache:  buildStatementCache,
-		ConnString:           connString,
+		connString:           connString,
 	}
 
 	return connConfig, nil
@@ -423,7 +425,10 @@ func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 func (c *Conn) ConnInfo() *pgtype.ConnInfo { return c.connInfo }
 
 // ConnString returns the connection string that was used to establish this connection.
-func (c *Conn) ConnString() string { return c.config.ConnString }
+func (c *Conn) ConnString() string { return c.config.ConnString() }
+
+// Config returns config that was used to establish this connection.
+func (c *Conn) Config() *ConnConfig { return c.config }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
