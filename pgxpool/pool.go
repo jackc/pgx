@@ -121,6 +121,8 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
+
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. See ParseConfig for information on connString format.
 func Connect(ctx context.Context, connString string) (*Pool, error) {
@@ -370,9 +372,6 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 
 	return conns
 }
-
-// ConnString returns the connection string that was used to initialize this pool.
-func (p *Pool) ConnString() string { return p.config.ConnConfig.ConnString() }
 
 // Config returns config that was used to initialize this pool.
 func (p *Pool) Config() *Config { return p.config }

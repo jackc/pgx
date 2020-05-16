@@ -17,7 +17,7 @@ func TestConnect(t *testing.T) {
 	connString := os.Getenv("PGX_TEST_DATABASE")
 	pool, err := pgxpool.Connect(context.Background(), connString)
 	require.NoError(t, err)
-	assert.Equal(t, connString, pool.ConnString())
+	assert.Equal(t, connString, pool.Config().ConnString())
 	pool.Close()
 }
 

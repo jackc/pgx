@@ -29,7 +29,6 @@ func TestCrateDBConnect(t *testing.T) {
 	defer closeConn(t, conn)
 
 	assert.Equal(t, connString, conn.Config().ConnString())
-	assert.Equal(t, connString, conn.ConnString())
 
 	var result int
 	err = conn.QueryRow(context.Background(), "select 1 +1").Scan(&result)
@@ -53,7 +52,6 @@ func TestConnect(t *testing.T) {
 	}
 
 	assert.Equal(t, connString, conn.Config().ConnString())
-	assert.Equal(t, connString, conn.ConnString())
 
 	var currentDB string
 	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)

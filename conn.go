@@ -424,9 +424,6 @@ func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 // ConnInfo returns the connection info used for this connection.
 func (c *Conn) ConnInfo() *pgtype.ConnInfo { return c.connInfo }
 
-// ConnString returns the connection string that was used to establish this connection.
-func (c *Conn) ConnString() string { return c.config.ConnString() }
-
 // Config returns config that was used to establish this connection.
 func (c *Conn) Config() *ConnConfig { return c.config }
 
