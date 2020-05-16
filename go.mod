@@ -4,7 +4,6 @@ go 1.12
 
 require (
 	github.com/cockroachdb/apd v1.1.0
-	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/jackc/pgconn v1.5.0
 	github.com/jackc/pgio v1.0.0
