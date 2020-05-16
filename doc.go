@@ -22,6 +22,11 @@ here. In addition, a config struct can be created by `ParseConfig` and modified 
 
     conn, err := pgx.ConnectConfig(context.Background(), config)
 
+Connection Pool
+
+`*pgx.Conn` represents a single connection to the database and is not concurrency safe. Use sub-package pgxpool for a
+concurrency safe connection pool.
+
 Query Interface
 
 pgx implements Query and Scan in the familiar database/sql style.
@@ -76,10 +81,6 @@ Use Exec to execute a query that does not return a result set.
     if commandTag.RowsAffected() != 1 {
         return errors.New("No row found to delete")
     }
-
-Connection Pool
-
-See sub-package pgxpool for a connection pool.
 
 Base Type Mapping
 
