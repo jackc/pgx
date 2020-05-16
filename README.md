@@ -29,6 +29,8 @@ import (
 )
 
 func main() {
+	// The format for "DATABASE_URL" is here:
+	// https://godoc.org/github.com/jackc/pgconn#ParseConfig
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -83,6 +85,12 @@ pgx supports many features beyond what is available through `database/sql`:
 * Supports `database/sql.Scanner` and `database/sql/driver.Valuer` interfaces for custom types
 * Notice response handling
 * Simulated nested transactions with savepoints
+
+## PgBouncer & Common Gotchas
+
+* Think about how your application uses the database. Unless you know for sure that there will only be one database request at a time (e.g. no goroutines), then **you must use [PgBouncer](https://www.pgbouncer.org/) on top of PostgreSQL** and on top of pgx. (That, or some other pooling mechanism, like pgxpool.)
+* This is because pgx is only designed to be used by **one process/thread at a time**, unlike the other Golang SQL drivers that you may be used to. Without a pooling mechanism, you will quickly start to get "conn busy" errors, as documented in [issue #635](https://github.com/jackc/pgx/issues/635). Brandur has [an excellent blog post](https://brandur.org/postgres-connections) explaining why using PgBouncer is really important. Even for a small web-app, you need to use PgBouncer.
+* In order to use PgBouncer with pgx, you must include `statement_cache_mode=describe` in your DSN connection string. This is described in more detail in [issue #650](https://github.com/jackc/pgx/issues/650).
 
 ## Performance
 
