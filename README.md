@@ -48,7 +48,7 @@ func main() {
 }
 ```
 
-See the [wiki](https://github.com/jackc/pgx/wiki) for a getting started guide and additional documentation.
+See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx) for more information.
 
 ## Choosing Between the pgx and database/sql Interfaces
 
