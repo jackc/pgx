@@ -69,6 +69,7 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 
 type Pool struct {
 	p                 *puddle.Pool
+	config            *Config
 	afterConnect      func(context.Context, *pgx.Conn) error
 	beforeAcquire     func(context.Context, *pgx.Conn) bool
 	afterRelease      func(*pgx.Conn) bool
@@ -120,6 +121,8 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
+
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. See ParseConfig for information on connString format.
 func Connect(ctx context.Context, connString string) (*Pool, error) {
@@ -141,6 +144,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	}
 
 	p := &Pool{
+		config:            config,
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
@@ -368,6 +372,9 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 
 	return conns
 }
+
+// Config returns config that was used to initialize this pool.
+func (p *Pool) Config() *Config { return p.config }
 
 func (p *Pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
