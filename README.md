@@ -48,6 +48,8 @@ func main() {
 }
 ```
 
+See the [wiki](https://github.com/jackc/pgx/wiki) for a getting started guide and additional documentation.
+
 ## Choosing Between the pgx and database/sql Interfaces
 
 It is recommended to use the pgx interface if:
