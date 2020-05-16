@@ -14,9 +14,10 @@ import (
 
 func TestConnect(t *testing.T) {
 	t.Parallel()
-
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	connStr := os.Getenv("PGX_TEST_DATABASE")
+	pool, err := pgxpool.Connect(context.Background(), connStr)
 	require.NoError(t, err)
+	assert.Equal(t, connStr, pool.ConnStr())
 	pool.Close()
 }
 
