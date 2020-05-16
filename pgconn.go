@@ -890,11 +890,11 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 // ExecParams will panic if len(paramOIDs) is not 0, 1, or len(paramValues).
 //
 // paramFormats is a slice of format codes determining for each paramValue column whether it is encoded in text or
-// binary format. If paramFormats is nil all results will be in text protocol. ExecParams will panic if
+// binary format. If paramFormats is nil all params are text format. ExecParams will panic if
 // len(paramFormats) is not 0, 1, or len(paramValues).
 //
 // resultFormats is a slice of format codes determining for each result column whether it is encoded in text or
-// binary format. If resultFormats is nil all results will be in text protocol.
+// binary format. If resultFormats is nil all results will be in text format.
 //
 // ResultReader must be closed before PgConn can be used again.
 func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) *ResultReader {
@@ -917,11 +917,11 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 // paramValues are the parameter values. It must be encoded in the format given by paramFormats.
 //
 // paramFormats is a slice of format codes determining for each paramValue column whether it is encoded in text or
-// binary format. If paramFormats is nil all results will be in text protocol. ExecPrepared will panic if
+// binary format. If paramFormats is nil all params are text format. ExecPrepared will panic if
 // len(paramFormats) is not 0, 1, or len(paramValues).
 //
 // resultFormats is a slice of format codes determining for each result column whether it is encoded in text or
-// binary format. If resultFormats is nil all results will be in text protocol.
+// binary format. If resultFormats is nil all results will be in text format.
 //
 // ResultReader must be closed before PgConn can be used again.
 func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) *ResultReader {
