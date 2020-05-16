@@ -53,7 +53,7 @@ pgx implements Query and Scan in the familiar database/sql style.
 
     // Any errors encountered by rows.Next or rows.Scan will be returned here
     if rows.Err() != nil {
-        return err
+        return rows.Err()
     }
 
     // No errors found - do something with sum
