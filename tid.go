@@ -44,6 +44,19 @@ func (dst TID) Get() interface{} {
 }
 
 func (src *TID) AssignTo(dst interface{}) error {
+	if src.Status == Present {
+		switch v := dst.(type) {
+		case *string:
+			*v = fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)
+			return nil
+		default:
+			if nextDst, retry := GetAssignToDstType(dst); retry {
+				return src.AssignTo(nextDst)
+			}
+			return errors.Errorf("unable to assign to %T", dst)
+		}
+	}
+
 	return errors.Errorf("cannot assign %v to %T", src, dst)
 }
 
