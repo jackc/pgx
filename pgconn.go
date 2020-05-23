@@ -1151,7 +1151,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			default:
 				signalMessageChan = pgConn.signalMessage()
 			}
-		default:
 		}
 	}
 	close(abortCopyChan)
