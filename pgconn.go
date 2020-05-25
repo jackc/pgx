@@ -288,6 +288,13 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
 			if config.ValidateConnect != nil {
+				// ValidateConnect may execute commands that cause the context to be watched again. Unwatch first to avoid
+				// the watch already in progress panic. This is that last thing done by this method so there is no need to
+				// restart the watch after ValidateConnect returns.
+				//
+				// See https://github.com/jackc/pgconn/issues/40.
+				pgConn.contextWatcher.Unwatch()
+
 				err := config.ValidateConnect(ctx, pgConn)
 				if err != nil {
 					pgConn.conn.Close()

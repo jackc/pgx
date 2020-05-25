@@ -346,9 +346,12 @@ func TestConnectWithValidateConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	config.ValidateConnect = pgconn.ValidateConnectTargetSessionAttrsReadWrite
 	config.RuntimeParams["default_transaction_read_only"] = "on"
 
-	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	conn, err := pgconn.ConnectConfig(ctx, config)
 	if !assert.NotNil(t, err) {
-		conn.Close(context.Background())
+		conn.Close(ctx)
 	}
 }
 
