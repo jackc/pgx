@@ -360,6 +360,48 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 
 }
 
+func TestSendBatchSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PreferSimpleProtocol = true
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+
+	var batch pgx.Batch
+	batch.Queue("SELECT 1::int")
+	batch.Queue("SELECT 2::int; SELECT $1::int", 3)
+	results := conn.SendBatch(ctx, &batch)
+	rows, err := results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err := rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(1), values[0])
+	assert.False(t, rows.Next())
+
+	rows, err = results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err = rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(2), values[0])
+	assert.False(t, rows.Next())
+
+	rows, err = results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err = rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(3), values[0])
+	assert.False(t, rows.Next())
+}
+
 func TestPrepare(t *testing.T) {
 	t.Parallel()
 
