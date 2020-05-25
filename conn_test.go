@@ -366,12 +366,11 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
 	config.PreferSimpleProtocol = true
 
-	conn := mustConnect(t, config)
-	defer closeConn(t, conn)
-
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
 
 	var batch pgx.Batch
 	batch.Queue("SELECT 1::int")
