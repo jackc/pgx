@@ -725,3 +725,44 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 		t.Errorf("Expected second query to be 'select 1 = 1;' but was '%s'", l1.logs[1].data["sql"])
 	}
 }
+
+func TestSendBatchSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.PreferSimpleProtocol = true
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	var batch pgx.Batch
+	batch.Queue("SELECT 1::int")
+	batch.Queue("SELECT 2::int; SELECT $1::int", 3)
+	results := conn.SendBatch(ctx, &batch)
+	rows, err := results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err := rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(1), values[0])
+	assert.False(t, rows.Next())
+
+	rows, err = results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err = rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(2), values[0])
+	assert.False(t, rows.Next())
+
+	rows, err = results.Query()
+	assert.NoError(t, err)
+	assert.True(t, rows.Next())
+	values, err = rows.Values()
+	assert.NoError(t, err)
+	assert.Equal(t, int32(3), values[0])
+	assert.False(t, rows.Next())
+}
