@@ -1103,7 +1103,7 @@ func BenchmarkSelectRowsScanDecoder(b *testing.B) {
 	}
 }
 
-func BenchmarkSelectRowsExplicitBinaryDecoding(b *testing.B) {
+func BenchmarkSelectRowsExplicitDecoding(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
 
@@ -1126,17 +1126,17 @@ func BenchmarkSelectRowsExplicitBinaryDecoding(b *testing.B) {
 						b.Fatal(err)
 					}
 
-					err = br.FirstName.DecodeBinary(conn.ConnInfo(), rawValues[1])
+					err = br.FirstName.DecodeText(conn.ConnInfo(), rawValues[1])
 					if err != nil {
 						b.Fatal(err)
 					}
 
-					err = br.LastName.DecodeBinary(conn.ConnInfo(), rawValues[2])
+					err = br.LastName.DecodeText(conn.ConnInfo(), rawValues[2])
 					if err != nil {
 						b.Fatal(err)
 					}
 
-					err = br.Sex.DecodeBinary(conn.ConnInfo(), rawValues[3])
+					err = br.Sex.DecodeText(conn.ConnInfo(), rawValues[3])
 					if err != nil {
 						b.Fatal(err)
 					}
@@ -1209,7 +1209,7 @@ func BenchmarkSelectRowsPgConnExecParams(b *testing.B) {
 				code int16
 			}{
 				{"text", pgx.TextFormatCode},
-				{"binary", pgx.BinaryFormatCode},
+				{"binary - mostly", pgx.BinaryFormatCode},
 			}
 			for _, format := range formats {
 				b.Run(format.name, func(b *testing.B) {
@@ -1220,7 +1220,7 @@ func BenchmarkSelectRowsPgConnExecParams(b *testing.B) {
 							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
 							nil,
 							nil,
-							[]int16{format.code},
+							[]int16{format.code, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, format.code, format.code, format.code, format.code},
 						)
 						for rr.NextRow() {
 							rr.Values()
@@ -1255,7 +1255,7 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 				code int16
 			}{
 				{"text", pgx.TextFormatCode},
-				{"binary", pgx.BinaryFormatCode},
+				{"binary - mostly", pgx.BinaryFormatCode},
 			}
 			for _, format := range formats {
 				b.Run(format.name, func(b *testing.B) {
@@ -1265,7 +1265,7 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 							"ps1",
 							[][]byte{[]byte(strconv.FormatInt(rowCount, 10))},
 							nil,
-							[]int16{format.code},
+							[]int16{format.code, pgx.TextFormatCode, pgx.TextFormatCode, pgx.TextFormatCode, format.code, format.code, format.code, format.code},
 						)
 						for rr.NextRow() {
 							rr.Values()
