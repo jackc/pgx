@@ -708,6 +708,29 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Ro
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
+	simpleProtocol := c.config.PreferSimpleProtocol
+	var sb strings.Builder
+	if simpleProtocol {
+		for i, bi := range b.items {
+			if i > 0 {
+				sb.WriteByte(';')
+			}
+			sql, err := c.sanitizeForSimpleQuery(bi.query, bi.arguments...)
+			if err != nil {
+				return &batchResults{ctx: ctx, conn: c, err: err}
+			}
+			sb.WriteString(sql)
+		}
+		mrr := c.pgConn.Exec(ctx, sb.String())
+		return &batchResults{
+			ctx:  ctx,
+			conn: c,
+			mrr:  mrr,
+			b:    b,
+			ix:   0,
+		}
+	}
+
 	distinctUnpreparedQueries := map[string]struct{}{}
 
 	for _, bi := range b.items {
