@@ -257,6 +257,11 @@ type Conn struct {
 	connConfig pgx.ConnConfig
 }
 
+// Conn returns the underlying *pgx.Conn
+func (c *Conn) Conn() *pgx.Conn {
+	return c.conn
+}
+
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 	return c.PrepareContext(context.Background(), query)
 }
