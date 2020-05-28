@@ -28,30 +28,23 @@
 //
 //	db.QueryRow("select * from users where id=$1", userID)
 //
-// AcquireConn and ReleaseConn acquire and release a *pgx.Conn from the standard
-// database/sql.DB connection pool. This allows operations that must be
-// performed on a single connection without running in a transaction, and it
-// supports operations that use pgx specific functionality.
+// In Go 1.13 and above (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard
+// database/sql.DB connection pool. This allows operations that use pgx specific functionality.
 //
-//	conn, err := stdlib.AcquireConn(db)
+//	// Given db is a *sql.DB
+//	conn, err := db.Conn(context.Background())
 //	if err != nil {
-//		return err
+//		// handle error from acquiring connection from DB pool
 //	}
-//	defer stdlib.ReleaseConn(db, conn)
 //
-//	// do stuff with pgx.Conn
-//
-// It also can be used to enable a fast path for pgx while preserving
-// compatibility with other drivers and database.
-//
-//	conn, err := stdlib.AcquireConn(db)
-//	if err == nil {
-//		// fast path with pgx
-//		// ...
-//		// release conn when done
-//		stdlib.ReleaseConn(db, conn)
-//	} else {
-//		// normal path for other drivers and databases
+//	err = conn.Raw(func(driverConn interface{}) error {
+//		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
+//		// Do pgx specific stuff with conn
+//		conn.CopyFrom(...)
+//		return nil
+//	})
+//	if err != nil {
+//		// handle error that occurred while using *pgx.Conn
 //	}
 package stdlib
 
@@ -698,6 +691,9 @@ func (fakeTx) Commit() error { return nil }
 
 func (fakeTx) Rollback() error { return nil }
 
+// AcquireConn acquires a *pgx.Conn from database/sql connection pool. It must be released with ReleaseConn.
+//
+// In Go 1.13 this functionality has been incorporated into the standard library in the db.Conn.Raw() method.
 func AcquireConn(db *sql.DB) (*pgx.Conn, error) {
 	var conn *pgx.Conn
 	ctx := context.WithValue(context.Background(), ctxKeyFakeTx, &conn)
@@ -717,6 +713,7 @@ func AcquireConn(db *sql.DB) (*pgx.Conn, error) {
 	return conn, nil
 }
 
+// ReleaseConn releases a *pgx.Conn acquired with AcquireConn.
 func ReleaseConn(db *sql.DB, conn *pgx.Conn) error {
 	var tx *sql.Tx
 	var ok bool
