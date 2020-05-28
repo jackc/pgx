@@ -561,6 +561,21 @@ func TestAcquireConn(t *testing.T) {
 	})
 }
 
+func TestConnRaw(t *testing.T) {
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		conn, err := db.Conn(context.Background())
+		require.NoError(t, err)
+
+		var n int
+		err = conn.Raw(func(driverConn interface{}) error {
+			conn := driverConn.(*stdlib.Conn).Conn()
+			return conn.QueryRow(context.Background(), "select 42").Scan(&n)
+		})
+		require.NoError(t, err)
+		assert.EqualValues(t, 42, n)
+	})
+}
+
 // https://github.com/jackc/pgx/issues/673
 func TestReleaseConnWithTxInProgress(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
