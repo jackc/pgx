@@ -834,17 +834,35 @@ func TestRowsColumnTypes(t *testing.T) {
 					OK:        true,
 				},
 				ScanType: reflect.TypeOf(float64(0)),
+			}, {
+				Name:     "d",
+				TypeName: "1266",
+				Length: struct {
+					Len int64
+					OK  bool
+				}{
+					Len: 0,
+					OK:  false,
+				},
+				DecimalSize: struct {
+					Precision int64
+					Scale     int64
+					OK        bool
+				}{
+					Precision: 0,
+					Scale:     0,
+					OK:        false,
+				},
+				ScanType: reflect.TypeOf(""),
 			},
 		}
 
-		rows, err := db.Query("SELECT 1 AS a, text 'bar' AS bar, 1.28::numeric(9, 2) AS dec")
+		rows, err := db.Query("SELECT 1 AS a, text 'bar' AS bar, 1.28::numeric(9, 2) AS dec, '12:00:00'::timetz as d")
 		require.NoError(t, err)
 
 		columns, err := rows.ColumnTypes()
 		require.NoError(t, err)
-		if len(columns) != 3 {
-			t.Errorf("expected 3 columns found %d", len(columns))
-		}
+		assert.Len(t, columns, 4)
 
 		for i, tt := range columnTypesTests {
 			c := columns[i]

@@ -56,6 +56,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -423,13 +424,13 @@ func (r *Rows) Columns() []string {
 	return names
 }
 
-// ColumnTypeDatabaseTypeName return the database system type name.
+// ColumnTypeDatabaseTypeName returns the database system type name. If the name is unknown the OID is returned.
 func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
 	if dt, ok := r.conn.conn.ConnInfo().DataTypeForOID(r.rows.FieldDescriptions()[index].DataTypeOID); ok {
 		return strings.ToUpper(dt.Name)
 	}
 
-	return ""
+	return strconv.FormatInt(int64(r.rows.FieldDescriptions()[index].DataTypeOID), 10)
 }
 
 const varHeaderSize = 4
@@ -481,8 +482,6 @@ func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
 		return reflect.TypeOf(int32(0))
 	case pgtype.Int2OID:
 		return reflect.TypeOf(int16(0))
-	case pgtype.VarcharOID, pgtype.BPCharArrayOID, pgtype.TextOID:
-		return reflect.TypeOf("")
 	case pgtype.BoolOID:
 		return reflect.TypeOf(false)
 	case pgtype.NumericOID:
@@ -492,7 +491,7 @@ func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
 	case pgtype.ByteaOID:
 		return reflect.TypeOf([]byte(nil))
 	default:
-		return reflect.TypeOf(new(interface{})).Elem()
+		return reflect.TypeOf("")
 	}
 }
 
