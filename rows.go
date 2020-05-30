@@ -3,7 +3,6 @@ package pgx
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	errors "golang.org/x/xerrors"
@@ -244,7 +243,7 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		}
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
-			value := reflect.New(reflect.ValueOf(dt.Value).Elem().Type()).Interface().(pgtype.Value)
+			value := pgtype.NewValue(dt.Value)
 
 			switch fd.Format {
 			case TextFormatCode:
