@@ -62,6 +62,35 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// Copy returns a deep copy of the config that is safe to use and modify.
+// The only exception is the TLSConfig field:
+// according to the tls.Config docs it must not be modified after creation.
+func (c *Config) Copy() *Config {
+	newConf := new(Config)
+	*newConf = *c
+	if newConf.TLSConfig != nil {
+		newConf.TLSConfig = c.TLSConfig.Clone()
+	}
+	if newConf.RuntimeParams != nil {
+		newConf.RuntimeParams = make(map[string]string, len(c.RuntimeParams))
+		for k, v := range c.RuntimeParams {
+			newConf.RuntimeParams[k] = v
+		}
+	}
+	if newConf.Fallbacks != nil {
+		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
+		for i, fallback := range c.Fallbacks {
+			newFallback := new(FallbackConfig)
+			*newFallback = *fallback
+			if newFallback.TLSConfig != nil {
+				newFallback.TLSConfig = fallback.TLSConfig.Clone()
+			}
+			newConf.Fallbacks[i] = newFallback
+		}
+	}
+	return newConf
+}
+
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
 // network connection. It is used for TLS fallback such as sslmode=prefer and high availability (HA) connections.
 type FallbackConfig struct {
