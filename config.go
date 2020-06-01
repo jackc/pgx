@@ -17,8 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mohae/deepcopy"
-
 	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgproto3/v2"
@@ -64,10 +62,32 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// Copy returns a deep copy of the config that is safe to use and modify.
+// The only exception is the TLSConfig field:
+// according to the tls.Config docs it must not be modified after creation.
 func (c *Config) Copy() *Config {
-	newConf := deepcopy.Copy(c).(*Config)
-	// We need to set this field manually because it's unexported and deep copy won't touch it.
-	newConf.createdByParseConfig = c.createdByParseConfig
+	newConf := new(Config)
+	*newConf = *c
+	if newConf.TLSConfig != nil {
+		newConf.TLSConfig = c.TLSConfig.Clone()
+	}
+	if newConf.RuntimeParams != nil {
+		newConf.RuntimeParams = make(map[string]string, len(c.RuntimeParams))
+		for k, v := range c.RuntimeParams {
+			newConf.RuntimeParams[k] = v
+		}
+	}
+	if newConf.Fallbacks != nil {
+		newConf.Fallbacks = make([]*FallbackConfig, len(c.Fallbacks))
+		for i, fallback := range c.Fallbacks {
+			newFallback := new(FallbackConfig)
+			*newFallback = *fallback
+			if newFallback.TLSConfig != nil {
+				newFallback.TLSConfig = fallback.TLSConfig.Clone()
+			}
+			newConf.Fallbacks[i] = newFallback
+		}
+	}
 	return newConf
 }
 
