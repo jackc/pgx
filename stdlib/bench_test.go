@@ -53,7 +53,7 @@ func BenchmarkSelectRowsScanSimple(b *testing.B) {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
 			for i := 0; i < b.N; i++ {
-				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(1, $1) n", rowCount)
+				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(1, $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -91,7 +91,7 @@ func BenchmarkSelectRowsScanNull(b *testing.B) {
 		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
 			br := &BenchRowSimple{}
 			for i := 0; i < b.N; i++ {
-				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, now() from generate_series(100000, 100000 +  $1) n", rowCount)
+				rows, err := db.Query("select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100000, 100000 +  $1) n", rowCount)
 				if err != nil {
 					b.Fatal(err)
 				}
