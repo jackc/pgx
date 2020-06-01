@@ -9,7 +9,6 @@ require (
 	github.com/jackc/pgpassfile v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
 	github.com/jackc/pgservicefile v0.0.0-20200307190119-3430c5407db8
-	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/stretchr/testify v1.5.1
 	golang.org/x/crypto v0.0.0-20200323165209-0ec3e9974c59
 	golang.org/x/text v0.3.2

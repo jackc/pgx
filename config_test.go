@@ -529,7 +529,7 @@ func TestParseConfig(t *testing.T) {
 }
 
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
-	connString := "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
@@ -538,14 +538,20 @@ func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 }
 
 func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
-	connString := "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
 	copied := original.Copy()
+	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
+
 	copied.Port = uint16(5433)
+	copied.RuntimeParams["foo"] = "bar"
+	copied.Fallbacks[0].Port = uint16(5433)
 
 	assert.Equal(t, uint16(5432), original.Port)
+	assert.Equal(t, "", original.RuntimeParams["foo"])
+	assert.Equal(t, uint16(5432), original.Fallbacks[0].Port)
 }
 
 func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
