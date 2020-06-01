@@ -1,6 +1,7 @@
 package pgconn_test
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
@@ -525,6 +526,38 @@ func TestParseConfig(t *testing.T) {
 
 		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
 	}
+}
+
+func TestConfigCopyReturnsEqualConfig(t *testing.T) {
+	connString := "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	original, err := pgconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
+}
+
+func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
+	connString := "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	original, err := pgconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	copied.Port = uint16(5433)
+
+	assert.Equal(t, uint16(5432), original.Port)
+}
+
+func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
+	connString := os.Getenv("PGX_TEST_CONN_STRING")
+	original, err := pgconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assert.NotPanics(t, func() {
+		_, err = pgconn.ConnectConfig(context.Background(), copied)
+	})
+	assert.NoError(t, err)
 }
 
 func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName string) {
