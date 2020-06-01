@@ -51,7 +51,7 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	assert.Equal(t, connString, conn.Config().ConnString())
+	assert.Equal(t, config, conn.Config())
 
 	var currentDB string
 	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
