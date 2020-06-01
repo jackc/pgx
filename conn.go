@@ -174,6 +174,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
 	}
+	originalConfig := config
 
 	// This isn't really a deep copy. But it is enough to avoid the config.Config.OnNotification mutation from affecting
 	// other connections with the same config. See https://github.com/jackc/pgx/issues/618.
@@ -183,7 +184,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 
 	c = &Conn{
-		config:   config,
+		config:   originalConfig,
 		connInfo: pgtype.NewConnInfo(),
 		logLevel: config.LogLevel,
 		logger:   config.Logger,
