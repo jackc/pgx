@@ -17,6 +17,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mohae/deepcopy"
+
 	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgproto3/v2"
@@ -60,6 +62,13 @@ type Config struct {
 	OnNotification NotificationHandler
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+}
+
+func (c *Config) Copy() *Config {
+	newConf := deepcopy.Copy(c).(*Config)
+	// We need to set this field manually because it's unexported and deep copy won't touch it.
+	newConf.createdByParseConfig = c.createdByParseConfig
+	return newConf
 }
 
 // FallbackConfig is additional settings to attempt a connection with when the primary Config fails to establish a
