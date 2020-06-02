@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
 
@@ -112,5 +113,54 @@ func ensureConnValid(t *testing.T, conn *pgx.Conn) {
 	}
 	if sum != 55 {
 		t.Error("Wrong values returned")
+	}
+}
+
+func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName string) {
+	if !assert.NotNil(t, expected) {
+		return
+	}
+	if !assert.NotNil(t, actual) {
+		return
+	}
+
+	assert.Equalf(t, expected.Logger, actual.Logger, "%s - Logger", testName)
+	assert.Equalf(t, expected.LogLevel, actual.LogLevel, "%s - LogLevel", testName)
+	assert.Equalf(t, expected.ConnString(), actual.ConnString(), "%s - ConnString", testName)
+	// Can't test function equality, so just test that they are set or not.
+	assert.Equalf(t, expected.BuildStatementCache == nil, actual.BuildStatementCache == nil, "%s - BuildStatementCache", testName)
+	assert.Equalf(t, expected.PreferSimpleProtocol, actual.PreferSimpleProtocol, "%s - PreferSimpleProtocol", testName)
+
+	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
+	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)
+	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)
+	assert.Equalf(t, expected.User, actual.User, "%s - User", testName)
+	assert.Equalf(t, expected.Password, actual.Password, "%s - Password", testName)
+	assert.Equalf(t, expected.ConnectTimeout, actual.ConnectTimeout, "%s - ConnectTimeout", testName)
+	assert.Equalf(t, expected.RuntimeParams, actual.RuntimeParams, "%s - RuntimeParams", testName)
+
+	// Can't test function equality, so just test that they are set or not.
+	assert.Equalf(t, expected.ValidateConnect == nil, actual.ValidateConnect == nil, "%s - ValidateConnect", testName)
+	assert.Equalf(t, expected.AfterConnect == nil, actual.AfterConnect == nil, "%s - AfterConnect", testName)
+
+	if assert.Equalf(t, expected.TLSConfig == nil, actual.TLSConfig == nil, "%s - TLSConfig", testName) {
+		if expected.TLSConfig != nil {
+			assert.Equalf(t, expected.TLSConfig.InsecureSkipVerify, actual.TLSConfig.InsecureSkipVerify, "%s - TLSConfig InsecureSkipVerify", testName)
+			assert.Equalf(t, expected.TLSConfig.ServerName, actual.TLSConfig.ServerName, "%s - TLSConfig ServerName", testName)
+		}
+	}
+
+	if assert.Equalf(t, len(expected.Fallbacks), len(actual.Fallbacks), "%s - Fallbacks", testName) {
+		for i := range expected.Fallbacks {
+			assert.Equalf(t, expected.Fallbacks[i].Host, actual.Fallbacks[i].Host, "%s - Fallback %d - Host", testName, i)
+			assert.Equalf(t, expected.Fallbacks[i].Port, actual.Fallbacks[i].Port, "%s - Fallback %d - Port", testName, i)
+
+			if assert.Equalf(t, expected.Fallbacks[i].TLSConfig == nil, actual.Fallbacks[i].TLSConfig == nil, "%s - Fallback %d - TLSConfig", testName, i) {
+				if expected.Fallbacks[i].TLSConfig != nil {
+					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.InsecureSkipVerify, actual.Fallbacks[i].TLSConfig.InsecureSkipVerify, "%s - Fallback %d - TLSConfig InsecureSkipVerify", testName)
+					assert.Equalf(t, expected.Fallbacks[i].TLSConfig.ServerName, actual.Fallbacks[i].TLSConfig.ServerName, "%s - Fallback %d - TLSConfig ServerName", testName)
+				}
+			}
+		}
 	}
 }
