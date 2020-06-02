@@ -210,6 +210,8 @@ func TestNumericSet(t *testing.T) {
 		{source: float64(1234), result: &pgtype.Numeric{Int: big.NewInt(1234), Exp: 0, Status: pgtype.Present}},
 		{source: float64(12345678900), result: &pgtype.Numeric{Int: big.NewInt(123456789), Exp: 2, Status: pgtype.Present}},
 		{source: float64(12345.678901), result: &pgtype.Numeric{Int: big.NewInt(12345678901), Exp: -6, Status: pgtype.Present}},
+		{source: math.NaN(), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Undefined}},
+		{source: float32(math.NaN()), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Undefined}},
 	}
 
 	for i, tt := range successfulTests {
