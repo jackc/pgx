@@ -344,6 +344,8 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 		123,
 		0.000012345,
 		1.00002345,
+		math.NaN(),
+		float32(math.NaN()),
 	}
 
 	for i, tt := range tests {
@@ -351,7 +353,7 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 			ci := pgtype.NewConnInfo()
 			text, err := n.EncodeText(ci, nil)
 			if err != nil {
-				t.Errorf("%d: %v", i, err)
+				t.Errorf("%d (EncodeText): %v", i, err)
 			}
 			return string(text)
 		}
@@ -360,10 +362,13 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 
 		encoded, err := numeric.EncodeBinary(ci, nil)
 		if err != nil {
-			t.Errorf("%d: %v", i, err)
+			t.Errorf("%d (EncodeBinary): %v", i, err)
 		}
 		decoded := &pgtype.Numeric{}
-		decoded.DecodeBinary(ci, encoded)
+		err = decoded.DecodeBinary(ci, encoded)
+		if err != nil {
+			t.Errorf("%d (DecodeBinary): %v", i, err)
+		}
 
 		text0 := toString(numeric)
 		text1 := toString(decoded)
