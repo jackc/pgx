@@ -64,12 +64,18 @@ func (dst *Numeric) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case float32:
+		if math.IsNaN(float64(value)) {
+			return nil
+		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(float64(value), 'f', -1, 64))
 		if err != nil {
 			return err
 		}
 		*dst = Numeric{Int: num, Exp: exp, Status: Present}
 	case float64:
+		if math.IsNaN(value) {
+			return nil
+		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(value, 'f', -1, 64))
 		if err != nil {
 			return err
