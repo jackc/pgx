@@ -15,6 +15,11 @@ import (
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
 const nbase = 10000
 
+const (
+	pgNumericNaN     = 0x000000000c000000
+	pgNumericNaNSign = 0x0c00
+)
+
 var big0 *big.Int = big.NewInt(0)
 var big1 *big.Int = big.NewInt(1)
 var big10 *big.Int = big.NewInt(10)
@@ -323,6 +328,11 @@ func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
+	if string(src) == "NaN" {
+		*dst = Numeric{}
+		return nil
+	}
+
 	num, exp, err := parseNumericString(string(src))
 	if err != nil {
 		return err
@@ -366,18 +376,22 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp := 0
 	ndigits := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
-
-	if ndigits == 0 {
-		*dst = Numeric{Int: big.NewInt(0), Status: Present}
-		return nil
-	}
-
 	weight := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	sign := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
+
+	if sign == pgNumericNaNSign {
+		*dst = Numeric{}
+		return nil
+	}
+
+	if ndigits == 0 {
+		*dst = Numeric{Int: big.NewInt(0), Status: Present}
+		return nil
+	}
 
 	if len(src[rp:]) < int(ndigits)*2 {
 		return errors.Errorf("numeric incomplete %v", src)
@@ -477,7 +491,8 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	case Null:
 		return nil, nil
 	case Undefined:
-		return nil, errUndefined
+		buf = append(buf, []byte("NaN")...)
+		return buf, nil
 	}
 
 	buf = append(buf, src.Int.String()...)
@@ -491,7 +506,8 @@ func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	case Null:
 		return nil, nil
 	case Undefined:
-		return nil, errUndefined
+		buf = pgio.AppendUint64(buf, pgNumericNaN)
+		return buf, nil
 	}
 
 	var sign int16
