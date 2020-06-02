@@ -267,6 +267,13 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 		}
 	case Null:
 		return NullAssignTo(dst)
+	case Undefined:
+		switch v := dst.(type) {
+		case *float32:
+			*v = float32(math.NaN())
+		case *float64:
+			*v = math.NaN()
+		}
 	}
 
 	return nil

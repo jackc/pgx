@@ -269,6 +269,8 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Status: pgtype.Present}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgtype/issues/27
+		{src: &pgtype.Numeric{}, dst: &f64, expected: math.NaN()},
+		{src: &pgtype.Numeric{}, dst: &f32, expected: float32(math.NaN())},
 	}
 
 	for i, tt := range simpleTests {
@@ -277,8 +279,20 @@ func TestNumericAssignTo(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+		dst := reflect.ValueOf(tt.dst).Elem().Interface()
+		switch dstTyped := dst.(type) {
+		case float32:
+			if math.IsNaN(float64(tt.expected.(float32))) && !math.IsNaN(float64(dstTyped)) {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
+		case float64:
+			if math.IsNaN(tt.expected.(float64)) && !math.IsNaN(dstTyped) {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
+		default:
+			if dst != tt.expected {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
 		}
 	}
 
