@@ -37,19 +37,19 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 
 	compatibleValuesTests := []struct {
 		src      []interface{}
-		expected []interface{}
+		expected map[string]interface{}
 	}{
 		{
 			src:      []interface{}{"foo", int32(42)},
-			expected: []interface{}{"foo", int32(42)},
+			expected: map[string]interface{}{"a": "foo", "b": int32(42)},
 		},
 		{
 			src:      []interface{}{nil, nil},
-			expected: []interface{}{nil, nil},
+			expected: map[string]interface{}{"a": nil, "b": nil},
 		},
 		{
 			src:      []interface{}{&pgtype.Text{String: "hi", Status: pgtype.Present}, &pgtype.Int4{Int: 7, Status: pgtype.Present}},
-			expected: []interface{}{"hi", int32(7)},
+			expected: map[string]interface{}{"a": "hi", "b": int32(7)},
 		},
 	}
 

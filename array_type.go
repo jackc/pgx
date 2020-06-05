@@ -84,7 +84,11 @@ func (dst *ArrayType) Set(src interface{}) error {
 func (dst ArrayType) Get() interface{} {
 	switch dst.status {
 	case Present:
-		return dst.elements
+		elementValues := make([]interface{}, len(dst.elements))
+		for i := range dst.elements {
+			elementValues[i] = dst.elements[i].Get()
+		}
+		return elementValues
 	case Null:
 		return nil
 	default:

@@ -59,9 +59,9 @@ func NewCompositeTypeValues(typeName string, fields []CompositeTypeField, values
 func (src CompositeType) Get() interface{} {
 	switch src.status {
 	case Present:
-		results := make([]interface{}, len(src.valueTranscoders))
-		for i := range results {
-			results[i] = src.valueTranscoders[i].Get()
+		results := make(map[string]interface{}, len(src.valueTranscoders))
+		for i := range src.valueTranscoders {
+			results[src.fields[i].Name] = src.valueTranscoders[i].Get()
 		}
 		return results
 	case Null:
