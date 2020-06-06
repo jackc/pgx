@@ -115,16 +115,23 @@ const (
 	BinaryFormatCode = 1
 )
 
+// Value translates values to and from an internal canonical representation for the type. To actually be usable a type
+// that implements Value should also implement some combination of BinaryDecoder, BinaryEncoder, TextDecoder,
+// and TextEncoder.
+//
+// Operations that update a Value (e.g. Set, DecodeText, DecodeBinary) should entirely replace the value. e.g. Internal
+// slices should be replaced not resized and reused. This allows Get and AssignTo to return a slice directly rather
+// than incur a usually unnecessary copy.
 type Value interface {
-	// Set converts and assigns src to itself.
+	// Set converts and assigns src to itself. Value takes ownership of src.
 	Set(src interface{}) error
 
-	// Get returns the simplest representation of Value. If no simpler representation is
-	// possible, then Get() returns Value.
+	// Get returns the simplest representation of Value. Get may return a pointer to an internal value but it must never
+	// mutate that value. e.g. If Get returns a []byte Value must never change the contents of the []byte.
 	Get() interface{}
 
-	// AssignTo converts and assigns the Value to dst. It MUST make a deep copy of
-	// any reference types.
+	// AssignTo converts and assigns the Value to dst. AssignTo may a pointer to an internal value but it must never
+	// mutate that value. e.g. If Get returns a []byte Value must never change the contents of the []byte.
 	AssignTo(dst interface{}) error
 }
 
