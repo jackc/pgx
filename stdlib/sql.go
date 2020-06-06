@@ -404,15 +404,14 @@ func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (dri
 	return s.conn.QueryContext(ctx, s.sd.Name, argsV)
 }
 
+type rowValueFunc func(src []byte) (driver.Value, error)
+
 type Rows struct {
-	conn           *Conn
-	rows           pgx.Rows
-	values         []interface{}
-	driverValuers  []driver.Valuer
-	textDecoders   []pgtype.TextDecoder
-	binaryDecoders []pgtype.BinaryDecoder
-	skipNext       bool
-	skipNextMore   bool
+	conn         *Conn
+	rows         pgx.Rows
+	valueFuncs   []rowValueFunc
+	skipNext     bool
+	skipNextMore bool
 }
 
 func (r *Rows) Columns() []string {
@@ -504,109 +503,147 @@ func (r *Rows) Next(dest []driver.Value) error {
 	ci := r.conn.conn.ConnInfo()
 	fieldDescriptions := r.rows.FieldDescriptions()
 
-	if r.values == nil {
-		r.values = make([]interface{}, len(fieldDescriptions))
-		r.driverValuers = make([]driver.Valuer, len(fieldDescriptions))
-		r.textDecoders = make([]pgtype.TextDecoder, len(fieldDescriptions))
-		r.binaryDecoders = make([]pgtype.BinaryDecoder, len(fieldDescriptions))
+	if r.valueFuncs == nil {
+		r.valueFuncs = make([]rowValueFunc, len(fieldDescriptions))
 
 		for i, fd := range fieldDescriptions {
 			switch fd.DataTypeOID {
 			case pgtype.BoolOID:
-				v := &pgtype.Bool{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d bool
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.ByteaOID:
-				v := &pgtype.Bytea{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d []byte
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.CIDOID:
-				v := &pgtype.CID{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.CID
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.DateOID:
-				v := &pgtype.Date{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.Date
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.Float4OID:
-				v := &pgtype.Float4{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d float32
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.Float8OID:
-				v := &pgtype.Float8{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d float64
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.Int2OID:
-				v := &pgtype.Int2{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d int16
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.Int4OID:
-				v := &pgtype.Int4{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d int32
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.Int8OID:
-				v := &pgtype.Int8{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d int64
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			case pgtype.JSONOID:
-				v := &pgtype.JSON{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.JSON
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.JSONBOID:
-				v := &pgtype.JSONB{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.JSONB
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.OIDOID:
-				v := &pgtype.OIDValue{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.OIDValue
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.TimestampOID:
-				v := &pgtype.Timestamp{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.Timestamp
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.TimestamptzOID:
-				v := &pgtype.Timestamptz{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.Timestamptz
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.XIDOID:
-				v := &pgtype.XID{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
-				r.binaryDecoders[i] = v
+				var d pgtype.XID
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			default:
-				v := &pgtype.GenericText{}
-				r.values[i] = v
-				r.driverValuers[i] = v
-				r.textDecoders[i] = v
+				var d string
+				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
+					return d, err
+				}
 			}
 		}
 	}
@@ -628,23 +665,14 @@ func (r *Rows) Next(dest []driver.Value) error {
 	}
 
 	for i, rv := range r.rows.RawValues() {
-		fd := fieldDescriptions[i]
-		if fd.Format == pgx.BinaryFormatCode {
-			err := r.binaryDecoders[i].DecodeBinary(ci, rv)
+		if rv != nil {
+			var err error
+			dest[i], err = r.valueFuncs[i](rv)
 			if err != nil {
-				return fmt.Errorf("scan field %d failed: %v", i, err)
+				return fmt.Errorf("convert field %d failed: %v", i, err)
 			}
 		} else {
-			err := r.textDecoders[i].DecodeText(ci, rv)
-			if err != nil {
-				return fmt.Errorf("scan field %d failed: %v", i, err)
-			}
-		}
-
-		var err error
-		dest[i], err = r.driverValuers[i].Value()
-		if err != nil {
-			return fmt.Errorf("convert field %d failed: %v", i, err)
+			dest[i] = nil
 		}
 	}
 
