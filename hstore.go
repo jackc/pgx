@@ -168,6 +168,7 @@ func (src Hstore) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 	firstPair := true
 
+	inElemBuf := make([]byte, 0, 32)
 	for k, v := range src.Map {
 		if firstPair {
 			firstPair = false
@@ -178,7 +179,7 @@ func (src Hstore) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
 		buf = append(buf, "=>"...)
 
-		elemBuf, err := v.EncodeText(ci, nil)
+		elemBuf, err := v.EncodeText(ci, inElemBuf)
 		if err != nil {
 			return nil, err
 		}
