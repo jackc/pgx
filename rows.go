@@ -243,7 +243,7 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		}
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
-			value := pgtype.NewValue(dt.Value)
+			value := dt.Value
 
 			switch fd.Format {
 			case TextFormatCode:
