@@ -206,7 +206,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 			if dst == nil {
 				continue
 			}
-			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dest[i])
+			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 		}
 	}
 

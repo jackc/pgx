@@ -8,8 +8,9 @@ require (
 	github.com/jackc/pgconn v1.5.1-0.20200601181101-fa742c524853
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.0.1
-	github.com/jackc/pgtype v1.3.1-0.20200513130519-238967ec4e4c
+	github.com/jackc/pgtype v1.3.1-0.20200606141011-f6355165a91c
 	github.com/jackc/puddle v1.1.1
+	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
 	github.com/sirupsen/logrus v1.4.2
