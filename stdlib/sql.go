@@ -547,7 +547,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
-					return d, err
+					return float64(d), err
 				}
 			case pgtype.Float8OID:
 				var d float64
@@ -561,14 +561,14 @@ func (r *Rows) Next(dest []driver.Value) error {
 				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
-					return d, err
+					return int64(d), err
 				}
 			case pgtype.Int4OID:
 				var d int32
 				scanPlan := ci.PlanScan(fd.DataTypeOID, fd.Format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(ci, fd.DataTypeOID, fd.Format, src, &d)
-					return d, err
+					return int64(d), err
 				}
 			case pgtype.Int8OID:
 				var d int64
