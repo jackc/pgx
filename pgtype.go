@@ -502,7 +502,7 @@ func (scanPlanDstBinaryDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16,
 		return d.DecodeBinary(ci, src)
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -513,7 +513,7 @@ func (plan scanPlanDstTextDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int
 		return d.DecodeText(ci, src)
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -522,7 +522,7 @@ type scanPlanDataTypeSQLScanner DataType
 func (plan *scanPlanDataTypeSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	scanner, ok := dst.(sql.Scanner)
 	if !ok {
-		newPlan := ci.PlanScan(oid, formatCode, src, dst)
+		newPlan := ci.PlanScan(oid, formatCode, dst)
 		return newPlan.Scan(ci, oid, formatCode, src, dst)
 	}
 
@@ -566,7 +566,7 @@ func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode 
 	}
 
 	// assignToErr might have failed because the type of destination has changed
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	if newPlan, sameType := newPlan.(*scanPlanDataTypeAssignTo); !sameType {
 		return newPlan.Scan(ci, oid, formatCode, src, dst)
 	}
@@ -604,7 +604,7 @@ func (scanPlanReflection) Scan(ci *ConnInfo, oid uint32, formatCode int16, src [
 		elemPtr := reflect.New(refVal.Type().Elem().Elem())
 		refVal.Elem().Set(elemPtr)
 
-		plan := ci.PlanScan(oid, formatCode, src, elemPtr.Interface())
+		plan := ci.PlanScan(oid, formatCode, elemPtr.Interface())
 		return plan.Scan(ci, oid, formatCode, src, elemPtr.Interface())
 	}
 
@@ -627,7 +627,7 @@ func (scanPlanBinaryInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src 
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -647,7 +647,7 @@ func (scanPlanBinaryInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src 
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -667,7 +667,7 @@ func (scanPlanBinaryInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src 
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -688,7 +688,7 @@ func (scanPlanBinaryFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, sr
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -709,7 +709,7 @@ func (scanPlanBinaryFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, sr
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -721,7 +721,7 @@ func (scanPlanBinaryBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src 
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
@@ -737,12 +737,12 @@ func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byt
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, src, dst)
+	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
 // PlanScan prepares a plan to scan a value into dst.
-func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, buf []byte, dst interface{}) ScanPlan {
+func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
 	switch formatCode {
 	case BinaryFormatCode:
 		switch dst.(type) {
@@ -819,7 +819,7 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, src []byte, dst interface
 		return nil
 	}
 
-	plan := ci.PlanScan(oid, formatCode, src, dst)
+	plan := ci.PlanScan(oid, formatCode, dst)
 	return plan.Scan(ci, oid, formatCode, src, dst)
 }
 

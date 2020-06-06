@@ -27,6 +27,8 @@ github.com/jackc/pgconn v1.4.0 h1:E82UBzFyD752mvI+4RIl1WSxfO2ug64T+sLjvDBWTpA=
 github.com/jackc/pgconn v1.4.0/go.mod h1:Y2O3ZDF0q4mMacyWV3AstPJpeHXWGEetiFttmq5lahk=
 github.com/jackc/pgconn v1.5.0 h1:oFSOilzIZkyg787M1fEmyMfOUUvwj0daqYMfaWwNL4o=
 github.com/jackc/pgconn v1.5.0/go.mod h1:QeD3lBfpTFe8WUnPZWN5KY/mB8FGMIYRdd8P8Jr0fAI=
+github.com/jackc/pgconn v1.5.1-0.20200601181101-fa742c524853 h1:LRlrfJW9S99uiOCY8F/qLvX1yEY1TVAaCBHFb79yHBQ=
+github.com/jackc/pgconn v1.5.1-0.20200601181101-fa742c524853/go.mod h1:QeD3lBfpTFe8WUnPZWN5KY/mB8FGMIYRdd8P8Jr0fAI=
 github.com/jackc/pgio v1.0.0 h1:g12B9UwVnzGhueNavwioyEEpAmqMe1E/BN9ES+8ovkE=
 github.com/jackc/pgio v1.0.0/go.mod h1:oP+2QK2wFfUWgr+gxjoBH9KGBb31Eio69xUb0w5bYf8=
 github.com/jackc/pgmock v0.0.0-20190831213851-13a1b77aafa2 h1:JVX6jT/XfzNqIjye4717ITLaNwV9mWbJx0dLCpcRzdA=
@@ -51,6 +53,7 @@ github.com/jackc/pgtype v0.0.0-20190828014616-a8802b16cc59/go.mod h1:MWlu30kVJrU
 github.com/jackc/pgtype v1.2.0/go.mod h1:5m2OfMh1wTK7x+Fk952IDmI4nw3nPrvtQdM0ZT4WpC0=
 github.com/jackc/pgtype v1.3.1-0.20200510045248-7e66ab1e146c/go.mod h1:vaogEUkALtxZMCH411K+tKzNpwzCKU+AnPzBKZ+I+Po=
 github.com/jackc/pgtype v1.3.1-0.20200510190516-8cd94a14c75a/go.mod h1:vaogEUkALtxZMCH411K+tKzNpwzCKU+AnPzBKZ+I+Po=
+github.com/jackc/pgtype v1.3.1-0.20200513130519-238967ec4e4c/go.mod h1:f3c+S645fwV5ZqwPvLWZmmnAfPkmaTeLnXs0byan+aA=
 github.com/jackc/pgx/v4 v4.0.0-20190420224344-cc3461e65d96 h1:ylEAOd688Duev/fxTmGdupsbyZfxNMdngIG14DoBKTM=
 github.com/jackc/pgx/v4 v4.0.0-20190420224344-cc3461e65d96/go.mod h1:mdxmSJJuR08CZQyj1PVQBHy9XOp5p8/SHH6a0psbY9Y=
 github.com/jackc/pgx/v4 v4.0.0-20190421002000-1b8f0016e912 h1:YuOWGsSK5L4Fz81Olx5TNlZftmDuNrfv4ip0Yos77Tw=

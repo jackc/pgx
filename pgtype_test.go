@@ -186,7 +186,7 @@ func TestScanPlanBinaryInt32ScanChangedType(t *testing.T) {
 	src := []byte{0, 0, 0, 42}
 	var v int32
 
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 	err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, v)
@@ -220,7 +220,7 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 	src := []byte{0, 0, 0, 42}
 	var v pgtype.Int4
 
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
 	for i := 0; i < b.N; i++ {
 		v = pgtype.Int4{}
@@ -239,7 +239,7 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 	src := []byte{0, 0, 0, 42}
 	var v int32
 
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
 	for i := 0; i < b.N; i++ {
 		v = 0
