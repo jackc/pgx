@@ -51,7 +51,7 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Unable to establish connection: %v", err)
 	}
 
-	assert.Equal(t, connString, conn.Config().ConnString())
+	assertConfigsEqual(t, config, conn.Config(), "Conn.Config() returns original config")
 
 	var currentDB string
 	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
@@ -114,6 +114,27 @@ func TestConfigContainsConnStr(t *testing.T) {
 	config, err := pgx.ParseConfig(connStr)
 	require.NoError(t, err)
 	assert.Equal(t, connStr, config.ConnString())
+}
+
+func TestConfigCopyReturnsEqualConfig(t *testing.T) {
+	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	original, err := pgx.ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assertConfigsEqual(t, original, copied, t.Name())
+}
+
+func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	original, err := pgx.ParseConfig(connString)
+	require.NoError(t, err)
+
+	copied := original.Copy()
+	assert.NotPanics(t, func() {
+		_, err = pgx.ConnectConfig(context.Background(), copied)
+	})
+	assert.NoError(t, err)
 }
 
 func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
