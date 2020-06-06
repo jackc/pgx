@@ -1,3 +1,14 @@
+# 1.6.0 (June 6, 2020)
+
+* Fix panic when closing conn during cancellable query
+* Fix behavior of sslmode=require with sslrootcert present (Petr Jediný)
+* Fix field descriptions available after command concluded (Tobias Salzmann)
+* Support connect_timeout (georgysavva)
+* Handle IPv6 in connection URLs (Lukas Vogel)
+* Fix ValidateConnect with cancelable context
+* Improve CopyFrom performance
+* Add Config.Copy (georgysavva)
+
 # 1.5.0 (March 30, 2020)
 
 * Update golang.org/x/crypto for security fix
