@@ -121,6 +121,16 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// Copy returns a deep copy of the config that is safe to use and modify.
+// The only exception is the tls.Config:
+// according to the tls.Config docs it must not be modified after creation.
+func (c *Config) Copy() *Config {
+	newConfig := new(Config)
+	*newConfig = *c
+	newConfig.ConnConfig = c.ConnConfig.Copy()
+	return newConfig
+}
+
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -373,8 +383,8 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	return conns
 }
 
-// Config returns config that was used to initialize this pool.
-func (p *Pool) Config() *Config { return p.config }
+// Config returns a copy of config that was used to initialize this pool.
+func (p *Pool) Config() *Config { return p.config.Copy() }
 
 func (p *Pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
