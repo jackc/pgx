@@ -71,6 +71,22 @@ func TestConnInfoScanNilIsNoOp(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestConnInfoScanTextFormatInterfacePtr(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	var got interface{}
+	err := ci.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), &got)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", got)
+}
+
+func TestConnInfoScanBinaryFormatInterfacePtr(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	var got interface{}
+	err := ci.Scan(pgtype.TextOID, pgx.BinaryFormatCode, []byte("foo"), &got)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", got)
+}
+
 func TestConnInfoScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")
