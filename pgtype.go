@@ -565,6 +565,11 @@ func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode 
 		return nil
 	}
 
+	if dstPtr, ok := dst.(*interface{}); ok {
+		*dstPtr = dt.Value.Get()
+		return nil
+	}
+
 	// assignToErr might have failed because the type of destination has changed
 	newPlan := ci.PlanScan(oid, formatCode, dst)
 	if newPlan, sameType := newPlan.(*scanPlanDataTypeAssignTo); !sameType {
