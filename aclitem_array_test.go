@@ -29,6 +29,7 @@ func TestACLItemArrayTranscode(t *testing.T) {
 				{String: "=r/postgres", Status: pgtype.Present},
 				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
 				//{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
+				{String: `postgres=arwdDxt/postgres`, Status: pgtype.Present}, // todo: remove after fixing above case
 				{String: "=r/postgres", Status: pgtype.Present},
 				{Status: pgtype.Null},
 				{String: "=r/postgres", Status: pgtype.Present},
