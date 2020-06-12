@@ -210,6 +210,8 @@ func TestNumericSet(t *testing.T) {
 		{source: float64(1234), result: &pgtype.Numeric{Int: big.NewInt(1234), Exp: 0, Status: pgtype.Present}},
 		{source: float64(12345678900), result: &pgtype.Numeric{Int: big.NewInt(123456789), Exp: 2, Status: pgtype.Present}},
 		{source: float64(12345.678901), result: &pgtype.Numeric{Int: big.NewInt(12345678901), Exp: -6, Status: pgtype.Present}},
+		{source: math.NaN(), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Present, IsNaN: true}},
+		{source: float32(math.NaN()), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Present, IsNaN: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -267,6 +269,8 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Status: pgtype.Present}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgtype/issues/27
+		{src: &pgtype.Numeric{Status: pgtype.Present, IsNaN: true}, dst: &f64, expected: math.NaN()},
+		{src: &pgtype.Numeric{Status: pgtype.Present, IsNaN: true}, dst: &f32, expected: float32(math.NaN())},
 	}
 
 	for i, tt := range simpleTests {
@@ -275,8 +279,26 @@ func TestNumericAssignTo(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+		dst := reflect.ValueOf(tt.dst).Elem().Interface()
+		switch dstTyped := dst.(type) {
+		case float32:
+			nanExpected := math.IsNaN(float64(tt.expected.(float32)))
+			if nanExpected && !math.IsNaN(float64(dstTyped)) {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			} else if !nanExpected && dst != tt.expected {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
+		case float64:
+			nanExpected := math.IsNaN(tt.expected.(float64))
+			if nanExpected && !math.IsNaN(dstTyped) {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			} else if !nanExpected && dst != tt.expected {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
+		default:
+			if dst != tt.expected {
+				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
 		}
 	}
 
@@ -328,6 +350,8 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 		123,
 		0.000012345,
 		1.00002345,
+		math.NaN(),
+		float32(math.NaN()),
 	}
 
 	for i, tt := range tests {
@@ -335,7 +359,7 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 			ci := pgtype.NewConnInfo()
 			text, err := n.EncodeText(ci, nil)
 			if err != nil {
-				t.Errorf("%d: %v", i, err)
+				t.Errorf("%d (EncodeText): %v", i, err)
 			}
 			return string(text)
 		}
@@ -344,10 +368,13 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 
 		encoded, err := numeric.EncodeBinary(ci, nil)
 		if err != nil {
-			t.Errorf("%d: %v", i, err)
+			t.Errorf("%d (EncodeBinary): %v", i, err)
 		}
 		decoded := &pgtype.Numeric{}
-		decoded.DecodeBinary(ci, encoded)
+		err = decoded.DecodeBinary(ci, encoded)
+		if err != nil {
+			t.Errorf("%d (DecodeBinary): %v", i, err)
+		}
 
 		text0 := toString(numeric)
 		text1 := toString(decoded)
