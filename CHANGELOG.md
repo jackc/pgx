@@ -8,6 +8,7 @@
 * Add generic array type support
 * Clarify and normalize Value semantics
 * Fix hstore with empty string values
+* Numeric supports NaN values (leighhopcroft)
 
 # 1.3.0 (March 30, 2020)
 
