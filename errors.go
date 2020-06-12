@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/url"
+	"regexp"
 	"strings"
 
 	errors "golang.org/x/xerrors"
@@ -98,10 +100,11 @@ type parseConfigError struct {
 }
 
 func (e *parseConfigError) Error() string {
+	connString := redactPW(e.connString)
 	if e.err == nil {
-		return fmt.Sprintf("cannot parse `%s`: %s", e.connString, e.msg)
+		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
 	}
-	return fmt.Sprintf("cannot parse `%s`: %s (%s)", e.connString, e.msg, e.err.Error())
+	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, e.err.Error())
 }
 
 func (e *parseConfigError) Unwrap() error {
@@ -163,4 +166,27 @@ func (e *writeError) SafeToRetry() bool {
 
 func (e *writeError) Unwrap() error {
 	return e.err
+}
+
+func redactPW(connString string) string {
+	if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
+		if u, err := url.Parse(connString); err == nil {
+			return redactURL(u)
+		}
+	}
+	quotedDSN := regexp.MustCompile(`password='[^']*'`)
+	connString = quotedDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	plainDSN := regexp.MustCompile(`password=[^ ]*`)
+	connString = plainDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	return connString
+}
+
+func redactURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	if _, pwSet := u.User.Password(); pwSet {
+		u.User = url.UserPassword(u.User.Username(), "xxxxx")
+	}
+	return u.String()
 }
