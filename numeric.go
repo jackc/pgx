@@ -15,6 +15,11 @@ import (
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
 const nbase = 10000
 
+const (
+	pgNumericNaN     = 0x000000000c000000
+	pgNumericNaNSign = 0x0c00
+)
+
 var big0 *big.Int = big.NewInt(0)
 var big1 *big.Int = big.NewInt(1)
 var big10 *big.Int = big.NewInt(10)
@@ -47,6 +52,7 @@ type Numeric struct {
 	Int    *big.Int
 	Exp    int32
 	Status Status
+	IsNaN  bool
 }
 
 func (dst *Numeric) Set(src interface{}) error {
@@ -64,12 +70,20 @@ func (dst *Numeric) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case float32:
+		if math.IsNaN(float64(value)) {
+			*dst = Numeric{Status: Present, IsNaN: true}
+			return nil
+		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(float64(value), 'f', -1, 64))
 		if err != nil {
 			return err
 		}
 		*dst = Numeric{Int: num, Exp: exp, Status: Present}
 	case float64:
+		if math.IsNaN(value) {
+			*dst = Numeric{Status: Present, IsNaN: true}
+			return nil
+		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(value, 'f', -1, 64))
 		if err != nil {
 			return err
@@ -291,6 +305,10 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 }
 
 func (src *Numeric) toFloat64() (float64, error) {
+	if src.IsNaN {
+		return math.NaN(), nil
+	}
+
 	buf := make([]byte, 0, 32)
 
 	buf = append(buf, src.Int.String()...)
@@ -307,6 +325,11 @@ func (src *Numeric) toFloat64() (float64, error) {
 func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Numeric{Status: Null}
+		return nil
+	}
+
+	if string(src) == "'NaN'" { // includes single quotes, see EncodeText for details.
+		*dst = Numeric{Status: Present, IsNaN: true}
 		return nil
 	}
 
@@ -353,18 +376,22 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp := 0
 	ndigits := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
-
-	if ndigits == 0 {
-		*dst = Numeric{Int: big.NewInt(0), Status: Present}
-		return nil
-	}
-
 	weight := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	sign := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
+
+	if sign == pgNumericNaNSign {
+		*dst = Numeric{Status: Present, IsNaN: true}
+		return nil
+	}
+
+	if ndigits == 0 {
+		*dst = Numeric{Int: big.NewInt(0), Status: Present}
+		return nil
+	}
 
 	if len(src[rp:]) < int(ndigits)*2 {
 		return errors.Errorf("numeric incomplete %v", src)
@@ -467,6 +494,15 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, errUndefined
 	}
 
+	if src.IsNaN {
+		// encode as 'NaN' including single quotes,
+		// "When writing this value [NaN] as a constant in an SQL command,
+		// you must put quotes around it, for example UPDATE table SET x = 'NaN'"
+		// https://www.postgresql.org/docs/9.3/datatype-numeric.html
+		buf = append(buf, "'NaN'"...)
+		return buf, nil
+	}
+
 	buf = append(buf, src.Int.String()...)
 	buf = append(buf, 'e')
 	buf = append(buf, strconv.FormatInt(int64(src.Exp), 10)...)
@@ -479,6 +515,11 @@ func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, nil
 	case Undefined:
 		return nil, errUndefined
+	}
+
+	if src.IsNaN {
+		buf = pgio.AppendUint64(buf, pgNumericNaN)
+		return buf, nil
 	}
 
 	var sign int16
