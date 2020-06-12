@@ -52,7 +52,7 @@ type Numeric struct {
 	Int    *big.Int
 	Exp    int32
 	Status Status
-	IsNaN  bool
+	NaN    bool
 }
 
 func (dst *Numeric) Set(src interface{}) error {
@@ -71,7 +71,7 @@ func (dst *Numeric) Set(src interface{}) error {
 	switch value := src.(type) {
 	case float32:
 		if math.IsNaN(float64(value)) {
-			*dst = Numeric{Status: Present, IsNaN: true}
+			*dst = Numeric{Status: Present, NaN: true}
 			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(float64(value), 'f', -1, 64))
@@ -81,7 +81,7 @@ func (dst *Numeric) Set(src interface{}) error {
 		*dst = Numeric{Int: num, Exp: exp, Status: Present}
 	case float64:
 		if math.IsNaN(value) {
-			*dst = Numeric{Status: Present, IsNaN: true}
+			*dst = Numeric{Status: Present, NaN: true}
 			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(value, 'f', -1, 64))
@@ -305,7 +305,7 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 }
 
 func (src *Numeric) toFloat64() (float64, error) {
-	if src.IsNaN {
+	if src.NaN {
 		return math.NaN(), nil
 	}
 
@@ -329,7 +329,7 @@ func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if string(src) == "'NaN'" { // includes single quotes, see EncodeText for details.
-		*dst = Numeric{Status: Present, IsNaN: true}
+		*dst = Numeric{Status: Present, NaN: true}
 		return nil
 	}
 
@@ -384,7 +384,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp += 2
 
 	if sign == pgNumericNaNSign {
-		*dst = Numeric{Status: Present, IsNaN: true}
+		*dst = Numeric{Status: Present, NaN: true}
 		return nil
 	}
 
@@ -494,7 +494,7 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, errUndefined
 	}
 
-	if src.IsNaN {
+	if src.NaN {
 		// encode as 'NaN' including single quotes,
 		// "When writing this value [NaN] as a constant in an SQL command,
 		// you must put quotes around it, for example UPDATE table SET x = 'NaN'"
@@ -517,7 +517,7 @@ func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		return nil, errUndefined
 	}
 
-	if src.IsNaN {
+	if src.NaN {
 		buf = pgio.AppendUint64(buf, pgNumericNaN)
 		return buf, nil
 	}
