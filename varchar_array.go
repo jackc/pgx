@@ -49,6 +49,25 @@ func (dst *VarcharArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*string:
+		if value == nil {
+			*dst = VarcharArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = VarcharArray{Status: Present}
+		} else {
+			elements := make([]Varchar, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = VarcharArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Varchar:
 		if value == nil {
 			*dst = VarcharArray{Status: Null}
@@ -89,6 +108,15 @@ func (src *VarcharArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*string:
+			*v = make([]*string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

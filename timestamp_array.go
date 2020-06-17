@@ -50,6 +50,25 @@ func (dst *TimestampArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*time.Time:
+		if value == nil {
+			*dst = TimestampArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TimestampArray{Status: Present}
+		} else {
+			elements := make([]Timestamp, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = TimestampArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Timestamp:
 		if value == nil {
 			*dst = TimestampArray{Status: Null}
@@ -90,6 +109,15 @@ func (src *TimestampArray) AssignTo(dst interface{}) error {
 
 		case *[]time.Time:
 			*v = make([]time.Time, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*time.Time:
+			*v = make([]*time.Time, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

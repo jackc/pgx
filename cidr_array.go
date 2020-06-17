@@ -69,6 +69,25 @@ func (dst *CIDRArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*net.IP:
+		if value == nil {
+			*dst = CIDRArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = CIDRArray{Status: Present}
+		} else {
+			elements := make([]CIDR, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = CIDRArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []CIDR:
 		if value == nil {
 			*dst = CIDRArray{Status: Null}
@@ -118,6 +137,15 @@ func (src *CIDRArray) AssignTo(dst interface{}) error {
 
 		case *[]net.IP:
 			*v = make([]net.IP, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*net.IP:
+			*v = make([]*net.IP, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

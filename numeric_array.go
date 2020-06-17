@@ -49,7 +49,45 @@ func (dst *NumericArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*float32:
+		if value == nil {
+			*dst = NumericArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = NumericArray{Status: Present}
+		} else {
+			elements := make([]Numeric, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = NumericArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []float64:
+		if value == nil {
+			*dst = NumericArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = NumericArray{Status: Present}
+		} else {
+			elements := make([]Numeric, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = NumericArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []*float64:
 		if value == nil {
 			*dst = NumericArray{Status: Null}
 		} else if len(value) == 0 {
@@ -87,7 +125,45 @@ func (dst *NumericArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*int64:
+		if value == nil {
+			*dst = NumericArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = NumericArray{Status: Present}
+		} else {
+			elements := make([]Numeric, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = NumericArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []uint64:
+		if value == nil {
+			*dst = NumericArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = NumericArray{Status: Present}
+		} else {
+			elements := make([]Numeric, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = NumericArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []*uint64:
 		if value == nil {
 			*dst = NumericArray{Status: Null}
 		} else if len(value) == 0 {
@@ -153,8 +229,26 @@ func (src *NumericArray) AssignTo(dst interface{}) error {
 			}
 			return nil
 
+		case *[]*float32:
+			*v = make([]*float32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
 		case *[]float64:
 			*v = make([]float64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*float64:
+			*v = make([]*float64, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -171,8 +265,26 @@ func (src *NumericArray) AssignTo(dst interface{}) error {
 			}
 			return nil
 
+		case *[]*int64:
+			*v = make([]*int64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
 		case *[]uint64:
 			*v = make([]uint64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*uint64:
+			*v = make([]*uint64, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

@@ -47,6 +47,25 @@ func (dst *ACLItemArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*string:
+		if value == nil {
+			*dst = ACLItemArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = ACLItemArray{Status: Present}
+		} else {
+			elements := make([]ACLItem, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = ACLItemArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []ACLItem:
 		if value == nil {
 			*dst = ACLItemArray{Status: Null}
@@ -87,6 +106,15 @@ func (src *ACLItemArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*string:
+			*v = make([]*string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

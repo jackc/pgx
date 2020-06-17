@@ -50,6 +50,25 @@ func (dst *MacaddrArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*net.HardwareAddr:
+		if value == nil {
+			*dst = MacaddrArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = MacaddrArray{Status: Present}
+		} else {
+			elements := make([]Macaddr, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = MacaddrArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Macaddr:
 		if value == nil {
 			*dst = MacaddrArray{Status: Null}
@@ -90,6 +109,15 @@ func (src *MacaddrArray) AssignTo(dst interface{}) error {
 
 		case *[]net.HardwareAddr:
 			*v = make([]net.HardwareAddr, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*net.HardwareAddr:
+			*v = make([]*net.HardwareAddr, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

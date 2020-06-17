@@ -49,6 +49,25 @@ func (dst *Float8Array) Set(src interface{}) error {
 			}
 		}
 
+	case []*float64:
+		if value == nil {
+			*dst = Float8Array{Status: Null}
+		} else if len(value) == 0 {
+			*dst = Float8Array{Status: Present}
+		} else {
+			elements := make([]Float8, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = Float8Array{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Float8:
 		if value == nil {
 			*dst = Float8Array{Status: Null}
@@ -89,6 +108,15 @@ func (src *Float8Array) AssignTo(dst interface{}) error {
 
 		case *[]float64:
 			*v = make([]float64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*float64:
+			*v = make([]*float64, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
