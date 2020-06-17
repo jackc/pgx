@@ -85,6 +85,72 @@ func (dst *Int2) Set(src interface{}) error {
 			return err
 		}
 		*dst = Int2{Int: int16(num), Status: Present}
+	case *int8:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *uint8:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *int16:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *uint16:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *int32:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *uint32:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *int64:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *uint64:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *int:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *uint:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *string:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)

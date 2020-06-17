@@ -39,6 +39,18 @@ func (dst *Date) Set(src interface{}) error {
 		*dst = Date{Time: value, Status: Present}
 	case string:
 		return dst.DecodeText(nil, []byte(value))
+	case *time.Time:
+		if value == nil {
+			*dst = Date{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *string:
+		if value == nil {
+			*dst = Date{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
