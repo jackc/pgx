@@ -47,6 +47,25 @@ func (dst *EnumArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*string:
+		if value == nil {
+			*dst = EnumArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = EnumArray{Status: Present}
+		} else {
+			elements := make([]GenericText, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = EnumArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []GenericText:
 		if value == nil {
 			*dst = EnumArray{Status: Null}
@@ -87,6 +106,15 @@ func (src *EnumArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*string:
+			*v = make([]*string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

@@ -49,6 +49,25 @@ func (dst *BoolArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*bool:
+		if value == nil {
+			*dst = BoolArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = BoolArray{Status: Present}
+		} else {
+			elements := make([]Bool, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = BoolArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Bool:
 		if value == nil {
 			*dst = BoolArray{Status: Null}
@@ -89,6 +108,15 @@ func (src *BoolArray) AssignTo(dst interface{}) error {
 
 		case *[]bool:
 			*v = make([]bool, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*bool:
+			*v = make([]*bool, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

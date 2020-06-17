@@ -49,6 +49,25 @@ func (dst *Float4Array) Set(src interface{}) error {
 			}
 		}
 
+	case []*float32:
+		if value == nil {
+			*dst = Float4Array{Status: Null}
+		} else if len(value) == 0 {
+			*dst = Float4Array{Status: Present}
+		} else {
+			elements := make([]Float4, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = Float4Array{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Float4:
 		if value == nil {
 			*dst = Float4Array{Status: Null}
@@ -89,6 +108,15 @@ func (src *Float4Array) AssignTo(dst interface{}) error {
 
 		case *[]float32:
 			*v = make([]float32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*float32:
+			*v = make([]*float32, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

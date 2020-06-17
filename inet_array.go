@@ -69,6 +69,25 @@ func (dst *InetArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*net.IP:
+		if value == nil {
+			*dst = InetArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = InetArray{Status: Present}
+		} else {
+			elements := make([]Inet, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = InetArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Inet:
 		if value == nil {
 			*dst = InetArray{Status: Null}
@@ -118,6 +137,15 @@ func (src *InetArray) AssignTo(dst interface{}) error {
 
 		case *[]net.IP:
 			*v = make([]net.IP, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*net.IP:
+			*v = make([]*net.IP, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

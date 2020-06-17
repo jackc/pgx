@@ -49,6 +49,25 @@ func (dst *TextArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*string:
+		if value == nil {
+			*dst = TextArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TextArray{Status: Present}
+		} else {
+			elements := make([]Text, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = TextArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []Text:
 		if value == nil {
 			*dst = TextArray{Status: Null}
@@ -89,6 +108,15 @@ func (src *TextArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*string:
+			*v = make([]*string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err

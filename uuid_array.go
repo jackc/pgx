@@ -87,6 +87,25 @@ func (dst *UUIDArray) Set(src interface{}) error {
 			}
 		}
 
+	case []*string:
+		if value == nil {
+			*dst = UUIDArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = UUIDArray{Status: Present}
+		} else {
+			elements := make([]UUID, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = UUIDArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	case []UUID:
 		if value == nil {
 			*dst = UUIDArray{Status: Null}
@@ -145,6 +164,15 @@ func (src *UUIDArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*string:
+			*v = make([]*string, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
