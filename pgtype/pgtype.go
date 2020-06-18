@@ -53,6 +53,7 @@ const (
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
+	JSONBArrayOID       = 3807
 )
 
 type Status byte
@@ -254,6 +255,7 @@ func init() {
 		"interval":     &Interval{},
 		"json":         &JSON{},
 		"jsonb":        &JSONB{},
+		"_jsonb":       &JSONBArray{},
 		"line":         &Line{},
 		"lseg":         &Lseg{},
 		"macaddr":      &Macaddr{},
