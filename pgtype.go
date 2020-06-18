@@ -72,6 +72,7 @@ const (
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
+	JSONBArrayOID       = 3807
 	DaterangeOID        = 3912
 	Int4rangeOID        = 3904
 	NumrangeOID         = 3906
@@ -878,6 +879,7 @@ func init() {
 		"_timestamptz": &TimestamptzArray{},
 		"_uuid":        &UUIDArray{},
 		"_varchar":     &VarcharArray{},
+		"_jsonb":       &JSONBArray{},
 		"aclitem":      &ACLItem{},
 		"bit":          &Bit{},
 		"bool":         &Bool{},
