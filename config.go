@@ -112,6 +112,18 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 	return network, address
 }
 
+// NewConfig returns an *Config without parsing a connection string or reading the standard PG* environment variables.
+// Host, Port, Database, User, and Password must be set before the config can be used to establish a connection.
+func NewConfig() *Config {
+	return &Config{
+		DialFunc:             makeDefaultDialer().DialContext,
+		LookupFunc:           makeDefaultResolver().LookupHost,
+		BuildFrontend:        makeDefaultBuildFrontendFunc(8192),
+		RuntimeParams:        map[string]string{},
+		createdByParseConfig: true,
+	}
+}
+
 // ParseConfig builds a *Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
 // defaults as libpq (e.g. port=5432) and understands most PG* environment variables. connString may be a URL or a DSN.
 // It also may be empty to only read from the environment. If a password is not supplied it will attempt to read the
@@ -154,13 +166,20 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 // See https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-PARAMKEYWORDS for parameter key word names. They are
 // usually but not always the environment variable name downcased and without the "PG" prefix.
 //
-// Important TLS Security Notes:
+// Important Security Notes:
 //
 // ParseConfig tries to match libpq behavior with regard to PGSSLMODE. This includes defaulting to "prefer" behavior if
 // not set.
 //
 // See http://www.postgresql.org/docs/11/static/libpq-ssl.html#LIBPQ-SSL-PROTECTION for details on what level of
 // security each sslmode provides.
+//
+// The sslmode "prefer" (the default), sslmode "allow", and multiple hosts are implemented via the Fallbacks field of
+// the Config struct. If the main TLS config is manually changed it will not affect the fallbacks. For example, in the
+// case of sslmode "prefer" this means it will first try the main Config settings which use TLS, then it will try
+// the fallback which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config
+// is manually changed later but the unencrypted fallback is present. Remove or update all fallbacks or use NewConfig
+// to build the config manually.
 //
 // Other known differences with libpq:
 //
