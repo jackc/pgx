@@ -36,6 +36,18 @@ func (dst *Macaddr) Set(src interface{}) error {
 			return err
 		}
 		*dst = Macaddr{Addr: addr, Status: Present}
+	case *net.HardwareAddr:
+		if value == nil {
+			*dst = Macaddr{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *string:
+		if value == nil {
+			*dst = Macaddr{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingPtrType(src); ok {
 			return dst.Set(originalSrc)
