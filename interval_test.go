@@ -2,9 +2,12 @@ package pgtype_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIntervalTranscode(t *testing.T) {
@@ -60,4 +63,12 @@ func TestIntervalNormalize(t *testing.T) {
 			Value: &pgtype.Interval{Months: -13, Status: pgtype.Present},
 		},
 	})
+}
+
+func TestIntervalLossyConversionToDuration(t *testing.T) {
+	interval := &pgtype.Interval{Months: 1, Days: 1, Status: pgtype.Present}
+	var d time.Duration
+	err := interval.AssignTo(&d)
+	require.NoError(t, err)
+	assert.EqualValues(t, int64(2678400000000000), d.Nanoseconds())
 }
