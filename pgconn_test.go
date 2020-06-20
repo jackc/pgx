@@ -198,6 +198,24 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestConnectConfigFromNewConfig(t *testing.T) {
+	t.Parallel()
+
+	baseConfig, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+
+	config := pgconn.NewConfig()
+	config.Host = baseConfig.Host
+	config.Port = baseConfig.Port
+	config.Database = baseConfig.Database
+	config.User = baseConfig.User
+	config.Password = baseConfig.Password
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	closeConn(t, conn)
+}
+
 func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
