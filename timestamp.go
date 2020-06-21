@@ -40,6 +40,12 @@ func (dst *Timestamp) Set(src interface{}) error {
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}
+	case *time.Time:
+		if value == nil {
+			*dst = Timestamp{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)

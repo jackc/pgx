@@ -42,6 +42,12 @@ func (dst *Timestamptz) Set(src interface{}) error {
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Timestamptz{Time: value, Status: Present}
+	case *time.Time:
+		if value == nil {
+			*dst = Timestamptz{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
