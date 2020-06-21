@@ -4,12 +4,12 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 
-	"github.com/jackc/pgx/pgio"
-	"github.com/pkg/errors"
+	"github.com/jackc/pgio"
+	errors "golang.org/x/xerrors"
 )
 
 type JSONBArray struct {
-	Elements   []JSONB
+	Elements   []Text
 	Dimensions []ArrayDimension
 	Status     Status
 }
@@ -21,6 +21,13 @@ func (dst *JSONBArray) Set(src interface{}) error {
 		return nil
 	}
 
+	if value, ok := src.(interface{ Get() interface{} }); ok {
+		value2 := value.Get()
+		if value2 != value {
+			return dst.Set(value2)
+		}
+	}
+
 	switch value := src.(type) {
 
 	case []string:
@@ -29,7 +36,7 @@ func (dst *JSONBArray) Set(src interface{}) error {
 		} else if len(value) == 0 {
 			*dst = JSONBArray{Status: Present}
 		} else {
-			elements := make([]JSONB, len(value))
+			elements := make([]Text, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
@@ -42,6 +49,18 @@ func (dst *JSONBArray) Set(src interface{}) error {
 			}
 		}
 
+	case []Text:
+		if value == nil {
+			*dst = JSONBArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = JSONBArray{Status: Present}
+		} else {
+			*dst = JSONBArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -52,7 +71,7 @@ func (dst *JSONBArray) Set(src interface{}) error {
 	return nil
 }
 
-func (dst *JSONBArray) Get() interface{} {
+func (dst JSONBArray) Get() interface{} {
 	switch dst.Status {
 	case Present:
 		return dst
@@ -81,6 +100,7 @@ func (src *JSONBArray) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
+			return errors.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
@@ -100,13 +120,13 @@ func (dst *JSONBArray) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []JSONB
+	var elements []Text
 
 	if len(uta.Elements) > 0 {
-		elements = make([]JSONB, len(uta.Elements))
+		elements = make([]Text, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem JSONB
+			var elem Text
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -147,7 +167,7 @@ func (dst *JSONBArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]JSONB, elementCount)
+	elements := make([]Text, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -167,7 +187,7 @@ func (dst *JSONBArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	return nil
 }
 
-func (src *JSONBArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src JSONBArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -209,7 +229,7 @@ func (src *JSONBArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 			return nil, err
 		}
 		if elemBuf == nil {
-			buf = append(buf, `"NULL"`...)
+			buf = append(buf, `NULL`...)
 		} else {
 			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
 		}
@@ -224,7 +244,7 @@ func (src *JSONBArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (src *JSONBArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
+func (src JSONBArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
 		return nil, nil
@@ -236,7 +256,7 @@ func (src *JSONBArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		Dimensions: src.Dimensions,
 	}
 
-	if dt, ok := ci.DataTypeForName("jsonb"); ok {
+	if dt, ok := ci.DataTypeForName("text"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
 		return nil, errors.Errorf("unable to find oid for type name %v", "text")
@@ -287,7 +307,7 @@ func (dst *JSONBArray) Scan(src interface{}) error {
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src *JSONBArray) Value() (driver.Value, error) {
+func (src JSONBArray) Value() (driver.Value, error) {
 	buf, err := src.EncodeText(nil, nil)
 	if err != nil {
 		return nil, err
