@@ -35,6 +35,18 @@ func (dst *Bool) Set(src interface{}) error {
 			return err
 		}
 		*dst = Bool{Bool: bb, Status: Present}
+	case *bool:
+		if value == nil {
+			*dst = Bool{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *string:
+		if value == nil {
+			*dst = Bool{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingBoolType(src); ok {
 			return dst.Set(originalSrc)

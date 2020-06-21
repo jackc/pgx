@@ -45,6 +45,12 @@ func (dst *UUID) Set(src interface{}) error {
 			return err
 		}
 		*dst = UUID{Bytes: uuid, Status: Present}
+	case *string:
+		if value == nil {
+			*dst = UUID{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingUUIDType(src); ok {
 			return dst.Set(originalSrc)

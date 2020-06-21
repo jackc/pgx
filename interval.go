@@ -16,6 +16,8 @@ const (
 	microsecondsPerSecond = 1000000
 	microsecondsPerMinute = 60 * microsecondsPerSecond
 	microsecondsPerHour   = 60 * microsecondsPerMinute
+	microsecondsPerDay    = 24 * microsecondsPerHour
+	microsecondsPerMonth  = 30 * microsecondsPerDay
 )
 
 type Interval struct {
@@ -67,10 +69,8 @@ func (src *Interval) AssignTo(dst interface{}) error {
 	case Present:
 		switch v := dst.(type) {
 		case *time.Duration:
-			if src.Days > 0 || src.Months > 0 {
-				return errors.Errorf("interval with months or days cannot be decoded into %T", dst)
-			}
-			*v = time.Duration(src.Microseconds) * time.Microsecond
+			us := int64(src.Months)*microsecondsPerMonth + int64(src.Days)*microsecondsPerDay + src.Microseconds
+			*v = time.Duration(us) * time.Microsecond
 			return nil
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {
