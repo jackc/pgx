@@ -1,4 +1,4 @@
-# Unreleased
+# 1.4.0 (June 27, 2020)
 
 * Add JSON support to ext/gofrs-uuid
 * Performance improvements in Scan path
