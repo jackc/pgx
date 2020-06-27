@@ -1,7 +1,7 @@
-# Unreleased
+# 4.7.0 (June 27, 2020)
 
-* Update pgtype to x
-* Update pgconn to v1.6.0
+* Update pgtype to v1.4.0
+* Update pgconn to v1.6.1
 * Update puddle to v1.1.1
 * Fix context propagation with Tx commit and Rollback (georgysavva)
 * Add lazy connect option to pgxpool (georgysavva)
@@ -15,6 +15,7 @@
 * Better error logging on rows close (Igor V. Kozinov)
 * Expose stdlib.Conn.Conn() to enable database/sql.Conn.Raw()
 * Improve unknown type support for database/sql
+* Fix transaction commit failure closing connection
 
 # 4.6.0 (March 30, 2020)
 
