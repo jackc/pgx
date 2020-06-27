@@ -1,3 +1,10 @@
+# 1.6.1 (June 27, 2020)
+
+* Update golang.org/x/crypto to latest
+* Update golang.org/x/text to 0.3.3
+* Fix error handling for bad PGSERVICE definition
+* Redact passwords in ParseConfig errors (Lukas Vogel)
+
 # 1.6.0 (June 6, 2020)
 
 * Fix panic when closing conn during cancellable query
