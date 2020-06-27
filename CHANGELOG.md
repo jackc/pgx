@@ -9,6 +9,9 @@
 * Clarify and normalize Value semantics
 * Fix hstore with empty string values
 * Numeric supports NaN values (leighhopcroft)
+* Add slice of pointer support to array types (megaturbo)
+* Add jsonb array type (tserakhau)
+* Allow converting intervals with months and days to duration
 
 # 1.3.0 (March 30, 2020)
 
