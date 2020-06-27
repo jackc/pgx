@@ -27,8 +27,8 @@ import (
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
 type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 
-// Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig and
-// then it can be modified. A manually initialized Config will cause ConnectConfig to panic.
+// Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig. A
+// manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	Host           string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
 	Port           uint16
@@ -112,18 +112,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 	return network, address
 }
 
-// NewConfig returns an *Config without parsing a connection string or reading the standard PG* environment variables.
-// Host, Port, Database, User, and Password must be set before the config can be used to establish a connection.
-func NewConfig() *Config {
-	return &Config{
-		DialFunc:             makeDefaultDialer().DialContext,
-		LookupFunc:           makeDefaultResolver().LookupHost,
-		BuildFrontend:        makeDefaultBuildFrontendFunc(8192),
-		RuntimeParams:        map[string]string{},
-		createdByParseConfig: true,
-	}
-}
-
 // ParseConfig builds a *Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
 // defaults as libpq (e.g. port=5432) and understands most PG* environment variables. connString may be a URL or a DSN.
 // It also may be empty to only read from the environment. If a password is not supplied it will attempt to read the
@@ -134,6 +122,11 @@ func NewConfig() *Config {
 //
 //   # Example URL
 //   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca
+//
+// The returned *Config may be modified. However, it is strongly recommended that any configuration that can be done
+// through the connection string be done there. In particular the fields Host, Port, TLSConfig, and Fallbacks can be
+// interdependent (e.g. TLSConfig needs knowledge of the host to validate the server certificate). These fields should
+// not be modified individually. They should all be modified or all left unchanged.
 //
 // ParseConfig supports specifying multiple hosts in similar manner to libpq. Host and port may include comma separated
 // values that will be tried in order. This can be used as part of a high availability system. See
@@ -175,11 +168,11 @@ func NewConfig() *Config {
 // security each sslmode provides.
 //
 // The sslmode "prefer" (the default), sslmode "allow", and multiple hosts are implemented via the Fallbacks field of
-// the Config struct. If the main TLS config is manually changed it will not affect the fallbacks. For example, in the
-// case of sslmode "prefer" this means it will first try the main Config settings which use TLS, then it will try
-// the fallback which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config
-// is manually changed later but the unencrypted fallback is present. Remove or update all fallbacks or use NewConfig
-// to build the config manually.
+// the Config struct. If TLSConfig is manually changed it will not affect the fallbacks. For example, in the case of
+// sslmode "prefer" this means it will first try the main Config settings which use TLS, then it will try the fallback
+// which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config is manually
+// changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
+// TLCConfig.
 //
 // Other known differences with libpq:
 //
