@@ -98,9 +98,8 @@ type Tx interface {
 
 	// Commit commits the transaction if this is a real transaction or releases the savepoint if this is a pseudo nested
 	// transaction. Commit will return ErrTxClosed if the Tx is already closed, but is otherwise safe to call multiple
-	// times. If the commit fails with a rollback status (e.g. a deferred constraint was violated) then
-	// ErrTxCommitRollback will be returned. Any other failure of a real transaction will result in the connection being
-	// closed.
+	// times. If the commit fails with a rollback status (e.g. the transaction was already in a broken state) then
+	// ErrTxCommitRollback will be returned.
 	Commit(ctx context.Context) error
 
 	// Rollback rolls back the transaction if this is a real transaction or rolls back to the savepoint if this is a
@@ -158,9 +157,6 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 	commandTag, err := tx.conn.Exec(ctx, "commit")
 	tx.closed = true
 	if err != nil {
-		// A commit failure leaves the connection in an undefined state so kill the connection (though any error that could
-		// cause this to fail should have already killed the connection)
-		tx.conn.die(errors.Errorf("commit failed: %w", err))
 		return err
 	}
 	if string(commandTag) == "ROLLBACK" {

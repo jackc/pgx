@@ -98,6 +98,51 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 	}
 }
 
+func TestTxCommitWhenDeferredConstraintFailure(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	createSql := `
+    create temporary table foo(
+      id integer,
+      unique (id) initially deferred
+    );
+  `
+
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	tx, err := conn.Begin(context.Background())
+	if err != nil {
+		t.Fatalf("conn.Begin failed: %v", err)
+	}
+
+	if _, err := tx.Exec(context.Background(), "insert into foo(id) values (1)"); err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
+	}
+
+	if _, err := tx.Exec(context.Background(), "insert into foo(id) values (1)"); err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
+	}
+
+	err = tx.Commit(context.Background())
+	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "23505" {
+		t.Fatalf("Expected unique constraint violation 23505, got %#v", err)
+	}
+
+	var n int64
+	err = conn.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
+	}
+}
+
 func TestTxCommitSerializationFailure(t *testing.T) {
 	t.Parallel()
 
@@ -145,6 +190,9 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	if pgErr, ok := err.(*pgconn.PgError); !ok || pgErr.Code != "40001" {
 		t.Fatalf("Expected serialization error 40001, got %#v", err)
 	}
+
+	ensureConnValid(t, c1)
+	ensureConnValid(t, c2)
 }
 
 func TestTransactionSuccessfulRollback(t *testing.T) {
