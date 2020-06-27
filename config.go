@@ -548,12 +548,12 @@ func parseDSNSettings(s string) (map[string]string, error) {
 func parseServiceSettings(servicefilePath, serviceName string) (map[string]string, error) {
 	servicefile, err := pgservicefile.ReadServicefile(servicefilePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read service file: %v", servicefile)
+		return nil, fmt.Errorf("failed to read service file: %v", servicefilePath)
 	}
 
 	service, err := servicefile.GetService(serviceName)
 	if err != nil {
-		return nil, fmt.Errorf("unable to find service: %v", servicefile)
+		return nil, fmt.Errorf("unable to find service: %v", serviceName)
 	}
 
 	nameMap := map[string]string{
