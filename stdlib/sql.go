@@ -507,6 +507,11 @@ func (r *Rows) Next(dest []driver.Value) error {
 		r.valueFuncs = make([]rowValueFunc, len(fieldDescriptions))
 
 		for i, fd := range fieldDescriptions {
+			// The functions in valueFuncs refer to fd. But, since fd is a range variable,
+			// it may be the wrong value by the time a given valueFunc is run. Capture it
+			// to make sure each function refers to the correct description.
+			fd := fd
+
 			switch fd.DataTypeOID {
 			case pgtype.BoolOID:
 				var d bool
