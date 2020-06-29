@@ -1,3 +1,7 @@
+# 4.7.1 (June 29, 2020)
+
+* Fix stdlib decoding error with certain order and combination of fields
+
 # 4.7.0 (June 27, 2020)
 
 * Update pgtype to v1.4.0
