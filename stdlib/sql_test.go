@@ -261,6 +261,22 @@ func TestConnQuery(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/781
+func TestConnQueryDifferentScanPlansIssue781(t *testing.T) {
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		var s string
+		var b bool
+
+		rows, err := db.Query("select true, 'foo'")
+		require.NoError(t, err)
+
+		require.True(t, rows.Next())
+		require.NoError(t, rows.Scan(&b, &s))
+		assert.Equal(t, true, b)
+		assert.Equal(t, "foo", s)
+	})
+}
+
 func TestConnQueryNull(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
 		rows, err := db.Query("select $1::int", nil)
