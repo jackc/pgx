@@ -15,11 +15,12 @@ import (
 type ArrayType struct {
 	elements   []ValueTranscoder
 	dimensions []ArrayDimension
-	status     Status
 
 	typeName   string
-	elementOID uint32
 	newElement func() ValueTranscoder
+
+	elementOID uint32
+	status     Status
 }
 
 func NewArrayType(typeName string, elementOID uint32, newElement func() ValueTranscoder) *ArrayType {
