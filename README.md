@@ -154,7 +154,7 @@ pgx supports the same versions of Go and PostgreSQL that are supported by their 
 
 pgx follows semantic versioning for the documented public API on stable releases. `v4` is the latest stable major version.
 
-## Related Libraries
+## PGX Family Libraries
 
 pgx is the head of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed
 from pgx for lower-level control.
@@ -194,3 +194,9 @@ tern is a stand-alone SQL migration system.
 ### [github.com/jackc/pgerrcode](https://github.com/jackc/pgerrcode)
 
 pgerrcode contains constants for the PostgreSQL error codes.
+
+## 3rd Party Libraries with PGX Support
+
+### [github.com/georgysavva/scany](https://github.com/georgysavva/scany)
+
+Library for scanning data from a database into Go structs and more.
