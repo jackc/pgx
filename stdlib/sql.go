@@ -716,9 +716,23 @@ type wrapTx struct {
 	tx  pgx.Tx
 }
 
-func (wtx wrapTx) Commit() error { return wtx.tx.Commit(wtx.ctx) }
+func (wtx wrapTx) Commit() error {
+	pgxConn := wtx.tx.Conn()
+	err := wtx.tx.Commit(wtx.ctx)
+	if err != nil && pgxConn.PgConn().TxStatus() != 'I' {
+		_ = pgxConn.Close(wtx.ctx) // already have error to return
+	}
+	return err
+}
 
-func (wtx wrapTx) Rollback() error { return wtx.tx.Rollback(wtx.ctx) }
+func (wtx wrapTx) Rollback() error {
+	pgxConn := wtx.tx.Conn()
+	err := wtx.tx.Rollback(wtx.ctx)
+	if err != nil && pgxConn.PgConn().TxStatus() != 'I' {
+		_ = pgxConn.Close(wtx.ctx) // already have error to return
+	}
+	return err
+}
 
 type fakeTx struct{}
 
