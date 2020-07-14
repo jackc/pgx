@@ -157,6 +157,9 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 	commandTag, err := tx.conn.Exec(ctx, "commit")
 	tx.closed = true
 	if err != nil {
+		if tx.conn.PgConn().TxStatus() != 'I' {
+			_ = tx.conn.Close(ctx) // already have error to return
+		}
 		return err
 	}
 	if string(commandTag) == "ROLLBACK" {
