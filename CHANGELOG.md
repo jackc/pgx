@@ -1,3 +1,7 @@
+# 1.6.2 (July 14, 2020)
+
+* Update pgservicefile library
+
 # 1.6.1 (June 27, 2020)
 
 * Update golang.org/x/crypto to latest
