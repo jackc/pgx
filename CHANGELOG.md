@@ -1,3 +1,10 @@
+# 4.7.2 (July 14, 2020)
+
+* Improve performance of Columns() (zikaeroh)
+* Fix fatal Commit() failure not being considered fatal
+* Update pgconn to v1.6.2
+* Update pgtype to v1.4.1
+
 # 4.7.1 (June 29, 2020)
 
 * Fix stdlib decoding error with certain order and combination of fields
