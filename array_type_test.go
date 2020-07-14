@@ -60,3 +60,25 @@ func TestArrayTypeTranscode(t *testing.T) {
 
 	require.EqualValues(t, []string{"red", "green", "blue"}, dstStrings)
 }
+
+func TestArrayTypeEmptyArrayDoesNotBreakArrayType(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_text", pgtype.TextOID, func() pgtype.ValueTranscoder { return &pgtype.Text{} }),
+		Name:  "_text",
+		OID:   pgtype.TextArrayOID,
+	})
+
+	var dstStrings []string
+	err := conn.QueryRow(context.Background(), "select '{}'::text[]").Scan(&dstStrings)
+	require.NoError(t, err)
+
+	require.EqualValues(t, []string{}, dstStrings)
+
+	err = conn.QueryRow(context.Background(), "select $1::text[]", []string{"red", "green", "blue"}).Scan(&dstStrings)
+	require.NoError(t, err)
+
+	require.EqualValues(t, []string{"red", "green", "blue"}, dstStrings)
+}

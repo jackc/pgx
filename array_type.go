@@ -185,8 +185,12 @@ func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
+	var elements []ValueTranscoder
+
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = ArrayType{dimensions: arrayHeader.Dimensions, status: Present}
+		dst.elements = elements
+		dst.dimensions = arrayHeader.Dimensions
+		dst.status = Present
 		return nil
 	}
 
@@ -195,7 +199,7 @@ func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]ValueTranscoder, elementCount)
+	elements = make([]ValueTranscoder, elementCount)
 
 	for i := range elements {
 		elem := dst.newElement()
