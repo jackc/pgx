@@ -571,13 +571,6 @@ func parseServiceSettings(servicefilePath, serviceName string) (map[string]strin
 	return settings, nil
 }
 
-type pgTLSArgs struct {
-	sslMode     string
-	sslRootCert string
-	sslCert     string
-	sslKey      string
-}
-
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
@@ -662,7 +655,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		}
 
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.Errorf("unable to add CA to cert pool: %w", err)
+			return nil, errors.New("unable to add CA to cert pool")
 		}
 
 		tlsConfig.RootCAs = caCertPool
