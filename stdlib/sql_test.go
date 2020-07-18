@@ -321,6 +321,15 @@ func TestConnQueryFailure(t *testing.T) {
 	})
 }
 
+func TestConnSimpleSlicePassThrough(t *testing.T) {
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		var n int64
+		err := db.QueryRow("select cardinality($1::text[])", []string{"a", "b", "c"}).Scan(&n)
+		require.NoError(t, err)
+		assert.EqualValues(t, 3, n)
+	})
+}
+
 // Test type that pgx would handle natively in binary, but since it is not a
 // database/sql native type should be passed through as a string
 func TestConnQueryRowPgxBinary(t *testing.T) {
