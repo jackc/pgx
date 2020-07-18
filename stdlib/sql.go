@@ -373,6 +373,11 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return c.conn.Ping(ctx)
 }
 
+func (c *Conn) CheckNamedValue(*driver.NamedValue) error {
+	// Underlying pgx supports sql.Scanner and driver.Valuer interfaces natively. So everything can be passed through directly.
+	return nil
+}
+
 type Stmt struct {
 	sd   *pgconn.StatementDescription
 	conn *Conn
