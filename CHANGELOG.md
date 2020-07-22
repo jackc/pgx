@@ -1,3 +1,9 @@
+# 4.8.0 (July 22, 2020)
+
+* All argument types supported by native pgx should now also work through database/sql
+* Update pgconn to v1.6.3
+* Update pgtype to v1.4.2
+
 # 4.7.2 (July 14, 2020)
 
 * Improve performance of Columns() (zikaeroh)
