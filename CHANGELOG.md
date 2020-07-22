@@ -1,3 +1,7 @@
+# 1.4.1 (July 14, 2020)
+
+* Fix ArrayType DecodeBinary empty array breaks future reads
+
 # 1.4.0 (June 27, 2020)
 
 * Add JSON support to ext/gofrs-uuid
