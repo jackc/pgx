@@ -1,3 +1,7 @@
+# 1.6.3 (July 22, 2020)
+
+* Fix error message after AppendCertsFromPEM failure (vahid-sohrabloo)
+
 # 1.6.2 (July 14, 2020)
 
 * Update pgservicefile library
