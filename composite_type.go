@@ -576,7 +576,7 @@ func (b *CompositeBinaryBuilder) AppendEncoder(oid uint32, field BinaryEncoder) 
 		return
 	}
 	if fieldBuf != nil {
-		binary.BigEndian.PutUint32(b.buf[lengthPos:], uint32(len(fieldBuf)-len(b.buf)))
+		binary.BigEndian.PutUint32(fieldBuf[lengthPos:], uint32(len(fieldBuf)-len(b.buf)))
 		b.buf = fieldBuf
 	}
 
