@@ -1,3 +1,7 @@
+# 1.4.2 (July 22, 2020)
+
+* Fix encoding of a large composite data type (Yaz Saito)
+
 # 1.4.1 (July 14, 2020)
 
 * Fix ArrayType DecodeBinary empty array breaks future reads
