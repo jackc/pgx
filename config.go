@@ -497,7 +497,8 @@ func parseDSNSettings(s string) (map[string]string, error) {
 
 		key = strings.Trim(s[:eqIdx], " \t\n\r\v\f")
 		s = strings.TrimLeft(s[eqIdx+1:], " \t\n\r\v\f")
-		if s[0] != '\'' {
+		if len(s) == 0 {
+		} else if s[0] != '\'' {
 			end := 0
 			for ; end < len(s); end++ {
 				if asciiSpace[s[end]] == 1 {
@@ -537,6 +538,10 @@ func parseDSNSettings(s string) (map[string]string, error) {
 
 		if k, ok := nameMap[key]; ok {
 			key = k
+		}
+
+		if key == "" {
+			return nil, errors.New("invalid dsn")
 		}
 
 		settings[key] = val
