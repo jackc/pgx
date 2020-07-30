@@ -1,3 +1,9 @@
+# 4.8.1 (July 29, 2020)
+
+* Update pgconn to v1.6.4
+    * Fix deadlock on error after CommandComplete but before ReadyForQuery
+    * Fix panic on parsing DSN with trailing '='
+
 # 4.8.0 (July 22, 2020)
 
 * All argument types supported by native pgx should now also work through database/sql
