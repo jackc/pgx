@@ -1435,12 +1435,17 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 }
 
 func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
+	// Keep the first error that is recorded. Store the error before checking if the command is already concluded to
+	// allow for receiving an error after CommandComplete but before ReadyForQuery.
+	if err != nil && rr.err == nil {
+		rr.err = err
+	}
+
 	if rr.commandConcluded {
 		return
 	}
 
 	rr.commandTag = commandTag
-	rr.err = err
 	rr.rowValues = nil
 	rr.commandConcluded = true
 }
