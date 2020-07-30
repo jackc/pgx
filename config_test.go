@@ -528,6 +528,17 @@ func TestParseConfig(t *testing.T) {
 	}
 }
 
+// https://github.com/jackc/pgconn/issues/47
+func TestParseConfigDSNWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
+	_, err := pgconn.ParseConfig("host= user= password= port= database=")
+	require.NoError(t, err)
+}
+
+func TestParseConfigDSNLeadingEqual(t *testing.T) {
+	_, err := pgconn.ParseConfig("= user=jack")
+	require.Error(t, err)
+}
+
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)
