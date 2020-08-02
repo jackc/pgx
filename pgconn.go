@@ -904,6 +904,51 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	return multiResult
 }
 
+// SendBytesWithResults sends buf to the PostgreSQL server. It must only be used when the connection is not busy. e.g. It is as
+// error to call SendBytes while reading the result of a query.
+//
+// This is a very low level method that requires deep understanding of the PostgreSQL wire protocol to use correctly.
+// See https://www.postgresql.org/docs/current/protocol.html.
+//
+// So far this only seems required with CopyDone handling.
+func (pgConn *PgConn) SendBytesWithResults(ctx context.Context, buf []byte) *MultiResultReader {
+	if err := pgConn.lock(); err != nil {
+		return &MultiResultReader{
+			closed: true,
+			err:    err,
+		}
+	}
+
+	pgConn.multiResultReader = MultiResultReader{
+		pgConn: pgConn,
+		ctx:    ctx,
+	}
+	multiResult := &pgConn.multiResultReader
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			multiResult.closed = true
+			multiResult.err = &contextAlreadyDoneError{err: ctx.Err()}
+			pgConn.unlock()
+			return multiResult
+		default:
+		}
+		pgConn.contextWatcher.Watch(ctx)
+	}
+
+	n, err := pgConn.conn.Write(buf)
+	if err != nil {
+		pgConn.asyncClose()
+		pgConn.contextWatcher.Unwatch()
+		multiResult.closed = true
+		multiResult.err = &writeError{err: err, safeToRetry: n == 0}
+		pgConn.unlock()
+		return multiResult
+	}
+
+	return multiResult
+}
+
 // ExecParams executes a command via the PostgreSQL extended query protocol.
 //
 // sql is a SQL command string. It may only contain one query. Parameter substitution is positional using $1, $2, $3,
