@@ -68,6 +68,54 @@ func TestBoolArraySet(t *testing.T) {
 			source: (([]bool)(nil)),
 			result: pgtype.BoolArray{Status: pgtype.Null},
 		},
+		{
+			source: [][]bool{{true}, {false}},
+			result: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]bool{{{{true, false, true}}}, {{{false, true, false}}}},
+			result: pgtype.BoolArray{
+				Elements: []pgtype.Bool{
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]bool{{true}, {false}},
+			result: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]bool{{{{true, false, true}}}, {{{false, true, false}}}},
+			result: pgtype.BoolArray{
+				Elements: []pgtype.Bool{
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -87,6 +135,10 @@ func TestBoolArrayAssignTo(t *testing.T) {
 	var boolSlice []bool
 	type _boolSlice []bool
 	var namedBoolSlice _boolSlice
+	var boolSliceDim2 [][]bool
+	var boolSliceDim4 [][][][]bool
+	var boolArrayDim2 [2][1]bool
+	var boolArrayDim4 [2][1][1][3]bool
 
 	simpleTests := []struct {
 		src      pgtype.BoolArray
@@ -116,6 +168,58 @@ func TestBoolArrayAssignTo(t *testing.T) {
 			dst:      &boolSlice,
 			expected: (([]bool)(nil)),
 		},
+		{
+			src: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [][]bool{{true}, {false}},
+			dst:      &boolSliceDim2,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements: []pgtype.Bool{
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [][][][]bool{{{{true, false, true}}}, {{{false, true, false}}}},
+			dst:      &boolSliceDim4,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [2][1]bool{{true}, {false}},
+			dst:      &boolArrayDim2,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements: []pgtype.Bool{
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present},
+					{Bool: true, Status: pgtype.Present},
+					{Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [2][1][1][3]bool{{{{true, false, true}}}, {{{false, true, false}}}},
+			dst:      &boolArrayDim4,
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -140,6 +244,27 @@ func TestBoolArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &boolSlice,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &boolArrayDim2,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &boolSlice,
+		},
+		{
+			src: pgtype.BoolArray{
+				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &boolArrayDim4,
 		},
 	}
 

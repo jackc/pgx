@@ -68,6 +68,54 @@ func TestFloat4ArraySet(t *testing.T) {
 			source: (([]float32)(nil)),
 			result: pgtype.Float4Array{Status: pgtype.Null},
 		},
+		{
+			source: [][]float32{{1}, {2}},
+			result: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Float4Array{
+				Elements: []pgtype.Float4{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]float32{{1}, {2}},
+			result: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Float4Array{
+				Elements: []pgtype.Float4{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -86,6 +134,10 @@ func TestFloat4ArraySet(t *testing.T) {
 func TestFloat4ArrayAssignTo(t *testing.T) {
 	var float32Slice []float32
 	var namedFloat32Slice _float32Slice
+	var float32SliceDim2 [][]float32
+	var float32SliceDim4 [][][][]float32
+	var float32ArrayDim2 [2][1]float32
+	var float32ArrayDim4 [2][1][1][3]float32
 
 	simpleTests := []struct {
 		src      pgtype.Float4Array
@@ -115,6 +167,58 @@ func TestFloat4ArrayAssignTo(t *testing.T) {
 			dst:      &float32Slice,
 			expected: (([]float32)(nil)),
 		},
+		{
+			src: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [][]float32{{1}, {2}},
+			dst:      &float32SliceDim2,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements: []pgtype.Float4{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &float32SliceDim4,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [2][1]float32{{1}, {2}},
+			dst:      &float32ArrayDim2,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements: []pgtype.Float4{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &float32ArrayDim4,
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -139,6 +243,27 @@ func TestFloat4ArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &float32Slice,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float32ArrayDim2,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float32Slice,
+		},
+		{
+			src: pgtype.Float4Array{
+				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &float32ArrayDim4,
 		},
 	}
 

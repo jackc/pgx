@@ -117,6 +117,54 @@ func TestInt8ArraySet(t *testing.T) {
 			source: (([]int64)(nil)),
 			result: pgtype.Int8Array{Status: pgtype.Null},
 		},
+		{
+			source: [][]int64{{1}, {2}},
+			result: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Int8Array{
+				Elements: []pgtype.Int8{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]int64{{1}, {2}},
+			result: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Int8Array{
+				Elements: []pgtype.Int8{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -136,6 +184,10 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 	var int64Slice []int64
 	var uint64Slice []uint64
 	var namedInt64Slice _int64Slice
+	var int64SliceDim2 [][]int64
+	var int64SliceDim4 [][][][]int64
+	var int64ArrayDim2 [2][1]int64
+	var int64ArrayDim4 [2][1][1][3]int64
 
 	simpleTests := []struct {
 		src      pgtype.Int8Array
@@ -174,6 +226,58 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 			dst:      &int64Slice,
 			expected: (([]int64)(nil)),
 		},
+		{
+			src: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [][]int64{{1}, {2}},
+			dst:      &int64SliceDim2,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements: []pgtype.Int8{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [][][][]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &int64SliceDim4,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [2][1]int64{{1}, {2}},
+			dst:      &int64ArrayDim2,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements: []pgtype.Int8{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [2][1][1][3]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &int64ArrayDim4,
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -206,6 +310,27 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &uint64Slice,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &int64ArrayDim2,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &int64Slice,
+		},
+		{
+			src: pgtype.Int8Array{
+				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &int64ArrayDim4,
 		},
 	}
 

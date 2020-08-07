@@ -68,6 +68,30 @@ func TestFloat8ArraySet(t *testing.T) {
 			source: (([]float64)(nil)),
 			result: pgtype.Float8Array{Status: pgtype.Null},
 		},
+		{
+			source: [][]float64{{1}, {2}},
+			result: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]float64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Float8Array{
+				Elements: []pgtype.Float8{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -86,6 +110,10 @@ func TestFloat8ArraySet(t *testing.T) {
 func TestFloat8ArrayAssignTo(t *testing.T) {
 	var float64Slice []float64
 	var namedFloat64Slice _float64Slice
+	var float64SliceDim2 [][]float64
+	var float64SliceDim4 [][][][]float64
+	var float64ArrayDim2 [2][1]float64
+	var float64ArrayDim4 [2][1][1][3]float64
 
 	simpleTests := []struct {
 		src      pgtype.Float8Array
@@ -115,6 +143,58 @@ func TestFloat8ArrayAssignTo(t *testing.T) {
 			dst:      &float64Slice,
 			expected: (([]float64)(nil)),
 		},
+		{
+			src: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [][]float64{{1}, {2}},
+			dst:      &float64SliceDim2,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements: []pgtype.Float8{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [][][][]float64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &float64SliceDim4,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [2][1]float64{{1}, {2}},
+			dst:      &float64ArrayDim2,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements: []pgtype.Float8{
+					{Float: 1, Status: pgtype.Present},
+					{Float: 2, Status: pgtype.Present},
+					{Float: 3, Status: pgtype.Present},
+					{Float: 4, Status: pgtype.Present},
+					{Float: 5, Status: pgtype.Present},
+					{Float: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [2][1][1][3]float64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &float64ArrayDim4,
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -139,6 +219,27 @@ func TestFloat8ArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &float64Slice,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float64ArrayDim2,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float64Slice,
+		},
+		{
+			src: pgtype.Float8Array{
+				Elements:   []pgtype.Float8{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &float64ArrayDim4,
 		},
 	}
 

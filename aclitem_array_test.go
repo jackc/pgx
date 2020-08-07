@@ -69,6 +69,74 @@ func TestACLItemArraySet(t *testing.T) {
 			source: (([]string)(nil)),
 			result: pgtype.ACLItemArray{Status: pgtype.Null},
 		},
+		{
+			source: [][]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
+			result: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]string{
+				{{{
+					"=r/postgres",
+					"postgres=arwdDxt/postgres",
+					"=r/postgres"}}},
+				{{{
+					"postgres=arwdDxt/postgres",
+					"=r/postgres",
+					"postgres=arwdDxt/postgres"}}}},
+			result: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
+			result: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]string{
+				{{{
+					"=r/postgres",
+					"postgres=arwdDxt/postgres",
+					"=r/postgres"}}},
+				{{{
+					"postgres=arwdDxt/postgres",
+					"=r/postgres",
+					"postgres=arwdDxt/postgres"}}}},
+			result: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -88,6 +156,10 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 	var stringSlice []string
 	type _stringSlice []string
 	var namedStringSlice _stringSlice
+	var stringSliceDim2 [][]string
+	var stringSliceDim4 [][][][]string
+	var stringArrayDim2 [2][1]string
+	var stringArrayDim4 [2][1][1][3]string
 
 	simpleTests := []struct {
 		src      pgtype.ACLItemArray
@@ -117,6 +189,78 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &stringSliceDim2,
+			expected: [][]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst: &stringSliceDim4,
+			expected: [][][][]string{
+				{{{
+					"=r/postgres",
+					"postgres=arwdDxt/postgres",
+					"=r/postgres"}}},
+				{{{
+					"postgres=arwdDxt/postgres",
+					"=r/postgres",
+					"postgres=arwdDxt/postgres"}}}},
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &stringArrayDim2,
+			expected: [2][1]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst: &stringArrayDim4,
+			expected: [2][1][1][3]string{
+				{{{
+					"=r/postgres",
+					"postgres=arwdDxt/postgres",
+					"=r/postgres"}}},
+				{{{
+					"postgres=arwdDxt/postgres",
+					"=r/postgres",
+					"postgres=arwdDxt/postgres"}}}},
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -141,6 +285,33 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &stringSlice,
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &stringArrayDim2,
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &stringSlice,
+		},
+		{
+			src: pgtype.ACLItemArray{
+				Elements: []pgtype.ACLItem{
+					{String: "=r/postgres", Status: pgtype.Present},
+					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &stringArrayDim4,
 		},
 	}
 
