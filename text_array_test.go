@@ -68,6 +68,54 @@ func TestTextArraySet(t *testing.T) {
 			source: (([]string)(nil)),
 			result: pgtype.TextArray{Status: pgtype.Null},
 		},
+		{
+			source: [][]string{{"foo"}, {"bar"}},
+			result: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
+			result: pgtype.TextArray{
+				Elements: []pgtype.Text{
+					{String: "foo", Status: pgtype.Present},
+					{String: "bar", Status: pgtype.Present},
+					{String: "baz", Status: pgtype.Present},
+					{String: "wibble", Status: pgtype.Present},
+					{String: "wobble", Status: pgtype.Present},
+					{String: "wubble", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]string{{"foo"}, {"bar"}},
+			result: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
+			result: pgtype.TextArray{
+				Elements: []pgtype.Text{
+					{String: "foo", Status: pgtype.Present},
+					{String: "bar", Status: pgtype.Present},
+					{String: "baz", Status: pgtype.Present},
+					{String: "wibble", Status: pgtype.Present},
+					{String: "wobble", Status: pgtype.Present},
+					{String: "wubble", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -87,6 +135,10 @@ func TestTextArrayAssignTo(t *testing.T) {
 	var stringSlice []string
 	type _stringSlice []string
 	var namedStringSlice _stringSlice
+	var stringSliceDim2 [][]string
+	var stringSliceDim4 [][][][]string
+	var stringArrayDim2 [2][1]string
+	var stringArrayDim4 [2][1][1][3]string
 
 	simpleTests := []struct {
 		src      pgtype.TextArray
@@ -116,6 +168,58 @@ func TestTextArrayAssignTo(t *testing.T) {
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
+		{
+			src: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &stringSliceDim2,
+			expected: [][]string{{"foo"}, {"bar"}},
+		},
+		{
+			src: pgtype.TextArray{
+				Elements: []pgtype.Text{
+					{String: "foo", Status: pgtype.Present},
+					{String: "bar", Status: pgtype.Present},
+					{String: "baz", Status: pgtype.Present},
+					{String: "wibble", Status: pgtype.Present},
+					{String: "wobble", Status: pgtype.Present},
+					{String: "wubble", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst:      &stringSliceDim4,
+			expected: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
+		},
+		{
+			src: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &stringArrayDim2,
+			expected: [2][1]string{{"foo"}, {"bar"}},
+		},
+		{
+			src: pgtype.TextArray{
+				Elements: []pgtype.Text{
+					{String: "foo", Status: pgtype.Present},
+					{String: "bar", Status: pgtype.Present},
+					{String: "baz", Status: pgtype.Present},
+					{String: "wibble", Status: pgtype.Present},
+					{String: "wobble", Status: pgtype.Present},
+					{String: "wubble", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst:      &stringArrayDim4,
+			expected: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -140,6 +244,27 @@ func TestTextArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &stringSlice,
+		},
+		{
+			src: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &stringArrayDim2,
+		},
+		{
+			src: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &stringSlice,
+		},
+		{
+			src: pgtype.TextArray{
+				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &stringArrayDim4,
 		},
 	}
 

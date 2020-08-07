@@ -85,6 +85,42 @@ func TestTimestampArraySet(t *testing.T) {
 			source: (([]time.Time)(nil)),
 			result: pgtype.TimestampArray{Status: pgtype.Null},
 		},
+		{
+			source: [][]time.Time{
+				{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
+				{time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC)}},
+			result: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]time.Time{
+				{{{
+					time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC),
+					time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC),
+					time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC)}}},
+				{{{
+					time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC),
+					time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC),
+					time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC)}}}},
+			result: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -102,6 +138,10 @@ func TestTimestampArraySet(t *testing.T) {
 
 func TestTimestampArrayAssignTo(t *testing.T) {
 	var timeSlice []time.Time
+	var timeSliceDim2 [][]time.Time
+	var timeSliceDim4 [][][][]time.Time
+	var timeArrayDim2 [2][1]time.Time
+	var timeArrayDim4 [2][1][1][3]time.Time
 
 	simpleTests := []struct {
 		src      pgtype.TimestampArray
@@ -121,6 +161,82 @@ func TestTimestampArrayAssignTo(t *testing.T) {
 			src:      pgtype.TimestampArray{Status: pgtype.Null},
 			dst:      &timeSlice,
 			expected: (([]time.Time)(nil)),
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &timeSliceDim2,
+			expected: [][]time.Time{
+				{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
+				{time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC)}},
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst: &timeSliceDim4,
+			expected: [][][][]time.Time{
+				{{{
+					time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC),
+					time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC),
+					time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC)}}},
+				{{{
+					time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC),
+					time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC),
+					time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC)}}}},
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &timeArrayDim2,
+			expected: [2][1]time.Time{
+				{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
+				{time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC)}},
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst: &timeArrayDim4,
+			expected: [2][1][1][3]time.Time{
+				{{{
+					time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC),
+					time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC),
+					time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC)}}},
+				{{{
+					time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC),
+					time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC),
+					time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC)}}}},
 		},
 	}
 
@@ -146,6 +262,33 @@ func TestTimestampArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &timeSlice,
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &timeArrayDim2,
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &timeSlice,
+		},
+		{
+			src: pgtype.TimestampArray{
+				Elements: []pgtype.Timestamp{
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &timeArrayDim4,
 		},
 	}
 

@@ -5,6 +5,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"reflect"
 
 	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
@@ -30,332 +31,92 @@ func (dst *Int2Array) Set(src interface{}) error {
 		}
 	}
 
-	switch value := src.(type) {
+	value := reflect.ValueOf(src)
+	if !value.IsValid() || value.IsZero() {
+		*dst = Int2Array{Status: Null}
+		return nil
+	}
 
-	case []int16:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*int16:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint16:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*uint16:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []int32:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*int32:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint32:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*uint32:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []int64:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*int64:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint64:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*uint64:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []int:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*int:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []uint:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []*uint:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			elements := make([]Int2, len(value))
-			for i := range value {
-				if err := elements[i].Set(value[i]); err != nil {
-					return err
-				}
-			}
-			*dst = Int2Array{
-				Elements:   elements,
-				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-
-	case []Int2:
-		if value == nil {
-			*dst = Int2Array{Status: Null}
-		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
-		} else {
-			*dst = Int2Array{
-				Elements:   value,
-				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
-				Status:     Present,
-			}
-		}
-	default:
+	dimensions, elementsLength, ok := findDimensionsFromValue(reflect.ValueOf(src), nil, 0)
+	if !ok {
+		return errors.Errorf("cannot find dimensions of %v for Int2Array", src)
+	}
+	if elementsLength == 0 {
+		*dst = Int2Array{Status: Present}
+		return nil
+	}
+	if len(dimensions) == 0 {
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Int2Array", value)
+		return errors.Errorf("cannot convert %v to Int2Array", src)
+	}
+
+	*dst = Int2Array{
+		Elements:   make([]Int2, elementsLength),
+		Dimensions: dimensions,
+		Status:     Present,
+	}
+	elementCount, err := dst.setRecursive(reflect.ValueOf(src), 0, 0)
+	if err != nil {
+		// Maybe the target was one dimension too far, try again:
+		if len(dst.Dimensions) > 1 {
+			dst.Dimensions = dst.Dimensions[:len(dst.Dimensions)-1]
+			elementsLength = 0
+			for _, dim := range dst.Dimensions {
+				if elementsLength == 0 {
+					elementsLength = int(dim.Length)
+				} else {
+					elementsLength *= int(dim.Length)
+				}
+			}
+			dst.Elements = make([]Int2, elementsLength)
+			elementCount, err = dst.setRecursive(reflect.ValueOf(src), 0, 0)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	if elementCount != len(dst.Elements) {
+		return errors.Errorf("cannot convert %v to Int2Array, expected %d dst.Elements, but got %d instead", src, len(dst.Elements), elementCount)
 	}
 
 	return nil
+}
+
+func (dst *Int2Array) setRecursive(value reflect.Value, index, dimension int) (int, error) {
+	switch value.Kind() {
+	case reflect.Array:
+		fallthrough
+	case reflect.Slice:
+		if len(dst.Dimensions) == dimension {
+			break
+		}
+
+		if int32(value.Len()) != dst.Dimensions[dimension].Length {
+			return 0, errors.Errorf("multidimensional arrays must have array expressions with matching dimensions")
+		}
+		for i := 0; i < value.Len(); i++ {
+			var err error
+			index, err = dst.setRecursive(value.Index(i), index, dimension+1)
+			if err != nil {
+				return 0, err
+			}
+		}
+
+		return index, nil
+	}
+	if !value.CanInterface() {
+		return 0, errors.Errorf("cannot convert all values to Int2Array")
+	}
+	if err := dst.Elements[index].Set(value.Interface()); err != nil {
+		return 0, errors.Errorf("%v in Int2Array", err)
+	}
+	index++
+
+	return index, nil
 }
 
 func (dst Int2Array) Get() interface{} {
@@ -372,163 +133,74 @@ func (dst Int2Array) Get() interface{} {
 func (src *Int2Array) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
-		switch v := dst.(type) {
-
-		case *[]int16:
-			*v = make([]int16, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*int16:
-			*v = make([]*int16, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]uint16:
-			*v = make([]uint16, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*uint16:
-			*v = make([]*uint16, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]int32:
-			*v = make([]int32, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*int32:
-			*v = make([]*int32, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]uint32:
-			*v = make([]uint32, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*uint32:
-			*v = make([]*uint32, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]int64:
-			*v = make([]int64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*int64:
-			*v = make([]*int64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]uint64:
-			*v = make([]uint64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*uint64:
-			*v = make([]*uint64, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]int:
-			*v = make([]int, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*int:
-			*v = make([]*int, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]uint:
-			*v = make([]uint, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		case *[]*uint:
-			*v = make([]*uint, len(src.Elements))
-			for i := range src.Elements {
-				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-					return err
-				}
-			}
-			return nil
-
-		default:
+		value := reflect.ValueOf(dst)
+		if value.Kind() == reflect.Ptr {
+			value = value.Elem()
+		}
+		if !value.CanSet() {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
 			return errors.Errorf("unable to assign to %T", dst)
 		}
+
+		elementCount, err := src.assignToRecursive(value, 0, 0)
+		if err != nil {
+			return err
+		}
+		if elementCount != len(src.Elements) {
+			return errors.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
+		}
+
+		return nil
 	case Null:
 		return NullAssignTo(dst)
 	}
 
 	return errors.Errorf("cannot decode %#v into %T", src, dst)
+}
+
+func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension int) (int, error) {
+	switch kind := value.Kind(); kind {
+	case reflect.Array:
+		fallthrough
+	case reflect.Slice:
+		if len(src.Dimensions) == dimension {
+			break
+		}
+
+		length := int(src.Dimensions[dimension].Length)
+		if reflect.Array == kind {
+			if value.Type().Len() != length {
+				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, value.Type(), value.Type().Len())
+			}
+			value.Set(reflect.New(value.Type()).Elem())
+		} else {
+			value.Set(reflect.MakeSlice(value.Type(), length, length))
+		}
+
+		var err error
+		for i := 0; i < length; i++ {
+			index, err = src.assignToRecursive(value.Index(i), index, dimension+1)
+			if err != nil {
+				return 0, err
+			}
+		}
+
+		return index, nil
+	}
+	if len(src.Dimensions) != dimension {
+		return 0, errors.Errorf("incorrect dimensions, expected %d, found %d", len(src.Dimensions), dimension)
+	}
+	if !value.CanAddr() || !value.Addr().CanInterface() {
+		return 0, errors.Errorf("cannot assign all values from Int2Array")
+	}
+	err := src.Elements[index].AssignTo(value.Addr().Interface())
+	if err != nil {
+		return 0, err
+	}
+	index++
+	return index, nil
 }
 
 func (dst *Int2Array) DecodeText(ci *ConnInfo, src []byte) error {

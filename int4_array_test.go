@@ -116,6 +116,54 @@ func TestInt4ArraySet(t *testing.T) {
 			source: (([]int32)(nil)),
 			result: pgtype.Int4Array{Status: pgtype.Null},
 		},
+		{
+			source: [][]int32{{1}, {2}},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]int32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Int4Array{
+				Elements: []pgtype.Int4{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]int32{{1}, {2}},
+			result: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]int32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.Int4Array{
+				Elements: []pgtype.Int4{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -143,6 +191,10 @@ func TestInt4ArrayAssignTo(t *testing.T) {
 	var int32Slice []int32
 	var uint32Slice []uint32
 	var namedInt32Slice _int32Slice
+	var int32SliceDim2 [][]int32
+	var int32SliceDim4 [][][][]int32
+	var int32ArrayDim2 [2][1]int32
+	var int32ArrayDim4 [2][1][1][3]int32
 
 	simpleTests := []struct {
 		src      pgtype.Int4Array
@@ -181,6 +233,58 @@ func TestInt4ArrayAssignTo(t *testing.T) {
 			dst:      &int32Slice,
 			expected: (([]int32)(nil)),
 		},
+		{
+			src: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [][]int32{{1}, {2}},
+			dst:      &int32SliceDim2,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements: []pgtype.Int4{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [][][][]int32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &int32SliceDim4,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			expected: [2][1]int32{{1}, {2}},
+			dst:      &int32ArrayDim2,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements: []pgtype.Int4{
+					{Int: 1, Status: pgtype.Present},
+					{Int: 2, Status: pgtype.Present},
+					{Int: 3, Status: pgtype.Present},
+					{Int: 4, Status: pgtype.Present},
+					{Int: 5, Status: pgtype.Present},
+					{Int: 6, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			expected: [2][1][1][3]int32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			dst:      &int32ArrayDim4,
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -213,6 +317,27 @@ func TestInt4ArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &uint32Slice,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &int32ArrayDim2,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &int32Slice,
+		},
+		{
+			src: pgtype.Int4Array{
+				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &int32ArrayDim4,
 		},
 	}
 

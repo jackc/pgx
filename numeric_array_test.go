@@ -91,6 +91,54 @@ func TestNumericArraySet(t *testing.T) {
 			source: (([]float32)(nil)),
 			result: pgtype.NumericArray{Status: pgtype.Null},
 		},
+		{
+			source: [][]float32{{1}, {2}},
+			result: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.NumericArray{
+				Elements: []pgtype.Numeric{
+					{Int: big.NewInt(1), Status: pgtype.Present},
+					{Int: big.NewInt(2), Status: pgtype.Present},
+					{Int: big.NewInt(3), Status: pgtype.Present},
+					{Int: big.NewInt(4), Status: pgtype.Present},
+					{Int: big.NewInt(5), Status: pgtype.Present},
+					{Int: big.NewInt(6), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
+		{
+			source: [2][1]float32{{1}, {2}},
+			result: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+		},
+		{
+			source: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+			result: pgtype.NumericArray{
+				Elements: []pgtype.Numeric{
+					{Int: big.NewInt(1), Status: pgtype.Present},
+					{Int: big.NewInt(2), Status: pgtype.Present},
+					{Int: big.NewInt(3), Status: pgtype.Present},
+					{Int: big.NewInt(4), Status: pgtype.Present},
+					{Int: big.NewInt(5), Status: pgtype.Present},
+					{Int: big.NewInt(6), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+		},
 	}
 
 	for i, tt := range successfulTests {
@@ -109,6 +157,10 @@ func TestNumericArraySet(t *testing.T) {
 func TestNumericArrayAssignTo(t *testing.T) {
 	var float32Slice []float32
 	var float64Slice []float64
+	var float32SliceDim2 [][]float32
+	var float32SliceDim4 [][][][]float32
+	var float32ArrayDim2 [2][1]float32
+	var float32ArrayDim4 [2][1][1][3]float32
 
 	simpleTests := []struct {
 		src      pgtype.NumericArray
@@ -138,6 +190,58 @@ func TestNumericArrayAssignTo(t *testing.T) {
 			dst:      &float32Slice,
 			expected: (([]float32)(nil)),
 		},
+		{
+			src: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &float32SliceDim2,
+			expected: [][]float32{{1}, {2}},
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements: []pgtype.Numeric{
+					{Int: big.NewInt(1), Status: pgtype.Present},
+					{Int: big.NewInt(2), Status: pgtype.Present},
+					{Int: big.NewInt(3), Status: pgtype.Present},
+					{Int: big.NewInt(4), Status: pgtype.Present},
+					{Int: big.NewInt(5), Status: pgtype.Present},
+					{Int: big.NewInt(6), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst:      &float32SliceDim4,
+			expected: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst:      &float32ArrayDim2,
+			expected: [2][1]float32{{1}, {2}},
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements: []pgtype.Numeric{
+					{Int: big.NewInt(1), Status: pgtype.Present},
+					{Int: big.NewInt(2), Status: pgtype.Present},
+					{Int: big.NewInt(3), Status: pgtype.Present},
+					{Int: big.NewInt(4), Status: pgtype.Present},
+					{Int: big.NewInt(5), Status: pgtype.Present},
+					{Int: big.NewInt(6), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{
+					{LowerBound: 1, Length: 2},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 1},
+					{LowerBound: 1, Length: 3}},
+				Status: pgtype.Present},
+			dst:      &float32ArrayDim4,
+			expected: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
+		},
 	}
 
 	for i, tt := range simpleTests {
@@ -162,6 +266,27 @@ func TestNumericArrayAssignTo(t *testing.T) {
 				Status:     pgtype.Present,
 			},
 			dst: &float32Slice,
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float32ArrayDim2,
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
+				Status:     pgtype.Present},
+			dst: &float32Slice,
+		},
+		{
+			src: pgtype.NumericArray{
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
+				Status:     pgtype.Present},
+			dst: &float32ArrayDim4,
 		},
 	}
 
