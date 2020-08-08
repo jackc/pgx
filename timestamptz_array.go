@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"reflect"
+	"time"
 
 	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
@@ -31,56 +32,110 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 		}
 	}
 
-	value := reflect.ValueOf(src)
-	if !value.IsValid() || value.IsZero() {
-		*dst = TimestamptzArray{Status: Null}
-		return nil
-	}
+	switch value := src.(type) {
 
-	dimensions, elementsLength, ok := findDimensionsFromValue(reflect.ValueOf(src), nil, 0)
-	if !ok {
-		return errors.Errorf("cannot find dimensions of %v for TimestamptzArray", src)
-	}
-	if elementsLength == 0 {
-		*dst = TimestamptzArray{Status: Present}
-		return nil
-	}
-	if len(dimensions) == 0 {
-		if originalSrc, ok := underlyingSliceType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return errors.Errorf("cannot convert %v to TimestamptzArray", src)
-	}
-
-	*dst = TimestamptzArray{
-		Elements:   make([]Timestamptz, elementsLength),
-		Dimensions: dimensions,
-		Status:     Present,
-	}
-	elementCount, err := dst.setRecursive(reflect.ValueOf(src), 0, 0)
-	if err != nil {
-		// Maybe the target was one dimension too far, try again:
-		if len(dst.Dimensions) > 1 {
-			dst.Dimensions = dst.Dimensions[:len(dst.Dimensions)-1]
-			elementsLength = 0
-			for _, dim := range dst.Dimensions {
-				if elementsLength == 0 {
-					elementsLength = int(dim.Length)
-				} else {
-					elementsLength *= int(dim.Length)
+	case []time.Time:
+		if value == nil {
+			*dst = TimestamptzArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TimestamptzArray{Status: Present}
+		} else {
+			elements := make([]Timestamptz, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
 				}
 			}
-			dst.Elements = make([]Timestamptz, elementsLength)
-			elementCount, err = dst.setRecursive(reflect.ValueOf(src), 0, 0)
-			if err != nil {
+			*dst = TimestamptzArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []*time.Time:
+		if value == nil {
+			*dst = TimestamptzArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TimestamptzArray{Status: Present}
+		} else {
+			elements := make([]Timestamptz, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = TimestamptzArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []Timestamptz:
+		if value == nil {
+			*dst = TimestamptzArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = TimestamptzArray{Status: Present}
+		} else {
+			*dst = TimestamptzArray{
+				Elements:   value,
+				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+	default:
+		reflectedValue := reflect.ValueOf(src)
+		if !reflectedValue.IsValid() || reflectedValue.IsZero() {
+			*dst = TimestamptzArray{Status: Null}
+			return nil
+		}
+
+		dimensions, elementsLength, ok := findDimensionsFromValue(reflectedValue, nil, 0)
+		if !ok {
+			return errors.Errorf("cannot find dimensions of %v for TimestamptzArray", src)
+		}
+		if elementsLength == 0 {
+			*dst = TimestamptzArray{Status: Present}
+			return nil
+		}
+		if len(dimensions) == 0 {
+			if originalSrc, ok := underlyingSliceType(src); ok {
+				return dst.Set(originalSrc)
+			}
+			return errors.Errorf("cannot convert %v to TimestamptzArray", src)
+		}
+
+		*dst = TimestamptzArray{
+			Elements:   make([]Timestamptz, elementsLength),
+			Dimensions: dimensions,
+			Status:     Present,
+		}
+		elementCount, err := dst.setRecursive(reflectedValue, 0, 0)
+		if err != nil {
+			// Maybe the target was one dimension too far, try again:
+			if len(dst.Dimensions) > 1 {
+				dst.Dimensions = dst.Dimensions[:len(dst.Dimensions)-1]
+				elementsLength = 0
+				for _, dim := range dst.Dimensions {
+					if elementsLength == 0 {
+						elementsLength = int(dim.Length)
+					} else {
+						elementsLength *= int(dim.Length)
+					}
+				}
+				dst.Elements = make([]Timestamptz, elementsLength)
+				elementCount, err = dst.setRecursive(reflectedValue, 0, 0)
+				if err != nil {
+					return err
+				}
+			} else {
 				return err
 			}
-		} else {
-			return err
 		}
-	}
-	if elementCount != len(dst.Elements) {
-		return errors.Errorf("cannot convert %v to TimestamptzArray, expected %d dst.Elements, but got %d instead", src, len(dst.Elements), elementCount)
+		if elementCount != len(dst.Elements) {
+			return errors.Errorf("cannot convert %v to TimestamptzArray, expected %d dst.Elements, but got %d instead", src, len(dst.Elements), elementCount)
+		}
 	}
 
 	return nil
@@ -95,10 +150,11 @@ func (dst *TimestamptzArray) setRecursive(value reflect.Value, index, dimension 
 			break
 		}
 
-		if int32(value.Len()) != dst.Dimensions[dimension].Length {
+		valueLen := value.Len()
+		if int32(valueLen) != dst.Dimensions[dimension].Length {
 			return 0, errors.Errorf("multidimensional arrays must have array expressions with matching dimensions")
 		}
-		for i := 0; i < value.Len(); i++ {
+		for i := 0; i < valueLen; i++ {
 			var err error
 			index, err = dst.setRecursive(value.Index(i), index, dimension+1)
 			if err != nil {
@@ -133,6 +189,30 @@ func (dst TimestamptzArray) Get() interface{} {
 func (src *TimestamptzArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
+		if len(src.Dimensions) == 1 {
+			switch v := dst.(type) {
+
+			case *[]time.Time:
+				*v = make([]time.Time, len(src.Elements))
+				for i := range src.Elements {
+					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+						return err
+					}
+				}
+				return nil
+
+			case *[]*time.Time:
+				*v = make([]*time.Time, len(src.Elements))
+				for i := range src.Elements {
+					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+						return err
+					}
+				}
+				return nil
+
+			}
+		}
+
 		value := reflect.ValueOf(dst)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
@@ -171,10 +251,12 @@ func (src *TimestamptzArray) assignToRecursive(value reflect.Value, index, dimen
 
 		length := int(src.Dimensions[dimension].Length)
 		if reflect.Array == kind {
-			if value.Type().Len() != length {
-				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, value.Type(), value.Type().Len())
+			typ := value.Type()
+			typLen := typ.Len()
+			if typLen != length {
+				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, typ, typLen)
 			}
-			value.Set(reflect.New(value.Type()).Elem())
+			value.Set(reflect.New(typ).Elem())
 		} else {
 			value.Set(reflect.MakeSlice(value.Type(), length, length))
 		}
@@ -192,11 +274,14 @@ func (src *TimestamptzArray) assignToRecursive(value reflect.Value, index, dimen
 	if len(src.Dimensions) != dimension {
 		return 0, errors.Errorf("incorrect dimensions, expected %d, found %d", len(src.Dimensions), dimension)
 	}
-	if !value.CanAddr() || !value.Addr().CanInterface() {
+	if !value.CanAddr() {
 		return 0, errors.Errorf("cannot assign all values from TimestamptzArray")
 	}
-	err := src.Elements[index].AssignTo(value.Addr().Interface())
-	if err != nil {
+	addr := value.Addr()
+	if !addr.CanInterface() {
+		return 0, errors.Errorf("cannot assign all values from TimestamptzArray")
+	}
+	if err := src.Elements[index].AssignTo(addr.Interface()); err != nil {
 		return 0, err
 	}
 	index++
