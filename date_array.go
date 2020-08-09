@@ -32,6 +32,7 @@ func (dst *DateArray) Set(src interface{}) error {
 		}
 	}
 
+	// Attempt to match to select common types:
 	switch value := src.(type) {
 
 	case []time.Time:
@@ -85,6 +86,9 @@ func (dst *DateArray) Set(src interface{}) error {
 			}
 		}
 	default:
+		// Fallback to reflection if an optimised match was not found.
+		// The reflection is necessary for arrays and multidimensional slices,
+		// but it comes with a 20-50% performance penalty for large arrays/slices
 		reflectedValue := reflect.ValueOf(src)
 		if !reflectedValue.IsValid() || reflectedValue.IsZero() {
 			*dst = DateArray{Status: Null}
@@ -190,6 +194,7 @@ func (src *DateArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
 		if len(src.Dimensions) == 1 {
+			// Attempt to match to select common types:
 			switch v := dst.(type) {
 
 			case *[]time.Time:
@@ -213,6 +218,9 @@ func (src *DateArray) AssignTo(dst interface{}) error {
 			}
 		}
 
+		// Fallback to reflection if an optimised match was not found.
+		// The reflection is necessary for arrays and multidimensional slices,
+		// but it comes with a 20-50% performance penalty for large arrays/slices
 		value := reflect.ValueOf(dst)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
@@ -252,9 +260,8 @@ func (src *DateArray) assignToRecursive(value reflect.Value, index, dimension in
 		length := int(src.Dimensions[dimension].Length)
 		if reflect.Array == kind {
 			typ := value.Type()
-			typLen := typ.Len()
-			if typLen != length {
-				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, typ, typLen)
+			if typ.Len() != length {
+				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, typ, typ.Len())
 			}
 			value.Set(reflect.New(typ).Elem())
 		} else {
