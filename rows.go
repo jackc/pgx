@@ -204,10 +204,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 	if rows.scanPlans == nil {
 		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
-		for i, dst := range dest {
-			if dst == nil {
-				continue
-			}
+		for i := range dest {
 			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 		}
 	}
