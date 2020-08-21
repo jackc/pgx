@@ -16,7 +16,7 @@ func closeConn(t testing.TB, conn *pgconn.PgConn) {
 	defer cancel()
 	require.NoError(t, conn.Close(ctx))
 	select {
-	case <-conn.CleanupChan():
+	case <-conn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}

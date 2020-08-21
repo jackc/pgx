@@ -90,7 +90,7 @@ type PgConn struct {
 	multiResultReader MultiResultReader
 	contextWatcher    *ctxwatch.ContextWatcher
 
-	cleanupChan chan struct{}
+	cleanupDone chan struct{}
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
@@ -203,7 +203,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn := new(PgConn)
 	pgConn.config = config
 	pgConn.wbuf = make([]byte, 0, wbufLen)
-	pgConn.cleanupChan = make(chan struct{})
+	pgConn.cleanupDone = make(chan struct{})
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
@@ -507,7 +507,7 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	}
 	pgConn.status = connStatusClosed
 
-	defer close(pgConn.cleanupChan)
+	defer close(pgConn.cleanupDone)
 	defer pgConn.conn.Close()
 
 	if ctx != context.Background() {
@@ -542,7 +542,7 @@ func (pgConn *PgConn) asyncClose() {
 	pgConn.status = connStatusClosed
 
 	go func() {
-		defer close(pgConn.cleanupChan)
+		defer close(pgConn.cleanupDone)
 		defer pgConn.conn.Close()
 
 		deadline := time.Now().Add(time.Second * 15)
@@ -559,7 +559,7 @@ func (pgConn *PgConn) asyncClose() {
 	}()
 }
 
-// CleanupChan returns a channel that will be closed after all underlying resources have been cleaned up. A closed
+// CleanupDone returns a channel that will be closed after all underlying resources have been cleaned up. A closed
 // connection is no longer usable, but underlying resources, in particular the net.Conn, may not have finished closing
 // yet. This is because certain errors such as a context cancellation require that the interrupted function call return
 // immediately, but the error may also cause the connection to be closed. In these cases the underlying resources are
@@ -567,13 +567,13 @@ func (pgConn *PgConn) asyncClose() {
 //
 // This is only likely to be useful to connection pools. It gives them a way avoid establishing a new connection while
 // an old connection is still being cleaned up and thereby exceeding the maximum pool size.
-func (pgConn *PgConn) CleanupChan() chan (struct{}) {
-	return pgConn.cleanupChan
+func (pgConn *PgConn) CleanupDone() chan (struct{}) {
+	return pgConn.cleanupDone
 }
 
 // IsClosed reports if the connection has been closed.
 //
-// CleanupChan() can be used to determine if all cleanup has been completed.
+// CleanupDone() can be used to determine if all cleanup has been completed.
 func (pgConn *PgConn) IsClosed() bool {
 	return pgConn.status < connStatusIdle
 }
@@ -1605,7 +1605,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		status: connStatusIdle,
 
 		wbuf:        make([]byte, 0, wbufLen),
-		cleanupChan: make(chan struct{}),
+		cleanupDone: make(chan struct{}),
 	}
 
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
