@@ -194,7 +194,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			conn := value.(*connResource).conn
 			conn.Close(ctx)
 			select {
-			case <-conn.PgConn().CleanupChan():
+			case <-conn.PgConn().CleanupDone():
 			case <-ctx.Done():
 			}
 			cancel()
