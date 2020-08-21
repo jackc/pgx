@@ -547,6 +547,11 @@ func TestConnExecContextCanceled(t *testing.T) {
 	err = multiResult.Close()
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 func TestConnExecContextPrecanceled(t *testing.T) {
@@ -680,6 +685,11 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 func TestConnExecParamsPrecanceled(t *testing.T) {
@@ -824,6 +834,11 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 func TestConnExecPreparedPrecanceled(t *testing.T) {
@@ -1306,6 +1321,11 @@ func TestConnCopyToCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag(nil), res)
 
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 func TestConnCopyToPrecanceled(t *testing.T) {
@@ -1397,6 +1417,11 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	assert.Error(t, err)
 
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 func TestConnCopyFromPrecanceled(t *testing.T) {
@@ -1647,6 +1672,11 @@ func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
 	err = multiResult.Close()
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 
 	otherConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
@@ -1750,6 +1780,11 @@ func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 
 	closeCtx, _ := context.WithCancel(context.Background())
 	pgConn.Close(closeCtx)
+	select {
+	case <-pgConn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 // https://github.com/jackc/pgx/issues/800

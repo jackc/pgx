@@ -15,6 +15,11 @@ func closeConn(t testing.TB, conn *pgconn.PgConn) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	require.NoError(t, conn.Close(ctx))
+	select {
+	case <-conn.CleanupChan():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Connection cleanup exceeded maximum time")
+	}
 }
 
 // Do a simple query to ensure the connection is still usable
