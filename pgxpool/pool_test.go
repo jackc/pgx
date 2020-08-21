@@ -609,6 +609,12 @@ func TestConnReleaseWhenBeginFail(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	stats := db.Stat()
-	assert.EqualValues(t, 0, stats.TotalConns())
+	for i := 0; i < 1000; i++ {
+		if db.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	assert.EqualValues(t, 0, db.Stat().TotalConns())
 }
