@@ -1,6 +1,6 @@
 # Unreleased
 
-* Add PgConn.CleanupChan so connection pools can determine when async close is complete
+* Add PgConn.CleanupDone so connection pools can determine when async close is complete
 
 # 1.6.4 (July 29, 2020)
 

@@ -548,7 +548,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -686,7 +686,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -835,7 +835,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -1322,7 +1322,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -1418,7 +1418,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -1673,7 +1673,7 @@ func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
@@ -1781,7 +1781,7 @@ func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 	closeCtx, _ := context.WithCancel(context.Background())
 	pgConn.Close(closeCtx)
 	select {
-	case <-pgConn.CleanupChan():
+	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
