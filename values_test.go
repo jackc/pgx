@@ -950,3 +950,36 @@ func TestRowDecodeBinary(t *testing.T) {
 		ensureConnValid(t, conn)
 	}
 }
+
+// https://github.com/jackc/pgx/issues/810
+func TestRowsScanNilThenScanValue(t *testing.T) {
+	t.Parallel()
+
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		sql := `select null as a, null as b
+union
+select 1, 2
+order by a nulls first
+`
+		rows, err := conn.Query(context.Background(), sql)
+		require.NoError(t, err)
+
+		require.True(t, rows.Next())
+
+		err = rows.Scan(nil, nil)
+		require.NoError(t, err)
+
+		require.True(t, rows.Next())
+
+		var a int
+		var b int
+		err = rows.Scan(&a, &b)
+		require.NoError(t, err)
+
+		require.EqualValues(t, 1, a)
+		require.EqualValues(t, 2, b)
+
+		rows.Close()
+		require.NoError(t, rows.Err())
+	})
+}
