@@ -473,12 +473,12 @@ optionLoop:
 		}
 	}
 
-	if simpleProtocol {
-		return c.execSimpleProtocol(ctx, sql, arguments)
-	}
-
 	if sd, ok := c.preparedStatements[sql]; ok {
 		return c.execPrepared(ctx, sd, arguments)
+	}
+
+	if simpleProtocol {
+		return c.execSimpleProtocol(ctx, sql, arguments)
 	}
 
 	if len(arguments) == 0 {
@@ -624,7 +624,9 @@ optionLoop:
 	rows := c.getRows(ctx, sql, args)
 
 	var err error
-	if simpleProtocol {
+	sd, ok := c.preparedStatements[sql]
+
+	if simpleProtocol && !ok {
 		sql, err = c.sanitizeForSimpleQuery(sql, args...)
 		if err != nil {
 			rows.fatal(err)
@@ -646,7 +648,6 @@ optionLoop:
 
 	c.eqb.Reset()
 
-	sd, ok := c.preparedStatements[sql]
 	if !ok {
 		if c.stmtcache != nil {
 			sd, err = c.stmtcache.Get(ctx, sql)
