@@ -12,7 +12,7 @@ import (
 )
 
 type JSONBArray struct {
-	Elements   []Text
+	Elements   []JSONB
 	Dimensions []ArrayDimension
 	Status     Status
 }
@@ -40,7 +40,7 @@ func (dst *JSONBArray) Set(src interface{}) error {
 		} else if len(value) == 0 {
 			*dst = JSONBArray{Status: Present}
 		} else {
-			elements := make([]Text, len(value))
+			elements := make([]JSONB, len(value))
 			for i := range value {
 				if err := elements[i].Set(value[i]); err != nil {
 					return err
@@ -53,7 +53,26 @@ func (dst *JSONBArray) Set(src interface{}) error {
 			}
 		}
 
-	case []Text:
+	case [][]byte:
+		if value == nil {
+			*dst = JSONBArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = JSONBArray{Status: Present}
+		} else {
+			elements := make([]JSONB, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = JSONBArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
+	case []JSONB:
 		if value == nil {
 			*dst = JSONBArray{Status: Null}
 		} else if len(value) == 0 {
@@ -91,7 +110,7 @@ func (dst *JSONBArray) Set(src interface{}) error {
 		}
 
 		*dst = JSONBArray{
-			Elements:   make([]Text, elementsLength),
+			Elements:   make([]JSONB, elementsLength),
 			Dimensions: dimensions,
 			Status:     Present,
 		}
@@ -108,7 +127,7 @@ func (dst *JSONBArray) Set(src interface{}) error {
 						elementsLength *= int(dim.Length)
 					}
 				}
-				dst.Elements = make([]Text, elementsLength)
+				dst.Elements = make([]JSONB, elementsLength)
 				elementCount, err = dst.setRecursive(reflectedValue, 0, 0)
 				if err != nil {
 					return err
@@ -179,6 +198,15 @@ func (src *JSONBArray) AssignTo(dst interface{}) error {
 
 			case *[]string:
 				*v = make([]string, len(src.Elements))
+				for i := range src.Elements {
+					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+						return err
+					}
+				}
+				return nil
+
+			case *[][]byte:
+				*v = make([][]byte, len(src.Elements))
 				for i := range src.Elements {
 					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 						return err
@@ -277,13 +305,13 @@ func (dst *JSONBArray) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	var elements []Text
+	var elements []JSONB
 
 	if len(uta.Elements) > 0 {
-		elements = make([]Text, len(uta.Elements))
+		elements = make([]JSONB, len(uta.Elements))
 
 		for i, s := range uta.Elements {
-			var elem Text
+			var elem JSONB
 			var elemSrc []byte
 			if s != "NULL" {
 				elemSrc = []byte(s)
@@ -324,7 +352,7 @@ func (dst *JSONBArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		elementCount *= d.Length
 	}
 
-	elements := make([]Text, elementCount)
+	elements := make([]JSONB, elementCount)
 
 	for i := range elements {
 		elemLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
@@ -413,10 +441,10 @@ func (src JSONBArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		Dimensions: src.Dimensions,
 	}
 
-	if dt, ok := ci.DataTypeForName("text"); ok {
+	if dt, ok := ci.DataTypeForName("jsonb"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, errors.Errorf("unable to find oid for type name %v", "text")
+		return nil, errors.Errorf("unable to find oid for type name %v", "jsonb")
 	}
 
 	for i := range src.Elements {
