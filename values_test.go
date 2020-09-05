@@ -983,3 +983,47 @@ order by a nulls first
 		require.NoError(t, rows.Err())
 	})
 }
+
+func TestScanIntoByteSlice(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+	// Success cases
+	for _, tt := range []struct {
+		name             string
+		sql              string
+		resultFormatCode int16
+		output           []byte
+	}{
+		{"int - text", "select 42", pgx.TextFormatCode, []byte("42")},
+		{"text - text", "select 'hi'", pgx.TextFormatCode, []byte("hi")},
+		{"text - binary", "select 'hi'", pgx.BinaryFormatCode, []byte("hi")},
+		{"json - text", "select '{}'::json", pgx.TextFormatCode, []byte("{}")},
+		{"json - binary", "select '{}'::json", pgx.BinaryFormatCode, []byte("{}")},
+		{"jsonb - text", "select '{}'::jsonb", pgx.TextFormatCode, []byte("{}")},
+		{"jsonb - binary", "select '{}'::jsonb", pgx.BinaryFormatCode, []byte("{}")},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf []byte
+			err := conn.QueryRow(context.Background(), tt.sql, pgx.QueryResultFormats{tt.resultFormatCode}).Scan(&buf)
+			require.NoError(t, err)
+			require.Equal(t, tt.output, buf)
+		})
+	}
+
+	// Failure cases
+	for _, tt := range []struct {
+		name string
+		sql  string
+		err  string
+	}{
+		{"int binary", "select 42", "can't scan into dest[0]: cannot assign 42 into *[]uint8"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf []byte
+			err := conn.QueryRow(context.Background(), tt.sql, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&buf)
+			require.EqualError(t, err, tt.err)
+		})
+	}
+}
