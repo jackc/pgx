@@ -134,7 +134,7 @@ func (dst *<%= pgtype_array_type %>) setRecursive(value reflect.Value, index, di
 		if len(dst.Dimensions) == dimension {
 			break
 		}
-		
+
 		valueLen := value.Len()
 		if int32(valueLen) != dst.Dimensions[dimension].Length {
 			return 0, errors.Errorf("multidimensional arrays must have array expressions with matching dimensions")
@@ -174,7 +174,7 @@ func (dst <%= pgtype_array_type %>) Get() interface{} {
 func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
-		if len(src.Dimensions) == 1{
+		if len(src.Dimensions) <= 1{
 			// Attempt to match to select common types:
 			switch v := dst.(type) {
 			<% go_array_types.split(",").each do |t| %>
@@ -189,7 +189,7 @@ func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {
 			<% end %>
 			}
 		}
-		
+
 		// Fallback to reflection if an optimised match was not found.
 		// The reflection is necessary for arrays and multidimensional slices,
 		// but it comes with a 20-50% performance penalty for large arrays/slices
@@ -211,7 +211,7 @@ func (src *<%= pgtype_array_type %>) AssignTo(dst interface{}) error {
 		if elementCount != len(src.Elements) {
 			return errors.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
 		}
-		
+
 		return nil
 	case Null:
 		return NullAssignTo(dst)

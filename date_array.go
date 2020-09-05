@@ -193,7 +193,7 @@ func (dst DateArray) Get() interface{} {
 func (src *DateArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
-		if len(src.Dimensions) == 1 {
+		if len(src.Dimensions) <= 1 {
 			// Attempt to match to select common types:
 			switch v := dst.(type) {
 
