@@ -84,6 +84,8 @@ type PgConn struct {
 	bufferingReceiveMsg pgproto3.BackendMessage
 	bufferingReceiveErr error
 
+	peekedMsg pgproto3.BackendMessage
+
 	// Reusable / preallocated resources
 	wbuf              []byte // write buffer
 	resultReader      ResultReader
@@ -427,8 +429,12 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 	return msg, err
 }
 
-// receiveMessage receives a message without setting up context cancellation
-func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
+// peekMessage peeks at the next message without setting up context cancellation.
+func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
+	if pgConn.peekedMsg != nil {
+		return pgConn.peekedMsg, nil
+	}
+
 	var msg pgproto3.BackendMessage
 	var err error
 	if pgConn.bufferingReceive {
@@ -454,6 +460,23 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 
 		return nil, err
 	}
+
+	pgConn.peekedMsg = msg
+	return msg, nil
+}
+
+// receiveMessage receives a message without setting up context cancellation
+func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
+	msg, err := pgConn.peekMessage()
+	if err != nil {
+		// Close on anything other than timeout error - everything else is fatal
+		if err, ok := err.(net.Error); !(ok && err.Timeout()) {
+			pgConn.asyncClose()
+		}
+
+		return nil, err
+	}
+	pgConn.peekedMsg = nil
 
 	switch msg := msg.(type) {
 	case *pgproto3.ReadyForQuery:
@@ -1044,7 +1067,10 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 		pgConn.contextWatcher.Unwatch()
 		result.closed = true
 		pgConn.unlock()
+		return
 	}
+
+	result.readUntilRowDescription()
 }
 
 // CopyTo executes the copy command sql and copies the results to w.
@@ -1452,6 +1478,26 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 	}
 
 	return rr.commandTag, rr.err
+}
+
+// readUntilRowDescription ensures the ResultReader's fieldDescriptions are loaded. It does not return an error as any
+// error will be stored in the ResultReader.
+func (rr *ResultReader) readUntilRowDescription() {
+	for !rr.commandConcluded {
+		// Peek before receive to avoid consuming a DataRow if the result set does not include a RowDescription method.
+		// This should never happen under normal pgconn usage, but it is possible if SendBytes and ReceiveResults are
+		// manually used to construct a query that does not issue a describe statement.
+		msg, _ := rr.pgConn.peekMessage()
+		if _, ok := msg.(*pgproto3.DataRow); ok {
+			return
+		}
+
+		// Consume the message
+		msg, _ = rr.receiveMessage()
+		if _, ok := msg.(*pgproto3.RowDescription); ok {
+			return
+		}
+	}
 }
 
 func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error) {
