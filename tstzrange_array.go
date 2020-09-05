@@ -154,7 +154,7 @@ func (dst TstzrangeArray) Get() interface{} {
 func (src *TstzrangeArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
-		if len(src.Dimensions) == 1 {
+		if len(src.Dimensions) <= 1 {
 			// Attempt to match to select common types:
 			switch v := dst.(type) {
 
