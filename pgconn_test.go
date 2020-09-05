@@ -481,6 +481,34 @@ func TestConnExecMultipleQueries(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnExecMultipleQueriesEagerFieldDescriptions(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	mrr := pgConn.Exec(context.Background(), "select 'Hello, world' as msg; select 1 as num")
+
+	require.True(t, mrr.NextResult())
+	require.Len(t, mrr.ResultReader().FieldDescriptions(), 1)
+	assert.Equal(t, []byte("msg"), mrr.ResultReader().FieldDescriptions()[0].Name)
+	_, err = mrr.ResultReader().Close()
+	require.NoError(t, err)
+
+	require.True(t, mrr.NextResult())
+	require.Len(t, mrr.ResultReader().FieldDescriptions(), 1)
+	assert.Equal(t, []byte("num"), mrr.ResultReader().FieldDescriptions()[0].Name)
+	_, err = mrr.ResultReader().Close()
+	require.NoError(t, err)
+
+	require.False(t, mrr.NextResult())
+
+	require.NoError(t, mrr.Close())
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecMultipleQueriesError(t *testing.T) {
 	t.Parallel()
 
@@ -578,7 +606,10 @@ func TestConnExecParams(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	result := pgConn.ExecParams(context.Background(), "select $1::text", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
+	result := pgConn.ExecParams(context.Background(), "select $1::text as msg", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
+	require.Len(t, result.FieldDescriptions(), 1)
+	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+
 	rowCount := 0
 	for result.NextRow() {
 		rowCount += 1
@@ -734,13 +765,16 @@ func TestConnExecPrepared(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	psd, err := pgConn.Prepare(context.Background(), "ps1", "select $1::text", nil)
+	psd, err := pgConn.Prepare(context.Background(), "ps1", "select $1::text as msg", nil)
 	require.NoError(t, err)
 	require.NotNil(t, psd)
 	assert.Len(t, psd.ParamOIDs, 1)
 	assert.Len(t, psd.Fields, 1)
 
 	result := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{[]byte("Hello, world")}, nil, nil)
+	require.Len(t, result.FieldDescriptions(), 1)
+	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+
 	rowCount := 0
 	for result.NextRow() {
 		rowCount += 1
