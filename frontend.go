@@ -65,7 +65,7 @@ func translateEOFtoErrUnexpectedEOF(err error) error {
 	return err
 }
 
-// Receive receives a message from the backend.
+// Receive receives a message from the backend. The returned message is only valid until the next call to Receive.
 func (f *Frontend) Receive() (BackendMessage, error) {
 	if !f.partialMsg {
 		header, err := f.cr.Next(5)

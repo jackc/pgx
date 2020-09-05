@@ -91,7 +91,7 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 	}
 }
 
-// Receive receives a message from the frontend.
+// Receive receives a message from the frontend. The returned message is only valid until the next call to Receive.
 func (b *Backend) Receive() (FrontendMessage, error) {
 	if !b.partialMsg {
 		header, err := b.cr.Next(5)
