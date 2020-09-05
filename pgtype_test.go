@@ -79,6 +79,14 @@ func TestConnInfoScanTextFormatInterfacePtr(t *testing.T) {
 	assert.Equal(t, "foo", got)
 }
 
+func TestConnInfoScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	var got []byte
+	err := ci.Scan(pgtype.JSONBOID, pgx.TextFormatCode, []byte("{}"), &got)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("{}"), got)
+}
+
 func TestConnInfoScanBinaryFormatInterfacePtr(t *testing.T) {
 	ci := pgtype.NewConnInfo()
 	var got interface{}
