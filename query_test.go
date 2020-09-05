@@ -59,6 +59,20 @@ func TestConnQueryScan(t *testing.T) {
 	}
 }
 
+func TestConnQueryRowsFieldDescriptionsBeforeNext(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	rows, err := conn.Query(context.Background(), "select 'hello' as msg")
+	require.NoError(t, err)
+	defer rows.Close()
+
+	require.Len(t, rows.FieldDescriptions(), 1)
+	assert.Equal(t, []byte("msg"), rows.FieldDescriptions()[0].Name)
+}
+
 func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {
 	t.Parallel()
 
