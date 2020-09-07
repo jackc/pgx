@@ -42,6 +42,25 @@ func (dst *JSONBArray) Set(src interface{}) error {
 			}
 		}
 
+	case [][]byte:
+		if value == nil {
+			*dst = JSONBArray{Status: Null}
+		} else if len(value) == 0 {
+			*dst = JSONBArray{Status: Present}
+		} else {
+			elements := make([]JSONB, len(value))
+			for i := range value {
+				if err := elements[i].Set(value[i]); err != nil {
+					return err
+				}
+			}
+			*dst = JSONBArray{
+				Elements:   elements,
+				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
+				Status:     Present,
+			}
+		}
+
 	default:
 		if originalSrc, ok := underlyingSliceType(src); ok {
 			return dst.Set(originalSrc)
@@ -70,6 +89,15 @@ func (src *JSONBArray) AssignTo(dst interface{}) error {
 
 		case *[]string:
 			*v = make([]string, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[][]byte:
+			*v = make([][]byte, len(src.Elements))
 			for i := range src.Elements {
 				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
 					return err
@@ -209,7 +237,7 @@ func (src *JSONBArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 			return nil, err
 		}
 		if elemBuf == nil {
-			buf = append(buf, `"NULL"`...)
+			buf = append(buf, `NULL`...)
 		} else {
 			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
 		}
@@ -239,7 +267,7 @@ func (src *JSONBArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	if dt, ok := ci.DataTypeForName("jsonb"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, errors.Errorf("unable to find oid for type name %v", "text")
+		return nil, errors.Errorf("unable to find oid for type name %v", "jsonb")
 	}
 
 	for i := range src.Elements {
