@@ -146,7 +146,7 @@ from a net.IP; it will assume a /32 netmask for IPv4 and a /128 for IPv6.
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings, dates, and times that have direct
-mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgx/pgtype library to support more types. See
+mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgtype library to support more types. See
 documention for that library for instructions on how to implement custom types.
 
 See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
