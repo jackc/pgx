@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -22,8 +23,62 @@ type Point struct {
 	Status Status
 }
 
+var nullRE = regexp.MustCompile("^null$")
+
 func (dst *Point) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Point", src)
+	if src == nil {
+		dst.Status = Null
+		return nil
+	}
+	err := errors.Errorf("cannot convert %v to Point", src)
+	var p *Point
+	switch value := src.(type) {
+	case string:
+		p, err = parsePoint([]byte(value))
+	case []byte:
+		if nullRE.Match(value) {
+			dst.Status = Null
+			return nil
+		}
+		p, err = parsePoint(value)
+	default:
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	*dst = *p
+	return nil
+}
+
+var pointRE = regexp.MustCompile("^\\(\\d+\\.\\d+,\\s?\\d+\\.\\d+\\)$")
+var chunkRE = regexp.MustCompile("\\d+\\.\\d+")
+
+func parsePoint(p []byte) (*Point, error) {
+	err := errors.Errorf("cannot parse %s", p)
+	if pointRE.Match(p) {
+		chunks := chunkRE.FindAll(p, 2)
+		if len(chunks) != 2 {
+			return nil, err
+		}
+		x, xErr := strconv.ParseFloat(string(chunks[0]), 64)
+		y, yErr := strconv.ParseFloat(string(chunks[1]), 64)
+		if xErr != nil || yErr != nil {
+			return nil, err
+		}
+		return &Point{
+			P: Vec2{
+				X: x,
+				Y: y,
+			},
+			Status: Present,
+		}, nil
+	} else if nullRE.Match(p) {
+		return &Point{
+			Status: Null,
+		}, nil
+	}
+	return nil, err
 }
 
 func (dst Point) Get() interface{} {
@@ -139,4 +194,25 @@ func (dst *Point) Scan(src interface{}) error {
 // Value implements the database/sql/driver Valuer interface.
 func (src Point) Value() (driver.Value, error) {
 	return EncodeValueText(src)
+}
+
+func (src Point) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		return []byte(fmt.Sprintf("(%g, %g)", src.P.X, src.P.Y)), nil
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return nil, errUndefined
+	}
+	return nil, errBadStatus
+}
+
+func (dst *Point) UnmarshalJSON(point []byte) error {
+	p, err := parsePoint(point)
+	if err != nil {
+		return err
+	}
+	*dst = *p
+	return nil
 }
