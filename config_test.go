@@ -539,6 +539,13 @@ func TestParseConfigDSNLeadingEqual(t *testing.T) {
 	require.Error(t, err)
 }
 
+// https://github.com/jackc/pgconn/issues/49
+func TestParseConfigDSNTrailingBackslash(t *testing.T) {
+	_, err := pgconn.ParseConfig(`x=x\`)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid backslash")
+}
+
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
 	original, err := pgconn.ParseConfig(connString)

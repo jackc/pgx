@@ -506,6 +506,9 @@ func parseDSNSettings(s string) (map[string]string, error) {
 				}
 				if s[end] == '\\' {
 					end++
+					if end == len(s) {
+						return nil, errors.New("invalid backslash")
+					}
 				}
 			}
 			val = strings.Replace(strings.Replace(s[:end], "\\\\", "\\", -1), "\\'", "'", -1)
