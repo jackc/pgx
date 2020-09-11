@@ -203,3 +203,19 @@ func (dst *UUID) Scan(src interface{}) error {
 func (src UUID) Value() (driver.Value, error) {
 	return EncodeValueText(src)
 }
+
+func (src UUID) MarshalJSON() ([]byte, error) {
+	switch src.Status {
+	case Present:
+		return []byte(encodeUUID(src.Bytes)), nil
+	case Null:
+		return []byte("null"), nil
+	case Undefined:
+		return nil, errUndefined
+	}
+	return nil, errBadStatus
+}
+
+func (dst *UUID) UnmarshalJSON(bytes []byte) error {
+	return dst.Set(bytes)
+}
