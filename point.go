@@ -36,10 +36,6 @@ func (dst *Point) Set(src interface{}) error {
 	case string:
 		p, err = parsePoint([]byte(value))
 	case []byte:
-		if nullRE.Match(value) {
-			dst.Status = Null
-			return nil
-		}
 		p, err = parsePoint(value)
 	default:
 		return err
