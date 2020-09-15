@@ -1,11 +1,11 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
 	"math"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -22,8 +22,6 @@ type Point struct {
 	P      Vec2
 	Status Status
 }
-
-var nullRE = regexp.MustCompile("^null$")
 
 func (dst *Point) Set(src interface{}) error {
 	if src == nil {
@@ -47,34 +45,31 @@ func (dst *Point) Set(src interface{}) error {
 	return nil
 }
 
-var pointRE = regexp.MustCompile("^\\(\\d+\\.\\d+,\\s?\\d+\\.\\d+\\)$")
-var chunkRE = regexp.MustCompile("\\d+\\.\\d+")
-
-func parsePoint(p []byte) (*Point, error) {
-	err := errors.Errorf("cannot parse %s", p)
-	if pointRE.Match(p) {
-		chunks := chunkRE.FindAll(p, 2)
-		if len(chunks) != 2 {
-			return nil, err
-		}
-		x, xErr := strconv.ParseFloat(string(chunks[0]), 64)
-		y, yErr := strconv.ParseFloat(string(chunks[1]), 64)
-		if xErr != nil || yErr != nil {
-			return nil, err
-		}
-		return &Point{
-			P: Vec2{
-				X: x,
-				Y: y,
-			},
-			Status: Present,
-		}, nil
-	} else if nullRE.Match(p) {
-		return &Point{
-			Status: Null,
-		}, nil
+func parsePoint(src []byte) (*Point, error) {
+	if src == nil || bytes.Compare(src, []byte("null")) == 0 {
+		return &Point{Status: Null}, nil
 	}
-	return nil, err
+
+	if len(src) < 5 {
+		return nil, errors.Errorf("invalid length for point: %v", len(src))
+	}
+
+	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
+	if len(parts) < 2 {
+		return nil, errors.Errorf("invalid format for point")
+	}
+
+	x, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return nil, err
+	}
+
+	y, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Point{P: Vec2{x, y}, Status: Present}, nil
 }
 
 func (dst Point) Get() interface{} {
@@ -195,7 +190,7 @@ func (src Point) Value() (driver.Value, error) {
 func (src Point) MarshalJSON() ([]byte, error) {
 	switch src.Status {
 	case Present:
-		return []byte(fmt.Sprintf("(%g, %g)", src.P.X, src.P.Y)), nil
+		return []byte(fmt.Sprintf("(%g,%g)", src.P.X, src.P.Y)), nil
 	case Null:
 		return []byte("null"), nil
 	case Undefined:

@@ -25,13 +25,13 @@ func TestPoint_Set(t *testing.T) {
 	}{
 		{
 			name:    "first",
-			arg:     "(12312.123123, 123123.123123)",
+			arg:     "(12312.123123,123123.123123)",
 			status:  pgtype.Present,
 			wantErr: false,
 		},
 		{
 			name:    "second",
-			arg:     "(1231s2.123123, 123123.123123)",
+			arg:     "(1231s2.123123,123123.123123)",
 			status:  pgtype.Undefined,
 			wantErr: true,
 		},
@@ -83,7 +83,7 @@ func TestPoint_MarshalJSON(t *testing.T) {
 				P:      pgtype.Vec2{X: 12.245, Y: 432.12},
 				Status: pgtype.Present,
 			},
-			want:    []byte("(12.245, 432.12)"),
+			want:    []byte("(12.245,432.12)"),
 			wantErr: false,
 		},
 		{
@@ -120,13 +120,13 @@ func TestPoint_UnmarshalJSON(t *testing.T) {
 		{
 			name: "first",
 			status: pgtype.Present,
-			arg: []byte("(123.123, 54.12)"),
+			arg: []byte("(123.123,54.12)"),
 			wantErr: false,
 		},
 		{
 			name: "second",
 			status: pgtype.Undefined,
-			arg: []byte("(123.123, 54.1sad2)"),
+			arg: []byte("(123.123,54.1sad2)"),
 			wantErr: true,
 		},
 		{
