@@ -151,7 +151,14 @@ func (src Bind) MarshalJSON() ([]byte, error) {
 			continue
 		}
 
-		if src.ParameterFormatCodes[i] == 0 {
+		textFormat := true
+		if len(src.ParameterFormatCodes) == 1 {
+			textFormat = src.ParameterFormatCodes[0] == 0
+		} else if len(src.ParameterFormatCodes) > 1 {
+			textFormat = src.ParameterFormatCodes[i] == 0
+		}
+
+		if textFormat {
 			formattedParameters[i] = map[string]string{"text": string(p)}
 		} else {
 			formattedParameters[i] = map[string]string{"binary": hex.EncodeToString(p)}
