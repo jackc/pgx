@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgtype"
@@ -126,4 +127,101 @@ func TestUUIDAssignTo(t *testing.T) {
 		}
 	}
 
+}
+
+func TestUUID_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		src     pgtype.UUID
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name: "first",
+			src: pgtype.UUID{
+				Bytes:  [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
+				Status: pgtype.Present,
+			},
+			want:    []byte(`"1d485a7a-6d18-4599-8c6c-34425616887a"`),
+			wantErr: false,
+		},
+		{
+			name: "second",
+			src: pgtype.UUID{
+				Bytes:  [16]byte{},
+				Status: pgtype.Undefined,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "third",
+			src: pgtype.UUID{
+				Bytes:  [16]byte{},
+				Status: pgtype.Null,
+			},
+			want:    []byte("null"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.src.MarshalJSON()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MarshalJSON() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestUUID_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		want    *pgtype.UUID
+		src     []byte
+		wantErr bool
+	}{
+		{
+			name: "first",
+			want: &pgtype.UUID{
+				Bytes:  [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
+				Status: pgtype.Present,
+			},
+			src:     []byte(`"1d485a7a-6d18-4599-8c6c-34425616887a"`),
+			wantErr: false,
+		},
+		{
+			name: "second",
+			want: &pgtype.UUID{
+				Bytes:  [16]byte{},
+				Status: pgtype.Null,
+			},
+			src:     []byte("null"),
+			wantErr: false,
+		},
+		{
+			name: "third",
+			want: &pgtype.UUID{
+				Bytes:  [16]byte{},
+				Status: pgtype.Undefined,
+			},
+			src:     []byte("1d485a7a-6d18-4599-8c6c-34425616887a"),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := &pgtype.UUID{}
+			if err := got.UnmarshalJSON(tt.src); (err != nil) != tt.wantErr {
+				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("UnmarshalJSON() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -53,7 +53,9 @@ func parsePoint(src []byte) (*Point, error) {
 	if len(src) < 5 {
 		return nil, errors.Errorf("invalid length for point: %v", len(src))
 	}
-
+	if src[0] == '"' && src[len(src)-1] == '"' {
+		src = src[1 : len(src)-1]
+	}
 	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
 	if len(parts) < 2 {
 		return nil, errors.Errorf("invalid format for point")
@@ -190,7 +192,11 @@ func (src Point) Value() (driver.Value, error) {
 func (src Point) MarshalJSON() ([]byte, error) {
 	switch src.Status {
 	case Present:
-		return []byte(fmt.Sprintf("(%g,%g)", src.P.X, src.P.Y)), nil
+		var buff bytes.Buffer
+		buff.WriteByte('"')
+		buff.WriteString(fmt.Sprintf("(%g,%g)", src.P.X, src.P.Y))
+		buff.WriteByte('"')
+		return buff.Bytes(), nil
 	case Null:
 		return []byte("null"), nil
 	case Undefined:

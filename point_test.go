@@ -72,7 +72,7 @@ func TestPoint_MarshalJSON(t *testing.T) {
 			name: "first",
 			point: pgtype.Point{
 				P:      pgtype.Vec2{},
-				Status: 0,
+				Status: pgtype.Undefined,
 			},
 			want:    nil,
 			wantErr: true,
@@ -83,7 +83,7 @@ func TestPoint_MarshalJSON(t *testing.T) {
 				P:      pgtype.Vec2{X: 12.245, Y: 432.12},
 				Status: pgtype.Present,
 			},
-			want:    []byte("(12.245,432.12)"),
+			want:    []byte(`"(12.245,432.12)"`),
 			wantErr: false,
 		},
 		{
@@ -113,26 +113,26 @@ func TestPoint_MarshalJSON(t *testing.T) {
 func TestPoint_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
-		status pgtype.Status
+		status  pgtype.Status
 		arg     []byte
 		wantErr bool
 	}{
 		{
-			name: "first",
-			status: pgtype.Present,
-			arg: []byte("(123.123,54.12)"),
+			name:    "first",
+			status:  pgtype.Present,
+			arg:     []byte(`"(123.123,54.12)"`),
 			wantErr: false,
 		},
 		{
-			name: "second",
-			status: pgtype.Undefined,
-			arg: []byte("(123.123,54.1sad2)"),
+			name:    "second",
+			status:  pgtype.Undefined,
+			arg:     []byte(`"(123.123,54.1sad2)"`),
 			wantErr: true,
 		},
 		{
-			name: "third",
-			status: pgtype.Null,
-			arg: []byte("null"),
+			name:    "third",
+			status:  pgtype.Null,
+			arg:     []byte("null"),
 			wantErr: false,
 		},
 	}
