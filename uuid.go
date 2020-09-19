@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
@@ -207,7 +208,11 @@ func (src UUID) Value() (driver.Value, error) {
 func (src UUID) MarshalJSON() ([]byte, error) {
 	switch src.Status {
 	case Present:
-		return []byte(encodeUUID(src.Bytes)), nil
+		var buff bytes.Buffer
+		buff.WriteByte('"')
+		buff.WriteString(encodeUUID(src.Bytes))
+		buff.WriteByte('"')
+		return buff.Bytes(), nil
 	case Null:
 		return []byte("null"), nil
 	case Undefined:
@@ -216,6 +221,12 @@ func (src UUID) MarshalJSON() ([]byte, error) {
 	return nil, errBadStatus
 }
 
-func (dst *UUID) UnmarshalJSON(bytes []byte) error {
-	return dst.Set(bytes)
+func (dst *UUID) UnmarshalJSON(src []byte) error {
+	if bytes.Compare(src, []byte("null")) == 0 {
+		return dst.Set(nil)
+	}
+	if len(src) != 38 {
+		return errors.Errorf("invalid length for UUID: %v", len(src))
+	}
+	return dst.Set(string(src[1 : len(src)-1]))
 }
