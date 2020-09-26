@@ -1,5 +1,8 @@
-# Unreleased
+# 1.7.0 (September 26, 2020)
 
+* Exec(Params|Prepared) return ResultReader with FieldDescriptions loaded
+* Add ReceiveResults (Sebastiaan Mannem)
+* Fix parsing DSN connection with bad backslash
 * Add PgConn.CleanupDone so connection pools can determine when async close is complete
 
 # 1.6.4 (July 29, 2020)
