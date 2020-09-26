@@ -1,3 +1,12 @@
+# 1.5.0 (September 26, 2020)
+
+* Add slice of slice mapping to multi-dimensional arrays (Simo Haasanen)
+* Fix JSONBArray
+* Fix selecting empty array
+* Text formatted values except bytea can be directly scanned to []byte
+* Add JSON marshalling for UUID (bakmataliev)
+* Improve point type conversions (bakmataliev)
+
 # 1.4.2 (July 22, 2020)
 
 * Fix encoding of a large composite data type (Yaz Saito)
