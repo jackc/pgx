@@ -1,3 +1,11 @@
+# 4.9.0 (September 26, 2020)
+
+* pgxpool now waits for connection cleanup to finish before making room in pool for another connection. This prevents temporarily exceeding max pool size.
+* Fix when scanning a column to nil to skip it on the first row but scanning it to a real value on a subsequent row.
+* Fix prefer simple protocol with prepared statements. (Jinzhu)
+* Fix FieldDescriptions not being available on Rows before calling Next the first time.
+* Various minor fixes in updated versions of pgconn, pgtype, and puddle.
+
 # 4.8.1 (July 29, 2020)
 
 * Update pgconn to v1.6.4
