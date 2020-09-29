@@ -85,6 +85,16 @@ func (dst *Int2) Set(src interface{}) error {
 			return err
 		}
 		*dst = Int2{Int: int16(num), Status: Present}
+	case float32:
+		if value > math.MaxInt16 {
+			return errors.Errorf("%d is greater than maximum value for Int2", value)
+		}
+		*dst = Int2{Int: int16(value), Status: Present}
+	case float64:
+		if value > math.MaxInt16 {
+			return errors.Errorf("%d is greater than maximum value for Int2", value)
+		}
+		*dst = Int2{Int: int16(value), Status: Present}
 	case *int8:
 		if value == nil {
 			*dst = Int2{Status: Null}
@@ -146,6 +156,18 @@ func (dst *Int2) Set(src interface{}) error {
 			return dst.Set(*value)
 		}
 	case *string:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *float32:
+		if value == nil {
+			*dst = Int2{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
+	case *float64:
 		if value == nil {
 			*dst = Int2{Status: Null}
 		} else {
