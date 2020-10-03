@@ -37,6 +37,8 @@ func TestInt4Set(t *testing.T) {
 		{source: uint16(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
 		{source: uint32(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
 		{source: uint64(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
+		{source: float32(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
+		{source: float64(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
 		{source: "1", result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
 		{source: _int8(1), result: pgtype.Int4{Int: 1, Status: pgtype.Present}},
 	}
