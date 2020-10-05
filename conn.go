@@ -92,8 +92,8 @@ type Identifier []string
 func (ident Identifier) Sanitize() string {
 	parts := make([]string, len(ident))
 	for i := range ident {
-		s := strings.Replace(ident[i], string([]byte{0}), "", -1)
-		parts[i] = `"` + strings.Replace(s, `"`, `""`, -1) + `"`
+		s := strings.ReplaceAll(ident[i], string([]byte{0}), "")
+		parts[i] = `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 	}
 	return strings.Join(parts, ".")
 }
@@ -390,7 +390,7 @@ func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[strin
 }
 
 func quoteIdentifier(s string) string {
-	return `"` + strings.Replace(s, `"`, `""`, -1) + `"`
+	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
