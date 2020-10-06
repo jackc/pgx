@@ -48,6 +48,31 @@ func TestPolygon_Set(t *testing.T) {
 			arg:     nil,
 			status:  pgtype.Null,
 			wantErr: false,
+		}, {
+			name:    "invalid_string_1",
+			arg:     "((3.14,1.678901234),(7.1,5.234),(5.0,3.234x))",
+			status:  pgtype.Undefined,
+			wantErr: true,
+		}, {
+			name:    "invalid_string_2",
+			arg:     "(3,4)",
+			status:  pgtype.Undefined,
+			wantErr: true,
+		}, {
+			name:    "invalid_[]float64",
+			arg:     []float64{1, 2, 3.45, 6.78, 1.23, 4.567, 8.9},
+			status:  pgtype.Undefined,
+			wantErr: true,
+		}, {
+			name:    "invalid_type",
+			arg:     []int{1, 2, 3, 6},
+			status:  pgtype.Undefined,
+			wantErr: true,
+		}, {
+			name:    "empty_[]float64",
+			arg:     []float64{},
+			status:  pgtype.Null,
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
