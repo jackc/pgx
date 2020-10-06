@@ -18,7 +18,50 @@ type Polygon struct {
 }
 
 func (dst *Polygon) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Polygon", src)
+	if src == nil {
+		dst.Status = Null
+		return nil
+	}
+	err := errors.Errorf("cannot convert %v to Polygon", src)
+	var p *Polygon
+	switch value := src.(type) {
+	case string:
+		p, err = parseString(value)
+	case []Vec2:
+		p = &Polygon{Status: Present, P: value}
+		err = nil
+	case []float64:
+		p, err = parseFloat64(value)
+	default:
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	*dst = *p
+	return nil
+}
+
+func parseString(src string) (*Polygon, error) {
+	p := &Polygon{}
+	err := p.DecodeText(nil, []byte(src))
+	return p, err
+}
+
+func parseFloat64(src []float64) (*Polygon, error) {
+	p := &Polygon{Status: Null}
+	if len(src) == 0 {
+		return p, nil
+	}
+	if len(src)%2 != 0 {
+		return p, errors.Errorf("invalid length for polygon: %v", len(src))
+	}
+	p.Status = Present
+	p.P = make([]Vec2, 0)
+	for i := 0; i < len(src); i += 2 {
+		p.P = append(p.P, Vec2{X: src[i], Y: src[i+1]})
+	}
+	return p, nil
 }
 
 func (dst Polygon) Get() interface{} {
