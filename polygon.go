@@ -17,6 +17,12 @@ type Polygon struct {
 	Status Status
 }
 
+// Set converts src to dest.
+//
+// src can be nil, string, []float64, and []pgtype.Vec2.
+//
+// If src is string the format must be ((x1,y1),(x2,y2),...,(xn,yn)).
+// Important that there are no spaces in it.
 func (dst *Polygon) Set(src interface{}) error {
 	if src == nil {
 		dst.Status = Null
