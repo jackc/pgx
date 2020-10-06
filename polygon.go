@@ -54,6 +54,7 @@ func parseFloat64(src []float64) (*Polygon, error) {
 		return p, nil
 	}
 	if len(src)%2 != 0 {
+		p.Status = Undefined
 		return p, errors.Errorf("invalid length for polygon: %v", len(src))
 	}
 	p.Status = Present
