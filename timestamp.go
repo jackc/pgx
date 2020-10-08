@@ -46,6 +46,8 @@ func (dst *Timestamp) Set(src interface{}) error {
 		} else {
 			return dst.Set(*value)
 		}
+	case InfinityModifier:
+		*dst = Timestamp{InfinityModifier: value, Status: Present}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
