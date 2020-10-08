@@ -32,12 +32,12 @@ func (dst *Polygon) Set(src interface{}) error {
 	var p *Polygon
 	switch value := src.(type) {
 	case string:
-		p, err = parseString(value)
+		p, err = stringToPolygon(value)
 	case []Vec2:
 		p = &Polygon{Status: Present, P: value}
 		err = nil
 	case []float64:
-		p, err = parseFloat64(value)
+		p, err = float64ToPolygon(value)
 	default:
 		return err
 	}
@@ -48,13 +48,13 @@ func (dst *Polygon) Set(src interface{}) error {
 	return nil
 }
 
-func parseString(src string) (*Polygon, error) {
+func stringToPolygon(src string) (*Polygon, error) {
 	p := &Polygon{}
 	err := p.DecodeText(nil, []byte(src))
 	return p, err
 }
 
-func parseFloat64(src []float64) (*Polygon, error) {
+func float64ToPolygon(src []float64) (*Polygon, error) {
 	p := &Polygon{Status: Null}
 	if len(src) == 0 {
 		return p, nil
