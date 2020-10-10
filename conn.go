@@ -10,16 +10,8 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
-	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/internal/sanitize"
-)
-
-const (
-	connStatusUninitialized = iota
-	connStatusClosed
-	connStatusIdle
-	connStatusBusy
 )
 
 // ConnConfig contains all the options used to establish a connection. It must be created by ParseConfig and
@@ -319,49 +311,6 @@ func (c *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, e
 
 func (c *Conn) IsClosed() bool {
 	return c.pgConn.IsClosed()
-}
-
-// Processes messages that are not exclusive to one context such as
-// authentication or query response. The response to these messages is the same
-// regardless of when they occur. It also ignores messages that are only
-// meaningful in a given context. These messages can occur due to a context
-// deadline interrupting message processing. For example, an interrupted query
-// may have left DataRow messages on the wire.
-func (c *Conn) processContextFreeMsg(msg pgproto3.BackendMessage) (err error) {
-	switch msg := msg.(type) {
-	case *pgproto3.ErrorResponse:
-		return c.rxErrorResponse(msg)
-	}
-
-	return nil
-}
-
-func (c *Conn) rxErrorResponse(msg *pgproto3.ErrorResponse) *pgconn.PgError {
-	err := &pgconn.PgError{
-		Severity:         msg.Severity,
-		Code:             msg.Code,
-		Message:          msg.Message,
-		Detail:           msg.Detail,
-		Hint:             msg.Hint,
-		Position:         msg.Position,
-		InternalPosition: msg.InternalPosition,
-		InternalQuery:    msg.InternalQuery,
-		Where:            msg.Where,
-		SchemaName:       msg.SchemaName,
-		TableName:        msg.TableName,
-		ColumnName:       msg.ColumnName,
-		DataTypeName:     msg.DataTypeName,
-		ConstraintName:   msg.ConstraintName,
-		File:             msg.File,
-		Line:             msg.Line,
-		Routine:          msg.Routine,
-	}
-
-	if err.Severity == "FATAL" {
-		c.die(err)
-	}
-
-	return err
 }
 
 func (c *Conn) die(err error) {
