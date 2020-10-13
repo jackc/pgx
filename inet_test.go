@@ -35,6 +35,7 @@ func TestInetSet(t *testing.T) {
 		{source: mustParseCIDR(t, "127.0.0.1/32"), result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: mustParseCIDR(t, "127.0.0.1/32").IP, result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: "127.0.0.1/32", result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+		{source: net.ParseIP(""), result: pgtype.Inet{Status: pgtype.Null}},
 	}
 
 	for i, tt := range successfulTests {
