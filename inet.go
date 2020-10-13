@@ -38,9 +38,13 @@ func (dst *Inet) Set(src interface{}) error {
 	case net.IPNet:
 		*dst = Inet{IPNet: &value, Status: Present}
 	case net.IP:
-		bitCount := len(value) * 8
-		mask := net.CIDRMask(bitCount, bitCount)
-		*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Status: Present}
+		if len(value) == 0 {
+			*dst = Inet{Status: Null}
+		} else {
+			bitCount := len(value) * 8
+			mask := net.CIDRMask(bitCount, bitCount)
+			*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Status: Present}
+		}
 	case string:
 		_, ipnet, err := net.ParseCIDR(value)
 		if err != nil {
