@@ -224,6 +224,7 @@ func (cc *ConnConfig) networkAddresses() ([]net.Addr, error) {
 // goroutines.
 type Conn struct {
 	conn               net.Conn  // the underlying TCP or unix domain socket connection
+	creationTime       time.Time // the time indicating when the connection is established
 	lastActivityTime   time.Time // the last time the connection was used
 	wbuf               []byte
 	pid                uint32            // backend pid
@@ -457,7 +458,7 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 		}
 
 		c.addr = addr
-
+		c.creationTime = time.Now()
 		return c, nil
 	}
 
@@ -600,6 +601,10 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 			}
 		}
 	}
+}
+
+func (c *Conn) CreationTime() time.Time {
+	return c.creationTime
 }
 
 func initPostgresql(c *Conn) (*pgtype.ConnInfo, error) {

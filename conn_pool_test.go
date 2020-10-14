@@ -15,6 +15,7 @@ import (
 
 func createConnPool(t *testing.T, maxConnections int) *pgx.ConnPool {
 	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig, MaxConnections: maxConnections}
+	config.MaxConnLifetime = 250 * time.Millisecond
 	pool, err := pgx.NewConnPool(config)
 	if err != nil {
 		t.Fatalf("Unable to create connection pool: %v", err)
@@ -148,6 +149,32 @@ func TestPoolAcquireAndReleaseCycle(t *testing.T) {
 	}
 
 	releaseAllConnections(pool, allConnections)
+}
+
+func TestPoolReleaseChecksMaxConnLifetime(t *testing.T) {
+	t.Parallel()
+
+	config := pgx.ConnPoolConfig{ConnConfig: *defaultConnConfig}
+	pool, err := pgx.NewConnPool(config)
+	if err != nil {
+		t.Fatal("Unable to establish connection pool")
+	}
+	defer pool.Close()
+
+	c, err := pool.Acquire()
+	if err != nil {
+		t.Fatal("Unable to acquire connection from the pool")
+	}
+
+	time.Sleep(config.MaxConnLifetime)
+
+	pool.Release(c)
+	waitForReleaseToComplete()
+
+	stats := pool.Stat()
+	if stats.CurrentConnections != 0 && stats.AvailableConnections != 0 {
+		t.Fatal("Unable to recycle connection from the pool")
+	}
 }
 
 func TestPoolNonBlockingConnections(t *testing.T) {
@@ -1226,4 +1253,11 @@ func TestConnPoolBeginEx(t *testing.T) {
 	if err == nil || tx != nil {
 		t.Fatal("Should not be able to create a tx")
 	}
+}
+
+// Conn.Release is an asynchronous process that returns immediately. There is no signal when the actual work is
+// completed. To test something that relies on the actual work for Conn.Release being completed we must simply wait.
+// This function wraps the sleep so there is more meaning for the callers.
+func waitForReleaseToComplete() {
+	time.Sleep(5 * time.Millisecond)
 }
