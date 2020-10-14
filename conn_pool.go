@@ -13,9 +13,10 @@ import (
 
 type ConnPoolConfig struct {
 	ConnConfig
-	MaxConnections int               // max simultaneous connections to use, default 5, must be at least 2
-	AfterConnect   func(*Conn) error // function to call on every new connection
-	AcquireTimeout time.Duration     // max wait time when all connections are busy (0 means no timeout)
+	MaxConnections  int               // max simultaneous connections to use, default 5, must be at least 2
+	MaxConnLifetime time.Duration     // the duration since creation after which a connection will be automatically closed.
+	AfterConnect    func(*Conn) error // function to call on every new connection
+	AcquireTimeout  time.Duration     // max wait time when all connections are busy (0 means no timeout)
 }
 
 type ConnPool struct {
@@ -25,6 +26,7 @@ type ConnPool struct {
 	config               ConnConfig // config used when establishing connection
 	inProgressConnects   int
 	maxConnections       int
+	maxConnLifetime      time.Duration
 	resetCount           int
 	afterConnect         func(*Conn) error
 	logger               Logger
@@ -60,6 +62,7 @@ func NewConnPool(config ConnPoolConfig) (p *ConnPool, err error) {
 	p.config = config.ConnConfig
 	p.connInfo = minimalConnInfo
 	p.maxConnections = config.MaxConnections
+	p.maxConnLifetime = config.MaxConnLifetime
 	if p.maxConnections == 0 {
 		p.maxConnections = 5
 	}
@@ -226,7 +229,7 @@ func (p *ConnPool) Release(conn *Conn) {
 
 	p.cond.L.Lock()
 
-	if conn.poolResetCount != p.resetCount {
+	if conn.poolResetCount != p.resetCount || (p.maxConnLifetime != 0 && time.Now().Sub(conn.CreationTime()) > p.maxConnLifetime) {
 		conn.Close()
 		p.cond.L.Unlock()
 		p.cond.Signal()
