@@ -190,6 +190,11 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 			expected: (([]string)(nil)),
 		},
 		{
+			src:      pgtype.ACLItemArray{Status: pgtype.Present},
+			dst:      &stringSlice,
+			expected: (([]string)(nil)),
+		},
+		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
 					{String: "=r/postgres", Status: pgtype.Present},

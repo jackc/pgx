@@ -168,6 +168,11 @@ func TestFloat4ArrayAssignTo(t *testing.T) {
 			expected: (([]float32)(nil)),
 		},
 		{
+			src:      pgtype.Float4Array{Status: pgtype.Present},
+			dst:      &float32Slice,
+			expected: (([]float32)(nil)),
+		},
+		{
 			src: pgtype.Float4Array{
 				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

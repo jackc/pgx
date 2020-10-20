@@ -303,6 +303,9 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{Status: pgtype.Null}, dst: &hstoreSlice, expected: (([]map[string]string)(nil)),
 		},
 		{
+			src: pgtype.HstoreArray{Status: pgtype.Present}, dst: &hstoreSlice, expected: (([]map[string]string)(nil)),
+		},
+		{
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{

@@ -169,6 +169,11 @@ func TestBoolArrayAssignTo(t *testing.T) {
 			expected: (([]bool)(nil)),
 		},
 		{
+			src:      pgtype.BoolArray{Status: pgtype.Present},
+			dst:      &boolSlice,
+			expected: (([]bool)(nil)),
+		},
+		{
 			src: pgtype.BoolArray{
 				Elements:   []pgtype.Bool{{Bool: true, Status: pgtype.Present}, {Bool: false, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

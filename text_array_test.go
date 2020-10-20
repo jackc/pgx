@@ -169,6 +169,11 @@ func TestTextArrayAssignTo(t *testing.T) {
 			expected: (([]string)(nil)),
 		},
 		{
+			src:      pgtype.TextArray{Status: pgtype.Present},
+			dst:      &stringSlice,
+			expected: (([]string)(nil)),
+		},
+		{
 			src: pgtype.TextArray{
 				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

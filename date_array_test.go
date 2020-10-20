@@ -183,6 +183,11 @@ func TestDateArrayAssignTo(t *testing.T) {
 			expected: (([]time.Time)(nil)),
 		},
 		{
+			src:      pgtype.DateArray{Status: pgtype.Present},
+			dst:      &timeSlice,
+			expected: (([]time.Time)(nil)),
+		},
+		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
 					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},

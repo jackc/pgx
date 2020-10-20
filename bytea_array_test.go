@@ -158,6 +158,11 @@ func TestByteaArrayAssignTo(t *testing.T) {
 			expected: (([][]byte)(nil)),
 		},
 		{
+			src:      pgtype.ByteaArray{Status: pgtype.Present},
+			dst:      &byteByteSlice,
+			expected: (([][]byte)(nil)),
+		},
+		{
 			src: pgtype.ByteaArray{
 				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Status: pgtype.Present}, {Bytes: []byte{2}, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

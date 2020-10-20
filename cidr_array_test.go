@@ -218,7 +218,17 @@ func TestCIDRArrayAssignTo(t *testing.T) {
 			expected: (([]*net.IPNet)(nil)),
 		},
 		{
+			src:      pgtype.CIDRArray{Status: pgtype.Present},
+			dst:      &ipnetSlice,
+			expected: (([]*net.IPNet)(nil)),
+		},
+		{
 			src:      pgtype.CIDRArray{Status: pgtype.Null},
+			dst:      &ipSlice,
+			expected: (([]net.IP)(nil)),
+		},
+		{
+			src:      pgtype.CIDRArray{Status: pgtype.Present},
 			dst:      &ipSlice,
 			expected: (([]net.IP)(nil)),
 		},

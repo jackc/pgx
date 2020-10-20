@@ -458,6 +458,10 @@ func (dst Int8Array) Get() interface{} {
 func (src *Int8Array) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
+		if len(src.Elements) == 0 || len(src.Dimensions) == 0 {
+			// No values to assign
+			return nil
+		}
 		if len(src.Dimensions) <= 1 {
 			// Attempt to match to select common types:
 			switch v := dst.(type) {

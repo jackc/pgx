@@ -227,6 +227,11 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 			expected: (([]int64)(nil)),
 		},
 		{
+			src:      pgtype.Int8Array{Status: pgtype.Present},
+			dst:      &int64Slice,
+			expected: (([]int64)(nil)),
+		},
+		{
 			src: pgtype.Int8Array{
 				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
