@@ -214,6 +214,7 @@ func TestUUIDArrayAssignTo(t *testing.T) {
 	var byteArraySlice [][16]byte
 	var byteSliceSlice [][]byte
 	var stringSlice []string
+	var byteSlice []byte
 	var byteArraySliceDim2 [][][16]byte
 	var stringSliceDim4 [][][][]string
 	var byteArrayDim2 [2][1][16]byte
@@ -251,6 +252,16 @@ func TestUUIDArrayAssignTo(t *testing.T) {
 			src:      pgtype.UUIDArray{Status: pgtype.Null},
 			dst:      &byteSliceSlice,
 			expected: ([][]byte)(nil),
+		},
+		{
+			src:      pgtype.UUIDArray{Status: pgtype.Present},
+			dst:      &byteSlice,
+			expected: ([]byte)(nil),
+		},
+		{
+			src:      pgtype.UUIDArray{Status: pgtype.Present},
+			dst:      &stringSlice,
+			expected: (([]string)(nil)),
 		},
 		{
 			src: pgtype.UUIDArray{

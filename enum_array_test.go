@@ -168,6 +168,11 @@ func TestEnumArrayArrayAssignTo(t *testing.T) {
 			expected: (([]string)(nil)),
 		},
 		{
+			src:      pgtype.EnumArray{Status: pgtype.Present},
+			dst:      &stringSlice,
+			expected: (([]string)(nil)),
+		},
+		{
 			src: pgtype.EnumArray{
 				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

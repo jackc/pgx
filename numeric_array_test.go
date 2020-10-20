@@ -191,6 +191,11 @@ func TestNumericArrayAssignTo(t *testing.T) {
 			expected: (([]float32)(nil)),
 		},
 		{
+			src:      pgtype.NumericArray{Status: pgtype.Present},
+			dst:      &float32Slice,
+			expected: (([]float32)(nil)),
+		},
+		{
 			src: pgtype.NumericArray{
 				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

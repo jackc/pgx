@@ -234,6 +234,11 @@ func TestInt4ArrayAssignTo(t *testing.T) {
 			expected: (([]int32)(nil)),
 		},
 		{
+			src:      pgtype.Int4Array{Status: pgtype.Present},
+			dst:      &int32Slice,
+			expected: (([]int32)(nil)),
+		},
+		{
 			src: pgtype.Int4Array{
 				Elements:   []pgtype.Int4{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},

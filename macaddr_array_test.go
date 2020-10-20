@@ -167,6 +167,11 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 			expected: (([]net.HardwareAddr)(nil)),
 		},
 		{
+			src:      pgtype.MacaddrArray{Status: pgtype.Present},
+			dst:      &macaddrSlice,
+			expected: (([]net.HardwareAddr)(nil)),
+		},
+		{
 			src: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
 					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
