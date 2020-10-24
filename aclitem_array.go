@@ -219,18 +219,17 @@ func (src *ACLItemArray) AssignTo(dst interface{}) error {
 			}
 		}
 
+		// Try to convert to something AssignTo can use directly.
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+
 		// Fallback to reflection if an optimised match was not found.
 		// The reflection is necessary for arrays and multidimensional slices,
 		// but it comes with a 20-50% performance penalty for large arrays/slices
 		value := reflect.ValueOf(dst)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
-		}
-		if !value.CanSet() {
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return errors.Errorf("unable to assign to %T", dst)
 		}
 
 		elementCount, err := src.assignToRecursive(value, 0, 0)
