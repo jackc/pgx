@@ -702,16 +702,18 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	}
 
 	var stmtCache stmtcache.Cache
-	if c.stmtcache != nil && c.stmtcache.Cap() >= len(distinctUnpreparedQueries) {
-		stmtCache = c.stmtcache
-	} else {
-		stmtCache = stmtcache.New(c.pgConn, stmtcache.ModeDescribe, len(distinctUnpreparedQueries))
-	}
+	if len(distinctUnpreparedQueries) > 0 {
+		if c.stmtcache != nil && c.stmtcache.Cap() >= len(distinctUnpreparedQueries) {
+			stmtCache = c.stmtcache
+		} else {
+			stmtCache = stmtcache.New(c.pgConn, stmtcache.ModeDescribe, len(distinctUnpreparedQueries))
+		}
 
-	for sql, _ := range distinctUnpreparedQueries {
-		_, err := stmtCache.Get(ctx, sql)
-		if err != nil {
-			return &batchResults{ctx: ctx, conn: c, err: err}
+		for sql, _ := range distinctUnpreparedQueries {
+			_, err := stmtCache.Get(ctx, sql)
+			if err != nil {
+				return &batchResults{ctx: ctx, conn: c, err: err}
+			}
 		}
 	}
 
