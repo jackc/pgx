@@ -228,6 +228,61 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+// https://github.com/jackc/pgx/issues/856
+func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.BuildStatementCache = nil
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	_, err = conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	batch := &pgx.Batch{}
+
+	queryCount := 3
+	for i := 0; i < queryCount; i++ {
+		batch.Queue("ps1", 5)
+	}
+
+	br := conn.SendBatch(context.Background(), batch)
+
+	for i := 0; i < queryCount; i++ {
+		rows, err := br.Query()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for k := 0; rows.Next(); k++ {
+			var n int
+			if err := rows.Scan(&n); err != nil {
+				t.Fatal(err)
+			}
+			if n != k {
+				t.Fatalf("n => %v, want %v", n, k)
+			}
+		}
+
+		if rows.Err() != nil {
+			t.Fatal(rows.Err())
+		}
+	}
+
+	err = br.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	t.Parallel()
 
