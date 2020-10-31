@@ -170,7 +170,7 @@ func TestEnumArrayArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.EnumArray{Status: pgtype.Present},
 			dst:      &stringSlice,
-			expected: (([]string)(nil)),
+			expected: []string{},
 		},
 		{
 			src: pgtype.EnumArray{

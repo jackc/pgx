@@ -169,7 +169,7 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.MacaddrArray{Status: pgtype.Present},
 			dst:      &macaddrSlice,
-			expected: (([]net.HardwareAddr)(nil)),
+			expected: []net.HardwareAddr{},
 		},
 		{
 			src: pgtype.MacaddrArray{

@@ -165,7 +165,7 @@ func TestTimestampArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.TimestampArray{Status: pgtype.Present},
 			dst:      &timeSlice,
-			expected: (([]time.Time)(nil)),
+			expected: []time.Time{},
 		},
 		{
 			src: pgtype.TimestampArray{

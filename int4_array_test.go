@@ -236,7 +236,7 @@ func TestInt4ArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.Int4Array{Status: pgtype.Present},
 			dst:      &int32Slice,
-			expected: (([]int32)(nil)),
+			expected: []int32{},
 		},
 		{
 			src: pgtype.Int4Array{

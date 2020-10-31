@@ -160,7 +160,7 @@ func TestByteaArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.ByteaArray{Status: pgtype.Present},
 			dst:      &byteByteSlice,
-			expected: (([][]byte)(nil)),
+			expected: [][]byte{},
 		},
 		{
 			src: pgtype.ByteaArray{

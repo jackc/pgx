@@ -256,12 +256,12 @@ func TestUUIDArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.UUIDArray{Status: pgtype.Present},
 			dst:      &byteSlice,
-			expected: ([]byte)(nil),
+			expected: []byte{},
 		},
 		{
 			src:      pgtype.UUIDArray{Status: pgtype.Present},
 			dst:      &stringSlice,
-			expected: (([]string)(nil)),
+			expected: []string{},
 		},
 		{
 			src: pgtype.UUIDArray{
