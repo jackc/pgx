@@ -171,7 +171,7 @@ func TestVarcharArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.VarcharArray{Status: pgtype.Present},
 			dst:      &stringSlice,
-			expected: (([]string)(nil)),
+			expected: []string{},
 		},
 		{
 			src: pgtype.VarcharArray{

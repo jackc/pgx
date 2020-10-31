@@ -171,7 +171,7 @@ func TestTextArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.TextArray{Status: pgtype.Present},
 			dst:      &stringSlice,
-			expected: (([]string)(nil)),
+			expected: []string{},
 		},
 		{
 			src: pgtype.TextArray{

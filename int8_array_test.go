@@ -229,7 +229,7 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.Int8Array{Status: pgtype.Present},
 			dst:      &int64Slice,
-			expected: (([]int64)(nil)),
+			expected: []int64{},
 		},
 		{
 			src: pgtype.Int8Array{

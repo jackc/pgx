@@ -222,7 +222,7 @@ func TestInt2ArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.Int2Array{Status: pgtype.Present},
 			dst:      &int16Slice,
-			expected: (([]int16)(nil)),
+			expected: []int16{},
 		},
 		{
 			src: pgtype.Int2Array{

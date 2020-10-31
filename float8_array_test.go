@@ -146,7 +146,7 @@ func TestFloat8ArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.Float8Array{Status: pgtype.Present},
 			dst:      &float64Slice,
-			expected: (([]float64)(nil)),
+			expected: []float64{},
 		},
 		{
 			src: pgtype.Float8Array{

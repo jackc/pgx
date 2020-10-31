@@ -192,7 +192,7 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.ACLItemArray{Status: pgtype.Present},
 			dst:      &stringSlice,
-			expected: (([]string)(nil)),
+			expected: []string{},
 		},
 		{
 			src: pgtype.ACLItemArray{

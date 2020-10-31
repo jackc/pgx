@@ -220,7 +220,7 @@ func TestInetArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.InetArray{Status: pgtype.Present},
 			dst:      &ipnetSlice,
-			expected: (([]*net.IPNet)(nil)),
+			expected: []*net.IPNet{},
 		},
 		{
 			src:      pgtype.InetArray{Status: pgtype.Null},
@@ -230,7 +230,7 @@ func TestInetArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.InetArray{Status: pgtype.Present},
 			dst:      &ipSlice,
-			expected: (([]net.IP)(nil)),
+			expected: []net.IP{},
 		},
 		{
 			src: pgtype.InetArray{

@@ -185,7 +185,7 @@ func TestDateArrayAssignTo(t *testing.T) {
 		{
 			src:      pgtype.DateArray{Status: pgtype.Present},
 			dst:      &timeSlice,
-			expected: (([]time.Time)(nil)),
+			expected: []time.Time{},
 		},
 		{
 			src: pgtype.DateArray{

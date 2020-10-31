@@ -190,10 +190,6 @@ func (dst ACLItemArray) Get() interface{} {
 func (src *ACLItemArray) AssignTo(dst interface{}) error {
 	switch src.Status {
 	case Present:
-		if len(src.Elements) == 0 || len(src.Dimensions) == 0 {
-			// No values to assign
-			return nil
-		}
 		if len(src.Dimensions) <= 1 {
 			// Attempt to match to select common types:
 			switch v := dst.(type) {
@@ -230,6 +226,13 @@ func (src *ACLItemArray) AssignTo(dst interface{}) error {
 		value := reflect.ValueOf(dst)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
+		}
+
+		if len(src.Elements) == 0 {
+			if value.Kind() == reflect.Slice {
+				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
+				return nil
+			}
 		}
 
 		elementCount, err := src.assignToRecursive(value, 0, 0)
