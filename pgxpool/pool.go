@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgconn"
+	"github.com/ethanpailes/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/puddle"
 	errors "golang.org/x/xerrors"

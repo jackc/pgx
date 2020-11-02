@@ -285,7 +285,7 @@ go.uber.org/zap, github.com/rs/zerolog, and the testing log are provided in the 
 
 Lower Level PostgreSQL Functionality
 
-pgx is implemented on top of github.com/jackc/pgconn a lower level PostgreSQL driver. The Conn.PgConn() method can be
+pgx is implemented on top of github.com/ethanpailes/pgconn a lower level PostgreSQL driver. The Conn.PgConn() method can be
 used to access this lower layer.
 
 PgBouncer

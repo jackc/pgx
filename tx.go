@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/jackc/pgconn"
+	"github.com/ethanpailes/pgconn"
 	errors "golang.org/x/xerrors"
 )
 

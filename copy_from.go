@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jackc/pgconn"
+	"github.com/ethanpailes/pgconn"
 	"github.com/jackc/pgio"
 	errors "golang.org/x/xerrors"
 )

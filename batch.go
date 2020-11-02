@@ -3,7 +3,7 @@ package pgx
 import (
 	"context"
 
-	"github.com/jackc/pgconn"
+	"github.com/ethanpailes/pgconn"
 	errors "golang.org/x/xerrors"
 )
 

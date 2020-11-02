@@ -151,7 +151,7 @@ included below.
 * pgtype has been spun off to a separate package (github.com/jackc/pgtype).
 * pgproto3 has been spun off to a separate package (github.com/jackc/pgproto3/v2).
 * Logical replication support has been spun off to a separate package (github.com/jackc/pglogrepl).
-* Lower level PostgreSQL functionality is now implemented in a separate package (github.com/jackc/pgconn).
+* Lower level PostgreSQL functionality is now implemented in a separate package (github.com/ethanpailes/pgconn).
 * Tests are now configured with environment variables.
 * Conn has an automatic statement cache by default.
 * Batch interface has been simplified.

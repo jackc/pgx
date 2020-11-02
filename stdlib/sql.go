@@ -63,7 +63,7 @@ import (
 
 	errors "golang.org/x/xerrors"
 
-	"github.com/jackc/pgconn"
+	"github.com/ethanpailes/pgconn"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 )
