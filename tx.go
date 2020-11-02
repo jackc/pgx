@@ -81,6 +81,10 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 		c.die(errors.New("failed to begin transaction"))
 		return nil, err
 	}
+	err = c.setInTx(ctx, true)
+	if err != nil {
+		return nil, err
+	}
 
 	return &dbTx{conn: c}, nil
 }
@@ -162,6 +166,11 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 		}
 		return err
 	}
+	// we don't have to worry about nested transactions because they are handled by another struct
+	err = tx.conn.setInTx(ctx, false)
+	if err != nil {
+		return err
+	}
 	if string(commandTag) == "ROLLBACK" {
 		return ErrTxCommitRollback
 	}
@@ -183,6 +192,11 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 	if err != nil {
 		// A rollback failure leaves the connection in an undefined state
 		tx.conn.die(errors.Errorf("rollback failed: %w", err))
+		return err
+	}
+	// we don't have to worry about nested transactions because they are handled by another struct
+	err = tx.conn.setInTx(ctx, false)
+	if err != nil {
 		return err
 	}
 

@@ -74,6 +74,15 @@ type Conn struct {
 	wbuf             []byte
 	preallocatedRows []connRows
 	eqb              extendedQueryBuilder
+
+	// We track whether or not this connection has any outstanding un-`Close`d transactions
+	// because certain operations (like deallocating a prepared statement) are not guaranteed to
+	// succeed in the middle of a transaction.
+	inTx bool
+	// A queue of statements to clobber from the statement cache as soon as it is safe to do so
+	// (once we are not in a transaction or running batch sql).
+	stmtsToFlush []string
+
 }
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
@@ -652,6 +661,16 @@ optionLoop:
 		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 	} else {
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
+		if IsInvalidCachedStatementPlanError(rows.resultReader.Err()) {
+			rows.fatal(rows.resultReader.Err())
+			// If the statement has been invalidated out from under us, we won't retry, but we do
+			// clobber it out of the cache so that an application level retry has a prayer of
+			// succeeding.
+			err = c.invalidateStmt(ctx, sd.SQL) // already have an error to return
+			if err != nil {
+				rows.err = errors.Errorf("cleaning up from '%s': %s", rows.err.Error(), err.Error())
+			}
+		}
 	}
 
 	return rows, rows.err
@@ -789,4 +808,50 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	}
 
 	return sanitize.SanitizeSQL(sql, valueArgs...)
+}
+
+// invalidateStmt purges the given prepared statement from the stmtcache, or queues it up
+// for flushing if the connection is not in a good state to flush a prepared statement.
+func (c *Conn) invalidateStmt(ctx context.Context, sql string) error {
+	// TODO(ethan): for some reason I'm trying to invalidate a statement when the connection
+	//              is locked. Wut do, I don't think I can explictly unlock, and I'm not even
+	//              really sure what this lock is protecting anyway. I think I may need to test
+	//              if the connection is busy here as well, though I'm not really sure how I
+	//              can arrange to be notified when the lock is released.
+	if c.inTx {
+		c.stmtsToFlush = append(c.stmtsToFlush, sql)
+		return nil
+	} else {
+		return c.stmtcache.ClearStmt(ctx, sql)
+	}
+}
+
+func (c *Conn) setInTx(ctx context.Context, value bool) error {
+	c.inTx = value
+
+	if !c.inTx {
+		// flush any outstanding statements
+		for _, sql := range c.stmtsToFlush {
+			err := c.stmtcache.ClearStmt(ctx, sql)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// IsInvalidCachedStatementPlanError inspects the given error and returns true if the
+// error is due to the fact that we just tried to execute a cached prepared statement
+// that is now invalid due to a schema change.
+func IsInvalidCachedStatementPlanError(err error) bool {
+	pgErr, ok := err.(*pgconn.PgError)
+	if !ok {
+		return false
+	}
+
+	return pgErr.Severity == "ERROR" &&
+		pgErr.Code == "0A000" &&
+		pgErr.Message == "cached plan must not change result type"
 }
