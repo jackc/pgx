@@ -111,9 +111,9 @@ func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 		*dst = Timestamptz{Status: Present, InfinityModifier: -Infinity}
 	default:
 		var format string
-		if sbuf[len(sbuf)-9] == '-' || sbuf[len(sbuf)-9] == '+' {
+		if len(sbuf) >= 9 && (sbuf[len(sbuf)-9] == '-' || sbuf[len(sbuf)-9] == '+') {
 			format = pgTimestamptzSecondFormat
-		} else if sbuf[len(sbuf)-6] == '-' || sbuf[len(sbuf)-6] == '+' {
+		} else if len(sbuf) >= 6 && (sbuf[len(sbuf)-6] == '-' || sbuf[len(sbuf)-6] == '+') {
 			format = pgTimestamptzMinuteFormat
 		} else {
 			format = pgTimestamptzHourFormat

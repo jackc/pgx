@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTstzrangeTranscode(t *testing.T) {
@@ -38,4 +39,11 @@ func TestTstzrangeTranscode(t *testing.T) {
 			a.Upper.Status == b.Upper.Status &&
 			a.Upper.InfinityModifier == b.Upper.InfinityModifier
 	})
+}
+
+// https://github.com/jackc/pgtype/issues/74
+func TestTstzRangeDecodeTextInvalid(t *testing.T) {
+	tstzrange := &pgtype.Tstzrange{}
+	err := tstzrange.DecodeText(nil, []byte(`[eeee,)`))
+	require.Error(t, err)
 }
