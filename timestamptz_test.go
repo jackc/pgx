@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTimestamptzTranscode(t *testing.T) {
@@ -75,6 +76,13 @@ func TestTimestamptzNanosecondsTruncated(t *testing.T) {
 			}
 		}
 	}
+}
+
+// https://github.com/jackc/pgtype/issues/74
+func TestTimestamptzDecodeTextInvalid(t *testing.T) {
+	tstz := &pgtype.Timestamptz{}
+	err := tstz.DecodeText(nil, []byte(`eeeee`))
+	require.Error(t, err)
 }
 
 func TestTimestamptzSet(t *testing.T) {
