@@ -1,3 +1,10 @@
+# 4.9.2 (November 3, 2020)
+
+The underlying library updates fix an issue where appending to a scanned slice could corrupt other data.
+
+* Update pgconn to v1.7.2
+* Update pgproto3 to v2.0.6
+
 # 4.9.1 (October 31, 2020)
 
 * Update pgconn to v1.7.1
