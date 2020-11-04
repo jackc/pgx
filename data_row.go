@@ -54,7 +54,7 @@ func (dst *DataRow) Decode(src []byte) error {
 				return &invalidMessageFormatErr{messageType: "DataRow"}
 			}
 
-			dst.Values[i] = src[rp : rp+msgSize]
+			dst.Values[i] = src[rp : rp+msgSize : rp+msgSize]
 			rp += msgSize
 		}
 	}
