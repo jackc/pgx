@@ -758,6 +758,32 @@ func TestConnExecParamsEmptySQL(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/859
+func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	result := pgConn.ExecParams(context.Background(), "select $1::text as msg", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
+	require.Len(t, result.FieldDescriptions(), 1)
+	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+
+	rowCount := 0
+	for result.NextRow() {
+		rowCount += 1
+		assert.Equal(t, "Hello, world", string(result.Values()[0]))
+		assert.Equal(t, len(result.Values()[0]), cap(result.Values()[0]))
+	}
+	assert.Equal(t, 1, rowCount)
+	commandTag, err := result.Close()
+	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
