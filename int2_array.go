@@ -711,7 +711,7 @@ func (dst *Int2Array) DecodeText(ci *ConnInfo, src []byte) error {
 		for i, s := range uta.Elements {
 			var elem Int2
 			var elemSrc []byte
-			if s != "NULL" {
+			if s != "NULL" || uta.Quoted[i] {
 				elemSrc = []byte(s)
 			}
 			err = elem.DecodeText(ci, elemSrc)
