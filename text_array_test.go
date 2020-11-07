@@ -6,7 +6,19 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// https://github.com/jackc/pgtype/issues/78
+func TestTextArrayDecodeTextNull(t *testing.T) {
+	textArray := &pgtype.TextArray{}
+	err := textArray.DecodeText(nil, []byte(`{abc,"NULL",NULL,def}`))
+	require.NoError(t, err)
+	require.Len(t, textArray.Elements, 4)
+	assert.Equal(t, pgtype.Present, textArray.Elements[1].Status)
+	assert.Equal(t, pgtype.Null, textArray.Elements[2].Status)
+}
 
 func TestTextArrayTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "text[]", []interface{}{

@@ -16,6 +16,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "{}",
 			result: pgtype.UntypedTextArray{
 				Elements:   nil,
+				Quoted:     nil,
 				Dimensions: nil,
 			},
 		},
@@ -23,6 +24,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "{1}",
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{"1"},
+				Quoted:     []bool{false},
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
 			},
 		},
@@ -30,6 +32,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "{a,b}",
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{"a", "b"},
+				Quoted:     []bool{false, false},
 				Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
 			},
 		},
@@ -37,6 +40,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: `{"NULL"}`,
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{"NULL"},
+				Quoted:     []bool{true},
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
 			},
 		},
@@ -44,6 +48,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: `{""}`,
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{""},
+				Quoted:     []bool{true},
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
 			},
 		},
@@ -51,6 +56,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: `{"He said, \"Hello.\""}`,
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{`He said, "Hello."`},
+				Quoted:     []bool{true},
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 1}},
 			},
 		},
@@ -58,6 +64,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "{{a,b},{c,d},{e,f}}",
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{"a", "b", "c", "d", "e", "f"},
+				Quoted:     []bool{false, false, false, false, false, false},
 				Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
 			},
 		},
@@ -65,6 +72,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "{{{a,b},{c,d},{e,f}},{{a,b},{c,d},{e,f}}}",
 			result: pgtype.UntypedTextArray{
 				Elements: []string{"a", "b", "c", "d", "e", "f", "a", "b", "c", "d", "e", "f"},
+				Quoted:   []bool{false, false, false, false, false, false, false, false, false, false, false, false},
 				Dimensions: []pgtype.ArrayDimension{
 					{Length: 2, LowerBound: 1},
 					{Length: 3, LowerBound: 1},
@@ -76,6 +84,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "[4:4]={1}",
 			result: pgtype.UntypedTextArray{
 				Elements:   []string{"1"},
+				Quoted:     []bool{false},
 				Dimensions: []pgtype.ArrayDimension{{Length: 1, LowerBound: 4}},
 			},
 		},
@@ -83,6 +92,7 @@ func TestParseUntypedTextArray(t *testing.T) {
 			source: "[4:5][2:3]={{a,b},{c,d}}",
 			result: pgtype.UntypedTextArray{
 				Elements: []string{"a", "b", "c", "d"},
+				Quoted:   []bool{false, false, false, false},
 				Dimensions: []pgtype.ArrayDimension{
 					{Length: 2, LowerBound: 4},
 					{Length: 2, LowerBound: 2},

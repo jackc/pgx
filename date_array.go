@@ -320,7 +320,7 @@ func (dst *DateArray) DecodeText(ci *ConnInfo, src []byte) error {
 		for i, s := range uta.Elements {
 			var elem Date
 			var elemSrc []byte
-			if s != "NULL" {
+			if s != "NULL" || uta.Quoted[i] {
 				elemSrc = []byte(s)
 			}
 			err = elem.DecodeText(ci, elemSrc)

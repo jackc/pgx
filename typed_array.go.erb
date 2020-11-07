@@ -292,7 +292,7 @@ func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error 
 		for i, s := range uta.Elements {
 			var elem <%= pgtype_element_type %>
 			var elemSrc []byte
-			if s != "NULL" {
+			if s != "NULL" || uta.Quoted[i] {
 				elemSrc = []byte(s)
 			}
 			err = elem.DecodeText(ci, elemSrc)
