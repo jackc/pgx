@@ -529,6 +529,7 @@ func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *con
 	r.startTime = time.Now()
 	r.sql = sql
 	r.args = args
+	r.conn = c
 
 	return r
 }
