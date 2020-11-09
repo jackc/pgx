@@ -20,6 +20,7 @@ type LRU struct {
 	m            map[string]*list.Element
 	l            *list.List
 	psNamePrefix string
+	stmtsToClear []string
 }
 
 // NewLRU creates a new LRU. mode is either ModePrepare or ModeDescribe. cap is the maximum size of the cache.
@@ -41,6 +42,17 @@ func NewLRU(conn *pgconn.PgConn, mode int, cap int) *LRU {
 
 // Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
 func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.StatementDescription, error) {
+	// flush an outstanding bad statements
+	txStatus := c.conn.TxStatus()
+	if (txStatus == 'I' || txStatus == 'T') && len(c.stmtsToClear) > 0 {
+		for _, stmt := range c.stmtsToClear {
+			err := c.clearStmt(ctx, stmt)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	if el, ok := c.m[sql]; ok {
 		c.l.MoveToFront(el)
 		return el.Value.(*pgconn.StatementDescription), nil
@@ -73,6 +85,44 @@ func (c *LRU) Clear(ctx context.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func (c *LRU) StatementErrored(ctx context.Context, sql string, err error) error {
+	pgErr, ok := err.(*pgconn.PgError)
+	if !ok {
+		// we don't know how to handle this error
+		return nil
+	}
+
+	isInvalidCachedPlanError := pgErr.Severity == "ERROR" &&
+		pgErr.Code == "0A000" &&
+		pgErr.Message == "cached plan must not change result type"
+	if !isInvalidCachedPlanError {
+		// only flush if a plan has been changed out from under us
+		return nil
+	}
+
+	c.stmtsToClear = append(c.stmtsToClear, sql)
+
+	return nil
+}
+
+func (c *LRU) clearStmt(ctx context.Context, sql string) error {
+	elem, inMap := c.m[sql]
+	if !inMap {
+		// The statement probably fell off the back of the list. In that case, we've
+		// ensured that it isn't in the cache, so we can declare victory.
+		return nil
+	}
+
+	c.l.Remove(elem)
+
+	psd := elem.Value.(*pgconn.StatementDescription)
+	delete(c.m, psd.SQL)
+	if c.mode == ModePrepare {
+		return c.conn.Exec(ctx, fmt.Sprintf("deallocate %s", psd.Name)).Close()
+	}
 	return nil
 }
 

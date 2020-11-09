@@ -59,6 +59,75 @@ func TestLRUModePrepare(t *testing.T) {
 	require.Empty(t, fetchServerStatements(t, ctx, conn))
 }
 
+func TestLRUStmtInvalidation(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+
+	// we construct a fake error because its not super straightforward to actually call
+	// a prepared statement from the LRU cache without the helper routines which live
+	// in pgx proper.
+	fakeInvalidCachePlanError := &pgconn.PgError{
+		Severity: "ERROR",
+		Code:     "0A000",
+		Message:  "cached plan must not change result type",
+	}
+
+	cache := stmtcache.NewLRU(conn, stmtcache.ModePrepare, 2)
+
+	//
+	// outside of a transaction, we eagerly flush the statement
+	//
+
+	_, err = cache.Get(ctx, "select 1")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, cache.Len())
+	require.ElementsMatch(t, []string{"select 1"}, fetchServerStatements(t, ctx, conn))
+
+	err = cache.StatementErrored(ctx, "select 1", fakeInvalidCachePlanError)
+	require.NoError(t, err)
+	_, err = cache.Get(ctx, "select 2")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, cache.Len())
+	require.ElementsMatch(t, []string{"select 2"}, fetchServerStatements(t, ctx, conn))
+
+	err = cache.Clear(ctx)
+	require.NoError(t, err)
+
+	//
+	// within an errored transaction, we defer the flush to after the first get
+	// that happens after the transaction is rolled back
+	//
+
+	_, err = cache.Get(ctx, "select 1")
+	require.NoError(t, err)
+	require.EqualValues(t, 1, cache.Len())
+	require.ElementsMatch(t, []string{"select 1"}, fetchServerStatements(t, ctx, conn))
+
+	res := conn.Exec(ctx, "begin")
+	require.NoError(t, res.Close())
+	require.Equal(t, byte('T'), conn.TxStatus())
+
+	res = conn.Exec(ctx, "selec")
+	require.Error(t, res.Close())
+	require.Equal(t, byte('E'), conn.TxStatus())
+
+	err = cache.StatementErrored(ctx, "select 1", fakeInvalidCachePlanError)
+	require.EqualValues(t, 1, cache.Len())
+
+	res = conn.Exec(ctx, "rollback")
+	require.NoError(t, res.Close())
+
+	_, err = cache.Get(ctx, "select 2")
+	require.EqualValues(t, 1, cache.Len())
+	require.ElementsMatch(t, []string{"select 2"}, fetchServerStatements(t, ctx, conn))
+}
+
 func TestLRUModePrepareStress(t *testing.T) {
 	t.Parallel()
 
