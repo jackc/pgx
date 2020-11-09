@@ -1,4 +1,4 @@
-// Package pgxpool is a connection pool for pgx.
+// Package pgxpool is a concurrency-safe connection pool for pgx.
 /*
 pgxpool implements a nearly identical interface to pgx connections.
 
