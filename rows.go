@@ -106,6 +106,7 @@ type connRows struct {
 	sql        string
 	args       []interface{}
 	closed     bool
+	conn       *Conn
 
 	resultReader      *pgconn.ResultReader
 	multiResultReader *pgconn.MultiResultReader
@@ -145,8 +146,13 @@ func (rows *connRows) Close() {
 				endTime := time.Now()
 				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 			}
-		} else if rows.logger.shouldLog(LogLevelError) {
-			rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+		} else {
+			if rows.logger.shouldLog(LogLevelError) {
+				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+			}
+			if rows.err != nil {
+				rows.conn.stmtcache.StatementErrored(rows.sql, rows.err)
+			}
 		}
 	}
 }
