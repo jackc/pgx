@@ -128,6 +128,44 @@ func TestLRUStmtInvalidation(t *testing.T) {
 	require.ElementsMatch(t, []string{"select 2"}, fetchServerStatements(t, ctx, conn))
 }
 
+func TestLRUStmtInvalidationIntegration(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer conn.Close(ctx)
+
+	cache := stmtcache.NewLRU(conn, stmtcache.ModePrepare, 2)
+
+	result := conn.ExecParams(ctx, "create temporary table stmtcache_table (a text)", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	sql := "select * from stmtcache_table"
+	sd1, err := cache.Get(ctx, sql)
+	require.NoError(t, err)
+
+	result = conn.ExecPrepared(ctx, sd1.Name, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	result = conn.ExecParams(ctx, "alter table stmtcache_table add column b text", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	result = conn.ExecPrepared(ctx, sd1.Name, nil, nil, nil).Read()
+	require.EqualError(t, result.Err, "ERROR: cached plan must not change result type (SQLSTATE 0A000)")
+
+	cache.StatementErrored(ctx, sql, result.Err)
+
+	sd2, err := cache.Get(ctx, sql)
+	require.NoError(t, err)
+	require.NotEqual(t, sd1.Name, sd2.Name)
+
+	result = conn.ExecPrepared(ctx, sd2.Name, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+}
+
 func TestLRUModePrepareStress(t *testing.T) {
 	t.Parallel()
 
