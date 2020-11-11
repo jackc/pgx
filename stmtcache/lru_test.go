@@ -89,8 +89,7 @@ func TestLRUStmtInvalidation(t *testing.T) {
 	require.EqualValues(t, 1, cache.Len())
 	require.ElementsMatch(t, []string{"select 1"}, fetchServerStatements(t, ctx, conn))
 
-	err = cache.StatementErrored(ctx, "select 1", fakeInvalidCachePlanError)
-	require.NoError(t, err)
+	cache.StatementErrored("select 1", fakeInvalidCachePlanError)
 	_, err = cache.Get(ctx, "select 2")
 	require.NoError(t, err)
 	require.EqualValues(t, 1, cache.Len())
@@ -117,7 +116,7 @@ func TestLRUStmtInvalidation(t *testing.T) {
 	require.Error(t, res.Close())
 	require.Equal(t, byte('E'), conn.TxStatus())
 
-	err = cache.StatementErrored(ctx, "select 1", fakeInvalidCachePlanError)
+	cache.StatementErrored("select 1", fakeInvalidCachePlanError)
 	require.EqualValues(t, 1, cache.Len())
 
 	res = conn.Exec(ctx, "rollback")
@@ -156,7 +155,7 @@ func TestLRUStmtInvalidationIntegration(t *testing.T) {
 	result = conn.ExecPrepared(ctx, sd1.Name, nil, nil, nil).Read()
 	require.EqualError(t, result.Err, "ERROR: cached plan must not change result type (SQLSTATE 0A000)")
 
-	cache.StatementErrored(ctx, sql, result.Err)
+	cache.StatementErrored(sql, result.Err)
 
 	sd2, err := cache.Get(ctx, sql)
 	require.NoError(t, err)

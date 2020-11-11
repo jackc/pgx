@@ -88,24 +88,18 @@ func (c *LRU) Clear(ctx context.Context) error {
 	return nil
 }
 
-func (c *LRU) StatementErrored(ctx context.Context, sql string, err error) error {
+func (c *LRU) StatementErrored(sql string, err error) {
 	pgErr, ok := err.(*pgconn.PgError)
 	if !ok {
-		// we don't know how to handle this error
-		return nil
+		return
 	}
 
 	isInvalidCachedPlanError := pgErr.Severity == "ERROR" &&
 		pgErr.Code == "0A000" &&
 		pgErr.Message == "cached plan must not change result type"
-	if !isInvalidCachedPlanError {
-		// only flush if a plan has been changed out from under us
-		return nil
+	if isInvalidCachedPlanError {
+		c.stmtsToClear = append(c.stmtsToClear, sql)
 	}
-
-	c.stmtsToClear = append(c.stmtsToClear, sql)
-
-	return nil
 }
 
 func (c *LRU) clearStmt(ctx context.Context, sql string) error {
