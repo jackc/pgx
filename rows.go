@@ -180,6 +180,9 @@ func (rows *connRows) Next() bool {
 		rows.values = rows.resultReader.Values()
 		return true
 	} else {
+		if rows.resultReader.Err() != nil && rows.err == nil {
+			rows.err = rows.resultReader.Err()
+		}
 		rows.Close()
 		return false
 	}

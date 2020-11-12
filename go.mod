@@ -10,7 +10,6 @@ require (
 	github.com/jackc/pgproto3/v2 v2.0.6
 	github.com/jackc/pgtype v1.6.1
 	github.com/jackc/puddle v1.1.2
-	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v0.0.0-20200227202807-02e2044944cc
 	github.com/sirupsen/logrus v1.4.2
@@ -19,3 +18,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
+
+replace github.com/jackc/pgconn => github.com/vivacitylabs/pgconn v1.7.3-0.20201112061553-4c9718b45e2d
