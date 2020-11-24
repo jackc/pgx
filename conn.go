@@ -570,6 +570,9 @@ func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
 	simpleProtocol := c.config.PreferSimpleProtocol
+	if spctx, ok := ctx.Value(preferSimpleProtocol{}).(bool); ok {
+		simpleProtocol = spctx
+	}
 
 optionLoop:
 	for len(args) > 0 {
@@ -688,6 +691,9 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Ro
 // is used again.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	simpleProtocol := c.config.PreferSimpleProtocol
+	if spctx, ok := ctx.Value(preferSimpleProtocol{}).(bool); ok {
+		simpleProtocol = spctx
+	}
 	var sb strings.Builder
 	if simpleProtocol {
 		for i, bi := range b.items {
