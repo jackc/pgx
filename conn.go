@@ -39,6 +39,20 @@ type ConnConfig struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+type preferSimpleProtocol struct{}
+
+// WithSimpleProtocol creates a context that disables the implicit use of a prepared statement
+// for all requests that use that context
+func WithSimpleProtocol(ctx context.Context) context.Context {
+	return context.WithValue(ctx, preferSimpleProtocol{}, true)
+}
+
+// WithoutSimpleProtocol creates a context that disables the use of simple protocol
+// for all requests using this context
+func WithoutSimpleProtocol(ctx context.Context) context.Context {
+	return context.WithValue(ctx, preferSimpleProtocol{}, false)
+}
+
 // Copy returns a deep copy of the config that is safe to use and modify.
 // The only exception is the tls.Config:
 // according to the tls.Config docs it must not be modified after creation.
@@ -410,6 +424,9 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	simpleProtocol := c.config.PreferSimpleProtocol
+	if spctx, ok := ctx.Value(preferSimpleProtocol{}).(bool); ok {
+		simpleProtocol = spctx
+	}
 
 optionLoop:
 	for len(arguments) > 0 {
