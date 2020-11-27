@@ -230,6 +230,12 @@ func (src *JSONBArray) AssignTo(dst interface{}) error {
 			value = value.Elem()
 		}
 
+		switch value.Kind() {
+		case reflect.Array, reflect.Slice:
+		default:
+			return errors.Errorf("cannot assign %T to %T", src, dst)
+		}
+
 		if len(src.Elements) == 0 {
 			if value.Kind() == reflect.Slice {
 				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
