@@ -35,6 +35,31 @@ func (ctr *copyFromRows) Err() error {
 	return nil
 }
 
+// CopyFromSlice returns a CopyFromSource interface over a dynamic func
+// making it usable by *Conn.CopyFrom.
+func CopyFromSlice(length int, next func(int) ([]interface{}, error)) CopyFromSource {
+	return &copyFromSlice{next: next, idx: -1, len: length}
+}
+
+type copyFromSlice struct {
+	next func(int) ([]interface{}, error)
+	idx  int
+	len  int
+}
+
+func (cts *copyFromSlice) Next() bool {
+	cts.idx++
+	return cts.idx < cts.len
+}
+
+func (cts *copyFromSlice) Values() ([]interface{}, error) {
+	return cts.next(cts.idx)
+}
+
+func (cts *copyFromSlice) Err() error {
+	return nil
+}
+
 // CopyFromSource is the interface used by *Conn.CopyFrom as the source for copy data.
 type CopyFromSource interface {
 	// Next returns true if there is another row and makes the next row data

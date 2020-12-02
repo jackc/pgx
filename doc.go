@@ -260,6 +260,22 @@ interface. Or implement CopyFromSource to avoid buffering the entire data set in
         pgx.CopyFromRows(rows),
     )
 
+When you already have a typed array using CopyFromSlice can be more convenient.
+
+    rows := []User{
+        {"John", "Smith", 36},
+        {"Jane", "Doe", 29},
+    }
+
+    copyCount, err := conn.CopyFrom(
+        context.Background(),
+        pgx.Identifier{"people"},
+        []string{"first_name", "last_name", "age"},
+        pgx.CopyFromSlice(len(rows), func(i int) ([]interface{}, error) {
+            return []interface{user.FirstName, user.LastName, user.Age}, nil
+        }),
+    )
+
 CopyFrom can be faster than an insert with as few as 5 rows.
 
 Listen and Notify
