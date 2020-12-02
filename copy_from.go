@@ -45,6 +45,7 @@ type copyFromSlice struct {
 	next func(int) ([]interface{}, error)
 	idx  int
 	len  int
+	err  error
 }
 
 func (cts *copyFromSlice) Next() bool {
@@ -53,11 +54,15 @@ func (cts *copyFromSlice) Next() bool {
 }
 
 func (cts *copyFromSlice) Values() ([]interface{}, error) {
-	return cts.next(cts.idx)
+	values, err := cts.next(cts.idx)
+	if err != nil {
+		cts.err = err
+	}
+	return values, err
 }
 
 func (cts *copyFromSlice) Err() error {
-	return nil
+	return cts.err
 }
 
 // CopyFromSource is the interface used by *Conn.CopyFrom as the source for copy data.
