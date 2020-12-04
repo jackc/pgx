@@ -1,3 +1,7 @@
+# 1.8.0 (December 3, 2020)
+
+* Add StatementErrored method to stmtcache.Cache. This allows the cache to purge invalidated prepared statements. (Ethan Pailes)
+
 # 1.7.2 (November 3, 2020)
 
 * Fix data value slices into work buffer with capacities larger than length.
