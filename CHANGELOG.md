@@ -1,3 +1,9 @@
+# 1.6.2 (December 3, 2020)
+
+* Fix panic on assigning empty array to non-slice or array
+* Fix text array parsing disambiguates NULL and "NULL"
+* Fix Timestamptz.DecodeText with too short text
+
 # 1.6.1 (October 31, 2020)
 
 * Fix simple protocol empty array support
