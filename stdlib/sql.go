@@ -370,7 +370,15 @@ func (c *Conn) Ping(ctx context.Context) error {
 		return driver.ErrBadConn
 	}
 
-	return c.conn.Ping(ctx)
+	err := c.conn.Ping(ctx)
+	if err != nil {
+		// A Ping failure implies some sort of fatal state. The connection is almost certainly already closed by the
+		// failure, but manually close it just to be sure.
+		c.Close()
+		return driver.ErrBadConn
+	}
+
+	return nil
 }
 
 func (c *Conn) CheckNamedValue(*driver.NamedValue) error {
