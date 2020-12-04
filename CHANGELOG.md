@@ -1,3 +1,11 @@
+# 4.10.0 (December 3, 2020)
+
+* Add CopyFromSlice to simplify CopyFrom usage (Egon Elbre)
+* Remove broken prepared statements from stmtcache (Ethan Pailes)
+* stdlib: consider any Ping error as fatal
+* Update puddle to v1.1.3 - this fixes an issue where concurrent Acquires can hang when a connection cannot be established
+* Update pgtype to v1.6.2
+
 # 4.9.2 (November 3, 2020)
 
 The underlying library updates fix an issue where appending to a scanned slice could corrupt other data.
