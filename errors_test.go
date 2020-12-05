@@ -33,6 +33,16 @@ func TestConfigError(t *testing.T) {
 			err:         pgconn.NewParseConfigError("postgresql://foo::pasword@host:1:", "msg", nil),
 			expectedMsg: "cannot parse `postgresql://foo:xxxxx@host:1:`: msg",
 		},
+		{
+			name:        "weird url with slash in password",
+			err:         pgconn.NewParseConfigError("postgres://user:pass/word@host:5432/db_name", "msg", nil),
+			expectedMsg: "cannot parse `postgres://user:xxxxxx@host:5432/db_name`: msg",
+		},
+		{
+			name:        "url without password",
+			err:         pgconn.NewParseConfigError("postgresql://other@host/db", "msg", nil),
+			expectedMsg: "cannot parse `postgresql://other@host/db`: msg",
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
