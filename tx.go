@@ -117,6 +117,7 @@ type Tx interface {
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...interface{}) (Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
+	QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error)
 
 	// Conn returns the underlying *Conn that on which this transaction is executing.
 	Conn() *Conn
@@ -220,6 +221,15 @@ func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...interface{}) R
 	return (*connRow)(rows.(*connRows))
 }
 
+// QueryFunc delegates to the underlying *Conn.
+func (tx *dbTx) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+	if tx.closed {
+		return nil, ErrTxClosed
+	}
+
+	return tx.conn.QueryFunc(ctx, sql, args, scans, f)
+}
+
 // CopyFrom delegates to the underlying *Conn
 func (tx *dbTx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
 	if tx.closed {
@@ -320,6 +330,15 @@ func (sp *dbSavepoint) Query(ctx context.Context, sql string, args ...interface{
 func (sp *dbSavepoint) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
 	rows, _ := sp.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
+}
+
+// QueryFunc delegates to the underlying Tx.
+func (sp *dbSavepoint) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+	if sp.closed {
+		return nil, ErrTxClosed
+	}
+
+	return sp.tx.QueryFunc(ctx, sql, args, scans, f)
 }
 
 // CopyFrom delegates to the underlying *Conn

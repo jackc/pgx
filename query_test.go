@@ -22,6 +22,7 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	errors "golang.org/x/xerrors"
 )
 
 func TestConnQueryScan(t *testing.T) {
@@ -1970,4 +1971,103 @@ func TestQueryStatementCacheModes(t *testing.T) {
 			ensureConnValid(t, conn)
 		}()
 	}
+}
+
+func TestConnQueryFunc(t *testing.T) {
+	t.Parallel()
+
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		var actualResults []interface{}
+
+		var a, b int
+		ct, err := conn.QueryFunc(
+			context.Background(),
+			"select n, n * 2 from generate_series(1, $1) n",
+			[]interface{}{3},
+			[]interface{}{&a, &b},
+			func(pgx.QueryFuncRow) error {
+				actualResults = append(actualResults, []interface{}{a, b})
+				return nil
+			},
+		)
+		require.NoError(t, err)
+
+		expectedResults := []interface{}{
+			[]interface{}{1, 2},
+			[]interface{}{2, 4},
+			[]interface{}{3, 6},
+		}
+		require.Equal(t, expectedResults, actualResults)
+		require.EqualValues(t, 3, ct.RowsAffected())
+	})
+}
+
+func TestConnQueryFuncScanError(t *testing.T) {
+	t.Parallel()
+
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		var actualResults []interface{}
+
+		var a, b int
+		ct, err := conn.QueryFunc(
+			context.Background(),
+			"select 'foo', 'bar' from generate_series(1, $1) n",
+			[]interface{}{3},
+			[]interface{}{&a, &b},
+			func(pgx.QueryFuncRow) error {
+				actualResults = append(actualResults, []interface{}{a, b})
+				return nil
+			},
+		)
+		require.EqualError(t, err, "can't scan into dest[0]: unable to assign to *int")
+		require.Nil(t, ct)
+	})
+}
+
+func TestConnQueryFuncAbort(t *testing.T) {
+	t.Parallel()
+
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		var a, b int
+		ct, err := conn.QueryFunc(
+			context.Background(),
+			"select n, n * 2 from generate_series(1, $1) n",
+			[]interface{}{3},
+			[]interface{}{&a, &b},
+			func(pgx.QueryFuncRow) error {
+				return errors.New("abort")
+			},
+		)
+		require.EqualError(t, err, "abort")
+		require.Nil(t, ct)
+	})
+}
+
+func ExampleConn_QueryFunc() {
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		fmt.Printf("Unable to establish connection: %v", err)
+		return
+	}
+
+	var a, b int
+	_, err = conn.QueryFunc(
+		context.Background(),
+		"select n, n * 2 from generate_series(1, $1) n",
+		[]interface{}{3},
+		[]interface{}{&a, &b},
+		func(pgx.QueryFuncRow) error {
+			fmt.Printf("%v, %v\n", a, b)
+			return nil
+		},
+	)
+	if err != nil {
+		fmt.Printf("QueryFunc error: %v", err)
+		return
+	}
+
+	// Output:
+	// 1, 2
+	// 2, 4
+	// 3, 6
 }

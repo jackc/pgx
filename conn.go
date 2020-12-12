@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/internal/sanitize"
 )
@@ -664,6 +665,48 @@ optionLoop:
 func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
 	rows, _ := c.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
+}
+
+// QueryFuncRow is the argument to the QueryFunc callback function.
+//
+// QueryFuncRow is an interface instead of a struct to allow tests to mock QueryFunc. However, adding a method to an
+// interface is technically a breaking change. Because of this the QueryFuncRow interface is partially excluded from
+// semantic version requirements. Methods will not be removed or changed, but new methods may be added.
+type QueryFuncRow interface {
+	FieldDescriptions() []pgproto3.FieldDescription
+
+	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid during the current
+	// function call. However, the underlying byte data is safe to retain a reference to and mutate.
+	RawValues() [][]byte
+}
+
+// QueryFunc executes sql with args. For each row returned by the query the values will scanned into the elements of
+// scans and f will be called. If any row fails to scan or f returns an error the query will be aborted and the error
+// will be returned.
+func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+	rows, err := c.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(scans...)
+		if err != nil {
+			return nil, err
+		}
+
+		err = f(rows)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return rows.CommandTag(), nil
 }
 
 // SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless

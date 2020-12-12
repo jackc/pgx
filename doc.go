@@ -82,6 +82,23 @@ Use Exec to execute a query that does not return a result set.
         return errors.New("No row found to delete")
     }
 
+QueryFunc can be used to execute a callback function for every row. This is often easier to use than Query.
+
+    var sum, n int32
+	_, err = conn.QueryFunc(
+		context.Background(),
+		"select generate_series(1,$1)",
+		[]interface{}{10},
+		[]interface{}{&n},
+		func(pgx.QueryFuncRow) error {
+            sum += n
+			return nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+
 Base Type Mapping
 
 pgx maps between all common base types directly between Go and PostgreSQL. In particular:

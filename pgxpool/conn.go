@@ -58,6 +58,10 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return c.Conn().QueryRow(ctx, sql, args...)
 }
 
+func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+	return c.Conn().QueryFunc(ctx, sql, args, scans, f)
+}
+
 func (c *Conn) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	return c.Conn().SendBatch(ctx, b)
 }
