@@ -62,6 +62,10 @@ func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx
 	return tx.t.QueryRow(ctx, sql, args...)
 }
 
+func (tx *Tx) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+	return tx.t.QueryFunc(ctx, sql, args, scans, f)
+}
+
 func (tx *Tx) Conn() *pgx.Conn {
 	return tx.t.Conn()
 }
