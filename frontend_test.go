@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgproto3/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type interruptReader struct {
@@ -77,4 +78,40 @@ func TestFrontendReceiveUnexpectedEOF(t *testing.T) {
 	msg, err = frontend.Receive()
 	assert.Nil(t, msg)
 	assert.Equal(t, io.ErrUnexpectedEOF, err)
+}
+
+func TestErrorResponse(t *testing.T) {
+	t.Parallel()
+
+	want := &pgproto3.ErrorResponse{
+		Severity:            "ERROR",
+		SeverityUnlocalized: "ERROR",
+		Message:             `column "foo" does not exist`,
+		File:                "parse_relation.c",
+		Code:                "42703",
+		Position:            8,
+		Line:                3513,
+		Routine:             "errorMissingColumn",
+	}
+
+	raw := []byte{
+		'E', 0, 0, 0, 'f',
+		'S', 'E', 'R', 'R', 'O', 'R', 0,
+		'V', 'E', 'R', 'R', 'O', 'R', 0,
+		'C', '4', '2', '7', '0', '3', 0,
+		'M', 'c', 'o', 'l', 'u', 'm', 'n', 32, '"', 'f', 'o', 'o', '"', 32, 'd', 'o', 'e', 's', 32, 'n', 'o', 't', 32, 'e', 'x', 'i', 's', 't', 0,
+		'P', '8', 0,
+		'F', 'p', 'a', 'r', 's', 'e', '_', 'r', 'e', 'l', 'a', 't', 'i', 'o', 'n', '.', 'c', 0,
+		'L', '3', '5', '1', '3', 0,
+		'R', 'e', 'r', 'r', 'o', 'r', 'M', 'i', 's', 's', 'i', 'n', 'g', 'C', 'o', 'l', 'u', 'm', 'n', 0, 0,
+	}
+
+	server := &interruptReader{}
+	server.push(raw)
+
+	frontend := pgproto3.NewFrontend(pgproto3.NewChunkReader(server), nil)
+
+	got, err := frontend.Receive()
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }
