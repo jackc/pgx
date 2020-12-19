@@ -1,3 +1,7 @@
+# 4.10.1 (December 19, 2020)
+
+* Fix panic on Query error with nil stmtcache.
+
 # 4.10.0 (December 3, 2020)
 
 * Add CopyFromSlice to simplify CopyFrom usage (Egon Elbre)
