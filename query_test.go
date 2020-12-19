@@ -1973,6 +1973,31 @@ func TestQueryStatementCacheModes(t *testing.T) {
 	}
 }
 
+// https://github.com/jackc/pgx/issues/895
+func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.BuildStatementCache = nil
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(context.Background(), "create temporary table t_unq(id text primary key);")
+	require.NoError(t, err)
+
+	_, err = conn.Exec(context.Background(), "insert into t_unq (id) values ($1)", "abc")
+	require.NoError(t, err)
+
+	rows, err := conn.Query(context.Background(), "insert into t_unq (id) values ($1)", "abc")
+	require.NoError(t, err)
+	rows.Close()
+	err = rows.Err()
+	require.EqualError(t, err, `ERROR: duplicate key value violates unique constraint "t_unq_pkey" (SQLSTATE 23505)`)
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnQueryFunc(t *testing.T) {
 	t.Parallel()
 
