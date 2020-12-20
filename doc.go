@@ -289,7 +289,7 @@ When you already have a typed array using CopyFromSlice can be more convenient.
         pgx.Identifier{"people"},
         []string{"first_name", "last_name", "age"},
         pgx.CopyFromSlice(len(rows), func(i int) ([]interface{}, error) {
-            return []interface{user.FirstName, user.LastName, user.Age}, nil
+            return []interface{}{rows[i].FirstName, rows[i].LastName, rows[i].Age}, nil
         }),
     )
 
