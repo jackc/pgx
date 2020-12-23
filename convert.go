@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql"
 	"math"
 	"reflect"
 	"time"
@@ -277,6 +278,8 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 				return errors.Errorf("%d is less than zero for uint64", srcVal)
 			}
 			*v = uint64(srcVal)
+		case sql.Scanner:
+			return v.Scan(srcVal)
 		default:
 			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 				el := v.Elem()
