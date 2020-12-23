@@ -512,7 +512,14 @@ func (pgConn *PgConn) PID() uint32 {
 	return pgConn.pid
 }
 
-// TxStatus returns the current TxStatus as reported by the server.
+// TxStatus returns the current TxStatus as reported by the server in the ReadyForQuery message.
+//
+// Possible return values:
+//   'I' - idle / not in transaction
+//   'T' - in a transaction
+//   'E' - in a failed transaction
+//
+// See https://www.postgresql.org/docs/current/protocol-message-formats.html.
 func (pgConn *PgConn) TxStatus() byte {
 	return pgConn.txStatus
 }
