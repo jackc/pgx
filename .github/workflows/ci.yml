@@ -35,6 +35,14 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
+    - name: Create hstore extension
+      run: psql -c 'create extension hstore'
+      env:
+        PGHOST: localhost
+        PGUSER: postgres
+        PGPASSWORD: secret
+        PGSSLMODE: disable
+
     - name: Test
       run: go test -v ./...
       env:
