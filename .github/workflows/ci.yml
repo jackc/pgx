@@ -22,6 +22,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
 
@@ -36,5 +38,6 @@ jobs:
     - name: Test
       run: go test -v ./...
       env:
-        PGHOST: postgres
+        PGHOST: localhost
+        PGUSER: postgres
         PGPASSWORD: secret
