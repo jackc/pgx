@@ -41,3 +41,4 @@ jobs:
         PGHOST: localhost
         PGUSER: postgres
         PGPASSWORD: secret
+        PGSSLMODE: disable
