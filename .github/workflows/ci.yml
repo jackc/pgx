@@ -11,6 +11,18 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
 
     - name: Set up Go 1.x
@@ -23,3 +35,6 @@ jobs:
 
     - name: Test
       run: go test -v ./...
+      env:
+        PGHOST: postgres
+        PGPASSWORD: secret
