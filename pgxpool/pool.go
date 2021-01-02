@@ -70,6 +70,7 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 type Pool struct {
 	p                 *puddle.Pool
 	config            *Config
+	beforeConnect     func(context.Context, *pgx.ConnConfig) error
 	afterConnect      func(context.Context, *pgx.Conn) error
 	beforeAcquire     func(context.Context, *pgx.Conn) bool
 	afterRelease      func(*pgx.Conn) bool
@@ -84,6 +85,10 @@ type Pool struct {
 // modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type Config struct {
 	ConnConfig *pgx.ConnConfig
+
+	// BeforeConnect is called before a new connection is made. It is passed a copy of the underlying pgx.ConnConfig and
+	// will not impact any existing open connections.
+	BeforeConnect func(context.Context, *pgx.ConnConfig) error
 
 	// AfterConnect is called after a connection is established, but before it is added to the pool.
 	AfterConnect func(context.Context, *pgx.Conn) error
@@ -155,6 +160,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p := &Pool{
 		config:            config,
+		beforeConnect:     config.BeforeConnect,
 		afterConnect:      config.AfterConnect,
 		beforeAcquire:     config.BeforeAcquire,
 		afterRelease:      config.AfterRelease,
@@ -167,7 +173,16 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) {
-			conn, err := pgx.ConnectConfig(ctx, config.ConnConfig)
+			connConfig := p.config.ConnConfig
+
+			if p.beforeConnect != nil {
+				connConfig = p.config.ConnConfig.Copy()
+				if err := p.beforeConnect(ctx, connConfig); err != nil {
+					return nil, err
+				}
+			}
+
+			conn, err := pgx.ConnectConfig(ctx, connConfig)
 			if err != nil {
 				return nil, err
 			}
