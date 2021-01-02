@@ -112,6 +112,27 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolBeforeConnect(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		cfg.Config.RuntimeParams["application_name"] = "pgx"
+		return nil
+	}
+
+	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	var str string
+	err = db.QueryRow(context.Background(), "SHOW application_name").Scan(&str)
+	require.NoError(t, err)
+	assert.EqualValues(t, "pgx", str)
+}
+
 func TestPoolAfterConnect(t *testing.T) {
 	t.Parallel()
 
