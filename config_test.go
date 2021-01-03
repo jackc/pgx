@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,7 +23,13 @@ func TestParseConfig(t *testing.T) {
 	var osUserName string
 	osUser, err := user.Current()
 	if err == nil {
-		osUserName = osUser.Username
+		// Windows gives us the username here as `DOMAIN\user` or `LOCALPCNAME\user`,
+		// but the libpq default is just the `user` portion, so we strip off the first part.
+		if runtime.GOOS == "windows" && strings.Contains(osUser.Username, "\\") {
+			osUserName = osUser.Username[strings.LastIndex(osUser.Username, "\\")+1:]
+		} else {
+			osUserName = osUser.Username
+		}
 	}
 
 	tests := []struct {
@@ -630,7 +638,13 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 	var osUserName string
 	osUser, err := user.Current()
 	if err == nil {
-		osUserName = osUser.Username
+		// Windows gives us the username here as `DOMAIN\user` or `LOCALPCNAME\user`,
+		// but the libpq default is just the `user` portion, so we strip off the first part.
+		if runtime.GOOS == "windows" && strings.Contains(osUser.Username, "\\") {
+			osUserName = osUser.Username[strings.LastIndex(osUser.Username, "\\")+1:]
+		} else {
+			osUserName = osUser.Username
+		}
 	}
 
 	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
