@@ -77,7 +77,9 @@ const (
 	Int4rangeOID        = 3904
 	NumrangeOID         = 3906
 	TsrangeOID          = 3908
+	TsrangeArrayOID     = 3909
 	TstzrangeOID        = 3910
+	TstzrangeArrayOID   = 3911
 	Int8rangeOID        = 3926
 )
 
@@ -309,7 +311,9 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Timestamp{}, Name: "timestamp", OID: TimestampOID})
 	ci.RegisterDataType(DataType{Value: &Timestamptz{}, Name: "timestamptz", OID: TimestamptzOID})
 	ci.RegisterDataType(DataType{Value: &Tsrange{}, Name: "tsrange", OID: TsrangeOID})
+	ci.RegisterDataType(DataType{Value: &TsrangeArray{}, Name: "_tsrange", OID: TsrangeArrayOID})
 	ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
+	ci.RegisterDataType(DataType{Value: &TstzrangeArray{}, Name: "_tstzrange", OID: TstzrangeArrayOID})
 	ci.RegisterDataType(DataType{Value: &Unknown{}, Name: "unknown", OID: UnknownOID})
 	ci.RegisterDataType(DataType{Value: &UUID{}, Name: "uuid", OID: UUIDOID})
 	ci.RegisterDataType(DataType{Value: &Varbit{}, Name: "varbit", OID: VarbitOID})
@@ -924,7 +928,9 @@ func init() {
 		"timestamp":    &Timestamp{},
 		"timestamptz":  &Timestamptz{},
 		"tsrange":      &Tsrange{},
+		"_tsrange":     &TsrangeArray{},
 		"tstzrange":    &Tstzrange{},
+		"_tstzrange":   &TstzrangeArray{},
 		"unknown":      &Unknown{},
 		"uuid":         &UUID{},
 		"varbit":       &Varbit{},
