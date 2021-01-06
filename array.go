@@ -348,7 +348,7 @@ func quoteArrayElement(src string) string {
 }
 
 func QuoteArrayElementIfNeeded(src string) string {
-	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || src[0] == ' ' || src[len(src)-1] == ' ' || strings.ContainsAny(src, `{},"\`) {
+	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || src[0] == ' ' || src[0] == '\n' || src[len(src)-1] == ' ' || src[len(src)-1] == '\n' || strings.ContainsAny(src, `{},"\`) {
 		return quoteArrayElement(src)
 	}
 	return src
