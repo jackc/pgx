@@ -347,8 +347,13 @@ func quoteArrayElement(src string) string {
 	return `"` + quoteArrayReplacer.Replace(src) + `"`
 }
 
+func isSpace(ch byte) bool {
+	// see https://github.com/postgres/postgres/blob/REL_12_STABLE/src/backend/parser/scansup.c#L224
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f'
+}
+
 func QuoteArrayElementIfNeeded(src string) string {
-	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || src[0] == ' ' || src[0] == '\n' || src[len(src)-1] == ' ' || src[len(src)-1] == '\n' || strings.ContainsAny(src, `{},"\`) {
+	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || isSpace(src[0]) || isSpace(src[len(src)-1]) || strings.ContainsAny(src, `{},"\`) {
 		return quoteArrayElement(src)
 	}
 	return src
