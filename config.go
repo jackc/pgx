@@ -112,9 +112,10 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 }
 
 // ParseConfig builds a *Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
-// defaults as libpq (e.g. port=5432) and understands most PG* environment variables. connString may be a URL or a DSN.
-// It also may be empty to only read from the environment. If a password is not supplied it will attempt to read the
-// .pgpass file.
+// defaults as libpq (e.g. port=5432) and understands most PG* environment variables. ParseConfig closely matches
+// the parsing behavior of libpq. connString may either be in URL format or keyword = value format (DSN style). See
+// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING for details. connString also may be
+// empty to only read from the environment. If a password is not supplied it will attempt to read the .pgpass file.
 //
 //   # Example DSN
 //   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca
