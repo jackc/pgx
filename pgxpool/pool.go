@@ -492,3 +492,12 @@ func (p *Pool) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNam
 
 	return c.Conn().CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
+
+func (p *Pool) Ping(ctx context.Context) error {
+	c, err := p.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer c.Release()
+	return c.Ping(ctx)
+}

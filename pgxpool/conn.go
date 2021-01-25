@@ -78,6 +78,10 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, er
 	return c.Conn().BeginTx(ctx, txOptions)
 }
 
+func (c *Conn) Ping(ctx context.Context) error {
+	return c.Conn().Ping(ctx)
+}
+
 func (c *Conn) Conn() *pgx.Conn {
 	return c.connResource().conn
 }
