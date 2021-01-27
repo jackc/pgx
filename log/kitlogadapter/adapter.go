@@ -17,11 +17,9 @@ func NewLogger(l log.Logger) *Logger {
 }
 
 func (l *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
-	var logger log.Logger
-	if data != nil {
-		logger = log.With(l.l, data)
-	} else {
-		logger = l.l
+	logger := l.l
+	for k, v := range data {
+		logger = log.With(logger, k, v)
 	}
 
 	switch level {
