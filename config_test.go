@@ -568,16 +568,7 @@ func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
-	fmt.Printf("original: %#v\n", original)
-	for i, f := range original.Fallbacks {
-		fmt.Printf("original fallback %d: %#v\n", i, f)
-	}
-
 	copied := original.Copy()
-	fmt.Printf("copied: %#v\n", copied)
-	for i, f := range copied.Fallbacks {
-		fmt.Printf("copied fallback %d: %#v\n", i, f)
-	}
 	assertConfigsEqual(t, original, copied, "Test Config.Copy() returns equal config")
 
 	copied.Port = uint16(5433)
