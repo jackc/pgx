@@ -1,5 +1,6 @@
 [![](https://godoc.org/github.com/jackc/pgconn?status.svg)](https://godoc.org/github.com/jackc/pgconn)
 [![Build Status](https://travis-ci.org/jackc/pgconn.svg)](https://travis-ci.org/jackc/pgconn)
+![CI](https://github.com/jackc/pgtype/workflows/CI/badge.svg)
 
 # pgconn
 
