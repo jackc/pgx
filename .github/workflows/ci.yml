@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        go_version: [1.14, 1.15]
+        pg_version: [9.6, 10, 11, 12, 13]
+
+    steps:
+
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go_version }}
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Setup database server for testing
+      run: ci/setup_test.bash
+      env:
+        PGVERSION: ${{ matrix.pg_version }}
+
+    - name: Test
+      run: go test -v -race ./...
+      env:
+        PGX_TEST_DATABASE: postgres://pgx_md5:secret@127.0.0.1/pgx_test
