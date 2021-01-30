@@ -564,7 +564,7 @@ func TestConfigCopyReturnsEqualConfig(t *testing.T) {
 }
 
 func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
-	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5"
+	connString := "postgres://jack:secret@localhost:5432/mydb?application_name=pgxtest&search_path=myschema&connect_timeout=5&sslmode=prefer"
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
