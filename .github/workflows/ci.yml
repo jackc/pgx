@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ github-ci-wip ]
+    branches: [ master ]
   pull_request:
-    branches: [ github-ci-wip ]
+    branches: [ master ]
 
 jobs:
 
