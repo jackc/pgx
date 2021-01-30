@@ -12,19 +12,6 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: secret
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
 
     - name: Set up Go 1.x
@@ -35,18 +22,17 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: Create hstore extension
-      run: psql -c 'create extension hstore'
+    - name: Setup database server for testing
+      run: ci/setup_test.bash
       env:
-        PGHOST: localhost
-        PGUSER: postgres
-        PGPASSWORD: secret
-        PGSSLMODE: disable
+        PGVERSION: 12
 
     - name: Test
       run: go test -v ./...
       env:
-        PGHOST: localhost
-        PGUSER: postgres
-        PGPASSWORD: secret
-        PGSSLMODE: disable
+        PGX_TEST_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+        PGX_TEST_UNIX_SOCKET_CONN_STRING: "host=/var/run/postgresql dbname=pgx_test"
+        PGX_TEST_TCP_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+        PGX_TEST_TLS_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+        PGX_TEST_MD5_PASSWORD_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+        PGX_TEST_PLAIN_PASSWORD_CONN_STRING: postgres://pgx_pw:secret@127.0.0.1/pgx_test
