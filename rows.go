@@ -221,7 +221,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 		err := rows.scanPlans[i].Scan(ci, fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dst)
 		if err != nil {
-			err = scanArgError{col: i, err: err}
+			err = ScanArgError{col: i, err: err}
 			rows.fatal(err)
 			return err
 		}
@@ -306,12 +306,12 @@ func (rows *connRows) RawValues() [][]byte {
 	return rows.values
 }
 
-type scanArgError struct {
+type ScanArgError struct {
 	col int
 	err error
 }
 
-func (e scanArgError) Error() string {
+func (e ScanArgError) Error() string {
 	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
 }
 
@@ -336,7 +336,7 @@ func ScanRow(connInfo *pgtype.ConnInfo, fieldDescriptions []pgproto3.FieldDescri
 
 		err := connInfo.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
 		if err != nil {
-			return scanArgError{col: i, err: err}
+			return ScanArgError{col: i, err: err}
 		}
 	}
 
