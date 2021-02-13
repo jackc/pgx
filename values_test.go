@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -297,6 +298,11 @@ func TestInetCIDRTranscodeIPNet(t *testing.T) {
 		}
 
 		for i, tt := range tests {
+			if conn.PgConn().ParameterStatus("crdb_version") != "" && strings.Contains(tt.sql, "cidr") {
+				t.Log("Server does not support cidr type (https://github.com/cockroachdb/cockroach/issues/18846)")
+				continue
+			}
+
 			var actual net.IPNet
 
 			err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
@@ -335,6 +341,11 @@ func TestInetCIDRTranscodeIP(t *testing.T) {
 		}
 
 		for i, tt := range tests {
+			if conn.PgConn().ParameterStatus("crdb_version") != "" && strings.Contains(tt.sql, "cidr") {
+				t.Log("Server does not support cidr type (https://github.com/cockroachdb/cockroach/issues/18846)")
+				continue
+			}
+
 			var actual net.IP
 
 			err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
@@ -412,6 +423,11 @@ func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 		}
 
 		for i, tt := range tests {
+			if conn.PgConn().ParameterStatus("crdb_version") != "" && strings.Contains(tt.sql, "cidr") {
+				t.Log("Server does not support cidr type (https://github.com/cockroachdb/cockroach/issues/18846)")
+				continue
+			}
+
 			var actual []*net.IPNet
 
 			err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
@@ -460,6 +476,11 @@ func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 		}
 
 		for i, tt := range tests {
+			if conn.PgConn().ParameterStatus("crdb_version") != "" && strings.Contains(tt.sql, "cidr") {
+				t.Log("Server does not support cidr type (https://github.com/cockroachdb/cockroach/issues/18846)")
+				continue
+			}
+
 			var actual []net.IP
 
 			err := conn.QueryRow(context.Background(), tt.sql, tt.value).Scan(&actual)
@@ -533,6 +554,11 @@ func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 		}
 
 		for i, tt := range tests {
+			if conn.PgConn().ParameterStatus("crdb_version") != "" && strings.Contains(tt.sql, "cidr") {
+				t.Log("Server does not support cidr type (https://github.com/cockroachdb/cockroach/issues/18846)")
+				continue
+			}
+
 			expected := mustParseCIDR(t, tt.value)
 			var actual net.IPNet
 
