@@ -524,9 +524,18 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	assert.Len(t, results, 1)
-	assert.Len(t, results[0].Rows, 1)
-	assert.Equal(t, "1", string(results[0].Rows[0][0]))
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		// CockroachDB starts the second query result set and then sends the divide by zero error.
+		require.Len(t, results, 2)
+		assert.Len(t, results[0].Rows, 1)
+		assert.Equal(t, "1", string(results[0].Rows[0][0]))
+		assert.Len(t, results[1].Rows, 0)
+	} else {
+		// PostgreSQL sends the divide by zero and never sends the second query result set.
+		require.Len(t, results, 1)
+		assert.Len(t, results[0].Rows, 1)
+		assert.Equal(t, "1", string(results[0].Rows[0][0]))
+	}
 
 	ensureConnValid(t, pgConn)
 }
@@ -537,6 +546,10 @@ func TestConnExecDeferredError(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	}
 
 	setupSQL := `create temporary table t (
 		id text primary key,
@@ -629,6 +642,10 @@ func TestConnExecParamsDeferredError(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	}
 
 	setupSQL := `create temporary table t (
 		id text primary key,
@@ -860,14 +877,19 @@ func TestConnExecPreparedTooManyParams(t *testing.T) {
 	sql := "values" + strings.Join(params, ", ")
 
 	psd, err := pgConn.Prepare(context.Background(), "ps1", sql, nil)
-	require.NoError(t, err)
-	require.NotNil(t, psd)
-	assert.Len(t, psd.ParamOIDs, paramCount)
-	assert.Len(t, psd.Fields, 1)
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		// CockroachDB rejects preparing a statement with more than 65535 parameters.
+		require.EqualError(t, err, "ERROR: more than 65535 arguments to prepared statement: 65536 (SQLSTATE 08P01)")
+	} else {
+		// PostgreSQL accepts preparing a statement with more than 65535 parameters and only fails when executing it through the extended protocol.
+		require.NoError(t, err)
+		require.NotNil(t, psd)
+		assert.Len(t, psd.ParamOIDs, paramCount)
+		assert.Len(t, psd.Fields, 1)
 
-	result := pgConn.ExecPrepared(context.Background(), "ps1", args, nil, nil).Read()
-	require.Error(t, result.Err)
-	require.Equal(t, "extended protocol limited to 65535 parameters", result.Err.Error())
+		result := pgConn.ExecPrepared(context.Background(), "ps1", args, nil, nil).Read()
+		require.EqualError(t, result.Err, "extended protocol limited to 65535 parameters")
+	}
 
 	ensureConnValid(t, pgConn)
 }
@@ -980,6 +1002,10 @@ func TestConnExecBatchDeferredError(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	}
 
 	setupSQL := `create temporary table t (
 		id text primary key,
@@ -1161,6 +1187,10 @@ func TestConnOnNotice(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support PL/PGSQL (https://github.com/cockroachdb/cockroach/issues/17511)")
+	}
+
 	multiResult := pgConn.Exec(context.Background(), `do $$
 begin
   raise notice 'hello, world';
@@ -1186,6 +1216,10 @@ func TestConnOnNotification(t *testing.T) {
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+	}
 
 	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
 	require.NoError(t, err)
@@ -1218,6 +1252,10 @@ func TestConnWaitForNotification(t *testing.T) {
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+	}
 
 	_, err = pgConn.Exec(context.Background(), "listen foo").ReadAll()
 	require.NoError(t, err)
@@ -1279,6 +1317,10 @@ func TestConnCopyToSmall(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does support COPY TO")
+	}
+
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int2,
 		b int4,
@@ -1316,6 +1358,10 @@ func TestConnCopyToLarge(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does support COPY TO")
+	}
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int2,
@@ -1372,6 +1418,10 @@ func TestConnCopyToCanceled(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support query cancellation (https://github.com/cockroachdb/cockroach/issues/41335)")
+	}
+
 	outputWriter := &bytes.Buffer{}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
@@ -1415,6 +1465,10 @@ func TestConnCopyFrom(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not fully support COPY FROM (https://www.cockroachlabs.com/docs/v20.2/copy-from.html)")
+	}
+
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int4,
 		b varchar
@@ -1450,6 +1504,10 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support query cancellation (https://github.com/cockroachdb/cockroach/issues/41335)")
+	}
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int4,
@@ -1527,6 +1585,10 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not fully support COPY FROM (https://www.cockroachlabs.com/docs/v20.2/copy-from.html)")
+	}
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int4,
@@ -1627,6 +1689,10 @@ func TestConnCopyFromNoticeResponseReceivedMidStream(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support triggers (https://github.com/cockroachdb/cockroach/issues/28296)")
+	}
+
 	_, err = pgConn.Exec(ctx, `create temporary table sentences(
 		t text,
 		ts tsvector
@@ -1692,6 +1758,10 @@ func TestConnCancelRequest(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
+
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support query cancellation (https://github.com/cockroachdb/cockroach/issues/41335)")
+	}
 
 	multiResult := pgConn.Exec(context.Background(), "select 'Hello, world', pg_sleep(2)")
 
