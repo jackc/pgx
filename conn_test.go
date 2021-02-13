@@ -639,6 +639,10 @@ func TestFatalRxError(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -674,6 +678,10 @@ func TestFatalTxError(t *testing.T) {
 		func() {
 			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer closeConn(t, conn)
+
+			if conn.PgConn().ParameterStatus("crdb_version") != "" {
+				t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+			}
 
 			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer otherConn.Close(context.Background())
