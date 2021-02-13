@@ -838,6 +838,11 @@ func TestConnInitConnInfo(t *testing.T) {
 
 func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
+		}
+
 		var n uint64
 		err := conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
 		if err != nil {
@@ -852,6 +857,10 @@ func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 
 func TestDomainType(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
+		}
+
 		var n uint64
 
 		// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
