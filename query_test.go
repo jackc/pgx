@@ -157,30 +157,13 @@ func TestConnQueryValues(t *testing.T) {
 		rowCount++
 
 		values, err := rows.Values()
-		if err != nil {
-			t.Fatalf("rows.Values failed: %v", err)
-		}
-		if len(values) != 5 {
-			t.Errorf("Expected rows.Values to return 5 values, but it returned %d", len(values))
-		}
-		if values[0] != "foo" {
-			t.Errorf(`Expected values[0] to be "foo", but it was %v`, values[0])
-		}
-		if values[1] != "bar" {
-			t.Errorf(`Expected values[1] to be "bar", but it was %v`, values[1])
-		}
-
-		if values[2] != rowCount {
-			t.Errorf(`Expected values[2] to be %d, but it was %d`, rowCount, values[2])
-		}
-
-		if values[3] != nil {
-			t.Errorf(`Expected values[3] to be %v, but it was %d`, nil, values[3])
-		}
-
-		if values[4] != rowCount {
-			t.Errorf(`Expected values[4] to be %d, but it was %d`, rowCount, values[4])
-		}
+		require.NoError(t, err)
+		require.Len(t, values, 5)
+		assert.Equal(t, "foo", values[0])
+		assert.Equal(t, "bar", values[1])
+		assert.EqualValues(t, rowCount, values[2])
+		assert.Nil(t, values[3])
+		assert.EqualValues(t, rowCount, values[4])
 	}
 
 	if rows.Err() != nil {
