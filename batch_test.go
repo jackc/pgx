@@ -597,6 +597,10 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	}
+
 	mustExec(t, conn, `create temporary table t (
 		id text primary key,
 		n int not null,
