@@ -221,7 +221,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 		err := rows.scanPlans[i].Scan(ci, fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dst)
 		if err != nil {
-			err = ScanArgError{col: i, err: err}
+			err = ScanArgError{ColumnIndex: i, Err: err}
 			rows.fatal(err)
 			return err
 		}
@@ -307,12 +307,16 @@ func (rows *connRows) RawValues() [][]byte {
 }
 
 type ScanArgError struct {
-	col int
-	err error
+	ColumnIndex int
+	Err error
 }
 
 func (e ScanArgError) Error() string {
-	return fmt.Sprintf("can't scan into dest[%d]: %v", e.col, e.err)
+	return fmt.Sprintf("can't scan into dest[%d]: %v", e.ColumnIndex, e.Err)
+}
+
+func (e ScanArgError) Unwrap() error {
+	return e.Err
 }
 
 // ScanRow decodes raw row data into dest. It can be used to scan rows read from the lower level pgconn interface.
@@ -336,7 +340,7 @@ func ScanRow(connInfo *pgtype.ConnInfo, fieldDescriptions []pgproto3.FieldDescri
 
 		err := connInfo.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
 		if err != nil {
-			return ScanArgError{col: i, err: err}
+			return ScanArgError{ColumnIndex: i, Err: err}
 		}
 	}
 
