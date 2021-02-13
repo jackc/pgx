@@ -246,7 +246,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 			require.Equal(t, "bar", values[1])
 			require.EqualValues(t, rowCount, values[2])
 			require.Nil(t, values[3])
-			require.Equal(t, rowCount, values[4])
+			require.EqualValues(t, rowCount, values[4])
 
 			var a, b string
 			var c int32
