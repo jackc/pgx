@@ -806,7 +806,7 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	assert.True(t, rows.Next())
 	values, err := rows.Values()
 	assert.NoError(t, err)
-	assert.Equal(t, int32(1), values[0])
+	assert.EqualValues(t, 1, values[0])
 	assert.False(t, rows.Next())
 
 	rows, err = results.Query()
@@ -814,7 +814,7 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	assert.True(t, rows.Next())
 	values, err = rows.Values()
 	assert.NoError(t, err)
-	assert.Equal(t, int32(2), values[0])
+	assert.EqualValues(t, 2, values[0])
 	assert.False(t, rows.Next())
 
 	rows, err = results.Query()
@@ -822,6 +822,6 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	assert.True(t, rows.Next())
 	values, err = rows.Values()
 	assert.NoError(t, err)
-	assert.Equal(t, int32(3), values[0])
+	assert.EqualValues(t, 3, values[0])
 	assert.False(t, rows.Next())
 }
