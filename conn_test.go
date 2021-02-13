@@ -482,6 +482,10 @@ func TestListenNotify(t *testing.T) {
 	listener := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, listener)
 
+	if listener.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+	}
+
 	mustExec(t, listener, "listen chat")
 
 	notifier := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -531,6 +535,10 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			listenerDone <- true
 		}()
 
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+		}
+
 		mustExec(t, conn, "listen busysafe")
 
 		for i := 0; i < 5000; i++ {
@@ -574,6 +582,10 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			notifierDone <- true
 		}()
 
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+		}
+
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
 			time.Sleep(1 * time.Microsecond)
@@ -589,6 +601,10 @@ func TestListenNotifySelfNotification(t *testing.T) {
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+	}
 
 	mustExec(t, conn, "listen self")
 
