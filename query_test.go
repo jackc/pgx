@@ -2006,7 +2006,13 @@ func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
 	require.NoError(t, err)
 	rows.Close()
 	err = rows.Err()
-	require.EqualError(t, err, `ERROR: duplicate key value violates unique constraint "t_unq_pkey" (SQLSTATE 23505)`)
+	require.Error(t, err)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		assert.Equal(t, "23505", pgErr.Code)
+	} else {
+		t.Errorf("err is not a *pgconn.PgError: %T", err)
+	}
 
 	ensureConnValid(t, conn)
 }
