@@ -627,8 +627,15 @@ func TestQueryEncodeError(t *testing.T) {
 	if rows.Err() == nil {
 		t.Error("Expected rows.Err() to return error, but it didn't")
 	}
-	if !strings.Contains(rows.Err().Error(), "SQLSTATE 22P02") {
-		t.Error("Expected rows.Err() to return different error:", rows.Err())
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		if !strings.Contains(rows.Err().Error(), "SQLSTATE 08P01") {
+			// CockroachDB returns protocol_violation instead of invalid_text_representation
+			t.Error("Expected rows.Err() to return different error:", rows.Err())
+		}
+	} else {
+		if !strings.Contains(rows.Err().Error(), "SQLSTATE 22P02") {
+			t.Error("Expected rows.Err() to return different error:", rows.Err())
+		}
 	}
 }
 
