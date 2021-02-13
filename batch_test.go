@@ -18,6 +18,10 @@ func TestConnSendBatch(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server serial type is incompatible with test")
+	}
+
 	sql := `create temporary table ledger(
 	  id serial primary key,
 	  description varchar not null,
