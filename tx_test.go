@@ -20,7 +20,7 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 	createSql := `
     create temporary table foo(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
@@ -62,7 +62,7 @@ func TestTxCommitWhenTxBroken(t *testing.T) {
 	createSql := `
     create temporary table foo(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
@@ -205,7 +205,7 @@ func TestTransactionSuccessfulRollback(t *testing.T) {
 	createSql := `
     create temporary table foo(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
@@ -368,7 +368,7 @@ func TestTxNestedTransactionCommit(t *testing.T) {
 	createSql := `
     create temporary table foo(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
@@ -440,7 +440,7 @@ func TestTxNestedTransactionRollback(t *testing.T) {
 	createSql := `
     create temporary table foo(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
