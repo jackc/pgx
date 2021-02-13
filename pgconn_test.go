@@ -990,7 +990,7 @@ func TestConnExecBatchDeferredError(t *testing.T) {
 	insert into t (id, n) values ('a', 1), ('b', 2), ('c', 3);`
 
 	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	batch := &pgconn.Batch{}
 
