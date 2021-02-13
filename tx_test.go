@@ -175,12 +175,12 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	}
 	defer tx2.Rollback(context.Background())
 
-	_, err = tx1.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	_, err = tx1.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num)::int from tx_serializable_sums`)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
 
-	_, err = tx2.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num) from tx_serializable_sums`)
+	_, err = tx2.Exec(context.Background(), `insert into tx_serializable_sums(num) select sum(num)::int from tx_serializable_sums`)
 	if err != nil {
 		t.Fatalf("Exec failed: %v", err)
 	}
