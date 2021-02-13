@@ -1878,6 +1878,10 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support changing client_encoding (https://www.cockroachlabs.com/docs/stable/set-vars.html)")
+	}
+
 	mustExec(t, conn, "set client_encoding to 'SQL_ASCII'")
 
 	var expected string
