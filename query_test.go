@@ -1795,19 +1795,22 @@ func TestConnSimpleProtocol(t *testing.T) {
 	// Test high-level type
 
 	{
-		expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
-		actual := expected
-		err := conn.QueryRow(
-			context.Background(),
-			"select $1::circle",
-			pgx.QuerySimpleProtocol(true),
-			&expected,
-		).Scan(&actual)
-		if err != nil {
-			t.Error(err)
-		}
-		if expected != actual {
-			t.Errorf("expected %v got %v", expected, actual)
+		if conn.PgConn().ParameterStatus("crdb_version") == "" {
+			// CockroachDB doesn't support circle type.
+			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
+			actual := expected
+			err := conn.QueryRow(
+				context.Background(),
+				"select $1::circle",
+				pgx.QuerySimpleProtocol(true),
+				&expected,
+			).Scan(&actual)
+			if err != nil {
+				t.Error(err)
+			}
+			if expected != actual {
+				t.Errorf("expected %v got %v", expected, actual)
+			}
 		}
 	}
 
