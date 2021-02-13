@@ -586,6 +586,10 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server uses numeric instead of int")
+	}
+
 	for i := 0; i < 100; i++ {
 		func() {
 			sql := `select 42 / (random() * 20)::integer from generate_series(1,100000)`
