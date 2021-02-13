@@ -244,7 +244,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 			require.Len(t, values, 5)
 			require.Equal(t, "foo", values[0])
 			require.Equal(t, "bar", values[1])
-			require.Equal(t, rowCount, values[2])
+			require.EqualValues(t, rowCount, values[2])
 			require.Nil(t, values[3])
 			require.Equal(t, rowCount, values[4])
 
