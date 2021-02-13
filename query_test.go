@@ -1361,6 +1361,10 @@ func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server uses numeric instead of int")
+	}
+
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
 
