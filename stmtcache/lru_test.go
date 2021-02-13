@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -239,7 +240,19 @@ func fetchServerStatements(t testing.TB, ctx context.Context, conn *pgconn.PgCon
 	require.NoError(t, result.Err)
 	var statements []string
 	for _, r := range result.Rows {
-		statements = append(statements, string(r[0]))
+		statement := string(r[0])
+		if conn.ParameterStatus("crdb_version") != "" {
+			if statement == "PREPARE  AS select statement from pg_prepared_statements" {
+				// CockroachDB includes the currently running unnamed prepared statement while PostgreSQL does not. Ignore it.
+				continue
+			}
+
+			// CockroachDB includes the "PREPARE ... AS" text in the statement even if it was prepared through the extended
+			// protocol will PostgreSQL does not. Normalize the statement.
+			re := regexp.MustCompile(`^PREPARE lrupsc[0-9_]+ AS `)
+			statement = re.ReplaceAllString(statement, "")
+		}
+		statements = append(statements, statement)
 	}
 	return statements
 }
