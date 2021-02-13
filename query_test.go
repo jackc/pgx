@@ -1900,6 +1900,10 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
+	}
+
 	mustExec(t, conn, "set standard_conforming_strings to off")
 
 	var expected string
