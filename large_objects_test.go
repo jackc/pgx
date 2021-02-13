@@ -22,6 +22,10 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does support large objects")
+	}
+
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -46,6 +50,10 @@ func TestLargeObjectsPreferSimpleProtocol(t *testing.T) {
 	conn, err := pgx.ConnectConfig(ctx, config)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does support large objects")
 	}
 
 	tx, err := conn.Begin(ctx)
@@ -163,6 +171,10 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does support large objects")
 	}
 
 	tx, err := conn.Begin(ctx)
