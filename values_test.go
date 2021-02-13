@@ -969,8 +969,9 @@ func TestRowDecodeBinary(t *testing.T) {
 			continue
 		}
 
-		if !reflect.DeepEqual(actual, tt.expected) {
-			t.Errorf("%d. Expected %v, got %v (sql -> %v)", i, tt.expected, actual, tt.sql)
+		for j := range tt.expected {
+			assert.EqualValuesf(t, tt.expected[j], actual[j], "%d. [%d]", i, j)
+
 		}
 
 		ensureConnValid(t, conn)
