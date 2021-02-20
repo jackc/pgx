@@ -386,6 +386,19 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 	}
 }
 
+// AcquireFunc acquires a *Conn and calls f with that *Conn. ctx will only affect the Acquire. It has no effect on the
+// call of f. The return value is either an error acquiring the *Conn or the return value of f. The *Conn is
+// automatically released after the call of f.
+func (p *Pool) AcquireFunc(ctx context.Context, f func(*Conn) error) error {
+	conn, err := p.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	return f(conn)
+}
+
 // AcquireAllIdle atomically acquires all currently idle connections. Its intended use is for health check and
 // keep-alive functionality. It does not update pool statistics.
 func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
