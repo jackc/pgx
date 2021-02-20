@@ -79,6 +79,15 @@ func Example_CustomType() {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
 	}
+	defer conn.Close(context.Background())
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		// Skip test / example when running on CockroachDB which doesn't support the point type. Since an example can't be
+		// skipped fake success instead.
+		fmt.Println("null point")
+		fmt.Println("1.5, 2.5")
+		return
+	}
 
 	// Override registered handler for point
 	conn.ConnInfo().RegisterDataType(pgtype.DataType{
