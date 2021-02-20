@@ -2,6 +2,7 @@ package pgxpool_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -110,6 +111,34 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c, err := pool.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
+}
+
+func TestPoolAcquireFunc(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	var n int32
+	err = pool.AcquireFunc(context.Background(), func(c *pgxpool.Conn) error {
+		return c.QueryRow(context.Background(), "select 1").Scan(&n)
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 1, n)
+}
+
+func TestPoolAcquireFuncReturnsFnError(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	err = pool.AcquireFunc(context.Background(), func(c *pgxpool.Conn) error {
+		return fmt.Errorf("some error")
+	})
+	require.EqualError(t, err, "some error")
 }
 
 func TestPoolBeforeConnect(t *testing.T) {
