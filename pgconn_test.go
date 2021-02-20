@@ -1098,6 +1098,10 @@ func TestConnExecBatchImplicitTransaction(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Skipping due to known server issue: (https://github.com/cockroachdb/cockroach/issues/44803)")
+	}
+
 	_, err = pgConn.Exec(context.Background(), "create temporary table t(id int)").ReadAll()
 	require.NoError(t, err)
 
