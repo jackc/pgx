@@ -48,6 +48,9 @@ func TestTimeSet(t *testing.T) {
 		{source: time.Date(1970, 1, 1, 0, 0, 0, 1000, time.UTC), result: pgtype.Time{Microseconds: 1, Status: pgtype.Present}},
 		{source: time.Date(1999, 12, 31, 23, 59, 59, 999999999, time.UTC), result: pgtype.Time{Microseconds: 86399999999, Status: pgtype.Present}},
 		{source: time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local), result: pgtype.Time{Microseconds: 2, Status: pgtype.Present}},
+		{source: func(t time.Time) *time.Time { return &t }(time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local)), result: pgtype.Time{Microseconds: 2, Status: pgtype.Present}},
+		{source: nil, result: pgtype.Time{Status: pgtype.Null}},
+		{source: (*time.Time)(nil), result: pgtype.Time{Status: pgtype.Null}},
 		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 3000, time.UTC)), result: pgtype.Time{Microseconds: 3, Status: pgtype.Present}},
 	}
 
