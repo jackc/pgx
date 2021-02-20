@@ -42,6 +42,12 @@ func (dst *Time) Set(src interface{}) error {
 			int64(value.Second())*microsecondsPerSecond +
 			int64(value.Nanosecond())/1000
 		*dst = Time{Microseconds: usec, Status: Present}
+	case *time.Time:
+		if value == nil {
+			*dst = Time{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
