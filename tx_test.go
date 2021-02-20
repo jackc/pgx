@@ -155,6 +155,10 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	c1 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, c1)
 
+	if c1.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Skipping due to known server issue: (https://github.com/cockroachdb/cockroach/issues/60754)")
+	}
+
 	c2 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, c2)
 
