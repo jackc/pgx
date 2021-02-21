@@ -16,6 +16,10 @@ func (tx *Tx) Begin(ctx context.Context) (pgx.Tx, error) {
 	return tx.t.Begin(ctx)
 }
 
+func (tx *Tx) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
+	return tx.t.BeginFunc(ctx, f)
+}
+
 func (tx *Tx) Commit(ctx context.Context) error {
 	err := tx.t.Commit(ctx)
 	if tx.c != nil {

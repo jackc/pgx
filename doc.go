@@ -252,6 +252,17 @@ These are internally implemented with savepoints.
 
 Use BeginTx to control the transaction mode.
 
+BeginFunc and BeginTxFunc are variants that begin a transaction, execute a function, and commit or rollback the
+transaction depending on the return value of the function. These can be simpler and less error prone to use.
+
+    err = conn.BeginFunc(context.Background(), func(tx pgx.Tx) error {
+        _, err := tx.Exec(context.Background(), "insert into foo(id) values (1)")
+        return err
+    })
+    if err != nil {
+        return err
+    }
+
 Prepared Statements
 
 Prepared statements can be manually created with the Prepare method. However, this is rarely necessary because pgx
