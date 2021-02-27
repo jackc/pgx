@@ -679,7 +679,7 @@ func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 		drop table if exists pgxpooltx;
     create temporary table pgxpooltx(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
@@ -726,7 +726,7 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 		drop table if exists pgxpooltx;
     create temporary table pgxpooltx(
       id integer,
-      unique (id) initially deferred
+      unique (id)
     );
   `
 
