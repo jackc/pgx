@@ -2,9 +2,10 @@ package pgx_test
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
@@ -162,5 +163,11 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 				}
 			}
 		}
+	}
+}
+
+func skipCockroachDB(t testing.TB, conn *pgx.Conn, msg string) {
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip(msg)
 	}
 }

@@ -22,9 +22,7 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does support large objects")
-	}
+	skipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -52,9 +50,7 @@ func TestLargeObjectsPreferSimpleProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does support large objects")
-	}
+	skipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -173,9 +169,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does support large objects")
-	}
+	skipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
