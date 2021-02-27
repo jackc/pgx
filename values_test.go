@@ -742,9 +742,7 @@ func TestPointerPointer(t *testing.T) {
 	t.Parallel()
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		if conn.PgConn().ParameterStatus("crdb_version") != "" {
-			t.Skip("Server auto converts ints to bigint and test relies on exact types")
-		}
+		skipCockroachDB(t, conn, "Server auto converts ints to bigint and test relies on exact types")
 
 		type allTypes struct {
 			s   *string

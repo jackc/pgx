@@ -535,9 +535,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			listenerDone <- true
 		}()
 
-		if conn.PgConn().ParameterStatus("crdb_version") != "" {
-			t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
-		}
+		skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
 
 		mustExec(t, conn, "listen busysafe")
 
@@ -582,9 +580,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			notifierDone <- true
 		}()
 
-		if conn.PgConn().ParameterStatus("crdb_version") != "" {
-			t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
-		}
+		skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
 
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
@@ -602,9 +598,7 @@ func TestListenNotifySelfNotification(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
-	}
+	skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
 
 	mustExec(t, conn, "listen self")
 
@@ -639,9 +633,7 @@ func TestFatalRxError(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
-	}
+	skipCockroachDB(t, conn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -679,9 +671,7 @@ func TestFatalTxError(t *testing.T) {
 			conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer closeConn(t, conn)
 
-			if conn.PgConn().ParameterStatus("crdb_version") != "" {
-				t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
-			}
+			skipCockroachDB(t, conn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
 
 			otherConn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 			defer otherConn.Close(context.Background())
@@ -846,10 +836,7 @@ func TestConnInitConnInfo(t *testing.T) {
 
 func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-
-		if conn.PgConn().ParameterStatus("crdb_version") != "" {
-			t.Skip("Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
-		}
+		skipCockroachDB(t, conn, "Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
 
 		var n uint64
 		err := conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
@@ -865,9 +852,7 @@ func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 
 func TestDomainType(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		if conn.PgConn().ParameterStatus("crdb_version") != "" {
-			t.Skip("Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
-		}
+		skipCockroachDB(t, conn, "Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
 
 		var n uint64
 
