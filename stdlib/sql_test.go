@@ -388,12 +388,12 @@ func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 			body json not null
 		);
 
-		insert into docs(body) values('{"foo":"bar"}');
+		insert into docs(body) values('{"foo": "bar"}');
 `)
 		require.NoError(t, err)
 
 		sql := `select * from docs`
-		expected := []byte(`{"foo":"bar"}`)
+		expected := []byte(`{"foo": "bar"}`)
 		var actual []byte
 
 		err = db.QueryRow(sql).Scan(&actual)
@@ -424,7 +424,7 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 `)
 	require.NoError(t, err)
 
-	expected := []byte(`{"foo":"bar"}`)
+	expected := []byte(`{"foo": "bar"}`)
 
 	_, err = db.Exec(`insert into docs(body) values($1)`, expected)
 	require.NoError(t, err)
