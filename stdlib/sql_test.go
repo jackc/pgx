@@ -732,15 +732,15 @@ func TestConnQueryContextFailureRetry(t *testing.T) {
 
 func TestRowsColumnTypeDatabaseTypeName(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		rows, err := db.Query("select * from generate_series(1,10) n")
+		rows, err := db.Query("select 42::bigint")
 		require.NoError(t, err)
 
 		columnTypes, err := rows.ColumnTypes()
 		require.NoError(t, err)
 		require.Len(t, columnTypes, 1)
 
-		if columnTypes[0].DatabaseTypeName() != "INT4" {
-			t.Errorf("columnTypes[0].DatabaseTypeName() => %v, want %v", columnTypes[0].DatabaseTypeName(), "INT4")
+		if columnTypes[0].DatabaseTypeName() != "INT8" {
+			t.Errorf("columnTypes[0].DatabaseTypeName() => %v, want %v", columnTypes[0].DatabaseTypeName(), "INT8")
 		}
 
 		err = rows.Close()
@@ -832,7 +832,7 @@ func TestRowsColumnTypes(t *testing.T) {
 		}{
 			{
 				Name:     "a",
-				TypeName: "INT4",
+				TypeName: "INT8",
 				Length: struct {
 					Len int64
 					OK  bool
@@ -849,7 +849,7 @@ func TestRowsColumnTypes(t *testing.T) {
 					Scale:     0,
 					OK:        false,
 				},
-				ScanType: reflect.TypeOf(int32(0)),
+				ScanType: reflect.TypeOf(int64(0)),
 			}, {
 				Name:     "bar",
 				TypeName: "TEXT",
@@ -913,7 +913,7 @@ func TestRowsColumnTypes(t *testing.T) {
 			},
 		}
 
-		rows, err := db.Query("SELECT 1 AS a, text 'bar' AS bar, 1.28::numeric(9, 2) AS dec, '12:00:00'::timetz as d")
+		rows, err := db.Query("SELECT 1::bigint AS a, text 'bar' AS bar, 1.28::numeric(9, 2) AS dec, '12:00:00'::timetz as d")
 		require.NoError(t, err)
 
 		columns, err := rows.ColumnTypes()
