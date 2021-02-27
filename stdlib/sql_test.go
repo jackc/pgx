@@ -30,6 +30,21 @@ func closeDB(t testing.TB, db *sql.DB) {
 	require.NoError(t, err)
 }
 
+func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
+	conn, err := db.Conn(context.Background())
+	require.NoError(t, err)
+	defer conn.Close()
+
+	err = conn.Raw(func(driverConn interface{}) error {
+		conn := driverConn.(*stdlib.Conn).Conn()
+		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip(msg)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, db *sql.DB)) {
 	t.Run("SimpleProto",
 		func(t *testing.T) {
@@ -118,6 +133,8 @@ func TestNormalLifeCycle(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
+	skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+
 	stmt := prepareStmt(t, db, "select 'foo', n from generate_series($1::int, $2::int) n")
 	defer closeStmt(t, stmt)
 
@@ -179,6 +196,8 @@ func TestQueryCloseRowsEarly(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
 
+	skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+
 	stmt := prepareStmt(t, db, "select 'foo', n from generate_series($1::int, $2::int) n")
 	defer closeStmt(t, stmt)
 
@@ -234,6 +253,8 @@ func TestConnExec(t *testing.T) {
 
 func TestConnQuery(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+
 		rows, err := db.Query("select 'foo', n from generate_series($1::int, $2::int) n", int32(1), int32(10))
 		require.NoError(t, err)
 
@@ -323,6 +344,8 @@ func TestConnQueryFailure(t *testing.T) {
 
 func TestConnSimpleSlicePassThrough(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support cardinality function")
+
 		var n int64
 		err := db.QueryRow("select cardinality($1::text[])", []string{"a", "b", "c"}).Scan(&n)
 		require.NoError(t, err)
@@ -346,6 +369,8 @@ func TestConnQueryRowPgxBinary(t *testing.T) {
 
 func TestConnQueryRowUnknownType(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support point type")
+
 		sql := "select $1::point"
 		expected := "(1,2)"
 		var actual string
@@ -452,6 +477,8 @@ func TestTransactionLifeCycle(t *testing.T) {
 
 func TestConnBeginTxIsolation(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server always uses serializable isolation level")
+
 		var defaultIsoLevel string
 		err := db.QueryRow("show transaction_isolation").Scan(&defaultIsoLevel)
 		require.NoError(t, err)
@@ -604,6 +631,8 @@ func TestConnRaw(t *testing.T) {
 // https://github.com/jackc/pgx/issues/673
 func TestReleaseConnWithTxInProgress(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support backend PID")
+
 		c1, err := stdlib.AcquireConn(db)
 		require.NoError(t, err)
 
@@ -761,6 +790,8 @@ func TestStmtExecContextCancel(t *testing.T) {
 func TestStmtQueryContextSuccess(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(t, db)
+
+	skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 
 	stmt, err := db.Prepare("select * from generate_series(1,$1::int4) n")
 	require.NoError(t, err)
@@ -923,6 +954,8 @@ func TestRowsColumnTypes(t *testing.T) {
 
 func TestQueryLifeCycle(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+
 		rows, err := db.Query("SELECT 'foo', n FROM generate_series($1::int, $2::int) n WHERE 3 = $3", 1, 10, 3)
 		require.NoError(t, err)
 
