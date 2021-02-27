@@ -228,6 +228,20 @@ func TestPoolBeforeAcquire(t *testing.T) {
 func TestPoolAfterRelease(t *testing.T) {
 	t.Parallel()
 
+	func() {
+		pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		defer pool.Close()
+
+		err = pool.AcquireFunc(context.Background(), func(conn *pgxpool.Conn) error {
+			if conn.Conn().PgConn().ParameterStatus("crdb_version") != "" {
+				t.Skip("Server does not support backend PID")
+			}
+			return nil
+		})
+		require.NoError(t, err)
+	}()
+
 	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
@@ -533,6 +547,14 @@ func TestConnReleaseClosesConnInFailedTransaction(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
+	err = pool.AcquireFunc(ctx, func(conn *pgxpool.Conn) error {
+		if conn.Conn().PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does not support backend PID")
+		}
+		return nil
+	})
+	require.NoError(t, err)
+
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 
@@ -570,6 +592,14 @@ func TestConnReleaseClosesConnInTransaction(t *testing.T) {
 	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
+
+	err = pool.AcquireFunc(ctx, func(conn *pgxpool.Conn) error {
+		if conn.Conn().PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip("Server does not support backend PID")
+		}
+		return nil
+	})
+	require.NoError(t, err)
 
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
