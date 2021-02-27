@@ -189,6 +189,10 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+	}
+
 	_, err := conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 	if err != nil {
 		t.Fatal(err)
@@ -243,6 +247,10 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+	}
 
 	_, err = conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 	if err != nil {
