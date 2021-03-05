@@ -169,6 +169,26 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
 }
 
+func TestParseConfigExtractsPreferSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		connString           string
+		preferSimpleProtocol bool
+	}{
+		{"", false},
+		{"prefer_simple_protocol=false", false},
+		{"prefer_simple_protocol=0", false},
+		{"prefer_simple_protocol=true", true},
+		{"prefer_simple_protocol=1", true},
+	} {
+		config, err := pgx.ParseConfig(tt.connString)
+		require.NoError(t, err)
+		require.Equalf(t, tt.preferSimpleProtocol, config.PreferSimpleProtocol, "connString: `%s`", tt.connString)
+		require.Empty(t, config.RuntimeParams["prefer_simple_protocol"])
+	}
+}
+
 func TestExec(t *testing.T) {
 	t.Parallel()
 
