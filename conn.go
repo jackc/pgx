@@ -124,6 +124,9 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 // 		"describe" will use the anonymous prepared statement to describe a statement without creating a statement on the
 // 		server. "describe" is primarily useful when the environment does not allow prepared statements such as when
 // 		running a connection pooler like PgBouncer. Default: "prepare"
+//
+//	prefer_simple_protocol
+//		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
