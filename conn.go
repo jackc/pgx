@@ -160,11 +160,22 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		}
 	}
 
+	preferSimpleProtocol := false
+	if s, ok := config.RuntimeParams["prefer_simple_protocol"]; ok {
+		delete(config.RuntimeParams, "prefer_simple_protocol")
+		if b, err := strconv.ParseBool(s); err == nil {
+			preferSimpleProtocol = b
+		} else {
+			return nil, errors.Errorf("invalid prefer_simple_protocol: %v", err)
+		}
+	}
+
 	connConfig := &ConnConfig{
 		Config:               *config,
 		createdByParseConfig: true,
 		LogLevel:             LogLevelInfo,
 		BuildStatementCache:  buildStatementCache,
+		PreferSimpleProtocol: preferSimpleProtocol,
 		connString:           connString,
 	}
 
