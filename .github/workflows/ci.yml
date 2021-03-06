@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        go_version: [1.14, 1.15]
+        go_version: [1.15, 1.16]
         pg_version: [9.6, 10, 11, 12, 13]
 
     steps:
