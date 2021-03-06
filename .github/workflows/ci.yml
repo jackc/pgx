@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         go_version: [1.15, 1.16]
-        pg_version: [9.6, 10, 11, 12, 13, cockroachdb]
+        pg_version: [9.6, 10, 11, 12, 13]
         include:
           - pg-version: 9.6
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
