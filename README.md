@@ -148,7 +148,7 @@ In addition, there are tests specific for PgBouncer that will be executed if `PG
 
 ## Supported Go and PostgreSQL Versions
 
-pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.14 and higher and PostgreSQL 9.6 and higher.
+pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.15 and higher and PostgreSQL 9.6 and higher. pgx also is tested against the latest version of [CockroachDB](https://www.cockroachlabs.com/product/).
 
 ## Version Policy
 
