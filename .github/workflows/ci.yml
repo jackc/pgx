@@ -25,9 +25,9 @@ jobs:
           - pg-version: 11
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 12
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-          - pg-version: 13
             pgx-test-database: somebadconnstring
+          - pg-version: 13
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
 
     steps:
 
