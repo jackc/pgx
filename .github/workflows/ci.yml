@@ -10,12 +10,12 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
         go-version: [1.15, 1.16]
-        pg-version: [9.6, 10, 11, 12, 13]
+        pg-version: [9.6, 10, 11, 12, 13, cockroachdb]
         include:
           - pg-version: 9.6
             pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
@@ -52,6 +52,8 @@ jobs:
             pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
             pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
             pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+          - pg-version: cockroachdb
+            pgx-test-conn-string: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
 
