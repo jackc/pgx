@@ -546,6 +546,12 @@ func TestListenNotify(t *testing.T) {
 func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 	t.Parallel()
 
+	func() {
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+		defer closeConn(t, conn)
+		skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
+	}()
+
 	listenerDone := make(chan bool)
 	notifierDone := make(chan bool)
 	go func() {
@@ -555,8 +561,6 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			listenerDone <- true
 		}()
 
-		skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
-
 		mustExec(t, conn, "listen busysafe")
 
 		for i := 0; i < 5000; i++ {
@@ -565,28 +569,33 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 			rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 100)
 			if err != nil {
-				t.Fatalf("conn.Query failed: %v", err)
+				t.Errorf("conn.Query failed: %v", err)
+				return
 			}
 
 			for rows.Next() {
 				var n int32
 				if err := rows.Scan(&n); err != nil {
-					t.Fatalf("Row scan failed: %v", err)
+					t.Errorf("Row scan failed: %v", err)
+					return
 				}
 				sum += n
 				rowCount++
 			}
 
 			if rows.Err() != nil {
-				t.Fatalf("conn.Query failed: %v", err)
+				t.Errorf("conn.Query failed: %v", err)
+				return
 			}
 
 			if sum != 5050 {
-				t.Fatalf("Wrong rows sum: %v", sum)
+				t.Errorf("Wrong rows sum: %v", sum)
+				return
 			}
 
 			if rowCount != 100 {
-				t.Fatalf("Wrong number of rows: %v", rowCount)
+				t.Errorf("Wrong number of rows: %v", rowCount)
+				return
 			}
 
 			time.Sleep(1 * time.Microsecond)
@@ -599,8 +608,6 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		defer func() {
 			notifierDone <- true
 		}()
-
-		skipCockroachDB(t, conn, "Server does not support LISTEN / NOTIFY (https://github.com/cockroachdb/cockroach/issues/41522)")
 
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
@@ -664,7 +671,8 @@ func TestFatalRxError(t *testing.T) {
 		err := conn.QueryRow(context.Background(), "select 1::int4, pg_sleep(10)::varchar").Scan(&n, &s)
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Severity == "FATAL" {
 		} else {
-			t.Fatalf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
+			t.Errorf("Expected QueryRow Scan to return fatal PgError, but instead received %v", err)
+			return
 		}
 	}()
 
