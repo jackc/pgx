@@ -2,13 +2,12 @@ package pgconn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"regexp"
 	"strings"
-
-	errors "golang.org/x/xerrors"
 )
 
 // SafeToRetry checks if the err is guaranteed to have occurred before sending any data to the server.

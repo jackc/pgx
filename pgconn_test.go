@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -17,12 +18,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgmock"
-
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgmock"
 	"github.com/jackc/pgproto3/v2"
-	errors "golang.org/x/xerrors"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

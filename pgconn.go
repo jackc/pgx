@@ -6,6 +6,8 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io"
 	"math"
 	"net"
@@ -16,7 +18,6 @@ import (
 	"github.com/jackc/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
-	errors "golang.org/x/xerrors"
 )
 
 const (
@@ -1043,7 +1044,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	}
 
 	if len(paramValues) > math.MaxUint16 {
-		result.concludeCommand(nil, errors.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.concludeCommand(nil, fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
 		result.closed = true
 		pgConn.unlock()
 		return result

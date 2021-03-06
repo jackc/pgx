@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -20,7 +21,6 @@ import (
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgservicefile"
-	errors "golang.org/x/xerrors"
 )
 
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
@@ -409,7 +409,7 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		}
 		h, p, err := net.SplitHostPort(host)
 		if err != nil {
-			return nil, errors.Errorf("failed to split host:port in '%s', err: %w", host, err)
+			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
 		}
 		hosts = append(hosts, h)
 		ports = append(ports, p)
@@ -617,7 +617,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 		caPath := sslrootcert
 		caCert, err := ioutil.ReadFile(caPath)
 		if err != nil {
-			return nil, errors.Errorf("unable to read CA file: %w", err)
+			return nil, fmt.Errorf("unable to read CA file: %w", err)
 		}
 
 		if !caCertPool.AppendCertsFromPEM(caCert) {
@@ -635,7 +635,7 @@ func configTLS(settings map[string]string) ([]*tls.Config, error) {
 	if sslcert != "" && sslkey != "" {
 		cert, err := tls.LoadX509KeyPair(sslcert, sslkey)
 		if err != nil {
-			return nil, errors.Errorf("unable to read cert: %w", err)
+			return nil, fmt.Errorf("unable to read cert: %w", err)
 		}
 
 		tlsConfig.Certificates = []tls.Certificate{cert}
