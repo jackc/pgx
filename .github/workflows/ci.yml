@@ -14,34 +14,28 @@ jobs:
 
     strategy:
       matrix:
-        go_version: [1.15, 1.16]
-        pg_version: [9.6, 10, 11, 12, 13, cockroachdb]
+        go-version: [1.15, 1.16]
+        pg-version: [9.6, 10, 11, 12, 13, cockroachdb]
         include:
           - pg-version: 9.6
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            ci-bug-workaround: 1
           - pg-version: 10
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            ci-bug-workaround: 2
           - pg-version: 11
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            ci-bug-workaround: 3
           - pg-version: 12
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            ci-bug-workaround: 4
           - pg-version: 13
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            ci-bug-workaround: 5
           - pg-version: cockroachdb
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
-            ci-bug-workaround: 6
 
     steps:
 
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go_version }}
+        go-version: ${{ matrix.go-version }}
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -49,10 +43,9 @@ jobs:
     - name: Setup database server for testing
       run: ci/setup_test.bash
       env:
-        PGVERSION: ${{ matrix.pg_version }}
+        PGVERSION: ${{ matrix.pg-version }}
 
     - name: Test
       run: go test -v -race ./...
       env:
         PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
-        CI_BUG_WORKAROUND: ${{ matrix.ci-bug-workaround }}
