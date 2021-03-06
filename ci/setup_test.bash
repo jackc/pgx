@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -eux
 
-if [ "${PGVERSION-}" != "" ]
+if [[ "${PGVERSION-}" =~ ^[0-9.]+$ ]]
 then
   sudo apt-get remove -y --purge postgresql libpq-dev libpq5 postgresql-client-common postgresql-common
   sudo rm -rf /var/lib/postgresql
@@ -36,6 +36,14 @@ then
   psql -U postgres -c "create user `whoami`"
   psql -U postgres -c "create user pgx_replication with replication password 'secret'"
   psql -U postgres -c "create user \" tricky, ' } \"\" \\ test user \" superuser password 'secret'"
+fi
+
+if [[ "${PGVERSION-}" =~ ^cockroach ]]
+then
+  wget -qO- https://binaries.cockroachdb.com/cockroach-v20.2.5.linux-amd64.tgz | tar xvz
+  sudo mv cockroach-v20.2.5.linux-amd64/cockroach /usr/local/bin/
+  cockroach start-single-node --insecure --background --listen-addr=localhost
+  cockroach sql --insecure -e 'create database pgx_test'
 fi
 
 if [ "${CRATEVERSION-}" != "" ]
