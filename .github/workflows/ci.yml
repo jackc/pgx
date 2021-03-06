@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         go_version: [1.15, 1.16]
-        pg_version: [9.6, 10, 11, 12, 13]
+        pg_version: [9.6, 10, 11, 12, 13, cockroachdb]
         include:
           - pg-version: 9.6
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
@@ -27,8 +27,8 @@ jobs:
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 13
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-          # - pg-version: cockroachdb
-          #   pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
+          - pg-version: cockroachdb
+            pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
 
