@@ -14,15 +14,15 @@ jobs:
 
     strategy:
       matrix:
-        go_version: [1.15, 1.16]
-        pg_version: [9.6, 10, 11, 12, 13]
+        go-version: [1.15, 1.16]
+        pg-version: [9.6, 10, 11, 12, 13]
 
     steps:
 
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go_version }}
+        go-version: ${{ matrix.go-version }}
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -30,7 +30,7 @@ jobs:
     - name: Setup database server for testing
       run: ci/setup_test.bash
       env:
-        PGVERSION: ${{ matrix.pg_version }}
+        PGVERSION: ${{ matrix.pg-version }}
 
     - name: Test
       run: go test -v -race ./...
