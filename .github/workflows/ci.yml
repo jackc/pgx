@@ -13,21 +13,28 @@ jobs:
     runs-on: ubuntu-18.04
 
     strategy:
-      fail-fast: false
       matrix:
-        go_version: [1.16]
-        pg_version: [9.6, 10, 11, 12, 13]
+        go_version: [1.15, 1.16]
+        pg_version: [9.6, 10, 11, 12, 13, cockroachdb]
         include:
           - pg-version: 9.6
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            ci-bug-workaround: 1
           - pg-version: 10
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            ci-bug-workaround: 2
           - pg-version: 11
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            ci-bug-workaround: 3
           - pg-version: 12
-            pgx-test-database: somebadconnstring
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            ci-bug-workaround: 4
           - pg-version: 13
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            ci-bug-workaround: 5
+          - pg-version: cockroachdb
+            pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
+            ci-bug-workaround: 6
 
     steps:
 
