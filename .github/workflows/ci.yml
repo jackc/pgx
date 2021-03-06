@@ -13,9 +13,10 @@ jobs:
     runs-on: ubuntu-18.04
 
     strategy:
+      fail-fast: false
       matrix:
-        go_version: [1.15, 1.16]
-        pg_version: [9.6, 10, 11, 12, 13, cockroachdb]
+        go_version: [1.16]
+        pg_version: [9.6, 10, 11, 12, 13]
         include:
           - pg-version: 9.6
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
@@ -26,9 +27,7 @@ jobs:
           - pg-version: 12
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 13
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-          - pg-version: cockroachdb
-            pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
+            pgx-test-database: somebadconnstring
 
     steps:
 
