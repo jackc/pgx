@@ -14,8 +14,30 @@ jobs:
 
     strategy:
       matrix:
-        go-version: [1.15, 1.16]
-        pg-version: [9.6, 10, 11, 12, 13]
+        include:
+          - go-version: 1.15
+            pg-version: 13
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - go-version: 1.16
+            pg-version: 9.6
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - go-version: 1.16
+            pg-version: 10
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - go-version: 1.16
+            pg-version: 11
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - go-version: 1.16
+            pg-version: 12
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - go-version: 1.16
+            pg-version: 13
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
 
     steps:
 
@@ -35,9 +57,9 @@ jobs:
     - name: Test
       run: go test -v -race ./...
       env:
-        PGX_TEST_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-        PGX_TEST_UNIX_SOCKET_CONN_STRING: "host=/var/run/postgresql dbname=pgx_test"
-        PGX_TEST_TCP_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-        PGX_TEST_TLS_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
-        PGX_TEST_MD5_PASSWORD_CONN_STRING: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-        PGX_TEST_PLAIN_PASSWORD_CONN_STRING: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+        PGX_TEST_CONN_STRING: ${{ matrix.pgx-test-conn-string }}
+        PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
+        PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
+        PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
+        PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
+        PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}
