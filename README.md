@@ -52,5 +52,5 @@ PGX_TEST_CONN_STRING="host=/var/run/postgresql dbname=pgx_test" go test ./...
 
 Pgconn supports multiple connection types and means of authentication. These tests are optional. They
 will only run if the appropriate environment variable is set. Run `go test -v | grep SKIP` to see if any tests are being
-skipped. Most developers will not need to enable these tests. See `travis.yml` for an example set up if you need change
+skipped. Most developers will not need to enable these tests. See `ci/setup_test.bash` for an example set up if you need change
 authentication code.
