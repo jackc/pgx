@@ -10,19 +10,32 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
 
     strategy:
       matrix:
-        go_version: [1.14, 1.15]
-        pg_version: [9.6, 10, 11, 12, 13]
+        go-version: [1.15, 1.16]
+        pg-version: [9.6, 10, 11, 12, 13, cockroachdb]
+        include:
+          - pg-version: 9.6
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: 10
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: 11
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: 12
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: 13
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: cockroachdb
+            pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
 
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ${{ matrix.go_version }}
+        go-version: ${{ matrix.go-version }}
 
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
@@ -30,9 +43,9 @@ jobs:
     - name: Setup database server for testing
       run: ci/setup_test.bash
       env:
-        PGVERSION: ${{ matrix.pg_version }}
+        PGVERSION: ${{ matrix.pg-version }}
 
     - name: Test
       run: go test -v -race ./...
       env:
-        PGX_TEST_DATABASE: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+        PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
