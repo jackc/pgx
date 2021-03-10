@@ -150,8 +150,8 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 		pgConn, err = connect(ctx, config, fc)
 		if err == nil {
 			break
-		} else if err, ok := err.(*PgError); ok {
-			err = &connectError{config: config, msg: "server error", err: err}
+		} else if pgerr, ok := err.(*PgError); ok {
+			err = &connectError{config: config, msg: "server error", err: pgerr}
 		}
 	}
 
