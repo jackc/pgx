@@ -152,9 +152,10 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 			break
 		} else if pgerr, ok := err.(*PgError); ok {
 			err = &connectError{config: config, msg: "server error", err: pgerr}
-			ERRCODE_INVALID_PASSWORD := "28P01"
-			if pgerr.Code == ERRCODE_INVALID_PASSWORD {
-				break;
+			ERRCODE_INVALID_PASSWORD := "28P01"                    // worng password
+			ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION := "28000" // db does not exist
+			if pgerr.Code == ERRCODE_INVALID_PASSWORD || pgerr.Code == ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION {
+				break
 			}
 		}
 	}
