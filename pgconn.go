@@ -152,6 +152,10 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 			break
 		} else if pgerr, ok := err.(*PgError); ok {
 			err = &connectError{config: config, msg: "server error", err: pgerr}
+			ERRCODE_INVALID_PASSWORD := "28P01"
+			if pgerr.Code == ERRCODE_INVALID_PASSWORD {
+				break;
+			}
 		}
 	}
 
