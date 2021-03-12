@@ -70,8 +70,7 @@ func TestTimestamptzNanosecondsTruncated(t *testing.T) {
 				t.Errorf("%d. EncodeText failed - %v", i, err)
 			}
 
-			tstz.DecodeText(nil, buf)
-			if err != nil {
+			if err := tstz.DecodeText(nil, buf); err != nil {
 				t.Errorf("%d. DecodeText failed - %v", i, err)
 			}
 
@@ -87,8 +86,7 @@ func TestTimestamptzNanosecondsTruncated(t *testing.T) {
 				t.Errorf("%d. EncodeBinary failed - %v", i, err)
 			}
 
-			tstz.DecodeBinary(nil, buf)
-			if err != nil {
+			if err := tstz.DecodeBinary(nil, buf); err != nil {
 				t.Errorf("%d. DecodeBinary failed - %v", i, err)
 			}
 
