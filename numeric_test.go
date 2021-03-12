@@ -15,7 +15,8 @@ import (
 func numericEqual(left, right *pgtype.Numeric) bool {
 	return left.Status == right.Status &&
 		left.Exp == right.Exp &&
-		((left.Int == nil && right.Int == nil) || (left.Int != nil && right.Int != nil && left.Int.Cmp(right.Int) == 0))
+		((left.Int == nil && right.Int == nil) || (left.Int != nil && right.Int != nil && left.Int.Cmp(right.Int) == 0)) &&
+		left.NaN == right.NaN
 }
 
 // For test purposes only.
@@ -117,6 +118,8 @@ func TestNumericNormalize(t *testing.T) {
 
 func TestNumericTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
+		&pgtype.Numeric{NaN: true, Status: pgtype.Present},
+
 		&pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
 		&pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
 		&pgtype.Numeric{Int: big.NewInt(-1), Exp: 0, Status: pgtype.Present},

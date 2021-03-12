@@ -16,8 +16,8 @@ import (
 const nbase = 10000
 
 const (
-	pgNumericNaN     = 0x000000000c000000
-	pgNumericNaNSign = 0x0c00
+	pgNumericNaN     = 0x00000000c0000000
+	pgNumericNaNSign = 0xc000
 )
 
 var big0 *big.Int = big.NewInt(0)
@@ -406,7 +406,7 @@ func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 		return nil
 	}
 
-	if string(src) == "'NaN'" { // includes single quotes, see EncodeText for details.
+	if string(src) == "NaN" {
 		*dst = Numeric{Status: Present, NaN: true}
 		return nil
 	}
@@ -456,7 +456,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp += 2
 	weight := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
-	sign := int16(binary.BigEndian.Uint16(src[rp:]))
+	sign := uint16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
@@ -573,11 +573,7 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	if src.NaN {
-		// encode as 'NaN' including single quotes,
-		// "When writing this value [NaN] as a constant in an SQL command,
-		// you must put quotes around it, for example UPDATE table SET x = 'NaN'"
-		// https://www.postgresql.org/docs/9.3/datatype-numeric.html
-		buf = append(buf, "'NaN'"...)
+		buf = append(buf, "NaN"...)
 		return buf, nil
 	}
 
