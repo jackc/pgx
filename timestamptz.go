@@ -124,7 +124,7 @@ func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 			return err
 		}
 
-		*dst = Timestamptz{Time: tim, Status: Present}
+		*dst = Timestamptz{Time: normalizePotentialUTC(tim), Status: Present}
 	}
 
 	return nil
@@ -231,6 +231,9 @@ func (src Timestamptz) Value() (driver.Value, error) {
 		if src.InfinityModifier != None {
 			return src.InfinityModifier.String(), nil
 		}
+		if src.Time.Location().String() == time.UTC.String() {
+			return src.Time.UTC(), nil
+		}
 		return src.Time, nil
 	case Null:
 		return nil, nil
@@ -289,8 +292,23 @@ func (dst *Timestamptz) UnmarshalJSON(b []byte) error {
 			return err
 		}
 
-		*dst = Timestamptz{Time: tim, Status: Present}
+		*dst = Timestamptz{Time: normalizePotentialUTC(tim), Status: Present}
 	}
 
 	return nil
+}
+
+// Normalize timestamps in UTC location to behave similarly to how the Golang
+// standard library does it: UTC timestamps lack a .loc value.
+//
+// Reason for this: when comparing two timestamps with reflect.DeepEqual (generally
+// speaking not a good idea, but several testing libraries (for example testify)
+// does this), their location data needs to be equal for them to be considered
+// equal.
+func normalizePotentialUTC(timestamp time.Time) time.Time {
+	if timestamp.Location().String() != time.UTC.String() {
+		return timestamp
+	}
+
+	return timestamp.UTC()
 }
