@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"reflect"
@@ -61,12 +62,12 @@ func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) 
 
 		serverVersion, err := semver.NewVersion(serverVersionStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %w", serverVersionStr, err)
 		}
 
 		c, err := semver.NewConstraint(constraintStr)
 		if err != nil {
-			return err
+			return fmt.Errorf("%s: %w", constraintStr, err)
 		}
 
 		if c.Check(serverVersion) {
