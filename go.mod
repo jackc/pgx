@@ -3,6 +3,7 @@ module github.com/jackc/pgx/v4
 go 1.12
 
 require (
+	github.com/Masterminds/semver/v3 v3.1.1 // indirect
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gofrs/uuid v3.2.0+incompatible
