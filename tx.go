@@ -98,7 +98,7 @@ func (c *Conn) BeginFunc(ctx context.Context, f func(Tx) error) (err error) {
 // the execution of f.
 func (c *Conn) BeginTxFunc(ctx context.Context, txOptions TxOptions, f func(Tx) error) (err error) {
 	var tx Tx
-	tx, err = c.BeginTx(ctx, TxOptions{})
+	tx, err = c.BeginTx(ctx, txOptions)
 	if err != nil {
 		return err
 	}
