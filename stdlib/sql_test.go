@@ -1047,3 +1047,42 @@ func TestRegisterConnConfig(t *testing.T) {
 	assert.Equal(t, "Query", l.msg)
 	assert.Equal(t, "select 1", l.data["sql"])
 }
+
+// https://github.com/jackc/pgx/issues/958
+func TestConnQueryRowConstraintErrors(t *testing.T) {
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+
+		_, err := db.Exec(`create temporary table defer_test (
+			id text primary key,
+			n int not null, unique (n),
+			unique (n) deferrable initially deferred )`)
+		require.NoError(t, err)
+
+		_, err = db.Exec(`drop function if exists test_trigger cascade`)
+		require.NoError(t, err)
+
+		_, err = db.Exec(`create function test_trigger() returns trigger language plpgsql as $$
+		begin
+		if new.n = 4 then
+			raise exception 'n cant be 4!';
+		end if;
+		return new;
+	end$$`)
+		require.NoError(t, err)
+
+		_, err = db.Exec(`create constraint trigger test
+			after insert or update on defer_test
+			deferrable initially deferred
+			for each row
+			execute function test_trigger()`)
+		require.NoError(t, err)
+
+		_, err = db.Exec(`insert into defer_test (id, n) values ('a', 1), ('b', 2), ('c', 3)`)
+		require.NoError(t, err)
+
+		var id string
+		err = db.QueryRow(`insert into defer_test (id, n) values ('e', 4) returning id`).Scan(&id)
+		assert.Error(t, err)
+	})
+}

@@ -514,7 +514,7 @@ func (r *Rows) ColumnTypeScanType(index int) reflect.Type {
 
 func (r *Rows) Close() error {
 	r.rows.Close()
-	return nil
+	return r.rows.Err()
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
