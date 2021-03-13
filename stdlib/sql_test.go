@@ -6,10 +6,10 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
 	"math"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -55,6 +55,7 @@ func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) 
 	err = conn.Raw(func(driverConn interface{}) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
+		serverVersionStr = regexp.MustCompile(`^[0-9.]+`).FindString(serverVersionStr)
 		// if not PostgreSQL do nothing
 		if serverVersionStr == "" {
 			return nil
@@ -62,12 +63,12 @@ func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) 
 
 		serverVersion, err := semver.NewVersion(serverVersionStr)
 		if err != nil {
-			return fmt.Errorf("%s: %w", serverVersionStr, err)
+			return err
 		}
 
 		c, err := semver.NewConstraint(constraintStr)
 		if err != nil {
-			return fmt.Errorf("%s: %w", constraintStr, err)
+			return err
 		}
 
 		if c.Check(serverVersion) {
