@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -54,6 +55,7 @@ func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) 
 	err = conn.Raw(func(driverConn interface{}) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
+		serverVersionStr = regexp.MustCompile(`^[0-9.]+`).FindString(serverVersionStr)
 		// if not PostgreSQL do nothing
 		if serverVersionStr == "" {
 			return nil
