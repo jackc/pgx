@@ -60,6 +60,30 @@ func TestNewQuery(t *testing.T) {
 			sql:      `select e'escape string\' $42', $1`,
 			expected: sanitize.Query{Parts: []sanitize.Part{`select e'escape string\' $42', `, 1}},
 		},
+		{
+			sql:      `select /* a baby's toy */ 'barbie', $1`,
+			expected: sanitize.Query{Parts: []sanitize.Part{`select /* a baby's toy */ 'barbie', `, 1}},
+		},
+		{
+			sql:      `select /* *_* */ $1`,
+			expected: sanitize.Query{Parts: []sanitize.Part{`select /* *_* */ `, 1}},
+		},
+		{
+			sql:      `select 42 /* /* /* 42 */ */ */, $1`,
+			expected: sanitize.Query{Parts: []sanitize.Part{`select 42 /* /* /* 42 */ */ */, `, 1}},
+		},
+		{
+			sql:      "select -- a baby's toy\n'barbie', $1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select -- a baby's toy\n'barbie', ", 1}},
+		},
+		{
+			sql:      "select 42 -- is a Thinker's favorite number",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 42 -- is a Thinker's favorite number"}},
+		},
+		{
+			sql:      "select 42, -- \\nis a Thinker's favorite number\n$1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 42, -- \\nis a Thinker's favorite number\n", 1}},
+		},
 	}
 
 	for i, tt := range successTests {
