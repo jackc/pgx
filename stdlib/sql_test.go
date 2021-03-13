@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
@@ -38,6 +39,37 @@ func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
 	err = conn.Raw(func(driverConn interface{}) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		if conn.PgConn().ParameterStatus("crdb_version") != "" {
+			t.Skip(msg)
+		}
+		return nil
+	})
+	require.NoError(t, err)
+}
+
+func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) {
+	conn, err := db.Conn(context.Background())
+	require.NoError(t, err)
+	defer conn.Close()
+
+	err = conn.Raw(func(driverConn interface{}) error {
+		conn := driverConn.(*stdlib.Conn).Conn()
+		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
+		// if not PostgreSQL do nothing
+		if serverVersionStr == "" {
+			return nil
+		}
+
+		serverVersion, err := semver.NewVersion(serverVersionStr)
+		if err != nil {
+			return err
+		}
+
+		c, err := semver.NewConstraint(constraintStr)
+		if err != nil {
+			return err
+		}
+
+		if c.Check(serverVersion) {
 			t.Skip(msg)
 		}
 		return nil
@@ -1051,6 +1083,7 @@ func TestRegisterConnConfig(t *testing.T) {
 // https://github.com/jackc/pgx/issues/958
 func TestConnQueryRowConstraintErrors(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+		skipPostgreSQLVersion(t, db, "< 11", "Test requires PG 11+")
 		skipCockroachDB(t, db, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 		_, err := db.Exec(`create temporary table defer_test (
