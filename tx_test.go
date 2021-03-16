@@ -586,3 +586,36 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 2, n)
 }
+
+func TestTxSendBatchClosed(t *testing.T) {
+	t.Parallel()
+
+	db := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, db)
+
+	tx, err := db.Begin(context.Background())
+	require.NoError(t, err)
+	defer tx.Rollback(context.Background())
+
+	err = tx.Commit(context.Background())
+	require.NoError(t, err)
+
+	batch := &pgx.Batch{}
+	batch.Queue("select 1")
+	batch.Queue("select 2")
+	batch.Queue("select 3")
+
+	br := tx.SendBatch(context.Background(), batch)
+	defer br.Close()
+
+	var n int
+
+	_, err = br.Exec()
+	require.Error(t, err)
+
+	err = br.QueryRow().Scan(&n)
+	require.Error(t, err)
+
+	_, err = br.Query()
+	require.Error(t, err)
+}

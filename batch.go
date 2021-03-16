@@ -70,10 +70,10 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 			err = errors.New("no result")
 		}
 		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]interface{} {
-				"sql": query,
+			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]interface{}{
+				"sql":  query,
 				"args": logQueryArgs(arguments),
-				"err": err,
+				"err":  err,
 			})
 		}
 		return nil, err
@@ -90,9 +90,9 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 			})
 		}
 	} else if br.conn.shouldLog(LogLevelInfo) {
-		br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Exec", map[string]interface{} {
-			"sql": query,
-			"args": logQueryArgs(arguments),
+		br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Exec", map[string]interface{}{
+			"sql":        query,
+			"args":       logQueryArgs(arguments),
 			"commandTag": commandTag,
 		})
 	}
@@ -107,13 +107,11 @@ func (br *batchResults) Query() (Rows, error) {
 		query = "batch query"
 	}
 
-	rows := br.conn.getRows(br.ctx, query, arguments)
-
 	if br.err != nil {
-		rows.err = br.err
-		rows.closed = true
-		return rows, br.err
+		return &connRows{err: br.err, closed: true}, br.err
 	}
+
+	rows := br.conn.getRows(br.ctx, query, arguments)
 
 	if !br.mrr.NextResult() {
 		rows.err = br.mrr.Close()
@@ -123,10 +121,10 @@ func (br *batchResults) Query() (Rows, error) {
 		rows.closed = true
 
 		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Query", map[string]interface{} {
-				"sql": query,
+			br.conn.log(br.ctx, LogLevelError, "BatchResult.Query", map[string]interface{}{
+				"sql":  query,
 				"args": logQueryArgs(arguments),
-				"err": rows.err,
+				"err":  rows.err,
 			})
 		}
 
@@ -159,8 +157,8 @@ func (br *batchResults) Close() error {
 		}
 
 		if br.conn.shouldLog(LogLevelInfo) {
-			br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Close", map[string]interface{} {
-				"sql": query,
+			br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Close", map[string]interface{}{
+				"sql":  query,
 				"args": logQueryArgs(args),
 			})
 		}
