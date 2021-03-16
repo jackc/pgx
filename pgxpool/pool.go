@@ -326,8 +326,14 @@ func ParseConfig(connString string) (*Config, error) {
 // Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 // to pool and closed.
 func (p *Pool) Close() {
-	close(p.closeChan)
-	p.p.Close()
+	// Check to see if the closeChan is closed before attempting to close it again, which can result in a panic.
+	select {
+	case <-p.closeChan:
+		// NOOP because the channel is already closed.
+	default:
+		close(p.closeChan)
+		p.p.Close()
+	}
 }
 
 func (p *Pool) backgroundHealthCheck() {
