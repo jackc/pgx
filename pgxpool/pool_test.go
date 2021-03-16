@@ -789,3 +789,14 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 2, n)
 }
+
+func TestIdempotentPoolClose(t *testing.T) {
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	// Close the open pool.
+	require.NotPanics(t, func() { pool.Close() })
+
+	// Close the already closed pool.
+	require.NotPanics(t, func() { pool.Close() })
+}
