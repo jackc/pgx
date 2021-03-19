@@ -4,6 +4,7 @@ import (
 	"context"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -78,7 +79,9 @@ type Pool struct {
 	maxConnLifetime   time.Duration
 	maxConnIdleTime   time.Duration
 	healthCheckPeriod time.Duration
-	closeChan         chan struct{}
+
+	closeOnce sync.Once
+	closeChan chan struct{}
 }
 
 // Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
@@ -326,14 +329,10 @@ func ParseConfig(connString string) (*Config, error) {
 // Close closes all connections in the pool and rejects future Acquire calls. Blocks until all connections are returned
 // to pool and closed.
 func (p *Pool) Close() {
-	// Check to see if the closeChan is closed before attempting to close it again, which can result in a panic.
-	select {
-	case <-p.closeChan:
-		// NOOP because the channel is already closed.
-	default:
+	p.closeOnce.Do(func() {
 		close(p.closeChan)
 		p.p.Close()
-	}
+	})
 }
 
 func (p *Pool) backgroundHealthCheck() {
