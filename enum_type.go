@@ -1,6 +1,6 @@
 package pgtype
 
-import errors "golang.org/x/xerrors"
+import "fmt"
 
 // EnumType represents a enum type. While it implements Value, this is only in service of its type conversion duties
 // when registered as a data type in a ConnType. It should not be used directly as a Value.
@@ -79,7 +79,7 @@ func (dst *EnumType) Set(src interface{}) error {
 		if originalSrc, ok := underlyingStringType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to enum %s", value, dst.typeName)
+		return fmt.Errorf("cannot convert %v to enum %s", value, dst.typeName)
 	}
 
 	return nil
@@ -111,13 +111,13 @@ func (src *EnumType) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (EnumType) PreferredResultFormat() int16 {

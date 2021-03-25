@@ -1,10 +1,9 @@
 package pgtype
 
 import (
+	"fmt"
 	"math"
 	"strconv"
-
-	errors "golang.org/x/xerrors"
 )
 
 // QChar is for PostgreSQL's special 8-bit-only "char" type more akin to the C
@@ -41,59 +40,59 @@ func (dst *QChar) Set(src interface{}) error {
 		*dst = QChar{Int: value, Status: Present}
 	case uint8:
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case int16:
 		if value < math.MinInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case uint16:
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case int32:
 		if value < math.MinInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case uint32:
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case int64:
 		if value < math.MinInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case uint64:
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case int:
 		if value < math.MinInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case uint:
 		if value > math.MaxInt8 {
-			return errors.Errorf("%d is greater than maximum value for QChar", value)
+			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
 		*dst = QChar{Int: int8(value), Status: Present}
 	case string:
@@ -106,7 +105,7 @@ func (dst *QChar) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to QChar", value)
+		return fmt.Errorf("cannot convert %v to QChar", value)
 	}
 
 	return nil
@@ -134,7 +133,7 @@ func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 1 {
-		return errors.Errorf(`invalid length for "char": %v`, len(src))
+		return fmt.Errorf(`invalid length for "char": %v`, len(src))
 	}
 
 	*dst = QChar{Int: int8(src[0]), Status: Present}

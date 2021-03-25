@@ -3,9 +3,9 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 type Varbit struct {
@@ -15,7 +15,7 @@ type Varbit struct {
 }
 
 func (dst *Varbit) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Varbit", src)
+	return fmt.Errorf("cannot convert %v to Varbit", src)
 }
 
 func (dst Varbit) Get() interface{} {
@@ -30,7 +30,7 @@ func (dst Varbit) Get() interface{} {
 }
 
 func (src *Varbit) AssignTo(dst interface{}) error {
-	return errors.Errorf("cannot assign %v to %T", src, dst)
+	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Varbit) DecodeText(ci *ConnInfo, src []byte) error {
@@ -65,7 +65,7 @@ func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 4 {
-		return errors.Errorf("invalid length for varbit: %v", len(src))
+		return fmt.Errorf("invalid length for varbit: %v", len(src))
 	}
 
 	bitLen := int32(binary.BigEndian.Uint32(src))
@@ -124,7 +124,7 @@ func (dst *Varbit) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

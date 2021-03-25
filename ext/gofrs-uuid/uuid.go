@@ -2,8 +2,8 @@ package uuid
 
 import (
 	"database/sql/driver"
-
-	errors "golang.org/x/xerrors"
+	"errors"
+	"fmt"
 
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgtype"
@@ -37,7 +37,7 @@ func (dst *UUID) Set(src interface{}) error {
 		*dst = UUID{UUID: uuid.UUID(value), Status: pgtype.Present}
 	case []byte:
 		if len(value) != 16 {
-			return errors.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
+			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
 		}
 		*dst = UUID{Status: pgtype.Present}
 		copy(dst.UUID[:], value)
@@ -51,7 +51,7 @@ func (dst *UUID) Set(src interface{}) error {
 		// If all else fails see if pgtype.UUID can handle it. If so, translate through that.
 		pgUUID := &pgtype.UUID{}
 		if err := pgUUID.Set(value); err != nil {
-			return errors.Errorf("cannot convert %v to UUID", value)
+			return fmt.Errorf("cannot convert %v to UUID", value)
 		}
 
 		*dst = UUID{UUID: uuid.UUID(pgUUID.Bytes), Status: pgUUID.Status}
@@ -92,13 +92,13 @@ func (src *UUID) AssignTo(dst interface{}) error {
 			if nextDst, retry := pgtype.GetAssignToDstType(v); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case pgtype.Null:
 		return pgtype.NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot assign %v into %T", src, dst)
+	return fmt.Errorf("cannot assign %v into %T", src, dst)
 }
 
 func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
@@ -123,7 +123,7 @@ func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 16 {
-		return errors.Errorf("invalid length for UUID: %v", len(src))
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
 	*dst = UUID{Status: pgtype.Present}
@@ -167,7 +167,7 @@ func (dst *UUID) Scan(src interface{}) error {
 		return dst.DecodeText(nil, src)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

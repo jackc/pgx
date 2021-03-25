@@ -5,10 +5,10 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"fmt"
 	"reflect"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 type Int2Array struct {
@@ -362,7 +362,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 
 		dimensions, elementsLength, ok := findDimensionsFromValue(reflectedValue, nil, 0)
 		if !ok {
-			return errors.Errorf("cannot find dimensions of %v for Int2Array", src)
+			return fmt.Errorf("cannot find dimensions of %v for Int2Array", src)
 		}
 		if elementsLength == 0 {
 			*dst = Int2Array{Status: Present}
@@ -372,7 +372,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 			if originalSrc, ok := underlyingSliceType(src); ok {
 				return dst.Set(originalSrc)
 			}
-			return errors.Errorf("cannot convert %v to Int2Array", src)
+			return fmt.Errorf("cannot convert %v to Int2Array", src)
 		}
 
 		*dst = Int2Array{
@@ -403,7 +403,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 			}
 		}
 		if elementCount != len(dst.Elements) {
-			return errors.Errorf("cannot convert %v to Int2Array, expected %d dst.Elements, but got %d instead", src, len(dst.Elements), elementCount)
+			return fmt.Errorf("cannot convert %v to Int2Array, expected %d dst.Elements, but got %d instead", src, len(dst.Elements), elementCount)
 		}
 	}
 
@@ -421,7 +421,7 @@ func (dst *Int2Array) setRecursive(value reflect.Value, index, dimension int) (i
 
 		valueLen := value.Len()
 		if int32(valueLen) != dst.Dimensions[dimension].Length {
-			return 0, errors.Errorf("multidimensional arrays must have array expressions with matching dimensions")
+			return 0, fmt.Errorf("multidimensional arrays must have array expressions with matching dimensions")
 		}
 		for i := 0; i < valueLen; i++ {
 			var err error
@@ -434,10 +434,10 @@ func (dst *Int2Array) setRecursive(value reflect.Value, index, dimension int) (i
 		return index, nil
 	}
 	if !value.CanInterface() {
-		return 0, errors.Errorf("cannot convert all values to Int2Array")
+		return 0, fmt.Errorf("cannot convert all values to Int2Array")
 	}
 	if err := dst.Elements[index].Set(value.Interface()); err != nil {
-		return 0, errors.Errorf("%v in Int2Array", err)
+		return 0, fmt.Errorf("%v in Int2Array", err)
 	}
 	index++
 
@@ -625,7 +625,7 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 		switch value.Kind() {
 		case reflect.Array, reflect.Slice:
 		default:
-			return errors.Errorf("cannot assign %T to %T", src, dst)
+			return fmt.Errorf("cannot assign %T to %T", src, dst)
 		}
 
 		if len(src.Elements) == 0 {
@@ -640,7 +640,7 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 			return err
 		}
 		if elementCount != len(src.Elements) {
-			return errors.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
+			return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
 		}
 
 		return nil
@@ -648,7 +648,7 @@ func (src *Int2Array) AssignTo(dst interface{}) error {
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension int) (int, error) {
@@ -664,7 +664,7 @@ func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension in
 		if reflect.Array == kind {
 			typ := value.Type()
 			if typ.Len() != length {
-				return 0, errors.Errorf("expected size %d array, but %s has size %d array", length, typ, typ.Len())
+				return 0, fmt.Errorf("expected size %d array, but %s has size %d array", length, typ, typ.Len())
 			}
 			value.Set(reflect.New(typ).Elem())
 		} else {
@@ -682,14 +682,14 @@ func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension in
 		return index, nil
 	}
 	if len(src.Dimensions) != dimension {
-		return 0, errors.Errorf("incorrect dimensions, expected %d, found %d", len(src.Dimensions), dimension)
+		return 0, fmt.Errorf("incorrect dimensions, expected %d, found %d", len(src.Dimensions), dimension)
 	}
 	if !value.CanAddr() {
-		return 0, errors.Errorf("cannot assign all values from Int2Array")
+		return 0, fmt.Errorf("cannot assign all values from Int2Array")
 	}
 	addr := value.Addr()
 	if !addr.CanInterface() {
-		return 0, errors.Errorf("cannot assign all values from Int2Array")
+		return 0, fmt.Errorf("cannot assign all values from Int2Array")
 	}
 	if err := src.Elements[index].AssignTo(addr.Interface()); err != nil {
 		return 0, err
@@ -848,7 +848,7 @@ func (src Int2Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	if dt, ok := ci.DataTypeForName("int2"); ok {
 		arrayHeader.ElementOID = int32(dt.OID)
 	} else {
-		return nil, errors.Errorf("unable to find oid for type name %v", "int2")
+		return nil, fmt.Errorf("unable to find oid for type name %v", "int2")
 	}
 
 	for i := range src.Elements {
@@ -892,7 +892,7 @@ func (dst *Int2Array) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

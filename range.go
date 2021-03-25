@@ -3,8 +3,7 @@ package pgtype
 import (
 	"bytes"
 	"encoding/binary"
-
-	errors "golang.org/x/xerrors"
+	"fmt"
 )
 
 type BoundType byte
@@ -41,7 +40,7 @@ func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 
 	r, _, err := buf.ReadRune()
 	if err != nil {
-		return nil, errors.Errorf("invalid lower bound: %v", err)
+		return nil, fmt.Errorf("invalid lower bound: %v", err)
 	}
 	switch r {
 	case '(':
@@ -49,12 +48,12 @@ func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 	case '[':
 		utr.LowerType = Inclusive
 	default:
-		return nil, errors.Errorf("missing lower bound, instead got: %v", string(r))
+		return nil, fmt.Errorf("missing lower bound, instead got: %v", string(r))
 	}
 
 	r, _, err = buf.ReadRune()
 	if err != nil {
-		return nil, errors.Errorf("invalid lower value: %v", err)
+		return nil, fmt.Errorf("invalid lower value: %v", err)
 	}
 	buf.UnreadRune()
 
@@ -63,21 +62,21 @@ func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 	} else {
 		utr.Lower, err = rangeParseValue(buf)
 		if err != nil {
-			return nil, errors.Errorf("invalid lower value: %v", err)
+			return nil, fmt.Errorf("invalid lower value: %v", err)
 		}
 	}
 
 	r, _, err = buf.ReadRune()
 	if err != nil {
-		return nil, errors.Errorf("missing range separator: %v", err)
+		return nil, fmt.Errorf("missing range separator: %v", err)
 	}
 	if r != ',' {
-		return nil, errors.Errorf("missing range separator: %v", r)
+		return nil, fmt.Errorf("missing range separator: %v", r)
 	}
 
 	r, _, err = buf.ReadRune()
 	if err != nil {
-		return nil, errors.Errorf("invalid upper value: %v", err)
+		return nil, fmt.Errorf("invalid upper value: %v", err)
 	}
 
 	if r == ')' || r == ']' {
@@ -86,12 +85,12 @@ func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 		buf.UnreadRune()
 		utr.Upper, err = rangeParseValue(buf)
 		if err != nil {
-			return nil, errors.Errorf("invalid upper value: %v", err)
+			return nil, fmt.Errorf("invalid upper value: %v", err)
 		}
 
 		r, _, err = buf.ReadRune()
 		if err != nil {
-			return nil, errors.Errorf("missing upper bound: %v", err)
+			return nil, fmt.Errorf("missing upper bound: %v", err)
 		}
 		switch r {
 		case ')':
@@ -99,14 +98,14 @@ func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
 		case ']':
 			utr.UpperType = Inclusive
 		default:
-			return nil, errors.Errorf("missing upper bound, instead got: %v", string(r))
+			return nil, fmt.Errorf("missing upper bound, instead got: %v", string(r))
 		}
 	}
 
 	skipWhitespace(buf)
 
 	if buf.Len() > 0 {
-		return nil, errors.Errorf("unexpected trailing data: %v", buf.String())
+		return nil, fmt.Errorf("unexpected trailing data: %v", buf.String())
 	}
 
 	return utr, nil
@@ -202,7 +201,7 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 	ubr := &UntypedBinaryRange{}
 
 	if len(src) == 0 {
-		return nil, errors.Errorf("range too short: %v", len(src))
+		return nil, fmt.Errorf("range too short: %v", len(src))
 	}
 
 	rangeType := src[0]
@@ -210,7 +209,7 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 
 	if rangeType&emptyMask > 0 {
 		if len(src[rp:]) > 0 {
-			return nil, errors.Errorf("unexpected trailing bytes parsing empty range: %v", len(src[rp:]))
+			return nil, fmt.Errorf("unexpected trailing bytes parsing empty range: %v", len(src[rp:]))
 		}
 		ubr.LowerType = Empty
 		ubr.UpperType = Empty
@@ -235,13 +234,13 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 
 	if ubr.LowerType == Unbounded && ubr.UpperType == Unbounded {
 		if len(src[rp:]) > 0 {
-			return nil, errors.Errorf("unexpected trailing bytes parsing unbounded range: %v", len(src[rp:]))
+			return nil, fmt.Errorf("unexpected trailing bytes parsing unbounded range: %v", len(src[rp:]))
 		}
 		return ubr, nil
 	}
 
 	if len(src[rp:]) < 4 {
-		return nil, errors.Errorf("too few bytes for size: %v", src[rp:])
+		return nil, fmt.Errorf("too few bytes for size: %v", src[rp:])
 	}
 	valueLen := int(binary.BigEndian.Uint32(src[rp:]))
 	rp += 4
@@ -254,14 +253,14 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 	} else {
 		ubr.Upper = val
 		if len(src[rp:]) > 0 {
-			return nil, errors.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
+			return nil, fmt.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
 		}
 		return ubr, nil
 	}
 
 	if ubr.UpperType != Unbounded {
 		if len(src[rp:]) < 4 {
-			return nil, errors.Errorf("too few bytes for size: %v", src[rp:])
+			return nil, fmt.Errorf("too few bytes for size: %v", src[rp:])
 		}
 		valueLen := int(binary.BigEndian.Uint32(src[rp:]))
 		rp += 4
@@ -270,7 +269,7 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 	}
 
 	if len(src[rp:]) > 0 {
-		return nil, errors.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
+		return nil, fmt.Errorf("unexpected trailing bytes parsing range: %v", len(src[rp:]))
 	}
 
 	return ubr, nil

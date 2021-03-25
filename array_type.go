@@ -3,10 +3,10 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"fmt"
 	"reflect"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 // ArrayType represents an array type. While it implements Value, this is only in service of its type conversion duties
@@ -58,7 +58,7 @@ func (dst *ArrayType) Set(src interface{}) error {
 
 	sliceVal := reflect.ValueOf(src)
 	if sliceVal.Kind() != reflect.Slice {
-		return errors.Errorf("cannot set non-slice")
+		return fmt.Errorf("cannot set non-slice")
 	}
 
 	if sliceVal.IsNil() {
@@ -100,14 +100,14 @@ func (dst ArrayType) Get() interface{} {
 func (src *ArrayType) AssignTo(dst interface{}) error {
 	ptrSlice := reflect.ValueOf(dst)
 	if ptrSlice.Kind() != reflect.Ptr {
-		return errors.Errorf("cannot assign to non-pointer")
+		return fmt.Errorf("cannot assign to non-pointer")
 	}
 
 	sliceVal := ptrSlice.Elem()
 	sliceType := sliceVal.Type()
 
 	if sliceType.Kind() != reflect.Slice {
-		return errors.Errorf("cannot assign to pointer to non-slice")
+		return fmt.Errorf("cannot assign to pointer to non-slice")
 	}
 
 	switch src.status {
@@ -132,7 +132,7 @@ func (src *ArrayType) AssignTo(dst interface{}) error {
 		return nil
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
@@ -336,7 +336,7 @@ func (dst *ArrayType) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

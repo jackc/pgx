@@ -4,10 +4,10 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 type Date struct {
@@ -55,7 +55,7 @@ func (dst *Date) Set(src interface{}) error {
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Date", value)
+		return fmt.Errorf("cannot convert %v to Date", value)
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (src *Date) AssignTo(dst interface{}) error {
 		switch v := dst.(type) {
 		case *time.Time:
 			if src.InfinityModifier != None {
-				return errors.Errorf("cannot assign %v to %T", src, dst)
+				return fmt.Errorf("cannot assign %v to %T", src, dst)
 			}
 			*v = src.Time
 			return nil
@@ -89,13 +89,13 @@ func (src *Date) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *Date) DecodeText(ci *ConnInfo, src []byte) error {
@@ -129,7 +129,7 @@ func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 4 {
-		return errors.Errorf("invalid length for date: %v", len(src))
+		return fmt.Errorf("invalid length for date: %v", len(src))
 	}
 
 	dayOffset := int32(binary.BigEndian.Uint32(src))
@@ -213,7 +213,7 @@ func (dst *Date) Scan(src interface{}) error {
 		return nil
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

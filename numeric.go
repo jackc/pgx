@@ -3,13 +3,13 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
 	"strings"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 // PostgreSQL internal numeric storage uses 16-bit "digits" with base of 10,000
@@ -197,7 +197,7 @@ func (dst *Numeric) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Numeric", value)
+		return fmt.Errorf("cannot convert %v to Numeric", value)
 	}
 
 	return nil
@@ -236,10 +236,10 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(bigMaxInt) > 0 {
-				return errors.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
 			}
 			if normalizedInt.Cmp(bigMinInt) < 0 {
-				return errors.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
 			}
 			*v = int(normalizedInt.Int64())
 		case *int8:
@@ -248,10 +248,10 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(bigMaxInt8) > 0 {
-				return errors.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
 			}
 			if normalizedInt.Cmp(bigMinInt8) < 0 {
-				return errors.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
 			}
 			*v = int8(normalizedInt.Int64())
 		case *int16:
@@ -260,10 +260,10 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(bigMaxInt16) > 0 {
-				return errors.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
 			}
 			if normalizedInt.Cmp(bigMinInt16) < 0 {
-				return errors.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
 			}
 			*v = int16(normalizedInt.Int64())
 		case *int32:
@@ -272,10 +272,10 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(bigMaxInt32) > 0 {
-				return errors.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
 			}
 			if normalizedInt.Cmp(bigMinInt32) < 0 {
-				return errors.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
 			}
 			*v = int32(normalizedInt.Int64())
 		case *int64:
@@ -284,10 +284,10 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(bigMaxInt64) > 0 {
-				return errors.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
 			}
 			if normalizedInt.Cmp(bigMinInt64) < 0 {
-				return errors.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
 			}
 			*v = normalizedInt.Int64()
 		case *uint:
@@ -296,9 +296,9 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(big0) < 0 {
-				return errors.Errorf("%d is less than zero for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
 			} else if normalizedInt.Cmp(bigMaxUint) > 0 {
-				return errors.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = uint(normalizedInt.Uint64())
 		case *uint8:
@@ -307,9 +307,9 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(big0) < 0 {
-				return errors.Errorf("%d is less than zero for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
 			} else if normalizedInt.Cmp(bigMaxUint8) > 0 {
-				return errors.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = uint8(normalizedInt.Uint64())
 		case *uint16:
@@ -318,9 +318,9 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(big0) < 0 {
-				return errors.Errorf("%d is less than zero for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
 			} else if normalizedInt.Cmp(bigMaxUint16) > 0 {
-				return errors.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = uint16(normalizedInt.Uint64())
 		case *uint32:
@@ -329,9 +329,9 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(big0) < 0 {
-				return errors.Errorf("%d is less than zero for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
 			} else if normalizedInt.Cmp(bigMaxUint32) > 0 {
-				return errors.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = uint32(normalizedInt.Uint64())
 		case *uint64:
@@ -340,16 +340,16 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			if normalizedInt.Cmp(big0) < 0 {
-				return errors.Errorf("%d is less than zero for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
 			} else if normalizedInt.Cmp(bigMaxUint64) > 0 {
-				return errors.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = normalizedInt.Uint64()
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
@@ -377,7 +377,7 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 	remainder := &big.Int{}
 	num.DivMod(num, div, remainder)
 	if remainder.Cmp(big0) != 0 {
-		return nil, errors.Errorf("cannot convert %v to integer", dst)
+		return nil, fmt.Errorf("cannot convert %v to integer", dst)
 	}
 	return num, nil
 }
@@ -435,7 +435,7 @@ func parseNumericString(str string) (n *big.Int, exp int32, err error) {
 
 	accum := &big.Int{}
 	if _, ok := accum.SetString(digits, 10); !ok {
-		return nil, 0, errors.Errorf("%s is not a number", str)
+		return nil, 0, fmt.Errorf("%s is not a number", str)
 	}
 
 	return accum, exp, nil
@@ -448,7 +448,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 8 {
-		return errors.Errorf("numeric incomplete %v", src)
+		return fmt.Errorf("numeric incomplete %v", src)
 	}
 
 	rp := 0
@@ -472,7 +472,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src[rp:]) < int(ndigits)*2 {
-		return errors.Errorf("numeric incomplete %v", src)
+		return fmt.Errorf("numeric incomplete %v", src)
 	}
 
 	accum := &big.Int{}
@@ -493,7 +493,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 			case 4:
 				mul = bigNBaseX4
 			default:
-				return errors.Errorf("invalid digitsRead: %d (this can't happen)", digitsRead)
+				return fmt.Errorf("invalid digitsRead: %d (this can't happen)", digitsRead)
 			}
 			accum.Mul(accum, mul)
 		}
@@ -695,7 +695,7 @@ func (dst *Numeric) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

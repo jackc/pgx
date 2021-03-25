@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 // TID is PostgreSQL's Tuple Identifier type.
@@ -29,7 +28,7 @@ type TID struct {
 }
 
 func (dst *TID) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to TID", src)
+	return fmt.Errorf("cannot convert %v to TID", src)
 }
 
 func (dst TID) Get() interface{} {
@@ -53,11 +52,11 @@ func (src *TID) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	}
 
-	return errors.Errorf("cannot assign %v to %T", src, dst)
+	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
@@ -67,12 +66,12 @@ func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) < 5 {
-		return errors.Errorf("invalid length for tid: %v", len(src))
+		return fmt.Errorf("invalid length for tid: %v", len(src))
 	}
 
 	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
 	if len(parts) < 2 {
-		return errors.Errorf("invalid format for tid")
+		return fmt.Errorf("invalid format for tid")
 	}
 
 	blockNumber, err := strconv.ParseUint(parts[0], 10, 32)
@@ -96,7 +95,7 @@ func (dst *TID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 6 {
-		return errors.Errorf("invalid length for tid: %v", len(src))
+		return fmt.Errorf("invalid length for tid: %v", len(src))
 	}
 
 	*dst = TID{
@@ -148,7 +147,7 @@ func (dst *TID) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

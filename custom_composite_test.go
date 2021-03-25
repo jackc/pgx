@@ -2,12 +2,12 @@ package pgtype_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/jackc/pgtype"
 	pgx "github.com/jackc/pgx/v4"
-	errors "golang.org/x/xerrors"
 )
 
 type MyType struct {

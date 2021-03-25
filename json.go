@@ -3,8 +3,8 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/json"
-
-	errors "golang.org/x/xerrors"
+	"errors"
+	"fmt"
 )
 
 type JSON struct {
@@ -82,7 +82,7 @@ func (src *JSON) AssignTo(dst interface{}) error {
 		if src.Status == Present {
 			*v = string(src.Bytes)
 		} else {
-			return errors.Errorf("cannot assign non-present status to %T", dst)
+			return fmt.Errorf("cannot assign non-present status to %T", dst)
 		}
 	case **string:
 		if src.Status == Present {
@@ -166,7 +166,7 @@ func (dst *JSON) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

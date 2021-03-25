@@ -1,9 +1,8 @@
 package pgtype
 
 import (
+	"fmt"
 	"reflect"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Record is the generic PostgreSQL record type such as is created with the
@@ -33,7 +32,7 @@ func (dst *Record) Set(src interface{}) error {
 	case []Value:
 		*dst = Record{Fields: value, Status: Present}
 	default:
-		return errors.Errorf("cannot convert %v to Record", src)
+		return fmt.Errorf("cannot convert %v to Record", src)
 	}
 
 	return nil
@@ -68,13 +67,13 @@ func (src *Record) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func prepareNewBinaryDecoder(ci *ConnInfo, fieldOID uint32, v *Value) (BinaryDecoder, error) {
@@ -83,11 +82,11 @@ func prepareNewBinaryDecoder(ci *ConnInfo, fieldOID uint32, v *Value) (BinaryDec
 	if dt, ok := ci.DataTypeForOID(fieldOID); ok {
 		binaryDecoder, _ = dt.Value.(BinaryDecoder)
 	} else {
-		return nil, errors.Errorf("unknown oid while decoding record: %v", fieldOID)
+		return nil, fmt.Errorf("unknown oid while decoding record: %v", fieldOID)
 	}
 
 	if binaryDecoder == nil {
-		return nil, errors.Errorf("no binary decoder registered for: %v", fieldOID)
+		return nil, fmt.Errorf("no binary decoder registered for: %v", fieldOID)
 	}
 
 	// Duplicate struct to scan into
