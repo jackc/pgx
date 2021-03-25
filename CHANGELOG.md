@@ -1,3 +1,19 @@
+# 4.11.0 (March 25, 2021)
+
+* Add BeforeConnect callback to pgxpool.Config (Robert Froehlich)
+* Add Ping method to pgxpool.Conn (davidsbond)
+* Added a kitlog level log adapter (Fabrice Aneche)
+* Make ScanArgError public to allow identification of offending column (Pau Sanchez)
+* Add *pgxpool.AcquireFunc
+* Add BeginFunc and BeginTxFunc
+* Add prefer_simple_protocol to connection string
+* Add logging on CopyFrom (Patrick Hemmer)
+* Add comment support when sanitizing SQL queries (Rusakow Andrew)
+* Do not panic on double close of pgxpool.Pool (Matt Schultz)
+* Avoid panic on SendBatch on closed Tx (Matt Schultz)
+* Update pgconn to v1.8.1
+* Update pgtype to v1.7.0
+
 # 4.10.1 (December 19, 2020)
 
 * Fix panic on Query error with nil stmtcache.
