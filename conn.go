@@ -2,11 +2,11 @@ package pgx
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
-
-	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
@@ -140,7 +140,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		delete(config.RuntimeParams, "statement_cache_capacity")
 		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
-			return nil, errors.Errorf("cannot parse statement_cache_capacity: %w", err)
+			return nil, fmt.Errorf("cannot parse statement_cache_capacity: %w", err)
 		}
 		statementCacheCapacity = int(n)
 	}
@@ -153,7 +153,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		case "describe":
 			statementCacheMode = stmtcache.ModeDescribe
 		default:
-			return nil, errors.Errorf("invalid statement_cache_mod: %s", s)
+			return nil, fmt.Errorf("invalid statement_cache_mod: %s", s)
 		}
 	}
 
@@ -169,7 +169,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		if b, err := strconv.ParseBool(s); err == nil {
 			preferSimpleProtocol = b
 		} else {
-			return nil, errors.Errorf("invalid prefer_simple_protocol: %v", err)
+			return nil, fmt.Errorf("invalid prefer_simple_protocol: %v", err)
 		}
 	}
 
@@ -486,7 +486,7 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 
 func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, arguments []interface{}) error {
 	if len(sd.ParamOIDs) != len(arguments) {
-		return errors.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(arguments))
+		return fmt.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(arguments))
 	}
 
 	c.eqb.Reset()
@@ -629,7 +629,7 @@ optionLoop:
 		}
 	}
 	if len(sd.ParamOIDs) != len(args) {
-		rows.fatal(errors.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(args)))
+		rows.fatal(fmt.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(args)))
 		return rows, rows.err
 	}
 
@@ -791,7 +791,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		if len(sd.ParamOIDs) != len(bi.arguments) {
-			return &batchResults{ctx: ctx, conn: c, err: errors.Errorf("mismatched param and argument count")}
+			return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("mismatched param and argument count")}
 		}
 
 		args, err := convertDriverValuers(bi.arguments)

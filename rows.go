@@ -2,10 +2,9 @@ package pgx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
-
-	errors "golang.org/x/xerrors"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
@@ -197,12 +196,12 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 	values := rows.values
 
 	if len(fieldDescriptions) != len(values) {
-		err := errors.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
+		err := fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 		rows.fatal(err)
 		return err
 	}
 	if len(fieldDescriptions) != len(dest) {
-		err := errors.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
+		err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
 		rows.fatal(err)
 		return err
 	}
@@ -308,7 +307,7 @@ func (rows *connRows) RawValues() [][]byte {
 
 type ScanArgError struct {
 	ColumnIndex int
-	Err error
+	Err         error
 }
 
 func (e ScanArgError) Error() string {
@@ -327,10 +326,10 @@ func (e ScanArgError) Unwrap() error {
 // dest - the destination that values will be decoded into
 func ScanRow(connInfo *pgtype.ConnInfo, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...interface{}) error {
 	if len(fieldDescriptions) != len(values) {
-		return errors.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
+		return fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 	}
 	if len(fieldDescriptions) != len(dest) {
-		return errors.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
+		return fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
 	}
 
 	for i, d := range dest {

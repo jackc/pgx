@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgtype"
-	errors "golang.org/x/xerrors"
 )
 
 // PostgreSQL format codes
@@ -103,12 +102,12 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return int64(arg), nil
 	case uint64:
 		if arg > math.MaxInt64 {
-			return nil, errors.Errorf("arg too big for int64: %v", arg)
+			return nil, fmt.Errorf("arg too big for int64: %v", arg)
 		}
 		return int64(arg), nil
 	case uint:
 		if uint64(arg) > math.MaxInt64 {
-			return nil, errors.Errorf("arg too big for int64: %v", arg)
+			return nil, fmt.Errorf("arg too big for int64: %v", arg)
 		}
 		return int64(arg), nil
 	}

@@ -3,11 +3,11 @@ package pgx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgconn"
-	errors "golang.org/x/xerrors"
 )
 
 type TxIsoLevel string
@@ -246,7 +246,7 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 	tx.closed = true
 	if err != nil {
 		// A rollback failure leaves the connection in an undefined state
-		tx.conn.die(errors.Errorf("rollback failed: %w", err))
+		tx.conn.die(fmt.Errorf("rollback failed: %w", err))
 		return err
 	}
 

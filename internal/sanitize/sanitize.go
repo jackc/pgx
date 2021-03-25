@@ -3,12 +3,11 @@ package sanitize
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Part is either a string or an int. A string is raw SQL. An int is a
@@ -31,7 +30,7 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 		case int:
 			argIdx := part - 1
 			if argIdx >= len(args) {
-				return "", errors.Errorf("insufficient arguments")
+				return "", fmt.Errorf("insufficient arguments")
 			}
 			arg := args[argIdx]
 			switch arg := arg.(type) {
@@ -50,18 +49,18 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 			case time.Time:
 				str = arg.Truncate(time.Microsecond).Format("'2006-01-02 15:04:05.999999999Z07:00:00'")
 			default:
-				return "", errors.Errorf("invalid arg type: %T", arg)
+				return "", fmt.Errorf("invalid arg type: %T", arg)
 			}
 			argUse[argIdx] = true
 		default:
-			return "", errors.Errorf("invalid Part type: %T", part)
+			return "", fmt.Errorf("invalid Part type: %T", part)
 		}
 		buf.WriteString(str)
 	}
 
 	for i, used := range argUse {
 		if !used {
-			return "", errors.Errorf("unused argument: %d", i)
+			return "", fmt.Errorf("unused argument: %d", i)
 		}
 	}
 	return buf.String(), nil
