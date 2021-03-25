@@ -808,8 +808,15 @@ func TestPointerPointer(t *testing.T) {
 				t.Errorf("%d. Unexpected failure: %v (sql -> %v, queryArgs -> %v)", i, err, tt.sql, tt.queryArgs)
 			}
 
-			if !reflect.DeepEqual(actual, tt.expected) {
-				t.Errorf("%d. Expected %v, got %v (sql -> %v, queryArgs -> %v)", i, tt.expected, actual, tt.sql, tt.queryArgs)
+			assert.Equal(t, tt.expected.s, actual.s)
+			assert.Equal(t, tt.expected.i16, actual.i16)
+			assert.Equal(t, tt.expected.i32, actual.i32)
+			assert.Equal(t, tt.expected.i64, actual.i64)
+			assert.Equal(t, tt.expected.f32, actual.f32)
+			assert.Equal(t, tt.expected.f64, actual.f64)
+			assert.Equal(t, tt.expected.b, actual.b)
+			if tt.expected.t != nil || actual.t != nil {
+				assert.True(t, tt.expected.t.Equal(*actual.t))
 			}
 
 			ensureConnValid(t, conn)
