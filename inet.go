@@ -2,9 +2,8 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"net"
-
-	errors "golang.org/x/xerrors"
 )
 
 // Network address family is dependent on server socket.h value for AF_INET.
@@ -73,7 +72,7 @@ func (dst *Inet) Set(src interface{}) error {
 		if originalSrc, ok := underlyingPtrType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Inet", value)
+		return fmt.Errorf("cannot convert %v to Inet", value)
 	}
 
 	return nil
@@ -104,7 +103,7 @@ func (src *Inet) AssignTo(dst interface{}) error {
 			return nil
 		case *net.IP:
 			if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
-				return errors.Errorf("cannot assign %v to %T", src, dst)
+				return fmt.Errorf("cannot assign %v to %T", src, dst)
 			}
 			*v = make(net.IP, len(src.IPNet.IP))
 			copy(*v, src.IPNet.IP)
@@ -113,13 +112,13 @@ func (src *Inet) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {
@@ -157,7 +156,7 @@ func (dst *Inet) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 8 && len(src) != 20 {
-		return errors.Errorf("Received an invalid size for a inet: %d", len(src))
+		return fmt.Errorf("Received an invalid size for a inet: %d", len(src))
 	}
 
 	// ignore family
@@ -202,7 +201,7 @@ func (src Inet) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	case net.IPv6len:
 		family = defaultAFInet6
 	default:
-		return nil, errors.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
+		return nil, fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
 	}
 
 	buf = append(buf, family)
@@ -234,7 +233,7 @@ func (dst *Inet) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

@@ -3,10 +3,10 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"fmt"
 	"strconv"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 // OID (Object Identifier Type) is, according to
@@ -20,7 +20,7 @@ type OID uint32
 
 func (dst *OID) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		return errors.Errorf("cannot decode nil into OID")
+		return fmt.Errorf("cannot decode nil into OID")
 	}
 
 	n, err := strconv.ParseUint(string(src), 10, 32)
@@ -34,11 +34,11 @@ func (dst *OID) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *OID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		return errors.Errorf("cannot decode nil into OID")
+		return fmt.Errorf("cannot decode nil into OID")
 	}
 
 	if len(src) != 4 {
-		return errors.Errorf("invalid length: %v", len(src))
+		return fmt.Errorf("invalid length: %v", len(src))
 	}
 
 	n := binary.BigEndian.Uint32(src)
@@ -57,7 +57,7 @@ func (src OID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *OID) Scan(src interface{}) error {
 	if src == nil {
-		return errors.Errorf("cannot scan NULL into %T", src)
+		return fmt.Errorf("cannot scan NULL into %T", src)
 	}
 
 	switch src := src.(type) {
@@ -72,7 +72,7 @@ func (dst *OID) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

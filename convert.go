@@ -2,11 +2,10 @@ package pgtype
 
 import (
 	"database/sql"
+	"fmt"
 	"math"
 	"reflect"
 	"time"
-
-	errors "golang.org/x/xerrors"
 )
 
 const maxUint = ^uint(0)
@@ -212,70 +211,70 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 		switch v := dst.(type) {
 		case *int:
 			if srcVal < int64(minInt) {
-				return errors.Errorf("%d is less than minimum value for int", srcVal)
+				return fmt.Errorf("%d is less than minimum value for int", srcVal)
 			} else if srcVal > int64(maxInt) {
-				return errors.Errorf("%d is greater than maximum value for int", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for int", srcVal)
 			}
 			*v = int(srcVal)
 		case *int8:
 			if srcVal < math.MinInt8 {
-				return errors.Errorf("%d is less than minimum value for int8", srcVal)
+				return fmt.Errorf("%d is less than minimum value for int8", srcVal)
 			} else if srcVal > math.MaxInt8 {
-				return errors.Errorf("%d is greater than maximum value for int8", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for int8", srcVal)
 			}
 			*v = int8(srcVal)
 		case *int16:
 			if srcVal < math.MinInt16 {
-				return errors.Errorf("%d is less than minimum value for int16", srcVal)
+				return fmt.Errorf("%d is less than minimum value for int16", srcVal)
 			} else if srcVal > math.MaxInt16 {
-				return errors.Errorf("%d is greater than maximum value for int16", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for int16", srcVal)
 			}
 			*v = int16(srcVal)
 		case *int32:
 			if srcVal < math.MinInt32 {
-				return errors.Errorf("%d is less than minimum value for int32", srcVal)
+				return fmt.Errorf("%d is less than minimum value for int32", srcVal)
 			} else if srcVal > math.MaxInt32 {
-				return errors.Errorf("%d is greater than maximum value for int32", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for int32", srcVal)
 			}
 			*v = int32(srcVal)
 		case *int64:
 			if srcVal < math.MinInt64 {
-				return errors.Errorf("%d is less than minimum value for int64", srcVal)
+				return fmt.Errorf("%d is less than minimum value for int64", srcVal)
 			} else if srcVal > math.MaxInt64 {
-				return errors.Errorf("%d is greater than maximum value for int64", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for int64", srcVal)
 			}
 			*v = int64(srcVal)
 		case *uint:
 			if srcVal < 0 {
-				return errors.Errorf("%d is less than zero for uint", srcVal)
+				return fmt.Errorf("%d is less than zero for uint", srcVal)
 			} else if uint64(srcVal) > uint64(maxUint) {
-				return errors.Errorf("%d is greater than maximum value for uint", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for uint", srcVal)
 			}
 			*v = uint(srcVal)
 		case *uint8:
 			if srcVal < 0 {
-				return errors.Errorf("%d is less than zero for uint8", srcVal)
+				return fmt.Errorf("%d is less than zero for uint8", srcVal)
 			} else if srcVal > math.MaxUint8 {
-				return errors.Errorf("%d is greater than maximum value for uint8", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for uint8", srcVal)
 			}
 			*v = uint8(srcVal)
 		case *uint16:
 			if srcVal < 0 {
-				return errors.Errorf("%d is less than zero for uint32", srcVal)
+				return fmt.Errorf("%d is less than zero for uint32", srcVal)
 			} else if srcVal > math.MaxUint16 {
-				return errors.Errorf("%d is greater than maximum value for uint16", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for uint16", srcVal)
 			}
 			*v = uint16(srcVal)
 		case *uint32:
 			if srcVal < 0 {
-				return errors.Errorf("%d is less than zero for uint32", srcVal)
+				return fmt.Errorf("%d is less than zero for uint32", srcVal)
 			} else if srcVal > math.MaxUint32 {
-				return errors.Errorf("%d is greater than maximum value for uint32", srcVal)
+				return fmt.Errorf("%d is greater than maximum value for uint32", srcVal)
 			}
 			*v = uint32(srcVal)
 		case *uint64:
 			if srcVal < 0 {
-				return errors.Errorf("%d is less than zero for uint64", srcVal)
+				return fmt.Errorf("%d is less than zero for uint64", srcVal)
 			}
 			*v = uint64(srcVal)
 		case sql.Scanner:
@@ -293,22 +292,22 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 					return int64AssignTo(srcVal, srcStatus, el.Interface())
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 					if el.OverflowInt(int64(srcVal)) {
-						return errors.Errorf("cannot put %d into %T", srcVal, dst)
+						return fmt.Errorf("cannot put %d into %T", srcVal, dst)
 					}
 					el.SetInt(int64(srcVal))
 					return nil
 				case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 					if srcVal < 0 {
-						return errors.Errorf("%d is less than zero for %T", srcVal, dst)
+						return fmt.Errorf("%d is less than zero for %T", srcVal, dst)
 					}
 					if el.OverflowUint(uint64(srcVal)) {
-						return errors.Errorf("cannot put %d into %T", srcVal, dst)
+						return fmt.Errorf("cannot put %d into %T", srcVal, dst)
 					}
 					el.SetUint(uint64(srcVal))
 					return nil
 				}
 			}
-			return errors.Errorf("cannot assign %v into %T", srcVal, dst)
+			return fmt.Errorf("cannot assign %v into %T", srcVal, dst)
 		}
 		return nil
 	}
@@ -322,7 +321,7 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 		}
 	}
 
-	return errors.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
 }
 
 func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
@@ -350,7 +349,7 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 					}
 				}
 			}
-			return errors.Errorf("cannot assign %v into %T", srcVal, dst)
+			return fmt.Errorf("cannot assign %v into %T", srcVal, dst)
 		}
 		return nil
 	}
@@ -364,7 +363,7 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 		}
 	}
 
-	return errors.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
 }
 
 func NullAssignTo(dst interface{}) error {

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 const (
@@ -47,7 +46,7 @@ func (dst *Interval) Set(src interface{}) error {
 		if originalSrc, ok := underlyingPtrType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Interval", value)
+		return fmt.Errorf("cannot convert %v to Interval", value)
 	}
 
 	return nil
@@ -76,13 +75,13 @@ func (src *Interval) AssignTo(dst interface{}) error {
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
 			}
-			return errors.Errorf("unable to assign to %T", dst)
+			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case Null:
 		return NullAssignTo(dst)
 	}
 
-	return errors.Errorf("cannot decode %#v into %T", src, dst)
+	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
@@ -100,7 +99,7 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 	for i := 0; i < len(parts)-1; i += 2 {
 		scalar, err := strconv.ParseInt(parts[i], 10, 64)
 		if err != nil {
-			return errors.Errorf("bad interval format")
+			return fmt.Errorf("bad interval format")
 		}
 
 		switch parts[i+1] {
@@ -116,7 +115,7 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 	if len(parts)%2 == 1 {
 		timeParts := strings.SplitN(parts[len(parts)-1], ":", 3)
 		if len(timeParts) != 3 {
-			return errors.Errorf("bad interval format")
+			return fmt.Errorf("bad interval format")
 		}
 
 		var negative bool
@@ -127,26 +126,26 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 
 		hours, err := strconv.ParseInt(timeParts[0], 10, 64)
 		if err != nil {
-			return errors.Errorf("bad interval hour format: %s", timeParts[0])
+			return fmt.Errorf("bad interval hour format: %s", timeParts[0])
 		}
 
 		minutes, err := strconv.ParseInt(timeParts[1], 10, 64)
 		if err != nil {
-			return errors.Errorf("bad interval minute format: %s", timeParts[1])
+			return fmt.Errorf("bad interval minute format: %s", timeParts[1])
 		}
 
 		secondParts := strings.SplitN(timeParts[2], ".", 2)
 
 		seconds, err := strconv.ParseInt(secondParts[0], 10, 64)
 		if err != nil {
-			return errors.Errorf("bad interval second format: %s", secondParts[0])
+			return fmt.Errorf("bad interval second format: %s", secondParts[0])
 		}
 
 		var uSeconds int64
 		if len(secondParts) == 2 {
 			uSeconds, err = strconv.ParseInt(secondParts[1], 10, 64)
 			if err != nil {
-				return errors.Errorf("bad interval decimal format: %s", secondParts[1])
+				return fmt.Errorf("bad interval decimal format: %s", secondParts[1])
 			}
 
 			for i := 0; i < 6-len(secondParts[1]); i++ {
@@ -175,7 +174,7 @@ func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 16 {
-		return errors.Errorf("Received an invalid size for a interval: %d", len(src))
+		return fmt.Errorf("Received an invalid size for a interval: %d", len(src))
 	}
 
 	microseconds := int64(binary.BigEndian.Uint64(src))
@@ -249,7 +248,7 @@ func (dst *Interval) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.

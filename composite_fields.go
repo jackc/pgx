@@ -1,8 +1,6 @@
 package pgtype
 
-import (
-	errors "golang.org/x/xerrors"
-)
+import "fmt"
 
 // CompositeFields scans the fields of a composite type into the elements of the CompositeFields value. To scan a
 // nullable value use a *CompositeFields. It will be set to nil in case of null.
@@ -13,11 +11,11 @@ type CompositeFields []interface{}
 
 func (cf CompositeFields) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if len(cf) == 0 {
-		return errors.Errorf("cannot decode into empty CompositeFields")
+		return fmt.Errorf("cannot decode into empty CompositeFields")
 	}
 
 	if src == nil {
-		return errors.Errorf("cannot decode unexpected null into CompositeFields")
+		return fmt.Errorf("cannot decode unexpected null into CompositeFields")
 	}
 
 	scanner := NewCompositeBinaryScanner(ci, src)
@@ -35,11 +33,11 @@ func (cf CompositeFields) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 func (cf CompositeFields) DecodeText(ci *ConnInfo, src []byte) error {
 	if len(cf) == 0 {
-		return errors.Errorf("cannot decode into empty CompositeFields")
+		return fmt.Errorf("cannot decode into empty CompositeFields")
 	}
 
 	if src == nil {
-		return errors.Errorf("cannot decode unexpected null into CompositeFields")
+		return fmt.Errorf("cannot decode unexpected null into CompositeFields")
 	}
 
 	scanner := NewCompositeTextScanner(ci, src)
@@ -87,7 +85,7 @@ func (cf CompositeFields) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error)
 	for _, f := range cf {
 		dt, ok := ci.DataTypeForValue(f)
 		if !ok {
-			return nil, errors.Errorf("Unknown OID for %#v", f)
+			return nil, fmt.Errorf("Unknown OID for %#v", f)
 		}
 
 		if binaryEncoder, ok := f.(BinaryEncoder); ok {
@@ -100,7 +98,7 @@ func (cf CompositeFields) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error)
 			if binaryEncoder, ok := dt.Value.(BinaryEncoder); ok {
 				b.AppendEncoder(dt.OID, binaryEncoder)
 			} else {
-				return nil, errors.Errorf("Cannot encode binary format for %v", f)
+				return nil, fmt.Errorf("Cannot encode binary format for %v", f)
 			}
 		}
 	}

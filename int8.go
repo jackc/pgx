@@ -4,11 +4,11 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"math"
 	"strconv"
 
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 type Int8 struct {
@@ -46,20 +46,20 @@ func (dst *Int8) Set(src interface{}) error {
 		*dst = Int8{Int: int64(value), Status: Present}
 	case uint64:
 		if value > math.MaxInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case int:
 		if int64(value) < math.MinInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		if int64(value) > math.MaxInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case uint:
 		if uint64(value) > math.MaxInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case string:
@@ -70,12 +70,12 @@ func (dst *Int8) Set(src interface{}) error {
 		*dst = Int8{Int: num, Status: Present}
 	case float32:
 		if value > math.MaxInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%f is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case float64:
 		if value > math.MaxInt64 {
-			return errors.Errorf("%d is greater than maximum value for Int8", value)
+			return fmt.Errorf("%f is greater than maximum value for Int8", value)
 		}
 		*dst = Int8{Int: int64(value), Status: Present}
 	case *int8:
@@ -160,7 +160,7 @@ func (dst *Int8) Set(src interface{}) error {
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
 		}
-		return errors.Errorf("cannot convert %v to Int8", value)
+		return fmt.Errorf("cannot convert %v to Int8", value)
 	}
 
 	return nil
@@ -203,7 +203,7 @@ func (dst *Int8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(src) != 8 {
-		return errors.Errorf("invalid length for int8: %v", len(src))
+		return fmt.Errorf("invalid length for int8: %v", len(src))
 	}
 
 	n := int64(binary.BigEndian.Uint64(src))
@@ -253,7 +253,7 @@ func (dst *Int8) Scan(src interface{}) error {
 		return dst.DecodeText(nil, srcCopy)
 	}
 
-	return errors.Errorf("cannot scan %T", src)
+	return fmt.Errorf("cannot scan %T", src)
 }
 
 // Value implements the database/sql/driver Valuer interface.
