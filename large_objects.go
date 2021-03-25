@@ -2,9 +2,8 @@ package pgx
 
 import (
 	"context"
+	"errors"
 	"io"
-
-	errors "golang.org/x/xerrors"
 )
 
 // LargeObjects is a structure used to access the large objects API. It is only valid within the transaction where it

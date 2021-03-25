@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgio"
-	errors "golang.org/x/xerrors"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
@@ -174,7 +173,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 			return false, nil, err
 		}
 		if len(values) != len(ct.columnNames) {
-			return false, nil, errors.Errorf("expected %d values, got %d values", len(ct.columnNames), len(values))
+			return false, nil, fmt.Errorf("expected %d values, got %d values", len(ct.columnNames), len(values))
 		}
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))

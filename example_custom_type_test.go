@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	errors "golang.org/x/xerrors"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
@@ -21,7 +20,7 @@ type Point struct {
 }
 
 func (dst *Point) Set(src interface{}) error {
-	return errors.Errorf("cannot convert %v to Point", src)
+	return fmt.Errorf("cannot convert %v to Point", src)
 }
 
 func (dst *Point) Get() interface{} {
@@ -36,7 +35,7 @@ func (dst *Point) Get() interface{} {
 }
 
 func (src *Point) AssignTo(dst interface{}) error {
-	return errors.Errorf("cannot assign %v to %T", src, dst)
+	return fmt.Errorf("cannot assign %v to %T", src, dst)
 }
 
 func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
@@ -48,16 +47,16 @@ func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	s := string(src)
 	match := pointRegexp.FindStringSubmatch(s)
 	if match == nil {
-		return errors.Errorf("Received invalid point: %v", s)
+		return fmt.Errorf("Received invalid point: %v", s)
 	}
 
 	x, err := strconv.ParseFloat(match[1], 64)
 	if err != nil {
-		return errors.Errorf("Received invalid point: %v", s)
+		return fmt.Errorf("Received invalid point: %v", s)
 	}
 	y, err := strconv.ParseFloat(match[2], 64)
 	if err != nil {
-		return errors.Errorf("Received invalid point: %v", s)
+		return fmt.Errorf("Received invalid point: %v", s)
 	}
 
 	*dst = Point{X: x, Y: y, Status: pgtype.Present}

@@ -2,9 +2,9 @@ package pgx
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgconn"
-	errors "golang.org/x/xerrors"
 )
 
 type batchItem struct {

@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/require"
-	errors "golang.org/x/xerrors"
 )
 
 func TestConnCopyFromSmall(t *testing.T) {
@@ -316,7 +316,7 @@ func (cfs *clientFailSource) Next() bool {
 
 func (cfs *clientFailSource) Values() ([]interface{}, error) {
 	if cfs.count == 3 {
-		cfs.err = errors.Errorf("client error")
+		cfs.err = fmt.Errorf("client error")
 		return nil, cfs.err
 	}
 	return []interface{}{make([]byte, 100000)}, nil
@@ -559,7 +559,7 @@ func (cfs *clientFinalErrSource) Values() ([]interface{}, error) {
 }
 
 func (cfs *clientFinalErrSource) Err() error {
-	return errors.Errorf("final error")
+	return fmt.Errorf("final error")
 }
 
 func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
