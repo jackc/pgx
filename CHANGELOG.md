@@ -1,3 +1,10 @@
+# 1.8.1 (March 25, 2021)
+
+* Better connection string sanitization (ip.novikov)
+* Use proper pgpass location on Windows (Moshe Katz)
+* Use errors instead of golang.org/x/xerrors
+* Resume fallback on server error in Connect (Andrey Borodin)
+
 # 1.8.0 (December 3, 2020)
 
 * Add StatementErrored method to stmtcache.Cache. This allows the cache to purge invalidated prepared statements. (Ethan Pailes)
