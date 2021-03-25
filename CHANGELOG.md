@@ -1,3 +1,12 @@
+# 1.7.0 (March 25, 2021)
+
+* Fix scanning int into **sql.Scanner implementor
+* Add tsrange array type (Vasilii Novikov)
+* Fix: escaped strings when they start or end with a newline char (Stephane Martin)
+* Accept nil *time.Time in Time.Set
+* Fix numeric NaN support
+* Use Go 1.13 errors instead of xerrors
+
 # 1.6.2 (December 3, 2020)
 
 * Fix panic on assigning empty array to non-slice or array
