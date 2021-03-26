@@ -385,6 +385,13 @@ func (c *Conn) CheckNamedValue(*driver.NamedValue) error {
 	return nil
 }
 
+func (c *Conn) ResetSession(ctx context.Context) error {
+	if c.conn.IsClosed() {
+		return driver.ErrBadConn
+	}
+	return nil
+}
+
 type Stmt struct {
 	sd   *pgconn.StatementDescription
 	conn *Conn
