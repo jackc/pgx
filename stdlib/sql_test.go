@@ -1067,8 +1067,15 @@ func TestRegisterConnConfig(t *testing.T) {
 	logger := &testLogger{}
 	connConfig.Logger = logger
 
+	// Issue 947: Register and unregister a ConnConfig and ensure that the
+	// returned connection string is not reused.
 	connStr := stdlib.RegisterConnConfig(connConfig)
+	require.Equal(t, "registeredConnConfig0", connStr)
+	stdlib.UnregisterConnConfig(connStr)
+
+	connStr = stdlib.RegisterConnConfig(connConfig)
 	defer stdlib.UnregisterConnConfig(connStr)
+	require.Equal(t, "registeredConnConfig1", connStr)
 
 	db, err := sql.Open("pgx", connStr)
 	require.NoError(t, err)
