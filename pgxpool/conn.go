@@ -46,6 +46,29 @@ func (c *Conn) Release() {
 	}()
 }
 
+// WaitForNotification waits for a PostgreSQL notification. It wraps the underlying pgconn notification system in a
+// slightly more convenient form.
+func (pc *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, error) {
+	// Get the underlying connection
+	c := pc.Conn()
+	
+	var n *pgconn.Notification
+
+	// Return already received notification immediately
+	if len(c.notifications) > 0 {
+		n = c.notifications[0]
+		c.notifications = c.notifications[1:]
+		return n, nil
+	}
+
+	err := c.pgConn.WaitForNotification(ctx)
+	if len(c.notifications) > 0 {
+		n = c.notifications[0]
+		c.notifications = c.notifications[1:]
+	}
+	return n, err
+}
+
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	return c.Conn().Exec(ctx, sql, arguments...)
 }
