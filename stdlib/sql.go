@@ -169,6 +169,7 @@ func GetDefaultDriver() driver.Driver {
 type Driver struct {
 	configMutex sync.Mutex
 	configs     map[string]*pgx.ConnConfig
+	sequence    int
 }
 
 func (d *Driver) Open(name string) (driver.Conn, error) {
@@ -188,7 +189,8 @@ func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
 
 func (d *Driver) registerConnConfig(c *pgx.ConnConfig) string {
 	d.configMutex.Lock()
-	connStr := fmt.Sprintf("registeredConnConfig%d", len(d.configs))
+	connStr := fmt.Sprintf("registeredConnConfig%d", d.sequence)
+	d.sequence++
 	d.configs[connStr] = c
 	d.configMutex.Unlock()
 	return connStr
