@@ -426,7 +426,15 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		settings["database"] = database
 	}
 
+	nameMap := map[string]string{
+		"dbname": "database",
+	}
+
 	for k, v := range url.Query() {
+		if k2, present := nameMap[k]; present {
+			k = k2
+		}
+
 		settings[k] = v[0]
 	}
 
