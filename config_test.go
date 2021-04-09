@@ -228,6 +228,18 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
+			name:       "database url dbname",
+			connString: "postgres://localhost/?dbname=foo&sslmode=disable",
+			config: &pgconn.Config{
+				User:          osUserName,
+				Host:          "localhost",
+				Port:          5432,
+				Database:      "foo",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
 			name:       "database url postgresql protocol",
 			connString: "postgresql://jack@localhost:5432/mydb?sslmode=disable",
 			config: &pgconn.Config{
