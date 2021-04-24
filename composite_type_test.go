@@ -204,6 +204,49 @@ create type ct_test as (
 	}
 }
 
+// https://github.com/jackc/pgx/issues/874
+func TestCompositeTypeTextDecodeNested(t *testing.T) {
+	newCompositeType := func(name string, fieldNames []string, vals ...pgtype.ValueTranscoder) *pgtype.CompositeType {
+		fields := make([]pgtype.CompositeTypeField, len(fieldNames))
+		for i, name := range fieldNames {
+			fields[i] = pgtype.CompositeTypeField{Name: name}
+		}
+
+		rowType, err := pgtype.NewCompositeTypeValues(name, fields, vals)
+		require.NoError(t, err)
+		return rowType
+	}
+
+	dimensionsType := func() pgtype.ValueTranscoder {
+		return newCompositeType(
+			"dimensions",
+			[]string{"width", "height"},
+			&pgtype.Int4{},
+			&pgtype.Int4{},
+		)
+	}
+	productImageType := func() pgtype.ValueTranscoder {
+		return newCompositeType(
+			"product_image_type",
+			[]string{"source", "dimensions"},
+			&pgtype.Text{},
+			dimensionsType(),
+		)
+	}
+	productImageSetType := newCompositeType(
+		"product_image_set_type",
+		[]string{"name", "orig_image", "images"},
+		&pgtype.Text{},
+		productImageType(),
+		pgtype.NewArrayType("product_image", 0, func() pgtype.ValueTranscoder {
+			return productImageType()
+		}),
+	)
+
+	err := productImageSetType.DecodeText(nil, []byte(`(name,"(img1,""(11,11)"")","{""(img2,\\""(22,22)\\"")"",""(img3,\\""(33,33)\\"")""}")`))
+	require.NoError(t, err)
+}
+
 func Example_composite() {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
