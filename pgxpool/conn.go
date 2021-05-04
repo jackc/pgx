@@ -32,18 +32,12 @@ func (c *Conn) Release() {
 		return
 	}
 
-	if c.p.afterRelease == nil {
+	if c.p.afterRelease == nil || c.p.afterRelease(conn) {
 		res.Release()
 		return
 	}
 
-	go func() {
-		if c.p.afterRelease(conn) {
-			res.Release()
-		} else {
-			res.Destroy()
-		}
-	}()
+	go res.Destroy()
 }
 
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
