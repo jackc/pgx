@@ -1129,3 +1129,76 @@ func TestConnQueryRowConstraintErrors(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestOptionBeforeAfterConnect(t *testing.T) {
+	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	var beforeConnConfigs []*pgx.ConnConfig
+	var afterConns []*pgx.Conn
+	db := stdlib.OpenDB(*config,
+		stdlib.OptionBeforeConnect(func(ctx context.Context, connConfig *pgx.ConnConfig) error {
+			beforeConnConfigs = append(beforeConnConfigs, connConfig)
+			return nil
+		}),
+		stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+			afterConns = append(afterConns, conn)
+			return nil
+		}))
+	defer closeDB(t, db)
+
+	// Force it to close and reopen a new connection after each query
+	db.SetMaxIdleConns(0)
+
+	_, err = db.Exec("select 1")
+	require.NoError(t, err)
+
+	_, err = db.Exec("select 1")
+	require.NoError(t, err)
+
+	require.Len(t, beforeConnConfigs, 2)
+	require.Len(t, afterConns, 2)
+
+	// Note: BeforeConnect creates a shallow copy, so the config contents will be the same but we wean to ensure they
+	// are different objects, so can't use require.NotEqual
+	require.False(t, config == beforeConnConfigs[0])
+	require.False(t, beforeConnConfigs[0] == beforeConnConfigs[1])
+}
+
+func TestRandomizeHostOrderFunc(t *testing.T) {
+	config, err := pgx.ParseConfig("postgres://host1,host2,host3")
+	require.NoError(t, err)
+
+	// Test that at some point we connect to all 3 hosts
+	hostsNotSeenYet := map[string]struct{}{
+		"host1": struct{}{},
+		"host2": struct{}{},
+		"host3": struct{}{},
+	}
+
+	// If we don't succeed within this many iterations, something is certainly wrong
+	for i := 0; i < 100000; i++ {
+		connCopy := *config
+		stdlib.RandomizeHostOrderFunc(context.Background(), &connCopy)
+
+		delete(hostsNotSeenYet, connCopy.Host)
+		if len(hostsNotSeenYet) == 0 {
+			return
+		}
+
+	hostCheckLoop:
+		for _, h := range []string{"host1", "host2", "host3"} {
+			if connCopy.Host == h {
+				continue
+			}
+			for _, f := range connCopy.Fallbacks {
+				if f.Host == h {
+					continue hostCheckLoop
+				}
+			}
+			require.Failf(t, "got configuration from RandomizeHostOrderFunc that did not have all the hosts", "%+v", connCopy)
+		}
+	}
+
+	require.Fail(t, "did not get all hosts as primaries after many randomizations")
+}
