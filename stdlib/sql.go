@@ -391,6 +391,11 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 	if c.conn.IsClosed() {
 		return driver.ErrBadConn
 	}
+
+	if err := connCheck(c.Conn().PgConn().Conn()); err != nil {
+		return driver.ErrBadConn
+	}
+
 	return nil
 }
 
