@@ -135,13 +135,11 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 		return nil
 	}
 
-	newFallbacks := append([]*pgconn.FallbackConfig(nil),
-		&pgconn.FallbackConfig{
-			Host:      connConfig.Host,
-			Port:      connConfig.Port,
-			TLSConfig: connConfig.TLSConfig,
-		})
-	newFallbacks = append(newFallbacks, connConfig.Fallbacks...)
+	newFallbacks := append([]*pgconn.FallbackConfig{&pgconn.FallbackConfig{
+		Host:      connConfig.Host,
+		Port:      connConfig.Port,
+		TLSConfig: connConfig.TLSConfig,
+	}}, connConfig.Fallbacks...)
 
 	rand.Shuffle(len(newFallbacks), func(i, j int) {
 		newFallbacks[i], newFallbacks[j] = newFallbacks[j], newFallbacks[i]
