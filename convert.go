@@ -8,9 +8,11 @@ import (
 	"time"
 )
 
-const maxUint = ^uint(0)
-const maxInt = int(maxUint >> 1)
-const minInt = -maxInt - 1
+const (
+	maxUint = ^uint(0)
+	maxInt  = int(maxUint >> 1)
+	minInt  = -maxInt - 1
+)
 
 // underlyingNumberType gets the underlying type that can be converted to Int2, Int4, Int8, Float4, or Float8
 func underlyingNumberType(val interface{}) (interface{}, bool) {
@@ -429,6 +431,23 @@ func GetAssignToDstType(dst interface{}) (interface{}, bool) {
 			baseArrayType := reflect.PtrTo(reflect.ArrayOf(dstVal.Len(), baseElemType))
 			nextDst := dstPtr.Convert(baseArrayType)
 			return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
+		}
+	}
+
+	if dstVal.Kind() == reflect.Struct {
+		if dstVal.Type().NumField() == 1 && dstVal.Type().Field(0).Anonymous {
+			dstPtr = dstVal.Field(0).Addr()
+			nested := dstVal.Type().Field(0).Type
+			if nested.Kind() == reflect.Array {
+				if baseElemType, ok := kindTypes[nested.Elem().Kind()]; ok {
+					baseArrayType := reflect.PtrTo(reflect.ArrayOf(nested.Len(), baseElemType))
+					nextDst := dstPtr.Convert(baseArrayType)
+					return nextDst.Interface(), dstPtr.Type() != nextDst.Type()
+				}
+			}
+			if _, ok := kindTypes[nested.Kind()]; ok && dstPtr.CanInterface() {
+				return dstPtr.Interface(), true
+			}
 		}
 	}
 

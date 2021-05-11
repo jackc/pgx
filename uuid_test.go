@@ -16,6 +16,10 @@ func TestUUIDTranscode(t *testing.T) {
 	})
 }
 
+type SomeUUIDWrapper struct {
+	SomeUUIDType
+}
+
 type SomeUUIDType [16]byte
 
 func TestUUIDSet(t *testing.T) {
@@ -127,6 +131,20 @@ func TestUUIDAssignTo(t *testing.T) {
 		}
 	}
 
+	{
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		var dst SomeUUIDWrapper
+		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+
+		err := src.AssignTo(&dst)
+		if err != nil {
+			t.Error(err)
+		}
+
+		if dst.SomeUUIDType != expected {
+			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
+		}
+	}
 }
 
 func TestUUID_MarshalJSON(t *testing.T) {
