@@ -1202,3 +1202,26 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 
 	require.Fail(t, "did not get all hosts as primaries after many randomizations")
 }
+
+func TestResetSessionHookCalled(t *testing.T) {
+	var mockCalled bool
+
+	connConfig, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	db := stdlib.OpenDB(*connConfig, stdlib.OptionResetSession(func(ctx context.Context, conn *pgx.Conn) error {
+		mockCalled = true
+
+		return nil
+	}))
+
+	defer closeDB(t, db)
+
+	err = db.Ping()
+	require.NoError(t, err)
+
+	err = db.Ping()
+	require.NoError(t, err)
+
+	require.True(t, mockCalled)
+}
