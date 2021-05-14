@@ -411,8 +411,12 @@ func parseURLSettings(connString string) (map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to split host:port in '%s', err: %w", host, err)
 		}
-		hosts = append(hosts, h)
-		ports = append(ports, p)
+		if h != "" {
+			hosts = append(hosts, h)
+		}
+		if p != "" {
+			ports = append(ports, p)
+		}
 	}
 	if len(hosts) > 0 {
 		settings["host"] = strings.Join(hosts, ",")

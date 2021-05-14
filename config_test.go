@@ -32,6 +32,10 @@ func TestParseConfig(t *testing.T) {
 		}
 	}
 
+	config, err := pgconn.ParseConfig("")
+	require.NoError(t, err)
+	defaultHost := config.Host
+
 	tests := []struct {
 		name       string
 		connString string
@@ -426,6 +430,20 @@ func TestParseConfig(t *testing.T) {
 						TLSConfig: nil,
 					},
 				},
+			},
+		},
+		// https://github.com/jackc/pgconn/issues/72
+		{
+			name:       "URL without host but with port still uses default host",
+			connString: "postgres://jack:secret@:1/mydb?sslmode=disable",
+			config: &pgconn.Config{
+				User:          "jack",
+				Password:      "secret",
+				Host:          defaultHost,
+				Port:          1,
+				Database:      "mydb",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
 			},
 		},
 		{
