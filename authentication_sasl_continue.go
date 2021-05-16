@@ -2,6 +2,7 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgio"
@@ -45,4 +46,22 @@ func (src *AuthenticationSASLContinue) Encode(dst []byte) []byte {
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
 	return dst
+}
+
+// UnmarshalJSON implements encoding/json.Unmarshaler.
+func (dst *AuthenticationSASLContinue) UnmarshalJSON(data []byte) error {
+	// Ignore null, like in the main JSON package.
+	if string(data) == "null" {
+		return nil
+	}
+
+	var msg struct {
+		Data string
+	}
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+
+	dst.Data = []byte(msg.Data)
+	return nil
 }

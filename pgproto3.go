@@ -1,6 +1,10 @@
 package pgproto3
 
-import "fmt"
+import (
+	"encoding/hex"
+	"errors"
+	"fmt"
+)
 
 // Message is the interface implemented by an object that can decode and encode
 // a particular PostgreSQL message.
@@ -39,4 +43,15 @@ type invalidMessageFormatErr struct {
 
 func (e *invalidMessageFormatErr) Error() string {
 	return fmt.Sprintf("%s body is invalid", e.messageType)
+}
+
+// getValueFromJSON gets the value from a protocol message representation in JSON.
+func getValueFromJSON(v map[string]string) ([]byte, error) {
+	if text, ok := v["text"]; ok {
+		return []byte(text), nil
+	}
+	if binary, ok := v["binary"]; ok {
+		return hex.DecodeString(binary)
+	}
+	return nil, errors.New("unknown protocol representation")
 }
