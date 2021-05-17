@@ -201,15 +201,13 @@ func (dst *Bind) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	bind := &Bind{
-		DestinationPortal:    msg.DestinationPortal,
-		PreparedStatement:    msg.PreparedStatement,
-		ParameterFormatCodes: msg.ParameterFormatCodes,
-		Parameters:           make([][]byte, len(msg.Parameters)),
-		ResultFormatCodes:    msg.ResultFormatCodes,
-	}
+	dst.DestinationPortal = msg.DestinationPortal
+	dst.PreparedStatement = msg.PreparedStatement
+	dst.ParameterFormatCodes = msg.ParameterFormatCodes
+	dst.Parameters = make([][]byte, len(msg.Parameters))
+	dst.ResultFormatCodes = msg.ResultFormatCodes
 	for n, parameter := range msg.Parameters {
-		bind.Parameters[n], err = getValueFromJSON(parameter)
+		dst.Parameters[n], err = getValueFromJSON(parameter)
 		if err != nil {
 			return fmt.Errorf("cannot get param %d: %w", n, err)
 		}

@@ -82,11 +82,13 @@ func (dst *SASLInitialResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
-	decodedData, err := hex.DecodeString(msg.Data)
-	if err != nil {
-		return err
-	}
 	dst.AuthMechanism = msg.AuthMechanism
-	dst.Data = decodedData
+	if msg.Data != "" {
+		decoded, err := hex.DecodeString(msg.Data)
+		if err != nil {
+			return err
+		}
+		dst.Data = decoded
+	}
 	return nil
 }

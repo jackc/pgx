@@ -50,10 +50,12 @@ func (dst *SASLResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &msg); err != nil {
 		return err
 	}
-	decoded, err := hex.DecodeString(msg.Data)
-	if err != nil {
-		return err
+	if msg.Data != "" {
+		decoded, err := hex.DecodeString(msg.Data)
+		if err != nil {
+			return err
+		}
+		dst.Data = decoded
 	}
-	dst.Data = decoded
 	return nil
 }

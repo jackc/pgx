@@ -47,6 +47,9 @@ func (e *invalidMessageFormatErr) Error() string {
 
 // getValueFromJSON gets the value from a protocol message representation in JSON.
 func getValueFromJSON(v map[string]string) ([]byte, error) {
+	if v == nil {
+		return nil, nil
+	}
 	if text, ok := v["text"]; ok {
 		return []byte(text), nil
 	}
