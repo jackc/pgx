@@ -3,8 +3,6 @@ package pgproto3
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
-	"fmt"
 	"strconv"
 )
 
@@ -226,69 +224,4 @@ func (src *ErrorResponse) marshalBinary(typeByte byte) []byte {
 	binary.BigEndian.PutUint32(buf.Bytes()[1:5], uint32(buf.Len()-1))
 
 	return buf.Bytes()
-}
-
-// UnmarshalJSON implements encoding/json.Unmarshaler.
-func (dst *ErrorResponse) UnmarshalJSON(data []byte) error {
-	// Ignore null, like in the main JSON package.
-	if string(data) == "null" {
-		return nil
-	}
-
-	var msg struct {
-		Severity            string
-		SeverityUnlocalized string // only in 9.6 and greater
-		Code                string
-		Message             string
-		Detail              string
-		Hint                string
-		Position            int32
-		InternalPosition    int32
-		InternalQuery       string
-		Where               string
-		SchemaName          string
-		TableName           string
-		ColumnName          string
-		DataTypeName        string
-		ConstraintName      string
-		File                string
-		Line                int32
-		Routine             string
-
-		UnknownFields map[string]string
-	}
-	if err := json.Unmarshal(data, &msg); err != nil {
-		return err
-	}
-
-	dst.Severity = msg.Severity
-	dst.SeverityUnlocalized = msg.SeverityUnlocalized
-	dst.Code = msg.Code
-	dst.Message = msg.Message
-	dst.Detail = msg.Detail
-	dst.Hint = msg.Hint
-	dst.Position = msg.Position
-	dst.InternalPosition = msg.InternalPosition
-	dst.InternalQuery = msg.InternalQuery
-	dst.Where = msg.Where
-	dst.SchemaName = msg.SchemaName
-	dst.TableName = msg.TableName
-	dst.ColumnName = msg.ColumnName
-	dst.DataTypeName = msg.DataTypeName
-	dst.ConstraintName = msg.ConstraintName
-	dst.File = msg.File
-	dst.Line = msg.Line
-	dst.Routine = msg.Routine
-
-	if msg.UnknownFields != nil {
-		dst.UnknownFields = map[byte]string{}
-	}
-	for k, v := range msg.UnknownFields {
-		if len(k) != 1 {
-			return fmt.Errorf("invalid UnknownFields field %q value", k)
-		}
-		dst.UnknownFields[k[0]] = v
-	}
-
-	return nil
 }
