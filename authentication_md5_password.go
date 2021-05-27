@@ -2,6 +2,7 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgio"
@@ -40,4 +41,34 @@ func (src *AuthenticationMD5Password) Encode(dst []byte) []byte {
 	dst = pgio.AppendUint32(dst, AuthTypeMD5Password)
 	dst = append(dst, src.Salt[:]...)
 	return dst
+}
+
+// MarshalJSON implements encoding/json.Marshaler.
+func (src AuthenticationMD5Password) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string
+		Salt [4]byte
+	}{
+		Type: "AuthenticationMD5Password",
+		Salt: src.Salt,
+	})
+}
+
+// UnmarshalJSON implements encoding/json.Unmarshaler.
+func (dst *AuthenticationMD5Password) UnmarshalJSON(data []byte) error {
+	// Ignore null, like in the main JSON package.
+	if string(data) == "null" {
+		return nil
+	}
+
+	var msg struct {
+		Type string
+		Salt [4]byte
+	}
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+
+	dst.Salt = msg.Salt
+	return nil
 }

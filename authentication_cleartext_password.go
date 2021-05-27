@@ -2,6 +2,7 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgio"
@@ -36,4 +37,13 @@ func (src *AuthenticationCleartextPassword) Encode(dst []byte) []byte {
 	dst = pgio.AppendInt32(dst, 8)
 	dst = pgio.AppendUint32(dst, AuthTypeCleartextPassword)
 	return dst
+}
+
+// MarshalJSON implements encoding/json.Marshaler.
+func (src AuthenticationCleartextPassword) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string
+	}{
+		Type: "AuthenticationCleartextPassword",
+	})
 }

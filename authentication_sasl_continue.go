@@ -48,6 +48,17 @@ func (src *AuthenticationSASLContinue) Encode(dst []byte) []byte {
 	return dst
 }
 
+// MarshalJSON implements encoding/json.Marshaler.
+func (src AuthenticationSASLContinue) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type string
+		Data string
+	}{
+		Type: "AuthenticationSASLContinue",
+		Data: string(src.Data),
+	})
+}
+
 // UnmarshalJSON implements encoding/json.Unmarshaler.
 func (dst *AuthenticationSASLContinue) UnmarshalJSON(data []byte) error {
 	// Ignore null, like in the main JSON package.
