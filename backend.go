@@ -12,27 +12,27 @@ type Backend struct {
 	w  io.Writer
 
 	// Frontend message flyweights
-	bind            Bind
-	cancelRequest   CancelRequest
-	_close          Close
-	copyFail        CopyFail
-	copyData        CopyData
-	copyDone        CopyDone
-	describe        Describe
-	execute         Execute
-	flush           Flush
-	gssEncRequest   GSSEncRequest
-	parse           Parse
-	passwordMessage PasswordMessage
-	query           Query
-	sslRequest      SSLRequest
-	startupMessage  StartupMessage
-	sync            Sync
-	terminate       Terminate
+	bind           Bind
+	cancelRequest  CancelRequest
+	_close         Close
+	copyFail       CopyFail
+	copyData       CopyData
+	copyDone       CopyDone
+	describe       Describe
+	execute        Execute
+	flush          Flush
+	gssEncRequest  GSSEncRequest
+	parse          Parse
+	query          Query
+	sslRequest     SSLRequest
+	startupMessage StartupMessage
+	sync           Sync
+	terminate      Terminate
 
 	bodyLen    int
 	msgType    byte
 	partialMsg bool
+	authType   uint32
 }
 
 // NewBackend creates a new Backend.
@@ -127,7 +127,19 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	case 'P':
 		msg = &b.parse
 	case 'p':
-		msg = &b.passwordMessage
+		switch b.authType {
+		case AuthTypeSASL:
+			msg = &SASLInitialResponse{}
+		case AuthTypeSASLContinue:
+			msg = &SASLResponse{}
+		case AuthTypeSASLFinal:
+			msg = &SASLResponse{}
+		case AuthTypeCleartextPassword, AuthTypeMD5Password:
+			fallthrough
+		default:
+			// to maintain backwards compatability
+			msg = &PasswordMessage{}
+		}
 	case 'Q':
 		msg = &b.query
 	case 'S':
@@ -147,4 +159,37 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 
 	err = msg.Decode(msgBody)
 	return msg, err
+}
+
+// SetAuthType sets the authentication type in the backend.
+// Since multiple message types can start with 'p', SetAuthType allows
+// contextual identification of FrontendMessages. For example, in the
+// PG message flow documentation for PasswordMessage:
+//
+// 		Byte1('p')
+//
+//      Identifies the message as a password response. Note that this is also used for
+//		GSSAPI, SSPI and SASL response messages. The exact message type can be deduced from
+//		the context.
+//
+// Since the Frontend does not know about the state of a backend, it is important
+// to call SetAuthType() after an authentication request is received by the Frontend.
+func (b *Backend) SetAuthType(authType uint32) error {
+	switch authType {
+	case AuthTypeOk,
+		AuthTypeCleartextPassword,
+		AuthTypeMD5Password,
+		AuthTypeSCMCreds,
+		AuthTypeGSS,
+		AuthTypeGSSCont,
+		AuthTypeSSPI,
+		AuthTypeSASL,
+		AuthTypeSASLContinue,
+		AuthTypeSASLFinal:
+		b.authType = authType
+	default:
+		return fmt.Errorf("authType not recognized: %d", authType)
+	}
+
+	return nil
 }

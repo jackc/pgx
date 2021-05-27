@@ -27,6 +27,11 @@ type BackendMessage interface {
 	Backend() // no-op method to distinguish frontend from backend methods
 }
 
+type AuthenticationResponseMessage interface {
+	BackendMessage
+	AuthenticationResponse() // no-op method to distinguish authentication responses
+}
+
 type invalidMessageLenErr struct {
 	messageType string
 	expectedLen int
