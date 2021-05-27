@@ -3,6 +3,7 @@ package pgproto3
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 
 	"github.com/jackc/pgio"
@@ -57,4 +58,15 @@ func (src *AuthenticationSASL) Encode(dst []byte) []byte {
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 
 	return dst
+}
+
+// MarshalJSON implements encoding/json.Marshaler.
+func (src AuthenticationSASL) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type           string
+		AuthMechanisms []string
+	}{
+		Type:           "AuthenticationSASL",
+		AuthMechanisms: src.AuthMechanisms,
+	})
 }
