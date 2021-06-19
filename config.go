@@ -297,7 +297,7 @@ func ParseConfig(connString string) (*Config, error) {
 			tlsConfigs = append(tlsConfigs, nil)
 		} else {
 			var err error
-			tlsConfigs, err = configTLS(settings)
+			tlsConfigs, err = configTLS(settings, host)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
 			}
@@ -552,8 +552,8 @@ func parseServiceSettings(servicefilePath, serviceName string) (map[string]strin
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
-func configTLS(settings map[string]string) ([]*tls.Config, error) {
-	host := settings["host"]
+func configTLS(settings map[string]string, thisHost string) ([]*tls.Config, error) {
+	host := thisHost
 	sslmode := settings["sslmode"]
 	sslrootcert := settings["sslrootcert"]
 	sslcert := settings["sslcert"]
