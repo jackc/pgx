@@ -22,6 +22,19 @@ func defaultSettings() map[string]string {
 		settings["user"] = user.Username
 		settings["passfile"] = filepath.Join(user.HomeDir, ".pgpass")
 		settings["servicefile"] = filepath.Join(user.HomeDir, ".pg_service.conf")
+		sslcert := filepath.Join(user.HomeDir, ".postgresql", "postgresql.crt")
+		sslkey := filepath.Join(user.HomeDir, ".postgresql", "postgresql.key")
+		if _, err := os.Stat(sslcert); err == nil {
+			if _, err := os.Stat(sslkey); err == nil {
+				// Both the cert and key must be present to use them, or do not use either
+				settings["sslcert"] = sslcert
+				settings["sslkey"] = sslkey
+			}
+		}
+		sslrootcert := filepath.Join(user.HomeDir, ".postgresql", "root.crt")
+		if _, err := os.Stat(sslrootcert); err == nil {
+			settings["sslrootcert"] = sslrootcert
+		}
 	}
 
 	settings["target_session_attrs"] = "any"
