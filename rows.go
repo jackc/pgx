@@ -161,7 +161,7 @@ func (rows *connRows) CommandTag() pgconn.CommandTag {
 }
 
 func (rows *connRows) Err() error {
-	return rows.err
+	return wrapErrIfTimeout(rows.err)
 }
 
 // fatal signals an error occurred after the query was sent to the server. It

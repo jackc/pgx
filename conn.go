@@ -409,6 +409,7 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 
 	commandTag, err := c.exec(ctx, sql, arguments...)
 	if err != nil {
+		err = wrapErrIfTimeout(err)
 		if c.shouldLog(LogLevelError) {
 			c.log(ctx, LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
 		}
@@ -603,7 +604,7 @@ optionLoop:
 			rows.resultReader = mrr.ResultReader()
 			rows.multiResultReader = mrr
 		} else {
-			err = mrr.Close()
+			err = wrapErrIfTimeout(mrr.Close())
 			rows.fatal(err)
 			return rows, err
 		}
