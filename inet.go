@@ -45,10 +45,11 @@ func (dst *Inet) Set(src interface{}) error {
 			*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Status: Present}
 		}
 	case string:
-		_, ipnet, err := net.ParseCIDR(value)
+		ip, ipnet, err := net.ParseCIDR(value)
 		if err != nil {
 			return err
 		}
+		ipnet.IP = ip
 		*dst = Inet{IPNet: ipnet, Status: Present}
 	case *net.IPNet:
 		if value == nil {
