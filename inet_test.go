@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestInetTranscode(t *testing.T) {
@@ -16,6 +17,7 @@ func TestInetTranscode(t *testing.T) {
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.1.0/24"), Status: pgtype.Present},
+			&pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.1.50/24"), Status: pgtype.Present},
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Status: pgtype.Present},
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "255.255.255.255/32"), Status: pgtype.Present},
 			&pgtype.Inet{IPNet: mustParseCIDR(t, "::/128"), Status: pgtype.Present},
@@ -35,6 +37,7 @@ func TestInetSet(t *testing.T) {
 		{source: mustParseCIDR(t, "127.0.0.1/32"), result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: mustParseCIDR(t, "127.0.0.1/32").IP, result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: "127.0.0.1/32", result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+		{source: "1.2.3.4/24", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("1.2.3.4"), Mask: net.CIDRMask(24, 32)}, Status: pgtype.Present}},
 		{source: net.ParseIP(""), result: pgtype.Inet{Status: pgtype.Null}},
 	}
 
@@ -45,8 +48,10 @@ func TestInetSet(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if !reflect.DeepEqual(r, tt.result) {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		assert.Equalf(t, tt.result.Status, r.Status, "%d: Status", i)
+		if tt.result.Status == pgtype.Present {
+			assert.Equalf(t, tt.result.IPNet.Mask, r.IPNet.Mask, "%d: IP", i)
+			assert.Truef(t, tt.result.IPNet.IP.Equal(r.IPNet.IP), "%d: Mask", i)
 		}
 	}
 }
