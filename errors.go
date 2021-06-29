@@ -18,15 +18,11 @@ func SafeToRetry(err error) bool {
 	return false
 }
 
-// Timeout checks if err was was caused by a timeout. To be specific, it is true if err is or was caused by a
+// Timeout checks if err was was caused by a timeout. To be specific, it is true if err was caused within pgconn by a
 // context.Canceled, context.DeadlineExceeded or an implementer of net.Error where Timeout() is true.
 func Timeout(err error) bool {
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-
-	var netErr net.Error
-	return errors.As(err, &netErr) && netErr.Timeout()
+	var timeoutErr *ErrTimeout
+	return errors.As(err, &timeoutErr)
 }
 
 // PgError represents an error reported by the PostgreSQL server. See
@@ -134,6 +130,32 @@ func (e *pgconnError) Unwrap() error {
 	return e.err
 }
 
+// ErrTimeout occurs when an error was caused by a timeout. Specifically, it wraps an error which is
+// context.Canceled, context.DeadlineExceeded, or an implementer of net.Error where Timeout() is true.
+type ErrTimeout struct {
+	err error
+}
+
+func (e *ErrTimeout) Error() string {
+	return fmt.Sprintf("timeout: %s", e.err.Error())
+}
+
+func (e *ErrTimeout) SafeToRetry() bool {
+	var ctxErr *contextAlreadyDoneError
+	if errors.As(e, &ctxErr) {
+		return ctxErr.SafeToRetry()
+	}
+	var netErr net.Error
+	if errors.As(e, &netErr) {
+		return netErr.Temporary()
+	}
+	return false
+}
+
+func (e *ErrTimeout) Unwrap() error {
+	return e.err
+}
+
 type contextAlreadyDoneError struct {
 	err error
 }
@@ -148,6 +170,17 @@ func (e *contextAlreadyDoneError) SafeToRetry() bool {
 
 func (e *contextAlreadyDoneError) Unwrap() error {
 	return e.err
+}
+
+// newContextAlreadyDoneError wraps a context error in `contextAlreadyDoneError`. If the context was cancelled or its
+// deadline passed, the returned error is also wrapped by `ErrTimeout`.
+func newContextAlreadyDoneError(ctx context.Context) (err error) {
+	ctxErr := ctx.Err()
+	err = &contextAlreadyDoneError{err: ctxErr}
+	if ctxErr != nil {
+		err = &ErrTimeout{err: err}
+	}
+	return err
 }
 
 type writeError struct {
