@@ -58,7 +58,7 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 
 	buf, err = b.cr.Next(msgSize)
 	if err != nil {
-		return nil, err
+		return nil, translateEOFtoErrUnexpectedEOF(err)
 	}
 
 	code := binary.BigEndian.Uint32(buf)
@@ -98,7 +98,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	if !b.partialMsg {
 		header, err := b.cr.Next(5)
 		if err != nil {
-			return nil, err
+			return nil, translateEOFtoErrUnexpectedEOF(err)
 		}
 
 		b.msgType = header[0]
@@ -152,7 +152,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 
 	msgBody, err := b.cr.Next(b.bodyLen)
 	if err != nil {
-		return nil, err
+		return nil, translateEOFtoErrUnexpectedEOF(err)
 	}
 
 	b.partialMsg = false
