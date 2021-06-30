@@ -35,6 +35,20 @@ func mustParseCIDR(t testing.TB, s string) *net.IPNet {
 	return ipnet
 }
 
+func mustParseInet(t testing.TB, s string) *net.IPNet {
+	ip, ipnet, err := net.ParseCIDR(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ipv4 := ip.To4(); ipv4 != nil {
+		ip = ipv4
+	}
+
+	ipnet.IP = ip
+
+	return ipnet
+}
+
 func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 	addr, err := net.ParseMAC(s)
 	if err != nil {
