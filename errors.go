@@ -163,15 +163,9 @@ func (e *contextAlreadyDoneError) Unwrap() error {
 	return e.err
 }
 
-// newContextAlreadyDoneError wraps a context error in `contextAlreadyDoneError`. If the context was cancelled or its
-// deadline passed, the returned error is also wrapped by `ErrTimeout`.
+// newContextAlreadyDoneError double-wraps a context error in `contextAlreadyDoneError` and `ErrTimeout`.
 func newContextAlreadyDoneError(ctx context.Context) (err error) {
-	ctxErr := ctx.Err()
-	err = &contextAlreadyDoneError{err: ctxErr}
-	if ctxErr != nil {
-		err = &ErrTimeout{err: err}
-	}
-	return err
+	return &ErrTimeout{&contextAlreadyDoneError{err: ctx.Err()}}
 }
 
 type writeError struct {
