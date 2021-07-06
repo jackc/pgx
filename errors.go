@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -141,15 +140,7 @@ func (e *ErrTimeout) Error() string {
 }
 
 func (e *ErrTimeout) SafeToRetry() bool {
-	var ctxErr *contextAlreadyDoneError
-	if errors.As(e, &ctxErr) {
-		return ctxErr.SafeToRetry()
-	}
-	var netErr net.Error
-	if errors.As(e, &netErr) {
-		return netErr.Temporary()
-	}
-	return false
+	return SafeToRetry(e.err)
 }
 
 func (e *ErrTimeout) Unwrap() error {
