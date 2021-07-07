@@ -50,8 +50,12 @@ func TestBackendReceiveUnexpectedEOF(t *testing.T) {
 	assert.Nil(t, msg)
 	assert.Equal(t, io.ErrUnexpectedEOF, err)
 
-	// Receive FE msg
-	server.push([]byte{'F', 0, 0, 0, 6})
+	// Receive StartupMessage msg
+	dst := []byte{}
+	dst = pgio.AppendUint32(dst, 1000) // tell the backend we expect 1000 bytes to be read
+	dst = pgio.AppendUint32(dst, 1)    // only send 1 byte
+	server.push(dst)
+
 	msg, err = backend.ReceiveStartupMessage()
 	assert.Nil(t, msg)
 	assert.Equal(t, io.ErrUnexpectedEOF, err)
