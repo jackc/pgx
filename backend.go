@@ -35,6 +35,11 @@ type Backend struct {
 	authType   uint32
 }
 
+const (
+	minStartupPacketLen = 4     // minStartupPacketLen is a single 32-bit int version or code.
+	maxStartupPacketLen = 10000 // maxStartupPacketLen is MAX_STARTUP_PACKET_LENGTH from PG source.
+)
+
 // NewBackend creates a new Backend.
 func NewBackend(cr ChunkReader, w io.Writer) *Backend {
 	return &Backend{cr: cr, w: w}
@@ -55,6 +60,10 @@ func (b *Backend) ReceiveStartupMessage() (FrontendMessage, error) {
 		return nil, err
 	}
 	msgSize := int(binary.BigEndian.Uint32(buf) - 4)
+
+	if msgSize < minStartupPacketLen || msgSize > maxStartupPacketLen {
+		return nil, fmt.Errorf("invalid length of startup packet: %d", msgSize)
+	}
 
 	buf, err = b.cr.Next(msgSize)
 	if err != nil {
