@@ -219,7 +219,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	if err != nil {
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
-			err = &ErrTimeout{err: err}
+			err = &errTimeout{err: err}
 		}
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
@@ -470,7 +470,7 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 		if !(isNetErr && netErr.Timeout()) {
 			pgConn.asyncClose()
 		} else if isNetErr && netErr.Timeout() {
-			err = &ErrTimeout{err: err}
+			err = &errTimeout{err: err}
 		}
 
 		return nil, err
@@ -490,7 +490,7 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 		if !(isNetErr && netErr.Timeout()) {
 			pgConn.asyncClose()
 		} else if isNetErr && netErr.Timeout() {
-			err = &ErrTimeout{err: err}
+			err = &errTimeout{err: err}
 		}
 
 		return nil, err
