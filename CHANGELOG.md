@@ -1,3 +1,13 @@
+# 4.12.0 (July 10, 2021)
+
+* ResetSession hook is called before a connection is reused from pool for another query (Dmytro Haranzha)
+* stdlib: Add RandomizeHostOrderFunc (dkinder)
+* stdlib: add OptionBeforeConnect (dkinder)
+* stdlib: Do not reuse ConnConfig strings (Andrew Kimball)
+* stdlib: implement Conn.ResetSession (Jonathan Amsterdam)
+* Upgrade pgconn to v1.9.0
+* Upgrade pgtype to v1.8.0
+
 # 4.11.0 (March 25, 2021)
 
 * Add BeforeConnect callback to pgxpool.Config (Robert Froehlich)
