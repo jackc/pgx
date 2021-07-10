@@ -1,3 +1,12 @@
+# 1.9.0 (July 10, 2021)
+
+* pgconn.Timeout only is true for errors originating in pgconn (Michael Darr)
+* Add defaults for sslcert, sslkey, and sslrootcert (Joshua Brindle)
+* Solve issue with 'sslmode=verify-full' when there are multiple hosts (mgoddard)
+* Fix default host when parsing URL without host but with port
+* Allow dbname query parameter in URL conn string
+* Update underlying dependencies
+
 # 1.8.1 (March 25, 2021)
 
 * Better connection string sanitization (ip.novikov)
