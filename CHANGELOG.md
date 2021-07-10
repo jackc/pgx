@@ -1,3 +1,10 @@
+# 1.8.0 (July 10, 2021)
+
+* Maintain host bits for inet types (Cameron Daniel)
+* Support pointers of wrapping structs (Ivan Daunis)
+* Register JSONBArray at NewConnInfo() (Rueian)
+* CompositeTextScanner handles backslash escapes
+
 # 1.7.0 (March 25, 2021)
 
 * Fix scanning int into **sql.Scanner implementor
