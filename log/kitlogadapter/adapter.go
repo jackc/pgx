@@ -3,8 +3,8 @@ package kitlogadapter
 import (
 	"context"
 
-	"github.com/go-kit/kit/log"
-	kitlevel "github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	kitlevel "github.com/go-kit/log/level"
 	"github.com/jackc/pgx/v4"
 )
 

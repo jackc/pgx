@@ -6,6 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-kit/kit v0.10.0
+	github.com/go-kit/log v0.1.0 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/pgconn v1.9.0
 	github.com/jackc/pgio v1.0.0
