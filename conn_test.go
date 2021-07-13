@@ -1061,3 +1061,16 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestInsertDurationInterval(t *testing.T) {
+	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+		_, err := conn.Exec(context.Background(), "create temporary table t(duration INTERVAL(0) NOT NULL)")
+		require.NoError(t, err)
+
+		result, err := conn.Exec(context.Background(), "insert into t(duration) values($1)", time.Minute)
+		require.NoError(t, err)
+
+		n := result.RowsAffected()
+		require.EqualValues(t, 1, n)
+	})
+}
