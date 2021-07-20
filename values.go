@@ -175,6 +175,12 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 		buf = pgio.AppendInt32(buf, int32(len(arg)))
 		buf = append(buf, arg...)
 		return buf, nil
+	case driver.Valuer:
+		v, err := callValuerValue(arg)
+		if err != nil {
+			return nil, err
+		}
+		return encodePreparedStatementArgument(ci, buf, oid, v)
 	}
 
 	refVal := reflect.ValueOf(arg)
