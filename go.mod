@@ -7,19 +7,15 @@ require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-kit/log v0.1.0
 	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/jackc/pgconn v1.9.1-0.20210724152538-d89c8390a530
+	github.com/jackc/pgconn v1.10.0
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.1.1
-	github.com/jackc/pgtype v1.8.1-0.20210724151600-32e20a603178
+	github.com/jackc/pgtype v1.8.1
 	github.com/jackc/puddle v1.1.3
-	github.com/lib/pq v1.10.2 // indirect
-	github.com/mattn/go-colorable v0.1.6 // indirect
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.7.0
-	go.uber.org/multierr v1.5.0 // indirect
 	go.uber.org/zap v1.13.0
-	golang.org/x/tools v0.0.0-20200103221440-774c71fcf114 // indirect
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
 )
