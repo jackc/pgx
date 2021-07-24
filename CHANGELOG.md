@@ -1,3 +1,7 @@
+# 1.10.0 (July 24, 2021)
+
+* net.Timeout errors are no longer returned when a query is canceled via context. A wrapped context error is returned.
+
 # 1.9.0 (July 10, 2021)
 
 * pgconn.Timeout only is true for errors originating in pgconn (Michael Darr)
