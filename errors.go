@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
 	"strings"
@@ -103,6 +104,15 @@ func (e *parseConfigError) Error() string {
 
 func (e *parseConfigError) Unwrap() error {
 	return e.err
+}
+
+// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
+// true. Otherwise returns err.
+func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
+	if err, ok := err.(net.Error); ok && err.Timeout() && ctx.Err() != nil {
+		return &errTimeout{err: ctx.Err()}
+	}
+	return err
 }
 
 type pgconnError struct {
