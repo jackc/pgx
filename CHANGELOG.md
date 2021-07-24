@@ -1,3 +1,9 @@
+# 4.13.0 (July 24, 2021)
+
+* Trimmed pseudo-dependencies in Go modules from other packages tests
+* Upgrade pgconn -- context cancellation no longer will return a net.Error
+* Support time durations for simple protocol (Michael Darr)
+
 # 4.12.0 (July 10, 2021)
 
 * ResetSession hook is called before a connection is reused from pool for another query (Dmytro Haranzha)
