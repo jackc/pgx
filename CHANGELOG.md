@@ -1,3 +1,7 @@
+# 1.8.1 (July 24, 2021)
+
+* Cleaned up Go module dependency chain
+
 # 1.8.0 (July 10, 2021)
 
 * Maintain host bits for inet types (Cameron Daniel)
