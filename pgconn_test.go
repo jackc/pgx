@@ -585,6 +585,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	}
 	err = multiResult.Close()
 	assert.True(t, pgconn.Timeout(err))
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.True(t, pgConn.IsClosed())
 	select {
 	case <-pgConn.CleanupDone():
@@ -729,6 +730,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
 	assert.True(t, pgconn.Timeout(err))
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	assert.True(t, pgConn.IsClosed())
 	select {
@@ -1289,7 +1291,7 @@ func TestConnWaitForNotificationPrecanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err = pgConn.WaitForNotification(ctx)
-	require.Equal(t, context.Canceled, err)
+	require.ErrorIs(t, err, context.Canceled)
 
 	ensureConnValid(t, pgConn)
 }
@@ -1308,6 +1310,7 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 	err = pgConn.WaitForNotification(ctx)
 	cancel()
 	assert.True(t, pgconn.Timeout(err))
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
 	ensureConnValid(t, pgConn)
 }
