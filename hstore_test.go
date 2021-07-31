@@ -21,6 +21,10 @@ func TestHstoreTranscode(t *testing.T) {
 		&pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
 		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
 		&pgtype.Hstore{Map: map[string]pgtype.Text{"": text("bar")}, Status: pgtype.Present},
+		&pgtype.Hstore{
+			Map:    map[string]pgtype.Text{"a": text("a"), "b": {Status: pgtype.Null}, "c": text("c"), "d": {Status: pgtype.Null}, "e": text("e")},
+			Status: pgtype.Present,
+		},
 		&pgtype.Hstore{Status: pgtype.Null},
 	}
 
