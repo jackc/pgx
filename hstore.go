@@ -142,8 +142,8 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 		var valueBuf []byte
 		if valueLen >= 0 {
 			valueBuf = src[rp : rp+valueLen]
+			rp += valueLen
 		}
-		rp += valueLen
 
 		var value Text
 		err := value.DecodeBinary(ci, valueBuf)
