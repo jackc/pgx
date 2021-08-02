@@ -34,6 +34,12 @@ func (dst *Numeric) Set(src interface{}) error {
 	switch value := src.(type) {
 	case decimal.Decimal:
 		*dst = Numeric{Decimal: value, Status: pgtype.Present}
+	case decimal.NullDecimal:
+		if value.Valid {
+			*dst = Numeric{Decimal: value.Decimal, Status: pgtype.Present}
+		} else {
+			*dst = Numeric{Status: pgtype.Null}
+		}
 	case float32:
 		*dst = Numeric{Decimal: decimal.NewFromFloat(float64(value)), Status: pgtype.Present}
 	case float64:
@@ -113,6 +119,9 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 		switch v := dst.(type) {
 		case *decimal.Decimal:
 			*v = src.Decimal
+		case *decimal.NullDecimal:
+			(*v).Valid = true
+			(*v).Decimal = src.Decimal
 		case *float32:
 			f, _ := src.Decimal.Float64()
 			*v = float32(f)
@@ -216,7 +225,11 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 			return fmt.Errorf("unable to assign to %T", dst)
 		}
 	case pgtype.Null:
-		return pgtype.NullAssignTo(dst)
+		if v, ok := dst.(*decimal.NullDecimal); ok {
+			(*v).Valid = false
+		} else {
+			return pgtype.NullAssignTo(dst)
+		}
 	}
 
 	return nil
