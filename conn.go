@@ -670,7 +670,12 @@ optionLoop:
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 	}
 
-	return rows, rows.err
+	if rows.err != nil {
+		err = rows.err
+	} else {
+		err = rows.resultReader.Err()
+	}
+	return rows, err
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
