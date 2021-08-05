@@ -14,7 +14,7 @@ require (
 	github.com/jackc/puddle v1.1.3
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v1.2.0
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.18.1
 	gopkg.in/inconshreveable/log15.v2 v2.0.0-20180818164646-67afb5ed74ec
