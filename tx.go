@@ -109,7 +109,7 @@ func (c *Conn) BeginTxFunc(ctx context.Context, txOptions TxOptions, f func(Tx) 
 	}
 	defer func() {
 		rollbackErr := tx.Rollback(ctx)
-		if !(rollbackErr == nil || errors.Is(rollbackErr, ErrTxClosed)) {
+		if rollbackErr != nil && !errors.Is(rollbackErr, ErrTxClosed) {
 			err = rollbackErr
 		}
 	}()
@@ -203,7 +203,7 @@ func (tx *dbTx) BeginFunc(ctx context.Context, f func(Tx) error) (err error) {
 	}
 	defer func() {
 		rollbackErr := savepoint.Rollback(ctx)
-		if !(rollbackErr == nil || errors.Is(rollbackErr, ErrTxClosed)) {
+		if rollbackErr != nil && !errors.Is(rollbackErr, ErrTxClosed) {
 			err = rollbackErr
 		}
 	}()
