@@ -37,15 +37,24 @@ func mustParseCIDR(t testing.TB, s string) *net.IPNet {
 
 func mustParseInet(t testing.TB, s string) *net.IPNet {
 	ip, ipnet, err := net.ParseCIDR(s)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			ipnet.IP = ipv4
+		}
+		return ipnet
 	}
+
+	// May be bare IP address.
+	//
+	ip = net.ParseIP(s)
+	if ip == nil {
+		t.Fatal(errors.New("unable to parse inet address"))
+	}
+	ipnet = &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
 	if ipv4 := ip.To4(); ipv4 != nil {
-		ip = ipv4
+		ipnet.IP = ipv4
+		ipnet.Mask = net.CIDRMask(32, 32)
 	}
-
-	ipnet.IP = ip
-
 	return ipnet
 }
 
