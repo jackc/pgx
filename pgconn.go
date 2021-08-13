@@ -578,7 +578,6 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	//
 	// See https://github.com/jackc/pgx/issues/637
 	pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
-	pgConn.conn.Read(make([]byte, 1))
 
 	return pgConn.conn.Close()
 }
@@ -605,7 +604,6 @@ func (pgConn *PgConn) asyncClose() {
 		pgConn.conn.SetDeadline(deadline)
 
 		pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
-		pgConn.conn.Read(make([]byte, 1))
 	}()
 }
 
