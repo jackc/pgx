@@ -458,7 +458,6 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	if err != nil {
 		return errRow{err: err}
 	}
-	defer c.Release()
 
 	row := c.QueryRow(ctx, sql, args...)
 	return c.getPoolRow(row)
