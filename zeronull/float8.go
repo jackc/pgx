@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgtype"
 )
 
-type Float8 int64
+type Float8 float64
 
 func (dst *Float8) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	var nullable pgtype.Float8
