@@ -16,13 +16,13 @@ const (
 
 // Inet represents both inet and cidr PostgreSQL types.
 type Inet struct {
-	IPNet  *net.IPNet
-	Status Status
+	IPNet *net.IPNet
+	Valid bool
 }
 
 func (dst *Inet) Set(src interface{}) error {
 	if src == nil {
-		*dst = Inet{Status: Null}
+		*dst = Inet{}
 		return nil
 	}
 
@@ -35,14 +35,14 @@ func (dst *Inet) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case net.IPNet:
-		*dst = Inet{IPNet: &value, Status: Present}
+		*dst = Inet{IPNet: &value, Valid: true}
 	case net.IP:
 		if len(value) == 0 {
-			*dst = Inet{Status: Null}
+			*dst = Inet{}
 		} else {
 			bitCount := len(value) * 8
 			mask := net.CIDRMask(bitCount, bitCount)
-			*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Status: Present}
+			*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Valid: true}
 		}
 	case string:
 		ip, ipnet, err := net.ParseCIDR(value)
@@ -58,22 +58,22 @@ func (dst *Inet) Set(src interface{}) error {
 			}
 		}
 		ipnet.IP = ip
-		*dst = Inet{IPNet: ipnet, Status: Present}
+		*dst = Inet{IPNet: ipnet, Valid: true}
 	case *net.IPNet:
 		if value == nil {
-			*dst = Inet{Status: Null}
+			*dst = Inet{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *net.IP:
 		if value == nil {
-			*dst = Inet{Status: Null}
+			*dst = Inet{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Inet{Status: Null}
+			*dst = Inet{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -88,51 +88,44 @@ func (dst *Inet) Set(src interface{}) error {
 }
 
 func (dst Inet) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.IPNet
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.IPNet
 }
 
 func (src *Inet) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *net.IPNet:
-			*v = net.IPNet{
-				IP:   make(net.IP, len(src.IPNet.IP)),
-				Mask: make(net.IPMask, len(src.IPNet.Mask)),
-			}
-			copy(v.IP, src.IPNet.IP)
-			copy(v.Mask, src.IPNet.Mask)
-			return nil
-		case *net.IP:
-			if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
-				return fmt.Errorf("cannot assign %v to %T", src, dst)
-			}
-			*v = make(net.IP, len(src.IPNet.IP))
-			copy(*v, src.IPNet.IP)
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *net.IPNet:
+		*v = net.IPNet{
+			IP:   make(net.IP, len(src.IPNet.IP)),
+			Mask: make(net.IPMask, len(src.IPNet.Mask)),
+		}
+		copy(v.IP, src.IPNet.IP)
+		copy(v.Mask, src.IPNet.Mask)
+		return nil
+	case *net.IP:
+		if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
+			return fmt.Errorf("cannot assign %v to %T", src, dst)
+		}
+		*v = make(net.IP, len(src.IPNet.IP))
+		copy(*v, src.IPNet.IP)
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Inet{Status: Null}
+		*dst = Inet{}
 		return nil
 	}
 
@@ -158,13 +151,13 @@ func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {
 		*ipnet = net.IPNet{IP: ip, Mask: net.CIDRMask(ones, len(ip)*8)}
 	}
 
-	*dst = Inet{IPNet: ipnet, Status: Present}
+	*dst = Inet{IPNet: ipnet, Valid: true}
 	return nil
 }
 
 func (dst *Inet) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Inet{Status: Null}
+		*dst = Inet{}
 		return nil
 	}
 
@@ -185,17 +178,14 @@ func (dst *Inet) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 	ipnet.Mask = net.CIDRMask(int(bits), len(ipnet.IP)*8)
 
-	*dst = Inet{IPNet: &ipnet, Status: Present}
+	*dst = Inet{IPNet: &ipnet, Valid: true}
 
 	return nil
 }
 
 func (src Inet) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, src.IPNet.String()...), nil
@@ -203,11 +193,8 @@ func (src Inet) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 // EncodeBinary encodes src into w.
 func (src Inet) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var family byte
@@ -236,7 +223,7 @@ func (src Inet) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Inet) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Inet{Status: Null}
+		*dst = Inet{}
 		return nil
 	}
 

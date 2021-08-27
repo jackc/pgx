@@ -29,7 +29,7 @@ func (dst *JSONB) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *JSONB) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = JSONB{Status: Null}
+		*dst = JSONB{}
 		return nil
 	}
 
@@ -41,7 +41,7 @@ func (dst *JSONB) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("unknown jsonb version number %d", src[0])
 	}
 
-	*dst = JSONB{Bytes: src[1:], Status: Present}
+	*dst = JSONB{Bytes: src[1:], Valid: true}
 	return nil
 
 }
@@ -55,11 +55,8 @@ func (src JSONB) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src JSONB) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, 1)

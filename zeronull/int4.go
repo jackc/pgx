@@ -15,7 +15,7 @@ func (dst *Int4) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = Int4(nullable.Int)
 	} else {
 		*dst = 0
@@ -31,7 +31,7 @@ func (dst *Int4) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = Int4(nullable.Int)
 	} else {
 		*dst = 0
@@ -46,8 +46,8 @@ func (src Int4) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	nullable := pgtype.Int4{
-		Int:    int32(src),
-		Status: pgtype.Present,
+		Int:   int32(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeText(ci, buf)
@@ -59,8 +59,8 @@ func (src Int4) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	nullable := pgtype.Int4{
-		Int:    int32(src),
-		Status: pgtype.Present,
+		Int:   int32(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeBinary(ci, buf)

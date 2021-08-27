@@ -18,13 +18,13 @@ type Vec2 struct {
 }
 
 type Point struct {
-	P      Vec2
-	Status Status
+	P     Vec2
+	Valid bool
 }
 
 func (dst *Point) Set(src interface{}) error {
 	if src == nil {
-		dst.Status = Null
+		dst.Valid = false
 		return nil
 	}
 	err := fmt.Errorf("cannot convert %v to Point", src)
@@ -46,7 +46,7 @@ func (dst *Point) Set(src interface{}) error {
 
 func parsePoint(src []byte) (*Point, error) {
 	if src == nil || bytes.Compare(src, []byte("null")) == 0 {
-		return &Point{Status: Null}, nil
+		return &Point{}, nil
 	}
 
 	if len(src) < 5 {
@@ -70,18 +70,14 @@ func parsePoint(src []byte) (*Point, error) {
 		return nil, err
 	}
 
-	return &Point{P: Vec2{x, y}, Status: Present}, nil
+	return &Point{P: Vec2{x, y}, Valid: true}, nil
 }
 
 func (dst Point) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Point) AssignTo(dst interface{}) error {
@@ -90,7 +86,7 @@ func (src *Point) AssignTo(dst interface{}) error {
 
 func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Point{}
 		return nil
 	}
 
@@ -113,13 +109,13 @@ func (dst *Point) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Point{P: Vec2{x, y}, Status: Present}
+	*dst = Point{P: Vec2{x, y}, Valid: true}
 	return nil
 }
 
 func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Point{}
 		return nil
 	}
 
@@ -131,18 +127,15 @@ func (dst *Point) DecodeBinary(ci *ConnInfo, src []byte) error {
 	y := binary.BigEndian.Uint64(src[8:])
 
 	*dst = Point{
-		P:      Vec2{math.Float64frombits(x), math.Float64frombits(y)},
-		Status: Present,
+		P:     Vec2{math.Float64frombits(x), math.Float64frombits(y)},
+		Valid: true,
 	}
 	return nil
 }
 
 func (src Point) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, fmt.Sprintf(`(%s,%s)`,
@@ -152,11 +145,8 @@ func (src Point) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Point) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint64(buf, math.Float64bits(src.P.X))
@@ -167,7 +157,7 @@ func (src Point) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Point) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Point{Status: Null}
+		*dst = Point{}
 		return nil
 	}
 
@@ -189,19 +179,15 @@ func (src Point) Value() (driver.Value, error) {
 }
 
 func (src Point) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Present:
-		var buff bytes.Buffer
-		buff.WriteByte('"')
-		buff.WriteString(fmt.Sprintf("(%g,%g)", src.P.X, src.P.Y))
-		buff.WriteByte('"')
-		return buff.Bytes(), nil
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
 	}
-	return nil, errBadStatus
+
+	var buff bytes.Buffer
+	buff.WriteByte('"')
+	buff.WriteString(fmt.Sprintf("(%g,%g)", src.P.X, src.P.Y))
+	buff.WriteByte('"')
+	return buff.Bytes(), nil
 }
 
 func (dst *Point) UnmarshalJSON(point []byte) error {

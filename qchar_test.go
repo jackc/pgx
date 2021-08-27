@@ -11,12 +11,12 @@ import (
 
 func TestQCharTranscode(t *testing.T) {
 	testutil.TestPgxSuccessfulTranscodeEqFunc(t, `"char"`, []interface{}{
-		&pgtype.QChar{Int: math.MinInt8, Status: pgtype.Present},
-		&pgtype.QChar{Int: -1, Status: pgtype.Present},
-		&pgtype.QChar{Int: 0, Status: pgtype.Present},
-		&pgtype.QChar{Int: 1, Status: pgtype.Present},
-		&pgtype.QChar{Int: math.MaxInt8, Status: pgtype.Present},
-		&pgtype.QChar{Int: 0, Status: pgtype.Null},
+		&pgtype.QChar{Int: math.MinInt8, Valid: true},
+		&pgtype.QChar{Int: -1, Valid: true},
+		&pgtype.QChar{Int: 0, Valid: true},
+		&pgtype.QChar{Int: 1, Valid: true},
+		&pgtype.QChar{Int: math.MaxInt8, Valid: true},
+		&pgtype.QChar{Int: 0},
 	}, func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)
 	})
@@ -27,20 +27,20 @@ func TestQCharSet(t *testing.T) {
 		source interface{}
 		result pgtype.QChar
 	}{
-		{source: int8(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: int16(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: int32(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: int64(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: int8(-1), result: pgtype.QChar{Int: -1, Status: pgtype.Present}},
-		{source: int16(-1), result: pgtype.QChar{Int: -1, Status: pgtype.Present}},
-		{source: int32(-1), result: pgtype.QChar{Int: -1, Status: pgtype.Present}},
-		{source: int64(-1), result: pgtype.QChar{Int: -1, Status: pgtype.Present}},
-		{source: uint8(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: uint16(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: uint32(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: uint64(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: "1", result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
-		{source: _int8(1), result: pgtype.QChar{Int: 1, Status: pgtype.Present}},
+		{source: int8(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: int16(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: int32(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: int64(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: int8(-1), result: pgtype.QChar{Int: -1, Valid: true}},
+		{source: int16(-1), result: pgtype.QChar{Int: -1, Valid: true}},
+		{source: int32(-1), result: pgtype.QChar{Int: -1, Valid: true}},
+		{source: int64(-1), result: pgtype.QChar{Int: -1, Valid: true}},
+		{source: uint8(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: uint16(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: uint32(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: uint64(1), result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: "1", result: pgtype.QChar{Int: 1, Valid: true}},
+		{source: _int8(1), result: pgtype.QChar{Int: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -76,19 +76,19 @@ func TestQCharAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &i8, expected: int8(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &i16, expected: int16(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &i32, expected: int32(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &i64, expected: int64(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &i, expected: int(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &ui8, expected: uint8(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &ui16, expected: uint16(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &ui64, expected: uint64(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &ui, expected: uint(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
-		{src: pgtype.QChar{Int: 0, Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
-		{src: pgtype.QChar{Int: 0, Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &i8, expected: int8(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &i16, expected: int16(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &i32, expected: int32(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &i64, expected: int64(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &i, expected: int(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &ui8, expected: uint8(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &ui16, expected: uint16(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &ui64, expected: uint64(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &ui, expected: uint(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &_i8, expected: _int8(42)},
+		{src: pgtype.QChar{Int: 0}, dst: &pi8, expected: ((*int8)(nil))},
+		{src: pgtype.QChar{Int: 0}, dst: &_pi8, expected: ((*_int8)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -107,8 +107,8 @@ func TestQCharAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &pi8, expected: int8(42)},
-		{src: pgtype.QChar{Int: 42, Status: pgtype.Present}, dst: &_pi8, expected: _int8(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &pi8, expected: int8(42)},
+		{src: pgtype.QChar{Int: 42, Valid: true}, dst: &_pi8, expected: _int8(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -126,12 +126,12 @@ func TestQCharAssignTo(t *testing.T) {
 		src pgtype.QChar
 		dst interface{}
 	}{
-		{src: pgtype.QChar{Int: -1, Status: pgtype.Present}, dst: &ui8},
-		{src: pgtype.QChar{Int: -1, Status: pgtype.Present}, dst: &ui16},
-		{src: pgtype.QChar{Int: -1, Status: pgtype.Present}, dst: &ui32},
-		{src: pgtype.QChar{Int: -1, Status: pgtype.Present}, dst: &ui64},
-		{src: pgtype.QChar{Int: -1, Status: pgtype.Present}, dst: &ui},
-		{src: pgtype.QChar{Int: 0, Status: pgtype.Null}, dst: &i16},
+		{src: pgtype.QChar{Int: -1, Valid: true}, dst: &ui8},
+		{src: pgtype.QChar{Int: -1, Valid: true}, dst: &ui16},
+		{src: pgtype.QChar{Int: -1, Valid: true}, dst: &ui32},
+		{src: pgtype.QChar{Int: -1, Valid: true}, dst: &ui64},
+		{src: pgtype.QChar{Int: -1, Valid: true}, dst: &ui},
+		{src: pgtype.QChar{Int: 0}, dst: &i16},
 	}
 
 	for i, tt := range errorTests {

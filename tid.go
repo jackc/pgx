@@ -24,7 +24,7 @@ import (
 type TID struct {
 	BlockNumber  uint32
 	OffsetNumber uint16
-	Status       Status
+	Valid        bool
 }
 
 func (dst *TID) Set(src interface{}) error {
@@ -32,36 +32,32 @@ func (dst *TID) Set(src interface{}) error {
 }
 
 func (dst TID) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *TID) AssignTo(dst interface{}) error {
-	if src.Status == Present {
-		switch v := dst.(type) {
-		case *string:
-			*v = fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
+	if !src.Valid {
+		return fmt.Errorf("cannot assign %v to %T", src, dst)
 	}
 
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+	switch v := dst.(type) {
+	case *string:
+		*v = fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = TID{Status: Null}
+		*dst = TID{}
 		return nil
 	}
 
@@ -84,13 +80,13 @@ func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Status: Present}
+	*dst = TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Valid: true}
 	return nil
 }
 
 func (dst *TID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = TID{Status: Null}
+		*dst = TID{}
 		return nil
 	}
 
@@ -101,17 +97,14 @@ func (dst *TID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	*dst = TID{
 		BlockNumber:  binary.BigEndian.Uint32(src),
 		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
-		Status:       Present,
+		Valid:        true,
 	}
 	return nil
 }
 
 func (src TID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)...)
@@ -119,11 +112,8 @@ func (src TID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src TID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint32(buf, src.BlockNumber)
@@ -134,7 +124,7 @@ func (src TID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *TID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = TID{Status: Null}
+		*dst = TID{}
 		return nil
 	}
 

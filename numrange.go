@@ -12,13 +12,13 @@ type Numrange struct {
 	Upper     Numeric
 	LowerType BoundType
 	UpperType BoundType
-	Status    Status
+	Valid     bool
 }
 
 func (dst *Numrange) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = Numrange{Status: Null}
+		*dst = Numrange{}
 		return nil
 	}
 
@@ -36,15 +36,11 @@ func (dst *Numrange) Set(src interface{}) error {
 	return nil
 }
 
-func (dst Numrange) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+func (src Numrange) Get() interface{} {
+	if !src.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return src
 }
 
 func (src *Numrange) AssignTo(dst interface{}) error {
@@ -53,7 +49,7 @@ func (src *Numrange) AssignTo(dst interface{}) error {
 
 func (dst *Numrange) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numrange{Status: Null}
+		*dst = Numrange{}
 		return nil
 	}
 
@@ -62,7 +58,7 @@ func (dst *Numrange) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Numrange{Status: Present}
+	*dst = Numrange{Valid: true}
 
 	dst.LowerType = utr.LowerType
 	dst.UpperType = utr.UpperType
@@ -88,7 +84,7 @@ func (dst *Numrange) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *Numrange) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numrange{Status: Null}
+		*dst = Numrange{}
 		return nil
 	}
 
@@ -97,7 +93,7 @@ func (dst *Numrange) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Numrange{Status: Present}
+	*dst = Numrange{Valid: true}
 
 	dst.LowerType = ubr.LowerType
 	dst.UpperType = ubr.UpperType
@@ -122,11 +118,8 @@ func (dst *Numrange) DecodeBinary(ci *ConnInfo, src []byte) error {
 }
 
 func (src Numrange) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	switch src.LowerType {
@@ -175,11 +168,8 @@ func (src Numrange) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Numrange) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var rangeType byte
@@ -245,7 +235,7 @@ func (src Numrange) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Numrange) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Numrange{Status: Null}
+		*dst = Numrange{}
 		return nil
 	}
 

@@ -11,20 +11,20 @@ import (
 
 func TestDateTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "date", []interface{}{
-		&pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Date{Status: pgtype.Null},
-		&pgtype.Date{Status: pgtype.Present, InfinityModifier: pgtype.Infinity},
-		&pgtype.Date{Status: pgtype.Present, InfinityModifier: -pgtype.Infinity},
+		&pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Date{},
+		&pgtype.Date{Valid: true, InfinityModifier: pgtype.Infinity},
+		&pgtype.Date{Valid: true, InfinityModifier: -pgtype.Infinity},
 	}, func(a, b interface{}) bool {
 		at := a.(pgtype.Date)
 		bt := b.(pgtype.Date)
 
-		return at.Time.Equal(bt.Time) && at.Status == bt.Status && at.InfinityModifier == bt.InfinityModifier
+		return at.Time.Equal(bt.Time) && at.Valid == bt.Valid && at.InfinityModifier == bt.InfinityModifier
 	})
 }
 
@@ -35,14 +35,14 @@ func TestDateSet(t *testing.T) {
 		source interface{}
 		result pgtype.Date
 	}{
-		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: "1999-12-31", result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: "1999-12-31", result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -67,8 +67,8 @@ func TestDateAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Present}, dst: &tim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
-		{src: pgtype.Date{Time: time.Time{}, Status: pgtype.Null}, dst: &ptim, expected: ((*time.Time)(nil))},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, dst: &tim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
+		{src: pgtype.Date{Time: time.Time{}}, dst: &ptim, expected: ((*time.Time)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -87,7 +87,7 @@ func TestDateAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Present}, dst: &ptim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, dst: &ptim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -105,9 +105,9 @@ func TestDateAssignTo(t *testing.T) {
 		src pgtype.Date
 		dst interface{}
 	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, dst: &tim},
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, dst: &tim},
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Null}, dst: &tim},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Valid: true}, dst: &tim},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Valid: true}, dst: &tim},
+		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)}, dst: &tim},
 	}
 
 	for i, tt := range errorTests {
@@ -123,12 +123,12 @@ func TestDateMarshalJSON(t *testing.T) {
 		source pgtype.Date
 		result string
 	}{
-		{source: pgtype.Date{Status: pgtype.Null}, result: "null"},
-		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}, result: "\"2012-03-29\""},
-		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29\""},
-		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}, result: "\"2012-03-29\""},
-		{source: pgtype.Date{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, result: "\"infinity\""},
-		{source: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, result: "\"-infinity\""},
+		{source: pgtype.Date{}, result: "null"},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Valid: true}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Valid: true}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Valid: true}, result: "\"2012-03-29\""},
+		{source: pgtype.Date{InfinityModifier: pgtype.Infinity, Valid: true}, result: "\"infinity\""},
+		{source: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "\"-infinity\""},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -147,12 +147,12 @@ func TestDateUnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Date
 	}{
-		{source: "null", result: pgtype.Date{Status: pgtype.Null}},
-		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
-		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Status: pgtype.Present}},
-		{source: "\"infinity\"", result: pgtype.Date{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
-		{source: "\"-infinity\"", result: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+		{source: "null", result: pgtype.Date{}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Valid: true}},
+		{source: "\"2012-03-29\"", result: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Valid: true}},
+		{source: "\"infinity\"", result: pgtype.Date{InfinityModifier: pgtype.Infinity, Valid: true}},
+		{source: "\"-infinity\"", result: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Date
@@ -161,7 +161,7 @@ func TestDateUnmarshalJSON(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if r.Time.Year() != tt.result.Time.Year() || r.Time.Month() != tt.result.Time.Month() || r.Time.Day() != tt.result.Time.Day() || r.Status != tt.result.Status || r.InfinityModifier != tt.result.InfinityModifier {
+		if r.Time.Year() != tt.result.Time.Year() || r.Time.Month() != tt.result.Time.Month() || r.Time.Day() != tt.result.Time.Day() || r.Valid != tt.result.Valid || r.InfinityModifier != tt.result.InfinityModifier {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
 		}
 	}

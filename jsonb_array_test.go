@@ -12,25 +12,25 @@ func TestJSONBArrayTranscode(t *testing.T) {
 		&pgtype.JSONBArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.JSONBArray{
 			Elements: []pgtype.JSONB{
-				{Bytes: []byte(`"foo"`), Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Bytes: []byte(`"foo"`), Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.JSONBArray{Status: pgtype.Null},
+		&pgtype.JSONBArray{},
 		&pgtype.JSONBArray{
 			Elements: []pgtype.JSONB{
-				{Bytes: []byte(`"foo"`), Status: pgtype.Present},
-				{Bytes: []byte("null"), Status: pgtype.Present},
-				{Bytes: []byte("42"), Status: pgtype.Present},
+				{Bytes: []byte(`"foo"`), Valid: true},
+				{Bytes: []byte("null"), Valid: true},
+				{Bytes: []byte("42"), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 	})
 }

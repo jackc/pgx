@@ -208,8 +208,8 @@ func underlyingSliceType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
-	if srcStatus == Present {
+func int64AssignTo(srcVal int64, srcValid bool, dst interface{}) error {
+	if srcValid {
 		switch v := dst.(type) {
 		case *int:
 			if srcVal < int64(minInt) {
@@ -291,7 +291,7 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 						// allocate destination
 						el.Set(reflect.New(el.Type().Elem()))
 					}
-					return int64AssignTo(srcVal, srcStatus, el.Interface())
+					return int64AssignTo(srcVal, srcValid, el.Interface())
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 					if el.OverflowInt(int64(srcVal)) {
 						return fmt.Errorf("cannot put %d into %T", srcVal, dst)
@@ -314,7 +314,7 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 		return nil
 	}
 
-	// if dst is a pointer to pointer and srcStatus is not Present, nil it out
+	// if dst is a pointer to pointer and srcStatus is not Valid, nil it out
 	if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 		el := v.Elem()
 		if el.Kind() == reflect.Ptr {
@@ -323,11 +323,11 @@ func int64AssignTo(srcVal int64, srcStatus Status, dst interface{}) error {
 		}
 	}
 
-	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcValid, dst)
 }
 
-func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
-	if srcStatus == Present {
+func float64AssignTo(srcVal float64, srcValid bool, dst interface{}) error {
+	if srcValid {
 		switch v := dst.(type) {
 		case *float32:
 			*v = float32(srcVal)
@@ -343,11 +343,11 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 						// allocate destination
 						el.Set(reflect.New(el.Type().Elem()))
 					}
-					return float64AssignTo(srcVal, srcStatus, el.Interface())
+					return float64AssignTo(srcVal, srcValid, el.Interface())
 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 					i64 := int64(srcVal)
 					if float64(i64) == srcVal {
-						return int64AssignTo(i64, srcStatus, dst)
+						return int64AssignTo(i64, srcValid, dst)
 					}
 				}
 			}
@@ -356,7 +356,7 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 		return nil
 	}
 
-	// if dst is a pointer to pointer and srcStatus is not Present, nil it out
+	// if dst is a pointer to pointer and srcStatus is not Valid, nil it out
 	if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 		el := v.Elem()
 		if el.Kind() == reflect.Ptr {
@@ -365,7 +365,7 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 		}
 	}
 
-	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcStatus, dst)
+	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcValid, dst)
 }
 
 func NullAssignTo(dst interface{}) error {

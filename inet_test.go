@@ -12,35 +12,35 @@ import (
 
 func TestInetTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "inet", []interface{}{
-		&pgtype.Inet{IPNet: mustParseInet(t, "0.0.0.0/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "127.0.0.1/8"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "12.34.56.65/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "192.168.1.16/24"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "255.0.0.0/8"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "255.255.255.255/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "10.0.0.1"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "::1/64"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "::/0"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "::1/128"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e/64"), Status: pgtype.Present},
-		&pgtype.Inet{Status: pgtype.Null},
+		&pgtype.Inet{IPNet: mustParseInet(t, "0.0.0.0/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "127.0.0.1/8"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "12.34.56.65/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "192.168.1.16/24"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "255.0.0.0/8"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "255.255.255.255/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "10.0.0.1"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "::1/64"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "::/0"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "::1/128"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e/64"), Valid: true},
+		&pgtype.Inet{},
 	})
 }
 
 func TestCidrTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "cidr", []interface{}{
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "0.0.0.0/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.1.0/24"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "255.255.255.255/32"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "::/128"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "::/0"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "::1/128"), Status: pgtype.Present},
-		&pgtype.Inet{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
-		&pgtype.Inet{Status: pgtype.Null},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "0.0.0.0/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.1.0/24"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "255.255.255.255/32"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "::/128"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "::/0"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "::1/128"), Valid: true},
+		&pgtype.Inet{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Valid: true},
+		&pgtype.Inet{},
 	})
 }
 
@@ -49,13 +49,13 @@ func TestInetSet(t *testing.T) {
 		source interface{}
 		result pgtype.Inet
 	}{
-		{source: mustParseCIDR(t, "127.0.0.1/32"), result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
-		{source: mustParseCIDR(t, "127.0.0.1/32").IP, result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
-		{source: "127.0.0.1/32", result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
-		{source: "1.2.3.4/24", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("1.2.3.4"), Mask: net.CIDRMask(24, 32)}, Status: pgtype.Present}},
-		{source: "10.0.0.1", result: pgtype.Inet{IPNet: mustParseInet(t, "10.0.0.1"), Status: pgtype.Present}},
-		{source: "2607:f8b0:4009:80b::200e", result: pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e"), Status: pgtype.Present}},
-		{source: net.ParseIP(""), result: pgtype.Inet{Status: pgtype.Null}},
+		{source: mustParseCIDR(t, "127.0.0.1/32"), result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
+		{source: mustParseCIDR(t, "127.0.0.1/32").IP, result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
+		{source: "127.0.0.1/32", result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
+		{source: "1.2.3.4/24", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("1.2.3.4"), Mask: net.CIDRMask(24, 32)}, Valid: true}},
+		{source: "10.0.0.1", result: pgtype.Inet{IPNet: mustParseInet(t, "10.0.0.1"), Valid: true}},
+		{source: "2607:f8b0:4009:80b::200e", result: pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e"), Valid: true}},
+		{source: net.ParseIP(""), result: pgtype.Inet{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -66,8 +66,8 @@ func TestInetSet(t *testing.T) {
 			continue
 		}
 
-		assert.Equalf(t, tt.result.Status, r.Status, "%d: Status", i)
-		if tt.result.Status == pgtype.Present {
+		assert.Equalf(t, tt.result.Valid, r.Valid, "%d: Status", i)
+		if tt.result.Valid {
 			assert.Equalf(t, tt.result.IPNet.Mask, r.IPNet.Mask, "%d: IP", i)
 			assert.Truef(t, tt.result.IPNet.IP.Equal(r.IPNet.IP), "%d: Mask", i)
 		}
@@ -85,10 +85,10 @@ func TestInetAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}, dst: &ipnet, expected: *mustParseCIDR(t, "127.0.0.1/32")},
-		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}, dst: &ip, expected: mustParseCIDR(t, "127.0.0.1/32").IP},
-		{src: pgtype.Inet{Status: pgtype.Null}, dst: &pipnet, expected: ((*net.IPNet)(nil))},
-		{src: pgtype.Inet{Status: pgtype.Null}, dst: &pip, expected: ((*net.IP)(nil))},
+		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}, dst: &ipnet, expected: *mustParseCIDR(t, "127.0.0.1/32")},
+		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}, dst: &ip, expected: mustParseCIDR(t, "127.0.0.1/32").IP},
+		{src: pgtype.Inet{}, dst: &pipnet, expected: ((*net.IPNet)(nil))},
+		{src: pgtype.Inet{}, dst: &pip, expected: ((*net.IP)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -107,8 +107,8 @@ func TestInetAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}, dst: &pipnet, expected: *mustParseCIDR(t, "127.0.0.1/32")},
-		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}, dst: &pip, expected: mustParseCIDR(t, "127.0.0.1/32").IP},
+		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}, dst: &pipnet, expected: *mustParseCIDR(t, "127.0.0.1/32")},
+		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}, dst: &pip, expected: mustParseCIDR(t, "127.0.0.1/32").IP},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -126,8 +126,8 @@ func TestInetAssignTo(t *testing.T) {
 		src pgtype.Inet
 		dst interface{}
 	}{
-		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.0.0/16"), Status: pgtype.Present}, dst: &ip},
-		{src: pgtype.Inet{Status: pgtype.Null}, dst: &ipnet},
+		{src: pgtype.Inet{IPNet: mustParseCIDR(t, "192.168.0.0/16"), Valid: true}, dst: &ip},
+		{src: pgtype.Inet{}, dst: &ipnet},
 	}
 
 	for i, tt := range errorTests {

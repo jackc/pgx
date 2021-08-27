@@ -13,41 +13,41 @@ func TestFloat4ArrayTranscode(t *testing.T) {
 		&pgtype.Float4Array{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.Float4Array{
 			Elements: []pgtype.Float4{
-				{Float: 1, Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Float: 1, Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.Float4Array{Status: pgtype.Null},
+		&pgtype.Float4Array{},
 		&pgtype.Float4Array{
 			Elements: []pgtype.Float4{
-				{Float: 1, Status: pgtype.Present},
-				{Float: 2, Status: pgtype.Present},
-				{Float: 3, Status: pgtype.Present},
-				{Float: 4, Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{Float: 6, Status: pgtype.Present},
+				{Float: 1, Valid: true},
+				{Float: 2, Valid: true},
+				{Float: 3, Valid: true},
+				{Float: 4, Valid: true},
+				{},
+				{Float: 6, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.Float4Array{
 			Elements: []pgtype.Float4{
-				{Float: 1, Status: pgtype.Present},
-				{Float: 2, Status: pgtype.Present},
-				{Float: 3, Status: pgtype.Present},
-				{Float: 4, Status: pgtype.Present},
+				{Float: 1, Valid: true},
+				{Float: 2, Valid: true},
+				{Float: 3, Valid: true},
+				{Float: 4, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -60,61 +60,61 @@ func TestFloat4ArraySet(t *testing.T) {
 		{
 			source: []float32{1},
 			result: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]float32)(nil)),
-			result: pgtype.Float4Array{Status: pgtype.Null},
+			result: pgtype.Float4Array{},
 		},
 		{
 			source: [][]float32{{1}, {2}},
 			result: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.Float4Array{
 				Elements: []pgtype.Float4{
-					{Float: 1, Status: pgtype.Present},
-					{Float: 2, Status: pgtype.Present},
-					{Float: 3, Status: pgtype.Present},
-					{Float: 4, Status: pgtype.Present},
-					{Float: 5, Status: pgtype.Present},
-					{Float: 6, Status: pgtype.Present}},
+					{Float: 1, Valid: true},
+					{Float: 2, Valid: true},
+					{Float: 3, Valid: true},
+					{Float: 4, Valid: true},
+					{Float: 5, Valid: true},
+					{Float: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]float32{{1}, {2}},
 			result: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.Float4Array{
 				Elements: []pgtype.Float4{
-					{Float: 1, Status: pgtype.Present},
-					{Float: 2, Status: pgtype.Present},
-					{Float: 3, Status: pgtype.Present},
-					{Float: 4, Status: pgtype.Present},
-					{Float: 5, Status: pgtype.Present},
-					{Float: 6, Status: pgtype.Present}},
+					{Float: 1, Valid: true},
+					{Float: 2, Valid: true},
+					{Float: 3, Valid: true},
+					{Float: 4, Valid: true},
+					{Float: 5, Valid: true},
+					{Float: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -146,81 +146,81 @@ func TestFloat4ArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1.23, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1.23, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &float32Slice,
 			expected: []float32{1.23},
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1.23, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1.23, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedFloat32Slice,
 			expected: _float32Slice{1.23},
 		},
 		{
-			src:      pgtype.Float4Array{Status: pgtype.Null},
+			src:      pgtype.Float4Array{},
 			dst:      &float32Slice,
 			expected: (([]float32)(nil)),
 		},
 		{
-			src:      pgtype.Float4Array{Status: pgtype.Present},
+			src:      pgtype.Float4Array{Valid: true},
 			dst:      &float32Slice,
 			expected: []float32{},
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			expected: [][]float32{{1}, {2}},
 			dst:      &float32SliceDim2,
 		},
 		{
 			src: pgtype.Float4Array{
 				Elements: []pgtype.Float4{
-					{Float: 1, Status: pgtype.Present},
-					{Float: 2, Status: pgtype.Present},
-					{Float: 3, Status: pgtype.Present},
-					{Float: 4, Status: pgtype.Present},
-					{Float: 5, Status: pgtype.Present},
-					{Float: 6, Status: pgtype.Present}},
+					{Float: 1, Valid: true},
+					{Float: 2, Valid: true},
+					{Float: 3, Valid: true},
+					{Float: 4, Valid: true},
+					{Float: 5, Valid: true},
+					{Float: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			expected: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			dst:      &float32SliceDim4,
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			expected: [2][1]float32{{1}, {2}},
 			dst:      &float32ArrayDim2,
 		},
 		{
 			src: pgtype.Float4Array{
 				Elements: []pgtype.Float4{
-					{Float: 1, Status: pgtype.Present},
-					{Float: 2, Status: pgtype.Present},
-					{Float: 3, Status: pgtype.Present},
-					{Float: 4, Status: pgtype.Present},
-					{Float: 5, Status: pgtype.Present},
-					{Float: 6, Status: pgtype.Present}},
+					{Float: 1, Valid: true},
+					{Float: 2, Valid: true},
+					{Float: 3, Valid: true},
+					{Float: 4, Valid: true},
+					{Float: 5, Valid: true},
+					{Float: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			expected: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			dst:      &float32ArrayDim4,
 		},
@@ -243,31 +243,31 @@ func TestFloat4ArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Status: pgtype.Null}},
+				Elements:   []pgtype.Float4{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &float32Slice,
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32ArrayDim2,
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32Slice,
 		},
 		{
 			src: pgtype.Float4Array{
-				Elements:   []pgtype.Float4{{Float: 1, Status: pgtype.Present}, {Float: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Float4{{Float: 1, Valid: true}, {Float: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32ArrayDim4,
 		},
 	}

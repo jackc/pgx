@@ -14,17 +14,17 @@ func TestMacaddrArrayTranscode(t *testing.T) {
 		&pgtype.MacaddrArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.MacaddrArray{
 			Elements: []pgtype.Macaddr{
-				{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.MacaddrArray{Status: pgtype.Null},
+		&pgtype.MacaddrArray{},
 	})
 }
 
@@ -36,13 +36,13 @@ func TestMacaddrArraySet(t *testing.T) {
 		{
 			source: []net.HardwareAddr{mustParseMacaddr(t, "01:23:45:67:89:ab")},
 			result: pgtype.MacaddrArray{
-				Elements:   []pgtype.Macaddr{{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present}},
+				Elements:   []pgtype.Macaddr{{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]net.HardwareAddr)(nil)),
-			result: pgtype.MacaddrArray{Status: pgtype.Null},
+			result: pgtype.MacaddrArray{},
 		},
 		{
 			source: [][]net.HardwareAddr{
@@ -50,10 +50,10 @@ func TestMacaddrArraySet(t *testing.T) {
 				{mustParseMacaddr(t, "cd:ef:01:23:45:67")}},
 			result: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]net.HardwareAddr{
@@ -67,18 +67,18 @@ func TestMacaddrArraySet(t *testing.T) {
 					mustParseMacaddr(t, "32:10:fe:dc:ba:98")}}}},
 			result: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true},
+					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Valid: true},
+					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Valid: true},
+					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Valid: true},
+					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]net.HardwareAddr{
@@ -86,10 +86,10 @@ func TestMacaddrArraySet(t *testing.T) {
 				{mustParseMacaddr(t, "cd:ef:01:23:45:67")}},
 			result: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]net.HardwareAddr{
@@ -103,18 +103,18 @@ func TestMacaddrArraySet(t *testing.T) {
 					mustParseMacaddr(t, "32:10:fe:dc:ba:98")}}}},
 			result: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true},
+					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Valid: true},
+					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Valid: true},
+					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Valid: true},
+					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -145,39 +145,39 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.MacaddrArray{
-				Elements:   []pgtype.Macaddr{{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present}},
+				Elements:   []pgtype.Macaddr{{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &macaddrSlice,
 			expected: []net.HardwareAddr{mustParseMacaddr(t, "01:23:45:67:89:ab")},
 		},
 		{
 			src: pgtype.MacaddrArray{
-				Elements:   []pgtype.Macaddr{{Status: pgtype.Null}},
+				Elements:   []pgtype.Macaddr{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &macaddrSlice,
 			expected: []net.HardwareAddr{nil},
 		},
 		{
-			src:      pgtype.MacaddrArray{Status: pgtype.Null},
+			src:      pgtype.MacaddrArray{},
 			dst:      &macaddrSlice,
 			expected: (([]net.HardwareAddr)(nil)),
 		},
 		{
-			src:      pgtype.MacaddrArray{Status: pgtype.Present},
+			src:      pgtype.MacaddrArray{Valid: true},
 			dst:      &macaddrSlice,
 			expected: []net.HardwareAddr{},
 		},
 		{
 			src: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &macaddrSliceDim2,
 			expected: [][]net.HardwareAddr{
 				{mustParseMacaddr(t, "01:23:45:67:89:ab")},
@@ -186,18 +186,18 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true},
+					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Valid: true},
+					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Valid: true},
+					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Valid: true},
+					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &macaddrSliceDim4,
 			expected: [][][][]net.HardwareAddr{
 				{{{
@@ -212,10 +212,10 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &macaddrArrayDim2,
 			expected: [2][1]net.HardwareAddr{
 				{mustParseMacaddr(t, "01:23:45:67:89:ab")},
@@ -224,18 +224,18 @@ func TestMacaddrArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.MacaddrArray{
 				Elements: []pgtype.Macaddr{
-					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Status: pgtype.Present},
-					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Status: pgtype.Present}},
+					{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+					{Addr: mustParseMacaddr(t, "cd:ef:01:23:45:67"), Valid: true},
+					{Addr: mustParseMacaddr(t, "89:ab:cd:ef:01:23"), Valid: true},
+					{Addr: mustParseMacaddr(t, "45:67:89:ab:cd:ef"), Valid: true},
+					{Addr: mustParseMacaddr(t, "fe:dc:ba:98:76:54"), Valid: true},
+					{Addr: mustParseMacaddr(t, "32:10:fe:dc:ba:98"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &macaddrArrayDim4,
 			expected: [2][1][1][3]net.HardwareAddr{
 				{{{

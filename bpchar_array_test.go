@@ -12,44 +12,44 @@ func TestBPCharArrayTranscode(t *testing.T) {
 		&pgtype.BPCharArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.BPCharArray{
 			Elements: []pgtype.BPChar{
-				pgtype.BPChar{String: "foo     ", Status: pgtype.Present},
-				pgtype.BPChar{Status: pgtype.Null},
+				pgtype.BPChar{String: "foo     ", Valid: true},
+				pgtype.BPChar{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.BPCharArray{Status: pgtype.Null},
+		&pgtype.BPCharArray{},
 		&pgtype.BPCharArray{
 			Elements: []pgtype.BPChar{
-				pgtype.BPChar{String: "bar     ", Status: pgtype.Present},
-				pgtype.BPChar{String: "NuLL    ", Status: pgtype.Present},
-				pgtype.BPChar{String: `wow"quz\`, Status: pgtype.Present},
-				pgtype.BPChar{String: "1       ", Status: pgtype.Present},
-				pgtype.BPChar{String: "1       ", Status: pgtype.Present},
-				pgtype.BPChar{String: "null    ", Status: pgtype.Present},
+				pgtype.BPChar{String: "bar     ", Valid: true},
+				pgtype.BPChar{String: "NuLL    ", Valid: true},
+				pgtype.BPChar{String: `wow"quz\`, Valid: true},
+				pgtype.BPChar{String: "1       ", Valid: true},
+				pgtype.BPChar{String: "1       ", Valid: true},
+				pgtype.BPChar{String: "null    ", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 3, LowerBound: 1},
 				{Length: 2, LowerBound: 1},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 		&pgtype.BPCharArray{
 			Elements: []pgtype.BPChar{
-				pgtype.BPChar{String: " bar    ", Status: pgtype.Present},
-				pgtype.BPChar{String: "    baz ", Status: pgtype.Present},
-				pgtype.BPChar{String: "    quz ", Status: pgtype.Present},
-				pgtype.BPChar{String: "foo     ", Status: pgtype.Present},
+				pgtype.BPChar{String: " bar    ", Valid: true},
+				pgtype.BPChar{String: "    baz ", Valid: true},
+				pgtype.BPChar{String: "    quz ", Valid: true},
+				pgtype.BPChar{String: "foo     ", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }

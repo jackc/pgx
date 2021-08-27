@@ -13,41 +13,41 @@ func TestByteaArrayTranscode(t *testing.T) {
 		&pgtype.ByteaArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.ByteaArray{Status: pgtype.Null},
+		&pgtype.ByteaArray{},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Bytes: []byte{}, Status: pgtype.Present},
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{Bytes: []byte{1}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{Bytes: []byte{}, Valid: true},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{},
+				{Bytes: []byte{1}, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.ByteaArray{
 			Elements: []pgtype.Bytea{
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Bytes: []byte{}, Status: pgtype.Present},
-				{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-				{Bytes: []byte{1}, Status: pgtype.Present},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{Bytes: []byte{}, Valid: true},
+				{Bytes: []byte{1, 2, 3}, Valid: true},
+				{Bytes: []byte{1}, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -60,61 +60,61 @@ func TestByteaArraySet(t *testing.T) {
 		{
 			source: [][]byte{{1, 2, 3}},
 			result: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1, 2, 3}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([][]byte)(nil)),
-			result: pgtype.ByteaArray{Status: pgtype.Null},
+			result: pgtype.ByteaArray{},
 		},
 		{
 			source: [][][]byte{{{1}}, {{2}}},
 			result: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Status: pgtype.Present}, {Bytes: []byte{2}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Valid: true}, {Bytes: []byte{2}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][][]byte{{{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}}}, {{{{10, 11, 12}, {13, 14, 15}, {16, 17, 18}}}}},
 			result: pgtype.ByteaArray{
 				Elements: []pgtype.Bytea{
-					{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-					{Bytes: []byte{4, 5, 6}, Status: pgtype.Present},
-					{Bytes: []byte{7, 8, 9}, Status: pgtype.Present},
-					{Bytes: []byte{10, 11, 12}, Status: pgtype.Present},
-					{Bytes: []byte{13, 14, 15}, Status: pgtype.Present},
-					{Bytes: []byte{16, 17, 18}, Status: pgtype.Present}},
+					{Bytes: []byte{1, 2, 3}, Valid: true},
+					{Bytes: []byte{4, 5, 6}, Valid: true},
+					{Bytes: []byte{7, 8, 9}, Valid: true},
+					{Bytes: []byte{10, 11, 12}, Valid: true},
+					{Bytes: []byte{13, 14, 15}, Valid: true},
+					{Bytes: []byte{16, 17, 18}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1][]byte{{{1}}, {{2}}},
 			result: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Status: pgtype.Present}, {Bytes: []byte{2}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Valid: true}, {Bytes: []byte{2}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3][]byte{{{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}}}, {{{{10, 11, 12}, {13, 14, 15}, {16, 17, 18}}}}},
 			result: pgtype.ByteaArray{
 				Elements: []pgtype.Bytea{
-					{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-					{Bytes: []byte{4, 5, 6}, Status: pgtype.Present},
-					{Bytes: []byte{7, 8, 9}, Status: pgtype.Present},
-					{Bytes: []byte{10, 11, 12}, Status: pgtype.Present},
-					{Bytes: []byte{13, 14, 15}, Status: pgtype.Present},
-					{Bytes: []byte{16, 17, 18}, Status: pgtype.Present}},
+					{Bytes: []byte{1, 2, 3}, Valid: true},
+					{Bytes: []byte{4, 5, 6}, Valid: true},
+					{Bytes: []byte{7, 8, 9}, Valid: true},
+					{Bytes: []byte{10, 11, 12}, Valid: true},
+					{Bytes: []byte{13, 14, 15}, Valid: true},
+					{Bytes: []byte{16, 17, 18}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -145,72 +145,72 @@ func TestByteaArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1, 2, 3}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &byteByteSlice,
 			expected: [][]byte{{1, 2, 3}},
 		},
 		{
-			src:      pgtype.ByteaArray{Status: pgtype.Null},
+			src:      pgtype.ByteaArray{},
 			dst:      &byteByteSlice,
 			expected: (([][]byte)(nil)),
 		},
 		{
-			src:      pgtype.ByteaArray{Status: pgtype.Present},
+			src:      pgtype.ByteaArray{Valid: true},
 			dst:      &byteByteSlice,
 			expected: [][]byte{},
 		},
 		{
 			src: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Status: pgtype.Present}, {Bytes: []byte{2}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Valid: true}, {Bytes: []byte{2}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &byteByteSliceDim2,
 			expected: [][][]byte{{{1}}, {{2}}},
 		},
 		{
 			src: pgtype.ByteaArray{
 				Elements: []pgtype.Bytea{
-					{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-					{Bytes: []byte{4, 5, 6}, Status: pgtype.Present},
-					{Bytes: []byte{7, 8, 9}, Status: pgtype.Present},
-					{Bytes: []byte{10, 11, 12}, Status: pgtype.Present},
-					{Bytes: []byte{13, 14, 15}, Status: pgtype.Present},
-					{Bytes: []byte{16, 17, 18}, Status: pgtype.Present}},
+					{Bytes: []byte{1, 2, 3}, Valid: true},
+					{Bytes: []byte{4, 5, 6}, Valid: true},
+					{Bytes: []byte{7, 8, 9}, Valid: true},
+					{Bytes: []byte{10, 11, 12}, Valid: true},
+					{Bytes: []byte{13, 14, 15}, Valid: true},
+					{Bytes: []byte{16, 17, 18}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &byteByteSliceDim4,
 			expected: [][][][][]byte{{{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}}}, {{{{10, 11, 12}, {13, 14, 15}, {16, 17, 18}}}}},
 		},
 		{
 			src: pgtype.ByteaArray{
-				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Status: pgtype.Present}, {Bytes: []byte{2}, Status: pgtype.Present}},
+				Elements:   []pgtype.Bytea{{Bytes: []byte{1}, Valid: true}, {Bytes: []byte{2}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &byteByteArraySliceDim2,
 			expected: [2][1][]byte{{{1}}, {{2}}},
 		},
 		{
 			src: pgtype.ByteaArray{
 				Elements: []pgtype.Bytea{
-					{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-					{Bytes: []byte{4, 5, 6}, Status: pgtype.Present},
-					{Bytes: []byte{7, 8, 9}, Status: pgtype.Present},
-					{Bytes: []byte{10, 11, 12}, Status: pgtype.Present},
-					{Bytes: []byte{13, 14, 15}, Status: pgtype.Present},
-					{Bytes: []byte{16, 17, 18}, Status: pgtype.Present}},
+					{Bytes: []byte{1, 2, 3}, Valid: true},
+					{Bytes: []byte{4, 5, 6}, Valid: true},
+					{Bytes: []byte{7, 8, 9}, Valid: true},
+					{Bytes: []byte{10, 11, 12}, Valid: true},
+					{Bytes: []byte{13, 14, 15}, Valid: true},
+					{Bytes: []byte{16, 17, 18}, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &byteByteArraySliceDim4,
 			expected: [2][1][1][3][]byte{{{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}}}, {{{{10, 11, 12}, {13, 14, 15}, {16, 17, 18}}}}},
 		},

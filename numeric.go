@@ -57,14 +57,14 @@ var bigNBaseX4 *big.Int = big.NewInt(nbase * nbase * nbase * nbase)
 type Numeric struct {
 	Int              *big.Int
 	Exp              int32
-	Status           Status
+	Valid            bool
 	NaN              bool
 	InfinityModifier InfinityModifier
 }
 
 func (dst *Numeric) Set(src interface{}) error {
 	if src == nil {
-		*dst = Numeric{Status: Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -78,142 +78,142 @@ func (dst *Numeric) Set(src interface{}) error {
 	switch value := src.(type) {
 	case float32:
 		if math.IsNaN(float64(value)) {
-			*dst = Numeric{Status: Present, NaN: true}
+			*dst = Numeric{Valid: true, NaN: true}
 			return nil
 		} else if math.IsInf(float64(value), 1) {
-			*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+			*dst = Numeric{Valid: true, InfinityModifier: Infinity}
 			return nil
 		} else if math.IsInf(float64(value), -1) {
-			*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+			*dst = Numeric{Valid: true, InfinityModifier: NegativeInfinity}
 			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(float64(value), 'f', -1, 64))
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Int: num, Exp: exp, Status: Present}
+		*dst = Numeric{Int: num, Exp: exp, Valid: true}
 	case float64:
 		if math.IsNaN(value) {
-			*dst = Numeric{Status: Present, NaN: true}
+			*dst = Numeric{Valid: true, NaN: true}
 			return nil
 		} else if math.IsInf(value, 1) {
-			*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+			*dst = Numeric{Valid: true, InfinityModifier: Infinity}
 			return nil
 		} else if math.IsInf(value, -1) {
-			*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+			*dst = Numeric{Valid: true, InfinityModifier: NegativeInfinity}
 			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(value, 'f', -1, 64))
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Int: num, Exp: exp, Status: Present}
+		*dst = Numeric{Int: num, Exp: exp, Valid: true}
 	case int8:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case uint8:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case int16:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case uint16:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case int32:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case uint32:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case int64:
-		*dst = Numeric{Int: big.NewInt(value), Status: Present}
+		*dst = Numeric{Int: big.NewInt(value), Valid: true}
 	case uint64:
-		*dst = Numeric{Int: (&big.Int{}).SetUint64(value), Status: Present}
+		*dst = Numeric{Int: (&big.Int{}).SetUint64(value), Valid: true}
 	case int:
-		*dst = Numeric{Int: big.NewInt(int64(value)), Status: Present}
+		*dst = Numeric{Int: big.NewInt(int64(value)), Valid: true}
 	case uint:
-		*dst = Numeric{Int: (&big.Int{}).SetUint64(uint64(value)), Status: Present}
+		*dst = Numeric{Int: (&big.Int{}).SetUint64(uint64(value)), Valid: true}
 	case string:
 		num, exp, err := parseNumericString(value)
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Int: num, Exp: exp, Status: Present}
+		*dst = Numeric{Int: num, Exp: exp, Valid: true}
 	case *float64:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *float32:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int8:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint8:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int16:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint16:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int32:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint32:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int64:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint64:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Numeric{Status: Null}
+			*dst = Numeric{}
 		} else {
 			return dst.Set(*value)
 		}
 	case InfinityModifier:
-		*dst = Numeric{InfinityModifier: value, Status: Present}
+		*dst = Numeric{InfinityModifier: value, Valid: true}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
@@ -225,158 +225,154 @@ func (dst *Numeric) Set(src interface{}) error {
 }
 
 func (dst Numeric) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		if dst.InfinityModifier != None {
-			return dst.InfinityModifier
-		}
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+
+	if dst.InfinityModifier != None {
+		return dst.InfinityModifier
+	}
+	return dst
 }
 
 func (src *Numeric) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *float32:
-			f, err := src.toFloat64()
-			if err != nil {
-				return err
-			}
-			return float64AssignTo(f, src.Status, dst)
-		case *float64:
-			f, err := src.toFloat64()
-			if err != nil {
-				return err
-			}
-			return float64AssignTo(f, src.Status, dst)
-		case *int:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(bigMaxInt) > 0 {
-				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
-			}
-			if normalizedInt.Cmp(bigMinInt) < 0 {
-				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
-			}
-			*v = int(normalizedInt.Int64())
-		case *int8:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(bigMaxInt8) > 0 {
-				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
-			}
-			if normalizedInt.Cmp(bigMinInt8) < 0 {
-				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
-			}
-			*v = int8(normalizedInt.Int64())
-		case *int16:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(bigMaxInt16) > 0 {
-				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
-			}
-			if normalizedInt.Cmp(bigMinInt16) < 0 {
-				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
-			}
-			*v = int16(normalizedInt.Int64())
-		case *int32:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(bigMaxInt32) > 0 {
-				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
-			}
-			if normalizedInt.Cmp(bigMinInt32) < 0 {
-				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
-			}
-			*v = int32(normalizedInt.Int64())
-		case *int64:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(bigMaxInt64) > 0 {
-				return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
-			}
-			if normalizedInt.Cmp(bigMinInt64) < 0 {
-				return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
-			}
-			*v = normalizedInt.Int64()
-		case *uint:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(big0) < 0 {
-				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
-			} else if normalizedInt.Cmp(bigMaxUint) > 0 {
-				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
-			}
-			*v = uint(normalizedInt.Uint64())
-		case *uint8:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(big0) < 0 {
-				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
-			} else if normalizedInt.Cmp(bigMaxUint8) > 0 {
-				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
-			}
-			*v = uint8(normalizedInt.Uint64())
-		case *uint16:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(big0) < 0 {
-				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
-			} else if normalizedInt.Cmp(bigMaxUint16) > 0 {
-				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
-			}
-			*v = uint16(normalizedInt.Uint64())
-		case *uint32:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(big0) < 0 {
-				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
-			} else if normalizedInt.Cmp(bigMaxUint32) > 0 {
-				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
-			}
-			*v = uint32(normalizedInt.Uint64())
-		case *uint64:
-			normalizedInt, err := src.toBigInt()
-			if err != nil {
-				return err
-			}
-			if normalizedInt.Cmp(big0) < 0 {
-				return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
-			} else if normalizedInt.Cmp(bigMaxUint64) > 0 {
-				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
-			}
-			*v = normalizedInt.Uint64()
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
+	}
+
+	switch v := dst.(type) {
+	case *float32:
+		f, err := src.toFloat64()
+		if err != nil {
+			return err
+		}
+		return float64AssignTo(f, src.Valid, dst)
+	case *float64:
+		f, err := src.toFloat64()
+		if err != nil {
+			return err
+		}
+		return float64AssignTo(f, src.Valid, dst)
+	case *int:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(bigMaxInt) > 0 {
+			return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+		}
+		if normalizedInt.Cmp(bigMinInt) < 0 {
+			return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+		}
+		*v = int(normalizedInt.Int64())
+	case *int8:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(bigMaxInt8) > 0 {
+			return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+		}
+		if normalizedInt.Cmp(bigMinInt8) < 0 {
+			return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+		}
+		*v = int8(normalizedInt.Int64())
+	case *int16:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(bigMaxInt16) > 0 {
+			return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+		}
+		if normalizedInt.Cmp(bigMinInt16) < 0 {
+			return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+		}
+		*v = int16(normalizedInt.Int64())
+	case *int32:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(bigMaxInt32) > 0 {
+			return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+		}
+		if normalizedInt.Cmp(bigMinInt32) < 0 {
+			return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+		}
+		*v = int32(normalizedInt.Int64())
+	case *int64:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(bigMaxInt64) > 0 {
+			return fmt.Errorf("%v is greater than maximum value for %T", normalizedInt, *v)
+		}
+		if normalizedInt.Cmp(bigMinInt64) < 0 {
+			return fmt.Errorf("%v is less than minimum value for %T", normalizedInt, *v)
+		}
+		*v = normalizedInt.Int64()
+	case *uint:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(big0) < 0 {
+			return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
+		} else if normalizedInt.Cmp(bigMaxUint) > 0 {
+			return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+		}
+		*v = uint(normalizedInt.Uint64())
+	case *uint8:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(big0) < 0 {
+			return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
+		} else if normalizedInt.Cmp(bigMaxUint8) > 0 {
+			return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+		}
+		*v = uint8(normalizedInt.Uint64())
+	case *uint16:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(big0) < 0 {
+			return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
+		} else if normalizedInt.Cmp(bigMaxUint16) > 0 {
+			return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+		}
+		*v = uint16(normalizedInt.Uint64())
+	case *uint32:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(big0) < 0 {
+			return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
+		} else if normalizedInt.Cmp(bigMaxUint32) > 0 {
+			return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+		}
+		*v = uint32(normalizedInt.Uint64())
+	case *uint64:
+		normalizedInt, err := src.toBigInt()
+		if err != nil {
+			return err
+		}
+		if normalizedInt.Cmp(big0) < 0 {
+			return fmt.Errorf("%d is less than zero for %T", normalizedInt, *v)
+		} else if normalizedInt.Cmp(bigMaxUint64) > 0 {
+			return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
+		}
+		*v = normalizedInt.Uint64()
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
 	}
 
 	return nil
@@ -430,18 +426,18 @@ func (src *Numeric) toFloat64() (float64, error) {
 
 func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numeric{Status: Null}
+		*dst = Numeric{}
 		return nil
 	}
 
 	if string(src) == "NaN" {
-		*dst = Numeric{Status: Present, NaN: true}
+		*dst = Numeric{Valid: true, NaN: true}
 		return nil
 	} else if string(src) == "Infinity" {
-		*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+		*dst = Numeric{Valid: true, InfinityModifier: Infinity}
 		return nil
 	} else if string(src) == "-Infinity" {
-		*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+		*dst = Numeric{Valid: true, InfinityModifier: NegativeInfinity}
 		return nil
 	}
 
@@ -450,7 +446,7 @@ func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Numeric{Int: num, Exp: exp, Status: Present}
+	*dst = Numeric{Int: num, Exp: exp, Valid: true}
 	return nil
 }
 
@@ -477,7 +473,7 @@ func parseNumericString(str string) (n *big.Int, exp int32, err error) {
 
 func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numeric{Status: Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -496,18 +492,18 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	rp += 2
 
 	if sign == pgNumericNaNSign {
-		*dst = Numeric{Status: Present, NaN: true}
+		*dst = Numeric{Valid: true, NaN: true}
 		return nil
 	} else if sign == pgNumericPosInfSign {
-		*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+		*dst = Numeric{Valid: true, InfinityModifier: Infinity}
 		return nil
 	} else if sign == pgNumericNegInfSign {
-		*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+		*dst = Numeric{Valid: true, InfinityModifier: NegativeInfinity}
 		return nil
 	}
 
 	if ndigits == 0 {
-		*dst = Numeric{Int: big.NewInt(0), Status: Present}
+		*dst = Numeric{Int: big.NewInt(0), Valid: true}
 		return nil
 	}
 
@@ -579,7 +575,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 		accum.Neg(accum)
 	}
 
-	*dst = Numeric{Int: accum, Exp: exp, Status: Present}
+	*dst = Numeric{Int: accum, Exp: exp, Valid: true}
 
 	return nil
 
@@ -605,11 +601,8 @@ func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
 }
 
 func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if src.NaN {
@@ -630,11 +623,8 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if src.NaN {
@@ -734,7 +724,7 @@ func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Numeric) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Numeric{Status: Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -752,17 +742,14 @@ func (dst *Numeric) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Numeric) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		buf, err := src.EncodeText(nil, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		return string(buf), nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	buf, err := src.EncodeText(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), nil
 }

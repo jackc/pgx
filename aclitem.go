@@ -19,12 +19,12 @@ import (
 //
 type ACLItem struct {
 	String string
-	Status Status
+	Valid  bool
 }
 
 func (dst *ACLItem) Set(src interface{}) error {
 	if src == nil {
-		*dst = ACLItem{Status: Null}
+		*dst = ACLItem{}
 		return nil
 	}
 
@@ -37,12 +37,12 @@ func (dst *ACLItem) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case string:
-		*dst = ACLItem{String: value, Status: Present}
+		*dst = ACLItem{String: value, Valid: true}
 	case *string:
 		if value == nil {
-			*dst = ACLItem{Status: Null}
+			*dst = ACLItem{}
 		} else {
-			*dst = ACLItem{String: *value, Status: Present}
+			*dst = ACLItem{String: *value, Valid: true}
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
@@ -55,31 +55,26 @@ func (dst *ACLItem) Set(src interface{}) error {
 }
 
 func (dst ACLItem) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.String
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.String
 }
 
 func (src *ACLItem) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *string:
-			*v = src.String
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
+	}
+
+	switch v := dst.(type) {
+	case *string:
+		*v = src.String
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
 	}
 
 	return fmt.Errorf("cannot decode %#v into %T", src, dst)
@@ -87,20 +82,17 @@ func (src *ACLItem) AssignTo(dst interface{}) error {
 
 func (dst *ACLItem) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = ACLItem{Status: Null}
+		*dst = ACLItem{}
 		return nil
 	}
 
-	*dst = ACLItem{String: string(src), Status: Present}
+	*dst = ACLItem{String: string(src), Valid: true}
 	return nil
 }
 
 func (src ACLItem) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, src.String...), nil
@@ -109,7 +101,7 @@ func (src ACLItem) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *ACLItem) Scan(src interface{}) error {
 	if src == nil {
-		*dst = ACLItem{Status: Null}
+		*dst = ACLItem{}
 		return nil
 	}
 
@@ -127,12 +119,9 @@ func (dst *ACLItem) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src ACLItem) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return src.String, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	return src.String, nil
 }

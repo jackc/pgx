@@ -12,8 +12,8 @@ import (
 )
 
 type Polygon struct {
-	P      []Vec2
-	Status Status
+	P     []Vec2
+	Valid bool
 }
 
 // Set converts src to dest.
@@ -24,7 +24,7 @@ type Polygon struct {
 // Important that there are no spaces in it.
 func (dst *Polygon) Set(src interface{}) error {
 	if src == nil {
-		dst.Status = Null
+		dst.Valid = false
 		return nil
 	}
 	err := fmt.Errorf("cannot convert %v to Polygon", src)
@@ -33,7 +33,7 @@ func (dst *Polygon) Set(src interface{}) error {
 	case string:
 		p, err = stringToPolygon(value)
 	case []Vec2:
-		p = &Polygon{Status: Present, P: value}
+		p = &Polygon{Valid: true, P: value}
 		err = nil
 	case []float64:
 		p, err = float64ToPolygon(value)
@@ -54,15 +54,14 @@ func stringToPolygon(src string) (*Polygon, error) {
 }
 
 func float64ToPolygon(src []float64) (*Polygon, error) {
-	p := &Polygon{Status: Null}
+	p := &Polygon{}
 	if len(src) == 0 {
 		return p, nil
 	}
 	if len(src)%2 != 0 {
-		p.Status = Undefined
 		return p, fmt.Errorf("invalid length for polygon: %v", len(src))
 	}
-	p.Status = Present
+	p.Valid = true
 	p.P = make([]Vec2, 0)
 	for i := 0; i < len(src); i += 2 {
 		p.P = append(p.P, Vec2{X: src[i], Y: src[i+1]})
@@ -71,14 +70,10 @@ func float64ToPolygon(src []float64) (*Polygon, error) {
 }
 
 func (dst Polygon) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Polygon) AssignTo(dst interface{}) error {
@@ -87,7 +82,7 @@ func (src *Polygon) AssignTo(dst interface{}) error {
 
 func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Polygon{Status: Null}
+		*dst = Polygon{}
 		return nil
 	}
 
@@ -123,13 +118,13 @@ func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Polygon{P: points, Status: Present}
+	*dst = Polygon{P: points, Valid: true}
 	return nil
 }
 
 func (dst *Polygon) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Polygon{Status: Null}
+		*dst = Polygon{}
 		return nil
 	}
 
@@ -154,18 +149,15 @@ func (dst *Polygon) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	*dst = Polygon{
-		P:      points,
-		Status: Present,
+		P:     points,
+		Valid: true,
 	}
 	return nil
 }
 
 func (src Polygon) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, '(')
@@ -184,11 +176,8 @@ func (src Polygon) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Polygon) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendInt32(buf, int32(len(src.P)))
@@ -204,7 +193,7 @@ func (src Polygon) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Polygon) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Polygon{Status: Null}
+		*dst = Polygon{}
 		return nil
 	}
 

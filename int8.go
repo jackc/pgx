@@ -12,13 +12,13 @@ import (
 )
 
 type Int8 struct {
-	Int    int64
-	Status Status
+	Int   int64
+	Valid bool
 }
 
 func (dst *Int8) Set(src interface{}) error {
 	if src == nil {
-		*dst = Int8{Status: Null}
+		*dst = Int8{}
 		return nil
 	}
 
@@ -31,24 +31,24 @@ func (dst *Int8) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case int8:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case uint8:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case int16:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case uint16:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case int32:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case uint32:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case int64:
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case uint64:
 		if value > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case int:
 		if int64(value) < math.MinInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
@@ -56,103 +56,103 @@ func (dst *Int8) Set(src interface{}) error {
 		if int64(value) > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case uint:
 		if uint64(value) > math.MaxInt64 {
 			return fmt.Errorf("%d is greater than maximum value for Int8", value)
 		}
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case string:
 		num, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return err
 		}
-		*dst = Int8{Int: num, Status: Present}
+		*dst = Int8{Int: num, Valid: true}
 	case float32:
 		if value > math.MaxInt64 {
 			return fmt.Errorf("%f is greater than maximum value for Int8", value)
 		}
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case float64:
 		if value > math.MaxInt64 {
 			return fmt.Errorf("%f is greater than maximum value for Int8", value)
 		}
-		*dst = Int8{Int: int64(value), Status: Present}
+		*dst = Int8{Int: int64(value), Valid: true}
 	case *int8:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint8:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int16:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint16:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int32:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint32:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int64:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint64:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *float32:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *float64:
 		if value == nil {
-			*dst = Int8{Status: Null}
+			*dst = Int8{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -167,23 +167,19 @@ func (dst *Int8) Set(src interface{}) error {
 }
 
 func (dst Int8) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Int
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Int
 }
 
 func (src *Int8) AssignTo(dst interface{}) error {
-	return int64AssignTo(int64(src.Int), src.Status, dst)
+	return int64AssignTo(int64(src.Int), src.Valid, dst)
 }
 
 func (dst *Int8) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int8{Status: Null}
+		*dst = Int8{}
 		return nil
 	}
 
@@ -192,13 +188,13 @@ func (dst *Int8) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Int8{Int: n, Status: Present}
+	*dst = Int8{Int: n, Valid: true}
 	return nil
 }
 
 func (dst *Int8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int8{Status: Null}
+		*dst = Int8{}
 		return nil
 	}
 
@@ -208,27 +204,21 @@ func (dst *Int8) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	n := int64(binary.BigEndian.Uint64(src))
 
-	*dst = Int8{Int: n, Status: Present}
+	*dst = Int8{Int: n, Valid: true}
 	return nil
 }
 
 func (src Int8) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, strconv.FormatInt(src.Int, 10)...), nil
 }
 
 func (src Int8) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return pgio.AppendInt64(buf, src.Int), nil
@@ -237,13 +227,13 @@ func (src Int8) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Int8) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Int8{Status: Null}
+		*dst = Int8{}
 		return nil
 	}
 
 	switch src := src.(type) {
 	case int64:
-		*dst = Int8{Int: src, Status: Present}
+		*dst = Int8{Int: src, Valid: true}
 		return nil
 	case string:
 		return dst.DecodeText(nil, []byte(src))
@@ -258,27 +248,17 @@ func (dst *Int8) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Int8) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return int64(src.Int), nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+	return int64(src.Int), nil
 }
 
 func (src Int8) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Present:
-		return []byte(strconv.FormatInt(src.Int, 10)), nil
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
 	}
-
-	return nil, errBadStatus
+	return []byte(strconv.FormatInt(src.Int, 10)), nil
 }
 
 func (dst *Int8) UnmarshalJSON(b []byte) error {
@@ -289,9 +269,9 @@ func (dst *Int8) UnmarshalJSON(b []byte) error {
 	}
 
 	if n == nil {
-		*dst = Int8{Status: Null}
+		*dst = Int8{}
 	} else {
-		*dst = Int8{Int: *n, Status: Present}
+		*dst = Int8{Int: *n, Valid: true}
 	}
 
 	return nil

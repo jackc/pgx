@@ -7,12 +7,13 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUUIDTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "uuid", []interface{}{
-		&pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
-		&pgtype.UUID{Status: pgtype.Null},
+		&pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
+		&pgtype.UUID{},
 	})
 }
 
@@ -29,31 +30,31 @@ func TestUUIDSet(t *testing.T) {
 	}{
 		{
 			source: nil,
-			result: pgtype.UUID{Status: pgtype.Null},
+			result: pgtype.UUID{},
 		},
 		{
 			source: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 		},
 		{
 			source: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 		},
 		{
 			source: SomeUUIDType{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 		},
 		{
 			source: ([]byte)(nil),
-			result: pgtype.UUID{Status: pgtype.Null},
+			result: pgtype.UUID{},
 		},
 		{
 			source: "00010203-0405-0607-0809-0a0b0c0d0e0f",
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 		},
 		{
 			source: "000102030405060708090a0b0c0d0e0f",
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present},
+			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 		},
 	}
 
@@ -72,7 +73,7 @@ func TestUUIDSet(t *testing.T) {
 
 func TestUUIDAssignTo(t *testing.T) {
 	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
 		var dst [16]byte
 		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -87,7 +88,7 @@ func TestUUIDAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
 		var dst []byte
 		expected := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -102,7 +103,7 @@ func TestUUIDAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
 		var dst SomeUUIDType
 		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -117,7 +118,7 @@ func TestUUIDAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
 		var dst string
 		expected := "00010203-0405-0607-0809-0a0b0c0d0e0f"
 
@@ -132,7 +133,7 @@ func TestUUIDAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Status: pgtype.Present}
+		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
 		var dst SomeUUIDWrapper
 		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
 
@@ -149,46 +150,30 @@ func TestUUIDAssignTo(t *testing.T) {
 
 func TestUUID_MarshalJSON(t *testing.T) {
 	tests := []struct {
-		name    string
-		src     pgtype.UUID
-		want    []byte
-		wantErr bool
+		name string
+		src  pgtype.UUID
+		want []byte
 	}{
 		{
 			name: "first",
 			src: pgtype.UUID{
-				Bytes:  [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
-				Status: pgtype.Present,
+				Bytes: [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
+				Valid: true,
 			},
-			want:    []byte(`"1d485a7a-6d18-4599-8c6c-34425616887a"`),
-			wantErr: false,
-		},
-		{
-			name: "second",
-			src: pgtype.UUID{
-				Bytes:  [16]byte{},
-				Status: pgtype.Undefined,
-			},
-			want:    nil,
-			wantErr: true,
+			want: []byte(`"1d485a7a-6d18-4599-8c6c-34425616887a"`),
 		},
 		{
 			name: "third",
 			src: pgtype.UUID{
-				Bytes:  [16]byte{},
-				Status: pgtype.Null,
+				Bytes: [16]byte{},
 			},
-			want:    []byte("null"),
-			wantErr: false,
+			want: []byte("null"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := tt.src.MarshalJSON()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("MarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			require.NoError(t, err)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("MarshalJSON() got = %v, want %v", got, tt.want)
 			}
@@ -206,8 +191,8 @@ func TestUUID_UnmarshalJSON(t *testing.T) {
 		{
 			name: "first",
 			want: &pgtype.UUID{
-				Bytes:  [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
-				Status: pgtype.Present,
+				Bytes: [16]byte{29, 72, 90, 122, 109, 24, 69, 153, 140, 108, 52, 66, 86, 22, 136, 122},
+				Valid: true,
 			},
 			src:     []byte(`"1d485a7a-6d18-4599-8c6c-34425616887a"`),
 			wantErr: false,
@@ -215,8 +200,7 @@ func TestUUID_UnmarshalJSON(t *testing.T) {
 		{
 			name: "second",
 			want: &pgtype.UUID{
-				Bytes:  [16]byte{},
-				Status: pgtype.Null,
+				Bytes: [16]byte{},
 			},
 			src:     []byte("null"),
 			wantErr: false,
@@ -224,8 +208,8 @@ func TestUUID_UnmarshalJSON(t *testing.T) {
 		{
 			name: "third",
 			want: &pgtype.UUID{
-				Bytes:  [16]byte{},
-				Status: pgtype.Undefined,
+				Bytes: [16]byte{},
+				Valid: false,
 			},
 			src:     []byte("1d485a7a-6d18-4599-8c6c-34425616887a"),
 			wantErr: true,

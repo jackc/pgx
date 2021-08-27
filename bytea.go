@@ -7,13 +7,13 @@ import (
 )
 
 type Bytea struct {
-	Bytes  []byte
-	Status Status
+	Bytes []byte
+	Valid bool
 }
 
 func (dst *Bytea) Set(src interface{}) error {
 	if src == nil {
-		*dst = Bytea{Status: Null}
+		*dst = Bytea{}
 		return nil
 	}
 
@@ -27,9 +27,9 @@ func (dst *Bytea) Set(src interface{}) error {
 	switch value := src.(type) {
 	case []byte:
 		if value != nil {
-			*dst = Bytea{Bytes: value, Status: Present}
+			*dst = Bytea{Bytes: value, Valid: true}
 		} else {
-			*dst = Bytea{Status: Null}
+			*dst = Bytea{}
 		}
 	default:
 		if originalSrc, ok := underlyingBytesType(src); ok {
@@ -42,43 +42,36 @@ func (dst *Bytea) Set(src interface{}) error {
 }
 
 func (dst Bytea) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Bytes
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Bytes
 }
 
 func (src *Bytea) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *[]byte:
-			buf := make([]byte, len(src.Bytes))
-			copy(buf, src.Bytes)
-			*v = buf
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *[]byte:
+		buf := make([]byte, len(src.Bytes))
+		copy(buf, src.Bytes)
+		*v = buf
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 // DecodeText only supports the hex format. This has been the default since
 // PostgreSQL 9.0.
 func (dst *Bytea) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Bytea{Status: Null}
+		*dst = Bytea{}
 		return nil
 	}
 
@@ -92,26 +85,23 @@ func (dst *Bytea) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Bytea{Bytes: buf, Status: Present}
+	*dst = Bytea{Bytes: buf, Valid: true}
 	return nil
 }
 
 func (dst *Bytea) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Bytea{Status: Null}
+		*dst = Bytea{}
 		return nil
 	}
 
-	*dst = Bytea{Bytes: src, Status: Present}
+	*dst = Bytea{Bytes: src, Valid: true}
 	return nil
 }
 
 func (src Bytea) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, `\x`...)
@@ -120,11 +110,8 @@ func (src Bytea) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Bytea) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, src.Bytes...), nil
@@ -133,7 +120,7 @@ func (src Bytea) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Bytea) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Bytea{Status: Null}
+		*dst = Bytea{}
 		return nil
 	}
 
@@ -143,7 +130,7 @@ func (dst *Bytea) Scan(src interface{}) error {
 	case []byte:
 		buf := make([]byte, len(src))
 		copy(buf, src)
-		*dst = Bytea{Bytes: buf, Status: Present}
+		*dst = Bytea{Bytes: buf, Valid: true}
 		return nil
 	}
 
@@ -152,12 +139,8 @@ func (dst *Bytea) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Bytea) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return src.Bytes, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+	return src.Bytes, nil
 }

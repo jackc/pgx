@@ -10,9 +10,9 @@ import (
 
 func TestByteaTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "bytea", []interface{}{
-		&pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present},
-		&pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present},
-		&pgtype.Bytea{Bytes: nil, Status: pgtype.Null},
+		&pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true},
+		&pgtype.Bytea{Bytes: []byte{}, Valid: true},
+		&pgtype.Bytea{Bytes: nil},
 	})
 }
 
@@ -21,11 +21,11 @@ func TestByteaSet(t *testing.T) {
 		source interface{}
 		result pgtype.Bytea
 	}{
-		{source: []byte{1, 2, 3}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}},
-		{source: []byte{}, result: pgtype.Bytea{Bytes: []byte{}, Status: pgtype.Present}},
-		{source: []byte(nil), result: pgtype.Bytea{Status: pgtype.Null}},
-		{source: _byteSlice{1, 2, 3}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}},
-		{source: _byteSlice(nil), result: pgtype.Bytea{Status: pgtype.Null}},
+		{source: []byte{1, 2, 3}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}},
+		{source: []byte{}, result: pgtype.Bytea{Bytes: []byte{}, Valid: true}},
+		{source: []byte(nil), result: pgtype.Bytea{}},
+		{source: _byteSlice{1, 2, 3}, result: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}},
+		{source: _byteSlice(nil), result: pgtype.Bytea{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -52,12 +52,12 @@ func TestByteaAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}, dst: &buf, expected: []byte{1, 2, 3}},
-		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}, dst: &_buf, expected: _byteSlice{1, 2, 3}},
-		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}, dst: &pbuf, expected: &[]byte{1, 2, 3}},
-		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Status: pgtype.Present}, dst: &_pbuf, expected: &_byteSlice{1, 2, 3}},
-		{src: pgtype.Bytea{Status: pgtype.Null}, dst: &pbuf, expected: ((*[]byte)(nil))},
-		{src: pgtype.Bytea{Status: pgtype.Null}, dst: &_pbuf, expected: ((*_byteSlice)(nil))},
+		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}, dst: &buf, expected: []byte{1, 2, 3}},
+		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}, dst: &_buf, expected: _byteSlice{1, 2, 3}},
+		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}, dst: &pbuf, expected: &[]byte{1, 2, 3}},
+		{src: pgtype.Bytea{Bytes: []byte{1, 2, 3}, Valid: true}, dst: &_pbuf, expected: &_byteSlice{1, 2, 3}},
+		{src: pgtype.Bytea{}, dst: &pbuf, expected: ((*[]byte)(nil))},
+		{src: pgtype.Bytea{}, dst: &_pbuf, expected: ((*_byteSlice)(nil))},
 	}
 
 	for i, tt := range simpleTests {

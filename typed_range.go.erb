@@ -14,13 +14,13 @@ type <%= range_type %> struct {
 	Upper     <%= element_type %>
 	LowerType BoundType
 	UpperType BoundType
-	Status    Status
+	Valid     bool
 }
 
 func (dst *<%= range_type %>) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = <%= range_type %>{Status: Null}
+		*dst = <%= range_type %>{}
 		return nil
 	}
 
@@ -38,15 +38,11 @@ func (dst *<%= range_type %>) Set(src interface{}) error {
 	return nil
 }
 
-func (dst <%= range_type %>) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
-		return nil
-	default:
-		return dst.Status
-	}
+func (src <%= range_type %>) Get() interface{} {
+  if !src.Valid {
+    return nil
+  }
+  return src
 }
 
 func (src *<%= range_type %>) AssignTo(dst interface{}) error {
@@ -55,7 +51,7 @@ func (src *<%= range_type %>) AssignTo(dst interface{}) error {
 
 func (dst *<%= range_type %>) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = <%= range_type %>{Status: Null}
+		*dst = <%= range_type %>{}
 		return nil
 	}
 
@@ -64,7 +60,7 @@ func (dst *<%= range_type %>) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = <%= range_type %>{Status: Present}
+	*dst = <%= range_type %>{Valid: true}
 
 	dst.LowerType = utr.LowerType
 	dst.UpperType = utr.UpperType
@@ -90,7 +86,7 @@ func (dst *<%= range_type %>) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *<%= range_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = <%= range_type %>{Status: Null}
+		*dst = <%= range_type %>{}
 		return nil
 	}
 
@@ -99,7 +95,7 @@ func (dst *<%= range_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = <%= range_type %>{Status: Present}
+	*dst = <%= range_type %>{Valid: true}
 
 	dst.LowerType = ubr.LowerType
 	dst.UpperType = ubr.UpperType
@@ -124,11 +120,8 @@ func (dst *<%= range_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
 }
 
 func (src <%= range_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-  switch src.Status {
-  case Null:
+  if !src.Valid {
     return nil, nil
-  case Undefined:
-    return nil, errUndefined
   }
 
 	switch src.LowerType {
@@ -177,11 +170,8 @@ func (src <%= range_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error
 }
 
 func (src <%= range_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-  switch src.Status {
-  case Null:
+  if !src.Valid {
     return nil, nil
-  case Undefined:
-    return nil, errUndefined
   }
 
 	var rangeType byte
@@ -247,7 +237,7 @@ func (src <%= range_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, err
 // Scan implements the database/sql Scanner interface.
 func (dst *<%= range_type %>) Scan(src interface{}) error {
 	if src == nil {
-		*dst = <%= range_type %>{Status: Null}
+		*dst = <%= range_type %>{}
 		return nil
 	}
 

@@ -11,8 +11,8 @@ import (
 func TestXIDTranscode(t *testing.T) {
 	pgTypeName := "xid"
 	values := []interface{}{
-		&pgtype.XID{Uint: 42, Status: pgtype.Present},
-		&pgtype.XID{Status: pgtype.Null},
+		&pgtype.XID{Uint: 42, Valid: true},
+		&pgtype.XID{},
 	}
 	eqFunc := func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)
@@ -27,7 +27,7 @@ func TestXIDSet(t *testing.T) {
 		source interface{}
 		result pgtype.XID
 	}{
-		{source: uint32(1), result: pgtype.XID{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.XID{Uint: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -52,8 +52,8 @@ func TestXIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.XID{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.XID{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.XID{Uint: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.XID{}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -72,7 +72,7 @@ func TestXIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.XID{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.XID{Uint: 42, Valid: true}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -90,7 +90,7 @@ func TestXIDAssignTo(t *testing.T) {
 		src pgtype.XID
 		dst interface{}
 	}{
-		{src: pgtype.XID{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.XID{}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {

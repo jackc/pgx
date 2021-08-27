@@ -15,13 +15,13 @@ import (
 type TimestamptzArray struct {
 	Elements   []Timestamptz
 	Dimensions []ArrayDimension
-	Status     Status
+	Valid      bool
 }
 
 func (dst *TimestamptzArray) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = TimestamptzArray{Status: Null}
+		*dst = TimestamptzArray{}
 		return nil
 	}
 
@@ -37,9 +37,9 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 
 	case []time.Time:
 		if value == nil {
-			*dst = TimestamptzArray{Status: Null}
+			*dst = TimestamptzArray{}
 		} else if len(value) == 0 {
-			*dst = TimestamptzArray{Status: Present}
+			*dst = TimestamptzArray{Valid: true}
 		} else {
 			elements := make([]Timestamptz, len(value))
 			for i := range value {
@@ -50,15 +50,15 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 			*dst = TimestamptzArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*time.Time:
 		if value == nil {
-			*dst = TimestamptzArray{Status: Null}
+			*dst = TimestamptzArray{}
 		} else if len(value) == 0 {
-			*dst = TimestamptzArray{Status: Present}
+			*dst = TimestamptzArray{Valid: true}
 		} else {
 			elements := make([]Timestamptz, len(value))
 			for i := range value {
@@ -69,20 +69,20 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 			*dst = TimestamptzArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []Timestamptz:
 		if value == nil {
-			*dst = TimestamptzArray{Status: Null}
+			*dst = TimestamptzArray{}
 		} else if len(value) == 0 {
-			*dst = TimestamptzArray{Status: Present}
+			*dst = TimestamptzArray{Valid: true}
 		} else {
 			*dst = TimestamptzArray{
 				Elements:   value,
 				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 	default:
@@ -91,7 +91,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 		// but it comes with a 20-50% performance penalty for large arrays/slices
 		reflectedValue := reflect.ValueOf(src)
 		if !reflectedValue.IsValid() || reflectedValue.IsZero() {
-			*dst = TimestamptzArray{Status: Null}
+			*dst = TimestamptzArray{}
 			return nil
 		}
 
@@ -100,7 +100,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 			return fmt.Errorf("cannot find dimensions of %v for TimestamptzArray", src)
 		}
 		if elementsLength == 0 {
-			*dst = TimestamptzArray{Status: Present}
+			*dst = TimestamptzArray{Valid: true}
 			return nil
 		}
 		if len(dimensions) == 0 {
@@ -113,7 +113,7 @@ func (dst *TimestamptzArray) Set(src interface{}) error {
 		*dst = TimestamptzArray{
 			Elements:   make([]Timestamptz, elementsLength),
 			Dimensions: dimensions,
-			Status:     Present,
+			Valid:      true,
 		}
 		elementCount, err := dst.setRecursive(reflectedValue, 0, 0)
 		if err != nil {
@@ -180,84 +180,77 @@ func (dst *TimestamptzArray) setRecursive(value reflect.Value, index, dimension 
 }
 
 func (dst TimestamptzArray) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *TimestamptzArray) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		if len(src.Dimensions) <= 1 {
-			// Attempt to match to select common types:
-			switch v := dst.(type) {
-
-			case *[]time.Time:
-				*v = make([]time.Time, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*time.Time:
-				*v = make([]*time.Time, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			}
-		}
-
-		// Try to convert to something AssignTo can use directly.
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-
-		// Fallback to reflection if an optimised match was not found.
-		// The reflection is necessary for arrays and multidimensional slices,
-		// but it comes with a 20-50% performance penalty for large arrays/slices
-		value := reflect.ValueOf(dst)
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
-		}
-
-		switch value.Kind() {
-		case reflect.Array, reflect.Slice:
-		default:
-			return fmt.Errorf("cannot assign %T to %T", src, dst)
-		}
-
-		if len(src.Elements) == 0 {
-			if value.Kind() == reflect.Slice {
-				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
-				return nil
-			}
-		}
-
-		elementCount, err := src.assignToRecursive(value, 0, 0)
-		if err != nil {
-			return err
-		}
-		if elementCount != len(src.Elements) {
-			return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
-		}
-
-		return nil
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	if len(src.Dimensions) <= 1 {
+		// Attempt to match to select common types:
+		switch v := dst.(type) {
+
+		case *[]time.Time:
+			*v = make([]time.Time, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*time.Time:
+			*v = make([]*time.Time, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		}
+	}
+
+	// Try to convert to something AssignTo can use directly.
+	if nextDst, retry := GetAssignToDstType(dst); retry {
+		return src.AssignTo(nextDst)
+	}
+
+	// Fallback to reflection if an optimised match was not found.
+	// The reflection is necessary for arrays and multidimensional slices,
+	// but it comes with a 20-50% performance penalty for large arrays/slices
+	value := reflect.ValueOf(dst)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	switch value.Kind() {
+	case reflect.Array, reflect.Slice:
+	default:
+		return fmt.Errorf("cannot assign %T to %T", src, dst)
+	}
+
+	if len(src.Elements) == 0 {
+		if value.Kind() == reflect.Slice {
+			value.Set(reflect.MakeSlice(value.Type(), 0, 0))
+			return nil
+		}
+	}
+
+	elementCount, err := src.assignToRecursive(value, 0, 0)
+	if err != nil {
+		return err
+	}
+	if elementCount != len(src.Elements) {
+		return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
+	}
+
+	return nil
 }
 
 func (src *TimestamptzArray) assignToRecursive(value reflect.Value, index, dimension int) (int, error) {
@@ -309,7 +302,7 @@ func (src *TimestamptzArray) assignToRecursive(value reflect.Value, index, dimen
 
 func (dst *TimestamptzArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = TimestamptzArray{Status: Null}
+		*dst = TimestamptzArray{}
 		return nil
 	}
 
@@ -338,14 +331,14 @@ func (dst *TimestamptzArray) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = TimestamptzArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = TimestamptzArray{Elements: elements, Dimensions: uta.Dimensions, Valid: true}
 
 	return nil
 }
 
 func (dst *TimestamptzArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = TimestamptzArray{Status: Null}
+		*dst = TimestamptzArray{}
 		return nil
 	}
 
@@ -356,7 +349,7 @@ func (dst *TimestamptzArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = TimestamptzArray{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = TimestamptzArray{Dimensions: arrayHeader.Dimensions, Valid: true}
 		return nil
 	}
 
@@ -381,16 +374,13 @@ func (dst *TimestamptzArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = TimestamptzArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = TimestamptzArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Valid: true}
 	return nil
 }
 
 func (src TimestamptzArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
@@ -443,11 +433,8 @@ func (src TimestamptzArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error)
 }
 
 func (src TimestamptzArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	arrayHeader := ArrayHeader{
@@ -461,7 +448,7 @@ func (src TimestamptzArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, erro
 	}
 
 	for i := range src.Elements {
-		if src.Elements[i].Status == Null {
+		if !src.Elements[i].Valid {
 			arrayHeader.ContainsNull = true
 			break
 		}

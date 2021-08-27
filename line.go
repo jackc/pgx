@@ -13,7 +13,7 @@ import (
 
 type Line struct {
 	A, B, C float64
-	Status  Status
+	Valid   bool
 }
 
 func (dst *Line) Set(src interface{}) error {
@@ -21,14 +21,10 @@ func (dst *Line) Set(src interface{}) error {
 }
 
 func (dst Line) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Line) AssignTo(dst interface{}) error {
@@ -37,7 +33,7 @@ func (src *Line) AssignTo(dst interface{}) error {
 
 func (dst *Line) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Line{Status: Null}
+		*dst = Line{}
 		return nil
 	}
 
@@ -65,13 +61,13 @@ func (dst *Line) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Line{A: a, B: b, C: c, Status: Present}
+	*dst = Line{A: a, B: b, C: c, Valid: true}
 	return nil
 }
 
 func (dst *Line) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Line{Status: Null}
+		*dst = Line{}
 		return nil
 	}
 
@@ -84,20 +80,17 @@ func (dst *Line) DecodeBinary(ci *ConnInfo, src []byte) error {
 	c := binary.BigEndian.Uint64(src[16:])
 
 	*dst = Line{
-		A:      math.Float64frombits(a),
-		B:      math.Float64frombits(b),
-		C:      math.Float64frombits(c),
-		Status: Present,
+		A:     math.Float64frombits(a),
+		B:     math.Float64frombits(b),
+		C:     math.Float64frombits(c),
+		Valid: true,
 	}
 	return nil
 }
 
 func (src Line) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, fmt.Sprintf(`{%s,%s,%s}`,
@@ -110,11 +103,8 @@ func (src Line) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Line) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint64(buf, math.Float64bits(src.A))
@@ -126,7 +116,7 @@ func (src Line) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Line) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Line{Status: Null}
+		*dst = Line{}
 		return nil
 	}
 

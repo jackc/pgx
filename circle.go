@@ -12,9 +12,9 @@ import (
 )
 
 type Circle struct {
-	P      Vec2
-	R      float64
-	Status Status
+	P     Vec2
+	R     float64
+	Valid bool
 }
 
 func (dst *Circle) Set(src interface{}) error {
@@ -22,14 +22,10 @@ func (dst *Circle) Set(src interface{}) error {
 }
 
 func (dst Circle) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Circle) AssignTo(dst interface{}) error {
@@ -38,7 +34,7 @@ func (src *Circle) AssignTo(dst interface{}) error {
 
 func (dst *Circle) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Circle{Status: Null}
+		*dst = Circle{}
 		return nil
 	}
 
@@ -68,13 +64,13 @@ func (dst *Circle) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Circle{P: Vec2{x, y}, R: r, Status: Present}
+	*dst = Circle{P: Vec2{x, y}, R: r, Valid: true}
 	return nil
 }
 
 func (dst *Circle) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Circle{Status: Null}
+		*dst = Circle{}
 		return nil
 	}
 
@@ -87,19 +83,16 @@ func (dst *Circle) DecodeBinary(ci *ConnInfo, src []byte) error {
 	r := binary.BigEndian.Uint64(src[16:])
 
 	*dst = Circle{
-		P:      Vec2{math.Float64frombits(x), math.Float64frombits(y)},
-		R:      math.Float64frombits(r),
-		Status: Present,
+		P:     Vec2{math.Float64frombits(x), math.Float64frombits(y)},
+		R:     math.Float64frombits(r),
+		Valid: true,
 	}
 	return nil
 }
 
 func (src Circle) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, fmt.Sprintf(`<(%s,%s),%s>`,
@@ -112,11 +105,8 @@ func (src Circle) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Circle) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint64(buf, math.Float64bits(src.P.X))
@@ -128,7 +118,7 @@ func (src Circle) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Circle) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Circle{Status: Null}
+		*dst = Circle{}
 		return nil
 	}
 

@@ -3,7 +3,6 @@ package pgtype
 import (
 	"database/sql"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -80,14 +79,6 @@ const (
 	TstzrangeOID        = 3910
 	TstzrangeArrayOID   = 3911
 	Int8rangeOID        = 3926
-)
-
-type Status byte
-
-const (
-	Undefined Status = iota
-	Null
-	Present
 )
 
 type InfinityModifier int8
@@ -207,9 +198,6 @@ type TextEncoder interface {
 	// length of the data written.
 	EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
 }
-
-var errUndefined = errors.New("cannot encode status undefined")
-var errBadStatus = errors.New("invalid status")
 
 type nullAssignmentError struct {
 	dst interface{}

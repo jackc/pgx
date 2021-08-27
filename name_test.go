@@ -10,9 +10,9 @@ import (
 
 func TestNameTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "name", []interface{}{
-		&pgtype.Name{String: "", Status: pgtype.Present},
-		&pgtype.Name{String: "foo", Status: pgtype.Present},
-		&pgtype.Name{Status: pgtype.Null},
+		&pgtype.Name{String: "", Valid: true},
+		&pgtype.Name{String: "foo", Valid: true},
+		&pgtype.Name{},
 	})
 }
 
@@ -21,9 +21,9 @@ func TestNameSet(t *testing.T) {
 		source interface{}
 		result pgtype.Name
 	}{
-		{source: "foo", result: pgtype.Name{String: "foo", Status: pgtype.Present}},
-		{source: _string("bar"), result: pgtype.Name{String: "bar", Status: pgtype.Present}},
-		{source: (*string)(nil), result: pgtype.Name{Status: pgtype.Null}},
+		{source: "foo", result: pgtype.Name{String: "foo", Valid: true}},
+		{source: _string("bar"), result: pgtype.Name{String: "bar", Valid: true}},
+		{source: (*string)(nil), result: pgtype.Name{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -48,8 +48,8 @@ func TestNameAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Name{String: "foo", Status: pgtype.Present}, dst: &s, expected: "foo"},
-		{src: pgtype.Name{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.Name{String: "foo", Valid: true}, dst: &s, expected: "foo"},
+		{src: pgtype.Name{}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -68,7 +68,7 @@ func TestNameAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Name{String: "foo", Status: pgtype.Present}, dst: &ps, expected: "foo"},
+		{src: pgtype.Name{String: "foo", Valid: true}, dst: &ps, expected: "foo"},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -86,7 +86,7 @@ func TestNameAssignTo(t *testing.T) {
 		src pgtype.Name
 		dst interface{}
 	}{
-		{src: pgtype.Name{Status: pgtype.Null}, dst: &s},
+		{src: pgtype.Name{}, dst: &s},
 	}
 
 	for i, tt := range errorTests {

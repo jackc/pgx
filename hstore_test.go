@@ -10,22 +10,22 @@ import (
 
 func TestHstoreTranscode(t *testing.T) {
 	text := func(s string) pgtype.Text {
-		return pgtype.Text{String: s, Status: pgtype.Present}
+		return pgtype.Text{String: s, Valid: true}
 	}
 
 	values := []interface{}{
-		&pgtype.Hstore{Map: map[string]pgtype.Text{}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(""), "bar": text(""), "baz": text("123")}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"": text("bar")}, Status: pgtype.Present},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(""), "bar": text(""), "baz": text("123")}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar")}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"NULL": text("bar")}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("NULL")}, Valid: true},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"": text("bar")}, Valid: true},
 		&pgtype.Hstore{
-			Map:    map[string]pgtype.Text{"a": text("a"), "b": {Status: pgtype.Null}, "c": text("c"), "d": {Status: pgtype.Null}, "e": text("e")},
-			Status: pgtype.Present,
+			Map:   map[string]pgtype.Text{"a": text("a"), "b": {}, "c": text("c"), "d": {}, "e": text("e")},
+			Valid: true,
 		},
-		&pgtype.Hstore{Status: pgtype.Null},
+		&pgtype.Hstore{},
 	}
 
 	specialStrings := []string{
@@ -39,23 +39,23 @@ func TestHstoreTranscode(t *testing.T) {
 	}
 	for _, s := range specialStrings {
 		// Special key values
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Status: pgtype.Present})         // at beginning
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Status: pgtype.Present}) // in middle
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Status: pgtype.Present})         // at end
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Status: pgtype.Present})                 // is key
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Valid: true})         // at beginning
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Valid: true}) // in middle
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Valid: true})         // at end
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Valid: true})                 // is key
 
 		// Special value values
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Status: pgtype.Present})         // at beginning
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Status: pgtype.Present}) // in middle
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Status: pgtype.Present})         // at end
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Valid: true})         // at beginning
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Valid: true}) // in middle
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Valid: true})         // at end
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Valid: true})                 // is key
 	}
 
 	testutil.TestSuccessfulTranscodeEqFunc(t, "hstore", values, func(ai, bi interface{}) bool {
 		a := ai.(pgtype.Hstore)
 		b := bi.(pgtype.Hstore)
 
-		if len(a.Map) != len(b.Map) || a.Status != b.Status {
+		if len(a.Map) != len(b.Map) || a.Valid != b.Valid {
 			return false
 		}
 
@@ -70,12 +70,12 @@ func TestHstoreTranscode(t *testing.T) {
 }
 
 func TestHstoreTranscodeNullable(t *testing.T) {
-	text := func(s string, status pgtype.Status) pgtype.Text {
-		return pgtype.Text{String: s, Status: status}
+	text := func(s string, valid bool) pgtype.Text {
+		return pgtype.Text{String: s, Valid: valid}
 	}
 
 	values := []interface{}{
-		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("", pgtype.Null)}, Status: pgtype.Present},
+		&pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("", false)}, Valid: true},
 	}
 
 	specialStrings := []string{
@@ -89,17 +89,17 @@ func TestHstoreTranscodeNullable(t *testing.T) {
 	}
 	for _, s := range specialStrings {
 		// Special key values
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("", pgtype.Null)}, Status: pgtype.Present})         // at beginning
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("", pgtype.Null)}, Status: pgtype.Present}) // in middle
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("", pgtype.Null)}, Status: pgtype.Present})         // at end
-		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("", pgtype.Null)}, Status: pgtype.Present})                 // is key
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("", false)}, Valid: true})         // at beginning
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("", false)}, Valid: true}) // in middle
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("", false)}, Valid: true})         // at end
+		values = append(values, &pgtype.Hstore{Map: map[string]pgtype.Text{s: text("", false)}, Valid: true})                 // is key
 	}
 
 	testutil.TestSuccessfulTranscodeEqFunc(t, "hstore", values, func(ai, bi interface{}) bool {
 		a := ai.(pgtype.Hstore)
 		b := bi.(pgtype.Hstore)
 
-		if len(a.Map) != len(b.Map) || a.Status != b.Status {
+		if len(a.Map) != len(b.Map) || a.Valid != b.Valid {
 			return false
 		}
 
@@ -118,7 +118,7 @@ func TestHstoreSet(t *testing.T) {
 		src    map[string]string
 		result pgtype.Hstore
 	}{
-		{src: map[string]string{"foo": "bar"}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}},
+		{src: map[string]string{"foo": "bar"}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Valid: true}}, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -139,7 +139,7 @@ func TestHstoreSetNullable(t *testing.T) {
 		src    map[string]*string
 		result pgtype.Hstore
 	}{
-		{src: map[string]*string{"foo": nil}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {Status: pgtype.Null}}, Status: pgtype.Present}},
+		{src: map[string]*string{"foo": nil}, result: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {}}, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -163,8 +163,8 @@ func TestHstoreAssignTo(t *testing.T) {
 		dst      *map[string]string
 		expected map[string]string
 	}{
-		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}}, Status: pgtype.Present}, dst: &m, expected: map[string]string{"foo": "bar"}},
-		{src: pgtype.Hstore{Status: pgtype.Null}, dst: &m, expected: ((map[string]string)(nil))},
+		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {String: "bar", Valid: true}}, Valid: true}, dst: &m, expected: map[string]string{"foo": "bar"}},
+		{src: pgtype.Hstore{}, dst: &m, expected: ((map[string]string)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -187,8 +187,8 @@ func TestHstoreAssignToNullable(t *testing.T) {
 		dst      *map[string]*string
 		expected map[string]*string
 	}{
-		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {Status: pgtype.Null}}, Status: pgtype.Present}, dst: &m, expected: map[string]*string{"foo": nil}},
-		{src: pgtype.Hstore{Status: pgtype.Null}, dst: &m, expected: ((map[string]*string)(nil))},
+		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {}}, Valid: true}, dst: &m, expected: map[string]*string{"foo": nil}},
+		{src: pgtype.Hstore{}, dst: &m, expected: ((map[string]*string)(nil))},
 	}
 
 	for i, tt := range simpleTests {

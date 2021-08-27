@@ -12,9 +12,9 @@ import (
 func TestTextTranscode(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
 		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
-			&pgtype.Text{String: "", Status: pgtype.Present},
-			&pgtype.Text{String: "foo", Status: pgtype.Present},
-			&pgtype.Text{Status: pgtype.Null},
+			&pgtype.Text{String: "", Valid: true},
+			&pgtype.Text{String: "foo", Valid: true},
+			&pgtype.Text{},
 		})
 	}
 }
@@ -24,9 +24,9 @@ func TestTextSet(t *testing.T) {
 		source interface{}
 		result pgtype.Text
 	}{
-		{source: "foo", result: pgtype.Text{String: "foo", Status: pgtype.Present}},
-		{source: _string("bar"), result: pgtype.Text{String: "bar", Status: pgtype.Present}},
-		{source: (*string)(nil), result: pgtype.Text{Status: pgtype.Null}},
+		{source: "foo", result: pgtype.Text{String: "foo", Valid: true}},
+		{source: _string("bar"), result: pgtype.Text{String: "bar", Valid: true}},
+		{source: (*string)(nil), result: pgtype.Text{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -51,8 +51,8 @@ func TestTextAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Text{String: "foo", Status: pgtype.Present}, dst: &s, expected: "foo"},
-		{src: pgtype.Text{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.Text{String: "foo", Valid: true}, dst: &s, expected: "foo"},
+		{src: pgtype.Text{}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range stringTests {
@@ -73,8 +73,8 @@ func TestTextAssignTo(t *testing.T) {
 		dst      *[]byte
 		expected []byte
 	}{
-		{src: pgtype.Text{String: "foo", Status: pgtype.Present}, dst: &buf, expected: []byte("foo")},
-		{src: pgtype.Text{Status: pgtype.Null}, dst: &buf, expected: nil},
+		{src: pgtype.Text{String: "foo", Valid: true}, dst: &buf, expected: []byte("foo")},
+		{src: pgtype.Text{}, dst: &buf, expected: nil},
 	}
 
 	for i, tt := range bytesTests {
@@ -93,7 +93,7 @@ func TestTextAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Text{String: "foo", Status: pgtype.Present}, dst: &ps, expected: "foo"},
+		{src: pgtype.Text{String: "foo", Valid: true}, dst: &ps, expected: "foo"},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -111,7 +111,7 @@ func TestTextAssignTo(t *testing.T) {
 		src pgtype.Text
 		dst interface{}
 	}{
-		{src: pgtype.Text{Status: pgtype.Null}, dst: &s},
+		{src: pgtype.Text{}, dst: &s},
 	}
 
 	for i, tt := range errorTests {
@@ -127,8 +127,8 @@ func TestTextMarshalJSON(t *testing.T) {
 		source pgtype.Text
 		result string
 	}{
-		{source: pgtype.Text{String: "", Status: pgtype.Null}, result: "null"},
-		{source: pgtype.Text{String: "a", Status: pgtype.Present}, result: "\"a\""},
+		{source: pgtype.Text{String: ""}, result: "null"},
+		{source: pgtype.Text{String: "a", Valid: true}, result: "\"a\""},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -147,8 +147,8 @@ func TestTextUnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Text
 	}{
-		{source: "null", result: pgtype.Text{String: "", Status: pgtype.Null}},
-		{source: "\"a\"", result: pgtype.Text{String: "a", Status: pgtype.Present}},
+		{source: "null", result: pgtype.Text{String: ""}},
+		{source: "\"a\"", result: pgtype.Text{String: "a", Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Text

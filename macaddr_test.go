@@ -12,8 +12,8 @@ import (
 
 func TestMacaddrTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "macaddr", []interface{}{
-		&pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
-		&pgtype.Macaddr{Status: pgtype.Null},
+		&pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
+		&pgtype.Macaddr{},
 	})
 }
 
@@ -24,11 +24,11 @@ func TestMacaddrSet(t *testing.T) {
 	}{
 		{
 			source: mustParseMacaddr(t, "01:23:45:67:89:ab"),
-			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
+			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
 		},
 		{
 			source: "01:23:45:67:89:ab",
-			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present},
+			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
 		},
 	}
 
@@ -47,7 +47,7 @@ func TestMacaddrSet(t *testing.T) {
 
 func TestMacaddrAssignTo(t *testing.T) {
 	{
-		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present}
+		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}
 		var dst net.HardwareAddr
 		expected := mustParseMacaddr(t, "01:23:45:67:89:ab")
 
@@ -62,7 +62,7 @@ func TestMacaddrAssignTo(t *testing.T) {
 	}
 
 	{
-		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Status: pgtype.Present}
+		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}
 		var dst string
 		expected := "01:23:45:67:89:ab"
 

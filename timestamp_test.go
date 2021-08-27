@@ -13,24 +13,24 @@ import (
 
 func TestTimestampTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "timestamp", []interface{}{
-		&pgtype.Timestamp{Time: time.Date(1800, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1905, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1940, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1960, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-		&pgtype.Timestamp{Status: pgtype.Null},
-		&pgtype.Timestamp{Status: pgtype.Present, InfinityModifier: pgtype.Infinity},
-		&pgtype.Timestamp{Status: pgtype.Present, InfinityModifier: -pgtype.Infinity},
+		&pgtype.Timestamp{Time: time.Date(1800, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1905, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1940, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1960, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+		&pgtype.Timestamp{},
+		&pgtype.Timestamp{Valid: true, InfinityModifier: pgtype.Infinity},
+		&pgtype.Timestamp{Valid: true, InfinityModifier: -pgtype.Infinity},
 	}, func(a, b interface{}) bool {
 		at := a.(pgtype.Timestamp)
 		bt := b.(pgtype.Timestamp)
 
-		return at.Time.Equal(bt.Time) && at.Status == bt.Status && at.InfinityModifier == bt.InfinityModifier
+		return at.Time.Equal(bt.Time) && at.Valid == bt.Valid && at.InfinityModifier == bt.InfinityModifier
 	})
 }
 
@@ -42,7 +42,7 @@ func TestTimestampTranscodeBigTimeBinary(t *testing.T) {
 	}
 	defer testutil.MustCloseContext(t, conn)
 
-	in := &pgtype.Timestamp{Time: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC), Status: pgtype.Present}
+	in := &pgtype.Timestamp{Time: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC), Valid: true}
 	var out pgtype.Timestamp
 
 	err := conn.QueryRow(context.Background(), "select $1::timestamptz", in).Scan(&out)
@@ -50,7 +50,7 @@ func TestTimestampTranscodeBigTimeBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	require.Equal(t, in.Status, out.Status)
+	require.Equal(t, in.Valid, out.Valid)
 	require.Truef(t, in.Time.Equal(out.Time), "expected %v got %v", in.Time, out.Time)
 }
 
@@ -64,7 +64,7 @@ func TestTimestampNanosecondsTruncated(t *testing.T) {
 	}
 	for i, tt := range tests {
 		{
-			ts := pgtype.Timestamp{Time: tt.input, Status: pgtype.Present}
+			ts := pgtype.Timestamp{Time: tt.input, Valid: true}
 			buf, err := ts.EncodeText(nil, nil)
 			if err != nil {
 				t.Errorf("%d. EncodeText failed - %v", i, err)
@@ -75,13 +75,13 @@ func TestTimestampNanosecondsTruncated(t *testing.T) {
 				t.Errorf("%d. DecodeText failed - %v", i, err)
 			}
 
-			if !(ts.Status == pgtype.Present && ts.Time.Equal(tt.expected)) {
+			if !(ts.Valid && ts.Time.Equal(tt.expected)) {
 				t.Errorf("%d. EncodeText did not truncate nanoseconds", i)
 			}
 		}
 
 		{
-			ts := pgtype.Timestamp{Time: tt.input, Status: pgtype.Present}
+			ts := pgtype.Timestamp{Time: tt.input, Valid: true}
 			buf, err := ts.EncodeBinary(nil, nil)
 			if err != nil {
 				t.Errorf("%d. EncodeBinary failed - %v", i, err)
@@ -92,7 +92,7 @@ func TestTimestampNanosecondsTruncated(t *testing.T) {
 				t.Errorf("%d. DecodeBinary failed - %v", i, err)
 			}
 
-			if !(ts.Status == pgtype.Present && ts.Time.Equal(tt.expected)) {
+			if !(ts.Valid && ts.Time.Equal(tt.expected)) {
 				t.Errorf("%d. EncodeBinary did not truncate nanoseconds", i)
 			}
 		}
@@ -113,16 +113,16 @@ func TestTimestampSet(t *testing.T) {
 		source interface{}
 		result pgtype.Timestamp
 	}{
-		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(1999, 12, 31, 12, 59, 59, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1999, 12, 31, 12, 59, 59, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), result: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
-		{source: pgtype.Infinity, result: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
-		{source: pgtype.NegativeInfinity, result: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(1999, 12, 31, 12, 59, 59, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(1999, 12, 31, 12, 59, 59, 0, time.UTC), Valid: true}},
+		{source: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC), Valid: true}},
+		{source: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Timestamp{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), result: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
+		{source: pgtype.Infinity, result: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}},
+		{source: pgtype.NegativeInfinity, result: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -147,8 +147,8 @@ func TestTimestampAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}, dst: &tim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{src: pgtype.Timestamp{Time: time.Time{}, Status: pgtype.Null}, dst: &ptim, expected: ((*time.Time)(nil))},
+		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}, dst: &tim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{src: pgtype.Timestamp{Time: time.Time{}}, dst: &ptim, expected: ((*time.Time)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -167,7 +167,7 @@ func TestTimestampAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Present}, dst: &ptim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
+		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, dst: &ptim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -185,9 +185,9 @@ func TestTimestampAssignTo(t *testing.T) {
 		src pgtype.Timestamp
 		dst interface{}
 	}{
-		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Status: pgtype.Present}, dst: &tim},
-		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}, dst: &tim},
-		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Null}, dst: &tim},
+		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Valid: true}, dst: &tim},
+		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Valid: true}, dst: &tim},
+		{src: pgtype.Timestamp{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)}, dst: &tim},
 	}
 
 	for i, tt := range errorTests {

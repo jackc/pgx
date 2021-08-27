@@ -28,12 +28,12 @@ func (dst *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 }
 
 func (src MyType) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) (newBuf []byte, err error) {
-	a := pgtype.Int4{src.a, pgtype.Present}
+	a := pgtype.Int4{src.a, true}
 	var b pgtype.Text
 	if src.b != nil {
-		b = pgtype.Text{*src.b, pgtype.Present}
+		b = pgtype.Text{*src.b, true}
 	} else {
-		b = pgtype.Text{Status: pgtype.Null}
+		b = pgtype.Text{}
 	}
 
 	return (pgtype.CompositeFields{&a, &b}).EncodeBinary(ci, buf)

@@ -16,7 +16,7 @@ type CompositeTypeField struct {
 }
 
 type CompositeType struct {
-	status Status
+	valid bool
 
 	typeName string
 
@@ -58,18 +58,15 @@ func NewCompositeTypeValues(typeName string, fields []CompositeTypeField, values
 }
 
 func (src CompositeType) Get() interface{} {
-	switch src.status {
-	case Present:
-		results := make(map[string]interface{}, len(src.valueTranscoders))
-		for i := range src.valueTranscoders {
-			results[src.fields[i].Name] = src.valueTranscoders[i].Get()
-		}
-		return results
-	case Null:
+	if !src.valid {
 		return nil
-	default:
-		return src.status
 	}
+
+	results := make(map[string]interface{}, len(src.valueTranscoders))
+	for i := range src.valueTranscoders {
+		results[src.fields[i].Name] = src.valueTranscoders[i].Get()
+	}
+	return results
 }
 
 func (ct *CompositeType) NewTypeValue() Value {
@@ -96,7 +93,7 @@ func (ct *CompositeType) Fields() []CompositeTypeField {
 
 func (dst *CompositeType) Set(src interface{}) error {
 	if src == nil {
-		dst.status = Null
+		dst.valid = false
 		return nil
 	}
 
@@ -110,10 +107,10 @@ func (dst *CompositeType) Set(src interface{}) error {
 				return err
 			}
 		}
-		dst.status = Present
+		dst.valid = true
 	case *[]interface{}:
 		if value == nil {
-			dst.status = Null
+			dst.valid = false
 			return nil
 		}
 		return dst.Set(*value)
@@ -126,40 +123,38 @@ func (dst *CompositeType) Set(src interface{}) error {
 
 // AssignTo should never be called on composite value directly
 func (src CompositeType) AssignTo(dst interface{}) error {
-	switch src.status {
-	case Present:
-		switch v := dst.(type) {
-		case []interface{}:
-			if len(v) != len(src.valueTranscoders) {
-				return fmt.Errorf("Number of fields don't match. CompositeType has %d fields", len(src.valueTranscoders))
-			}
-			for i := range src.valueTranscoders {
-				if v[i] == nil {
-					continue
-				}
-
-				err := assignToOrSet(src.valueTranscoders[i], v[i])
-				if err != nil {
-					return fmt.Errorf("unable to assign to dst[%d]: %v", i, err)
-				}
-			}
-			return nil
-		case *[]interface{}:
-			return src.AssignTo(*v)
-		default:
-			if isPtrStruct, err := src.assignToPtrStruct(dst); isPtrStruct {
-				return err
-			}
-
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.valid {
 		return NullAssignTo(dst)
 	}
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+
+	switch v := dst.(type) {
+	case []interface{}:
+		if len(v) != len(src.valueTranscoders) {
+			return fmt.Errorf("Number of fields don't match. CompositeType has %d fields", len(src.valueTranscoders))
+		}
+		for i := range src.valueTranscoders {
+			if v[i] == nil {
+				continue
+			}
+
+			err := assignToOrSet(src.valueTranscoders[i], v[i])
+			if err != nil {
+				return fmt.Errorf("unable to assign to dst[%d]: %v", i, err)
+			}
+		}
+		return nil
+	case *[]interface{}:
+		return src.AssignTo(*v)
+	default:
+		if isPtrStruct, err := src.assignToPtrStruct(dst); isPtrStruct {
+			return err
+		}
+
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func assignToOrSet(src Value, dst interface{}) error {
@@ -219,11 +214,8 @@ func (src CompositeType) assignToPtrStruct(dst interface{}) (bool, error) {
 }
 
 func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
-	switch src.status {
-	case Null:
+	if !src.valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	b := NewCompositeBinaryBuilder(ci, buf)
@@ -240,7 +232,7 @@ func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, 
 // type mismatch
 func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
 	if buf == nil {
-		dst.status = Null
+		dst.valid = false
 		return nil
 	}
 
@@ -254,14 +246,14 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
 		return scanner.Err()
 	}
 
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
 
 func (dst *CompositeType) DecodeText(ci *ConnInfo, buf []byte) error {
 	if buf == nil {
-		dst.status = Null
+		dst.valid = false
 		return nil
 	}
 
@@ -275,17 +267,14 @@ func (dst *CompositeType) DecodeText(ci *ConnInfo, buf []byte) error {
 		return scanner.Err()
 	}
 
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
 
 func (src CompositeType) EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
-	switch src.status {
-	case Null:
+	if !src.valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	b := NewCompositeTextBuilder(ci, buf)

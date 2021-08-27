@@ -11,13 +11,13 @@ import (
 )
 
 type Float8 struct {
-	Float  float64
-	Status Status
+	Float float64
+	Valid bool
 }
 
 func (dst *Float8) Set(src interface{}) error {
 	if src == nil {
-		*dst = Float8{Status: Null}
+		*dst = Float8{}
 		return nil
 	}
 
@@ -30,46 +30,46 @@ func (dst *Float8) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case float32:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case float64:
-		*dst = Float8{Float: value, Status: Present}
+		*dst = Float8{Float: value, Valid: true}
 	case int8:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case uint8:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case int16:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case uint16:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case int32:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case uint32:
-		*dst = Float8{Float: float64(value), Status: Present}
+		*dst = Float8{Float: float64(value), Valid: true}
 	case int64:
 		f64 := float64(value)
 		if int64(f64) == value {
-			*dst = Float8{Float: f64, Status: Present}
+			*dst = Float8{Float: f64, Valid: true}
 		} else {
 			return fmt.Errorf("%v cannot be exactly represented as float64", value)
 		}
 	case uint64:
 		f64 := float64(value)
 		if uint64(f64) == value {
-			*dst = Float8{Float: f64, Status: Present}
+			*dst = Float8{Float: f64, Valid: true}
 		} else {
 			return fmt.Errorf("%v cannot be exactly represented as float64", value)
 		}
 	case int:
 		f64 := float64(value)
 		if int(f64) == value {
-			*dst = Float8{Float: f64, Status: Present}
+			*dst = Float8{Float: f64, Valid: true}
 		} else {
 			return fmt.Errorf("%v cannot be exactly represented as float64", value)
 		}
 	case uint:
 		f64 := float64(value)
 		if uint(f64) == value {
-			*dst = Float8{Float: f64, Status: Present}
+			*dst = Float8{Float: f64, Valid: true}
 		} else {
 			return fmt.Errorf("%v cannot be exactly represented as float64", value)
 		}
@@ -78,82 +78,82 @@ func (dst *Float8) Set(src interface{}) error {
 		if err != nil {
 			return err
 		}
-		*dst = Float8{Float: float64(num), Status: Present}
+		*dst = Float8{Float: float64(num), Valid: true}
 	case *float64:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *float32:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int8:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint8:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int16:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint16:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int32:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint32:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int64:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint64:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *int:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *uint:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Float8{Status: Null}
+			*dst = Float8{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -168,23 +168,19 @@ func (dst *Float8) Set(src interface{}) error {
 }
 
 func (dst Float8) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Float
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Float
 }
 
 func (src *Float8) AssignTo(dst interface{}) error {
-	return float64AssignTo(src.Float, src.Status, dst)
+	return float64AssignTo(src.Float, src.Valid, dst)
 }
 
 func (dst *Float8) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Float8{Status: Null}
+		*dst = Float8{}
 		return nil
 	}
 
@@ -193,13 +189,13 @@ func (dst *Float8) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Float8{Float: n, Status: Present}
+	*dst = Float8{Float: n, Valid: true}
 	return nil
 }
 
 func (dst *Float8) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Float8{Status: Null}
+		*dst = Float8{}
 		return nil
 	}
 
@@ -209,16 +205,13 @@ func (dst *Float8) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	n := int64(binary.BigEndian.Uint64(src))
 
-	*dst = Float8{Float: math.Float64frombits(uint64(n)), Status: Present}
+	*dst = Float8{Float: math.Float64frombits(uint64(n)), Valid: true}
 	return nil
 }
 
 func (src Float8) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, strconv.FormatFloat(float64(src.Float), 'f', -1, 64)...)
@@ -226,11 +219,8 @@ func (src Float8) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Float8) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint64(buf, math.Float64bits(src.Float))
@@ -240,13 +230,13 @@ func (src Float8) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Float8) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Float8{Status: Null}
+		*dst = Float8{}
 		return nil
 	}
 
 	switch src := src.(type) {
 	case float64:
-		*dst = Float8{Float: src, Status: Present}
+		*dst = Float8{Float: src, Valid: true}
 		return nil
 	case string:
 		return dst.DecodeText(nil, []byte(src))
@@ -261,12 +251,8 @@ func (dst *Float8) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Float8) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return src.Float, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+	return src.Float, nil
 }

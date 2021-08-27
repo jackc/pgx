@@ -232,7 +232,7 @@ func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if v != (pgtype.Int4{Int: 42, Status: pgtype.Present}) {
+		if v != (pgtype.Int4{Int: 42, Valid: true}) {
 			b.Fatal("scan failed due to bad value")
 		}
 	}
@@ -252,7 +252,7 @@ func TestScanPlanBinaryInt32ScanChangedType(t *testing.T) {
 	err = plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &d)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, d.Int)
-	require.EqualValues(t, pgtype.Present, d.Status)
+	require.True(t, d.Valid)
 }
 
 func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
@@ -285,7 +285,7 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if v != (pgtype.Int4{Int: 42, Status: pgtype.Present}) {
+		if v != (pgtype.Int4{Int: 42, Valid: true}) {
 			b.Fatal("scan failed due to bad value")
 		}
 	}

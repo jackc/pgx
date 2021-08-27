@@ -10,12 +10,12 @@ import (
 
 func TestFloat8Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "float8", []interface{}{
-		&pgtype.Float8{Float: -1, Status: pgtype.Present},
-		&pgtype.Float8{Float: 0, Status: pgtype.Present},
-		&pgtype.Float8{Float: 0.00001, Status: pgtype.Present},
-		&pgtype.Float8{Float: 1, Status: pgtype.Present},
-		&pgtype.Float8{Float: 9999.99, Status: pgtype.Present},
-		&pgtype.Float8{Float: 0, Status: pgtype.Null},
+		&pgtype.Float8{Float: -1, Valid: true},
+		&pgtype.Float8{Float: 0, Valid: true},
+		&pgtype.Float8{Float: 0.00001, Valid: true},
+		&pgtype.Float8{Float: 1, Valid: true},
+		&pgtype.Float8{Float: 9999.99, Valid: true},
+		&pgtype.Float8{Float: 0},
 	})
 }
 
@@ -24,22 +24,22 @@ func TestFloat8Set(t *testing.T) {
 		source interface{}
 		result pgtype.Float8
 	}{
-		{source: float32(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: float64(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: int8(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: int16(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: int32(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: int64(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: int8(-1), result: pgtype.Float8{Float: -1, Status: pgtype.Present}},
-		{source: int16(-1), result: pgtype.Float8{Float: -1, Status: pgtype.Present}},
-		{source: int32(-1), result: pgtype.Float8{Float: -1, Status: pgtype.Present}},
-		{source: int64(-1), result: pgtype.Float8{Float: -1, Status: pgtype.Present}},
-		{source: uint8(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: uint16(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: uint32(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: uint64(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: "1", result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
-		{source: _int8(1), result: pgtype.Float8{Float: 1, Status: pgtype.Present}},
+		{source: float32(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: float64(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: int8(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: int16(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: int32(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: int64(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: int8(-1), result: pgtype.Float8{Float: -1, Valid: true}},
+		{source: int16(-1), result: pgtype.Float8{Float: -1, Valid: true}},
+		{source: int32(-1), result: pgtype.Float8{Float: -1, Valid: true}},
+		{source: int64(-1), result: pgtype.Float8{Float: -1, Valid: true}},
+		{source: uint8(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: uint16(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: uint32(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: uint64(1), result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: "1", result: pgtype.Float8{Float: 1, Valid: true}},
+		{source: _int8(1), result: pgtype.Float8{Float: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -79,20 +79,20 @@ func TestFloat8AssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &f32, expected: float32(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &f64, expected: float64(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &i16, expected: int16(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &i32, expected: int32(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &i64, expected: int64(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &i, expected: int(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui8, expected: uint8(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui16, expected: uint16(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui64, expected: uint64(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui, expected: uint(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
-		{src: pgtype.Float8{Float: 0, Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
-		{src: pgtype.Float8{Float: 0, Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &f32, expected: float32(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &f64, expected: float64(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &i16, expected: int16(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &i32, expected: int32(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &i64, expected: int64(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &i, expected: int(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &ui8, expected: uint8(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &ui16, expected: uint16(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &ui64, expected: uint64(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &ui, expected: uint(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &_i8, expected: _int8(42)},
+		{src: pgtype.Float8{Float: 0}, dst: &pi8, expected: ((*int8)(nil))},
+		{src: pgtype.Float8{Float: 0}, dst: &_pi8, expected: ((*_int8)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -111,8 +111,8 @@ func TestFloat8AssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &pf32, expected: float32(42)},
-		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &pf64, expected: float64(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &pf32, expected: float32(42)},
+		{src: pgtype.Float8{Float: 42, Valid: true}, dst: &pf64, expected: float64(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -130,14 +130,14 @@ func TestFloat8AssignTo(t *testing.T) {
 		src pgtype.Float8
 		dst interface{}
 	}{
-		{src: pgtype.Float8{Float: 150, Status: pgtype.Present}, dst: &i8},
-		{src: pgtype.Float8{Float: 40000, Status: pgtype.Present}, dst: &i16},
-		{src: pgtype.Float8{Float: -1, Status: pgtype.Present}, dst: &ui8},
-		{src: pgtype.Float8{Float: -1, Status: pgtype.Present}, dst: &ui16},
-		{src: pgtype.Float8{Float: -1, Status: pgtype.Present}, dst: &ui32},
-		{src: pgtype.Float8{Float: -1, Status: pgtype.Present}, dst: &ui64},
-		{src: pgtype.Float8{Float: -1, Status: pgtype.Present}, dst: &ui},
-		{src: pgtype.Float8{Float: 0, Status: pgtype.Null}, dst: &i32},
+		{src: pgtype.Float8{Float: 150, Valid: true}, dst: &i8},
+		{src: pgtype.Float8{Float: 40000, Valid: true}, dst: &i16},
+		{src: pgtype.Float8{Float: -1, Valid: true}, dst: &ui8},
+		{src: pgtype.Float8{Float: -1, Valid: true}, dst: &ui16},
+		{src: pgtype.Float8{Float: -1, Valid: true}, dst: &ui32},
+		{src: pgtype.Float8{Float: -1, Valid: true}, dst: &ui64},
+		{src: pgtype.Float8{Float: -1, Valid: true}, dst: &ui},
+		{src: pgtype.Float8{Float: 0}, dst: &i32},
 	}
 
 	for i, tt := range errorTests {

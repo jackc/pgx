@@ -12,7 +12,7 @@ import (
 
 type Date struct {
 	Time             time.Time
-	Status           Status
+	Valid            bool
 	InfinityModifier InfinityModifier
 }
 
@@ -23,7 +23,7 @@ const (
 
 func (dst *Date) Set(src interface{}) error {
 	if src == nil {
-		*dst = Date{Status: Null}
+		*dst = Date{}
 		return nil
 	}
 
@@ -36,18 +36,18 @@ func (dst *Date) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case time.Time:
-		*dst = Date{Time: value, Status: Present}
+		*dst = Date{Time: value, Valid: true}
 	case string:
 		return dst.DecodeText(nil, []byte(value))
 	case *time.Time:
 		if value == nil {
-			*dst = Date{Status: Null}
+			*dst = Date{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Date{Status: Null}
+			*dst = Date{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -62,61 +62,54 @@ func (dst *Date) Set(src interface{}) error {
 }
 
 func (dst Date) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		if dst.InfinityModifier != None {
-			return dst.InfinityModifier
-		}
-		return dst.Time
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	if dst.InfinityModifier != None {
+		return dst.InfinityModifier
+	}
+	return dst.Time
 }
 
 func (src *Date) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *time.Time:
-			if src.InfinityModifier != None {
-				return fmt.Errorf("cannot assign %v to %T", src, dst)
-			}
-			*v = src.Time
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *time.Time:
+		if src.InfinityModifier != None {
+			return fmt.Errorf("cannot assign %v to %T", src, dst)
+		}
+		*v = src.Time
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *Date) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Date{Status: Null}
+		*dst = Date{}
 		return nil
 	}
 
 	sbuf := string(src)
 	switch sbuf {
 	case "infinity":
-		*dst = Date{Status: Present, InfinityModifier: Infinity}
+		*dst = Date{Valid: true, InfinityModifier: Infinity}
 	case "-infinity":
-		*dst = Date{Status: Present, InfinityModifier: -Infinity}
+		*dst = Date{Valid: true, InfinityModifier: -Infinity}
 	default:
 		t, err := time.ParseInLocation("2006-01-02", sbuf, time.UTC)
 		if err != nil {
 			return err
 		}
 
-		*dst = Date{Time: t, Status: Present}
+		*dst = Date{Time: t, Valid: true}
 	}
 
 	return nil
@@ -124,7 +117,7 @@ func (dst *Date) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Date{Status: Null}
+		*dst = Date{}
 		return nil
 	}
 
@@ -136,23 +129,20 @@ func (dst *Date) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	switch dayOffset {
 	case infinityDayOffset:
-		*dst = Date{Status: Present, InfinityModifier: Infinity}
+		*dst = Date{Valid: true, InfinityModifier: Infinity}
 	case negativeInfinityDayOffset:
-		*dst = Date{Status: Present, InfinityModifier: -Infinity}
+		*dst = Date{Valid: true, InfinityModifier: -Infinity}
 	default:
 		t := time.Date(2000, 1, int(1+dayOffset), 0, 0, 0, 0, time.UTC)
-		*dst = Date{Time: t, Status: Present}
+		*dst = Date{Time: t, Valid: true}
 	}
 
 	return nil
 }
 
 func (src Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var s string
@@ -170,11 +160,8 @@ func (src Date) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Date) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var daysSinceDateEpoch int32
@@ -197,7 +184,7 @@ func (src Date) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Date) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Date{Status: Null}
+		*dst = Date{}
 		return nil
 	}
 
@@ -209,7 +196,7 @@ func (dst *Date) Scan(src interface{}) error {
 		copy(srcCopy, src)
 		return dst.DecodeText(nil, srcCopy)
 	case time.Time:
-		*dst = Date{Time: src, Status: Present}
+		*dst = Date{Time: src, Valid: true}
 		return nil
 	}
 
@@ -218,29 +205,19 @@ func (dst *Date) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Date) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		if src.InfinityModifier != None {
-			return src.InfinityModifier.String(), nil
-		}
-		return src.Time, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	if src.InfinityModifier != None {
+		return src.InfinityModifier.String(), nil
+	}
+	return src.Time, nil
 }
 
 func (src Date) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
-	}
-
-	if src.Status != Present {
-		return nil, errBadStatus
 	}
 
 	var s string
@@ -265,22 +242,22 @@ func (dst *Date) UnmarshalJSON(b []byte) error {
 	}
 
 	if s == nil {
-		*dst = Date{Status: Null}
+		*dst = Date{}
 		return nil
 	}
 
 	switch *s {
 	case "infinity":
-		*dst = Date{Status: Present, InfinityModifier: Infinity}
+		*dst = Date{Valid: true, InfinityModifier: Infinity}
 	case "-infinity":
-		*dst = Date{Status: Present, InfinityModifier: -Infinity}
+		*dst = Date{Valid: true, InfinityModifier: -Infinity}
 	default:
 		t, err := time.ParseInLocation("2006-01-02", *s, time.UTC)
 		if err != nil {
 			return err
 		}
 
-		*dst = Date{Time: t, Status: Present}
+		*dst = Date{Time: t, Valid: true}
 	}
 
 	return nil

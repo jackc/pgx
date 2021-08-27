@@ -12,23 +12,23 @@ import (
 
 func TestIntervalTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "interval", []interface{}{
-		&pgtype.Interval{Microseconds: 1, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: 1000000, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: 1000001, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: 123202800000000, Status: pgtype.Present},
-		&pgtype.Interval{Days: 1, Status: pgtype.Present},
-		&pgtype.Interval{Months: 1, Status: pgtype.Present},
-		&pgtype.Interval{Months: 12, Status: pgtype.Present},
-		&pgtype.Interval{Months: 13, Days: 15, Microseconds: 1000001, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: -1, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: -1000000, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: -1000001, Status: pgtype.Present},
-		&pgtype.Interval{Microseconds: -123202800000000, Status: pgtype.Present},
-		&pgtype.Interval{Days: -1, Status: pgtype.Present},
-		&pgtype.Interval{Months: -1, Status: pgtype.Present},
-		&pgtype.Interval{Months: -12, Status: pgtype.Present},
-		&pgtype.Interval{Months: -13, Days: -15, Microseconds: -1000001, Status: pgtype.Present},
-		&pgtype.Interval{Status: pgtype.Null},
+		&pgtype.Interval{Microseconds: 1, Valid: true},
+		&pgtype.Interval{Microseconds: 1000000, Valid: true},
+		&pgtype.Interval{Microseconds: 1000001, Valid: true},
+		&pgtype.Interval{Microseconds: 123202800000000, Valid: true},
+		&pgtype.Interval{Days: 1, Valid: true},
+		&pgtype.Interval{Months: 1, Valid: true},
+		&pgtype.Interval{Months: 12, Valid: true},
+		&pgtype.Interval{Months: 13, Days: 15, Microseconds: 1000001, Valid: true},
+		&pgtype.Interval{Microseconds: -1, Valid: true},
+		&pgtype.Interval{Microseconds: -1000000, Valid: true},
+		&pgtype.Interval{Microseconds: -1000001, Valid: true},
+		&pgtype.Interval{Microseconds: -123202800000000, Valid: true},
+		&pgtype.Interval{Days: -1, Valid: true},
+		&pgtype.Interval{Months: -1, Valid: true},
+		&pgtype.Interval{Months: -12, Valid: true},
+		&pgtype.Interval{Months: -13, Days: -15, Microseconds: -1000001, Valid: true},
+		&pgtype.Interval{},
 	})
 }
 
@@ -36,37 +36,37 @@ func TestIntervalNormalize(t *testing.T) {
 	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
 		{
 			SQL:   "select '1 second'::interval",
-			Value: &pgtype.Interval{Microseconds: 1000000, Status: pgtype.Present},
+			Value: &pgtype.Interval{Microseconds: 1000000, Valid: true},
 		},
 		{
 			SQL:   "select '1.000001 second'::interval",
-			Value: &pgtype.Interval{Microseconds: 1000001, Status: pgtype.Present},
+			Value: &pgtype.Interval{Microseconds: 1000001, Valid: true},
 		},
 		{
 			SQL:   "select '34223 hours'::interval",
-			Value: &pgtype.Interval{Microseconds: 123202800000000, Status: pgtype.Present},
+			Value: &pgtype.Interval{Microseconds: 123202800000000, Valid: true},
 		},
 		{
 			SQL:   "select '1 day'::interval",
-			Value: &pgtype.Interval{Days: 1, Status: pgtype.Present},
+			Value: &pgtype.Interval{Days: 1, Valid: true},
 		},
 		{
 			SQL:   "select '1 month'::interval",
-			Value: &pgtype.Interval{Months: 1, Status: pgtype.Present},
+			Value: &pgtype.Interval{Months: 1, Valid: true},
 		},
 		{
 			SQL:   "select '1 year'::interval",
-			Value: &pgtype.Interval{Months: 12, Status: pgtype.Present},
+			Value: &pgtype.Interval{Months: 12, Valid: true},
 		},
 		{
 			SQL:   "select '-13 mon'::interval",
-			Value: &pgtype.Interval{Months: -13, Status: pgtype.Present},
+			Value: &pgtype.Interval{Months: -13, Valid: true},
 		},
 	})
 }
 
 func TestIntervalLossyConversionToDuration(t *testing.T) {
-	interval := &pgtype.Interval{Months: 1, Days: 1, Status: pgtype.Present}
+	interval := &pgtype.Interval{Months: 1, Days: 1, Valid: true}
 	var d time.Duration
 	err := interval.AssignTo(&d)
 	require.NoError(t, err)

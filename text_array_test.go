@@ -16,8 +16,8 @@ func TestTextArrayDecodeTextNull(t *testing.T) {
 	err := textArray.DecodeText(nil, []byte(`{abc,"NULL",NULL,def}`))
 	require.NoError(t, err)
 	require.Len(t, textArray.Elements, 4)
-	assert.Equal(t, pgtype.Present, textArray.Elements[1].Status)
-	assert.Equal(t, pgtype.Null, textArray.Elements[2].Status)
+	assert.Equal(t, true, textArray.Elements[1].Valid)
+	assert.Equal(t, false, textArray.Elements[2].Valid)
 }
 
 func TestTextArrayTranscode(t *testing.T) {
@@ -25,41 +25,41 @@ func TestTextArrayTranscode(t *testing.T) {
 		&pgtype.TextArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				{String: "foo", Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{String: "foo", Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.TextArray{Status: pgtype.Null},
+		&pgtype.TextArray{},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				{String: "bar ", Status: pgtype.Present},
-				{String: "NuLL", Status: pgtype.Present},
-				{String: `wow"quz\`, Status: pgtype.Present},
-				{String: "", Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{String: "null", Status: pgtype.Present},
+				{String: "bar ", Valid: true},
+				{String: "NuLL", Valid: true},
+				{String: `wow"quz\`, Valid: true},
+				{String: "", Valid: true},
+				{},
+				{String: "null", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.TextArray{
 			Elements: []pgtype.Text{
-				{String: "bar", Status: pgtype.Present},
-				{String: "baz", Status: pgtype.Present},
-				{String: "quz", Status: pgtype.Present},
-				{String: "foo", Status: pgtype.Present},
+				{String: "bar", Valid: true},
+				{String: "baz", Valid: true},
+				{String: "quz", Valid: true},
+				{String: "foo", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -72,61 +72,61 @@ func TestTextArraySet(t *testing.T) {
 		{
 			source: []string{"foo"},
 			result: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]string)(nil)),
-			result: pgtype.TextArray{Status: pgtype.Null},
+			result: pgtype.TextArray{},
 		},
 		{
 			source: [][]string{{"foo"}, {"bar"}},
 			result: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.TextArray{
 				Elements: []pgtype.Text{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]string{{"foo"}, {"bar"}},
 			result: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.TextArray{
 				Elements: []pgtype.Text{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -159,81 +159,81 @@ func TestTextArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &stringSlice,
 			expected: []string{"foo"},
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedStringSlice,
 			expected: _stringSlice{"bar"},
 		},
 		{
-			src:      pgtype.TextArray{Status: pgtype.Null},
+			src:      pgtype.TextArray{},
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
 		{
-			src:      pgtype.TextArray{Status: pgtype.Present},
+			src:      pgtype.TextArray{Valid: true},
 			dst:      &stringSlice,
 			expected: []string{},
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringSliceDim2,
 			expected: [][]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.TextArray{
 				Elements: []pgtype.Text{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringSliceDim4,
 			expected: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringArrayDim2,
 			expected: [2][1]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.TextArray{
 				Elements: []pgtype.Text{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringArrayDim4,
 			expected: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
@@ -256,31 +256,31 @@ func TestTextArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{Status: pgtype.Null}},
+				Elements:   []pgtype.Text{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim2,
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.TextArray{
-				Elements:   []pgtype.Text{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Text{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim4,
 		},
 	}
