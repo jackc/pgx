@@ -19,10 +19,7 @@ func TestCIDTranscode(t *testing.T) {
 	}
 
 	testutil.TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
-
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
-	}
+	testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, "github.com/jackc/pgx/stdlib", pgTypeName, values, eqFunc)
 }
 
 func TestCIDSet(t *testing.T) {

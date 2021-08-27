@@ -11,14 +11,11 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	_ "github.com/lib/pq"
 )
 
 func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {
 	var sqlDriverName string
 	switch driverName {
-	case "github.com/lib/pq":
-		sqlDriverName = "postgres"
 	case "github.com/jackc/pgx/stdlib":
 		sqlDriverName = "pgx"
 	default:
@@ -98,9 +95,7 @@ func TestSuccessfulTranscode(t testing.TB, pgTypeName string, values []interface
 
 func TestSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
 	TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		TestDatabaseSQLSuccessfulTranscodeEqFunc(t, driverName, pgTypeName, values, eqFunc)
-	}
+	TestDatabaseSQLSuccessfulTranscodeEqFunc(t, "github.com/jackc/pgx/stdlib", pgTypeName, values, eqFunc)
 }
 
 func TestPgxSuccessfulTranscodeEqFunc(t testing.TB, pgTypeName string, values []interface{}, eqFunc func(a, b interface{}) bool) {
@@ -205,9 +200,7 @@ func TestSuccessfulNormalize(t testing.TB, tests []NormalizeTest) {
 
 func TestSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFunc func(a, b interface{}) bool) {
 	TestPgxSuccessfulNormalizeEqFunc(t, tests, eqFunc)
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		TestDatabaseSQLSuccessfulNormalizeEqFunc(t, driverName, tests, eqFunc)
-	}
+	TestDatabaseSQLSuccessfulNormalizeEqFunc(t, "github.com/jackc/pgx/stdlib", tests, eqFunc)
 }
 
 func TestPgxSuccessfulNormalizeEqFunc(t testing.TB, tests []NormalizeTest, eqFunc func(a, b interface{}) bool) {
@@ -287,16 +280,12 @@ func TestDatabaseSQLSuccessfulNormalizeEqFunc(t testing.TB, driverName string, t
 
 func TestGoZeroToNullConversion(t testing.TB, pgTypeName string, zero interface{}) {
 	TestPgxGoZeroToNullConversion(t, pgTypeName, zero)
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		TestDatabaseSQLGoZeroToNullConversion(t, driverName, pgTypeName, zero)
-	}
+	TestDatabaseSQLGoZeroToNullConversion(t, "github.com/jackc/pgx/stdlib", pgTypeName, zero)
 }
 
 func TestNullToGoZeroConversion(t testing.TB, pgTypeName string, zero interface{}) {
 	TestPgxNullToGoZeroConversion(t, pgTypeName, zero)
-	for _, driverName := range []string{"github.com/lib/pq", "github.com/jackc/pgx/stdlib"} {
-		TestDatabaseSQLNullToGoZeroConversion(t, driverName, pgTypeName, zero)
-	}
+	TestDatabaseSQLNullToGoZeroConversion(t, "github.com/jackc/pgx/stdlib", pgTypeName, zero)
 }
 
 func TestPgxGoZeroToNullConversion(t testing.TB, pgTypeName string, zero interface{}) {
