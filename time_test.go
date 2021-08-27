@@ -14,23 +14,9 @@ func TestTimeTranscode(t *testing.T) {
 		&pgtype.Time{Microseconds: 0, Status: pgtype.Present},
 		&pgtype.Time{Microseconds: 1, Status: pgtype.Present},
 		&pgtype.Time{Microseconds: 86399999999, Status: pgtype.Present},
+		&pgtype.Time{Microseconds: 86400000000, Status: pgtype.Present},
 		&pgtype.Time{Status: pgtype.Null},
 	})
-}
-
-// Test for transcoding 24:00:00 separately as github.com/lib/pq doesn't seem to support it.
-func TestTimeTranscode24HH(t *testing.T) {
-	pgTypeName := "time"
-	values := []interface{}{
-		&pgtype.Time{Microseconds: 86400000000, Status: pgtype.Present},
-	}
-
-	eqFunc := func(a, b interface{}) bool {
-		return reflect.DeepEqual(a, b)
-	}
-
-	testutil.TestPgxSuccessfulTranscodeEqFunc(t, pgTypeName, values, eqFunc)
-	testutil.TestDatabaseSQLSuccessfulTranscodeEqFunc(t, "github.com/jackc/pgx/stdlib", pgTypeName, values, eqFunc)
 }
 
 func TestTimeSet(t *testing.T) {
