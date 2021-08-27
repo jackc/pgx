@@ -19,63 +19,61 @@ var recordTests = []struct {
 		sql: `select row()`,
 		expected: pgtype.Record{
 			Fields: []pgtype.Value{},
-			Status: pgtype.Present,
+			Valid:  true,
 		},
 	},
 	{
 		sql: `select row('foo'::text, 42::int4)`,
 		expected: pgtype.Record{
 			Fields: []pgtype.Value{
-				&pgtype.Text{String: "foo", Status: pgtype.Present},
-				&pgtype.Int4{Int: 42, Status: pgtype.Present},
+				&pgtype.Text{String: "foo", Valid: true},
+				&pgtype.Int4{Int: 42, Valid: true},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	},
 	{
 		sql: `select row(100.0::float4, 1.09::float4)`,
 		expected: pgtype.Record{
 			Fields: []pgtype.Value{
-				&pgtype.Float4{Float: 100, Status: pgtype.Present},
-				&pgtype.Float4{Float: 1.09, Status: pgtype.Present},
+				&pgtype.Float4{Float: 100, Valid: true},
+				&pgtype.Float4{Float: 1.09, Valid: true},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	},
 	{
 		sql: `select row('foo'::text, array[1, 2, null, 4]::int4[], 42::int4)`,
 		expected: pgtype.Record{
 			Fields: []pgtype.Value{
-				&pgtype.Text{String: "foo", Status: pgtype.Present},
+				&pgtype.Text{String: "foo", Valid: true},
 				&pgtype.Int4Array{
 					Elements: []pgtype.Int4{
-						{Int: 1, Status: pgtype.Present},
-						{Int: 2, Status: pgtype.Present},
-						{Status: pgtype.Null},
-						{Int: 4, Status: pgtype.Present},
+						{Int: 1, Valid: true},
+						{Int: 2, Valid: true},
+						{},
+						{Int: 4, Valid: true},
 					},
 					Dimensions: []pgtype.ArrayDimension{{Length: 4, LowerBound: 1}},
-					Status:     pgtype.Present,
+					Valid:      true,
 				},
-				&pgtype.Int4{Int: 42, Status: pgtype.Present},
+				&pgtype.Int4{Int: 42, Valid: true},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	},
 	{
 		sql: `select row(null)`,
 		expected: pgtype.Record{
 			Fields: []pgtype.Value{
-				&pgtype.Unknown{Status: pgtype.Null},
+				&pgtype.Unknown{},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	},
 	{
-		sql: `select null::record`,
-		expected: pgtype.Record{
-			Status: pgtype.Null,
-		},
+		sql:      `select null::record`,
+		expected: pgtype.Record{},
 	},
 }
 
@@ -139,35 +137,35 @@ func TestRecordAssignTo(t *testing.T) {
 		{
 			src: pgtype.Record{
 				Fields: []pgtype.Value{
-					&pgtype.Text{String: "foo", Status: pgtype.Present},
-					&pgtype.Int4{Int: 42, Status: pgtype.Present},
+					&pgtype.Text{String: "foo", Valid: true},
+					&pgtype.Int4{Int: 42, Valid: true},
 				},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 			dst: &valueSlice,
 			expected: []pgtype.Value{
-				&pgtype.Text{String: "foo", Status: pgtype.Present},
-				&pgtype.Int4{Int: 42, Status: pgtype.Present},
+				&pgtype.Text{String: "foo", Valid: true},
+				&pgtype.Int4{Int: 42, Valid: true},
 			},
 		},
 		{
 			src: pgtype.Record{
 				Fields: []pgtype.Value{
-					&pgtype.Text{String: "foo", Status: pgtype.Present},
-					&pgtype.Int4{Int: 42, Status: pgtype.Present},
+					&pgtype.Text{String: "foo", Valid: true},
+					&pgtype.Int4{Int: 42, Valid: true},
 				},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 			dst:      &interfaceSlice,
 			expected: []interface{}{"foo", int32(42)},
 		},
 		{
-			src:      pgtype.Record{Status: pgtype.Null},
+			src:      pgtype.Record{},
 			dst:      &valueSlice,
 			expected: (([]pgtype.Value)(nil)),
 		},
 		{
-			src:      pgtype.Record{Status: pgtype.Null},
+			src:      pgtype.Record{},
 			dst:      &interfaceSlice,
 			expected: (([]interface{})(nil)),
 		},

@@ -14,13 +14,13 @@ import (
 type Int2Array struct {
 	Elements   []Int2
 	Dimensions []ArrayDimension
-	Status     Status
+	Valid      bool
 }
 
 func (dst *Int2Array) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = Int2Array{Status: Null}
+		*dst = Int2Array{}
 		return nil
 	}
 
@@ -36,9 +36,9 @@ func (dst *Int2Array) Set(src interface{}) error {
 
 	case []int16:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -49,15 +49,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*int16:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -68,15 +68,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []uint16:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -87,15 +87,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*uint16:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -106,15 +106,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []int32:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -125,15 +125,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*int32:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -144,15 +144,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []uint32:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -163,15 +163,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*uint32:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -182,15 +182,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []int64:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -201,15 +201,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*int64:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -220,15 +220,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []uint64:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -239,15 +239,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*uint64:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -258,15 +258,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []int:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -277,15 +277,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*int:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -296,15 +296,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []uint:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -315,15 +315,15 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*uint:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			elements := make([]Int2, len(value))
 			for i := range value {
@@ -334,20 +334,20 @@ func (dst *Int2Array) Set(src interface{}) error {
 			*dst = Int2Array{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []Int2:
 		if value == nil {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 		} else if len(value) == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 		} else {
 			*dst = Int2Array{
 				Elements:   value,
 				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 	default:
@@ -356,7 +356,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 		// but it comes with a 20-50% performance penalty for large arrays/slices
 		reflectedValue := reflect.ValueOf(src)
 		if !reflectedValue.IsValid() || reflectedValue.IsZero() {
-			*dst = Int2Array{Status: Null}
+			*dst = Int2Array{}
 			return nil
 		}
 
@@ -365,7 +365,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 			return fmt.Errorf("cannot find dimensions of %v for Int2Array", src)
 		}
 		if elementsLength == 0 {
-			*dst = Int2Array{Status: Present}
+			*dst = Int2Array{Valid: true}
 			return nil
 		}
 		if len(dimensions) == 0 {
@@ -378,7 +378,7 @@ func (dst *Int2Array) Set(src interface{}) error {
 		*dst = Int2Array{
 			Elements:   make([]Int2, elementsLength),
 			Dimensions: dimensions,
-			Status:     Present,
+			Valid:      true,
 		}
 		elementCount, err := dst.setRecursive(reflectedValue, 0, 0)
 		if err != nil {
@@ -445,210 +445,203 @@ func (dst *Int2Array) setRecursive(value reflect.Value, index, dimension int) (i
 }
 
 func (dst Int2Array) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Int2Array) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		if len(src.Dimensions) <= 1 {
-			// Attempt to match to select common types:
-			switch v := dst.(type) {
-
-			case *[]int16:
-				*v = make([]int16, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*int16:
-				*v = make([]*int16, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]uint16:
-				*v = make([]uint16, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*uint16:
-				*v = make([]*uint16, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]int32:
-				*v = make([]int32, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*int32:
-				*v = make([]*int32, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]uint32:
-				*v = make([]uint32, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*uint32:
-				*v = make([]*uint32, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]int64:
-				*v = make([]int64, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*int64:
-				*v = make([]*int64, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]uint64:
-				*v = make([]uint64, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*uint64:
-				*v = make([]*uint64, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]int:
-				*v = make([]int, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*int:
-				*v = make([]*int, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]uint:
-				*v = make([]uint, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*uint:
-				*v = make([]*uint, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			}
-		}
-
-		// Try to convert to something AssignTo can use directly.
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-
-		// Fallback to reflection if an optimised match was not found.
-		// The reflection is necessary for arrays and multidimensional slices,
-		// but it comes with a 20-50% performance penalty for large arrays/slices
-		value := reflect.ValueOf(dst)
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
-		}
-
-		switch value.Kind() {
-		case reflect.Array, reflect.Slice:
-		default:
-			return fmt.Errorf("cannot assign %T to %T", src, dst)
-		}
-
-		if len(src.Elements) == 0 {
-			if value.Kind() == reflect.Slice {
-				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
-				return nil
-			}
-		}
-
-		elementCount, err := src.assignToRecursive(value, 0, 0)
-		if err != nil {
-			return err
-		}
-		if elementCount != len(src.Elements) {
-			return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
-		}
-
-		return nil
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	if len(src.Dimensions) <= 1 {
+		// Attempt to match to select common types:
+		switch v := dst.(type) {
+
+		case *[]int16:
+			*v = make([]int16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*int16:
+			*v = make([]*int16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]uint16:
+			*v = make([]uint16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*uint16:
+			*v = make([]*uint16, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]int32:
+			*v = make([]int32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*int32:
+			*v = make([]*int32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]uint32:
+			*v = make([]uint32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*uint32:
+			*v = make([]*uint32, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]int64:
+			*v = make([]int64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*int64:
+			*v = make([]*int64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]uint64:
+			*v = make([]uint64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*uint64:
+			*v = make([]*uint64, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]int:
+			*v = make([]int, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*int:
+			*v = make([]*int, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]uint:
+			*v = make([]uint, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*uint:
+			*v = make([]*uint, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		}
+	}
+
+	// Try to convert to something AssignTo can use directly.
+	if nextDst, retry := GetAssignToDstType(dst); retry {
+		return src.AssignTo(nextDst)
+	}
+
+	// Fallback to reflection if an optimised match was not found.
+	// The reflection is necessary for arrays and multidimensional slices,
+	// but it comes with a 20-50% performance penalty for large arrays/slices
+	value := reflect.ValueOf(dst)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	switch value.Kind() {
+	case reflect.Array, reflect.Slice:
+	default:
+		return fmt.Errorf("cannot assign %T to %T", src, dst)
+	}
+
+	if len(src.Elements) == 0 {
+		if value.Kind() == reflect.Slice {
+			value.Set(reflect.MakeSlice(value.Type(), 0, 0))
+			return nil
+		}
+	}
+
+	elementCount, err := src.assignToRecursive(value, 0, 0)
+	if err != nil {
+		return err
+	}
+	if elementCount != len(src.Elements) {
+		return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
+	}
+
+	return nil
 }
 
 func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension int) (int, error) {
@@ -700,7 +693,7 @@ func (src *Int2Array) assignToRecursive(value reflect.Value, index, dimension in
 
 func (dst *Int2Array) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int2Array{Status: Null}
+		*dst = Int2Array{}
 		return nil
 	}
 
@@ -729,14 +722,14 @@ func (dst *Int2Array) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Int2Array{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = Int2Array{Elements: elements, Dimensions: uta.Dimensions, Valid: true}
 
 	return nil
 }
 
 func (dst *Int2Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Int2Array{Status: Null}
+		*dst = Int2Array{}
 		return nil
 	}
 
@@ -747,7 +740,7 @@ func (dst *Int2Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = Int2Array{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = Int2Array{Dimensions: arrayHeader.Dimensions, Valid: true}
 		return nil
 	}
 
@@ -772,16 +765,13 @@ func (dst *Int2Array) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Int2Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = Int2Array{Elements: elements, Dimensions: arrayHeader.Dimensions, Valid: true}
 	return nil
 }
 
 func (src Int2Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
@@ -834,11 +824,8 @@ func (src Int2Array) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Int2Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	arrayHeader := ArrayHeader{
@@ -852,7 +839,7 @@ func (src Int2Array) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	for i := range src.Elements {
-		if src.Elements[i].Status == Null {
+		if !src.Elements[i].Valid {
 			arrayHeader.ContainsNull = true
 			break
 		}

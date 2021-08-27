@@ -11,11 +11,11 @@ import (
 
 func TestTimeTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "time", []interface{}{
-		&pgtype.Time{Microseconds: 0, Status: pgtype.Present},
-		&pgtype.Time{Microseconds: 1, Status: pgtype.Present},
-		&pgtype.Time{Microseconds: 86399999999, Status: pgtype.Present},
-		&pgtype.Time{Microseconds: 86400000000, Status: pgtype.Present},
-		&pgtype.Time{Status: pgtype.Null},
+		&pgtype.Time{Microseconds: 0, Valid: true},
+		&pgtype.Time{Microseconds: 1, Valid: true},
+		&pgtype.Time{Microseconds: 86399999999, Valid: true},
+		&pgtype.Time{Microseconds: 86400000000, Valid: true},
+		&pgtype.Time{},
 	})
 }
 
@@ -26,18 +26,18 @@ func TestTimeSet(t *testing.T) {
 		source interface{}
 		result pgtype.Time
 	}{
-		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 0, Status: pgtype.Present}},
-		{source: time.Date(1900, 1, 1, 1, 0, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 3600000000, Status: pgtype.Present}},
-		{source: time.Date(1900, 1, 1, 0, 1, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 60000000, Status: pgtype.Present}},
-		{source: time.Date(1900, 1, 1, 0, 0, 1, 0, time.UTC), result: pgtype.Time{Microseconds: 1000000, Status: pgtype.Present}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 1, time.UTC), result: pgtype.Time{Microseconds: 0, Status: pgtype.Present}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 1000, time.UTC), result: pgtype.Time{Microseconds: 1, Status: pgtype.Present}},
-		{source: time.Date(1999, 12, 31, 23, 59, 59, 999999999, time.UTC), result: pgtype.Time{Microseconds: 86399999999, Status: pgtype.Present}},
-		{source: time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local), result: pgtype.Time{Microseconds: 2, Status: pgtype.Present}},
-		{source: func(t time.Time) *time.Time { return &t }(time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local)), result: pgtype.Time{Microseconds: 2, Status: pgtype.Present}},
-		{source: nil, result: pgtype.Time{Status: pgtype.Null}},
-		{source: (*time.Time)(nil), result: pgtype.Time{Status: pgtype.Null}},
-		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 3000, time.UTC)), result: pgtype.Time{Microseconds: 3, Status: pgtype.Present}},
+		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 0, Valid: true}},
+		{source: time.Date(1900, 1, 1, 1, 0, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 3600000000, Valid: true}},
+		{source: time.Date(1900, 1, 1, 0, 1, 0, 0, time.UTC), result: pgtype.Time{Microseconds: 60000000, Valid: true}},
+		{source: time.Date(1900, 1, 1, 0, 0, 1, 0, time.UTC), result: pgtype.Time{Microseconds: 1000000, Valid: true}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 1, time.UTC), result: pgtype.Time{Microseconds: 0, Valid: true}},
+		{source: time.Date(1970, 1, 1, 0, 0, 0, 1000, time.UTC), result: pgtype.Time{Microseconds: 1, Valid: true}},
+		{source: time.Date(1999, 12, 31, 23, 59, 59, 999999999, time.UTC), result: pgtype.Time{Microseconds: 86399999999, Valid: true}},
+		{source: time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local), result: pgtype.Time{Microseconds: 2, Valid: true}},
+		{source: func(t time.Time) *time.Time { return &t }(time.Date(2015, 1, 1, 0, 0, 0, 2000, time.Local)), result: pgtype.Time{Microseconds: 2, Valid: true}},
+		{source: nil, result: pgtype.Time{}},
+		{source: (*time.Time)(nil), result: pgtype.Time{}},
+		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 3000, time.UTC)), result: pgtype.Time{Microseconds: 3, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -62,13 +62,13 @@ func TestTimeAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Time{Microseconds: 0, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)},
-		{src: pgtype.Time{Microseconds: 3600000000, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)},
-		{src: pgtype.Time{Microseconds: 60000000, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 1, 0, 0, time.UTC)},
-		{src: pgtype.Time{Microseconds: 1000000, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)},
-		{src: pgtype.Time{Microseconds: 1, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 0, 1000, time.UTC)},
-		{src: pgtype.Time{Microseconds: 86399999999, Status: pgtype.Present}, dst: &tim, expected: time.Date(2000, 1, 1, 23, 59, 59, 999999000, time.UTC)},
-		{src: pgtype.Time{Microseconds: 0, Status: pgtype.Null}, dst: &ptim, expected: ((*time.Time)(nil))},
+		{src: pgtype.Time{Microseconds: 0, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{src: pgtype.Time{Microseconds: 3600000000, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC)},
+		{src: pgtype.Time{Microseconds: 60000000, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 1, 0, 0, time.UTC)},
+		{src: pgtype.Time{Microseconds: 1000000, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 1, 0, time.UTC)},
+		{src: pgtype.Time{Microseconds: 1, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 0, 0, 0, 1000, time.UTC)},
+		{src: pgtype.Time{Microseconds: 86399999999, Valid: true}, dst: &tim, expected: time.Date(2000, 1, 1, 23, 59, 59, 999999000, time.UTC)},
+		{src: pgtype.Time{Microseconds: 0}, dst: &ptim, expected: ((*time.Time)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -87,7 +87,7 @@ func TestTimeAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Time{Microseconds: 0, Status: pgtype.Present}, dst: &ptim, expected: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{src: pgtype.Time{Microseconds: 0, Valid: true}, dst: &ptim, expected: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -105,7 +105,7 @@ func TestTimeAssignTo(t *testing.T) {
 		src pgtype.Time
 		dst interface{}
 	}{
-		{src: pgtype.Time{Microseconds: 86400000000, Status: pgtype.Present}, dst: &tim},
+		{src: pgtype.Time{Microseconds: 86400000000, Valid: true}, dst: &tim},
 	}
 
 	for i, tt := range errorTests {

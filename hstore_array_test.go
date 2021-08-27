@@ -29,16 +29,16 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: &pgtype.HstoreArray{}, Name: "_hstore", OID: hstoreArrayOID})
 
 	text := func(s string) pgtype.Text {
-		return pgtype.Text{String: s, Status: pgtype.Present}
+		return pgtype.Text{String: s, Valid: true}
 	}
 
 	values := []pgtype.Hstore{
-		{Map: map[string]pgtype.Text{}, Status: pgtype.Present},
-		{Map: map[string]pgtype.Text{"foo": text("bar")}, Status: pgtype.Present},
-		{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Status: pgtype.Present},
-		{Map: map[string]pgtype.Text{"NULL": text("bar")}, Status: pgtype.Present},
-		{Map: map[string]pgtype.Text{"foo": text("NULL")}, Status: pgtype.Present},
-		{Status: pgtype.Null},
+		{Map: map[string]pgtype.Text{}, Valid: true},
+		{Map: map[string]pgtype.Text{"foo": text("bar")}, Valid: true},
+		{Map: map[string]pgtype.Text{"foo": text("bar"), "baz": text("quz")}, Valid: true},
+		{Map: map[string]pgtype.Text{"NULL": text("bar")}, Valid: true},
+		{Map: map[string]pgtype.Text{"foo": text("NULL")}, Valid: true},
+		{},
 	}
 
 	specialStrings := []string{
@@ -52,22 +52,22 @@ func TestHstoreArrayTranscode(t *testing.T) {
 	}
 	for _, s := range specialStrings {
 		// Special key values
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Status: pgtype.Present})         // at beginning
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Status: pgtype.Present}) // in middle
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Status: pgtype.Present})         // at end
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Status: pgtype.Present})                 // is key
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{s + "foo": text("bar")}, Valid: true})         // at beginning
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s + "bar": text("bar")}, Valid: true}) // in middle
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo" + s: text("bar")}, Valid: true})         // at end
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{s: text("bar")}, Valid: true})                 // is key
 
 		// Special value values
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Status: pgtype.Present})         // at beginning
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Status: pgtype.Present}) // in middle
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Status: pgtype.Present})         // at end
-		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Status: pgtype.Present})                 // is key
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s + "bar")}, Valid: true})         // at beginning
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s + "bar")}, Valid: true}) // in middle
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text("foo" + s)}, Valid: true})         // at end
+		values = append(values, pgtype.Hstore{Map: map[string]pgtype.Text{"foo": text(s)}, Valid: true})                 // is key
 	}
 
 	src := &pgtype.HstoreArray{
 		Elements:   values,
 		Dimensions: []pgtype.ArrayDimension{{Length: int32(len(values)), LowerBound: 1}},
-		Status:     pgtype.Present,
+		Valid:      true,
 	}
 
 	_, err = conn.Prepare(context.Background(), "test", "select $1::hstore[]")
@@ -98,8 +98,8 @@ func TestHstoreArrayTranscode(t *testing.T) {
 			continue
 		}
 
-		if result.Status != src.Status {
-			t.Errorf("%v: expected Status %v, got %v", fc.formatCode, src.Status, result.Status)
+		if result.Valid != src.Valid {
+			t.Errorf("%v: expected Valid %v, got %v", fc.formatCode, src.Valid, result.Valid)
 			continue
 		}
 
@@ -112,8 +112,8 @@ func TestHstoreArrayTranscode(t *testing.T) {
 			a := src.Elements[i]
 			b := result.Elements[i]
 
-			if a.Status != b.Status {
-				t.Errorf("%v element idx %d: expected status %v, got %v", fc.formatCode, i, a.Status, b.Status)
+			if a.Valid != b.Valid {
+				t.Errorf("%v element idx %d: expected Valid %v, got %v", fc.formatCode, i, a.Valid, b.Valid)
 			}
 
 			if len(a.Map) != len(b.Map) {
@@ -139,12 +139,12 @@ func TestHstoreArraySet(t *testing.T) {
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 		},
 		{
@@ -152,16 +152,16 @@ func TestHstoreArraySet(t *testing.T) {
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 		},
 		{
@@ -171,28 +171,28 @@ func TestHstoreArraySet(t *testing.T) {
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"bar": {String: "baz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"bar": {String: "baz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wibble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wibble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wubble": {String: "wabble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wubble": {String: "wabble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wabble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wabble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{
@@ -200,7 +200,7 @@ func TestHstoreArraySet(t *testing.T) {
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 		},
 		{
@@ -208,16 +208,16 @@ func TestHstoreArraySet(t *testing.T) {
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 		},
 		{
@@ -227,28 +227,28 @@ func TestHstoreArraySet(t *testing.T) {
 			result: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"bar": {String: "baz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"bar": {String: "baz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wibble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wibble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wubble": {String: "wabble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wubble": {String: "wabble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wabble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wabble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{
@@ -256,7 +256,7 @@ func TestHstoreArraySet(t *testing.T) {
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 		},
 	}
@@ -290,35 +290,35 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &hstoreSlice,
 			expected: []map[string]string{{"foo": "bar"}}},
 		{
-			src: pgtype.HstoreArray{Status: pgtype.Null}, dst: &hstoreSlice, expected: (([]map[string]string)(nil)),
+			src: pgtype.HstoreArray{}, dst: &hstoreSlice, expected: (([]map[string]string)(nil)),
 		},
 		{
-			src: pgtype.HstoreArray{Status: pgtype.Present}, dst: &hstoreSlice, expected: []map[string]string{},
+			src: pgtype.HstoreArray{Valid: true}, dst: &hstoreSlice, expected: []map[string]string{},
 		},
 		{
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &hstoreSliceDim2,
 			expected: [][]map[string]string{{{"foo": "bar"}}, {{"baz": "quz"}}},
@@ -327,28 +327,28 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"bar": {String: "baz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"bar": {String: "baz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wibble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wibble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wubble": {String: "wabble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wubble": {String: "wabble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wabble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wabble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{
@@ -356,7 +356,7 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 			dst: &hstoreSliceDim4,
 			expected: [][][][]map[string]string{
@@ -367,16 +367,16 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &hstoreArrayDim2,
 			expected: [2][1]map[string]string{{{"foo": "bar"}}, {{"baz": "quz"}}},
@@ -385,28 +385,28 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 			src: pgtype.HstoreArray{
 				Elements: []pgtype.Hstore{
 					{
-						Map:    map[string]pgtype.Text{"foo": {String: "bar", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"foo": {String: "bar", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"baz": {String: "quz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"baz": {String: "quz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"bar": {String: "baz", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"bar": {String: "baz", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wibble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wibble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wubble": {String: "wabble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wubble": {String: "wabble", Valid: true}},
+						Valid: true,
 					},
 					{
-						Map:    map[string]pgtype.Text{"wabble": {String: "wobble", Status: pgtype.Present}},
-						Status: pgtype.Present,
+						Map:   map[string]pgtype.Text{"wabble": {String: "wobble", Valid: true}},
+						Valid: true,
 					},
 				},
 				Dimensions: []pgtype.ArrayDimension{
@@ -414,7 +414,7 @@ func TestHstoreArrayAssignTo(t *testing.T) {
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present,
+				Valid: true,
 			},
 			dst: &hstoreArrayDim4,
 			expected: [2][1][1][3]map[string]string{

@@ -9,9 +9,9 @@ import (
 )
 
 type Varbit struct {
-	Bytes  []byte
-	Len    int32 // Number of bits
-	Status Status
+	Bytes []byte
+	Len   int32 // Number of bits
+	Valid bool
 }
 
 func (dst *Varbit) Set(src interface{}) error {
@@ -19,14 +19,10 @@ func (dst *Varbit) Set(src interface{}) error {
 }
 
 func (dst Varbit) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Varbit) AssignTo(dst interface{}) error {
@@ -35,7 +31,7 @@ func (src *Varbit) AssignTo(dst interface{}) error {
 
 func (dst *Varbit) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Varbit{Status: Null}
+		*dst = Varbit{}
 		return nil
 	}
 
@@ -54,13 +50,13 @@ func (dst *Varbit) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Varbit{Bytes: buf, Len: int32(bitLen), Status: Present}
+	*dst = Varbit{Bytes: buf, Len: int32(bitLen), Valid: true}
 	return nil
 }
 
 func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Varbit{Status: Null}
+		*dst = Varbit{}
 		return nil
 	}
 
@@ -71,16 +67,13 @@ func (dst *Varbit) DecodeBinary(ci *ConnInfo, src []byte) error {
 	bitLen := int32(binary.BigEndian.Uint32(src))
 	rp := 4
 
-	*dst = Varbit{Bytes: src[rp:], Len: bitLen, Status: Present}
+	*dst = Varbit{Bytes: src[rp:], Len: bitLen, Valid: true}
 	return nil
 }
 
 func (src Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	for i := int32(0); i < src.Len; i++ {
@@ -97,11 +90,8 @@ func (src Varbit) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Varbit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendInt32(buf, src.Len)
@@ -111,7 +101,7 @@ func (src Varbit) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Varbit) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Varbit{Status: Null}
+		*dst = Varbit{}
 		return nil
 	}
 

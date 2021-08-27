@@ -18,7 +18,7 @@ const pgTimestampFormat = "2006-01-02 15:04:05.999999999"
 // convert to UTC or return an error on non-UTC times.
 type Timestamp struct {
 	Time             time.Time // Time must always be in UTC.
-	Status           Status
+	Valid            bool
 	InfinityModifier InfinityModifier
 }
 
@@ -26,7 +26,7 @@ type Timestamp struct {
 // time.Time in a non-UTC time zone, the time zone is discarded.
 func (dst *Timestamp) Set(src interface{}) error {
 	if src == nil {
-		*dst = Timestamp{Status: Null}
+		*dst = Timestamp{}
 		return nil
 	}
 
@@ -39,15 +39,15 @@ func (dst *Timestamp) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case time.Time:
-		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Status: Present}
+		*dst = Timestamp{Time: time.Date(value.Year(), value.Month(), value.Day(), value.Hour(), value.Minute(), value.Second(), value.Nanosecond(), time.UTC), Valid: true}
 	case *time.Time:
 		if value == nil {
-			*dst = Timestamp{Status: Null}
+			*dst = Timestamp{}
 		} else {
 			return dst.Set(*value)
 		}
 	case InfinityModifier:
-		*dst = Timestamp{InfinityModifier: value, Status: Present}
+		*dst = Timestamp{InfinityModifier: value, Valid: true}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
@@ -59,63 +59,56 @@ func (dst *Timestamp) Set(src interface{}) error {
 }
 
 func (dst Timestamp) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		if dst.InfinityModifier != None {
-			return dst.InfinityModifier
-		}
-		return dst.Time
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	if dst.InfinityModifier != None {
+		return dst.InfinityModifier
+	}
+	return dst.Time
 }
 
 func (src *Timestamp) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *time.Time:
-			if src.InfinityModifier != None {
-				return fmt.Errorf("cannot assign %v to %T", src, dst)
-			}
-			*v = src.Time
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *time.Time:
+		if src.InfinityModifier != None {
+			return fmt.Errorf("cannot assign %v to %T", src, dst)
+		}
+		*v = src.Time
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 // DecodeText decodes from src into dst. The decoded time is considered to
 // be in UTC.
 func (dst *Timestamp) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Timestamp{Status: Null}
+		*dst = Timestamp{}
 		return nil
 	}
 
 	sbuf := string(src)
 	switch sbuf {
 	case "infinity":
-		*dst = Timestamp{Status: Present, InfinityModifier: Infinity}
+		*dst = Timestamp{Valid: true, InfinityModifier: Infinity}
 	case "-infinity":
-		*dst = Timestamp{Status: Present, InfinityModifier: -Infinity}
+		*dst = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
 		tim, err := time.Parse(pgTimestampFormat, sbuf)
 		if err != nil {
 			return err
 		}
 
-		*dst = Timestamp{Time: tim, Status: Present}
+		*dst = Timestamp{Time: tim, Valid: true}
 	}
 
 	return nil
@@ -125,7 +118,7 @@ func (dst *Timestamp) DecodeText(ci *ConnInfo, src []byte) error {
 // be in UTC.
 func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Timestamp{Status: Null}
+		*dst = Timestamp{}
 		return nil
 	}
 
@@ -137,15 +130,15 @@ func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	switch microsecSinceY2K {
 	case infinityMicrosecondOffset:
-		*dst = Timestamp{Status: Present, InfinityModifier: Infinity}
+		*dst = Timestamp{Valid: true, InfinityModifier: Infinity}
 	case negativeInfinityMicrosecondOffset:
-		*dst = Timestamp{Status: Present, InfinityModifier: -Infinity}
+		*dst = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
 		tim := time.Unix(
 			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
 			(microsecFromUnixEpochToY2K%1000000*1000)+(microsecSinceY2K%1000000*1000),
 		).UTC()
-		*dst = Timestamp{Time: tim, Status: Present}
+		*dst = Timestamp{Time: tim, Valid: true}
 	}
 
 	return nil
@@ -154,11 +147,8 @@ func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 // EncodeText writes the text encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
 func (src Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
 		return nil, fmt.Errorf("cannot encode non-UTC time into timestamp")
@@ -181,11 +171,8 @@ func (src Timestamp) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
 func (src Timestamp) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 	if src.Time.Location() != time.UTC {
 		return nil, fmt.Errorf("cannot encode non-UTC time into timestamp")
@@ -208,7 +195,7 @@ func (src Timestamp) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Timestamp) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Timestamp{Status: Null}
+		*dst = Timestamp{}
 		return nil
 	}
 
@@ -220,7 +207,7 @@ func (dst *Timestamp) Scan(src interface{}) error {
 		copy(srcCopy, src)
 		return dst.DecodeText(nil, srcCopy)
 	case time.Time:
-		*dst = Timestamp{Time: src, Status: Present}
+		*dst = Timestamp{Time: src, Valid: true}
 		return nil
 	}
 
@@ -229,15 +216,12 @@ func (dst *Timestamp) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Timestamp) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		if src.InfinityModifier != None {
-			return src.InfinityModifier.String(), nil
-		}
-		return src.Time, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	if src.InfinityModifier != None {
+		return src.InfinityModifier.String(), nil
+	}
+	return src.Time, nil
 }

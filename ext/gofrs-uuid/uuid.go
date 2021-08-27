@@ -2,24 +2,20 @@ package uuid
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgtype"
 )
 
-var errUndefined = errors.New("cannot encode status undefined")
-var errBadStatus = errors.New("invalid status")
-
 type UUID struct {
-	UUID   uuid.UUID
-	Status pgtype.Status
+	UUID  uuid.UUID
+	Valid bool
 }
 
 func (dst *UUID) Set(src interface{}) error {
 	if src == nil {
-		*dst = UUID{Status: pgtype.Null}
+		*dst = UUID{}
 		return nil
 	}
 
@@ -32,21 +28,21 @@ func (dst *UUID) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case uuid.UUID:
-		*dst = UUID{UUID: value, Status: pgtype.Present}
+		*dst = UUID{UUID: value, Valid: true}
 	case [16]byte:
-		*dst = UUID{UUID: uuid.UUID(value), Status: pgtype.Present}
+		*dst = UUID{UUID: uuid.UUID(value), Valid: true}
 	case []byte:
 		if len(value) != 16 {
 			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
 		}
-		*dst = UUID{Status: pgtype.Present}
+		*dst = UUID{Valid: true}
 		copy(dst.UUID[:], value)
 	case string:
 		uuid, err := uuid.FromString(value)
 		if err != nil {
 			return err
 		}
-		*dst = UUID{UUID: uuid, Status: pgtype.Present}
+		*dst = UUID{UUID: uuid, Valid: true}
 	default:
 		// If all else fails see if pgtype.UUID can handle it. If so, translate through that.
 		pgUUID := &pgtype.UUID{}
@@ -54,56 +50,49 @@ func (dst *UUID) Set(src interface{}) error {
 			return fmt.Errorf("cannot convert %v to UUID", value)
 		}
 
-		*dst = UUID{UUID: uuid.UUID(pgUUID.Bytes), Status: pgUUID.Status}
+		*dst = UUID{UUID: uuid.UUID(pgUUID.Bytes), Valid: pgUUID.Valid}
 	}
 
 	return nil
 }
 
 func (dst UUID) Get() interface{} {
-	switch dst.Status {
-	case pgtype.Present:
-		return dst.UUID
-	case pgtype.Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.UUID
 }
 
 func (src *UUID) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case pgtype.Present:
-		switch v := dst.(type) {
-		case *uuid.UUID:
-			*v = src.UUID
-			return nil
-		case *[16]byte:
-			*v = [16]byte(src.UUID)
-			return nil
-		case *[]byte:
-			*v = make([]byte, 16)
-			copy(*v, src.UUID[:])
-			return nil
-		case *string:
-			*v = src.UUID.String()
-			return nil
-		default:
-			if nextDst, retry := pgtype.GetAssignToDstType(v); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case pgtype.Null:
+	if !src.Valid {
 		return pgtype.NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot assign %v into %T", src, dst)
+	switch v := dst.(type) {
+	case *uuid.UUID:
+		*v = src.UUID
+		return nil
+	case *[16]byte:
+		*v = [16]byte(src.UUID)
+		return nil
+	case *[]byte:
+		*v = make([]byte, 16)
+		copy(*v, src.UUID[:])
+		return nil
+	case *string:
+		*v = src.UUID.String()
+		return nil
+	default:
+		if nextDst, retry := pgtype.GetAssignToDstType(v); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = UUID{Status: pgtype.Null}
+		*dst = UUID{}
 		return nil
 	}
 
@@ -112,13 +101,13 @@ func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = UUID{UUID: u, Status: pgtype.Present}
+	*dst = UUID{UUID: u, Valid: true}
 	return nil
 }
 
 func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = UUID{Status: pgtype.Null}
+		*dst = UUID{}
 		return nil
 	}
 
@@ -126,37 +115,29 @@ func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
-	*dst = UUID{Status: pgtype.Present}
+	*dst = UUID{Valid: true}
 	copy(dst.UUID[:], src)
 	return nil
 }
 
 func (src UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case pgtype.Null:
+	if !src.Valid {
 		return nil, nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
-
 	return append(buf, src.UUID.String()...), nil
 }
 
 func (src UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case pgtype.Null:
+	if !src.Valid {
 		return nil, nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
-
 	return append(buf, src.UUID[:]...), nil
 }
 
 // Scan implements the database/sql Scanner interface.
 func (dst *UUID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = UUID{Status: pgtype.Null}
+		*dst = UUID{}
 		return nil
 	}
 
@@ -176,16 +157,10 @@ func (src UUID) Value() (driver.Value, error) {
 }
 
 func (src UUID) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case pgtype.Present:
-		return []byte(`"` + src.UUID.String() + `"`), nil
-	case pgtype.Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
-
-	return nil, errBadStatus
+	return []byte(`"` + src.UUID.String() + `"`), nil
 }
 
 func (dst *UUID) UnmarshalJSON(b []byte) error {
@@ -195,11 +170,7 @@ func (dst *UUID) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	status := pgtype.Null
-	if u.Valid {
-		status = pgtype.Present
-	}
-	*dst = UUID{UUID: u.UUID, Status: status}
+	*dst = UUID{UUID: u.UUID, Valid: u.Valid}
 
 	return nil
 }

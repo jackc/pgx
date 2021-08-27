@@ -11,11 +11,11 @@ import (
 
 func TestJSONTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "json", []interface{}{
-		&pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present},
-		&pgtype.JSON{Bytes: []byte("null"), Status: pgtype.Present},
-		&pgtype.JSON{Bytes: []byte("42"), Status: pgtype.Present},
-		&pgtype.JSON{Bytes: []byte(`"hello"`), Status: pgtype.Present},
-		&pgtype.JSON{Status: pgtype.Null},
+		&pgtype.JSON{Bytes: []byte("{}"), Valid: true},
+		&pgtype.JSON{Bytes: []byte("null"), Valid: true},
+		&pgtype.JSON{Bytes: []byte("42"), Valid: true},
+		&pgtype.JSON{Bytes: []byte(`"hello"`), Valid: true},
+		&pgtype.JSON{},
 	})
 }
 
@@ -24,12 +24,12 @@ func TestJSONSet(t *testing.T) {
 		source interface{}
 		result pgtype.JSON
 	}{
-		{source: "{}", result: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: []byte("{}"), result: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}},
-		{source: ([]byte)(nil), result: pgtype.JSON{Status: pgtype.Null}},
-		{source: (*string)(nil), result: pgtype.JSON{Status: pgtype.Null}},
-		{source: []int{1, 2, 3}, result: pgtype.JSON{Bytes: []byte("[1,2,3]"), Status: pgtype.Present}},
-		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}},
+		{source: "{}", result: pgtype.JSON{Bytes: []byte("{}"), Valid: true}},
+		{source: []byte("{}"), result: pgtype.JSON{Bytes: []byte("{}"), Valid: true}},
+		{source: ([]byte)(nil), result: pgtype.JSON{}},
+		{source: (*string)(nil), result: pgtype.JSON{}},
+		{source: []int{1, 2, 3}, result: pgtype.JSON{Bytes: []byte("[1,2,3]"), Valid: true}},
+		{source: map[string]interface{}{"foo": "bar"}, result: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -55,7 +55,7 @@ func TestJSONAssignTo(t *testing.T) {
 		dst      *string
 		expected string
 	}{
-		{src: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &s, expected: "{}"},
+		{src: pgtype.JSON{Bytes: []byte("{}"), Valid: true}, dst: &s, expected: "{}"},
 	}
 
 	for i, tt := range rawStringTests {
@@ -74,8 +74,8 @@ func TestJSONAssignTo(t *testing.T) {
 		dst      *[]byte
 		expected []byte
 	}{
-		{src: pgtype.JSON{Bytes: []byte("{}"), Status: pgtype.Present}, dst: &b, expected: []byte("{}")},
-		{src: pgtype.JSON{Status: pgtype.Null}, dst: &b, expected: (([]byte)(nil))},
+		{src: pgtype.JSON{Bytes: []byte("{}"), Valid: true}, dst: &b, expected: []byte("{}")},
+		{src: pgtype.JSON{}, dst: &b, expected: (([]byte)(nil))},
 	}
 
 	for i, tt := range rawBytesTests {
@@ -101,8 +101,8 @@ func TestJSONAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Status: pgtype.Present}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
-		{src: pgtype.JSON{Bytes: []byte(`{"name":"John","age":42}`), Status: pgtype.Present}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
+		{src: pgtype.JSON{Bytes: []byte(`{"foo":"bar"}`), Valid: true}, dst: &mapDst, expected: map[string]interface{}{"foo": "bar"}},
+		{src: pgtype.JSON{Bytes: []byte(`{"name":"John","age":42}`), Valid: true}, dst: &strDst, expected: structDst{Name: "John", Age: 42}},
 	}
 	for i, tt := range unmarshalTests {
 		err := tt.src.AssignTo(tt.dst)
@@ -120,7 +120,7 @@ func TestJSONAssignTo(t *testing.T) {
 		dst      **string
 		expected *string
 	}{
-		{src: pgtype.JSON{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.JSON{}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -140,8 +140,8 @@ func TestJSONMarshalJSON(t *testing.T) {
 		source pgtype.JSON
 		result string
 	}{
-		{source: pgtype.JSON{Status: pgtype.Null}, result: "null"},
-		{source: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Status: pgtype.Present}, result: "{\"a\": 1}"},
+		{source: pgtype.JSON{}, result: "null"},
+		{source: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Valid: true}, result: "{\"a\": 1}"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -160,8 +160,8 @@ func TestJSONUnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.JSON
 	}{
-		{source: "null", result: pgtype.JSON{Status: pgtype.Null}},
-		{source: "{\"a\": 1}", result: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Status: pgtype.Present}},
+		{source: "null", result: pgtype.JSON{}},
+		{source: "{\"a\": 1}", result: pgtype.JSON{Bytes: []byte("{\"a\": 1}"), Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.JSON
@@ -170,7 +170,7 @@ func TestJSONUnmarshalJSON(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if string(r.Bytes) != string(tt.result.Bytes) || r.Status != tt.result.Status {
+		if string(r.Bytes) != string(tt.result.Bytes) || r.Valid != tt.result.Valid {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
 		}
 	}

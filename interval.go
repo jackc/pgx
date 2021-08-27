@@ -23,12 +23,12 @@ type Interval struct {
 	Microseconds int64
 	Days         int32
 	Months       int32
-	Status       Status
+	Valid        bool
 }
 
 func (dst *Interval) Set(src interface{}) error {
 	if src == nil {
-		*dst = Interval{Status: Null}
+		*dst = Interval{}
 		return nil
 	}
 
@@ -41,7 +41,7 @@ func (dst *Interval) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case time.Duration:
-		*dst = Interval{Microseconds: int64(value) / 1000, Status: Present}
+		*dst = Interval{Microseconds: int64(value) / 1000, Valid: true}
 	default:
 		if originalSrc, ok := underlyingPtrType(src); ok {
 			return dst.Set(originalSrc)
@@ -53,40 +53,33 @@ func (dst *Interval) Set(src interface{}) error {
 }
 
 func (dst Interval) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Interval) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *time.Duration:
-			us := int64(src.Months)*microsecondsPerMonth + int64(src.Days)*microsecondsPerDay + src.Microseconds
-			*v = time.Duration(us) * time.Microsecond
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *time.Duration:
+		us := int64(src.Months)*microsecondsPerMonth + int64(src.Days)*microsecondsPerDay + src.Microseconds
+		*v = time.Duration(us) * time.Microsecond
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Interval{Status: Null}
+		*dst = Interval{}
 		return nil
 	}
 
@@ -163,13 +156,13 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Interval{Months: months, Days: days, Microseconds: microseconds, Status: Present}
+	*dst = Interval{Months: months, Days: days, Microseconds: microseconds, Valid: true}
 	return nil
 }
 
 func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Interval{Status: Null}
+		*dst = Interval{}
 		return nil
 	}
 
@@ -181,16 +174,13 @@ func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
 	days := int32(binary.BigEndian.Uint32(src[8:]))
 	months := int32(binary.BigEndian.Uint32(src[12:]))
 
-	*dst = Interval{Microseconds: microseconds, Days: days, Months: months, Status: Present}
+	*dst = Interval{Microseconds: microseconds, Days: days, Months: months, Valid: true}
 	return nil
 }
 
 func (src Interval) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if src.Months != 0 {
@@ -220,11 +210,8 @@ func (src Interval) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 // EncodeBinary encodes src into w.
 func (src Interval) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendInt64(buf, src.Microseconds)
@@ -235,7 +222,7 @@ func (src Interval) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Interval) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Interval{Status: Null}
+		*dst = Interval{}
 		return nil
 	}
 

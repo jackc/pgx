@@ -10,9 +10,9 @@ import (
 
 func TestACLItemTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "aclitem", []interface{}{
-		&pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-		//&pgtype.ACLItem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-		&pgtype.ACLItem{Status: pgtype.Null},
+		&pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Valid: true},
+		//&pgtype.ACLItem{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true},
+		&pgtype.ACLItem{},
 	})
 }
 
@@ -21,8 +21,8 @@ func TestACLItemSet(t *testing.T) {
 		source interface{}
 		result pgtype.ACLItem
 	}{
-		{source: "postgres=arwdDxt/postgres", result: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
-		{source: (*string)(nil), result: pgtype.ACLItem{Status: pgtype.Null}},
+		{source: "postgres=arwdDxt/postgres", result: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Valid: true}},
+		{source: (*string)(nil), result: pgtype.ACLItem{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -47,8 +47,8 @@ func TestACLItemAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &s, expected: "postgres=arwdDxt/postgres"},
-		{src: pgtype.ACLItem{Status: pgtype.Null}, dst: &ps, expected: ((*string)(nil))},
+		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Valid: true}, dst: &s, expected: "postgres=arwdDxt/postgres"},
+		{src: pgtype.ACLItem{}, dst: &ps, expected: ((*string)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -67,7 +67,7 @@ func TestACLItemAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}, dst: &ps, expected: "postgres=arwdDxt/postgres"},
+		{src: pgtype.ACLItem{String: "postgres=arwdDxt/postgres", Valid: true}, dst: &ps, expected: "postgres=arwdDxt/postgres"},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -85,7 +85,7 @@ func TestACLItemAssignTo(t *testing.T) {
 		src pgtype.ACLItem
 		dst interface{}
 	}{
-		{src: pgtype.ACLItem{Status: pgtype.Null}, dst: &s},
+		{src: pgtype.ACLItem{}, dst: &s},
 	}
 
 	for i, tt := range errorTests {

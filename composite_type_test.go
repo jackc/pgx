@@ -20,7 +20,7 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 		{"b", pgtype.Int4OID},
 	}, ci)
 	require.NoError(t, err)
-	assert.Equal(t, pgtype.Undefined, ct.Get())
+	assert.Equal(t, nil, ct.Get())
 
 	nilTests := []struct {
 		src interface{}
@@ -48,7 +48,7 @@ func TestCompositeTypeSetAndGet(t *testing.T) {
 			expected: map[string]interface{}{"a": nil, "b": nil},
 		},
 		{
-			src:      []interface{}{&pgtype.Text{String: "hi", Status: pgtype.Present}, &pgtype.Int4{Int: 7, Status: pgtype.Present}},
+			src:      []interface{}{&pgtype.Text{String: "hi", Valid: true}, &pgtype.Int4{Int: 7, Valid: true}},
 			expected: map[string]interface{}{"a": "hi", "b": int32(7)},
 		},
 	}
@@ -92,8 +92,8 @@ func TestCompositeTypeAssignTo(t *testing.T) {
 		err = ct.AssignTo([]interface{}{&a, &b})
 		assert.NoError(t, err)
 
-		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
-		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
+		assert.Equal(t, pgtype.Text{String: "foo", Valid: true}, a)
+		assert.Equal(t, pgtype.Int4{Int: 42, Valid: true}, b)
 	}
 
 	// Allow nil destination component as no-op
@@ -137,8 +137,8 @@ func TestCompositeTypeAssignTo(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.NotNil(t, dst)
-		assert.Equal(t, pgtype.Text{String: "foo", Status: pgtype.Present}, a)
-		assert.Equal(t, pgtype.Int4{Int: 42, Status: pgtype.Present}, b)
+		assert.Equal(t, pgtype.Text{String: "foo", Valid: true}, a)
+		assert.Equal(t, pgtype.Int4{Int: 42, Valid: true}, b)
 	}
 
 	// Struct fields positionally via reflection

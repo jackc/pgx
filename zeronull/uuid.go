@@ -15,7 +15,7 @@ func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = UUID(nullable.Bytes)
 	} else {
 		*dst = UUID{}
@@ -31,7 +31,7 @@ func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = UUID(nullable.Bytes)
 	} else {
 		*dst = UUID{}
@@ -46,8 +46,8 @@ func (src UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	nullable := pgtype.UUID{
-		Bytes:  [16]byte(src),
-		Status: pgtype.Present,
+		Bytes: [16]byte(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeText(ci, buf)
@@ -59,8 +59,8 @@ func (src UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	nullable := pgtype.UUID{
-		Bytes:  [16]byte(src),
-		Status: pgtype.Present,
+		Bytes: [16]byte(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeBinary(ci, buf)

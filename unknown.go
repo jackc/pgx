@@ -8,7 +8,7 @@ import "database/sql/driver"
 // type information. e.g. SELECT NULL;
 type Unknown struct {
 	String string
-	Status Status
+	Valid  bool
 }
 
 func (dst *Unknown) Set(src interface{}) error {

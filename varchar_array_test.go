@@ -13,41 +13,41 @@ func TestVarcharArrayTranscode(t *testing.T) {
 		&pgtype.VarcharArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				{String: "foo", Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{String: "foo", Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.VarcharArray{Status: pgtype.Null},
+		&pgtype.VarcharArray{},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				{String: "bar ", Status: pgtype.Present},
-				{String: "NuLL", Status: pgtype.Present},
-				{String: `wow"quz\`, Status: pgtype.Present},
-				{String: "", Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{String: "null", Status: pgtype.Present},
+				{String: "bar ", Valid: true},
+				{String: "NuLL", Valid: true},
+				{String: `wow"quz\`, Valid: true},
+				{String: "", Valid: true},
+				{},
+				{String: "null", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.VarcharArray{
 			Elements: []pgtype.Varchar{
-				{String: "bar", Status: pgtype.Present},
-				{String: "baz", Status: pgtype.Present},
-				{String: "quz", Status: pgtype.Present},
-				{String: "foo", Status: pgtype.Present},
+				{String: "bar", Valid: true},
+				{String: "baz", Valid: true},
+				{String: "quz", Valid: true},
+				{String: "foo", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -60,61 +60,61 @@ func TestVarcharArraySet(t *testing.T) {
 		{
 			source: []string{"foo"},
 			result: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]string)(nil)),
-			result: pgtype.VarcharArray{Status: pgtype.Null},
+			result: pgtype.VarcharArray{},
 		},
 		{
 			source: [][]string{{"foo"}, {"bar"}},
 			result: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.VarcharArray{
 				Elements: []pgtype.Varchar{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]string{{"foo"}, {"bar"}},
 			result: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.VarcharArray{
 				Elements: []pgtype.Varchar{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -147,81 +147,81 @@ func TestVarcharArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &stringSlice,
 			expected: []string{"foo"},
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedStringSlice,
 			expected: _stringSlice{"bar"},
 		},
 		{
-			src:      pgtype.VarcharArray{Status: pgtype.Null},
+			src:      pgtype.VarcharArray{},
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
 		{
-			src:      pgtype.VarcharArray{Status: pgtype.Present},
+			src:      pgtype.VarcharArray{Valid: true},
 			dst:      &stringSlice,
 			expected: []string{},
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringSliceDim2,
 			expected: [][]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.VarcharArray{
 				Elements: []pgtype.Varchar{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringSliceDim4,
 			expected: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringArrayDim2,
 			expected: [2][1]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.VarcharArray{
 				Elements: []pgtype.Varchar{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringArrayDim4,
 			expected: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
@@ -244,31 +244,31 @@ func TestVarcharArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{Status: pgtype.Null}},
+				Elements:   []pgtype.Varchar{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim2,
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.VarcharArray{
-				Elements:   []pgtype.Varchar{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.Varchar{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim4,
 		},
 	}

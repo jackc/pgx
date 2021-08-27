@@ -230,7 +230,7 @@ create type cf_encode as (
 
 		for _, simpleProtocol := range simpleProtocols {
 			err := conn.QueryRow(context.Background(), "select $1::cf_encode", pgx.QuerySimpleProtocol(simpleProtocol),
-				pgtype.CompositeFields{&pgtype.Text{Status: pgtype.Null}, int32(1), "null", &pgtype.Float8{Status: pgtype.Null}, &pgtype.Text{Status: pgtype.Null}},
+				pgtype.CompositeFields{&pgtype.Text{}, int32(1), "null", &pgtype.Float8{}, &pgtype.Text{}},
 			).Scan(
 				pgtype.CompositeFields{&a, &b, &c, &d, &e},
 			)

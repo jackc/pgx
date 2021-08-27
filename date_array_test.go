@@ -14,41 +14,41 @@ func TestDateArrayTranscode(t *testing.T) {
 		&pgtype.DateArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.DateArray{
 			Elements: []pgtype.Date{
-				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.DateArray{Status: pgtype.Null},
+		&pgtype.DateArray{},
 		&pgtype.DateArray{
 			Elements: []pgtype.Date{
-				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2016, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2017, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2016, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2017, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{},
+				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.DateArray{
 			Elements: []pgtype.Date{
-				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2015, 2, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2015, 2, 3, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				{Time: time.Date(2015, 2, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2015, 2, 2, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2015, 2, 3, 0, 0, 0, 0, time.UTC), Valid: true},
+				{Time: time.Date(2015, 2, 4, 0, 0, 0, 0, time.UTC), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -61,13 +61,13 @@ func TestDateArraySet(t *testing.T) {
 		{
 			source: []time.Time{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
 			result: pgtype.DateArray{
-				Elements:   []pgtype.Date{{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Elements:   []pgtype.Date{{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]time.Time)(nil)),
-			result: pgtype.DateArray{Status: pgtype.Null},
+			result: pgtype.DateArray{},
 		},
 		{
 			source: [][]time.Time{
@@ -75,10 +75,10 @@ func TestDateArraySet(t *testing.T) {
 				{time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC)}},
 			result: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]time.Time{
@@ -92,18 +92,18 @@ func TestDateArraySet(t *testing.T) {
 					time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC)}}}},
 			result: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]time.Time{
@@ -111,10 +111,10 @@ func TestDateArraySet(t *testing.T) {
 				{time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC)}},
 			result: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]time.Time{
@@ -128,18 +128,18 @@ func TestDateArraySet(t *testing.T) {
 					time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC)}}}},
 			result: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -170,30 +170,30 @@ func TestDateArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.DateArray{
-				Elements:   []pgtype.Date{{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+				Elements:   []pgtype.Date{{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &timeSlice,
 			expected: []time.Time{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
-			src:      pgtype.DateArray{Status: pgtype.Null},
+			src:      pgtype.DateArray{},
 			dst:      &timeSlice,
 			expected: (([]time.Time)(nil)),
 		},
 		{
-			src:      pgtype.DateArray{Status: pgtype.Present},
+			src:      pgtype.DateArray{Valid: true},
 			dst:      &timeSlice,
 			expected: []time.Time{},
 		},
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &timeSliceDim2,
 			expected: [][]time.Time{
 				{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
@@ -202,18 +202,18 @@ func TestDateArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &timeSliceDim4,
 			expected: [][][][]time.Time{
 				{{{
@@ -228,10 +228,10 @@ func TestDateArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &timeArrayDim2,
 			expected: [2][1]time.Time{
 				{time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC)},
@@ -240,18 +240,18 @@ func TestDateArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2017, 5, 6, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2018, 7, 8, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2019, 9, 10, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2020, 11, 12, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &timeArrayDim4,
 			expected: [2][1][1][3]time.Time{
 				{{{
@@ -282,37 +282,37 @@ func TestDateArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.DateArray{
-				Elements:   []pgtype.Date{{Status: pgtype.Null}},
+				Elements:   []pgtype.Date{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &timeSlice,
 		},
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &timeArrayDim2,
 		},
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &timeSlice,
 		},
 		{
 			src: pgtype.DateArray{
 				Elements: []pgtype.Date{
-					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
+					{Time: time.Date(2015, 2, 1, 0, 0, 0, 0, time.UTC), Valid: true},
+					{Time: time.Date(2016, 3, 4, 0, 0, 0, 0, time.UTC), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &timeArrayDim4,
 		},
 	}

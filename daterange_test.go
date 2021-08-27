@@ -10,32 +10,32 @@ import (
 
 func TestDaterangeTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscodeEqFunc(t, "daterange", []interface{}{
-		&pgtype.Daterange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Status: pgtype.Present},
+		&pgtype.Daterange{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Valid: true},
 		&pgtype.Daterange{
-			Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-			Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+			Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+			Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Exclusive,
-			Status:    pgtype.Present,
+			Valid:     true,
 		},
 		&pgtype.Daterange{
-			Lower:     pgtype.Date{Time: time.Date(1800, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-			Upper:     pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+			Lower:     pgtype.Date{Time: time.Date(1800, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+			Upper:     pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Exclusive,
-			Status:    pgtype.Present,
+			Valid:     true,
 		},
-		&pgtype.Daterange{Status: pgtype.Null},
+		&pgtype.Daterange{},
 	}, func(aa, bb interface{}) bool {
 		a := aa.(pgtype.Daterange)
 		b := bb.(pgtype.Daterange)
 
-		return a.Status == b.Status &&
+		return a.Valid == b.Valid &&
 			a.Lower.Time.Equal(b.Lower.Time) &&
-			a.Lower.Status == b.Lower.Status &&
+			a.Lower.Valid == b.Lower.Valid &&
 			a.Lower.InfinityModifier == b.Lower.InfinityModifier &&
 			a.Upper.Time.Equal(b.Upper.Time) &&
-			a.Upper.Status == b.Upper.Status &&
+			a.Upper.Valid == b.Upper.Valid &&
 			a.Upper.InfinityModifier == b.Upper.InfinityModifier
 	})
 }
@@ -45,23 +45,23 @@ func TestDaterangeNormalize(t *testing.T) {
 		{
 			SQL: "select daterange('2010-01-01', '2010-01-11', '(]')",
 			Value: pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(2010, 1, 2, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2010, 1, 12, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(2010, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2010, 1, 12, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 		},
 	}, func(aa, bb interface{}) bool {
 		a := aa.(pgtype.Daterange)
 		b := bb.(pgtype.Daterange)
 
-		return a.Status == b.Status &&
+		return a.Valid == b.Valid &&
 			a.Lower.Time.Equal(b.Lower.Time) &&
-			a.Lower.Status == b.Lower.Status &&
+			a.Lower.Valid == b.Lower.Valid &&
 			a.Lower.InfinityModifier == b.Lower.InfinityModifier &&
 			a.Upper.Time.Equal(b.Upper.Time) &&
-			a.Upper.Status == b.Upper.Status &&
+			a.Upper.Valid == b.Upper.Valid &&
 			a.Upper.InfinityModifier == b.Upper.InfinityModifier
 	})
 }
@@ -73,48 +73,48 @@ func TestDaterangeSet(t *testing.T) {
 	}{
 		{
 			source: nil,
-			result: pgtype.Daterange{Status: pgtype.Null},
+			result: pgtype.Daterange{},
 		},
 		{
 			source: &pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 			result: pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 		},
 		{
 			source: pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 			result: pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 		},
 		{
 			source: "[1990-12-31,2028-01-01)",
 			result: pgtype.Daterange{
-				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
-				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present},
+				Lower:     pgtype.Date{Time: time.Date(1990, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
+				Upper:     pgtype.Date{Time: time.Date(2028, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
 				LowerType: pgtype.Inclusive,
 				UpperType: pgtype.Exclusive,
-				Status:    pgtype.Present,
+				Valid:     true,
 			},
 		},
 	}

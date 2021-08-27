@@ -20,7 +20,7 @@ type ArrayType struct {
 	newElement func() ValueTranscoder
 
 	elementOID uint32
-	status     Status
+	valid      bool
 }
 
 func NewArrayType(typeName string, elementOID uint32, newElement func() ValueTranscoder) *ArrayType {
@@ -31,7 +31,7 @@ func (at *ArrayType) NewTypeValue() Value {
 	return &ArrayType{
 		elements:   at.elements,
 		dimensions: at.dimensions,
-		status:     at.status,
+		valid:      at.valid,
 
 		typeName:   at.typeName,
 		elementOID: at.elementOID,
@@ -46,7 +46,7 @@ func (at *ArrayType) TypeName() string {
 func (dst *ArrayType) setNil() {
 	dst.elements = nil
 	dst.dimensions = nil
-	dst.status = Null
+	dst.valid = false
 }
 
 func (dst *ArrayType) Set(src interface{}) error {
@@ -77,24 +77,21 @@ func (dst *ArrayType) Set(src interface{}) error {
 		dst.elements[i] = v
 	}
 	dst.dimensions = []ArrayDimension{{Length: int32(len(dst.elements)), LowerBound: 1}}
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
 
-func (dst ArrayType) Get() interface{} {
-	switch dst.status {
-	case Present:
-		elementValues := make([]interface{}, len(dst.elements))
-		for i := range dst.elements {
-			elementValues[i] = dst.elements[i].Get()
-		}
-		return elementValues
-	case Null:
+func (src ArrayType) Get() interface{} {
+	if !src.valid {
 		return nil
-	default:
-		return dst.status
 	}
+
+	elementValues := make([]interface{}, len(src.elements))
+	for i := range src.elements {
+		elementValues[i] = src.elements[i].Get()
+	}
+	return elementValues
 }
 
 func (src *ArrayType) AssignTo(dst interface{}) error {
@@ -110,8 +107,7 @@ func (src *ArrayType) AssignTo(dst interface{}) error {
 		return fmt.Errorf("cannot assign to pointer to non-slice")
 	}
 
-	switch src.status {
-	case Present:
+	if src.valid {
 		slice := reflect.MakeSlice(sliceType, len(src.elements), len(src.elements))
 		elemType := sliceType.Elem()
 
@@ -127,12 +123,10 @@ func (src *ArrayType) AssignTo(dst interface{}) error {
 
 		sliceVal.Set(slice)
 		return nil
-	case Null:
+	} else {
 		sliceVal.Set(reflect.Zero(sliceType))
 		return nil
 	}
-
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
 }
 
 func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
@@ -168,7 +162,7 @@ func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
 
 	dst.elements = elements
 	dst.dimensions = uta.Dimensions
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
@@ -190,7 +184,7 @@ func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if len(arrayHeader.Dimensions) == 0 {
 		dst.elements = elements
 		dst.dimensions = arrayHeader.Dimensions
-		dst.status = Present
+		dst.valid = true
 		return nil
 	}
 
@@ -220,17 +214,14 @@ func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	dst.elements = elements
 	dst.dimensions = arrayHeader.Dimensions
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
 
 func (src ArrayType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.status {
-	case Null:
+	if !src.valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if len(src.dimensions) == 0 {
@@ -283,11 +274,8 @@ func (src ArrayType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src ArrayType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.status {
-	case Null:
+	if !src.valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	arrayHeader := ArrayHeader{

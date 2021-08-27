@@ -8,13 +8,13 @@ import (
 )
 
 type JSON struct {
-	Bytes  []byte
-	Status Status
+	Bytes []byte
+	Valid bool
 }
 
 func (dst *JSON) Set(src interface{}) error {
 	if src == nil {
-		*dst = JSON{Status: Null}
+		*dst = JSON{}
 		return nil
 	}
 
@@ -27,18 +27,18 @@ func (dst *JSON) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case string:
-		*dst = JSON{Bytes: []byte(value), Status: Present}
+		*dst = JSON{Bytes: []byte(value), Valid: true}
 	case *string:
 		if value == nil {
-			*dst = JSON{Status: Null}
+			*dst = JSON{}
 		} else {
-			*dst = JSON{Bytes: []byte(*value), Status: Present}
+			*dst = JSON{Bytes: []byte(*value), Valid: true}
 		}
 	case []byte:
 		if value == nil {
-			*dst = JSON{Status: Null}
+			*dst = JSON{}
 		} else {
-			*dst = JSON{Bytes: value, Status: Present}
+			*dst = JSON{Bytes: value, Valid: true}
 		}
 	// Encode* methods are defined on *JSON. If JSON is passed directly then the
 	// struct itself would be encoded instead of Bytes. This is clearly a footgun
@@ -54,38 +54,35 @@ func (dst *JSON) Set(src interface{}) error {
 		if err != nil {
 			return err
 		}
-		*dst = JSON{Bytes: buf, Status: Present}
+		*dst = JSON{Bytes: buf, Valid: true}
 	}
 
 	return nil
 }
 
 func (dst JSON) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		var i interface{}
-		err := json.Unmarshal(dst.Bytes, &i)
-		if err != nil {
-			return dst
-		}
-		return i
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+
+	var i interface{}
+	err := json.Unmarshal(dst.Bytes, &i)
+	if err != nil {
+		return dst
+	}
+	return i
 }
 
 func (src *JSON) AssignTo(dst interface{}) error {
 	switch v := dst.(type) {
 	case *string:
-		if src.Status == Present {
+		if src.Valid {
 			*v = string(src.Bytes)
 		} else {
-			return fmt.Errorf("cannot assign non-present status to %T", dst)
+			return fmt.Errorf("cannot assign non-valid to %T", dst)
 		}
 	case **string:
-		if src.Status == Present {
+		if src.Valid {
 			s := string(src.Bytes)
 			*v = &s
 			return nil
@@ -94,7 +91,7 @@ func (src *JSON) AssignTo(dst interface{}) error {
 			return nil
 		}
 	case *[]byte:
-		if src.Status != Present {
+		if !src.Valid {
 			*v = nil
 		} else {
 			buf := make([]byte, len(src.Bytes))
@@ -103,7 +100,7 @@ func (src *JSON) AssignTo(dst interface{}) error {
 		}
 	default:
 		data := src.Bytes
-		if data == nil || src.Status != Present {
+		if data == nil || !src.Valid {
 			data = []byte("null")
 		}
 
@@ -119,11 +116,11 @@ func (JSON) PreferredResultFormat() int16 {
 
 func (dst *JSON) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = JSON{Status: Null}
+		*dst = JSON{}
 		return nil
 	}
 
-	*dst = JSON{Bytes: src, Status: Present}
+	*dst = JSON{Bytes: src, Valid: true}
 	return nil
 }
 
@@ -136,11 +133,8 @@ func (JSON) PreferredParamFormat() int16 {
 }
 
 func (src JSON) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, src.Bytes...), nil
@@ -153,7 +147,7 @@ func (src JSON) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *JSON) Scan(src interface{}) error {
 	if src == nil {
-		*dst = JSON{Status: Null}
+		*dst = JSON{}
 		return nil
 	}
 
@@ -171,34 +165,24 @@ func (dst *JSON) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src JSON) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return src.Bytes, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+	return src.Bytes, nil
 }
 
 func (src JSON) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Present:
-		return src.Bytes, nil
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
 	}
-
-	return nil, errBadStatus
+	return src.Bytes, nil
 }
 
 func (dst *JSON) UnmarshalJSON(b []byte) error {
 	if b == nil || string(b) == "null" {
-		*dst = JSON{Status: Null}
+		*dst = JSON{}
 	} else {
-		*dst = JSON{Bytes: b, Status: Present}
+		*dst = JSON{Bytes: b, Valid: true}
 	}
 	return nil
 

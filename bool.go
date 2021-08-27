@@ -8,13 +8,13 @@ import (
 )
 
 type Bool struct {
-	Bool   bool
-	Status Status
+	Bool  bool
+	Valid bool
 }
 
 func (dst *Bool) Set(src interface{}) error {
 	if src == nil {
-		*dst = Bool{Status: Null}
+		*dst = Bool{}
 		return nil
 	}
 
@@ -27,22 +27,22 @@ func (dst *Bool) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case bool:
-		*dst = Bool{Bool: value, Status: Present}
+		*dst = Bool{Bool: value, Valid: true}
 	case string:
 		bb, err := strconv.ParseBool(value)
 		if err != nil {
 			return err
 		}
-		*dst = Bool{Bool: bb, Status: Present}
+		*dst = Bool{Bool: bb, Valid: true}
 	case *bool:
 		if value == nil {
-			*dst = Bool{Status: Null}
+			*dst = Bool{}
 		} else {
 			return dst.Set(*value)
 		}
 	case *string:
 		if value == nil {
-			*dst = Bool{Status: Null}
+			*dst = Bool{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -57,39 +57,33 @@ func (dst *Bool) Set(src interface{}) error {
 }
 
 func (dst Bool) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Bool
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+
+	return dst.Bool
 }
 
 func (src *Bool) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *bool:
-			*v = src.Bool
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *bool:
+		*v = src.Bool
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Bool{Status: Null}
+		*dst = Bool{}
 		return nil
 	}
 
@@ -97,13 +91,13 @@ func (dst *Bool) DecodeText(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("invalid length for bool: %v", len(src))
 	}
 
-	*dst = Bool{Bool: src[0] == 't', Status: Present}
+	*dst = Bool{Bool: src[0] == 't', Valid: true}
 	return nil
 }
 
 func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Bool{Status: Null}
+		*dst = Bool{}
 		return nil
 	}
 
@@ -111,16 +105,13 @@ func (dst *Bool) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("invalid length for bool: %v", len(src))
 	}
 
-	*dst = Bool{Bool: src[0] == 1, Status: Present}
+	*dst = Bool{Bool: src[0] == 1, Valid: true}
 	return nil
 }
 
 func (src Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if src.Bool {
@@ -133,11 +124,8 @@ func (src Bool) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Bool) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if src.Bool {
@@ -152,13 +140,13 @@ func (src Bool) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Bool) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Bool{Status: Null}
+		*dst = Bool{}
 		return nil
 	}
 
 	switch src := src.(type) {
 	case bool:
-		*dst = Bool{Bool: src, Status: Present}
+		*dst = Bool{Bool: src, Valid: true}
 		return nil
 	case string:
 		return dst.DecodeText(nil, []byte(src))
@@ -173,31 +161,23 @@ func (dst *Bool) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Bool) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		return src.Bool, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	return src.Bool, nil
 }
 
 func (src Bool) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Present:
-		if src.Bool {
-			return []byte("true"), nil
-		} else {
-			return []byte("false"), nil
-		}
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
-	return nil, errBadStatus
+	if src.Bool {
+		return []byte("true"), nil
+	} else {
+		return []byte("false"), nil
+	}
 }
 
 func (dst *Bool) UnmarshalJSON(b []byte) error {
@@ -208,9 +188,9 @@ func (dst *Bool) UnmarshalJSON(b []byte) error {
 	}
 
 	if v == nil {
-		*dst = Bool{Status: Null}
+		*dst = Bool{}
 	} else {
-		*dst = Bool{Bool: *v, Status: Present}
+		*dst = Bool{Bool: *v, Valid: true}
 	}
 
 	return nil

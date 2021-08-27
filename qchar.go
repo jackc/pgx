@@ -18,13 +18,13 @@ import (
 // addition, database/sql Scanner and database/sql/driver Value are not
 // implemented.
 type QChar struct {
-	Int    int8
-	Status Status
+	Int   int8
+	Valid bool
 }
 
 func (dst *QChar) Set(src interface{}) error {
 	if src == nil {
-		*dst = QChar{Status: Null}
+		*dst = QChar{}
 		return nil
 	}
 
@@ -37,12 +37,12 @@ func (dst *QChar) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case int8:
-		*dst = QChar{Int: value, Status: Present}
+		*dst = QChar{Int: value, Valid: true}
 	case uint8:
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case int16:
 		if value < math.MinInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
@@ -50,12 +50,12 @@ func (dst *QChar) Set(src interface{}) error {
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case uint16:
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case int32:
 		if value < math.MinInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
@@ -63,12 +63,12 @@ func (dst *QChar) Set(src interface{}) error {
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case uint32:
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case int64:
 		if value < math.MinInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
@@ -76,12 +76,12 @@ func (dst *QChar) Set(src interface{}) error {
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case uint64:
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case int:
 		if value < math.MinInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
@@ -89,18 +89,18 @@ func (dst *QChar) Set(src interface{}) error {
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case uint:
 		if value > math.MaxInt8 {
 			return fmt.Errorf("%d is greater than maximum value for QChar", value)
 		}
-		*dst = QChar{Int: int8(value), Status: Present}
+		*dst = QChar{Int: int8(value), Valid: true}
 	case string:
 		num, err := strconv.ParseInt(value, 10, 8)
 		if err != nil {
 			return err
 		}
-		*dst = QChar{Int: int8(num), Status: Present}
+		*dst = QChar{Int: int8(num), Valid: true}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
@@ -112,23 +112,19 @@ func (dst *QChar) Set(src interface{}) error {
 }
 
 func (dst QChar) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Int
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Int
 }
 
 func (src *QChar) AssignTo(dst interface{}) error {
-	return int64AssignTo(int64(src.Int), src.Status, dst)
+	return int64AssignTo(int64(src.Int), src.Valid, dst)
 }
 
 func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = QChar{Status: Null}
+		*dst = QChar{}
 		return nil
 	}
 
@@ -136,16 +132,13 @@ func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf(`invalid length for "char": %v`, len(src))
 	}
 
-	*dst = QChar{Int: int8(src[0]), Status: Present}
+	*dst = QChar{Int: int8(src[0]), Valid: true}
 	return nil
 }
 
 func (src QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, byte(src.Int)), nil

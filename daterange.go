@@ -12,13 +12,13 @@ type Daterange struct {
 	Upper     Date
 	LowerType BoundType
 	UpperType BoundType
-	Status    Status
+	Valid     bool
 }
 
 func (dst *Daterange) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = Daterange{Status: Null}
+		*dst = Daterange{}
 		return nil
 	}
 
@@ -36,15 +36,11 @@ func (dst *Daterange) Set(src interface{}) error {
 	return nil
 }
 
-func (dst Daterange) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+func (src Daterange) Get() interface{} {
+	if !src.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return src
 }
 
 func (src *Daterange) AssignTo(dst interface{}) error {
@@ -53,7 +49,7 @@ func (src *Daterange) AssignTo(dst interface{}) error {
 
 func (dst *Daterange) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Daterange{Status: Null}
+		*dst = Daterange{}
 		return nil
 	}
 
@@ -62,7 +58,7 @@ func (dst *Daterange) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Daterange{Status: Present}
+	*dst = Daterange{Valid: true}
 
 	dst.LowerType = utr.LowerType
 	dst.UpperType = utr.UpperType
@@ -88,7 +84,7 @@ func (dst *Daterange) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *Daterange) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Daterange{Status: Null}
+		*dst = Daterange{}
 		return nil
 	}
 
@@ -97,7 +93,7 @@ func (dst *Daterange) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Daterange{Status: Present}
+	*dst = Daterange{Valid: true}
 
 	dst.LowerType = ubr.LowerType
 	dst.UpperType = ubr.UpperType
@@ -122,11 +118,8 @@ func (dst *Daterange) DecodeBinary(ci *ConnInfo, src []byte) error {
 }
 
 func (src Daterange) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	switch src.LowerType {
@@ -175,11 +168,8 @@ func (src Daterange) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Daterange) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var rangeType byte
@@ -245,7 +235,7 @@ func (src Daterange) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Daterange) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Daterange{Status: Null}
+		*dst = Daterange{}
 		return nil
 	}
 

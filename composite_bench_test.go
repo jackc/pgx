@@ -44,7 +44,7 @@ func (dst *MyCompositeRaw) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	}
 
 	dst.A = a.Int
-	if b.Status == pgtype.Present {
+	if b.Valid {
 		dst.B = &b.String
 	} else {
 		dst.B = nil

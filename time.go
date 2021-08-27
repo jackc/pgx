@@ -17,13 +17,13 @@ import (
 // to needing to handle 24:00:00. time.Time converts that to 00:00:00 on the following day.
 type Time struct {
 	Microseconds int64 // Number of microseconds since midnight
-	Status       Status
+	Valid        bool
 }
 
 // Set converts src into a Time and stores in dst.
 func (dst *Time) Set(src interface{}) error {
 	if src == nil {
-		*dst = Time{Status: Null}
+		*dst = Time{}
 		return nil
 	}
 
@@ -40,10 +40,10 @@ func (dst *Time) Set(src interface{}) error {
 			int64(value.Minute())*microsecondsPerMinute +
 			int64(value.Second())*microsecondsPerSecond +
 			int64(value.Nanosecond())/1000
-		*dst = Time{Microseconds: usec, Status: Present}
+		*dst = Time{Microseconds: usec, Valid: true}
 	case *time.Time:
 		if value == nil {
-			*dst = Time{Status: Null}
+			*dst = Time{}
 		} else {
 			return dst.Set(*value)
 		}
@@ -58,54 +58,47 @@ func (dst *Time) Set(src interface{}) error {
 }
 
 func (dst Time) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst.Microseconds
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Microseconds
 }
 
 func (src *Time) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *time.Time:
-			// 24:00:00 is max allowed time in PostgreSQL, but time.Time will normalize that to 00:00:00 the next day.
-			var maxRepresentableByTime int64 = 24*60*60*1000000 - 1
-			if src.Microseconds > maxRepresentableByTime {
-				return fmt.Errorf("%d microseconds cannot be represented as time.Time", src.Microseconds)
-			}
-
-			usec := src.Microseconds
-			hours := usec / microsecondsPerHour
-			usec -= hours * microsecondsPerHour
-			minutes := usec / microsecondsPerMinute
-			usec -= minutes * microsecondsPerMinute
-			seconds := usec / microsecondsPerSecond
-			usec -= seconds * microsecondsPerSecond
-			ns := usec * 1000
-			*v = time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), time.UTC)
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *time.Time:
+		// 24:00:00 is max allowed time in PostgreSQL, but time.Time will normalize that to 00:00:00 the next day.
+		var maxRepresentableByTime int64 = 24*60*60*1000000 - 1
+		if src.Microseconds > maxRepresentableByTime {
+			return fmt.Errorf("%d microseconds cannot be represented as time.Time", src.Microseconds)
+		}
+
+		usec := src.Microseconds
+		hours := usec / microsecondsPerHour
+		usec -= hours * microsecondsPerHour
+		minutes := usec / microsecondsPerMinute
+		usec -= minutes * microsecondsPerMinute
+		seconds := usec / microsecondsPerSecond
+		usec -= seconds * microsecondsPerSecond
+		ns := usec * 1000
+		*v = time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), time.UTC)
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 // DecodeText decodes from src into dst.
 func (dst *Time) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Time{Status: Null}
+		*dst = Time{}
 		return nil
 	}
 
@@ -147,7 +140,7 @@ func (dst *Time) DecodeText(ci *ConnInfo, src []byte) error {
 		usec += n
 	}
 
-	*dst = Time{Microseconds: usec, Status: Present}
+	*dst = Time{Microseconds: usec, Valid: true}
 
 	return nil
 }
@@ -155,7 +148,7 @@ func (dst *Time) DecodeText(ci *ConnInfo, src []byte) error {
 // DecodeBinary decodes from src into dst.
 func (dst *Time) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Time{Status: Null}
+		*dst = Time{}
 		return nil
 	}
 
@@ -164,18 +157,15 @@ func (dst *Time) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	usec := int64(binary.BigEndian.Uint64(src))
-	*dst = Time{Microseconds: usec, Status: Present}
+	*dst = Time{Microseconds: usec, Valid: true}
 
 	return nil
 }
 
 // EncodeText writes the text encoding of src into w.
 func (src Time) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	usec := src.Microseconds
@@ -194,11 +184,8 @@ func (src Time) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 // EncodeBinary writes the binary encoding of src into w. If src.Time is not in
 // the UTC time zone it returns an error.
 func (src Time) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return pgio.AppendInt64(buf, src.Microseconds), nil
@@ -207,7 +194,7 @@ func (src Time) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Time) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Time{Status: Null}
+		*dst = Time{}
 		return nil
 	}
 

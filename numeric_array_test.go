@@ -15,41 +15,41 @@ func TestNumericArrayTranscode(t *testing.T) {
 		&pgtype.NumericArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				{Int: big.NewInt(1), Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Int: big.NewInt(1), Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.NumericArray{Status: pgtype.Null},
+		&pgtype.NumericArray{},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				{Int: big.NewInt(1), Status: pgtype.Present},
-				{Int: big.NewInt(2), Status: pgtype.Present},
-				{Int: big.NewInt(3), Status: pgtype.Present},
-				{Int: big.NewInt(4), Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{Int: big.NewInt(6), Status: pgtype.Present},
+				{Int: big.NewInt(1), Valid: true},
+				{Int: big.NewInt(2), Valid: true},
+				{Int: big.NewInt(3), Valid: true},
+				{Int: big.NewInt(4), Valid: true},
+				{},
+				{Int: big.NewInt(6), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.NumericArray{
 			Elements: []pgtype.Numeric{
-				{Int: big.NewInt(1), Status: pgtype.Present},
-				{Int: big.NewInt(2), Status: pgtype.Present},
-				{Int: big.NewInt(3), Status: pgtype.Present},
-				{Int: big.NewInt(4), Status: pgtype.Present},
+				{Int: big.NewInt(1), Valid: true},
+				{Int: big.NewInt(2), Valid: true},
+				{Int: big.NewInt(3), Valid: true},
+				{Int: big.NewInt(4), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -62,82 +62,82 @@ func TestNumericArraySet(t *testing.T) {
 		{
 			source: []float32{1},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []float32{float32(math.Copysign(0, -1))},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []float64{1},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []float64{math.Copysign(0, -1)},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(0), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]float32)(nil)),
-			result: pgtype.NumericArray{Status: pgtype.Null},
+			result: pgtype.NumericArray{},
 		},
 		{
 			source: [][]float32{{1}, {2}},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.NumericArray{
 				Elements: []pgtype.Numeric{
-					{Int: big.NewInt(1), Status: pgtype.Present},
-					{Int: big.NewInt(2), Status: pgtype.Present},
-					{Int: big.NewInt(3), Status: pgtype.Present},
-					{Int: big.NewInt(4), Status: pgtype.Present},
-					{Int: big.NewInt(5), Status: pgtype.Present},
-					{Int: big.NewInt(6), Status: pgtype.Present}},
+					{Int: big.NewInt(1), Valid: true},
+					{Int: big.NewInt(2), Valid: true},
+					{Int: big.NewInt(3), Valid: true},
+					{Int: big.NewInt(4), Valid: true},
+					{Int: big.NewInt(5), Valid: true},
+					{Int: big.NewInt(6), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]float32{{1}, {2}},
 			result: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.NumericArray{
 				Elements: []pgtype.Numeric{
-					{Int: big.NewInt(1), Status: pgtype.Present},
-					{Int: big.NewInt(2), Status: pgtype.Present},
-					{Int: big.NewInt(3), Status: pgtype.Present},
-					{Int: big.NewInt(4), Status: pgtype.Present},
-					{Int: big.NewInt(5), Status: pgtype.Present},
-					{Int: big.NewInt(6), Status: pgtype.Present}},
+					{Int: big.NewInt(1), Valid: true},
+					{Int: big.NewInt(2), Valid: true},
+					{Int: big.NewInt(3), Valid: true},
+					{Int: big.NewInt(4), Valid: true},
+					{Int: big.NewInt(5), Valid: true},
+					{Int: big.NewInt(6), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -169,81 +169,81 @@ func TestNumericArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &float32Slice,
 			expected: []float32{1},
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &float64Slice,
 			expected: []float64{1},
 		},
 		{
-			src:      pgtype.NumericArray{Status: pgtype.Null},
+			src:      pgtype.NumericArray{},
 			dst:      &float32Slice,
 			expected: (([]float32)(nil)),
 		},
 		{
-			src:      pgtype.NumericArray{Status: pgtype.Present},
+			src:      pgtype.NumericArray{Valid: true},
 			dst:      &float32Slice,
 			expected: []float32{},
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &float32SliceDim2,
 			expected: [][]float32{{1}, {2}},
 		},
 		{
 			src: pgtype.NumericArray{
 				Elements: []pgtype.Numeric{
-					{Int: big.NewInt(1), Status: pgtype.Present},
-					{Int: big.NewInt(2), Status: pgtype.Present},
-					{Int: big.NewInt(3), Status: pgtype.Present},
-					{Int: big.NewInt(4), Status: pgtype.Present},
-					{Int: big.NewInt(5), Status: pgtype.Present},
-					{Int: big.NewInt(6), Status: pgtype.Present}},
+					{Int: big.NewInt(1), Valid: true},
+					{Int: big.NewInt(2), Valid: true},
+					{Int: big.NewInt(3), Valid: true},
+					{Int: big.NewInt(4), Valid: true},
+					{Int: big.NewInt(5), Valid: true},
+					{Int: big.NewInt(6), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &float32SliceDim4,
 			expected: [][][][]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &float32ArrayDim2,
 			expected: [2][1]float32{{1}, {2}},
 		},
 		{
 			src: pgtype.NumericArray{
 				Elements: []pgtype.Numeric{
-					{Int: big.NewInt(1), Status: pgtype.Present},
-					{Int: big.NewInt(2), Status: pgtype.Present},
-					{Int: big.NewInt(3), Status: pgtype.Present},
-					{Int: big.NewInt(4), Status: pgtype.Present},
-					{Int: big.NewInt(5), Status: pgtype.Present},
-					{Int: big.NewInt(6), Status: pgtype.Present}},
+					{Int: big.NewInt(1), Valid: true},
+					{Int: big.NewInt(2), Valid: true},
+					{Int: big.NewInt(3), Valid: true},
+					{Int: big.NewInt(4), Valid: true},
+					{Int: big.NewInt(5), Valid: true},
+					{Int: big.NewInt(6), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &float32ArrayDim4,
 			expected: [2][1][1][3]float32{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 		},
@@ -266,31 +266,31 @@ func TestNumericArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Status: pgtype.Null}},
+				Elements:   []pgtype.Numeric{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &float32Slice,
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32ArrayDim2,
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32Slice,
 		},
 		{
 			src: pgtype.NumericArray{
-				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Status: pgtype.Present}, {Int: big.NewInt(2), Status: pgtype.Present}},
+				Elements:   []pgtype.Numeric{{Int: big.NewInt(1), Valid: true}, {Int: big.NewInt(2), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &float32ArrayDim4,
 		},
 	}

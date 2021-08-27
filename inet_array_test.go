@@ -14,41 +14,41 @@ func TestInetArrayTranscode(t *testing.T) {
 		&pgtype.InetArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.InetArray{Status: pgtype.Null},
+		&pgtype.InetArray{},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Valid: true},
+				{},
+				{IPNet: mustParseCIDR(t, "255.0.0.0/8"), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.InetArray{
 			Elements: []pgtype.Inet{
-				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Status: pgtype.Present},
-				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Status: pgtype.Present},
+				{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "12.34.56.0/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "192.168.0.1/32"), Valid: true},
+				{IPNet: mustParseCIDR(t, "2607:f8b0:4009:80b::200e/128"), Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -61,33 +61,33 @@ func TestInetArraySet(t *testing.T) {
 		{
 			source: []*net.IPNet{mustParseCIDR(t, "127.0.0.1/32")},
 			result: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]*net.IPNet)(nil)),
-			result: pgtype.InetArray{Status: pgtype.Null},
+			result: pgtype.InetArray{},
 		},
 		{
 			source: []net.IP{mustParseCIDR(t, "127.0.0.1/32").IP},
 			result: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]net.IP)(nil)),
-			result: pgtype.InetArray{Status: pgtype.Null},
+			result: pgtype.InetArray{},
 		},
 		{
 			source: [][]net.IP{{mustParseCIDR(t, "127.0.0.1/32").IP}, {mustParseCIDR(t, "10.0.0.1/32").IP}},
 			result: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]*net.IPNet{
@@ -101,27 +101,27 @@ func TestInetArraySet(t *testing.T) {
 					mustParseCIDR(t, "169.168.0.1/16")}}}},
 			result: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]net.IP{{mustParseCIDR(t, "127.0.0.1/32").IP}, {mustParseCIDR(t, "10.0.0.1/32").IP}},
 			result: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]*net.IPNet{
@@ -135,18 +135,18 @@ func TestInetArraySet(t *testing.T) {
 					mustParseCIDR(t, "169.168.0.1/16")}}}},
 			result: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -178,85 +178,85 @@ func TestInetArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &ipnetSlice,
 			expected: []*net.IPNet{mustParseCIDR(t, "127.0.0.1/32")},
 		},
 		{
 			src: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{Status: pgtype.Null}},
+				Elements:   []pgtype.Inet{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &ipnetSlice,
 			expected: []*net.IPNet{nil},
 		},
 		{
 			src: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
+				Elements:   []pgtype.Inet{{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &ipSlice,
 			expected: []net.IP{mustParseCIDR(t, "127.0.0.1/32").IP},
 		},
 		{
 			src: pgtype.InetArray{
-				Elements:   []pgtype.Inet{{Status: pgtype.Null}},
+				Elements:   []pgtype.Inet{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &ipSlice,
 			expected: []net.IP{nil},
 		},
 		{
-			src:      pgtype.InetArray{Status: pgtype.Null},
+			src:      pgtype.InetArray{},
 			dst:      &ipnetSlice,
 			expected: (([]*net.IPNet)(nil)),
 		},
 		{
-			src:      pgtype.InetArray{Status: pgtype.Present},
+			src:      pgtype.InetArray{Valid: true},
 			dst:      &ipnetSlice,
 			expected: []*net.IPNet{},
 		},
 		{
-			src:      pgtype.InetArray{Status: pgtype.Null},
+			src:      pgtype.InetArray{},
 			dst:      &ipSlice,
 			expected: (([]net.IP)(nil)),
 		},
 		{
-			src:      pgtype.InetArray{Status: pgtype.Present},
+			src:      pgtype.InetArray{Valid: true},
 			dst:      &ipSlice,
 			expected: []net.IP{},
 		},
 		{
 			src: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &ipSliceDim2,
 			expected: [][]net.IP{{mustParseCIDR(t, "127.0.0.1/32").IP}, {mustParseCIDR(t, "10.0.0.1/32").IP}},
 		},
 		{
 			src: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &ipnetSliceDim4,
 			expected: [][][][]*net.IPNet{
 				{{{
@@ -271,28 +271,28 @@ func TestInetArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/32"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &ipArrayDim2,
 			expected: [2][1]net.IP{{mustParseCIDR(t, "127.0.0.1/32").IP}, {mustParseCIDR(t, "10.0.0.1/32").IP}},
 		},
 		{
 			src: pgtype.InetArray{
 				Elements: []pgtype.Inet{
-					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Status: pgtype.Present},
-					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Status: pgtype.Present}},
+					{IPNet: mustParseCIDR(t, "127.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "10.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "172.16.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "192.168.0.1/16"), Valid: true},
+					{IPNet: mustParseCIDR(t, "224.0.0.1/24"), Valid: true},
+					{IPNet: mustParseCIDR(t, "169.168.0.1/16"), Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &ipnetArrayDim4,
 			expected: [2][1][1][3]*net.IPNet{
 				{{{

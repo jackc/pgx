@@ -5,8 +5,8 @@ import "fmt"
 // EnumType represents a enum type. While it implements Value, this is only in service of its type conversion duties
 // when registered as a data type in a ConnType. It should not be used directly as a Value.
 type EnumType struct {
-	value  string
-	status Status
+	value string
+	valid bool
 
 	typeName   string            // PostgreSQL type name
 	members    []string          // enum members
@@ -25,8 +25,8 @@ func NewEnumType(typeName string, members []string) *EnumType {
 
 func (et *EnumType) NewTypeValue() Value {
 	return &EnumType{
-		value:  et.value,
-		status: et.status,
+		value: et.value,
+		valid: et.valid,
 
 		typeName:   et.typeName,
 		members:    et.members,
@@ -46,7 +46,7 @@ func (et *EnumType) Members() []string {
 // operation in the event the PostgreSQL enum type is modified during a connection.
 func (dst *EnumType) Set(src interface{}) error {
 	if src == nil {
-		dst.status = Null
+		dst.valid = false
 		return nil
 	}
 
@@ -60,20 +60,20 @@ func (dst *EnumType) Set(src interface{}) error {
 	switch value := src.(type) {
 	case string:
 		dst.value = value
-		dst.status = Present
+		dst.valid = true
 	case *string:
 		if value == nil {
-			dst.status = Null
+			dst.valid = false
 		} else {
 			dst.value = *value
-			dst.status = Present
+			dst.valid = true
 		}
 	case []byte:
 		if value == nil {
-			dst.status = Null
+			dst.valid = false
 		} else {
 			dst.value = string(value)
-			dst.status = Present
+			dst.valid = true
 		}
 	default:
 		if originalSrc, ok := underlyingStringType(src); ok {
@@ -86,38 +86,31 @@ func (dst *EnumType) Set(src interface{}) error {
 }
 
 func (dst EnumType) Get() interface{} {
-	switch dst.status {
-	case Present:
-		return dst.value
-	case Null:
+	if !dst.valid {
 		return nil
-	default:
-		return dst.status
 	}
+	return dst.value
 }
 
 func (src *EnumType) AssignTo(dst interface{}) error {
-	switch src.status {
-	case Present:
-		switch v := dst.(type) {
-		case *string:
-			*v = src.value
-			return nil
-		case *[]byte:
-			*v = make([]byte, len(src.value))
-			copy(*v, src.value)
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *string:
+		*v = src.value
+		return nil
+	case *[]byte:
+		*v = make([]byte, len(src.value))
+		copy(*v, src.value)
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (EnumType) PreferredResultFormat() int16 {
@@ -126,7 +119,7 @@ func (EnumType) PreferredResultFormat() int16 {
 
 func (dst *EnumType) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		dst.status = Null
+		dst.valid = false
 		return nil
 	}
 
@@ -139,7 +132,7 @@ func (dst *EnumType) DecodeText(ci *ConnInfo, src []byte) error {
 		// and membersMap between connections.
 		dst.value = string(src)
 	}
-	dst.status = Present
+	dst.valid = true
 
 	return nil
 }
@@ -153,11 +146,8 @@ func (EnumType) PreferredParamFormat() int16 {
 }
 
 func (src EnumType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.status {
-	case Null:
+	if !src.valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	return append(buf, src.value...), nil

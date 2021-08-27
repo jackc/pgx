@@ -15,13 +15,13 @@ import (
 type InetArray struct {
 	Elements   []Inet
 	Dimensions []ArrayDimension
-	Status     Status
+	Valid      bool
 }
 
 func (dst *InetArray) Set(src interface{}) error {
 	// untyped nil and typed nil interfaces are different
 	if src == nil {
-		*dst = InetArray{Status: Null}
+		*dst = InetArray{}
 		return nil
 	}
 
@@ -37,9 +37,9 @@ func (dst *InetArray) Set(src interface{}) error {
 
 	case []*net.IPNet:
 		if value == nil {
-			*dst = InetArray{Status: Null}
+			*dst = InetArray{}
 		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = InetArray{Valid: true}
 		} else {
 			elements := make([]Inet, len(value))
 			for i := range value {
@@ -50,15 +50,15 @@ func (dst *InetArray) Set(src interface{}) error {
 			*dst = InetArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []net.IP:
 		if value == nil {
-			*dst = InetArray{Status: Null}
+			*dst = InetArray{}
 		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = InetArray{Valid: true}
 		} else {
 			elements := make([]Inet, len(value))
 			for i := range value {
@@ -69,15 +69,15 @@ func (dst *InetArray) Set(src interface{}) error {
 			*dst = InetArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []*net.IP:
 		if value == nil {
-			*dst = InetArray{Status: Null}
+			*dst = InetArray{}
 		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = InetArray{Valid: true}
 		} else {
 			elements := make([]Inet, len(value))
 			for i := range value {
@@ -88,20 +88,20 @@ func (dst *InetArray) Set(src interface{}) error {
 			*dst = InetArray{
 				Elements:   elements,
 				Dimensions: []ArrayDimension{{Length: int32(len(elements)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 
 	case []Inet:
 		if value == nil {
-			*dst = InetArray{Status: Null}
+			*dst = InetArray{}
 		} else if len(value) == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = InetArray{Valid: true}
 		} else {
 			*dst = InetArray{
 				Elements:   value,
 				Dimensions: []ArrayDimension{{Length: int32(len(value)), LowerBound: 1}},
-				Status:     Present,
+				Valid:      true,
 			}
 		}
 	default:
@@ -110,7 +110,7 @@ func (dst *InetArray) Set(src interface{}) error {
 		// but it comes with a 20-50% performance penalty for large arrays/slices
 		reflectedValue := reflect.ValueOf(src)
 		if !reflectedValue.IsValid() || reflectedValue.IsZero() {
-			*dst = InetArray{Status: Null}
+			*dst = InetArray{}
 			return nil
 		}
 
@@ -119,7 +119,7 @@ func (dst *InetArray) Set(src interface{}) error {
 			return fmt.Errorf("cannot find dimensions of %v for InetArray", src)
 		}
 		if elementsLength == 0 {
-			*dst = InetArray{Status: Present}
+			*dst = InetArray{Valid: true}
 			return nil
 		}
 		if len(dimensions) == 0 {
@@ -132,7 +132,7 @@ func (dst *InetArray) Set(src interface{}) error {
 		*dst = InetArray{
 			Elements:   make([]Inet, elementsLength),
 			Dimensions: dimensions,
-			Status:     Present,
+			Valid:      true,
 		}
 		elementCount, err := dst.setRecursive(reflectedValue, 0, 0)
 		if err != nil {
@@ -199,93 +199,86 @@ func (dst *InetArray) setRecursive(value reflect.Value, index, dimension int) (i
 }
 
 func (dst InetArray) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *InetArray) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		if len(src.Dimensions) <= 1 {
-			// Attempt to match to select common types:
-			switch v := dst.(type) {
-
-			case *[]*net.IPNet:
-				*v = make([]*net.IPNet, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]net.IP:
-				*v = make([]net.IP, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			case *[]*net.IP:
-				*v = make([]*net.IP, len(src.Elements))
-				for i := range src.Elements {
-					if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
-						return err
-					}
-				}
-				return nil
-
-			}
-		}
-
-		// Try to convert to something AssignTo can use directly.
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-
-		// Fallback to reflection if an optimised match was not found.
-		// The reflection is necessary for arrays and multidimensional slices,
-		// but it comes with a 20-50% performance penalty for large arrays/slices
-		value := reflect.ValueOf(dst)
-		if value.Kind() == reflect.Ptr {
-			value = value.Elem()
-		}
-
-		switch value.Kind() {
-		case reflect.Array, reflect.Slice:
-		default:
-			return fmt.Errorf("cannot assign %T to %T", src, dst)
-		}
-
-		if len(src.Elements) == 0 {
-			if value.Kind() == reflect.Slice {
-				value.Set(reflect.MakeSlice(value.Type(), 0, 0))
-				return nil
-			}
-		}
-
-		elementCount, err := src.assignToRecursive(value, 0, 0)
-		if err != nil {
-			return err
-		}
-		if elementCount != len(src.Elements) {
-			return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
-		}
-
-		return nil
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	if len(src.Dimensions) <= 1 {
+		// Attempt to match to select common types:
+		switch v := dst.(type) {
+
+		case *[]*net.IPNet:
+			*v = make([]*net.IPNet, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]net.IP:
+			*v = make([]net.IP, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		case *[]*net.IP:
+			*v = make([]*net.IP, len(src.Elements))
+			for i := range src.Elements {
+				if err := src.Elements[i].AssignTo(&((*v)[i])); err != nil {
+					return err
+				}
+			}
+			return nil
+
+		}
+	}
+
+	// Try to convert to something AssignTo can use directly.
+	if nextDst, retry := GetAssignToDstType(dst); retry {
+		return src.AssignTo(nextDst)
+	}
+
+	// Fallback to reflection if an optimised match was not found.
+	// The reflection is necessary for arrays and multidimensional slices,
+	// but it comes with a 20-50% performance penalty for large arrays/slices
+	value := reflect.ValueOf(dst)
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+	}
+
+	switch value.Kind() {
+	case reflect.Array, reflect.Slice:
+	default:
+		return fmt.Errorf("cannot assign %T to %T", src, dst)
+	}
+
+	if len(src.Elements) == 0 {
+		if value.Kind() == reflect.Slice {
+			value.Set(reflect.MakeSlice(value.Type(), 0, 0))
+			return nil
+		}
+	}
+
+	elementCount, err := src.assignToRecursive(value, 0, 0)
+	if err != nil {
+		return err
+	}
+	if elementCount != len(src.Elements) {
+		return fmt.Errorf("cannot assign %v, needed to assign %d elements, but only assigned %d", dst, len(src.Elements), elementCount)
+	}
+
+	return nil
 }
 
 func (src *InetArray) assignToRecursive(value reflect.Value, index, dimension int) (int, error) {
@@ -337,7 +330,7 @@ func (src *InetArray) assignToRecursive(value reflect.Value, index, dimension in
 
 func (dst *InetArray) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = InetArray{Status: Null}
+		*dst = InetArray{}
 		return nil
 	}
 
@@ -366,14 +359,14 @@ func (dst *InetArray) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = InetArray{Elements: elements, Dimensions: uta.Dimensions, Status: Present}
+	*dst = InetArray{Elements: elements, Dimensions: uta.Dimensions, Valid: true}
 
 	return nil
 }
 
 func (dst *InetArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = InetArray{Status: Null}
+		*dst = InetArray{}
 		return nil
 	}
 
@@ -384,7 +377,7 @@ func (dst *InetArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	if len(arrayHeader.Dimensions) == 0 {
-		*dst = InetArray{Dimensions: arrayHeader.Dimensions, Status: Present}
+		*dst = InetArray{Dimensions: arrayHeader.Dimensions, Valid: true}
 		return nil
 	}
 
@@ -409,16 +402,13 @@ func (dst *InetArray) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = InetArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Status: Present}
+	*dst = InetArray{Elements: elements, Dimensions: arrayHeader.Dimensions, Valid: true}
 	return nil
 }
 
 func (src InetArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	if len(src.Dimensions) == 0 {
@@ -471,11 +461,8 @@ func (src InetArray) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src InetArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	arrayHeader := ArrayHeader{
@@ -489,7 +476,7 @@ func (src InetArray) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 	}
 
 	for i := range src.Elements {
-		if src.Elements[i].Status == Null {
+		if !src.Elements[i].Valid {
 			arrayHeader.ContainsNull = true
 			break
 		}

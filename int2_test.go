@@ -11,12 +11,12 @@ import (
 
 func TestInt2Transcode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "int2", []interface{}{
-		&pgtype.Int2{Int: math.MinInt16, Status: pgtype.Present},
-		&pgtype.Int2{Int: -1, Status: pgtype.Present},
-		&pgtype.Int2{Int: 0, Status: pgtype.Present},
-		&pgtype.Int2{Int: 1, Status: pgtype.Present},
-		&pgtype.Int2{Int: math.MaxInt16, Status: pgtype.Present},
-		&pgtype.Int2{Int: 0, Status: pgtype.Null},
+		&pgtype.Int2{Int: math.MinInt16, Valid: true},
+		&pgtype.Int2{Int: -1, Valid: true},
+		&pgtype.Int2{Int: 0, Valid: true},
+		&pgtype.Int2{Int: 1, Valid: true},
+		&pgtype.Int2{Int: math.MaxInt16, Valid: true},
+		&pgtype.Int2{Int: 0},
 	})
 }
 
@@ -25,22 +25,22 @@ func TestInt2Set(t *testing.T) {
 		source interface{}
 		result pgtype.Int2
 	}{
-		{source: int8(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: int16(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: int32(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: int64(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: int8(-1), result: pgtype.Int2{Int: -1, Status: pgtype.Present}},
-		{source: int16(-1), result: pgtype.Int2{Int: -1, Status: pgtype.Present}},
-		{source: int32(-1), result: pgtype.Int2{Int: -1, Status: pgtype.Present}},
-		{source: int64(-1), result: pgtype.Int2{Int: -1, Status: pgtype.Present}},
-		{source: uint8(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: uint16(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: uint32(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: uint64(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: float32(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: float64(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: "1", result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
-		{source: _int8(1), result: pgtype.Int2{Int: 1, Status: pgtype.Present}},
+		{source: int8(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: int16(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: int32(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: int64(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: int8(-1), result: pgtype.Int2{Int: -1, Valid: true}},
+		{source: int16(-1), result: pgtype.Int2{Int: -1, Valid: true}},
+		{source: int32(-1), result: pgtype.Int2{Int: -1, Valid: true}},
+		{source: int64(-1), result: pgtype.Int2{Int: -1, Valid: true}},
+		{source: uint8(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: uint16(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: uint32(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: uint64(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: float32(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: float64(1), result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: "1", result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: _int8(1), result: pgtype.Int2{Int: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -76,19 +76,19 @@ func TestInt2AssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &i8, expected: int8(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &i16, expected: int16(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &i32, expected: int32(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &i64, expected: int64(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &i, expected: int(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &ui8, expected: uint8(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &ui16, expected: uint16(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &ui64, expected: uint64(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &ui, expected: uint(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
-		{src: pgtype.Int2{Int: 0, Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
-		{src: pgtype.Int2{Int: 0, Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &i8, expected: int8(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &i16, expected: int16(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &i32, expected: int32(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &i64, expected: int64(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &i, expected: int(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &ui8, expected: uint8(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &ui16, expected: uint16(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &ui64, expected: uint64(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &ui, expected: uint(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &_i8, expected: _int8(42)},
+		{src: pgtype.Int2{Int: 0}, dst: &pi8, expected: ((*int8)(nil))},
+		{src: pgtype.Int2{Int: 0}, dst: &_pi8, expected: ((*_int8)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -107,8 +107,8 @@ func TestInt2AssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &pi8, expected: int8(42)},
-		{src: pgtype.Int2{Int: 42, Status: pgtype.Present}, dst: &_pi8, expected: _int8(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &pi8, expected: int8(42)},
+		{src: pgtype.Int2{Int: 42, Valid: true}, dst: &_pi8, expected: _int8(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -126,13 +126,13 @@ func TestInt2AssignTo(t *testing.T) {
 		src pgtype.Int2
 		dst interface{}
 	}{
-		{src: pgtype.Int2{Int: 150, Status: pgtype.Present}, dst: &i8},
-		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui8},
-		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui16},
-		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui32},
-		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui64},
-		{src: pgtype.Int2{Int: -1, Status: pgtype.Present}, dst: &ui},
-		{src: pgtype.Int2{Int: 0, Status: pgtype.Null}, dst: &i16},
+		{src: pgtype.Int2{Int: 150, Valid: true}, dst: &i8},
+		{src: pgtype.Int2{Int: -1, Valid: true}, dst: &ui8},
+		{src: pgtype.Int2{Int: -1, Valid: true}, dst: &ui16},
+		{src: pgtype.Int2{Int: -1, Valid: true}, dst: &ui32},
+		{src: pgtype.Int2{Int: -1, Valid: true}, dst: &ui64},
+		{src: pgtype.Int2{Int: -1, Valid: true}, dst: &ui},
+		{src: pgtype.Int2{Int: 0}, dst: &i16},
 	}
 
 	for i, tt := range errorTests {

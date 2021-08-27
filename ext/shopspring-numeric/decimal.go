@@ -2,7 +2,6 @@ package numeric
 
 import (
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -10,17 +9,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var errUndefined = errors.New("cannot encode status undefined")
-var errBadStatus = errors.New("invalid status")
-
 type Numeric struct {
 	Decimal decimal.Decimal
-	Status  pgtype.Status
+	Valid   bool
 }
 
 func (dst *Numeric) Set(src interface{}) error {
 	if src == nil {
-		*dst = Numeric{Status: pgtype.Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -33,53 +29,53 @@ func (dst *Numeric) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case decimal.Decimal:
-		*dst = Numeric{Decimal: value, Status: pgtype.Present}
+		*dst = Numeric{Decimal: value, Valid: true}
 	case decimal.NullDecimal:
 		if value.Valid {
-			*dst = Numeric{Decimal: value.Decimal, Status: pgtype.Present}
+			*dst = Numeric{Decimal: value.Decimal, Valid: true}
 		} else {
-			*dst = Numeric{Status: pgtype.Null}
+			*dst = Numeric{}
 		}
 	case float32:
-		*dst = Numeric{Decimal: decimal.NewFromFloat(float64(value)), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.NewFromFloat(float64(value)), Valid: true}
 	case float64:
-		*dst = Numeric{Decimal: decimal.NewFromFloat(value), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.NewFromFloat(value), Valid: true}
 	case int8:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case uint8:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case int16:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case uint16:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case int32:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case uint32:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case int64:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case uint64:
 		// uint64 could be greater than int64 so convert to string then to decimal
 		dec, err := decimal.NewFromString(strconv.FormatUint(value, 10))
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+		*dst = Numeric{Decimal: dec, Valid: true}
 	case int:
-		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.New(int64(value), 0), Valid: true}
 	case uint:
 		// uint could be greater than int64 so convert to string then to decimal
 		dec, err := decimal.NewFromString(strconv.FormatUint(uint64(value), 10))
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+		*dst = Numeric{Decimal: dec, Valid: true}
 	case string:
 		dec, err := decimal.NewFromString(value)
 		if err != nil {
 			return err
 		}
-		*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+		*dst = Numeric{Decimal: dec, Valid: true}
 	default:
 		// If all else fails see if pgtype.Numeric can handle it. If so, translate through that.
 		num := &pgtype.Numeric{}
@@ -96,140 +92,136 @@ func (dst *Numeric) Set(src interface{}) error {
 		if err != nil {
 			return fmt.Errorf("cannot convert %v to Numeric", value)
 		}
-		*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+		*dst = Numeric{Decimal: dec, Valid: true}
 	}
 
 	return nil
 }
 
 func (dst Numeric) Get() interface{} {
-	switch dst.Status {
-	case pgtype.Present:
-		return dst.Decimal
-	case pgtype.Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst.Decimal
 }
 
 func (src *Numeric) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case pgtype.Present:
-		switch v := dst.(type) {
-		case *decimal.Decimal:
-			*v = src.Decimal
-		case *decimal.NullDecimal:
-			(*v).Valid = true
-			(*v).Decimal = src.Decimal
-		case *float32:
-			f, _ := src.Decimal.Float64()
-			*v = float32(f)
-		case *float64:
-			f, _ := src.Decimal.Float64()
-			*v = f
-		case *int:
-			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseInt(src.Decimal.String(), 10, strconv.IntSize)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = int(n)
-		case *int8:
-			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseInt(src.Decimal.String(), 10, 8)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = int8(n)
-		case *int16:
-			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseInt(src.Decimal.String(), 10, 16)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = int16(n)
-		case *int32:
-			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseInt(src.Decimal.String(), 10, 32)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = int32(n)
-		case *int64:
-			if src.Decimal.Exponent() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseInt(src.Decimal.String(), 10, 64)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = int64(n)
-		case *uint:
-			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseUint(src.Decimal.String(), 10, strconv.IntSize)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = uint(n)
-		case *uint8:
-			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseUint(src.Decimal.String(), 10, 8)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = uint8(n)
-		case *uint16:
-			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseUint(src.Decimal.String(), 10, 16)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = uint16(n)
-		case *uint32:
-			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseUint(src.Decimal.String(), 10, 32)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = uint32(n)
-		case *uint64:
-			if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			n, err := strconv.ParseUint(src.Decimal.String(), 10, 64)
-			if err != nil {
-				return fmt.Errorf("cannot convert %v to %T", dst, *v)
-			}
-			*v = uint64(n)
-		default:
-			if nextDst, retry := pgtype.GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case pgtype.Null:
+	if !src.Valid {
 		if v, ok := dst.(*decimal.NullDecimal); ok {
 			(*v).Valid = false
-		} else {
-			return pgtype.NullAssignTo(dst)
+			(*v).Decimal = src.Decimal
+			return nil
 		}
+		return pgtype.NullAssignTo(dst)
+	}
+
+	switch v := dst.(type) {
+	case *decimal.Decimal:
+		*v = src.Decimal
+	case *decimal.NullDecimal:
+		(*v).Valid = true
+		(*v).Decimal = src.Decimal
+	case *float32:
+		f, _ := src.Decimal.Float64()
+		*v = float32(f)
+	case *float64:
+		f, _ := src.Decimal.Float64()
+		*v = f
+	case *int:
+		if src.Decimal.Exponent() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseInt(src.Decimal.String(), 10, strconv.IntSize)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = int(n)
+	case *int8:
+		if src.Decimal.Exponent() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseInt(src.Decimal.String(), 10, 8)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = int8(n)
+	case *int16:
+		if src.Decimal.Exponent() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseInt(src.Decimal.String(), 10, 16)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = int16(n)
+	case *int32:
+		if src.Decimal.Exponent() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseInt(src.Decimal.String(), 10, 32)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = int32(n)
+	case *int64:
+		if src.Decimal.Exponent() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseInt(src.Decimal.String(), 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = int64(n)
+	case *uint:
+		if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseUint(src.Decimal.String(), 10, strconv.IntSize)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = uint(n)
+	case *uint8:
+		if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseUint(src.Decimal.String(), 10, 8)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = uint8(n)
+	case *uint16:
+		if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseUint(src.Decimal.String(), 10, 16)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = uint16(n)
+	case *uint32:
+		if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseUint(src.Decimal.String(), 10, 32)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = uint32(n)
+	case *uint64:
+		if src.Decimal.Exponent() < 0 || src.Decimal.Sign() < 0 {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		n, err := strconv.ParseUint(src.Decimal.String(), 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot convert %v to %T", dst, *v)
+		}
+		*v = uint64(n)
+	default:
+		if nextDst, retry := pgtype.GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
 	}
 
 	return nil
@@ -237,7 +229,7 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 
 func (dst *Numeric) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numeric{Status: pgtype.Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -246,13 +238,13 @@ func (dst *Numeric) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Numeric{Decimal: dec, Status: pgtype.Present}
+	*dst = Numeric{Decimal: dec, Valid: true}
 	return nil
 }
 
 func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Numeric{Status: pgtype.Null}
+		*dst = Numeric{}
 		return nil
 	}
 
@@ -263,28 +255,21 @@ func (dst *Numeric) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Numeric{Decimal: decimal.NewFromBigInt(num.Int, num.Exp), Status: pgtype.Present}
+	*dst = Numeric{Decimal: decimal.NewFromBigInt(num.Int, num.Exp), Valid: true}
 
 	return nil
 }
 
 func (src Numeric) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case pgtype.Null:
+	if !src.Valid {
 		return nil, nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
-
 	return append(buf, src.Decimal.String()...), nil
 }
 
 func (src Numeric) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case pgtype.Null:
+	if !src.Valid {
 		return nil, nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
 
 	// For now at least, implement this in terms of pgtype.Numeric
@@ -299,13 +284,13 @@ func (src Numeric) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error)
 // Scan implements the database/sql Scanner interface.
 func (dst *Numeric) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Numeric{Status: pgtype.Null}
+		*dst = Numeric{}
 		return nil
 	}
 
 	switch src := src.(type) {
 	case float64:
-		*dst = Numeric{Decimal: decimal.NewFromFloat(src), Status: pgtype.Present}
+		*dst = Numeric{Decimal: decimal.NewFromFloat(src), Valid: true}
 		return nil
 	case string:
 		return dst.DecodeText(nil, []byte(src))
@@ -318,27 +303,17 @@ func (dst *Numeric) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Numeric) Value() (driver.Value, error) {
-	switch src.Status {
-	case pgtype.Present:
-		return src.Decimal.Value()
-	case pgtype.Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+	return src.Decimal.Value()
 }
 
 func (src Numeric) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case pgtype.Present:
-		return src.Decimal.MarshalJSON()
-	case pgtype.Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case pgtype.Undefined:
-		return nil, errUndefined
 	}
-
-	return nil, errBadStatus
+	return src.Decimal.MarshalJSON()
 }
 
 func (dst *Numeric) UnmarshalJSON(b []byte) error {
@@ -348,11 +323,7 @@ func (dst *Numeric) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	status := pgtype.Null
-	if d.Valid {
-		status = pgtype.Present
-	}
-	*dst = Numeric{Decimal: d.Decimal, Status: status}
+	*dst = Numeric{Decimal: d.Decimal, Valid: d.Valid}
 
 	return nil
 }

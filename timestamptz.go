@@ -22,13 +22,13 @@ const (
 
 type Timestamptz struct {
 	Time             time.Time
-	Status           Status
+	Valid            bool
 	InfinityModifier InfinityModifier
 }
 
 func (dst *Timestamptz) Set(src interface{}) error {
 	if src == nil {
-		*dst = Timestamptz{Status: Null}
+		*dst = Timestamptz{}
 		return nil
 	}
 
@@ -41,15 +41,15 @@ func (dst *Timestamptz) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case time.Time:
-		*dst = Timestamptz{Time: value, Status: Present}
+		*dst = Timestamptz{Time: value, Valid: true}
 	case *time.Time:
 		if value == nil {
-			*dst = Timestamptz{Status: Null}
+			*dst = Timestamptz{}
 		} else {
 			return dst.Set(*value)
 		}
 	case InfinityModifier:
-		*dst = Timestamptz{InfinityModifier: value, Status: Present}
+		*dst = Timestamptz{InfinityModifier: value, Valid: true}
 	default:
 		if originalSrc, ok := underlyingTimeType(src); ok {
 			return dst.Set(originalSrc)
@@ -61,54 +61,47 @@ func (dst *Timestamptz) Set(src interface{}) error {
 }
 
 func (dst Timestamptz) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		if dst.InfinityModifier != None {
-			return dst.InfinityModifier
-		}
-		return dst.Time
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	if dst.InfinityModifier != None {
+		return dst.InfinityModifier
+	}
+	return dst.Time
 }
 
 func (src *Timestamptz) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *time.Time:
-			if src.InfinityModifier != None {
-				return fmt.Errorf("cannot assign %v to %T", src, dst)
-			}
-			*v = src.Time
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
 	}
 
-	return fmt.Errorf("cannot decode %#v into %T", src, dst)
+	switch v := dst.(type) {
+	case *time.Time:
+		if src.InfinityModifier != None {
+			return fmt.Errorf("cannot assign %v to %T", src, dst)
+		}
+		*v = src.Time
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
+	}
 }
 
 func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Timestamptz{Status: Null}
+		*dst = Timestamptz{}
 		return nil
 	}
 
 	sbuf := string(src)
 	switch sbuf {
 	case "infinity":
-		*dst = Timestamptz{Status: Present, InfinityModifier: Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: Infinity}
 	case "-infinity":
-		*dst = Timestamptz{Status: Present, InfinityModifier: -Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: -Infinity}
 	default:
 		var format string
 		if len(sbuf) >= 9 && (sbuf[len(sbuf)-9] == '-' || sbuf[len(sbuf)-9] == '+') {
@@ -124,7 +117,7 @@ func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 			return err
 		}
 
-		*dst = Timestamptz{Time: tim, Status: Present}
+		*dst = Timestamptz{Time: tim, Valid: true}
 	}
 
 	return nil
@@ -132,7 +125,7 @@ func (dst *Timestamptz) DecodeText(ci *ConnInfo, src []byte) error {
 
 func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Timestamptz{Status: Null}
+		*dst = Timestamptz{}
 		return nil
 	}
 
@@ -144,26 +137,23 @@ func (dst *Timestamptz) DecodeBinary(ci *ConnInfo, src []byte) error {
 
 	switch microsecSinceY2K {
 	case infinityMicrosecondOffset:
-		*dst = Timestamptz{Status: Present, InfinityModifier: Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: Infinity}
 	case negativeInfinityMicrosecondOffset:
-		*dst = Timestamptz{Status: Present, InfinityModifier: -Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: -Infinity}
 	default:
 		tim := time.Unix(
 			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
 			(microsecFromUnixEpochToY2K%1000000*1000)+(microsecSinceY2K%1000000*1000),
 		)
-		*dst = Timestamptz{Time: tim, Status: Present}
+		*dst = Timestamptz{Time: tim, Valid: true}
 	}
 
 	return nil
 }
 
 func (src Timestamptz) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var s string
@@ -181,11 +171,8 @@ func (src Timestamptz) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Timestamptz) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var microsecSinceY2K int64
@@ -205,7 +192,7 @@ func (src Timestamptz) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Timestamptz) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Timestamptz{Status: Null}
+		*dst = Timestamptz{}
 		return nil
 	}
 
@@ -217,7 +204,7 @@ func (dst *Timestamptz) Scan(src interface{}) error {
 		copy(srcCopy, src)
 		return dst.DecodeText(nil, srcCopy)
 	case time.Time:
-		*dst = Timestamptz{Time: src, Status: Present}
+		*dst = Timestamptz{Time: src, Valid: true}
 		return nil
 	}
 
@@ -226,29 +213,19 @@ func (dst *Timestamptz) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Timestamptz) Value() (driver.Value, error) {
-	switch src.Status {
-	case Present:
-		if src.InfinityModifier != None {
-			return src.InfinityModifier.String(), nil
-		}
-		return src.Time, nil
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	default:
-		return nil, errUndefined
 	}
+
+	if src.InfinityModifier != None {
+		return src.InfinityModifier.String(), nil
+	}
+	return src.Time, nil
 }
 
 func (src Timestamptz) MarshalJSON() ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return []byte("null"), nil
-	case Undefined:
-		return nil, errUndefined
-	}
-
-	if src.Status != Present {
-		return nil, errBadStatus
 	}
 
 	var s string
@@ -273,15 +250,15 @@ func (dst *Timestamptz) UnmarshalJSON(b []byte) error {
 	}
 
 	if s == nil {
-		*dst = Timestamptz{Status: Null}
+		*dst = Timestamptz{}
 		return nil
 	}
 
 	switch *s {
 	case "infinity":
-		*dst = Timestamptz{Status: Present, InfinityModifier: Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: Infinity}
 	case "-infinity":
-		*dst = Timestamptz{Status: Present, InfinityModifier: -Infinity}
+		*dst = Timestamptz{Valid: true, InfinityModifier: -Infinity}
 	default:
 		// PostgreSQL uses ISO 8601 for to_json function and casting from a string to timestamptz
 		tim, err := time.Parse(time.RFC3339Nano, *s)
@@ -289,7 +266,7 @@ func (dst *Timestamptz) UnmarshalJSON(b []byte) error {
 			return err
 		}
 
-		*dst = Timestamptz{Time: tim, Status: Present}
+		*dst = Timestamptz{Time: tim, Valid: true}
 	}
 
 	return nil

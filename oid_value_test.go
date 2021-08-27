@@ -10,8 +10,8 @@ import (
 
 func TestOIDValueTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "oid", []interface{}{
-		&pgtype.OIDValue{Uint: 42, Status: pgtype.Present},
-		&pgtype.OIDValue{Status: pgtype.Null},
+		&pgtype.OIDValue{Uint: 42, Valid: true},
+		&pgtype.OIDValue{},
 	})
 }
 
@@ -20,7 +20,7 @@ func TestOIDValueSet(t *testing.T) {
 		source interface{}
 		result pgtype.OIDValue
 	}{
-		{source: uint32(1), result: pgtype.OIDValue{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.OIDValue{Uint: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -45,8 +45,8 @@ func TestOIDValueAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.OIDValue{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.OIDValue{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.OIDValue{Uint: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.OIDValue{}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -65,7 +65,7 @@ func TestOIDValueAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.OIDValue{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.OIDValue{Uint: 42, Valid: true}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -83,7 +83,7 @@ func TestOIDValueAssignTo(t *testing.T) {
 		src pgtype.OIDValue
 		dst interface{}
 	}{
-		{src: pgtype.OIDValue{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.OIDValue{}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {

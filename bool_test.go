@@ -10,9 +10,9 @@ import (
 
 func TestBoolTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "bool", []interface{}{
-		&pgtype.Bool{Bool: false, Status: pgtype.Present},
-		&pgtype.Bool{Bool: true, Status: pgtype.Present},
-		&pgtype.Bool{Bool: false, Status: pgtype.Null},
+		&pgtype.Bool{Bool: false, Valid: true},
+		&pgtype.Bool{Bool: true, Valid: true},
+		&pgtype.Bool{Bool: false},
 	})
 }
 
@@ -21,15 +21,15 @@ func TestBoolSet(t *testing.T) {
 		source interface{}
 		result pgtype.Bool
 	}{
-		{source: true, result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: false, result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
-		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: "false", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
-		{source: "t", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: "f", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
-		{source: _bool(true), result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: _bool(false), result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
-		{source: nil, result: pgtype.Bool{Status: pgtype.Null}},
+		{source: true, result: pgtype.Bool{Bool: true, Valid: true}},
+		{source: false, result: pgtype.Bool{Bool: false, Valid: true}},
+		{source: "true", result: pgtype.Bool{Bool: true, Valid: true}},
+		{source: "false", result: pgtype.Bool{Bool: false, Valid: true}},
+		{source: "t", result: pgtype.Bool{Bool: true, Valid: true}},
+		{source: "f", result: pgtype.Bool{Bool: false, Valid: true}},
+		{source: _bool(true), result: pgtype.Bool{Bool: true, Valid: true}},
+		{source: _bool(false), result: pgtype.Bool{Bool: false, Valid: true}},
+		{source: nil, result: pgtype.Bool{}},
 	}
 
 	for i, tt := range successfulTests {
@@ -56,12 +56,12 @@ func TestBoolAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Bool{Bool: false, Status: pgtype.Present}, dst: &b, expected: false},
-		{src: pgtype.Bool{Bool: true, Status: pgtype.Present}, dst: &b, expected: true},
-		{src: pgtype.Bool{Bool: false, Status: pgtype.Present}, dst: &_b, expected: _bool(false)},
-		{src: pgtype.Bool{Bool: true, Status: pgtype.Present}, dst: &_b, expected: _bool(true)},
-		{src: pgtype.Bool{Bool: false, Status: pgtype.Null}, dst: &pb, expected: ((*bool)(nil))},
-		{src: pgtype.Bool{Bool: false, Status: pgtype.Null}, dst: &_pb, expected: ((*_bool)(nil))},
+		{src: pgtype.Bool{Bool: false, Valid: true}, dst: &b, expected: false},
+		{src: pgtype.Bool{Bool: true, Valid: true}, dst: &b, expected: true},
+		{src: pgtype.Bool{Bool: false, Valid: true}, dst: &_b, expected: _bool(false)},
+		{src: pgtype.Bool{Bool: true, Valid: true}, dst: &_b, expected: _bool(true)},
+		{src: pgtype.Bool{Bool: false}, dst: &pb, expected: ((*bool)(nil))},
+		{src: pgtype.Bool{Bool: false}, dst: &_pb, expected: ((*_bool)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -80,8 +80,8 @@ func TestBoolAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.Bool{Bool: true, Status: pgtype.Present}, dst: &pb, expected: true},
-		{src: pgtype.Bool{Bool: true, Status: pgtype.Present}, dst: &_pb, expected: _bool(true)},
+		{src: pgtype.Bool{Bool: true, Valid: true}, dst: &pb, expected: true},
+		{src: pgtype.Bool{Bool: true, Valid: true}, dst: &_pb, expected: _bool(true)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -101,9 +101,9 @@ func TestBoolMarshalJSON(t *testing.T) {
 		source pgtype.Bool
 		result string
 	}{
-		{source: pgtype.Bool{Status: pgtype.Null}, result: "null"},
-		{source: pgtype.Bool{Bool: true, Status: pgtype.Present}, result: "true"},
-		{source: pgtype.Bool{Bool: false, Status: pgtype.Present}, result: "false"},
+		{source: pgtype.Bool{}, result: "null"},
+		{source: pgtype.Bool{Bool: true, Valid: true}, result: "true"},
+		{source: pgtype.Bool{Bool: false, Valid: true}, result: "false"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -122,9 +122,9 @@ func TestBoolUnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Bool
 	}{
-		{source: "null", result: pgtype.Bool{Status: pgtype.Null}},
-		{source: "true", result: pgtype.Bool{Bool: true, Status: pgtype.Present}},
-		{source: "false", result: pgtype.Bool{Bool: false, Status: pgtype.Present}},
+		{source: "null", result: pgtype.Bool{}},
+		{source: "true", result: pgtype.Bool{Bool: true, Valid: true}},
+		{source: "false", result: pgtype.Bool{Bool: false, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Bool

@@ -16,7 +16,7 @@ func (dst *Timestamp) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = Timestamp(nullable.Time)
 	} else {
 		*dst = Timestamp{}
@@ -32,7 +32,7 @@ func (dst *Timestamp) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
 		return err
 	}
 
-	if nullable.Status == pgtype.Present {
+	if nullable.Valid {
 		*dst = Timestamp(nullable.Time)
 	} else {
 		*dst = Timestamp{}
@@ -47,8 +47,8 @@ func (src Timestamp) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error)
 	}
 
 	nullable := pgtype.Timestamp{
-		Time:   time.Time(src),
-		Status: pgtype.Present,
+		Time:  time.Time(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeText(ci, buf)
@@ -60,8 +60,8 @@ func (src Timestamp) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, erro
 	}
 
 	nullable := pgtype.Timestamp{
-		Time:   time.Time(src),
-		Status: pgtype.Present,
+		Time:  time.Time(src),
+		Valid: true,
 	}
 
 	return nullable.EncodeBinary(ci, buf)

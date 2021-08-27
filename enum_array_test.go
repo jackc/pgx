@@ -24,29 +24,29 @@ func TestEnumArrayTranscode(t *testing.T) {
 		&pgtype.EnumArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.EnumArray{
 			Elements: []pgtype.GenericText{
-				{String: "red", Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{String: "red", Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.EnumArray{Status: pgtype.Null},
+		&pgtype.EnumArray{},
 		&pgtype.EnumArray{
 			Elements: []pgtype.GenericText{
-				{String: "red", Status: pgtype.Present},
-				{String: "green", Status: pgtype.Present},
-				{String: "blue", Status: pgtype.Present},
-				{String: "red", Status: pgtype.Present},
+				{String: "red", Valid: true},
+				{String: "green", Valid: true},
+				{String: "blue", Valid: true},
+				{String: "red", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -59,61 +59,61 @@ func TestEnumArrayArraySet(t *testing.T) {
 		{
 			source: []string{"foo"},
 			result: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]string)(nil)),
-			result: pgtype.EnumArray{Status: pgtype.Null},
+			result: pgtype.EnumArray{},
 		},
 		{
 			source: [][]string{{"foo"}, {"bar"}},
 			result: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.EnumArray{
 				Elements: []pgtype.GenericText{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]string{{"foo"}, {"bar"}},
 			result: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 			result: pgtype.EnumArray{
 				Elements: []pgtype.GenericText{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -146,81 +146,81 @@ func TestEnumArrayArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &stringSlice,
 			expected: []string{"foo"},
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedStringSlice,
 			expected: _stringSlice{"bar"},
 		},
 		{
-			src:      pgtype.EnumArray{Status: pgtype.Null},
+			src:      pgtype.EnumArray{},
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
 		{
-			src:      pgtype.EnumArray{Status: pgtype.Present},
+			src:      pgtype.EnumArray{Valid: true},
 			dst:      &stringSlice,
 			expected: []string{},
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringSliceDim2,
 			expected: [][]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.EnumArray{
 				Elements: []pgtype.GenericText{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringSliceDim4,
 			expected: [][][][]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringArrayDim2,
 			expected: [2][1]string{{"foo"}, {"bar"}},
 		},
 		{
 			src: pgtype.EnumArray{
 				Elements: []pgtype.GenericText{
-					{String: "foo", Status: pgtype.Present},
-					{String: "bar", Status: pgtype.Present},
-					{String: "baz", Status: pgtype.Present},
-					{String: "wibble", Status: pgtype.Present},
-					{String: "wobble", Status: pgtype.Present},
-					{String: "wubble", Status: pgtype.Present}},
+					{String: "foo", Valid: true},
+					{String: "bar", Valid: true},
+					{String: "baz", Valid: true},
+					{String: "wibble", Valid: true},
+					{String: "wobble", Valid: true},
+					{String: "wubble", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst:      &stringArrayDim4,
 			expected: [2][1][1][3]string{{{{"foo", "bar", "baz"}}}, {{{"wibble", "wobble", "wubble"}}}},
 		},
@@ -243,31 +243,31 @@ func TestEnumArrayArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{Status: pgtype.Null}},
+				Elements:   []pgtype.GenericText{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim2,
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.EnumArray{
-				Elements:   []pgtype.GenericText{{String: "foo", Status: pgtype.Present}, {String: "bar", Status: pgtype.Present}},
+				Elements:   []pgtype.GenericText{{String: "foo", Valid: true}, {String: "bar", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim4,
 		},
 	}

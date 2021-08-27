@@ -13,41 +13,41 @@ func TestInt8ArrayTranscode(t *testing.T) {
 		&pgtype.Int8Array{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				{Int: 1, Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{Int: 1, Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.Int8Array{Status: pgtype.Null},
+		&pgtype.Int8Array{},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				{Int: 1, Status: pgtype.Present},
-				{Int: 2, Status: pgtype.Present},
-				{Int: 3, Status: pgtype.Present},
-				{Int: 4, Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{Int: 6, Status: pgtype.Present},
+				{Int: 1, Valid: true},
+				{Int: 2, Valid: true},
+				{Int: 3, Valid: true},
+				{Int: 4, Valid: true},
+				{},
+				{Int: 6, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.Int8Array{
 			Elements: []pgtype.Int8{
-				{Int: 1, Status: pgtype.Present},
-				{Int: 2, Status: pgtype.Present},
-				{Int: 3, Status: pgtype.Present},
-				{Int: 4, Status: pgtype.Present},
+				{Int: 1, Valid: true},
+				{Int: 2, Valid: true},
+				{Int: 3, Valid: true},
+				{Int: 4, Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -60,110 +60,110 @@ func TestInt8ArraySet(t *testing.T) {
 		{
 			source: []int64{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []int32{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []int16{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []int{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []uint64{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []uint32{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []uint16{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: []uint{1},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]int64)(nil)),
-			result: pgtype.Int8Array{Status: pgtype.Null},
+			result: pgtype.Int8Array{},
 		},
 		{
 			source: [][]int64{{1}, {2}},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.Int8Array{
 				Elements: []pgtype.Int8{
-					{Int: 1, Status: pgtype.Present},
-					{Int: 2, Status: pgtype.Present},
-					{Int: 3, Status: pgtype.Present},
-					{Int: 4, Status: pgtype.Present},
-					{Int: 5, Status: pgtype.Present},
-					{Int: 6, Status: pgtype.Present}},
+					{Int: 1, Valid: true},
+					{Int: 2, Valid: true},
+					{Int: 3, Valid: true},
+					{Int: 4, Valid: true},
+					{Int: 5, Valid: true},
+					{Int: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]int64{{1}, {2}},
 			result: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			result: pgtype.Int8Array{
 				Elements: []pgtype.Int8{
-					{Int: 1, Status: pgtype.Present},
-					{Int: 2, Status: pgtype.Present},
-					{Int: 3, Status: pgtype.Present},
-					{Int: 4, Status: pgtype.Present},
-					{Int: 5, Status: pgtype.Present},
-					{Int: 6, Status: pgtype.Present}},
+					{Int: 1, Valid: true},
+					{Int: 2, Valid: true},
+					{Int: 3, Valid: true},
+					{Int: 4, Valid: true},
+					{Int: 5, Valid: true},
+					{Int: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -196,90 +196,90 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &int64Slice,
 			expected: []int64{1},
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &uint64Slice,
 			expected: []uint64{1},
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedInt64Slice,
 			expected: _int64Slice{1},
 		},
 		{
-			src:      pgtype.Int8Array{Status: pgtype.Null},
+			src:      pgtype.Int8Array{},
 			dst:      &int64Slice,
 			expected: (([]int64)(nil)),
 		},
 		{
-			src:      pgtype.Int8Array{Status: pgtype.Present},
+			src:      pgtype.Int8Array{Valid: true},
 			dst:      &int64Slice,
 			expected: []int64{},
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			expected: [][]int64{{1}, {2}},
 			dst:      &int64SliceDim2,
 		},
 		{
 			src: pgtype.Int8Array{
 				Elements: []pgtype.Int8{
-					{Int: 1, Status: pgtype.Present},
-					{Int: 2, Status: pgtype.Present},
-					{Int: 3, Status: pgtype.Present},
-					{Int: 4, Status: pgtype.Present},
-					{Int: 5, Status: pgtype.Present},
-					{Int: 6, Status: pgtype.Present}},
+					{Int: 1, Valid: true},
+					{Int: 2, Valid: true},
+					{Int: 3, Valid: true},
+					{Int: 4, Valid: true},
+					{Int: 5, Valid: true},
+					{Int: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			expected: [][][][]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			dst:      &int64SliceDim4,
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			expected: [2][1]int64{{1}, {2}},
 			dst:      &int64ArrayDim2,
 		},
 		{
 			src: pgtype.Int8Array{
 				Elements: []pgtype.Int8{
-					{Int: 1, Status: pgtype.Present},
-					{Int: 2, Status: pgtype.Present},
-					{Int: 3, Status: pgtype.Present},
-					{Int: 4, Status: pgtype.Present},
-					{Int: 5, Status: pgtype.Present},
-					{Int: 6, Status: pgtype.Present}},
+					{Int: 1, Valid: true},
+					{Int: 2, Valid: true},
+					{Int: 3, Valid: true},
+					{Int: 4, Valid: true},
+					{Int: 5, Valid: true},
+					{Int: 6, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			expected: [2][1][1][3]int64{{{{1, 2, 3}}}, {{{4, 5, 6}}}},
 			dst:      &int64ArrayDim4,
 		},
@@ -302,39 +302,39 @@ func TestInt8ArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Status: pgtype.Null}},
+				Elements:   []pgtype.Int8{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &int64Slice,
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: -1, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: -1, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &uint64Slice,
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &int64ArrayDim2,
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &int64Slice,
 		},
 		{
 			src: pgtype.Int8Array{
-				Elements:   []pgtype.Int8{{Int: 1, Status: pgtype.Present}, {Int: 2, Status: pgtype.Present}},
+				Elements:   []pgtype.Int8{{Int: 1, Valid: true}, {Int: 2, Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &int64ArrayDim4,
 		},
 	}

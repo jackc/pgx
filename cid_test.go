@@ -11,8 +11,8 @@ import (
 func TestCIDTranscode(t *testing.T) {
 	pgTypeName := "cid"
 	values := []interface{}{
-		&pgtype.CID{Uint: 42, Status: pgtype.Present},
-		&pgtype.CID{Status: pgtype.Null},
+		&pgtype.CID{Uint: 42, Valid: true},
+		&pgtype.CID{},
 	}
 	eqFunc := func(a, b interface{}) bool {
 		return reflect.DeepEqual(a, b)
@@ -27,7 +27,7 @@ func TestCIDSet(t *testing.T) {
 		source interface{}
 		result pgtype.CID
 	}{
-		{source: uint32(1), result: pgtype.CID{Uint: 1, Status: pgtype.Present}},
+		{source: uint32(1), result: pgtype.CID{Uint: 1, Valid: true}},
 	}
 
 	for i, tt := range successfulTests {
@@ -52,8 +52,8 @@ func TestCIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.CID{Uint: 42, Status: pgtype.Present}, dst: &ui32, expected: uint32(42)},
-		{src: pgtype.CID{Status: pgtype.Null}, dst: &pui32, expected: ((*uint32)(nil))},
+		{src: pgtype.CID{Uint: 42, Valid: true}, dst: &ui32, expected: uint32(42)},
+		{src: pgtype.CID{}, dst: &pui32, expected: ((*uint32)(nil))},
 	}
 
 	for i, tt := range simpleTests {
@@ -72,7 +72,7 @@ func TestCIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.CID{Uint: 42, Status: pgtype.Present}, dst: &pui32, expected: uint32(42)},
+		{src: pgtype.CID{Uint: 42, Valid: true}, dst: &pui32, expected: uint32(42)},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -90,7 +90,7 @@ func TestCIDAssignTo(t *testing.T) {
 		src pgtype.CID
 		dst interface{}
 	}{
-		{src: pgtype.CID{Status: pgtype.Null}, dst: &ui32},
+		{src: pgtype.CID{}, dst: &ui32},
 	}
 
 	for i, tt := range errorTests {

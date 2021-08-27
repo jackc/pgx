@@ -14,7 +14,7 @@ import (
 type Path struct {
 	P      []Vec2
 	Closed bool
-	Status Status
+	Valid  bool
 }
 
 func (dst *Path) Set(src interface{}) error {
@@ -22,14 +22,10 @@ func (dst *Path) Set(src interface{}) error {
 }
 
 func (dst Path) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Path) AssignTo(dst interface{}) error {
@@ -38,7 +34,7 @@ func (src *Path) AssignTo(dst interface{}) error {
 
 func (dst *Path) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Path{Status: Null}
+		*dst = Path{}
 		return nil
 	}
 
@@ -75,13 +71,13 @@ func (dst *Path) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Path{P: points, Closed: closed, Status: Present}
+	*dst = Path{P: points, Closed: closed, Valid: true}
 	return nil
 }
 
 func (dst *Path) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Path{Status: Null}
+		*dst = Path{}
 		return nil
 	}
 
@@ -110,17 +106,14 @@ func (dst *Path) DecodeBinary(ci *ConnInfo, src []byte) error {
 	*dst = Path{
 		P:      points,
 		Closed: closed,
-		Status: Present,
+		Valid:  true,
 	}
 	return nil
 }
 
 func (src Path) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var startByte, endByte byte
@@ -147,11 +140,8 @@ func (src Path) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Path) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	var closeByte byte
@@ -173,7 +163,7 @@ func (src Path) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Path) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Path{Status: Null}
+		*dst = Path{}
 		return nil
 	}
 

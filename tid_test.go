@@ -10,9 +10,9 @@ import (
 
 func TestTIDTranscode(t *testing.T) {
 	testutil.TestSuccessfulTranscode(t, "tid", []interface{}{
-		&pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Status: pgtype.Present},
-		&pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Status: pgtype.Present},
-		&pgtype.TID{Status: pgtype.Null},
+		&pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},
+		&pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true},
+		&pgtype.TID{},
 	})
 }
 
@@ -25,8 +25,8 @@ func TestTIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Status: pgtype.Present}, dst: &s, expected: "(42,43)"},
-		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Status: pgtype.Present}, dst: &s, expected: "(4294967295,65535)"},
+		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true}, dst: &s, expected: "(42,43)"},
+		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true}, dst: &s, expected: "(4294967295,65535)"},
 	}
 
 	for i, tt := range simpleTests {
@@ -45,8 +45,8 @@ func TestTIDAssignTo(t *testing.T) {
 		dst      interface{}
 		expected interface{}
 	}{
-		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Status: pgtype.Present}, dst: &sp, expected: "(42,43)"},
-		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Status: pgtype.Present}, dst: &sp, expected: "(4294967295,65535)"},
+		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true}, dst: &sp, expected: "(42,43)"},
+		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true}, dst: &sp, expected: "(4294967295,65535)"},
 	}
 
 	for i, tt := range pointerAllocTests {
@@ -60,4 +60,3 @@ func TestTIDAssignTo(t *testing.T) {
 		}
 	}
 }
-

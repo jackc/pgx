@@ -12,8 +12,8 @@ import (
 )
 
 type Lseg struct {
-	P      [2]Vec2
-	Status Status
+	P     [2]Vec2
+	Valid bool
 }
 
 func (dst *Lseg) Set(src interface{}) error {
@@ -21,14 +21,10 @@ func (dst *Lseg) Set(src interface{}) error {
 }
 
 func (dst Lseg) Get() interface{} {
-	switch dst.Status {
-	case Present:
-		return dst
-	case Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+	return dst
 }
 
 func (src *Lseg) AssignTo(dst interface{}) error {
@@ -37,7 +33,7 @@ func (src *Lseg) AssignTo(dst interface{}) error {
 
 func (dst *Lseg) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Lseg{Status: Null}
+		*dst = Lseg{}
 		return nil
 	}
 
@@ -78,13 +74,13 @@ func (dst *Lseg) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Lseg{P: [2]Vec2{{x1, y1}, {x2, y2}}, Status: Present}
+	*dst = Lseg{P: [2]Vec2{{x1, y1}, {x2, y2}}, Valid: true}
 	return nil
 }
 
 func (dst *Lseg) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Lseg{Status: Null}
+		*dst = Lseg{}
 		return nil
 	}
 
@@ -102,17 +98,14 @@ func (dst *Lseg) DecodeBinary(ci *ConnInfo, src []byte) error {
 			{math.Float64frombits(x1), math.Float64frombits(y1)},
 			{math.Float64frombits(x2), math.Float64frombits(y2)},
 		},
-		Status: Present,
+		Valid: true,
 	}
 	return nil
 }
 
 func (src Lseg) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
@@ -126,11 +119,8 @@ func (src Lseg) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 }
 
 func (src Lseg) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	switch src.Status {
-	case Null:
+	if !src.Valid {
 		return nil, nil
-	case Undefined:
-		return nil, errUndefined
 	}
 
 	buf = pgio.AppendUint64(buf, math.Float64bits(src.P[0].X))
@@ -143,7 +133,7 @@ func (src Lseg) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *Lseg) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Lseg{Status: Null}
+		*dst = Lseg{}
 		return nil
 	}
 

@@ -13,42 +13,42 @@ func TestACLItemArrayTranscode(t *testing.T) {
 		&pgtype.ACLItemArray{
 			Elements:   nil,
 			Dimensions: nil,
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				{String: "=r/postgres", Status: pgtype.Present},
-				{Status: pgtype.Null},
+				{String: "=r/postgres", Valid: true},
+				{},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
-		&pgtype.ACLItemArray{Status: pgtype.Null},
+		&pgtype.ACLItemArray{},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				{String: "=r/postgres", Status: pgtype.Present},
-				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				//{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Status: pgtype.Present},
-				{String: `postgres=arwdDxt/postgres`, Status: pgtype.Present}, // todo: remove after fixing above case
-				{String: "=r/postgres", Status: pgtype.Present},
-				{Status: pgtype.Null},
-				{String: "=r/postgres", Status: pgtype.Present},
+				{String: "=r/postgres", Valid: true},
+				{String: "postgres=arwdDxt/postgres", Valid: true},
+				//{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true},
+				{String: `postgres=arwdDxt/postgres`, Valid: true}, // todo: remove after fixing above case
+				{String: "=r/postgres", Valid: true},
+				{},
+				{String: "=r/postgres", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}, {Length: 2, LowerBound: 1}},
-			Status:     pgtype.Present,
+			Valid:      true,
 		},
 		&pgtype.ACLItemArray{
 			Elements: []pgtype.ACLItem{
-				{String: "=r/postgres", Status: pgtype.Present},
-				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-				{String: "=r/postgres", Status: pgtype.Present},
-				{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
+				{String: "=r/postgres", Valid: true},
+				{String: "postgres=arwdDxt/postgres", Valid: true},
+				{String: "=r/postgres", Valid: true},
+				{String: "postgres=arwdDxt/postgres", Valid: true},
 			},
 			Dimensions: []pgtype.ArrayDimension{
 				{Length: 2, LowerBound: 4},
 				{Length: 2, LowerBound: 2},
 			},
-			Status: pgtype.Present,
+			Valid: true,
 		},
 	})
 }
@@ -61,22 +61,22 @@ func TestACLItemArraySet(t *testing.T) {
 		{
 			source: []string{"=r/postgres"},
 			result: pgtype.ACLItemArray{
-				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: (([]string)(nil)),
-			result: pgtype.ACLItemArray{Status: pgtype.Null},
+			result: pgtype.ACLItemArray{},
 		},
 		{
 			source: [][]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
 			result: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [][][][]string{
@@ -90,27 +90,27 @@ func TestACLItemArraySet(t *testing.T) {
 					"postgres=arwdDxt/postgres"}}}},
 			result: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 		{
 			source: [2][1]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
 			result: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 		},
 		{
 			source: [2][1][1][3]string{
@@ -124,18 +124,18 @@ func TestACLItemArraySet(t *testing.T) {
 					"postgres=arwdDxt/postgres"}}}},
 			result: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 		},
 	}
 
@@ -168,57 +168,57 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.ACLItemArray{
-				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &stringSlice,
 			expected: []string{"=r/postgres"},
 		},
 		{
 			src: pgtype.ACLItemArray{
-				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Status: pgtype.Present}},
+				Elements:   []pgtype.ACLItem{{String: "=r/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst:      &namedStringSlice,
 			expected: _stringSlice{"=r/postgres"},
 		},
 		{
-			src:      pgtype.ACLItemArray{Status: pgtype.Null},
+			src:      pgtype.ACLItemArray{},
 			dst:      &stringSlice,
 			expected: (([]string)(nil)),
 		},
 		{
-			src:      pgtype.ACLItemArray{Status: pgtype.Present},
+			src:      pgtype.ACLItemArray{Valid: true},
 			dst:      &stringSlice,
 			expected: []string{},
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringSliceDim2,
 			expected: [][]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &stringSliceDim4,
 			expected: [][][][]string{
 				{{{
@@ -233,28 +233,28 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst:      &stringArrayDim2,
 			expected: [2][1]string{{"=r/postgres"}, {"postgres=arwdDxt/postgres"}},
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present},
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{
 					{LowerBound: 1, Length: 2},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 1},
 					{LowerBound: 1, Length: 3}},
-				Status: pgtype.Present},
+				Valid: true},
 			dst: &stringArrayDim4,
 			expected: [2][1][1][3]string{
 				{{{
@@ -285,37 +285,37 @@ func TestACLItemArrayAssignTo(t *testing.T) {
 	}{
 		{
 			src: pgtype.ACLItemArray{
-				Elements:   []pgtype.ACLItem{{Status: pgtype.Null}},
+				Elements:   []pgtype.ACLItem{{}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present,
+				Valid:      true,
 			},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim2,
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 1}, {LowerBound: 1, Length: 2}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringSlice,
 		},
 		{
 			src: pgtype.ACLItemArray{
 				Elements: []pgtype.ACLItem{
-					{String: "=r/postgres", Status: pgtype.Present},
-					{String: "postgres=arwdDxt/postgres", Status: pgtype.Present}},
+					{String: "=r/postgres", Valid: true},
+					{String: "postgres=arwdDxt/postgres", Valid: true}},
 				Dimensions: []pgtype.ArrayDimension{{LowerBound: 1, Length: 2}, {LowerBound: 1, Length: 1}},
-				Status:     pgtype.Present},
+				Valid:      true},
 			dst: &stringArrayDim4,
 		},
 	}

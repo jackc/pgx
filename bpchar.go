@@ -21,30 +21,29 @@ func (dst BPChar) Get() interface{} {
 
 // AssignTo assigns from src to dst.
 func (src *BPChar) AssignTo(dst interface{}) error {
-	switch src.Status {
-	case Present:
-		switch v := dst.(type) {
-		case *rune:
-			runes := []rune(src.String)
-			if len(runes) == 1 {
-				*v = runes[0]
-				return nil
-			}
-		case *string:
-			*v = src.String
-			return nil
-		case *[]byte:
-			*v = make([]byte, len(src.String))
-			copy(*v, src.String)
-			return nil
-		default:
-			if nextDst, retry := GetAssignToDstType(dst); retry {
-				return src.AssignTo(nextDst)
-			}
-			return fmt.Errorf("unable to assign to %T", dst)
-		}
-	case Null:
+	if !src.Valid {
 		return NullAssignTo(dst)
+	}
+
+	switch v := dst.(type) {
+	case *rune:
+		runes := []rune(src.String)
+		if len(runes) == 1 {
+			*v = runes[0]
+			return nil
+		}
+	case *string:
+		*v = src.String
+		return nil
+	case *[]byte:
+		*v = make([]byte, len(src.String))
+		copy(*v, src.String)
+		return nil
+	default:
+		if nextDst, retry := GetAssignToDstType(dst); retry {
+			return src.AssignTo(nextDst)
+		}
+		return fmt.Errorf("unable to assign to %T", dst)
 	}
 
 	return fmt.Errorf("cannot decode %#v into %T", src, dst)
