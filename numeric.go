@@ -235,7 +235,24 @@ func (dst Numeric) Get() interface{} {
 	return dst
 }
 
+var NumericDecoderWrapper func(interface{}) NumericDecoder
+
+type NumericDecoder interface {
+	DecodeNumeric(*Numeric) error
+}
+
 func (src *Numeric) AssignTo(dst interface{}) error {
+	if d, ok := dst.(NumericDecoder); ok {
+		return d.DecodeNumeric(src)
+	} else {
+		if NumericDecoderWrapper != nil {
+			d = NumericDecoderWrapper(dst)
+			if d != nil {
+				return d.DecodeNumeric(src)
+			}
+		}
+	}
+
 	if !src.Valid {
 		return NullAssignTo(dst)
 	}

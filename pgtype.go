@@ -225,15 +225,18 @@ type ConnInfo struct {
 	oidToResultFormatCode map[uint32]int16
 
 	reflectTypeToDataType map[reflect.Type]*DataType
+
+	preferAssignToOverSQLScannerTypes map[reflect.Type]struct{}
 }
 
 func newConnInfo() *ConnInfo {
 	return &ConnInfo{
-		oidToDataType:         make(map[uint32]*DataType),
-		nameToDataType:        make(map[string]*DataType),
-		reflectTypeToName:     make(map[reflect.Type]string),
-		oidToParamFormatCode:  make(map[uint32]int16),
-		oidToResultFormatCode: make(map[uint32]int16),
+		oidToDataType:                     make(map[uint32]*DataType),
+		nameToDataType:                    make(map[string]*DataType),
+		reflectTypeToName:                 make(map[reflect.Type]string),
+		oidToParamFormatCode:              make(map[uint32]int16),
+		oidToResultFormatCode:             make(map[uint32]int16),
+		preferAssignToOverSQLScannerTypes: make(map[reflect.Type]struct{}),
 	}
 }
 
@@ -462,6 +465,12 @@ func (ci *ConnInfo) ResultFormatCodeForOID(oid uint32) int16 {
 	return TextFormatCode
 }
 
+// PreferAssignToOverSQLScannerForType makes a sql.Scanner type use the AssignTo scan path instead of sql.Scanner.
+// This is primarily for efficient integration with 3rd party numeric and UUID types.
+func (ci *ConnInfo) PreferAssignToOverSQLScannerForType(value interface{}) {
+	ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(value)] = struct{}{}
+}
+
 // DeepCopy makes a deep copy of the ConnInfo.
 func (ci *ConnInfo) DeepCopy() *ConnInfo {
 	ci2 := newConnInfo()
@@ -476,6 +485,10 @@ func (ci *ConnInfo) DeepCopy() *ConnInfo {
 
 	for t, n := range ci.reflectTypeToName {
 		ci2.reflectTypeToName[t] = n
+	}
+
+	for t, _ := range ci.preferAssignToOverSQLScannerTypes {
+		ci2.preferAssignToOverSQLScannerTypes[t] = struct{}{}
 	}
 
 	return ci2
@@ -808,7 +821,9 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 
 	if dt != nil {
 		if _, ok := dst.(sql.Scanner); ok {
-			return (*scanPlanDataTypeSQLScanner)(dt)
+			if _, found := ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(dst)]; !found {
+				return (*scanPlanDataTypeSQLScanner)(dt)
+			}
 		}
 		return (*scanPlanDataTypeAssignTo)(dt)
 	}
