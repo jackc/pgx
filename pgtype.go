@@ -471,29 +471,6 @@ func (ci *ConnInfo) PreferAssignToOverSQLScannerForType(value interface{}) {
 	ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(value)] = struct{}{}
 }
 
-// DeepCopy makes a deep copy of the ConnInfo.
-func (ci *ConnInfo) DeepCopy() *ConnInfo {
-	ci2 := newConnInfo()
-
-	for _, dt := range ci.oidToDataType {
-		ci2.RegisterDataType(DataType{
-			Value: NewValue(dt.Value),
-			Name:  dt.Name,
-			OID:   dt.OID,
-		})
-	}
-
-	for t, n := range ci.reflectTypeToName {
-		ci2.reflectTypeToName[t] = n
-	}
-
-	for t, _ := range ci.preferAssignToOverSQLScannerTypes {
-		ci2.preferAssignToOverSQLScannerTypes[t] = struct{}{}
-	}
-
-	return ci2
-}
-
 // ScanPlan is a precompiled plan to scan into a type of destination.
 type ScanPlan interface {
 	// Scan scans src into dst. If the dst type has changed in an incompatible way a ScanPlan should automatically
