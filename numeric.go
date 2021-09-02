@@ -62,11 +62,13 @@ type Numeric struct {
 	Valid            bool
 
 	NumericDecoderWrapper func(interface{}) NumericDecoder
+	Getter                func(Numeric) interface{}
 }
 
 func (n *Numeric) NewTypeValue() Value {
 	return &Numeric{
 		NumericDecoderWrapper: n.NumericDecoderWrapper,
+		Getter:                n.Getter,
 	}
 }
 
@@ -258,6 +260,10 @@ func (dst *Numeric) Set(src interface{}) error {
 }
 
 func (dst Numeric) Get() interface{} {
+	if dst.Getter != nil {
+		return dst.Getter(dst)
+	}
+
 	if !dst.Valid {
 		return nil
 	}
