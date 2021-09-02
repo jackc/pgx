@@ -1,6 +1,8 @@
 package pgtype_test
 
 import (
+	"context"
+	"encoding/json"
 	"math"
 	"math/big"
 	"math/rand"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgtype/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 // For test purposes only. Note that it does not normalize values. e.g. (Int: 1, Exp: 3) will not equal (Int: 1000, Exp: 0)
@@ -408,5 +411,37 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 		if text0 != text1 {
 			t.Errorf("%d: expected %v to equal to %v, but doesn't", i, text0, text1)
 		}
+	}
+}
+
+func TestNumericMarshalJSON(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	for i, tt := range []struct {
+		decString string
+	}{
+		{"NaN"},
+		{"0"},
+		{"1"},
+		{"-1"},
+		{"1000000000000000000"},
+		{"1234.56789"},
+		{"1.56789"},
+		{"0.00000000000056789"},
+		{"0.00123000"},
+		{"123e-3"},
+		{"243723409723490243842378942378901237502734019231380123e23790"},
+		{"3409823409243892349028349023482934092340892390101e-14021"},
+	} {
+		var num pgtype.Numeric
+		var pgJSON string
+		err := conn.QueryRow(context.Background(), `select $1::numeric, to_json($1::numeric)`, tt.decString).Scan(&num, &pgJSON)
+		require.NoErrorf(t, err, "%d", i)
+
+		goJSON, err := json.Marshal(num)
+		require.NoErrorf(t, err, "%d", i)
+
+		require.Equal(t, pgJSON, string(goJSON))
 	}
 }
