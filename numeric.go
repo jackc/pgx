@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
@@ -806,4 +807,42 @@ func (src Numeric) Value() (driver.Value, error) {
 	}
 
 	return string(buf), nil
+}
+
+func (src Numeric) MarshalJSON() ([]byte, error) {
+	if !src.Valid {
+		return []byte("null"), nil
+	}
+
+	if src.NaN {
+		return []byte(`"NaN"`), nil
+	}
+
+	intStr := src.Int.String()
+	buf := &bytes.Buffer{}
+	exp := int(src.Exp)
+	if exp > 0 {
+		buf.WriteString(intStr)
+		for i := 0; i < exp; i++ {
+			buf.WriteByte('0')
+		}
+	} else if exp < 0 {
+		if len(intStr) <= -exp {
+			buf.WriteString("0.")
+			leadingZeros := -exp - len(intStr)
+			for i := 0; i < leadingZeros; i++ {
+				buf.WriteByte('0')
+			}
+			buf.WriteString(intStr)
+		} else if len(intStr) > -exp {
+			dpPos := len(intStr) + exp
+			buf.WriteString(intStr[:dpPos])
+			buf.WriteByte('.')
+			buf.WriteString(intStr[dpPos:])
+		}
+	} else {
+		buf.WriteString(intStr)
+	}
+
+	return buf.Bytes(), nil
 }
