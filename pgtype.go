@@ -153,6 +153,22 @@ type ValueTranscoder interface {
 	BinaryDecoder
 }
 
+type FormatSupport interface {
+	BinaryFormatSupported() bool
+	TextFormatSupported() bool
+	PreferredFormat() int16
+}
+
+type ParamEncoder interface {
+	FormatSupport
+	EncodeParam(ci *ConnInfo, oid uint32, format int16, buf []byte) (newBuf []byte, err error)
+}
+
+type ResultDecoder interface {
+	FormatSupport
+	DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error
+}
+
 // ResultFormatPreferrer allows a type to specify its preferred result format instead of it being inferred from
 // whether it is also a BinaryDecoder.
 type ResultFormatPreferrer interface {
@@ -209,6 +225,8 @@ func (e *nullAssignmentError) Error() string {
 
 type DataType struct {
 	Value Value
+
+	resultDecoder ResultDecoder
 
 	textDecoder   TextDecoder
 	binaryDecoder BinaryDecoder
@@ -380,12 +398,18 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 
 	{
 		var formatCode int16
-		if rfp, ok := t.Value.(ResultFormatPreferrer); ok {
+		if fs, ok := t.Value.(FormatSupport); ok {
+			formatCode = fs.PreferredFormat()
+		} else if rfp, ok := t.Value.(ResultFormatPreferrer); ok {
 			formatCode = rfp.PreferredResultFormat()
 		} else if _, ok := t.Value.(BinaryDecoder); ok {
 			formatCode = BinaryFormatCode
 		}
 		ci.oidToResultFormatCode[t.OID] = formatCode
+	}
+
+	if d, ok := t.Value.(ResultDecoder); ok {
+		t.resultDecoder = d
 	}
 
 	if d, ok := t.Value.(TextDecoder); ok {
@@ -478,6 +502,17 @@ type ScanPlan interface {
 	Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error
 }
 
+type scanPlanDstResultDecoder struct{}
+
+func (scanPlanDstResultDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if d, ok := (dst).(ResultDecoder); ok {
+		return d.DecodeResult(ci, oid, formatCode, src)
+	}
+
+	newPlan := ci.PlanScan(oid, formatCode, dst)
+	return newPlan.Scan(ci, oid, formatCode, src, dst)
+}
+
 type scanPlanDstBinaryDecoder struct{}
 
 func (scanPlanDstBinaryDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
@@ -533,11 +568,15 @@ type scanPlanDataTypeAssignTo DataType
 func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	dt := (*DataType)(plan)
 	var err error
-	switch formatCode {
-	case BinaryFormatCode:
-		err = dt.binaryDecoder.DecodeBinary(ci, src)
-	case TextFormatCode:
-		err = dt.textDecoder.DecodeText(ci, src)
+	if dt.resultDecoder != nil {
+		err = dt.resultDecoder.DecodeResult(ci, oid, formatCode, src)
+	} else {
+		switch formatCode {
+		case BinaryFormatCode:
+			err = dt.binaryDecoder.DecodeBinary(ci, src)
+		case TextFormatCode:
+			err = dt.textDecoder.DecodeText(ci, src)
+		}
 	}
 	if err != nil {
 		return err
