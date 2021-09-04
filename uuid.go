@@ -10,11 +10,58 @@ import (
 type UUID struct {
 	Bytes [16]byte
 	Valid bool
+
+	UUIDDecoderWrapper func(interface{}) UUIDDecoder
+	Getter             func(UUID) interface{}
+}
+
+func (n *UUID) NewTypeValue() Value {
+	return &UUID{
+		UUIDDecoderWrapper: n.UUIDDecoderWrapper,
+		Getter:             n.Getter,
+	}
+}
+
+func (n *UUID) TypeName() string {
+	return "uuid"
+}
+
+func (dst *UUID) setNil() {
+	dst.Bytes = [16]byte{}
+	dst.Valid = false
+}
+
+func (dst *UUID) setByteArray(value [16]byte) {
+	dst.Bytes = value
+	dst.Valid = true
+}
+
+func (dst *UUID) setByteSlice(value []byte) error {
+	if value != nil {
+		if len(value) != 16 {
+			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
+		}
+		copy(dst.Bytes[:], value)
+		dst.Valid = true
+	} else {
+		dst.setNil()
+	}
+
+	return nil
+}
+
+func (dst *UUID) setString(value string) error {
+	uuid, err := parseUUID(value)
+	if err != nil {
+		return err
+	}
+	dst.setByteArray(uuid)
+	return nil
 }
 
 func (dst *UUID) Set(src interface{}) error {
 	if src == nil {
-		*dst = UUID{}
+		dst.setNil()
 		return nil
 	}
 
@@ -27,28 +74,16 @@ func (dst *UUID) Set(src interface{}) error {
 
 	switch value := src.(type) {
 	case [16]byte:
-		*dst = UUID{Bytes: value, Valid: true}
+		dst.setByteArray(value)
 	case []byte:
-		if value != nil {
-			if len(value) != 16 {
-				return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
-			}
-			*dst = UUID{Valid: true}
-			copy(dst.Bytes[:], value)
-		} else {
-			*dst = UUID{}
-		}
+		return dst.setByteSlice(value)
 	case string:
-		uuid, err := parseUUID(value)
-		if err != nil {
-			return err
-		}
-		*dst = UUID{Bytes: uuid, Valid: true}
+		return dst.setString(value)
 	case *string:
 		if value == nil {
-			*dst = UUID{}
+			dst.setNil()
 		} else {
-			return dst.Set(*value)
+			return dst.setString(*value)
 		}
 	default:
 		if originalSrc, ok := underlyingUUIDType(src); ok {
@@ -61,13 +96,33 @@ func (dst *UUID) Set(src interface{}) error {
 }
 
 func (dst UUID) Get() interface{} {
+	if dst.Getter != nil {
+		return dst.Getter(dst)
+	}
+
 	if !dst.Valid {
 		return nil
 	}
+
 	return dst.Bytes
 }
 
+type UUIDDecoder interface {
+	DecodeUUID(*UUID) error
+}
+
 func (src *UUID) AssignTo(dst interface{}) error {
+	if d, ok := dst.(UUIDDecoder); ok {
+		return d.DecodeUUID(src)
+	} else {
+		if src.UUIDDecoderWrapper != nil {
+			d = src.UUIDDecoderWrapper(dst)
+			if d != nil {
+				return d.DecodeUUID(src)
+			}
+		}
+	}
+
 	if !src.Valid {
 		return NullAssignTo(dst)
 	}
@@ -120,7 +175,7 @@ func encodeUUID(src [16]byte) string {
 
 func (dst *UUID) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = UUID{}
+		dst.setNil()
 		return nil
 	}
 
@@ -133,13 +188,13 @@ func (dst *UUID) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = UUID{Bytes: buf, Valid: true}
+	dst.setByteArray(buf)
 	return nil
 }
 
 func (dst *UUID) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = UUID{}
+		dst.setNil()
 		return nil
 	}
 
@@ -147,9 +202,7 @@ func (dst *UUID) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
 
-	*dst = UUID{Valid: true}
-	copy(dst.Bytes[:], src)
-	return nil
+	return dst.setByteSlice(src)
 }
 
 func (src UUID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
@@ -171,7 +224,7 @@ func (src UUID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 // Scan implements the database/sql Scanner interface.
 func (dst *UUID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = UUID{}
+		dst.setNil()
 		return nil
 	}
 

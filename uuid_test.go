@@ -65,7 +65,7 @@ func TestUUIDSet(t *testing.T) {
 			t.Errorf("%d: %v", i, err)
 		}
 
-		if r != tt.result {
+		if r.Bytes != tt.result.Bytes || r.Valid != tt.result.Valid {
 			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
 		}
 	}
