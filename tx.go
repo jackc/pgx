@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgconn"
 )
 
+// TxIsoLevel is the transaction isolation level (serializable, repeatable read, read committed or read uncommitted)
 type TxIsoLevel string
 
 // Transaction isolation levels
@@ -20,6 +21,7 @@ const (
 	ReadUncommitted = TxIsoLevel("read uncommitted")
 )
 
+// TxAccessMode is the transaction access mode (read write or read only)
 type TxAccessMode string
 
 // Transaction access modes
@@ -28,6 +30,7 @@ const (
 	ReadOnly  = TxAccessMode("read only")
 )
 
+// TxDeferrableMode is the transaction deferrable mode (deferrable or not deferrable)
 type TxDeferrableMode string
 
 // Transaction deferrable modes
@@ -36,6 +39,7 @@ const (
 	NotDeferrable = TxDeferrableMode("not deferrable")
 )
 
+// TxOptions are transaction modes within a transaction block
 type TxOptions struct {
 	IsoLevel       TxIsoLevel
 	AccessMode     TxAccessMode

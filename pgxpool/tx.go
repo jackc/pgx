@@ -7,11 +7,13 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
+// Tx represents a database transaction acquired from a Pool.
 type Tx struct {
 	t pgx.Tx
 	c *Conn
 }
 
+// Begin starts a pseudo nested transaction implemented with a savepoint.
 func (tx *Tx) Begin(ctx context.Context) (pgx.Tx, error) {
 	return tx.t.Begin(ctx)
 }
@@ -20,6 +22,9 @@ func (tx *Tx) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
 	return tx.t.BeginFunc(ctx, f)
 }
 
+// Commit commits the transaction and returns the associated connection back to the Pool. Commit will return ErrTxClosed
+// if the Tx is already closed, but is otherwise safe to call multiple times. If the commit fails with a rollback status
+// (e.g. the transaction was already in a broken state) then ErrTxCommitRollback will be returned.
 func (tx *Tx) Commit(ctx context.Context) error {
 	err := tx.t.Commit(ctx)
 	if tx.c != nil {
@@ -29,6 +34,9 @@ func (tx *Tx) Commit(ctx context.Context) error {
 	return err
 }
 
+// Rollback rolls back the transaction and returns the associated connection back to the Pool. Rollback will return ErrTxClosed
+// if the Tx is already closed, but is otherwise safe to call multiple times. Hence, defer tx.Rollback() is safe even if
+// tx.Commit() will be called first in a non-error condition.
 func (tx *Tx) Rollback(ctx context.Context) error {
 	err := tx.t.Rollback(ctx)
 	if tx.c != nil {

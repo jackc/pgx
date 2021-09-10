@@ -375,6 +375,7 @@ func (p *Pool) checkMinConns() {
 	}
 }
 
+// Acquire returns a connection (*Conn) from the Pool
 func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 	for {
 		res, err := p.p.Acquire(ctx)
@@ -483,9 +484,18 @@ func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	return &poolBatchResults{br: br, c: c}
 }
 
+// Begin acquires a connection from the Pool and starts a transaction. Unlike database/sql, the context only affects the begin command. i.e. there is no
+// auto-rollback on context cancellation. Begin initiates a transaction block without explicitly setting a transaction mode for the block (see BeginTx with TxOptions if transaction mode is required).
+// *pgxpool.Tx is returned, which implements the pgx.Tx interface.
+// Commit or Rollback must be called on the returned transaction to finalize the transaction block.
 func (p *Pool) Begin(ctx context.Context) (pgx.Tx, error) {
 	return p.BeginTx(ctx, pgx.TxOptions{})
 }
+
+// BeginTx acquires a connection from the Pool and starts a transaction with pgx.TxOptions determining the transaction mode.
+// Unlike database/sql, the context only affects the begin command. i.e. there is no auto-rollback on context cancellation.
+// *pgxpool.Tx is returned, which implements the pgx.Tx interface.
+// Commit or Rollback must be called on the returned transaction to finalize the transaction block.
 func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
@@ -525,6 +535,8 @@ func (p *Pool) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNam
 	return c.Conn().CopyFrom(ctx, tableName, columnNames, rowSrc)
 }
 
+// Ping acquires a connection from the Pool and executes an empty sql statement against it.
+// If the sql returns without error, the database Ping is considered successful, otherwise, the error is returned.
 func (p *Pool) Ping(ctx context.Context) error {
 	c, err := p.Acquire(ctx)
 	if err != nil {
