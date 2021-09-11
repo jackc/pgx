@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"bytes"
+	"database/sql"
 	"errors"
 	"net"
 	"testing"
@@ -209,6 +210,16 @@ func TestConnInfoScanUnknownOIDTextFormat(t *testing.T) {
 	err := ci.Scan(0, pgx.TextFormatCode, []byte("123"), &n)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 123, n)
+}
+
+func TestConnInfoScanUnknownOIDIntoSQLScanner(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+
+	var s sql.NullString
+	err := ci.Scan(0, pgx.TextFormatCode, []byte(nil), &s)
+	assert.NoError(t, err)
+	assert.Equal(t, "", s.String)
+	assert.False(t, s.Valid)
 }
 
 func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
