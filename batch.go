@@ -41,6 +41,9 @@ type BatchResults interface {
 	// QueryRow reads the results from the next query in the batch as if the query has been sent with Conn.QueryRow.
 	QueryRow() Row
 
+	// QueryFunc reads the results from the next query in the batch as if the query has been sent with Conn.QueryFunc.
+	QueryFunc(scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error)
+
 	// Close closes the batch operation. This must be called before the underlying connection can be used again. Any error
 	// that occurred during a batch operation may have made it impossible to resyncronize the connection with the server.
 	// In this case the underlying connection will have been closed.
@@ -133,6 +136,33 @@ func (br *batchResults) Query() (Rows, error) {
 
 	rows.resultReader = br.mrr.ResultReader()
 	return rows, nil
+}
+
+// QueryFunc reads the results from the next query in the batch as if the query has been sent with Conn.QueryFunc.
+func (br *batchResults) QueryFunc(scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+	rows, err := br.Query()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		err = rows.Scan(scans...)
+		if err != nil {
+			return nil, err
+		}
+
+		err = f(rows)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return rows.CommandTag(), nil
 }
 
 // QueryRow reads the results from the next query in the batch as if the query has been sent with QueryRow.

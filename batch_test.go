@@ -32,6 +32,7 @@ func TestConnSendBatch(t *testing.T) {
 	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q2", 2)
 	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q3", 3)
 	batch.Queue("select id, description, amount from ledger order by id")
+	batch.Queue("select id, description, amount from ledger order by id")
 	batch.Queue("select sum(amount) from ledger")
 
 	br := conn.SendBatch(context.Background(), batch)
@@ -60,6 +61,16 @@ func TestConnSendBatch(t *testing.T) {
 		t.Errorf("ct.RowsAffected() => %v, want %v", ct.RowsAffected(), 1)
 	}
 
+	selectFromLedgerExpectedRows := []struct {
+		id          int32
+		description string
+		amount      int32
+	}{
+		{1, "q1", 1},
+		{2, "q2", 2},
+		{3, "q3", 3},
+	}
+
 	rows, err := br.Query()
 	if err != nil {
 		t.Error(err)
@@ -68,60 +79,52 @@ func TestConnSendBatch(t *testing.T) {
 	var id int32
 	var description string
 	var amount int32
-	if !rows.Next() {
-		t.Fatal("expected a row to be available")
-	}
-	if err := rows.Scan(&id, &description, &amount); err != nil {
-		t.Fatal(err)
-	}
-	if id != 1 {
-		t.Errorf("id => %v, want %v", id, 1)
-	}
-	if description != "q1" {
-		t.Errorf("description => %v, want %v", description, "q1")
-	}
-	if amount != 1 {
-		t.Errorf("amount => %v, want %v", amount, 1)
-	}
+	rowCount := 0
 
-	if !rows.Next() {
-		t.Fatal("expected a row to be available")
-	}
-	if err := rows.Scan(&id, &description, &amount); err != nil {
-		t.Fatal(err)
-	}
-	if id != 2 {
-		t.Errorf("id => %v, want %v", id, 2)
-	}
-	if description != "q2" {
-		t.Errorf("description => %v, want %v", description, "q2")
-	}
-	if amount != 2 {
-		t.Errorf("amount => %v, want %v", amount, 2)
-	}
+	for rows.Next() {
+		if rowCount >= len(selectFromLedgerExpectedRows) {
+			t.Fatalf("got too many rows: %d", rowCount)
+		}
 
-	if !rows.Next() {
-		t.Fatal("expected a row to be available")
-	}
-	if err := rows.Scan(&id, &description, &amount); err != nil {
-		t.Fatal(err)
-	}
-	if id != 3 {
-		t.Errorf("id => %v, want %v", id, 3)
-	}
-	if description != "q3" {
-		t.Errorf("description => %v, want %v", description, "q3")
-	}
-	if amount != 3 {
-		t.Errorf("amount => %v, want %v", amount, 3)
-	}
+		if err := rows.Scan(&id, &description, &amount); err != nil {
+			t.Fatalf("row %d: %v", rowCount, err)
+		}
 
-	if rows.Next() {
-		t.Fatal("did not expect a row to be available")
+		if id != selectFromLedgerExpectedRows[rowCount].id {
+			t.Errorf("id => %v, want %v", id, selectFromLedgerExpectedRows[rowCount].id)
+		}
+		if description != selectFromLedgerExpectedRows[rowCount].description {
+			t.Errorf("description => %v, want %v", description, selectFromLedgerExpectedRows[rowCount].description)
+		}
+		if amount != selectFromLedgerExpectedRows[rowCount].amount {
+			t.Errorf("amount => %v, want %v", amount, selectFromLedgerExpectedRows[rowCount].amount)
+		}
+
+		rowCount++
 	}
 
 	if rows.Err() != nil {
 		t.Fatal(rows.Err())
+	}
+
+	rowCount = 0
+	_, err = br.QueryFunc([]interface{}{&id, &description, &amount}, func(pgx.QueryFuncRow) error {
+		if id != selectFromLedgerExpectedRows[rowCount].id {
+			t.Errorf("id => %v, want %v", id, selectFromLedgerExpectedRows[rowCount].id)
+		}
+		if description != selectFromLedgerExpectedRows[rowCount].description {
+			t.Errorf("description => %v, want %v", description, selectFromLedgerExpectedRows[rowCount].description)
+		}
+		if amount != selectFromLedgerExpectedRows[rowCount].amount {
+			t.Errorf("amount => %v, want %v", amount, selectFromLedgerExpectedRows[rowCount].amount)
+		}
+
+		rowCount++
+
+		return nil
+	})
+	if err != nil {
+		t.Error(err)
 	}
 
 	err = br.QueryRow().Scan(&amount)
