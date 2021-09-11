@@ -17,6 +17,10 @@ func (br errBatchResults) Query() (pgx.Rows, error) {
 	return errRows{err: br.err}, br.err
 }
 
+func (br errBatchResults) QueryFunc(scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+	return nil, br.err
+}
+
 func (br errBatchResults) QueryRow() pgx.Row {
 	return errRow{err: br.err}
 }
@@ -36,6 +40,10 @@ func (br *poolBatchResults) Exec() (pgconn.CommandTag, error) {
 
 func (br *poolBatchResults) Query() (pgx.Rows, error) {
 	return br.br.Query()
+}
+
+func (br *poolBatchResults) QueryFunc(scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+	return br.br.QueryFunc(scans, f)
 }
 
 func (br *poolBatchResults) QueryRow() pgx.Row {
