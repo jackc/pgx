@@ -9,15 +9,42 @@ import (
 )
 
 type Logger struct {
-	logger zerolog.Logger
+	logger     zerolog.Logger
+	withFunc   func(context.Context, zerolog.Context) zerolog.Context
+	skipModule bool
+}
+
+// option options for configuring the logger when creating a new logger.
+type option func(logger *Logger)
+
+// WithContextFunc adds possibility to get request scoped values from the
+// ctx.Context before logging lines.
+func WithContextFunc(withFunc func(context.Context, zerolog.Context) zerolog.Context) option {
+	return func(logger *Logger) {
+		logger.withFunc = withFunc
+	}
+}
+
+// WithoutPGXModule disables adding module:pgx to the default logger context.
+func WithoutPGXModule() option {
+	return func(logger *Logger) {
+		logger.skipModule = true
+	}
 }
 
 // NewLogger accepts a zerolog.Logger as input and returns a new custom pgx
-// logging fascade as output.
-func NewLogger(logger zerolog.Logger) *Logger {
-	return &Logger{
-		logger: logger.With().Str("module", "pgx").Logger(),
+// logging facade as output.
+func NewLogger(logger zerolog.Logger, options ...option) *Logger {
+	l := Logger{
+		logger: logger,
 	}
+	for _, opt := range options {
+		opt(&l)
+	}
+	if !l.skipModule {
+		l.logger = l.logger.With().Str("module", "pgx").Logger()
+	}
+	return &l
 }
 
 func (pl *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
@@ -36,7 +63,10 @@ func (pl *Logger) Log(ctx context.Context, level pgx.LogLevel, msg string, data 
 	default:
 		zlevel = zerolog.DebugLevel
 	}
-
-	pgxlog := pl.logger.With().Fields(data).Logger()
+	zctx := pl.logger.With()
+	if pl.withFunc != nil {
+		zctx = pl.withFunc(ctx, zctx)
+	}
+	pgxlog := zctx.Fields(data).Logger()
 	pgxlog.WithLevel(zlevel).Msg(msg)
 }
