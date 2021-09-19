@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/puddle"
 )
 
+// Stat is a snapshot of Pool statistics.
 type Stat struct {
 	s *puddle.Stat
 }
@@ -50,7 +51,7 @@ func (s *Stat) IdleConns() int32 {
 	return s.s.IdleResources()
 }
 
-// MaxResources returns the maximum size of the pool.
+// MaxConns returns the maximum size of the pool.
 func (s *Stat) MaxConns() int32 {
 	return s.s.MaxResources()
 }
