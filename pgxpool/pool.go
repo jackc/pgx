@@ -68,6 +68,7 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 	return pr
 }
 
+// Pool allows for connection reuse.
 type Pool struct {
 	p                 *puddle.Pool
 	config            *Config
@@ -139,6 +140,7 @@ func (c *Config) Copy() *Config {
 	return newConfig
 }
 
+// ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
 // Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
@@ -425,10 +427,15 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 // Config returns a copy of config that was used to initialize this pool.
 func (p *Pool) Config() *Config { return p.config.Copy() }
 
+// Stat returns a pgxpool.Stat struct with a snapshot of Pool statistics.
 func (p *Pool) Stat() *Stat {
 	return &Stat{s: p.p.Stat()}
 }
 
+// Exec acquires a connection from the Pool and executes the given SQL.
+// SQL can be either a prepared statement name or an SQL string.
+// Arguments should be referenced positionally from the SQL string as $1, $2, etc.
+// The acquired connection is returned to the pool when the Exec function returns.
 func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
@@ -439,6 +446,16 @@ func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 	return c.Exec(ctx, sql, arguments...)
 }
 
+// Query acquires a connection and executes a query that returns pgx.Rows.
+// Arguments should be referenced positionally from the SQL string as $1, $2, etc.
+// See pgx.Rows documentation to close the returned Rows and return the acquired connection to the Pool.
+//
+// If there is an error, the returned pgx.Rows will be returned in an error state.
+// If preferred, ignore the error returned from Query and handle errors using the returned pgx.Rows.
+//
+// For extra control over how the query is executed, the types QuerySimpleProtocol, QueryResultFormats, and
+// QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
+// needed. See the documentation for those types for details.
 func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
@@ -454,6 +471,18 @@ func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.
 	return c.getPoolRows(rows), nil
 }
 
+// QueryRow acquires a connection and executes a query that is expected
+// to return at most one row (pgx.Row). Errors are deferred until pgx.Row's
+// Scan method is called. If the query selects no rows, pgx.Row's Scan will
+// return ErrNoRows. Otherwise, pgx.Row's Scan scans the first selected row
+// and discards the rest. The acquired connection is returned to the Pool when
+// pgx.Row's Scan method is called.
+//
+// Arguments should be referenced positionally from the SQL string as $1, $2, etc.
+//
+// For extra control over how the query is executed, the types QuerySimpleProtocol, QueryResultFormats, and
+// QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
+// needed. See the documentation for those types for details.
 func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
 	c, err := p.Acquire(ctx)
 	if err != nil {

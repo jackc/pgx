@@ -50,6 +50,7 @@ func (cc *ConnConfig) Copy() *ConnConfig {
 	return newConfig
 }
 
+// ConnString returns the connection string as parsed by pgx.ParseConfig into pgx.ConnConfig.
 func (cc *ConnConfig) ConnString() string { return cc.connString }
 
 // BuildStatementCacheFunc is a function that can be used to create a stmtcache.Cache implementation for connection.
@@ -107,8 +108,8 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
-// Connect establishes a connection with a PostgreSQL server with a configuration struct. connConfig must have been
-// created by ParseConfig.
+// ConnectConfig establishes a connection with a PostgreSQL server with a configuration struct.
+// connConfig must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
