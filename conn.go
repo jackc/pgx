@@ -325,6 +325,7 @@ func (c *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, e
 	return n, err
 }
 
+// IsClosed reports if the connection has been closed.
 func (c *Conn) IsClosed() bool {
 	return c.pgConn.IsClosed()
 }
@@ -358,6 +359,8 @@ func quoteIdentifier(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
 
+// Ping executes an empty sql statement against the *Conn
+// If the sql returns without error, the database Ping is considered successful, otherwise, the error is returned.
 func (c *Conn) Ping(ctx context.Context) error {
 	_, err := c.Exec(ctx, ";")
 	return err
