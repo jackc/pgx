@@ -141,7 +141,7 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
-func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
+func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, arg interface{}) ([]byte, error) {
 	if arg == nil {
 		return pgio.AppendInt32(buf, -1), nil
 	}
@@ -184,43 +184,13 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 			return pgio.AppendInt32(buf, -1), nil
 		}
 		arg = refVal.Elem().Interface()
-		return encodePreparedStatementArgument(ci, buf, oid, arg)
-	}
-
-	if dt, ok := ci.DataTypeForOID(oid); ok {
-		value := dt.Value
-		err := value.Set(arg)
-		if err != nil {
-			{
-				if arg, ok := arg.(driver.Valuer); ok {
-					v, err := callValuerValue(arg)
-					if err != nil {
-						return nil, err
-					}
-					return encodePreparedStatementArgument(ci, buf, oid, v)
-				}
-			}
-
-			return nil, err
-		}
-
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
-		if err != nil {
-			return nil, err
-		}
-		if argBuf != nil {
-			buf = argBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-		return buf, nil
+		return encodePreparedStatementArgument(ci, buf, arg)
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return encodePreparedStatementArgument(ci, buf, oid, strippedArg)
+		return encodePreparedStatementArgument(ci, buf, strippedArg)
 	}
-	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+	return nil, SerializationError(fmt.Sprintf("Cannot encode %T - %T must implement Encoder or be converted to a string", arg, arg))
 }
 
 // chooseParameterFormatCode determines the correct format code for an
