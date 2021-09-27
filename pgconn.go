@@ -1185,27 +1185,6 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		return nil, &writeError{err: err, safeToRetry: n == 0}
 	}
 
-	// Read until copy in response or error.
-	var commandTag CommandTag
-	var pgErr error
-	pendingCopyInResponse := true
-	for pendingCopyInResponse {
-		msg, err := pgConn.receiveMessage()
-		if err != nil {
-			pgConn.asyncClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
-		}
-
-		switch msg := msg.(type) {
-		case *pgproto3.CopyInResponse:
-			pendingCopyInResponse = false
-		case *pgproto3.ErrorResponse:
-			pgErr = ErrorResponseToPgError(msg)
-		case *pgproto3.ReadyForQuery:
-			return commandTag, pgErr
-		}
-	}
-
 	// Send copy data
 	abortCopyChan := make(chan struct{})
 	copyErrChan := make(chan error, 1)
@@ -1244,6 +1223,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		}
 	}()
 
+	var pgErr error
 	var copyErr error
 	for copyErr == nil && pgErr == nil {
 		select {
@@ -1280,6 +1260,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 
 	// Read results
+	var commandTag CommandTag
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
