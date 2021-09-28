@@ -73,7 +73,7 @@ pgx supports many features beyond what is available through `database/sql`:
 * Single-round trip query mode
 * Full TLS connection control
 * Binary format support for custom types (allows for much quicker encoding/decoding)
-* Copy protocol support for faster bulk data loads
+* COPY protocol support for faster bulk data loads
 * Extendable logging support including built-in support for `log15adapter`, [`logrus`](https://github.com/sirupsen/logrus), [`zap`](https://github.com/uber-go/zap), and [`zerolog`](https://github.com/rs/zerolog)
 * Connection pool with after-connect hook for arbitrary connection setup
 * Listen / notify
