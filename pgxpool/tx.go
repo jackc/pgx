@@ -60,11 +60,11 @@ func (tx *Tx) LargeObjects() pgx.LargeObjects {
 
 // Prepare creates a prepared statement with name and sql. If the name is empty,
 // an anonymous prepared statement will be used. sql can contain placeholders
-// for bound parameters. These placeholders are referenced positional as $1, $2, etc.
+// for bound parameters. These placeholders are referenced positionally as $1, $2, etc.
 //
 // Prepare is idempotent; i.e. it is safe to call Prepare multiple times with the same
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
-// concern for if the statement has already been prepared.
+// needing to first check whether the statement has already been prepared.
 func (tx *Tx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error) {
 	return tx.t.Prepare(ctx, name, sql)
 }
