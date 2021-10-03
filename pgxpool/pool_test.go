@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -799,4 +800,105 @@ func TestIdempotentPoolClose(t *testing.T) {
 
 	// Close the already closed pool.
 	require.NotPanics(t, func() { pool.Close() })
+}
+
+func TestConnectCreatesMinPool(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(12)
+	config.MaxConns = int32(15)
+	config.LazyConnect = false
+
+	acquireAttempts := int64(0)
+	connectAttempts := int64(0)
+
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		atomic.AddInt64(&connectAttempts, 1)
+		return nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	stat := pool.Stat()
+	require.Equal(t, int32(12), stat.IdleConns())
+	require.Equal(t, int64(1), stat.AcquireCount())
+	require.Equal(t, int32(12), stat.TotalConns())
+	require.Equal(t, int64(0), acquireAttempts)
+	require.Equal(t, int64(12), connectAttempts)
+}
+func TestConnectSkipMinPoolWithLazy(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(12)
+	config.MaxConns = int32(15)
+	config.LazyConnect = true
+
+	acquireAttempts := int64(0)
+	connectAttempts := int64(0)
+
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		atomic.AddInt64(&connectAttempts, 1)
+		return nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	stat := pool.Stat()
+	require.Equal(t, int32(0), stat.IdleConns())
+	require.Equal(t, int64(0), stat.AcquireCount())
+	require.Equal(t, int32(0), stat.TotalConns())
+	require.Equal(t, int64(0), acquireAttempts)
+	require.Equal(t, int64(0), connectAttempts)
+}
+
+func TestConnectMinPoolZero(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(0)
+	config.MaxConns = int32(15)
+	config.LazyConnect = false
+
+	acquireAttempts := int64(0)
+	connectAttempts := int64(0)
+
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		atomic.AddInt64(&connectAttempts, 1)
+		return nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	stat := pool.Stat()
+	require.Equal(t, int32(1), stat.IdleConns())
+	require.Equal(t, int64(1), stat.AcquireCount())
+	require.Equal(t, int32(1), stat.TotalConns())
+	require.Equal(t, int64(0), acquireAttempts)
+	require.Equal(t, int64(1), connectAttempts)
 }
