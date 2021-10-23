@@ -1,6 +1,7 @@
 package pgtype_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -31,6 +32,26 @@ func TestTimestampTranscode(t *testing.T) {
 
 		return at.Time.Equal(bt.Time) && at.Status == bt.Status && at.InfinityModifier == bt.InfinityModifier
 	})
+}
+
+// https://github.com/jackc/pgtype/pull/128
+func TestTimestampTranscodeBigTimeBinary(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	if _, ok := conn.ConnInfo().DataTypeForName("line"); !ok {
+		t.Skip("Skipping due to no line type")
+	}
+	defer testutil.MustCloseContext(t, conn)
+
+	in := &pgtype.Timestamp{Time: time.Date(294276, 12, 31, 23, 59, 59, 999999000, time.UTC), Status: pgtype.Present}
+	var out pgtype.Timestamp
+
+	err := conn.QueryRow(context.Background(), "select $1::timestamptz", in).Scan(&out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	require.Equal(t, in.Status, out.Status)
+	require.Truef(t, in.Time.Equal(out.Time), "expected %v got %v", in.Time, out.Time)
 }
 
 func TestTimestampNanosecondsTruncated(t *testing.T) {
