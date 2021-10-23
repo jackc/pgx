@@ -141,8 +141,10 @@ func (dst *Timestamp) DecodeBinary(ci *ConnInfo, src []byte) error {
 	case negativeInfinityMicrosecondOffset:
 		*dst = Timestamp{Status: Present, InfinityModifier: -Infinity}
 	default:
-		microsecSinceUnixEpoch := microsecFromUnixEpochToY2K + microsecSinceY2K
-		tim := time.Unix(microsecSinceUnixEpoch/1000000, (microsecSinceUnixEpoch%1000000)*1000).UTC()
+		tim := time.Unix(
+			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
+			(microsecFromUnixEpochToY2K%1000000*1000)+(microsecSinceY2K%1000000*1000),
+		)
 		*dst = Timestamp{Time: tim, Status: Present}
 	}
 
