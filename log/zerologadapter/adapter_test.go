@@ -38,6 +38,23 @@ func TestLogger(t *testing.T) {
 		}
 	})
 
+	t.Run("from context", func(t *testing.T) {
+		var buf bytes.Buffer
+		zlogger := zerolog.New(&buf)
+		ctx := zlogger.WithContext(context.Background())
+		logger := zerologadapter.NewContextLogger()
+		logger.Log(ctx, pgx.LogLevelInfo, "hello", map[string]interface{}{"one": "two"})
+		const want = `{"level":"info","module":"pgx","one":"two","message":"hello"}
+`
+
+		got := buf.String()
+		if got != want {
+			t.Log(got)
+			t.Log(want)
+			t.Errorf("%s != %s", got, want)
+		}
+	})
+
 	var buf bytes.Buffer
 	type key string
 	var ck key
@@ -52,7 +69,8 @@ func TestLogger(t *testing.T) {
 				logWith = logWith.Str("req_id", id)
 			}
 			return logWith
-		}))
+		}),
+	)
 
 	t.Run("no request id", func(t *testing.T) {
 		buf.Reset()
@@ -77,5 +95,4 @@ func TestLogger(t *testing.T) {
 			t.Errorf("%s != %s", got, want)
 		}
 	})
-
 }
