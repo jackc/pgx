@@ -40,6 +40,16 @@ func (dst *Hstore) Set(src interface{}) error {
 			m[k] = Text{String: v, Status: Present}
 		}
 		*dst = Hstore{Map: m, Status: Present}
+	case map[string]*string:
+		m := make(map[string]Text, len(value))
+		for k, v := range value {
+			if v == nil {
+				m[k] = Text{Status: Null}
+			} else {
+				m[k] = Text{String: *v, Status: Present}
+			}
+		}
+		*dst = Hstore{Map: m, Status: Present}
 	default:
 		return fmt.Errorf("cannot convert %v to Hstore", src)
 	}
@@ -69,6 +79,19 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 					return fmt.Errorf("cannot decode %#v into %T", src, dst)
 				}
 				(*v)[k] = val.String
+			}
+			return nil
+		case *map[string]*string:
+			*v = make(map[string]*string, len(src.Map))
+			for k, val := range src.Map {
+				switch val.Status {
+				case Null:
+					(*v)[k] = nil
+				case Present:
+					(*v)[k] = &val.String
+				default:
+					return fmt.Errorf("cannot decode %#v into %T", src, dst)
+				}
 			}
 			return nil
 		default:
