@@ -64,7 +64,7 @@ func (src SASLInitialResponse) MarshalJSON() ([]byte, error) {
 	}{
 		Type:          "SASLInitialResponse",
 		AuthMechanism: src.AuthMechanism,
-		Data:          hex.EncodeToString(src.Data),
+		Data:          string(src.Data),
 	})
 }
 
