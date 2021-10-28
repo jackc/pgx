@@ -38,7 +38,7 @@ func (src SASLResponse) MarshalJSON() ([]byte, error) {
 		Data string
 	}{
 		Type: "SASLResponse",
-		Data: hex.EncodeToString(src.Data),
+		Data: string(src.Data),
 	})
 }
 
