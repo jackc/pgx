@@ -902,3 +902,78 @@ func TestConnectMinPoolZero(t *testing.T) {
 	require.Equal(t, int64(0), acquireAttempts)
 	require.Equal(t, int64(1), connectAttempts)
 }
+
+func TestCreateMinPoolClosesConnectionsOnError(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(12)
+	config.MaxConns = int32(15)
+	config.LazyConnect = false
+
+	acquireAttempts := int64(0)
+	madeConnections := int64(0)
+	conns := make(chan *pgx.Conn, 15)
+
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		conns <- conn
+
+		atomic.AddInt64(&madeConnections, 1)
+		mc := atomic.LoadInt64(&madeConnections)
+		if mc == 10 {
+			return errors.New("mock error")
+		}
+		return nil
+	}
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.Error(t, err)
+	require.Nil(t, pool)
+
+	close(conns)
+	for conn := range conns {
+		require.True(t, conn.IsClosed())
+	}
+
+	require.Equal(t, int64(0), acquireAttempts)
+	require.True(t, madeConnections >= 10, "Expected %d got %d", 10, madeConnections)
+}
+
+func TestCreateMinPoolReturnsFirstError(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	config.MinConns = int32(12)
+	config.MaxConns = int32(15)
+	config.LazyConnect = false
+
+	acquireAttempts := int64(0)
+	connectAttempts := int64(0)
+
+	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
+		atomic.AddInt64(&acquireAttempts, 1)
+		return true
+	}
+	config.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		atomic.AddInt64(&connectAttempts, 1)
+		ca := atomic.LoadInt64(&connectAttempts)
+		if ca >= 5 {
+			return fmt.Errorf("error %d", ca)
+		}
+		return nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.Nil(t, pool)
+	require.Error(t, err)
+
+	require.True(t, connectAttempts >= 5, "Expected %d got %d", 5, connectAttempts)
+	require.Equal(t, "error 5", err.Error())
+}

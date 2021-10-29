@@ -226,6 +226,8 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	if !config.LazyConnect {
 		if err := p.createIdleResources(ctx, int(p.minConns)); err != nil {
+			// Couldn't create resources for minpool size. Close unhealthy pool.
+			p.Close()
 			return nil, err
 		}
 
@@ -385,7 +387,7 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
 
-	errs := make(chan error)
+	errs := make(chan error, targetResources)
 
 	for i := 0; i < targetResources; i++ {
 		go func() {
@@ -394,14 +396,16 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 		}()
 	}
 
+	var firstError error
 	for i := 0; i < targetResources; i++ {
-		if err := <-errs; err != nil {
+		err := <-errs
+		if err != nil && firstError == nil {
 			cancel()
-			return err
+			firstError = err
 		}
 	}
 
-	return nil
+	return firstError
 }
 
 // Acquire returns a connection (*Conn) from the Pool
