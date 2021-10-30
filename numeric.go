@@ -452,11 +452,11 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	rp := 0
-	ndigits := int16(binary.BigEndian.Uint16(src[rp:]))
+	ndigits := binary.BigEndian.Uint16(src[rp:])
 	rp += 2
 	weight := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
-	sign := uint16(binary.BigEndian.Uint16(src[rp:]))
+	sign := binary.BigEndian.Uint16(src[rp:])
 	rp += 2
 	dscale := int16(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
@@ -504,7 +504,7 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	exp := (int32(weight) - int32(ndigits) + 1) * 4
 
 	if dscale > 0 {
-		fracNBaseDigits := ndigits - weight - 1
+		fracNBaseDigits := int16(int32(ndigits) - int32(weight) - 1)
 		fracDecimalDigits := fracNBaseDigits * 4
 
 		if dscale > fracDecimalDigits {

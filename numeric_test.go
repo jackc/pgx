@@ -117,6 +117,10 @@ func TestNumericNormalize(t *testing.T) {
 }
 
 func TestNumericTranscode(t *testing.T) {
+	max := new(big.Int).Exp(big.NewInt(10), big.NewInt(147454), nil)
+	max.Add(max, big.NewInt(1))
+	longestNumeric := &pgtype.Numeric{Int: max, Exp: -16383, Status: pgtype.Present}
+
 	testutil.TestSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
 		&pgtype.Numeric{NaN: true, Status: pgtype.Present},
 
@@ -151,6 +155,9 @@ func TestNumericTranscode(t *testing.T) {
 		&pgtype.Numeric{Int: mustParseBigInt(t, "423409823409243892349028349023482934092340892390101"), Exp: -92, Status: pgtype.Present},
 		&pgtype.Numeric{Int: mustParseBigInt(t, "23409823409243892349028349023482934092340892390101"), Exp: -93, Status: pgtype.Present},
 		&pgtype.Numeric{Int: mustParseBigInt(t, "3409823409243892349028349023482934092340892390101"), Exp: -94, Status: pgtype.Present},
+
+		longestNumeric,
+
 		&pgtype.Numeric{Status: pgtype.Null},
 	}, func(aa, bb interface{}) bool {
 		a := aa.(pgtype.Numeric)
