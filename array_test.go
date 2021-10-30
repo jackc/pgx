@@ -100,6 +100,14 @@ func TestParseUntypedTextArray(t *testing.T) {
 				},
 			},
 		},
+		{
+			source: "[-4:-2]={1,2,3}",
+			result: pgtype.UntypedTextArray{
+				Elements:   []string{"1", "2", "3"},
+				Quoted:     []bool{false, false, false},
+				Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: -4}},
+			},
+		},
 	}
 
 	for i, tt := range tests {
