@@ -957,6 +957,8 @@ func TestCreateMinPoolReturnsFirstError(t *testing.T) {
 	acquireAttempts := int64(0)
 	connectAttempts := int64(0)
 
+	mockErr := errors.New("mock connect error")
+
 	config.BeforeAcquire = func(ctx context.Context, conn *pgx.Conn) bool {
 		atomic.AddInt64(&acquireAttempts, 1)
 		return true
@@ -965,7 +967,7 @@ func TestCreateMinPoolReturnsFirstError(t *testing.T) {
 		atomic.AddInt64(&connectAttempts, 1)
 		ca := atomic.LoadInt64(&connectAttempts)
 		if ca >= 5 {
-			return fmt.Errorf("error %d", ca)
+			return mockErr
 		}
 		return nil
 	}
@@ -975,5 +977,5 @@ func TestCreateMinPoolReturnsFirstError(t *testing.T) {
 	require.Error(t, err)
 
 	require.True(t, connectAttempts >= 5, "Expected %d got %d", 5, connectAttempts)
-	require.Equal(t, "error 5", err.Error())
+	require.ErrorIs(t, err, mockErr)
 }
