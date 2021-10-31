@@ -123,6 +123,8 @@ func TestNumericTranscode(t *testing.T) {
 
 	testutil.TestSuccessfulTranscodeEqFunc(t, "numeric", []interface{}{
 		&pgtype.Numeric{NaN: true, Status: pgtype.Present},
+		&pgtype.Numeric{InfinityModifier: pgtype.Infinity, Status: pgtype.Present},
+		&pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present},
 
 		&pgtype.Numeric{Int: big.NewInt(0), Exp: 0, Status: pgtype.Present},
 		&pgtype.Numeric{Int: big.NewInt(1), Exp: 0, Status: pgtype.Present},
@@ -372,6 +374,10 @@ func TestNumericEncodeDecodeBinary(t *testing.T) {
 		1.00002345,
 		math.NaN(),
 		float32(math.NaN()),
+		math.Inf(1),
+		float32(math.Inf(1)),
+		math.Inf(-1),
+		float32(math.Inf(-1)),
 	}
 
 	for i, tt := range tests {
