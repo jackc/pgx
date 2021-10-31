@@ -403,6 +403,10 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 func (src *Numeric) toFloat64() (float64, error) {
 	if src.NaN {
 		return math.NaN(), nil
+	} else if src.InfinityModifier == Infinity {
+		return math.Inf(1), nil
+	} else if src.InfinityModifier == NegativeInfinity {
+		return math.Inf(-1), nil
 	}
 
 	buf := make([]byte, 0, 32)
