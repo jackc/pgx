@@ -18,6 +18,12 @@ const nbase = 10000
 const (
 	pgNumericNaN     = 0x00000000c0000000
 	pgNumericNaNSign = 0xc000
+
+	pgNumericPosInf     = 0x00000000d0000000
+	pgNumericPosInfSign = 0xd000
+
+	pgNumericNegInf     = 0x00000000f0000000
+	pgNumericNegInfSign = 0xf000
 )
 
 var big0 *big.Int = big.NewInt(0)
@@ -492,6 +498,12 @@ func (dst *Numeric) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if sign == pgNumericNaNSign {
 		*dst = Numeric{Status: Present, NaN: true}
 		return nil
+	} else if sign == pgNumericPosInfSign {
+		*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+		return nil
+	} else if sign == pgNumericNegInfSign {
+		*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+		return nil
 	}
 
 	if ndigits == 0 {
@@ -627,6 +639,12 @@ func (src Numeric) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 	if src.NaN {
 		buf = pgio.AppendUint64(buf, pgNumericNaN)
+		return buf, nil
+	} else if src.InfinityModifier == Infinity {
+		buf = pgio.AppendUint64(buf, pgNumericPosInf)
+		return buf, nil
+	} else if src.InfinityModifier == NegativeInfinity {
+		buf = pgio.AppendUint64(buf, pgNumericNegInf)
 		return buf, nil
 	}
 
