@@ -431,6 +431,12 @@ func (dst *Numeric) DecodeText(ci *ConnInfo, src []byte) error {
 	if string(src) == "NaN" {
 		*dst = Numeric{Status: Present, NaN: true}
 		return nil
+	} else if string(src) == "Infinity" {
+		*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+		return nil
+	} else if string(src) == "-Infinity" {
+		*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+		return nil
 	}
 
 	num, exp, err := parseNumericString(string(src))
@@ -596,6 +602,12 @@ func (src Numeric) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 
 	if src.NaN {
 		buf = append(buf, "NaN"...)
+		return buf, nil
+	} else if src.InfinityModifier == Infinity {
+		buf = append(buf, "Infinity"...)
+		return buf, nil
+	} else if src.InfinityModifier == NegativeInfinity {
+		buf = append(buf, "-Infinity"...)
 		return buf, nil
 	}
 
