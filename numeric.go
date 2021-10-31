@@ -49,10 +49,11 @@ var bigNBaseX3 *big.Int = big.NewInt(nbase * nbase * nbase)
 var bigNBaseX4 *big.Int = big.NewInt(nbase * nbase * nbase * nbase)
 
 type Numeric struct {
-	Int    *big.Int
-	Exp    int32
-	Status Status
-	NaN    bool
+	Int              *big.Int
+	Exp              int32
+	Status           Status
+	NaN              bool
+	InfinityModifier InfinityModifier
 }
 
 func (dst *Numeric) Set(src interface{}) error {
@@ -73,6 +74,12 @@ func (dst *Numeric) Set(src interface{}) error {
 		if math.IsNaN(float64(value)) {
 			*dst = Numeric{Status: Present, NaN: true}
 			return nil
+		} else if math.IsInf(float64(value), 1) {
+			*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+			return nil
+		} else if math.IsInf(float64(value), -1) {
+			*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
+			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(float64(value), 'f', -1, 64))
 		if err != nil {
@@ -82,6 +89,12 @@ func (dst *Numeric) Set(src interface{}) error {
 	case float64:
 		if math.IsNaN(value) {
 			*dst = Numeric{Status: Present, NaN: true}
+			return nil
+		} else if math.IsInf(value, 1) {
+			*dst = Numeric{Status: Present, InfinityModifier: Infinity}
+			return nil
+		} else if math.IsInf(value, -1) {
+			*dst = Numeric{Status: Present, InfinityModifier: NegativeInfinity}
 			return nil
 		}
 		num, exp, err := parseNumericString(strconv.FormatFloat(value, 'f', -1, 64))
@@ -193,6 +206,8 @@ func (dst *Numeric) Set(src interface{}) error {
 		} else {
 			return dst.Set(*value)
 		}
+	case InfinityModifier:
+		*dst = Numeric{InfinityModifier: value, Status: Present}
 	default:
 		if originalSrc, ok := underlyingNumberType(src); ok {
 			return dst.Set(originalSrc)
@@ -206,6 +221,9 @@ func (dst *Numeric) Set(src interface{}) error {
 func (dst Numeric) Get() interface{} {
 	switch dst.Status {
 	case Present:
+		if dst.InfinityModifier != None {
+			return dst.InfinityModifier
+		}
 		return dst
 	case Null:
 		return nil

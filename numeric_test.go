@@ -222,6 +222,12 @@ func TestNumericSet(t *testing.T) {
 		{source: float64(12345.678901), result: &pgtype.Numeric{Int: big.NewInt(12345678901), Exp: -6, Status: pgtype.Present}},
 		{source: math.NaN(), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Present, NaN: true}},
 		{source: float32(math.NaN()), result: &pgtype.Numeric{Int: nil, Exp: 0, Status: pgtype.Present, NaN: true}},
+		{source: pgtype.Infinity, result: &pgtype.Numeric{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
+		{source: math.Inf(1), result: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}},
+		{source: float32(math.Inf(1)), result: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}},
+		{source: pgtype.NegativeInfinity, result: &pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+		{source: math.Inf(-1), result: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}},
+		{source: float32(math.Inf(1)), result: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}},
 	}
 
 	for i, tt := range successfulTests {
