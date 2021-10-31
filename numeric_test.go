@@ -287,6 +287,10 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Status: pgtype.Present}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgtype/issues/27
 		{src: &pgtype.Numeric{Status: pgtype.Present, NaN: true}, dst: &f64, expected: math.NaN()},
 		{src: &pgtype.Numeric{Status: pgtype.Present, NaN: true}, dst: &f32, expected: float32(math.NaN())},
+		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}, dst: &f64, expected: math.Inf(1)},
+		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}, dst: &f32, expected: float32(math.Inf(1))},
+		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}, dst: &f64, expected: math.Inf(-1)},
+		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}, dst: &f32, expected: float32(math.Inf(-1))},
 	}
 
 	for i, tt := range simpleTests {
