@@ -21,6 +21,7 @@ type Backend struct {
 	describe       Describe
 	execute        Execute
 	flush          Flush
+	functionCall   FunctionCall
 	gssEncRequest  GSSEncRequest
 	parse          Parse
 	query          Query
@@ -29,10 +30,11 @@ type Backend struct {
 	sync           Sync
 	terminate      Terminate
 
-	bodyLen    int
-	msgType    byte
-	partialMsg bool
-	authType   uint32
+	bodyLen      int
+	msgType      byte
+	partialMsg   bool
+	authType     uint32
+	
 }
 
 const (
@@ -125,6 +127,8 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		msg = &b.describe
 	case 'E':
 		msg = &b.execute
+	case 'F':
+		msg = &b.functionCall
 	case 'f':
 		msg = &b.copyFail
 	case 'd':
