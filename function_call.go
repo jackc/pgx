@@ -6,10 +6,10 @@ import (
 	"github.com/jackc/pgio"
 )
 
-type FunctionCall struct{
-	Function uint32
-	ArgFormatCodes []uint16
-	Arguments [][]byte
+type FunctionCall struct {
+	Function         uint32
+	ArgFormatCodes   []uint16
+	Arguments        [][]byte
 	ResultFormatCode uint16
 }
 
@@ -24,9 +24,9 @@ func (dst *FunctionCall) Decode(src []byte) error {
 	// Specifies the object ID of the function to call.
 	dst.Function = binary.BigEndian.Uint32(src[rp:])
 	rp += 4
-	// The number of argument format codes that follow (denoted C below). 
-	// This can be zero to indicate that there are no arguments or that the arguments all use the default format (text); 
-	// or one, in which case the specified format code is applied to all arguments; 
+	// The number of argument format codes that follow (denoted C below).
+	// This can be zero to indicate that there are no arguments or that the arguments all use the default format (text);
+	// or one, in which case the specified format code is applied to all arguments;
 	// or it can equal the actual number of arguments.
 	nArgumentCodes := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
@@ -37,36 +37,36 @@ func (dst *FunctionCall) Decode(src []byte) error {
 		if ac != 0 && ac != 1 {
 			return &invalidMessageFormatErr{messageType: "FunctionCall"}
 		}
-        argumentCodes[i] = ac
-        rp += 2
-    }
+		argumentCodes[i] = ac
+		rp += 2
+	}
 	dst.ArgFormatCodes = argumentCodes
-	
+
 	// Specifies the number of arguments being supplied to the function.
 	nArguments := int(binary.BigEndian.Uint16(src[rp:]))
 	rp += 2
 	arguments := make([][]byte, nArguments)
 	for i := 0; i < nArguments; i++ {
-		// The length of the argument value, in bytes (this count does not include itself). Can be zero. 
+		// The length of the argument value, in bytes (this count does not include itself). Can be zero.
 		// As a special case, -1 indicates a NULL argument value. No value bytes follow in the NULL case.
-        argumentLength := int(binary.BigEndian.Uint32(src[rp:]))
-        rp += 4
-        if argumentLength == -1 {
+		argumentLength := int(binary.BigEndian.Uint32(src[rp:]))
+		rp += 4
+		if argumentLength == -1 {
 			arguments[i] = nil
 		} else {
 			// The value of the argument, in the format indicated by the associated format code. n is the above length.
-			argumentValue := src[rp:rp+argumentLength]
+			argumentValue := src[rp : rp+argumentLength]
 			rp += argumentLength
 			arguments[i] = argumentValue
-        }
-    }
+		}
+	}
 	dst.Arguments = arguments
 	// The format code for the function result. Must presently be zero (text) or one (binary).
 	resultFormatCode := binary.BigEndian.Uint16(src[rp:])
 	if resultFormatCode != 0 && resultFormatCode != 1 {
-        return &invalidMessageFormatErr{messageType: "FunctionCall"}
-    }
-	dst.ResultFormatCode  = resultFormatCode
+		return &invalidMessageFormatErr{messageType: "FunctionCall"}
+	}
+	dst.ResultFormatCode = resultFormatCode
 	return nil
 }
 
@@ -78,17 +78,17 @@ func (src *FunctionCall) Encode(dst []byte) []byte {
 	dst = pgio.AppendUint32(dst, src.Function)
 	dst = pgio.AppendUint16(dst, uint16(len(src.ArgFormatCodes)))
 	for _, argFormatCode := range src.ArgFormatCodes {
-        dst = pgio.AppendUint16(dst, argFormatCode)
-    }
+		dst = pgio.AppendUint16(dst, argFormatCode)
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Arguments)))
 	for _, argument := range src.Arguments {
-        if argument == nil {
-            dst = pgio.AppendInt32(dst, -1)
-        } else {
-            dst = pgio.AppendInt32(dst, int32(len(argument)))
-            dst = append(dst, argument...)
-        }
-    }
+		if argument == nil {
+			dst = pgio.AppendInt32(dst, -1)
+		} else {
+			dst = pgio.AppendInt32(dst, int32(len(argument)))
+			dst = append(dst, argument...)
+		}
+	}
 	dst = pgio.AppendUint16(dst, src.ResultFormatCode)
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 	return dst
