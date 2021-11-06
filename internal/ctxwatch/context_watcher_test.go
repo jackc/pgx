@@ -59,7 +59,7 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	require.Panics(t, func() { cw.Watch(ctx2) }, "Expected panic when Watch called multiple times")
 }
 
-func TestContextWatcherUnwatchIsAlwaysSafe(t *testing.T) {
+func TestContextWatcherUnwatchWhenNotWatchingIsSafe(t *testing.T) {
 	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
 	cw.Unwatch() // unwatch when not / never watching
 
@@ -68,6 +68,19 @@ func TestContextWatcherUnwatchIsAlwaysSafe(t *testing.T) {
 	cw.Watch(ctx)
 	cw.Unwatch()
 	cw.Unwatch() // double unwatch
+}
+
+func TestContextWatcherUnwatchIsConcurrencySafe(t *testing.T) {
+	cw := ctxwatch.NewContextWatcher(func() {}, func() {})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	cw.Watch(ctx)
+
+	go cw.Unwatch()
+	go cw.Unwatch()
+
+	<-ctx.Done()
 }
 
 func TestContextWatcherStress(t *testing.T) {
