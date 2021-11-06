@@ -1,7 +1,8 @@
 package pgproto3
 
 import (
-	"github.com/go-test/deep"
+	"encoding/binary"
+	"reflect"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ func TestFunctionCall_EncodeDecode(t *testing.T) {
 		fields  fields
 		wantErr bool
 	}{
-		{"foo", fields{uint32(123), []uint16{0, 1, 0, 1}, [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}, uint16(0)}, false},
+		{"valid", fields{uint32(123), []uint16{0, 1, 0, 1}, [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}, uint16(1)}, false},
 		{"invalid format code", fields{uint32(123), []uint16{2, 1, 0, 1}, [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}, uint16(0)}, true},
 		{"invalid result format code", fields{uint32(123), []uint16{1, 1, 0, 1}, [][]byte{[]byte("foo"), []byte("bar"), []byte("baz")}, uint16(2)}, true},
 	}
@@ -30,14 +31,31 @@ func TestFunctionCall_EncodeDecode(t *testing.T) {
 				ResultFormatCode: tt.fields.ResultFormatCode,
 			}
 			encoded := src.Encode([]byte{})
-			decoded := &FunctionCall{}
-			err := decoded.Decode(encoded[5:])
-			if (err != nil) != tt.wantErr {
-                t.Errorf("FunctionCall.Decode() error = %v, wantErr %v", err, tt.wantErr)
-                return
-            }
-			if diff := deep.Equal(src, decoded); diff != nil {
-				t.Error(diff)
+			dst := &FunctionCall{}
+			// Check the header
+			msgTypeCode := encoded[0]
+			if msgTypeCode != 'F' {
+				t.Errorf("msgTypeCode %v should be 'F'", msgTypeCode)
+				return
+			}
+			// Check length, does not include type code character
+			l := binary.BigEndian.Uint32(encoded[1:5])
+			if int(l) != (len(encoded) - 1) {
+				t.Errorf("Incorrect message length, got = %v, wanted = %v", l, len(encoded))
+			}
+			// Check decoding works as expected
+			err := dst.Decode(encoded[5:])
+			if err != nil {
+				if !tt.wantErr {
+					t.Errorf("FunctionCall.Decode() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				return
+			}
+
+			if !reflect.DeepEqual(src, dst) {
+				t.Error("difference after encode / decode cycle")
+				t.Errorf("src = %v", src)
+				t.Errorf("dst = %v", dst)
 			}
 		})
 	}
