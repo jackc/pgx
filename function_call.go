@@ -2,7 +2,6 @@ package pgproto3
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"github.com/jackc/pgio"
 )
 
@@ -92,13 +91,4 @@ func (src *FunctionCall) Encode(dst []byte) []byte {
 	dst = pgio.AppendUint16(dst, src.ResultFormatCode)
 	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
 	return dst
-}
-
-// MarshalJSON implements encoding/json.Marshaler.
-func (src FunctionCall) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Type string
-	}{
-		Type: "FunctionCall",
-	})
 }
