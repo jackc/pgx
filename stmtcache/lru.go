@@ -53,6 +53,14 @@ func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.StatementDescription
 		}
 	}
 
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+
 	if el, ok := c.m[sql]; ok {
 		c.l.MoveToFront(el)
 		return el.Value.(*pgconn.StatementDescription), nil
