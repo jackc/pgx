@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgconn"
@@ -66,7 +67,8 @@ type Conn struct {
 	logger             Logger
 	logLevel           LogLevel
 
-	notifications []*pgconn.Notification
+	notifications     []*pgconn.Notification
+	notificationsLock sync.Mutex
 
 	doneChan   chan struct{}
 	closedChan chan error
@@ -302,27 +304,37 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 }
 
 func (c *Conn) bufferNotifications(_ *pgconn.PgConn, n *pgconn.Notification) {
+	c.notificationsLock.Lock()
 	c.notifications = append(c.notifications, n)
+	c.notificationsLock.Unlock()
 }
 
 // WaitForNotification waits for a PostgreSQL notification. It wraps the underlying pgconn notification system in a
 // slightly more convenient form.
 func (c *Conn) WaitForNotification(ctx context.Context) (*pgconn.Notification, error) {
-	var n *pgconn.Notification
-
 	// Return already received notification immediately
-	if len(c.notifications) > 0 {
-		n = c.notifications[0]
-		c.notifications = c.notifications[1:]
+	if n := c.dequeueNotification(); n != nil {
 		return n, nil
 	}
 
-	err := c.pgConn.WaitForNotification(ctx)
-	if len(c.notifications) > 0 {
-		n = c.notifications[0]
-		c.notifications = c.notifications[1:]
+	// Wait for the next notification.
+	if err := c.pgConn.WaitForNotification(ctx); err != nil {
+		return nil, err
 	}
-	return n, err
+
+	// Return the next queued notification.
+	return c.dequeueNotification(), nil
+}
+
+func (c *Conn) dequeueNotification() *pgconn.Notification {
+	c.notificationsLock.Lock()
+	defer c.notificationsLock.Unlock()
+	if len(c.notifications) == 0 {
+		return nil
+	}
+	n := c.notifications[0]
+	c.notifications = c.notifications[1:]
+	return n
 }
 
 // IsClosed reports if the connection has been closed.
