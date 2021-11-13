@@ -521,6 +521,7 @@ func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, 
 	}
 
 	result := c.pgConn.ExecParams(ctx, sd.SQL, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats).Read()
+	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 	return result.CommandTag, result.Err
 }
 
@@ -531,6 +532,7 @@ func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription
 	}
 
 	result := c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, c.eqb.resultFormats).Read()
+	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 	return result.CommandTag, result.Err
 }
 
@@ -678,6 +680,8 @@ optionLoop:
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 	}
 
+	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
+
 	return rows, rows.err
 }
 
@@ -824,6 +828,8 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			batch.ExecPrepared(sd.Name, c.eqb.paramValues, c.eqb.paramFormats, c.eqb.resultFormats)
 		}
 	}
+
+	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 
 	mrr := c.pgConn.ExecBatch(ctx, batch)
 
