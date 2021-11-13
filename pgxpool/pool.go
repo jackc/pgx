@@ -410,6 +410,9 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 
 // Acquire returns a connection (*Conn) from the Pool
 func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
+	if ctx == nil {
+		panic("tried to acquire connection with nil context")
+	}
 	for {
 		res, err := p.p.Acquire(ctx)
 		if err != nil {

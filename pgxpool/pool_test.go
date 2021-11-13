@@ -143,6 +143,24 @@ func TestPoolAcquireFuncReturnsFnError(t *testing.T) {
 	require.EqualError(t, err, "some error")
 }
 
+func TestPoolCloseAfterAcquireNilContextPanics(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c := make(chan struct{}, 1)
+	go func() {
+		defer func() {
+			c <- struct{}{}
+		}()
+		assert.PanicsWithValue(t, "tried to acquire connection with nil context", func() { pool.Acquire(nil) })
+	}()
+	<-c
+	pool.Close()
+}
+
 func TestPoolBeforeConnect(t *testing.T) {
 	t.Parallel()
 
