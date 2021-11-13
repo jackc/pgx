@@ -42,6 +42,14 @@ func NewLRU(conn *pgconn.PgConn, mode int, cap int) *LRU {
 
 // Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
 func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.StatementDescription, error) {
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+	}
+
 	// flush an outstanding bad statements
 	txStatus := c.conn.TxStatus()
 	if (txStatus == 'I' || txStatus == 'T') && len(c.stmtsToClear) > 0 {
@@ -50,14 +58,6 @@ func (c *LRU) Get(ctx context.Context, sql string) (*pgconn.StatementDescription
 			if err != nil {
 				return nil, err
 			}
-		}
-	}
-
-	if ctx != context.Background() {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
 		}
 	}
 
