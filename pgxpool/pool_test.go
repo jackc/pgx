@@ -389,7 +389,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
-	time.Sleep(config.HealthCheckPeriod + 50*time.Millisecond)
+	time.Sleep(config.HealthCheckPeriod + 100*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
