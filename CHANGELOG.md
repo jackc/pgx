@@ -1,3 +1,17 @@
+# 1.9.0 (November 20, 2021)
+
+* Fix binary hstore null decoding
+* Add shopspring/decimal.NullDecimal support to integration (Eli Treuherz)
+* Inet.Set supports bare IP address (Carl Dunham)
+* Add zeronull.Float8
+* Fix NULL being lost when scanning unknown OID into sql.Scanner
+* Fix BPChar.AssignTo **rune
+* Add support for fmt.Stringer and driver.Valuer in String fields encoding (Jan Dubsky)
+* Fix really big timestamp(tz)s binary format parsing (e.g. year 294276) (Jim Tsao)
+* Support `map[string]*string` as hstore (Adrian Sieger)
+* Fix parsing text array with negative bounds
+* Add infinity support for numeric (Jim Tsao)
+
 # 1.8.1 (July 24, 2021)
 
 * Cleaned up Go module dependency chain
