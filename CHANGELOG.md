@@ -1,3 +1,15 @@
+# 4.14.0 (November 20, 2021)
+
+* Upgrade pgconn to v1.10.1
+* Upgrade pgproto3 to v2.2.0
+* Upgrade pgtype to v1.9.0
+* Upgrade puddle to v1.2.0
+* Add QueryFunc to BatchResults
+* Add context options to zerologadapter (Thomas Frössman)
+* Add zerologadapter.NewContextLogger (urso)
+* Eager initialize minpoolsize on connect (Daniel)
+* Unpin memory used by large queries immediately after use
+
 # 4.13.0 (July 24, 2021)
 
 * Trimmed pseudo-dependencies in Go modules from other packages tests
