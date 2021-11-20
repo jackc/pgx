@@ -46,6 +46,6 @@ jobs:
         PGVERSION: ${{ matrix.pg-version }}
 
     - name: Test
-      run: go test -v -race ./...
+      run: go test -race ./...
       env:
         PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
