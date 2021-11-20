@@ -366,7 +366,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
-	time.Sleep(config.MaxConnLifetime + 100*time.Millisecond)
+	time.Sleep(config.MaxConnLifetime + 500*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
@@ -389,7 +389,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	c, err := db.Acquire(context.Background())
 	require.NoError(t, err)
 	c.Release()
-	time.Sleep(config.HealthCheckPeriod + 100*time.Millisecond)
+	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
@@ -406,7 +406,7 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	time.Sleep(config.HealthCheckPeriod + 100*time.Millisecond)
+	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
 
 	stats := db.Stat()
 	assert.EqualValues(t, 2, stats.TotalConns())
