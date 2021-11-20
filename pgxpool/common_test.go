@@ -17,7 +17,7 @@ import (
 // completed. To test something that relies on the actual work for Conn.Release being completed we must simply wait.
 // This function wraps the sleep so there is more meaning for the callers.
 func waitForReleaseToComplete() {
-	time.Sleep(25 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }
 
 type execer interface {
