@@ -10,15 +10,13 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
-        go-version: [1.15, 1.16]
-        pg-version: [9.6, 10, 11, 12, 13, cockroachdb]
+        go-version: [1.16, 1.17]
+        pg-version: [10, 11, 12, 13, 14, cockroachdb]
         include:
-          - pg-version: 9.6
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 10
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 11
@@ -26,6 +24,8 @@ jobs:
           - pg-version: 12
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: 13
+            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          - pg-version: 14
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
           - pg-version: cockroachdb
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
