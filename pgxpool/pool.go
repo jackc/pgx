@@ -222,8 +222,6 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 		config.MaxConns,
 	)
 
-	go p.backgroundHealthCheck()
-
 	if !config.LazyConnect {
 		if err := p.createIdleResources(ctx, int(p.minConns)); err != nil {
 			// Couldn't create resources for minpool size. Close unhealthy pool.
@@ -239,6 +237,8 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 		}
 		res.Release()
 	}
+
+	go p.backgroundHealthCheck()
 
 	return p, nil
 }
