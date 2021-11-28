@@ -1,3 +1,7 @@
+# 1.9.1 (November 28, 2021)
+
+* Fix: binary timestamp is assumed to be in UTC (restored behavior changed in v1.9.0)
+
 # 1.9.0 (November 20, 2021)
 
 * Fix binary hstore null decoding
