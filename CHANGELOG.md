@@ -1,3 +1,8 @@
+# 4.14.1 (November 28, 2021)
+
+* Upgrade pgtype to v1.9.1 (fixes unintentional change to timestamp binary decoding)
+* Start pgxpool background health check after initial connections
+
 # 4.14.0 (November 20, 2021)
 
 * Upgrade pgconn to v1.10.1
