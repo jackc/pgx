@@ -18,7 +18,6 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
-	gofrs "github.com/jackc/pgtype/ext/gofrs-uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
@@ -1235,12 +1234,6 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
-
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{
-		Value: &gofrs.UUID{},
-		Name:  "uuid",
-		OID:   2950,
-	})
 
 	expected, err := uuid.FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
 	if err != nil {
