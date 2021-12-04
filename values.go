@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgio"
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 // PostgreSQL format codes
@@ -228,15 +228,15 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 // determination can be made.
 func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{}) int16 {
 	switch arg := arg.(type) {
-	case pgtype.ParamFormatPreferrer:
-		return arg.PreferredParamFormat()
+	case pgtype.FormatSupport:
+		return arg.PreferredFormat()
 	case pgtype.BinaryEncoder:
 		return BinaryFormatCode
 	case string, *string, pgtype.TextEncoder:
 		return TextFormatCode
 	}
 
-	return ci.ParamFormatCodeForOID(oid)
+	return ci.FormatCodeForOID(oid)
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {

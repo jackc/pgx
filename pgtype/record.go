@@ -88,6 +88,28 @@ func prepareNewBinaryDecoder(ci *ConnInfo, fieldOID uint32, v *Value) (BinaryDec
 	return binaryDecoder, nil
 }
 
+func (Record) BinaryFormatSupported() bool {
+	return true
+}
+
+func (Record) TextFormatSupported() bool {
+	return false
+}
+
+func (Record) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (dst *Record) DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error {
+	switch format {
+	case BinaryFormatCode:
+		return dst.DecodeBinary(ci, src)
+	case TextFormatCode:
+		return fmt.Errorf("text format is not supported")
+	}
+	return fmt.Errorf("unknown format code %d", format)
+}
+
 func (dst *Record) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = Record{}

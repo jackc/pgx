@@ -17,8 +17,8 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -257,7 +257,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 			require.Equal(t, "foo", a)
 			require.Equal(t, "bar", b)
 			require.Equal(t, rowCount, c)
-			require.Equal(t, pgtype.Null, d.Status)
+			require.False(t, d.Valid)
 			require.Equal(t, rowCount, e)
 		}
 	}
@@ -275,22 +275,22 @@ func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
 
 	expected0 := &pgtype.Int8Array{
 		Elements: []pgtype.Int8{
-			{Int: 1, Status: pgtype.Present},
-			{Int: 2, Status: pgtype.Present},
-			{Int: 3, Status: pgtype.Present},
+			{Int: 1, Valid: true},
+			{Int: 2, Valid: true},
+			{Int: 3, Valid: true},
 		},
 		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
-		Status:     pgtype.Present,
+		Valid:      true,
 	}
 
 	expected1 := &pgtype.Int8Array{
 		Elements: []pgtype.Int8{
-			{Int: 4, Status: pgtype.Present},
-			{Int: 5, Status: pgtype.Present},
-			{Int: 6, Status: pgtype.Present},
+			{Int: 4, Valid: true},
+			{Int: 5, Valid: true},
+			{Int: 6, Valid: true},
 		},
 		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
-		Status:     pgtype.Present,
+		Valid:      true,
 	}
 
 	var rowCount int32
@@ -1792,7 +1792,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 	{
 		if conn.PgConn().ParameterStatus("crdb_version") == "" {
 			// CockroachDB doesn't support circle type.
-			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
+			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Valid: true}
 			actual := expected
 			err := conn.QueryRow(
 				context.Background(),

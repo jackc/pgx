@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

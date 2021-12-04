@@ -64,8 +64,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 // Only intrinsic types should be binary format with database/sql.

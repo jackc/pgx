@@ -7,16 +7,16 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 
 // Point represents a point that may be null.
 type Point struct {
-	X, Y   float64 // Coordinates of point
-	Status pgtype.Status
+	X, Y  float64 // Coordinates of point
+	Valid bool
 }
 
 func (dst *Point) Set(src interface{}) error {
@@ -24,14 +24,11 @@ func (dst *Point) Set(src interface{}) error {
 }
 
 func (dst *Point) Get() interface{} {
-	switch dst.Status {
-	case pgtype.Present:
-		return dst
-	case pgtype.Null:
+	if !dst.Valid {
 		return nil
-	default:
-		return dst.Status
 	}
+
+	return dst
 }
 
 func (src *Point) AssignTo(dst interface{}) error {
@@ -40,7 +37,7 @@ func (src *Point) AssignTo(dst interface{}) error {
 
 func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 	if src == nil {
-		*dst = Point{Status: pgtype.Null}
+		*dst = Point{}
 		return nil
 	}
 
@@ -59,13 +56,13 @@ func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
 		return fmt.Errorf("Received invalid point: %v", s)
 	}
 
-	*dst = Point{X: x, Y: y, Status: pgtype.Present}
+	*dst = Point{X: x, Y: y, Valid: true}
 
 	return nil
 }
 
 func (src *Point) String() string {
-	if src.Status == pgtype.Null {
+	if !src.Valid {
 		return "null point"
 	}
 

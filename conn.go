@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4/internal/sanitize"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 // ConnConfig contains all the options used to establish a connection. It must be created by ParseConfig and
@@ -508,7 +508,7 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 	}
 
 	for i := range sd.Fields {
-		c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+		c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 	}
 
 	return nil
@@ -668,7 +668,7 @@ optionLoop:
 
 	if resultFormats == nil {
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		resultFormats = c.eqb.resultFormats
@@ -819,7 +819,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo().ResultFormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		if sd.Name == "" {

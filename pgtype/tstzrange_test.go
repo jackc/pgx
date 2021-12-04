@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgtype/testutil"
+	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v4/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +41,7 @@ func TestTstzrangeTranscode(t *testing.T) {
 	})
 }
 
-// https://github.com/jackc/pgtype/issues/74
+// https://github.com/jackc/pgx/v4/pgtype/issues/74
 func TestTstzRangeDecodeTextInvalid(t *testing.T) {
 	tstzrange := &pgtype.Tstzrange{}
 	err := tstzrange.DecodeText(nil, []byte(`[eeee,)`))

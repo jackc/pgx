@@ -942,50 +942,50 @@ func TestEncodeTypeRename(t *testing.T) {
 	})
 }
 
-func TestRowDecodeBinary(t *testing.T) {
-	t.Parallel()
+// func TestRowDecodeBinary(t *testing.T) {
+// 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+// 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+// 	defer closeConn(t, conn)
 
-	tests := []struct {
-		sql      string
-		expected []interface{}
-	}{
-		{
-			"select row(1, 'cat', '2015-01-01 08:12:42-00'::timestamptz)",
-			[]interface{}{
-				int32(1),
-				"cat",
-				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
-			},
-		},
-		{
-			"select row(100.0::float, 1.09::float)",
-			[]interface{}{
-				float64(100),
-				float64(1.09),
-			},
-		},
-	}
+// 	tests := []struct {
+// 		sql      string
+// 		expected []interface{}
+// 	}{
+// 		{
+// 			"select row(1, 'cat', '2015-01-01 08:12:42-00'::timestamptz)",
+// 			[]interface{}{
+// 				int32(1),
+// 				"cat",
+// 				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
+// 			},
+// 		},
+// 		{
+// 			"select row(100.0::float, 1.09::float)",
+// 			[]interface{}{
+// 				float64(100),
+// 				float64(1.09),
+// 			},
+// 		},
+// 	}
 
-	for i, tt := range tests {
-		var actual []interface{}
+// 	for i, tt := range tests {
+// 		var actual []interface{}
 
-		err := conn.QueryRow(context.Background(), tt.sql).Scan(&actual)
-		if err != nil {
-			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
-			continue
-		}
+// 		err := conn.QueryRow(context.Background(), tt.sql).Scan(&actual)
+// 		if err != nil {
+// 			t.Errorf("%d. Unexpected failure: %v (sql -> %v)", i, err, tt.sql)
+// 			continue
+// 		}
 
-		for j := range tt.expected {
-			assert.EqualValuesf(t, tt.expected[j], actual[j], "%d. [%d]", i, j)
+// 		for j := range tt.expected {
+// 			assert.EqualValuesf(t, tt.expected[j], actual[j], "%d. [%d]", i, j)
 
-		}
+// 		}
 
-		ensureConnValid(t, conn)
-	}
-}
+// 		ensureConnValid(t, conn)
+// 	}
+// }
 
 // https://github.com/jackc/pgx/issues/810
 func TestRowsScanNilThenScanValue(t *testing.T) {

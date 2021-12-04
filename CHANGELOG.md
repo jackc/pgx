@@ -1,3 +1,13 @@
+# Unreleased v5
+
+* Import pgtype repository
+
+## pgtype Changes
+
+* Types now have Valid boolean field instead of Status byte. This matches database/sql pattern.
+* Extracted integrations with github.com/shopspring/decimal and github.com/gofrs/uuid to https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid respectively.
+
+
 # 4.14.1 (November 28, 2021)
 
 * Upgrade pgtype to v1.9.1 (fixes unintentional change to timestamp binary decoding)
