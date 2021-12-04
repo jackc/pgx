@@ -129,12 +129,44 @@ func (src *ArrayType) AssignTo(dst interface{}) error {
 	}
 }
 
-func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
+func (ArrayType) BinaryFormatSupported() bool {
+	return true
+}
+
+func (ArrayType) TextFormatSupported() bool {
+	return true
+}
+
+func (ArrayType) PreferredFormat() int16 {
+	return TextFormatCode
+}
+
+func (dst *ArrayType) DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error {
 	if src == nil {
 		dst.setNil()
 		return nil
 	}
 
+	switch format {
+	case BinaryFormatCode:
+		return dst.DecodeBinary(ci, src)
+	case TextFormatCode:
+		return dst.DecodeText(ci, src)
+	}
+	return fmt.Errorf("unknown format code %d", format)
+}
+
+func (src ArrayType) EncodeParam(ci *ConnInfo, oid uint32, format int16, buf []byte) (newBuf []byte, err error) {
+	switch format {
+	case BinaryFormatCode:
+		return src.EncodeBinary(ci, buf)
+	case TextFormatCode:
+		return src.EncodeText(ci, buf)
+	}
+	return nil, fmt.Errorf("unknown format code %d", format)
+}
+
+func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
 	uta, err := ParseUntypedTextArray(string(src))
 	if err != nil {
 		return err
@@ -151,7 +183,7 @@ func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
 			if s != "NULL" {
 				elemSrc = []byte(s)
 			}
-			err = elem.DecodeText(ci, elemSrc)
+			err = elem.DecodeResult(ci, dst.elementOID, TextFormatCode, elemSrc)
 			if err != nil {
 				return err
 			}
@@ -168,11 +200,6 @@ func (dst *ArrayType) DecodeText(ci *ConnInfo, src []byte) error {
 }
 
 func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		dst.setNil()
-		return nil
-	}
-
 	var arrayHeader ArrayHeader
 	rp, err := arrayHeader.DecodeBinary(ci, src)
 	if err != nil {
@@ -204,7 +231,7 @@ func (dst *ArrayType) DecodeBinary(ci *ConnInfo, src []byte) error {
 			elemSrc = src[rp : rp+elemLen]
 			rp += elemLen
 		}
-		err = elem.DecodeBinary(ci, elemSrc)
+		err = elem.DecodeResult(ci, dst.elementOID, BinaryFormatCode, elemSrc)
 		if err != nil {
 			return err
 		}
@@ -253,7 +280,7 @@ func (src ArrayType) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 			}
 		}
 
-		elemBuf, err := elem.EncodeText(ci, inElemBuf)
+		elemBuf, err := elem.EncodeParam(ci, src.elementOID, TextFormatCode, inElemBuf)
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +323,7 @@ func (src ArrayType) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		elemBuf, err := src.elements[i].EncodeBinary(ci, buf)
+		elemBuf, err := src.elements[i].EncodeParam(ci, src.elementOID, BinaryFormatCode, buf)
 		if err != nil {
 			return nil, err
 		}
