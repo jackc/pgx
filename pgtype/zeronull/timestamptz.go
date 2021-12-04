@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"time"
 
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 type Timestamptz time.Time

@@ -4,13 +4,13 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgtype/testutil"
+	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v4/pgtype/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// https://github.com/jackc/pgtype/issues/78
+// https://github.com/jackc/pgx/v4/pgtype/issues/78
 func TestTextArrayDecodeTextNull(t *testing.T) {
 	textArray := &pgtype.TextArray{}
 	err := textArray.DecodeText(nil, []byte(`{abc,"NULL",NULL,def}`))

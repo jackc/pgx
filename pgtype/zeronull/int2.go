@@ -3,7 +3,7 @@ package zeronull
 import (
 	"database/sql/driver"
 
-	"github.com/jackc/pgtype"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 type Int2 int16

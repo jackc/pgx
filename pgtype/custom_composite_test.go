@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgtype"
 	pgx "github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 )
 
 type MyType struct {

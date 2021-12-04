@@ -14,8 +14,8 @@ import (
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
-	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgtype"
 	"github.com/stretchr/testify/require"
 )
 
@@ -459,12 +459,12 @@ func newBenchmarkWriteTableCopyFromSrc(count int) pgx.CopyFromSource {
 		row: []interface{}{
 			"varchar_1",
 			"varchar_2",
-			&pgtype.Text{Status: pgtype.Null},
+			&pgtype.Text{},
 			time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local),
-			&pgtype.Date{Status: pgtype.Null},
+			&pgtype.Date{},
 			1,
 			2,
-			&pgtype.Int4{Status: pgtype.Null},
+			&pgtype.Int4{},
 			time.Date(2001, 1, 1, 0, 0, 0, 0, time.Local),
 			time.Date(2002, 1, 1, 0, 0, 0, 0, time.Local),
 			true,
