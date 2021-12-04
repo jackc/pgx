@@ -67,24 +67,14 @@ func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 	return addr
 }
 
-func TestConnInfoResultFormatCodeForOID(t *testing.T) {
-	ci := pgtype.NewConnInfo()
-
-	// pgtype.JSONB implements BinaryDecoder but also implements ResultFormatPreferrer to override it to text.
-	assert.Equal(t, int16(pgtype.TextFormatCode), ci.ResultFormatCodeForOID(pgtype.JSONBOID))
-
-	// pgtype.Int4 implements BinaryDecoder but does not implement ResultFormatPreferrer so it should be binary.
-	assert.Equal(t, int16(pgtype.BinaryFormatCode), ci.ResultFormatCodeForOID(pgtype.Int4OID))
-}
-
-func TestConnInfoParamFormatCodeForOID(t *testing.T) {
+func TestConnInfoFormatCodeForOID(t *testing.T) {
 	ci := pgtype.NewConnInfo()
 
 	// pgtype.JSONB implements BinaryEncoder but also implements ParamFormatPreferrer to override it to text.
-	assert.Equal(t, int16(pgtype.TextFormatCode), ci.ParamFormatCodeForOID(pgtype.JSONBOID))
+	assert.Equal(t, int16(pgtype.TextFormatCode), ci.FormatCodeForOID(pgtype.JSONBOID))
 
 	// pgtype.Int4 implements BinaryEncoder but does not implement ParamFormatPreferrer so it should be binary.
-	assert.Equal(t, int16(pgtype.BinaryFormatCode), ci.ParamFormatCodeForOID(pgtype.Int4OID))
+	assert.Equal(t, int16(pgtype.BinaryFormatCode), ci.FormatCodeForOID(pgtype.Int4OID))
 }
 
 func TestConnInfoScanNilIsNoOp(t *testing.T) {
