@@ -147,10 +147,9 @@ type TypeValue interface {
 // ValueTranscoder is a value that implements the text and binary encoding and decoding interfaces.
 type ValueTranscoder interface {
 	Value
-	TextEncoder
-	BinaryEncoder
-	TextDecoder
-	BinaryDecoder
+	FormatSupport
+	ParamEncoder
+	ResultDecoder
 }
 
 type FormatSupport interface {
@@ -160,12 +159,17 @@ type FormatSupport interface {
 }
 
 type ParamEncoder interface {
-	FormatSupport
+	// EncodeParam should append the encoded value of self to buf. If self is the
+	// SQL value NULL then append nothing and return (nil, nil). The caller of
+	// EncodeText is responsible for writing the correct NULL value or the
+	// length of the data written.
 	EncodeParam(ci *ConnInfo, oid uint32, format int16, buf []byte) (newBuf []byte, err error)
 }
 
 type ResultDecoder interface {
-	FormatSupport
+	// DecodeResult decodes src into ResultDecoder. If src is nil then the
+	// original SQL value is NULL. ResultDecoder takes ownership of src. The
+	// caller MUST not use it again.
 	DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error
 }
 

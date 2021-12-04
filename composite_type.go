@@ -91,9 +91,13 @@ func (ct *CompositeType) Fields() []CompositeTypeField {
 	return ct.fields
 }
 
+func (dst *CompositeType) setNil() {
+	dst.valid = false
+}
+
 func (dst *CompositeType) Set(src interface{}) error {
 	if src == nil {
-		dst.valid = false
+		dst.setNil()
 		return nil
 	}
 
@@ -110,7 +114,7 @@ func (dst *CompositeType) Set(src interface{}) error {
 		dst.valid = true
 	case *[]interface{}:
 		if value == nil {
-			dst.valid = false
+			dst.setNil()
 			return nil
 		}
 		return dst.Set(*value)
@@ -213,6 +217,56 @@ func (src CompositeType) assignToPtrStruct(dst interface{}) (bool, error) {
 	return true, nil
 }
 
+func (ct *CompositeType) BinaryFormatSupported() bool {
+	for _, vt := range ct.valueTranscoders {
+		if !vt.BinaryFormatSupported() {
+			return false
+		}
+	}
+	return true
+}
+
+func (ct *CompositeType) TextFormatSupported() bool {
+	for _, vt := range ct.valueTranscoders {
+		if !vt.TextFormatSupported() {
+			return false
+		}
+	}
+	return true
+}
+
+func (ct *CompositeType) PreferredFormat() int16 {
+	if ct.BinaryFormatSupported() {
+		return BinaryFormatCode
+	}
+	return TextFormatCode
+}
+
+func (dst *CompositeType) DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error {
+	if src == nil {
+		dst.setNil()
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return dst.DecodeBinary(ci, src)
+	case TextFormatCode:
+		return dst.DecodeText(ci, src)
+	}
+	return fmt.Errorf("unknown format code %d", format)
+}
+
+func (src CompositeType) EncodeParam(ci *ConnInfo, oid uint32, format int16, buf []byte) (newBuf []byte, err error) {
+	switch format {
+	case BinaryFormatCode:
+		return src.EncodeBinary(ci, buf)
+	case TextFormatCode:
+		return src.EncodeText(ci, buf)
+	}
+	return nil, fmt.Errorf("unknown format code %d", format)
+}
+
 func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error) {
 	if !src.valid {
 		return nil, nil
@@ -231,11 +285,6 @@ func (src CompositeType) EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, 
 // and decoding fails if SQL value can't be assigned due to
 // type mismatch
 func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
-	if buf == nil {
-		dst.valid = false
-		return nil
-	}
-
 	scanner := NewCompositeBinaryScanner(ci, buf)
 
 	for _, f := range dst.valueTranscoders {
@@ -252,11 +301,6 @@ func (dst *CompositeType) DecodeBinary(ci *ConnInfo, buf []byte) error {
 }
 
 func (dst *CompositeType) DecodeText(ci *ConnInfo, buf []byte) error {
-	if buf == nil {
-		dst.valid = false
-		return nil
-	}
-
 	scanner := NewCompositeTextScanner(ci, buf)
 
 	for _, f := range dst.valueTranscoders {
@@ -315,13 +359,13 @@ func NewCompositeBinaryScanner(ci *ConnInfo, src []byte) *CompositeBinaryScanner
 }
 
 // ScanDecoder calls Next and decodes the result with d.
-func (cfs *CompositeBinaryScanner) ScanDecoder(d BinaryDecoder) {
+func (cfs *CompositeBinaryScanner) ScanDecoder(d ResultDecoder) {
 	if cfs.err != nil {
 		return
 	}
 
 	if cfs.Next() {
-		cfs.err = d.DecodeBinary(cfs.ci, cfs.fieldBytes)
+		cfs.err = d.DecodeResult(cfs.ci, 0, BinaryFormatCode, cfs.fieldBytes)
 	} else {
 		cfs.err = errors.New("read past end of composite")
 	}
@@ -425,13 +469,13 @@ func NewCompositeTextScanner(ci *ConnInfo, src []byte) *CompositeTextScanner {
 }
 
 // ScanDecoder calls Next and decodes the result with d.
-func (cfs *CompositeTextScanner) ScanDecoder(d TextDecoder) {
+func (cfs *CompositeTextScanner) ScanDecoder(d ResultDecoder) {
 	if cfs.err != nil {
 		return
 	}
 
 	if cfs.Next() {
-		cfs.err = d.DecodeText(cfs.ci, cfs.fieldBytes)
+		cfs.err = d.DecodeResult(cfs.ci, 0, TextFormatCode, cfs.fieldBytes)
 	} else {
 		cfs.err = errors.New("read past end of composite")
 	}
@@ -547,16 +591,16 @@ func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field interface{}) {
 		return
 	}
 
-	binaryEncoder, ok := dt.Value.(BinaryEncoder)
+	paramEncoder, ok := dt.Value.(ParamEncoder)
 	if !ok {
-		b.err = fmt.Errorf("unable to encode binary for OID: %d", oid)
+		b.err = fmt.Errorf("unable to encode for OID: %d", oid)
 		return
 	}
 
-	b.AppendEncoder(oid, binaryEncoder)
+	b.AppendEncoder(oid, paramEncoder)
 }
 
-func (b *CompositeBinaryBuilder) AppendEncoder(oid uint32, field BinaryEncoder) {
+func (b *CompositeBinaryBuilder) AppendEncoder(oid uint32, field ParamEncoder) {
 	if b.err != nil {
 		return
 	}
@@ -564,7 +608,7 @@ func (b *CompositeBinaryBuilder) AppendEncoder(oid uint32, field BinaryEncoder) 
 	b.buf = pgio.AppendUint32(b.buf, oid)
 	lengthPos := len(b.buf)
 	b.buf = pgio.AppendInt32(b.buf, -1)
-	fieldBuf, err := field.EncodeBinary(b.ci, b.buf)
+	fieldBuf, err := field.EncodeParam(b.ci, oid, BinaryFormatCode, b.buf)
 	if err != nil {
 		b.err = err
 		return
@@ -622,21 +666,21 @@ func (b *CompositeTextBuilder) AppendValue(field interface{}) {
 		return
 	}
 
-	textEncoder, ok := dt.Value.(TextEncoder)
+	paramEncoder, ok := dt.Value.(ParamEncoder)
 	if !ok {
-		b.err = fmt.Errorf("unable to encode text for value: %v", field)
+		b.err = fmt.Errorf("unable to encode for value: %v", field)
 		return
 	}
 
-	b.AppendEncoder(textEncoder)
+	b.AppendEncoder(paramEncoder)
 }
 
-func (b *CompositeTextBuilder) AppendEncoder(field TextEncoder) {
+func (b *CompositeTextBuilder) AppendEncoder(field ParamEncoder) {
 	if b.err != nil {
 		return
 	}
 
-	fieldBuf, err := field.EncodeText(b.ci, b.fieldBuf[0:0])
+	fieldBuf, err := field.EncodeParam(b.ci, 0, TextFormatCode, b.fieldBuf[0:0])
 	if err != nil {
 		b.err = err
 		return

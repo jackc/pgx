@@ -59,8 +59,8 @@ func (cf CompositeFields) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	b := NewCompositeTextBuilder(ci, buf)
 
 	for _, f := range cf {
-		if textEncoder, ok := f.(TextEncoder); ok {
-			b.AppendEncoder(textEncoder)
+		if paramEncoder, ok := f.(ParamEncoder); ok {
+			b.AppendEncoder(paramEncoder)
 		} else {
 			b.AppendValue(f)
 		}
@@ -88,15 +88,15 @@ func (cf CompositeFields) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error)
 			return nil, fmt.Errorf("Unknown OID for %#v", f)
 		}
 
-		if binaryEncoder, ok := f.(BinaryEncoder); ok {
-			b.AppendEncoder(dt.OID, binaryEncoder)
+		if paramEncoder, ok := f.(ParamEncoder); ok {
+			b.AppendEncoder(dt.OID, paramEncoder)
 		} else {
 			err := dt.Value.Set(f)
 			if err != nil {
 				return nil, err
 			}
-			if binaryEncoder, ok := dt.Value.(BinaryEncoder); ok {
-				b.AppendEncoder(dt.OID, binaryEncoder)
+			if paramEncoder, ok := dt.Value.(ParamEncoder); ok {
+				b.AppendEncoder(dt.OID, paramEncoder)
 			} else {
 				return nil, fmt.Errorf("Cannot encode binary format for %v", f)
 			}
