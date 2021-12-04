@@ -1,9 +1,9 @@
 package pgxpool
 
 import (
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgconn"
 )
 
 type errRows struct {

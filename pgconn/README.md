@@ -1,6 +1,3 @@
-[![](https://godoc.org/github.com/jackc/pgconn?status.svg)](https://godoc.org/github.com/jackc/pgconn)
-![CI](https://github.com/jackc/pgconn/workflows/CI/badge.svg)
-
 # pgconn
 
 Package pgconn is a low-level PostgreSQL database driver. It operates at nearly the same level as the C library libpq.

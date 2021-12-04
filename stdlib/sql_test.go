@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgconn"
 	"github.com/jackc/pgx/v4/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

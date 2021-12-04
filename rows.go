@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v4/pgconn"
 	"github.com/jackc/pgx/v4/pgtype"
 )
 

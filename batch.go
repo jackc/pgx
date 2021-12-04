@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4/pgconn"
 )
 
 type batchItem struct {
