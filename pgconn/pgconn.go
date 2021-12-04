@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
+	"github.com/jackc/pgx/v4/pgconn/internal/ctxwatch"
 )
 
 const (

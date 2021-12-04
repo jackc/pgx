@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4/pgconn"
 
 	"github.com/stretchr/testify/require"
 )
