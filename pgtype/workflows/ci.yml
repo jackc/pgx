@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_PASSWORD: secret
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: ^1.13
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Create hstore extension
+      run: psql -c 'create extension hstore'
+      env:
+        PGHOST: localhost
+        PGUSER: postgres
+        PGPASSWORD: secret
+        PGSSLMODE: disable
+
+    - name: Test
+      run: go test -v ./...
+      env:
+        PGHOST: localhost
+        PGUSER: postgres
+        PGPASSWORD: secret
+        PGSSLMODE: disable
