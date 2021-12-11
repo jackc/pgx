@@ -85,6 +85,6 @@ func main() {
 	log.Println("Starting URL shortener on localhost:8080")
 	err = http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
-		log.Fatalln("Unable to start web server:" err)
+		log.Fatalln("Unable to start web server:", err)
 	}
 }
