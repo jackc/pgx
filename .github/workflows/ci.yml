@@ -18,38 +18,38 @@ jobs:
         pg-version: [14]
         # pg-version: [10, 11, 12, 13, 14, cockroachdb]
         include:
-          - pg-version: 10
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
-            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
-            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
-          - pg-version: 11
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
-            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
-            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
-          - pg-version: 12
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
-            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
-            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
-          - pg-version: 13
-            pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
-            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
-            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
-            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+          # - pg-version: 10
+          #   pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+          #   pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+          #   pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+          # - pg-version: 11
+          #   pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+          #   pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+          #   pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+          # - pg-version: 12
+          #   pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+          #   pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+          #   pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
+          # - pg-version: 13
+          #   pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+          #   pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+          #   pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+          #   pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: 14
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
             pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
