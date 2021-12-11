@@ -4,7 +4,6 @@ go 1.17
 
 require (
 	github.com/go-kit/log v0.1.0
-	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/chunkreader/v2 v2.0.1
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgmock v0.0.0-20210724152146-4ad1a8207f65

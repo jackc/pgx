@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/stmtcache"
@@ -1215,20 +1214,12 @@ func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	expected, err := uuid.FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-	if err != nil {
-		t.Fatal(err)
-	}
+	var actual sql.NullString
+	err := conn.QueryRow(context.Background(), "select '6ba7b810-9dad-11d1-80b4-00c04fd430c8'::uuid").Scan(&actual)
+	require.NoError(t, err)
 
-	var u2 uuid.UUID
-	err = conn.QueryRow(context.Background(), "select $1::uuid", expected).Scan(&u2)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
-	}
-
-	if expected != u2 {
-		t.Errorf("Expected u2 to be %v, but it was %v", expected, u2)
-	}
+	require.True(t, actual.Valid)
+	require.Equal(t, "6ba7b810-9dad-11d1-80b4-00c04fd430c8", actual.String)
 
 	ensureConnValid(t, conn)
 }
