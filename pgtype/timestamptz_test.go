@@ -99,7 +99,7 @@ func TestTimestamptzNanosecondsTruncated(t *testing.T) {
 	}
 }
 
-// https://github.com/jackc/pgx/v4/pgtype/issues/74
+// https://github.com/jackc/pgtype/issues/74
 func TestTimestamptzDecodeTextInvalid(t *testing.T) {
 	tstz := &pgtype.Timestamptz{}
 	err := tstz.DecodeText(nil, []byte(`eeeee`))

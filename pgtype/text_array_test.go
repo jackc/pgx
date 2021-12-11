@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// https://github.com/jackc/pgx/v4/pgtype/issues/78
+// https://github.com/jackc/pgtype/issues/78
 func TestTextArrayDecodeTextNull(t *testing.T) {
 	textArray := &pgtype.TextArray{}
 	err := textArray.DecodeText(nil, []byte(`{abc,"NULL",NULL,def}`))
