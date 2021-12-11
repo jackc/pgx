@@ -1290,3 +1290,279 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_pgtype_Numeric_100_rows_1
 		}
 	}
 }
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_10(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 10) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_ArrayType_10(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 10) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_10(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 10) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_ArrayType_10(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 10) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_100(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 100) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_ArrayType_100(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 100) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_100(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 100) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_ArrayType_100(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 100) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_1000(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 1000) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_ArrayType_1000(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 1000) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_1000(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 1000) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_ArrayType_1000(b *testing.B) {
+	conn := testutil.MustConnectPgx(b)
+	defer testutil.MustCloseContext(b, conn)
+
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{
+		Value: pgtype.NewArrayType("_int4", pgtype.Int4OID, func() pgtype.ValueTranscoder { return &pgtype.Int4{} }),
+		Name:  "_int4",
+		OID:   pgtype.Int4ArrayOID,
+	})
+
+	b.ResetTimer()
+	var v []int32
+	for i := 0; i < b.N; i++ {
+		_, err := conn.QueryFunc(
+			context.Background(),
+			`select array_agg(n) from generate_series(1, 1000) n`,
+			[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+			[]interface{}{&v},
+			func(pgx.QueryFuncRow) error { return nil },
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
