@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4/internal/sanitize"
+	"github.com/jackc/pgx/v5/internal/sanitize"
 )
 
 func TestNewQuery(t *testing.T) {

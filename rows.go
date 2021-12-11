@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgx/v4/pgconn"
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Rows is the result set returned from *Conn.Query. Rows must be closed before

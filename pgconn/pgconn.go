@@ -17,7 +17,7 @@ import (
 
 	"github.com/jackc/pgio"
 	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgx/v4/pgconn/internal/ctxwatch"
+	"github.com/jackc/pgx/v5/pgconn/internal/ctxwatch"
 )
 
 const (

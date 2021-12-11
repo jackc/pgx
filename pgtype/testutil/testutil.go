@@ -8,9 +8,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgtype"
-	_ "github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func MustConnectDatabaseSQL(t testing.TB, driverName string) *sql.DB {

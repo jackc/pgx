@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgx/v4/internal/sanitize"
-	"github.com/jackc/pgx/v4/pgconn"
-	"github.com/jackc/pgx/v4/pgconn/stmtcache"
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v5/internal/sanitize"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgconn/stmtcache"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // ConnConfig contains all the options used to establish a connection. It must be created by ParseConfig and

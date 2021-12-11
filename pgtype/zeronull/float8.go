@@ -3,7 +3,7 @@ package zeronull
 import (
 	"database/sql/driver"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Float8 float64

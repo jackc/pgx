@@ -3,8 +3,8 @@ package pgtype_test
 import (
 	"testing"
 
-	"github.com/jackc/pgx/v4/pgtype"
-	"github.com/jackc/pgx/v4/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestCircleTranscode(t *testing.T) {

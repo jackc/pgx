@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	pgx "github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgtype"
-	"github.com/jackc/pgx/v4/pgtype/testutil"
+	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
