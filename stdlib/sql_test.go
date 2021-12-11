@@ -9,10 +9,10 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -46,7 +46,7 @@ func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
 	require.NoError(t, err)
 }
 
-func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) {
+func skipPostgreSQLVersionLessThan(t testing.TB, db *sql.DB, minVersion int64) {
 	conn, err := db.Conn(context.Background())
 	require.NoError(t, err)
 	defer conn.Close()
@@ -54,25 +54,21 @@ func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) 
 	err = conn.Raw(func(driverConn interface{}) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
-		serverVersionStr = regexp.MustCompile(`^[0-9.]+`).FindString(serverVersionStr)
+		serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
 		// if not PostgreSQL do nothing
 		if serverVersionStr == "" {
 			return nil
 		}
 
-		serverVersion, err := semver.NewVersion(serverVersionStr)
+		serverVersion, err := strconv.ParseInt(serverVersionStr, 10, 64)
 		if err != nil {
 			return err
 		}
 
-		c, err := semver.NewConstraint(constraintStr)
-		if err != nil {
-			return err
+		if serverVersion < minVersion {
+			t.Skipf("Test requires PostgreSQL v%d+", minVersion)
 		}
 
-		if c.Check(serverVersion) {
-			t.Skip(msg)
-		}
 		return nil
 	})
 	require.NoError(t, err)
@@ -1093,7 +1089,7 @@ func TestRegisterConnConfig(t *testing.T) {
 // https://github.com/jackc/pgx/issues/958
 func TestConnQueryRowConstraintErrors(t *testing.T) {
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		skipPostgreSQLVersion(t, db, "< 11", "Test requires PG 11+")
+		skipPostgreSQLVersionLessThan(t, db, 11)
 		skipCockroachDB(t, db, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 		_, err := db.Exec(`create temporary table defer_test (

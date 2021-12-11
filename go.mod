@@ -3,7 +3,6 @@ module github.com/jackc/pgx/v5
 go 1.17
 
 require (
-	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-kit/log v0.1.0
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/chunkreader/v2 v2.0.1
