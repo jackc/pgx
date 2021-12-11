@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/jackc/pgx/v4/pgtype"
-	"github.com/jackc/pgx/v4/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -289,7 +289,7 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(42), Valid: true}, dst: &_i8, expected: _int8(42)},
 		{src: &pgtype.Numeric{Int: big.NewInt(0)}, dst: &pi8, expected: ((*int8)(nil))},
 		{src: &pgtype.Numeric{Int: big.NewInt(0)}, dst: &_pi8, expected: ((*_int8)(nil))},
-		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Valid: true}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgx/v4/pgtype/issues/27
+		{src: &pgtype.Numeric{Int: big.NewInt(1006), Exp: -2, Valid: true}, dst: &f64, expected: float64(10.06)}, // https://github.com/jackc/pgx/v5/pgtype/issues/27
 		{src: &pgtype.Numeric{Valid: true, NaN: true}, dst: &f64, expected: math.NaN()},
 		{src: &pgtype.Numeric{Valid: true, NaN: true}, dst: &f32, expected: float32(math.NaN())},
 		{src: &pgtype.Numeric{Valid: true, InfinityModifier: pgtype.Infinity}, dst: &f64, expected: math.Inf(1)},

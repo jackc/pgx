@@ -5,7 +5,7 @@ package log15adapter
 import (
 	"context"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 // Log15Logger interface defines the subset of

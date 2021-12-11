@@ -3,7 +3,7 @@ package pgx
 import (
 	"database/sql/driver"
 
-	"github.com/jackc/pgx/v4/pgtype"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func convertDriverValuers(args []interface{}) ([]interface{}, error) {
