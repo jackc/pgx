@@ -1,6 +1,7 @@
 # Unreleased v5
 
-* Import pgtype repository
+* Import github.com/jackc/pgtype repository
+* Import github.com/jackc/pgconn repository
 
 ## pgtype Changes
 
