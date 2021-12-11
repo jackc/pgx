@@ -196,6 +196,19 @@ tern is a stand-alone SQL migration system.
 
 pgerrcode contains constants for the PostgreSQL error codes.
 
+## Adapters for 3rd Party Types
+
+* [github.com/jackc/pgx-gofrs-uuid](https://github.com/jackc/pgx-gofrs-uuid)
+* [github.com/jackc/pgx-shopspring-decimal](https://github.com/jackc/pgx-shopspring-decimal)
+
+## Adapters for 3rd Party Loggers
+
+* [github.com/jackc/pgx-go-kit-log](https://github.com/jackc/pgx-go-kit-log)
+* [github.com/jackc/pgx-log15](https://github.com/jackc/pgx-log15)
+* [github.com/jackc/pgx-logrus](https://github.com/jackc/pgx-logrus)
+* [github.com/jackc/pgx-zap](https://github.com/jackc/pgx-zap)
+* [github.com/jackc/pgx-zerolog](https://github.com/jackc/pgx-zerolog)
+
 ## 3rd Party Libraries with PGX Support
 
 ### [github.com/georgysavva/scany](https://github.com/georgysavva/scany)
