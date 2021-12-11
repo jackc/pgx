@@ -18,8 +18,8 @@ import (
 %>
 <% go_types.each do |go_type| %>
 <% rows_columns.each do |rows, columns| %>
-<% [["Text", "pgx.TextFormatCode"], ["Binary", "pgx.BinaryFormatCode"]].each do |formatName, formatCode| %>
-func BenchmarkQuery<%= formatName %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go_type.gsub(/\W/, "_") %>_<%= rows %>_rows_<%= columns %>_columns(b *testing.B) {
+<% [["Text", "pgx.TextFormatCode"], ["Binary", "pgx.BinaryFormatCode"]].each do |format_name, format_code| %>
+func BenchmarkQuery<%= format_name %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go_type.gsub(/\W/, "_") %>_<%= rows %>_rows_<%= columns %>_columns(b *testing.B) {
 	conn := testutil.MustConnectPgx(b)
 	defer testutil.MustCloseContext(b, conn)
 
@@ -29,7 +29,7 @@ func BenchmarkQuery<%= formatName %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go_
 		_, err := conn.QueryFunc(
 			context.Background(),
 			`select <% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>n::<%= pg_type %> + <%= col_idx%><% end %> from generate_series(1, <%= rows %>) n`,
-      []interface{}{pgx.QueryResultFormats{<%= formatCode %>}},
+      []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
 			[]interface{}{<% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>&v[<%= col_idx%>]<% end %>},
 			func(pgx.QueryFuncRow) error { return nil },
 		)
