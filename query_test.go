@@ -18,7 +18,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/stmtcache"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1154,55 +1153,37 @@ func TestReadingNullByteArrays(t *testing.T) {
 	}
 }
 
-// Use github.com/shopspring/decimal as real-world database/sql custom type
-// to test against.
 func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	var num decimal.Decimal
+	var num sql.NullFloat64
 
-	err := conn.QueryRow(context.Background(), "select '1234.567'::decimal").Scan(&num)
+	err := conn.QueryRow(context.Background(), "select '1234.567'::float8").Scan(&num)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
 
-	expected, err := decimal.NewFromString("1234.567")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !num.Equals(expected) {
-		t.Errorf("Expected num to be %v, but it was %v", expected, num)
-	}
+	require.True(t, num.Valid)
+	require.Equal(t, 1234.567, num.Float64)
 
 	ensureConnValid(t, conn)
 }
 
-// Use github.com/shopspring/decimal as real-world database/sql custom type
-// to test against.
 func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	expected, err := decimal.NewFromString("1234.567")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var num decimal.Decimal
+	expected := sql.NullFloat64{Float64: 1234.567, Valid: true}
+	var actual sql.NullFloat64
 
-	err = conn.QueryRow(context.Background(), "select $1::decimal", &expected).Scan(&num)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
-	}
-
-	if !num.Equals(expected) {
-		t.Errorf("Expected num to be %v, but it was %v", expected, num)
-	}
+	err := conn.QueryRow(context.Background(), "select $1::float8", &expected).Scan(&actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	ensureConnValid(t, conn)
 }
