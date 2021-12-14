@@ -237,6 +237,40 @@ func TestConnectCustomLookup(t *testing.T) {
 	closeConn(t, conn)
 }
 
+func TestConnectCustomLookupWithPort(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
+	}
+
+	config, err := pgconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	origPort := config.Port
+	// Chnage the config an invalid port so it will fail if used
+	config.Port = 0
+
+	looked := false
+	config.LookupFunc = func(ctx context.Context, host string) ([]string, error) {
+		looked = true
+		addrs, err := net.LookupHost(host)
+		if err != nil {
+			return nil, err
+		}
+		for i := range addrs {
+			addrs[i] = net.JoinHostPort(addrs[i], strconv.FormatUint(uint64(origPort), 10))
+		}
+		return addrs, nil
+	}
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	require.True(t, looked)
+	closeConn(t, conn)
+}
+
 func TestConnectWithRuntimeParams(t *testing.T) {
 	t.Parallel()
 
