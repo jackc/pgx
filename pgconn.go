@@ -241,13 +241,6 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	pgConn.parameterStatuses = make(map[string]string)
 
-	if fallbackConfig.TLSConfig != nil {
-		if err := pgConn.startTLS(fallbackConfig.TLSConfig); err != nil {
-			pgConn.conn.Close()
-			return nil, &connectError{config: config, msg: "tls error", err: err}
-		}
-	}
-
 	pgConn.status = connStatusConnecting
 	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
 		func() { pgConn.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
@@ -256,6 +249,15 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
+
+	if fallbackConfig.TLSConfig != nil {
+		tlsConn, err := startTLS(pgConn.conn, fallbackConfig.TLSConfig)
+		if err != nil {
+			pgConn.conn.Close()
+			return nil, &connectError{config: config, msg: "tls error", err: err}
+		}
+		pgConn.conn = tlsConn
+	}
 
 	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
 
@@ -344,24 +346,22 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 }
 
-func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(pgConn.conn, binary.BigEndian, []int32{8, 80877103})
+func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
+	err := binary.Write(conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	response := make([]byte, 1)
-	if _, err = io.ReadFull(pgConn.conn, response); err != nil {
-		return
+	if _, err = io.ReadFull(conn, response); err != nil {
+		return nil, err
 	}
 
 	if response[0] != 'S' {
-		return errors.New("server refused TLS connection")
+		return nil, errors.New("server refused TLS connection")
 	}
 
-	pgConn.conn = tls.Client(pgConn.conn, tlsConfig)
-
-	return nil
+	return tls.Client(conn, tlsConfig), nil
 }
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {

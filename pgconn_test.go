@@ -161,6 +161,84 @@ func TestConnectTimeout(t *testing.T) {
 	}
 }
 
+func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		connect func(connStr string) error
+	}{
+		{
+			name: "via context that times out",
+			connect: func(connStr string) error {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
+				defer cancel()
+				_, err := pgconn.Connect(ctx, connStr)
+				return err
+			},
+		},
+		{
+			name: "via config ConnectTimeout",
+			connect: func(connStr string) error {
+				conf, err := pgconn.ParseConfig(connStr)
+				require.NoError(t, err)
+				conf.ConnectTimeout = time.Millisecond * 10
+				_, err = pgconn.ConnectConfig(context.Background(), conf)
+				return err
+			},
+		},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			ln, err := net.Listen("tcp", "127.0.0.1:")
+			require.NoError(t, err)
+			defer ln.Close()
+
+			serverErrChan := make(chan error)
+			defer close(serverErrChan)
+			go func() {
+				conn, err := ln.Accept()
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+				defer conn.Close()
+
+				var buf []byte
+				_, err = conn.Read(buf)
+				if err != nil {
+					serverErrChan <- err
+					return
+				}
+
+				// Sleeping to hang the TLS handshake.
+				time.Sleep(time.Minute)
+			}()
+
+			parts := strings.Split(ln.Addr().String(), ":")
+			host := parts[0]
+			port := parts[1]
+			connStr := fmt.Sprintf("host=%s port=%s", host, port)
+
+			errChan := make(chan error)
+			go func() {
+				err := tt.connect(connStr)
+				errChan <- err
+			}()
+
+			select {
+			case err = <-errChan:
+				require.True(t, pgconn.Timeout(err), err)
+			case err = <-serverErrChan:
+				t.Fatalf("server failed with error: %s", err)
+			case <-time.After(time.Millisecond * 100):
+				t.Fatal("exceeded connection timeout without erroring out")
+			}
+		})
+	}
+}
+
 func TestConnectInvalidUser(t *testing.T) {
 	t.Parallel()
 
