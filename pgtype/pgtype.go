@@ -2,7 +2,9 @@ package pgtype
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -173,6 +175,34 @@ type ResultDecoder interface {
 	DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error
 }
 
+type Encoder interface {
+	// Encode appends the encoded bytes of value to buf. If value is the SQL NULL then append nothing and return
+	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
+	// written.
+	Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error)
+}
+
+type Codec interface {
+	// FormatSupported returns true if the format is supported.
+	FormatSupported(int16) bool
+
+	// PreferredFormat returns the preferred format.
+	PreferredFormat() int16
+
+	Encoder
+
+	// PlanScan returns a ScanPlan for scanning a PostgreSQL value into a destination with the same type as target. If
+	// actualTarget is true then the returned ScanPlan may be optimized to directly scan into target. If no plan can be
+	// found then nil is returned.
+	PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan
+
+	// DecodeDatabaseSQLValue returns src decoded into a value compatible with the sql.Scanner interface.
+	DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error)
+
+	// DecodeValue returns src decoded into its default format.
+	DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error)
+}
+
 // ResultFormatPreferrer allows a type to specify its preferred result format instead of it being inferred from
 // whether it is also a BinaryDecoder.
 type ResultFormatPreferrer interface {
@@ -229,6 +259,8 @@ type DataType struct {
 	textDecoder   TextDecoder
 	binaryDecoder BinaryDecoder
 
+	Codec Codec
+
 	Name string
 	OID  uint32
 }
@@ -268,7 +300,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
-	ci.RegisterDataType(DataType{Value: &Int2Array{}, Name: "_int2", OID: Int2ArrayOID})
+	ci.RegisterDataType(DataType{Value: &Int2Array{}, Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
 	ci.RegisterDataType(DataType{Value: &Int4Array{}, Name: "_int4", OID: Int4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Int8Array{}, Name: "_int8", OID: Int8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
@@ -292,7 +324,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
 	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
 	ci.RegisterDataType(DataType{Value: &Inet{}, Name: "inet", OID: InetOID})
-	ci.RegisterDataType(DataType{Value: &Int2{}, Name: "int2", OID: Int2OID})
+	ci.RegisterDataType(DataType{Value: &Int2{}, Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
 	ci.RegisterDataType(DataType{Value: &Int4{}, Name: "int4", OID: Int4OID})
 	ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
 	ci.RegisterDataType(DataType{Value: &Int8{}, Name: "int8", OID: Int8OID})
@@ -752,6 +784,15 @@ func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byt
 
 // PlanScan prepares a plan to scan a value into dst.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
+	if oid != 0 {
+		if dt, ok := ci.DataTypeForOID(oid); ok && dt.Codec != nil {
+			plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false)
+			if plan != nil {
+				return plan
+			}
+		}
+	}
+
 	switch formatCode {
 	case BinaryFormatCode:
 		switch dst.(type) {
@@ -865,6 +906,8 @@ func NewValue(v Value) Value {
 		return reflect.New(reflect.ValueOf(v).Elem().Type()).Interface().(Value)
 	}
 }
+
+var ErrScanTargetTypeChanged = errors.New("scan target type changed")
 
 var nameValues map[string]Value
 
