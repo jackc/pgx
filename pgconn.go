@@ -239,7 +239,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
 
-	pgConn.contextWatcher = contextWatcher(netConn)
+	pgConn.contextWatcher = newContextWatcher(netConn)
 	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
 
@@ -254,7 +254,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		}
 
 		pgConn.contextWatcher.Unwatch()
-		pgConn.contextWatcher = contextWatcher(tlsConn)
+		pgConn.contextWatcher = newContextWatcher(tlsConn)
 		pgConn.contextWatcher.Watch(ctx)
 
 		pgConn.conn = tlsConn
@@ -348,7 +348,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 }
 
-func contextWatcher(conn net.Conn) *ctxwatch.ContextWatcher {
+func newContextWatcher(conn net.Conn) *ctxwatch.ContextWatcher {
 	return ctxwatch.NewContextWatcher(
 		func() { conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
 		func() { conn.SetDeadline(time.Time{}) },
@@ -1718,7 +1718,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		cleanupDone: make(chan struct{}),
 	}
 
-	pgConn.contextWatcher = contextWatcher(pgConn.conn)
+	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
 
 	return pgConn, nil
 }
