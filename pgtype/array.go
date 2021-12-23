@@ -28,6 +28,20 @@ type ArrayDimension struct {
 	LowerBound int32
 }
 
+// cardinality returns the number of elements in an array of dimensions size.
+func cardinality(dimensions []ArrayDimension) int {
+	if len(dimensions) == 0 {
+		return 0
+	}
+
+	elementCount := int(dimensions[0].Length)
+	for _, d := range dimensions[1:] {
+		elementCount *= int(d.Length)
+	}
+
+	return elementCount
+}
+
 func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	if len(src) < 12 {
 		return 0, fmt.Errorf("array header too short: %d", len(src))
