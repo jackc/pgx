@@ -239,9 +239,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
 
-	pgConn.status = connStatusConnecting
 	pgConn.conn = netConn
-
 	pgConn.contextWatcher = newContextWatcher(netConn)
 	pgConn.contextWatcher.Watch(ctx)
 
@@ -253,15 +251,15 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			return nil, &connectError{config: config, msg: "tls error", err: err}
 		}
 
+		pgConn.conn = tlsConn
 		pgConn.contextWatcher = newContextWatcher(tlsConn)
 		pgConn.contextWatcher.Watch(ctx)
-
-		pgConn.conn = tlsConn
 	}
 
 	defer pgConn.contextWatcher.Unwatch()
 
 	pgConn.parameterStatuses = make(map[string]string)
+	pgConn.status = connStatusConnecting
 	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
