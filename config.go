@@ -248,21 +248,21 @@ func ParseConfig(connString string) (*Config, error) {
 	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
-		"host":                 struct{}{},
-		"port":                 struct{}{},
-		"database":             struct{}{},
-		"user":                 struct{}{},
-		"password":             struct{}{},
-		"passfile":             struct{}{},
-		"connect_timeout":      struct{}{},
-		"sslmode":              struct{}{},
-		"sslkey":               struct{}{},
-		"sslcert":              struct{}{},
-		"sslrootcert":          struct{}{},
-		"target_session_attrs": struct{}{},
-		"min_read_buffer_size": struct{}{},
-		"service":              struct{}{},
-		"servicefile":          struct{}{},
+		"host":                 {},
+		"port":                 {},
+		"database":             {},
+		"user":                 {},
+		"password":             {},
+		"passfile":             {},
+		"connect_timeout":      {},
+		"sslmode":              {},
+		"sslkey":               {},
+		"sslcert":              {},
+		"sslrootcert":          {},
+		"target_session_attrs": {},
+		"min_read_buffer_size": {},
+		"service":              {},
+		"servicefile":          {},
 	}
 
 	for k, v := range settings {
