@@ -246,31 +246,40 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		}
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
-			value := dt.Value
+			if dt.Value != nil {
 
-			switch fd.Format {
-			case TextFormatCode:
-				decoder, ok := value.(pgtype.TextDecoder)
-				if !ok {
-					decoder = &pgtype.GenericText{}
+				value := dt.Value
+
+				switch fd.Format {
+				case TextFormatCode:
+					decoder, ok := value.(pgtype.TextDecoder)
+					if !ok {
+						decoder = &pgtype.GenericText{}
+					}
+					err := decoder.DecodeText(rows.connInfo, buf)
+					if err != nil {
+						rows.fatal(err)
+					}
+					values = append(values, decoder.(pgtype.Value).Get())
+				case BinaryFormatCode:
+					decoder, ok := value.(pgtype.BinaryDecoder)
+					if !ok {
+						decoder = &pgtype.GenericBinary{}
+					}
+					err := decoder.DecodeBinary(rows.connInfo, buf)
+					if err != nil {
+						rows.fatal(err)
+					}
+					values = append(values, value.Get())
+				default:
+					rows.fatal(errors.New("Unknown format code"))
 				}
-				err := decoder.DecodeText(rows.connInfo, buf)
+			} else if dt.Codec != nil {
+				value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
 				if err != nil {
 					rows.fatal(err)
 				}
-				values = append(values, decoder.(pgtype.Value).Get())
-			case BinaryFormatCode:
-				decoder, ok := value.(pgtype.BinaryDecoder)
-				if !ok {
-					decoder = &pgtype.GenericBinary{}
-				}
-				err := decoder.DecodeBinary(rows.connInfo, buf)
-				if err != nil {
-					rows.fatal(err)
-				}
-				values = append(values, value.Get())
-			default:
-				rows.fatal(errors.New("Unknown format code"))
+				values = append(values, value)
 			}
 		} else {
 			switch fd.Format {

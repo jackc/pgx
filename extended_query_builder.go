@@ -113,23 +113,34 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
-		value := dt.Value
-		err := value.Set(arg)
-		if err != nil {
-			{
-				if arg, ok := arg.(driver.Valuer); ok {
-					v, err := callValuerValue(arg)
-					if err != nil {
-						return nil, err
+		if dt.Value != nil {
+			value := dt.Value
+			err := value.Set(arg)
+			if err != nil {
+				{
+					if arg, ok := arg.(driver.Valuer); ok {
+						v, err := callValuerValue(arg)
+						if err != nil {
+							return nil, err
+						}
+						return eqb.encodeExtendedParamValue(ci, oid, formatCode, v)
 					}
-					return eqb.encodeExtendedParamValue(ci, oid, formatCode, v)
 				}
+
+				return nil, err
 			}
-
-			return nil, err
+			return eqb.encodeExtendedParamValue(ci, oid, formatCode, value)
+		} else if dt.Codec != nil {
+			buf, err := dt.Codec.Encode(ci, oid, formatCode, arg, eqb.paramValueBytes)
+			if err != nil {
+				return nil, err
+			}
+			if buf == nil {
+				return nil, nil
+			}
+			eqb.paramValueBytes = buf
+			return eqb.paramValueBytes[pos:], nil
 		}
-
-		return eqb.encodeExtendedParamValue(ci, oid, formatCode, value)
 	}
 
 	// There is no data type registered for the destination OID, but maybe there is data type registered for the arg

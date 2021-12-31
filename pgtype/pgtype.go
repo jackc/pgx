@@ -300,7 +300,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
-	ci.RegisterDataType(DataType{Value: &Int2Array{}, Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
+	ci.RegisterDataType(DataType{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
 	ci.RegisterDataType(DataType{Value: &Int4Array{}, Name: "_int4", OID: Int4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Int8Array{}, Name: "_int8", OID: Int8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
@@ -324,7 +324,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
 	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
 	ci.RegisterDataType(DataType{Value: &Inet{}, Name: "inet", OID: InetOID})
-	ci.RegisterDataType(DataType{Value: &Int2{}, Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
+	ci.RegisterDataType(DataType{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
 	ci.RegisterDataType(DataType{Value: &Int4{}, Name: "int4", OID: Int4OID})
 	ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
 	ci.RegisterDataType(DataType{Value: &Int8{}, Name: "int8", OID: Int8OID})
@@ -398,20 +398,10 @@ func NewConnInfo() *ConnInfo {
 	return ci
 }
 
-func (ci *ConnInfo) InitializeDataTypes(nameOIDs map[string]uint32) {
-	for name, oid := range nameOIDs {
-		var value Value
-		if t, ok := nameValues[name]; ok {
-			value = reflect.New(reflect.ValueOf(t).Elem().Type()).Interface().(Value)
-		} else {
-			value = &GenericText{}
-		}
-		ci.RegisterDataType(DataType{Value: value, Name: name, OID: oid})
-	}
-}
-
 func (ci *ConnInfo) RegisterDataType(t DataType) {
-	t.Value = NewValue(t.Value)
+	if t.Value != nil {
+		t.Value = NewValue(t.Value)
+	}
 
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
@@ -463,8 +453,10 @@ func (ci *ConnInfo) buildReflectTypeToDataType() {
 	ci.reflectTypeToDataType = make(map[reflect.Type]*DataType)
 
 	for _, dt := range ci.oidToDataType {
-		if _, is := dt.Value.(TypeValue); !is {
-			ci.reflectTypeToDataType[reflect.ValueOf(dt.Value).Type()] = dt
+		if dt.Value != nil {
+			if _, is := dt.Value.(TypeValue); !is {
+				ci.reflectTypeToDataType[reflect.ValueOf(dt.Value).Type()] = dt
+			}
 		}
 	}
 
@@ -583,8 +575,14 @@ func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode 
 	} else {
 		switch formatCode {
 		case BinaryFormatCode:
+			if dt.binaryDecoder == nil {
+				return fmt.Errorf("dt.binaryDecoder is nil")
+			}
 			err = dt.binaryDecoder.DecodeBinary(ci, src)
 		case TextFormatCode:
+			if dt.textDecoder == nil {
+				return fmt.Errorf("dt.textDecoder is nil")
+			}
 			err = dt.textDecoder.DecodeText(ci, src)
 		}
 	}
@@ -782,13 +780,104 @@ func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byt
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
+type pointerPointerScanPlan struct {
+	dstType reflect.Type
+	next    ScanPlan
+}
+
+func (plan *pointerPointerScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if plan.dstType != reflect.TypeOf(dst) {
+		newPlan := ci.PlanScan(oid, formatCode, dst)
+		return newPlan.Scan(ci, oid, formatCode, src, dst)
+	}
+
+	el := reflect.ValueOf(dst).Elem()
+	if src == nil {
+		el.Set(reflect.Zero(el.Type()))
+		return nil
+	}
+
+	el.Set(reflect.New(el.Type().Elem()))
+	return plan.next.Scan(ci, oid, formatCode, src, el.Interface())
+}
+
+func tryPointerPointerScanPlan(dst interface{}) (plan *pointerPointerScanPlan, nextDst interface{}, ok bool) {
+	if dstValue := reflect.ValueOf(dst); dstValue.Kind() == reflect.Ptr {
+		elemValue := dstValue.Elem()
+		if elemValue.Kind() == reflect.Ptr {
+			plan = &pointerPointerScanPlan{dstType: dstValue.Type()}
+			return plan, reflect.Zero(elemValue.Type()).Interface(), true
+		}
+	}
+
+	return nil, nil, false
+}
+
+var elemKindToBasePointerTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
+	reflect.Int:     reflect.TypeOf(new(int)),
+	reflect.Int8:    reflect.TypeOf(new(int8)),
+	reflect.Int16:   reflect.TypeOf(new(int16)),
+	reflect.Int32:   reflect.TypeOf(new(int32)),
+	reflect.Int64:   reflect.TypeOf(new(int64)),
+	reflect.Uint:    reflect.TypeOf(new(uint)),
+	reflect.Uint8:   reflect.TypeOf(new(uint8)),
+	reflect.Uint16:  reflect.TypeOf(new(uint16)),
+	reflect.Uint32:  reflect.TypeOf(new(uint32)),
+	reflect.Uint64:  reflect.TypeOf(new(uint64)),
+	reflect.Float32: reflect.TypeOf(new(float32)),
+	reflect.Float64: reflect.TypeOf(new(float64)),
+	reflect.String:  reflect.TypeOf(new(string)),
+}
+
+type baseTypeScanPlan struct {
+	dstType     reflect.Type
+	nextDstType reflect.Type
+	next        ScanPlan
+}
+
+func (plan *baseTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if plan.dstType != reflect.TypeOf(dst) {
+		newPlan := ci.PlanScan(oid, formatCode, dst)
+		return newPlan.Scan(ci, oid, formatCode, src, dst)
+	}
+
+	return plan.next.Scan(ci, oid, formatCode, src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
+}
+
+func tryBaseTypeScanPlan(dst interface{}) (plan *baseTypeScanPlan, nextDst interface{}, ok bool) {
+	dstValue := reflect.ValueOf(dst)
+
+	if dstValue.Kind() == reflect.Ptr {
+		elemValue := dstValue.Elem()
+		nextDstType := elemKindToBasePointerTypes[elemValue.Kind()]
+		if nextDstType != nil {
+			return &baseTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
+		}
+	}
+
+	return nil, nil, false
+}
+
 // PlanScan prepares a plan to scan a value into dst.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
 	if oid != 0 {
 		if dt, ok := ci.DataTypeForOID(oid); ok && dt.Codec != nil {
-			plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false)
-			if plan != nil {
+			if plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false); plan != nil {
 				return plan
+			}
+
+			if pointerPointerPlan, nextDst, ok := tryPointerPointerScanPlan(dst); ok {
+				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+					pointerPointerPlan.next = nextPlan
+					return pointerPointerPlan
+				}
+			}
+
+			if baseTypePlan, nextDst, ok := tryBaseTypeScanPlan(dst); ok {
+				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+					baseTypePlan.next = nextPlan
+					return baseTypePlan
+				}
 			}
 		}
 	}
@@ -908,77 +997,3 @@ func NewValue(v Value) Value {
 }
 
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
-
-var nameValues map[string]Value
-
-func init() {
-	nameValues = map[string]Value{
-		"_aclitem":     &ACLItemArray{},
-		"_bool":        &BoolArray{},
-		"_bpchar":      &BPCharArray{},
-		"_bytea":       &ByteaArray{},
-		"_cidr":        &CIDRArray{},
-		"_date":        &DateArray{},
-		"_float4":      &Float4Array{},
-		"_float8":      &Float8Array{},
-		"_inet":        &InetArray{},
-		"_int2":        &Int2Array{},
-		"_int4":        &Int4Array{},
-		"_int8":        &Int8Array{},
-		"_numeric":     &NumericArray{},
-		"_text":        &TextArray{},
-		"_timestamp":   &TimestampArray{},
-		"_timestamptz": &TimestamptzArray{},
-		"_uuid":        &UUIDArray{},
-		"_varchar":     &VarcharArray{},
-		"_jsonb":       &JSONBArray{},
-		"aclitem":      &ACLItem{},
-		"bit":          &Bit{},
-		"bool":         &Bool{},
-		"box":          &Box{},
-		"bpchar":       &BPChar{},
-		"bytea":        &Bytea{},
-		"char":         &QChar{},
-		"cid":          &CID{},
-		"cidr":         &CIDR{},
-		"circle":       &Circle{},
-		"date":         &Date{},
-		"daterange":    &Daterange{},
-		"float4":       &Float4{},
-		"float8":       &Float8{},
-		"hstore":       &Hstore{},
-		"inet":         &Inet{},
-		"int2":         &Int2{},
-		"int4":         &Int4{},
-		"int4range":    &Int4range{},
-		"int8":         &Int8{},
-		"int8range":    &Int8range{},
-		"interval":     &Interval{},
-		"json":         &JSON{},
-		"jsonb":        &JSONB{},
-		"line":         &Line{},
-		"lseg":         &Lseg{},
-		"macaddr":      &Macaddr{},
-		"name":         &Name{},
-		"numeric":      &Numeric{},
-		"numrange":     &Numrange{},
-		"oid":          &OIDValue{},
-		"path":         &Path{},
-		"point":        &Point{},
-		"polygon":      &Polygon{},
-		"record":       &Record{},
-		"text":         &Text{},
-		"tid":          &TID{},
-		"timestamp":    &Timestamp{},
-		"timestamptz":  &Timestamptz{},
-		"tsrange":      &Tsrange{},
-		"_tsrange":     &TsrangeArray{},
-		"tstzrange":    &Tstzrange{},
-		"_tstzrange":   &TstzrangeArray{},
-		"unknown":      &Unknown{},
-		"uuid":         &UUID{},
-		"varbit":       &Varbit{},
-		"varchar":      &Varchar{},
-		"xid":          &XID{},
-	}
-}

@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -46,16 +47,31 @@ func (Int2Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{
 }
 
 func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
 	switch format {
 	case BinaryFormatCode:
 	case TextFormatCode:
 		switch target.(type) {
+		case *int8:
+			return scanPlanTextAnyToInt8{}
 		case *int16:
-			return scanPlanTextToAnyInt16{}
+			return scanPlanTextAnyToInt16{}
 		case *int32:
-			return scanPlanTextToAnyInt32{}
+			return scanPlanTextAnyToInt32{}
 		case *int64:
-			return scanPlanTextToAnyInt64{}
+			return scanPlanTextAnyToInt64{}
+		case *int:
+			return scanPlanTextAnyToInt{}
+		case *uint8:
+			return scanPlanTextAnyToUint8{}
+		case *uint16:
+			return scanPlanTextAnyToUint16{}
+		case *uint32:
+			return scanPlanTextAnyToUint32{}
+		case *uint64:
+			return scanPlanTextAnyToUint64{}
+		case *uint:
+			return scanPlanTextAnyToUint{}
 		}
 	}
 
@@ -68,8 +84,15 @@ func (c Int2Codec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16
 	}
 
 	var n int64
-	err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	return n, err
+	scanPlan := c.PlanScan(ci, oid, format, &n, true)
+	if scanPlan == nil {
+		return nil, fmt.Errorf("PlanScan did not find a plan")
+	}
+	err := scanPlan.Scan(ci, oid, format, src, &n)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
 }
 
 func (c Int2Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
@@ -78,13 +101,61 @@ func (c Int2Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	}
 
 	var n int16
-	err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	return n, err
+	scanPlan := c.PlanScan(ci, oid, format, &n, true)
+	if scanPlan == nil {
+		return nil, fmt.Errorf("PlanScan did not find a plan")
+	}
+	err := scanPlan.Scan(ci, oid, format, src, &n)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
 }
 
-type scanPlanTextToAnyInt16 struct{}
+type scanPlanBinaryInt2ToInt16 struct{}
 
-func (scanPlanTextToAnyInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	if len(src) != 2 {
+		return fmt.Errorf("invalid length for int2: %v", len(src))
+	}
+
+	p, ok := (dst).(*int16)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	*p = int16(binary.BigEndian.Uint16(src))
+	return nil
+}
+
+type scanPlanTextAnyToInt8 struct{}
+
+func (scanPlanTextAnyToInt8) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*int8)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseInt(string(src), 10, 8)
+	if err != nil {
+		return err
+	}
+
+	*p = int8(n)
+	return nil
+}
+
+type scanPlanTextAnyToInt16 struct{}
+
+func (scanPlanTextAnyToInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -103,9 +174,9 @@ func (scanPlanTextToAnyInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 	return nil
 }
 
-type scanPlanTextToAnyInt32 struct{}
+type scanPlanTextAnyToInt32 struct{}
 
-func (scanPlanTextToAnyInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -124,9 +195,9 @@ func (scanPlanTextToAnyInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 	return nil
 }
 
-type scanPlanTextToAnyInt64 struct{}
+type scanPlanTextAnyToInt64 struct{}
 
-func (scanPlanTextToAnyInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -142,5 +213,131 @@ func (scanPlanTextToAnyInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 	}
 
 	*p = int64(n)
+	return nil
+}
+
+type scanPlanTextAnyToInt struct{}
+
+func (scanPlanTextAnyToInt) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*int)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseInt(string(src), 10, 0)
+	if err != nil {
+		return err
+	}
+
+	*p = int(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint8 struct{}
+
+func (scanPlanTextAnyToUint8) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint8)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 8)
+	if err != nil {
+		return err
+	}
+
+	*p = uint8(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint16 struct{}
+
+func (scanPlanTextAnyToUint16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint16)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 16)
+	if err != nil {
+		return err
+	}
+
+	*p = uint16(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint32 struct{}
+
+func (scanPlanTextAnyToUint32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint32)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 32)
+	if err != nil {
+		return err
+	}
+
+	*p = uint32(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint64 struct{}
+
+func (scanPlanTextAnyToUint64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint64)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	*p = uint64(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint struct{}
+
+func (scanPlanTextAnyToUint) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, 0)
+	if err != nil {
+		return err
+	}
+
+	*p = uint(n)
 	return nil
 }

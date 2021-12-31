@@ -28,57 +28,6 @@ type ArraySetter interface {
 	ScanIndex(i int) interface{}
 }
 
-type int16Array []int16
-
-func (a int16Array) Dimensions() []ArrayDimension {
-	if a == nil {
-		return nil
-	}
-
-	return []ArrayDimension{{Length: int32(len(a)), LowerBound: 1}}
-}
-
-func (a int16Array) Index(i int) interface{} {
-	return a[i]
-}
-
-func (a *int16Array) SetDimensions(dimensions []ArrayDimension) error {
-	if dimensions == nil {
-		a = nil
-		return nil
-	}
-
-	elementCount := cardinality(dimensions)
-	*a = make(int16Array, elementCount)
-	return nil
-}
-
-func (a int16Array) ScanIndex(i int) interface{} {
-	return &a[i]
-}
-
-func makeArrayGetter(a interface{}) (ArrayGetter, error) {
-	switch a := a.(type) {
-	case ArrayGetter:
-		return a, nil
-	case []int16:
-		return (*int16Array)(&a), nil
-	}
-
-	return nil, fmt.Errorf("cannot convert %T to ArrayGetter", a)
-}
-
-func makeArraySetter(a interface{}) (ArraySetter, error) {
-	switch a := a.(type) {
-	case ArraySetter:
-		return a, nil
-	case *[]int16:
-		return (*int16Array)(a), nil
-	}
-
-	return nil, fmt.Errorf("cannot convert %T to ArraySetter", a)
-}
-
 // ArrayCodec is a codec for any array type.
 type ArrayCodec struct {
 	ElementCodec Codec
@@ -155,7 +104,8 @@ func (c *ArrayCodec) encodeText(ci *ConnInfo, oid uint32, array ArrayGetter, buf
 		return nil, nil
 	}
 
-	if len(dimensions) == 0 {
+	elementCount := cardinality(dimensions)
+	if elementCount == 0 {
 		return append(buf, '{', '}'), nil
 	}
 
@@ -173,7 +123,6 @@ func (c *ArrayCodec) encodeText(ci *ConnInfo, oid uint32, array ArrayGetter, buf
 	}
 
 	inElemBuf := make([]byte, 0, 32)
-	elementCount := cardinality(dimensions)
 	for i := 0; i < elementCount; i++ {
 		if i > 0 {
 			buf = append(buf, ',')
