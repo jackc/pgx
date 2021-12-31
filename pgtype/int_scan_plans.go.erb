@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+<%# Any text to all integer types %>
 <% [
   ["8", 8],
   ["16", 16],
@@ -55,6 +56,7 @@ func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, fo
 }
 <% end %>
 
+<%# PostgreSQL binary integers to fixed size Go integers %>
 <% [
   [16, 8],
   [16, 16],
@@ -125,6 +127,7 @@ func (scanPlanBinaryInt<%= src_byte_size %>ToUint<%= dst_bit_size %>) Scan(ci *C
 }
 <% end %>
 
+<%# PostgreSQL binary integers to Go machine integers %>
 <% [16].each do |src_bit_size| %>
 <% src_byte_size = src_bit_size / 8 %>
 type scanPlanBinaryInt<%= src_byte_size %>ToInt struct{}
@@ -189,3 +192,54 @@ func (scanPlanBinaryInt<%= src_byte_size %>ToUint) Scan(ci *ConnInfo, oid uint32
 	return nil
 }
 <% end %>
+
+<%# PostgreSQL binary integers to Go Int64Scanner %>
+<% [16].each do |src_bit_size| %>
+<% src_byte_size = src_bit_size / 8 %>
+type scanPlanBinaryInt<%= src_byte_size %>ToInt64Scanner struct{}
+
+func (scanPlanBinaryInt<%= src_byte_size %>ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s, ok := (dst).(Int64Scanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+    return s.ScanInt64(0, false)
+	}
+
+	if len(src) != <%= src_byte_size %> {
+		return fmt.Errorf("invalid length for int<%= src_byte_size %>: %v", len(src))
+	}
+
+
+	n := int64(binary.BigEndian.Uint<%= src_bit_size %>(src))
+
+  return s.ScanInt64(n, true)
+}
+<% end %>
+
+type scanPlanTextAnyToInt64Scanner struct{}
+
+func (scanPlanTextAnyToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s, ok := (dst).(Int64Scanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+    return s.ScanInt64(0, false)
+	}
+
+	n, err := strconv.ParseInt(string(src), 10, 64)
+	if err != nil {
+		return err
+	}
+
+  err = s.ScanInt64(n, true)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

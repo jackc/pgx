@@ -12,6 +12,24 @@ type Int2 struct {
 	Valid bool
 }
 
+// ScanInt64 implements the Int64Scanner interface.
+func (dst *Int2) ScanInt64(n int64, valid bool) error {
+	if !valid {
+		*dst = Int2{}
+		return nil
+	}
+
+	if n < math.MinInt16 {
+		return fmt.Errorf("%d is greater than maximum value for Int2", n)
+	}
+	if n > math.MaxInt16 {
+		return fmt.Errorf("%d is greater than maximum value for Int2", n)
+	}
+	*dst = Int2{Int: int16(n), Valid: true}
+
+	return nil
+}
+
 // Scan implements the database/sql Scanner interface.
 func (dst *Int2) Scan(src interface{}) error {
 	if src == nil {

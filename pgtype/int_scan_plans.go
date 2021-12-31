@@ -462,3 +462,49 @@ func (scanPlanBinaryInt2ToUint) Scan(ci *ConnInfo, oid uint32, formatCode int16,
 
 	return nil
 }
+
+type scanPlanBinaryInt2ToInt64Scanner struct{}
+
+func (scanPlanBinaryInt2ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s, ok := (dst).(Int64Scanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+		return s.ScanInt64(0, false)
+	}
+
+	if len(src) != 2 {
+		return fmt.Errorf("invalid length for int2: %v", len(src))
+	}
+
+	n := int64(binary.BigEndian.Uint16(src))
+
+	return s.ScanInt64(n, true)
+}
+
+type scanPlanTextAnyToInt64Scanner struct{}
+
+func (scanPlanTextAnyToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s, ok := (dst).(Int64Scanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+		return s.ScanInt64(0, false)
+	}
+
+	n, err := strconv.ParseInt(string(src), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	err = s.ScanInt64(n, true)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
