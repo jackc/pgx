@@ -920,65 +920,64 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 	}
 
 	failedDecodeTests := []struct {
-		sql         string
-		scanArg     interface{}
-		expectedErr string
+		sql     string
+		scanArg interface{}
 	}{
 		// Check any integer type where value is outside Go:int8 range cannot be decoded
-		{"select 128::int2", &actual.i8, "is greater than"},
-		{"select 128::int4", &actual.i8, "is greater than"},
-		{"select 128::int8", &actual.i8, "is greater than"},
-		{"select -129::int2", &actual.i8, "is less than"},
-		{"select -129::int4", &actual.i8, "is less than"},
-		{"select -129::int8", &actual.i8, "is less than"},
+		{"select 128::int2", &actual.i8},
+		{"select 128::int4", &actual.i8},
+		{"select 128::int8", &actual.i8},
+		{"select -129::int2", &actual.i8},
+		{"select -129::int4", &actual.i8},
+		{"select -129::int8", &actual.i8},
 
 		// Check any integer type where value is outside Go:int16 range cannot be decoded
-		{"select 32768::int4", &actual.i16, "is greater than"},
-		{"select 32768::int8", &actual.i16, "is greater than"},
-		{"select -32769::int4", &actual.i16, "is less than"},
-		{"select -32769::int8", &actual.i16, "is less than"},
+		{"select 32768::int4", &actual.i16},
+		{"select 32768::int8", &actual.i16},
+		{"select -32769::int4", &actual.i16},
+		{"select -32769::int8", &actual.i16},
 
 		// Check any integer type where value is outside Go:int32 range cannot be decoded
-		{"select 2147483648::int8", &actual.i32, "is greater than"},
-		{"select -2147483649::int8", &actual.i32, "is less than"},
+		{"select 2147483648::int8", &actual.i32},
+		{"select -2147483649::int8", &actual.i32},
 
 		// Check any integer type where value is outside Go:uint range cannot be decoded
-		{"select -1::int2", &actual.ui, "is less than"},
-		{"select -1::int4", &actual.ui, "is less than"},
-		{"select -1::int8", &actual.ui, "is less than"},
+		{"select -1::int2", &actual.ui},
+		{"select -1::int4", &actual.ui},
+		{"select -1::int8", &actual.ui},
 
 		// Check any integer type where value is outside Go:uint8 range cannot be decoded
-		{"select 256::int2", &actual.ui8, "is greater than"},
-		{"select 256::int4", &actual.ui8, "is greater than"},
-		{"select 256::int8", &actual.ui8, "is greater than"},
-		{"select -1::int2", &actual.ui8, "is less than"},
-		{"select -1::int4", &actual.ui8, "is less than"},
-		{"select -1::int8", &actual.ui8, "is less than"},
+		{"select 256::int2", &actual.ui8},
+		{"select 256::int4", &actual.ui8},
+		{"select 256::int8", &actual.ui8},
+		{"select -1::int2", &actual.ui8},
+		{"select -1::int4", &actual.ui8},
+		{"select -1::int8", &actual.ui8},
 
 		// Check any integer type where value is outside Go:uint16 cannot be decoded
-		{"select 65536::int4", &actual.ui16, "is greater than"},
-		{"select 65536::int8", &actual.ui16, "is greater than"},
-		{"select -1::int2", &actual.ui16, "is less than"},
-		{"select -1::int4", &actual.ui16, "is less than"},
-		{"select -1::int8", &actual.ui16, "is less than"},
+		{"select 65536::int4", &actual.ui16},
+		{"select 65536::int8", &actual.ui16},
+		{"select -1::int2", &actual.ui16},
+		{"select -1::int4", &actual.ui16},
+		{"select -1::int8", &actual.ui16},
 
 		// Check any integer type where value is outside Go:uint32 range cannot be decoded
-		{"select 4294967296::int8", &actual.ui32, "is greater than"},
-		{"select -1::int2", &actual.ui32, "is less than"},
-		{"select -1::int4", &actual.ui32, "is less than"},
-		{"select -1::int8", &actual.ui32, "is less than"},
+		{"select 4294967296::int8", &actual.ui32},
+		{"select -1::int2", &actual.ui32},
+		{"select -1::int4", &actual.ui32},
+		{"select -1::int8", &actual.ui32},
 
 		// Check any integer type where value is outside Go:uint64 range cannot be decoded
-		{"select -1::int2", &actual.ui64, "is less than"},
-		{"select -1::int4", &actual.ui64, "is less than"},
-		{"select -1::int8", &actual.ui64, "is less than"},
+		{"select -1::int2", &actual.ui64},
+		{"select -1::int4", &actual.ui64},
+		{"select -1::int8", &actual.ui64},
 	}
 
 	for i, tt := range failedDecodeTests {
 		err := conn.QueryRow(context.Background(), tt.sql).Scan(tt.scanArg)
 		if err == nil {
 			t.Errorf("%d. Expected failure to decode, but unexpectedly succeeded: %v (sql -> %v)", i, err, tt.sql)
-		} else if !strings.Contains(err.Error(), tt.expectedErr) {
+		} else if !strings.Contains(err.Error(), "can't scan") {
 			t.Errorf("%d. Expected failure to decode, but got: %v (sql -> %v)", i, err, tt.sql)
 		}
 

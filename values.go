@@ -115,19 +115,30 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	}
 
 	if dt, found := ci.DataTypeForValue(arg); found {
-		v := dt.Value
-		err := v.Set(arg)
-		if err != nil {
-			return nil, err
+		if dt.Value != nil {
+			v := dt.Value
+			err := v.Set(arg)
+			if err != nil {
+				return nil, err
+			}
+			buf, err := v.(pgtype.TextEncoder).EncodeText(ci, nil)
+			if err != nil {
+				return nil, err
+			}
+			if buf == nil {
+				return nil, nil
+			}
+			return string(buf), nil
+		} else if dt.Codec != nil {
+			buf, err := dt.Codec.Encode(ci, 0, TextFormatCode, arg, nil)
+			if err != nil {
+				return nil, err
+			}
+			if buf == nil {
+				return nil, nil
+			}
+			return string(buf), nil
 		}
-		buf, err := v.(pgtype.TextEncoder).EncodeText(ci, nil)
-		if err != nil {
-			return nil, err
-		}
-		if buf == nil {
-			return nil, nil
-		}
-		return string(buf), nil
 	}
 
 	if refVal.Kind() == reflect.Ptr {
@@ -188,33 +199,47 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
-		value := dt.Value
-		err := value.Set(arg)
-		if err != nil {
-			{
-				if arg, ok := arg.(driver.Valuer); ok {
-					v, err := callValuerValue(arg)
-					if err != nil {
-						return nil, err
+		if dt.Value != nil {
+			value := dt.Value
+			err := value.Set(arg)
+			if err != nil {
+				{
+					if arg, ok := arg.(driver.Valuer); ok {
+						v, err := callValuerValue(arg)
+						if err != nil {
+							return nil, err
+						}
+						return encodePreparedStatementArgument(ci, buf, oid, v)
 					}
-					return encodePreparedStatementArgument(ci, buf, oid, v)
 				}
+
+				return nil, err
 			}
 
-			return nil, err
+			sp := len(buf)
+			buf = pgio.AppendInt32(buf, -1)
+			argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
+			if err != nil {
+				return nil, err
+			}
+			if argBuf != nil {
+				buf = argBuf
+				pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
+			}
+			return buf, nil
+		} else if dt.Codec != nil {
+			sp := len(buf)
+			buf = pgio.AppendInt32(buf, -1)
+			argBuf, err := dt.Codec.Encode(ci, oid, BinaryFormatCode, arg, buf)
+			if err != nil {
+				return nil, err
+			}
+			if argBuf != nil {
+				buf = argBuf
+				pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
+			}
+			return buf, nil
 		}
-
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
-		if err != nil {
-			return nil, err
-		}
-		if argBuf != nil {
-			buf = argBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-		return buf, nil
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
