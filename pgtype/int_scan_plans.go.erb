@@ -1,0 +1,56 @@
+package pgtype
+
+import (
+	"fmt"
+	"strconv"
+)
+
+<% [
+  ["8", 8],
+  ["16", 16],
+  ["32", 32],
+  ["64", 64],
+  ["", 0]
+].each do |type_suffix, bit_size| %>
+type scanPlanTextAnyToInt<%= type_suffix %> struct{}
+
+func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*int<%= type_suffix %>)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseInt(string(src), 10, <%= bit_size %>)
+	if err != nil {
+		return err
+	}
+
+	*p = int<%= type_suffix %>(n)
+	return nil
+}
+
+type scanPlanTextAnyToUint<%= type_suffix %> struct{}
+
+func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p, ok := (dst).(*uint<%= type_suffix %>)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	n, err := strconv.ParseUint(string(src), 10, <%= bit_size %>)
+	if err != nil {
+		return err
+	}
+
+	*p = uint<%= type_suffix %>(n)
+	return nil
+}
+<% end %>
