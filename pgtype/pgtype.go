@@ -850,7 +850,7 @@ func tryBaseTypeScanPlan(dst interface{}) (plan *baseTypeScanPlan, nextDst inter
 	if dstValue.Kind() == reflect.Ptr {
 		elemValue := dstValue.Elem()
 		nextDstType := elemKindToBasePointerTypes[elemValue.Kind()]
-		if nextDstType != nil {
+		if nextDstType != nil && dstValue.Type() != nextDstType {
 			return &baseTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
 		}
 	}
