@@ -2,7 +2,6 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"encoding/binary"
 	"fmt"
 	"math"
 	"strconv"
@@ -50,6 +49,28 @@ func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 	switch format {
 	case BinaryFormatCode:
+		switch target.(type) {
+		case *int8:
+			return scanPlanBinaryInt2ToInt8{}
+		case *int16:
+			return scanPlanBinaryInt2ToInt16{}
+		case *int32:
+			return scanPlanBinaryInt2ToInt32{}
+		case *int64:
+			return scanPlanBinaryInt2ToInt64{}
+		case *int:
+			return scanPlanBinaryInt2ToInt{}
+		case *uint8:
+			return scanPlanBinaryInt2ToUint8{}
+		case *uint16:
+			return scanPlanBinaryInt2ToUint16{}
+		case *uint32:
+			return scanPlanBinaryInt2ToUint32{}
+		case *uint64:
+			return scanPlanBinaryInt2ToUint64{}
+		case *uint:
+			return scanPlanBinaryInt2ToUint{}
+		}
 	case TextFormatCode:
 		switch target.(type) {
 		case *int8:
@@ -110,24 +131,4 @@ func (c Int2Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 		return nil, err
 	}
 	return n, nil
-}
-
-type scanPlanBinaryInt2ToInt16 struct{}
-
-func (scanPlanBinaryInt2ToInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 2 {
-		return fmt.Errorf("invalid length for int2: %v", len(src))
-	}
-
-	p, ok := (dst).(*int16)
-	if !ok {
-		return ErrScanTargetTypeChanged
-	}
-
-	*p = int16(binary.BigEndian.Uint16(src))
-	return nil
 }
