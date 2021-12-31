@@ -70,6 +70,8 @@ func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 			return scanPlanBinaryInt2ToUint64{}
 		case *uint:
 			return scanPlanBinaryInt2ToUint{}
+		case Int64Scanner:
+			return scanPlanBinaryInt2ToInt64Scanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -93,6 +95,8 @@ func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 			return scanPlanTextAnyToUint64{}
 		case *uint:
 			return scanPlanTextAnyToUint{}
+		case Int64Scanner:
+			return scanPlanTextAnyToInt64Scanner{}
 		}
 	}
 
@@ -131,4 +135,8 @@ func (c Int2Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 		return nil, err
 	}
 	return n, nil
+}
+
+type Int64Scanner interface {
+	ScanInt64(v int64, valid bool) error
 }
