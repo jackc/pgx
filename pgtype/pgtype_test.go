@@ -2,13 +2,17 @@ package pgtype_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"net"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -296,6 +300,54 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 		}
 		if v != 42 {
 			b.Fatal("scan failed due to bad value")
+		}
+	}
+}
+
+type PgxTranscodeTestCase struct {
+	src  interface{}
+	dst  interface{}
+	test func(interface{}) bool
+}
+
+func isExpectedEq(a interface{}) func(interface{}) bool {
+	return func(v interface{}) bool {
+		return a == v
+	}
+}
+
+func testPgxCodec(t testing.TB, pgTypeName string, tests []PgxTranscodeTestCase) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select $1::%s", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	formats := []struct {
+		name string
+		code int16
+	}{
+		{name: "TextFormat", code: pgx.TextFormatCode},
+		{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+	}
+
+	for i, tt := range tests {
+		for _, format := range formats {
+			err := conn.QueryRow(context.Background(), "test", pgx.QueryResultFormats{format.code}, tt.src).Scan(tt.dst)
+			if err != nil {
+				t.Errorf("%s %d: %v", format.name, i, err)
+			}
+
+			dst := reflect.ValueOf(tt.dst)
+			if dst.Kind() == reflect.Ptr {
+				dst = dst.Elem()
+			}
+
+			if !tt.test(dst.Interface()) {
+				t.Errorf("%s %d: unexpected result for %v: %v", format.name, i, tt.src, dst.Interface())
+			}
 		}
 	}
 }
