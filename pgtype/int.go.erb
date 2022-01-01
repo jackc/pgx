@@ -94,6 +94,22 @@ func (src Int<%= pg_byte_size %>) MarshalJSON() ([]byte, error) {
 	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
 }
 
+func (dst *Int<%= pg_byte_size %>) UnmarshalJSON(b []byte) error {
+	var n *int<%= pg_bit_size %>
+	err := json.Unmarshal(b, &n)
+	if err != nil {
+		return err
+	}
+
+	if n == nil {
+		*dst = Int<%= pg_byte_size %>{}
+	} else {
+		*dst = Int<%= pg_byte_size %>{Int: *n, Valid: true}
+	}
+
+	return nil
+}
+
 type Int<%= pg_byte_size %>Codec struct{}
 
 func (Int<%= pg_byte_size %>Codec) FormatSupported(format int16) bool {
