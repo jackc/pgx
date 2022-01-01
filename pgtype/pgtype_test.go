@@ -244,9 +244,7 @@ func TestScanPlanBinaryInt32ScanChangedType(t *testing.T) {
 
 	var d pgtype.Int4
 	err = plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &d)
-	require.NoError(t, err)
-	require.EqualValues(t, 42, d.Int)
-	require.True(t, d.Valid)
+	require.EqualError(t, err, pgtype.ErrScanTargetTypeChanged.Error())
 }
 
 func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {

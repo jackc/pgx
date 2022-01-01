@@ -53,15 +53,16 @@ func LoadDataType(ctx context.Context, conn Querier, ci *pgtype.ConnInfo, typeNa
 		at := pgtype.NewArrayType(typeName, elementOID, newElement)
 		return pgtype.DataType{Value: at, Name: typeName, OID: oid}, nil
 	case "c": // composite
-		fields, err := GetCompositeFields(ctx, conn, oid)
-		if err != nil {
-			return pgtype.DataType{}, err
-		}
-		ct, err := pgtype.NewCompositeType(typeName, fields, ci)
-		if err != nil {
-			return pgtype.DataType{}, err
-		}
-		return pgtype.DataType{Value: ct, Name: typeName, OID: oid}, nil
+		panic("TODO - restore composite support")
+		// fields, err := GetCompositeFields(ctx, conn, oid)
+		// if err != nil {
+		// 	return pgtype.DataType{}, err
+		// }
+		// ct, err := pgtype.NewCompositeType(typeName, fields, ci)
+		// if err != nil {
+		// 	return pgtype.DataType{}, err
+		// }
+		// return pgtype.DataType{Value: ct, Name: typeName, OID: oid}, nil
 	case "e": // enum
 		members, err := GetEnumMembers(ctx, conn, oid)
 		if err != nil {
@@ -84,40 +85,41 @@ func GetArrayElementOID(ctx context.Context, conn Querier, oid uint32) (uint32, 
 	return typelem, nil
 }
 
+// TODO - restore composite support
 // GetCompositeFields gets the fields of a composite type.
-func GetCompositeFields(ctx context.Context, conn Querier, oid uint32) ([]pgtype.CompositeTypeField, error) {
-	var typrelid uint32
+// func GetCompositeFields(ctx context.Context, conn Querier, oid uint32) ([]pgtype.CompositeTypeField, error) {
+// 	var typrelid uint32
 
-	err := conn.QueryRow(ctx, "select typrelid from pg_type where oid=$1", oid).Scan(&typrelid)
-	if err != nil {
-		return nil, err
-	}
+// 	err := conn.QueryRow(ctx, "select typrelid from pg_type where oid=$1", oid).Scan(&typrelid)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	var fields []pgtype.CompositeTypeField
+// 	var fields []pgtype.CompositeTypeField
 
-	rows, err := conn.Query(ctx, `select attname, atttypid
-from pg_attribute
-where attrelid=$1
-order by attnum`, typrelid)
-	if err != nil {
-		return nil, err
-	}
+// 	rows, err := conn.Query(ctx, `select attname, atttypid
+// from pg_attribute
+// where attrelid=$1
+// order by attnum`, typrelid)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	for rows.Next() {
-		var f pgtype.CompositeTypeField
-		err := rows.Scan(&f.Name, &f.OID)
-		if err != nil {
-			return nil, err
-		}
-		fields = append(fields, f)
-	}
+// 	for rows.Next() {
+// 		var f pgtype.CompositeTypeField
+// 		err := rows.Scan(&f.Name, &f.OID)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		fields = append(fields, f)
+// 	}
 
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
+// 	if rows.Err() != nil {
+// 		return nil, rows.Err()
+// 	}
 
-	return fields, nil
-}
+// 	return fields, nil
+// }
 
 // GetEnumMembers gets the possible values of the enum by oid.
 func GetEnumMembers(ctx context.Context, conn Querier, oid uint32) ([]string, error) {

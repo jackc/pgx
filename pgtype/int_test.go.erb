@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-<% [2].each do |pg_byte_size| %>
+<% [2, 4, 8].each do |pg_byte_size| %>
 <% pg_bit_size = pg_byte_size * 8 %>
 func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
 	testPgxCodec(t, "int<%= pg_byte_size %>", []PgxTranscodeTestCase{
@@ -32,6 +32,11 @@ func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
 		{1, new(uint64), isExpectedEq(uint64(1))},
 		{1, new(int), isExpectedEq(int(1))},
 		{1, new(uint), isExpectedEq(uint(1))},
+		{-1, new(int8), isExpectedEq(int8(-1))},
+		{-1, new(int16), isExpectedEq(int16(-1))},
+		{-1, new(int32), isExpectedEq(int32(-1))},
+		{-1, new(int64), isExpectedEq(int64(-1))},
+		{-1, new(int), isExpectedEq(int(-1))},
 		{math.MinInt<%= pg_bit_size %>, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(math.MinInt<%= pg_bit_size %>))},
 		{-1, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(-1))},
 		{0, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(0))},

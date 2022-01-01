@@ -15,7 +15,7 @@ type Int64Scanner interface {
 }
 
 
-<% [2].each do |pg_byte_size| %>
+<% [2, 4, 8].each do |pg_byte_size| %>
 <% pg_bit_size = pg_byte_size * 8 %>
 type Int<%= pg_byte_size %> struct {
 	Int   int<%= pg_bit_size %>
@@ -265,8 +265,10 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(ci *Con
 	}
 
 	*p = int<%= dst_bit_size %>(n)
-  <% else %>
+  <% elsif dst_bit_size == pg_bit_size %>
 	*p = int<%= dst_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src))
+  <% else %>
+	*p = int<%= dst_bit_size %>(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
   <% end %>
 
 	return nil
@@ -330,7 +332,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(ci *ConnInfo, oid uint32, 
 
 	*p = int(n)
   <% else %>
-	*p = int(binary.BigEndian.Uint<%= pg_bit_size %>(src))
+	*p = int(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
   <% end %>
 
 	return nil
@@ -352,7 +354,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(ci *ConnInfo, oid uint32,
 		return ErrScanTargetTypeChanged
 	}
 
-	n := int64(binary.BigEndian.Uint<%= pg_bit_size %>(src))
+	n := int64(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
 	if n < 0 {
 		return fmt.Errorf("%d is less than minimum value for uint", n)
 	}

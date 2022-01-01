@@ -301,8 +301,8 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
 	ci.RegisterDataType(DataType{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
-	ci.RegisterDataType(DataType{Value: &Int4Array{}, Name: "_int4", OID: Int4ArrayOID})
-	ci.RegisterDataType(DataType{Value: &Int8Array{}, Name: "_int8", OID: Int8ArrayOID})
+	ci.RegisterDataType(DataType{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementCodec: Int4Codec{}, ElementOID: Int4OID}})
+	ci.RegisterDataType(DataType{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementCodec: Int8Codec{}, ElementOID: Int8OID}})
 	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
 	ci.RegisterDataType(DataType{Value: &TextArray{}, Name: "_text", OID: TextArrayOID})
 	ci.RegisterDataType(DataType{Value: &TimestampArray{}, Name: "_timestamp", OID: TimestampArrayOID})
@@ -325,9 +325,9 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
 	ci.RegisterDataType(DataType{Value: &Inet{}, Name: "inet", OID: InetOID})
 	ci.RegisterDataType(DataType{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
-	ci.RegisterDataType(DataType{Value: &Int4{}, Name: "int4", OID: Int4OID})
+	ci.RegisterDataType(DataType{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
 	// ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
-	ci.RegisterDataType(DataType{Value: &Int8{}, Name: "int8", OID: Int8OID})
+	ci.RegisterDataType(DataType{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
 	// ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
 	ci.RegisterDataType(DataType{Value: &Interval{}, Name: "interval", OID: IntervalOID})
 	ci.RegisterDataType(DataType{Value: &JSON{}, Name: "json", OID: JSONOID})
@@ -408,7 +408,9 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 
 	{
 		var formatCode int16
-		if pfp, ok := t.Value.(FormatSupport); ok {
+		if t.Codec != nil {
+			formatCode = t.Codec.PreferredFormat()
+		} else if pfp, ok := t.Value.(FormatSupport); ok {
 			formatCode = pfp.PreferredFormat()
 		} else if _, ok := t.Value.(BinaryEncoder); ok {
 			formatCode = BinaryFormatCode
@@ -547,6 +549,13 @@ func (plan *scanPlanDataTypeSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCod
 	}
 
 	dt := (*DataType)(plan)
+	if dt.Codec != nil {
+		sqlValue, err := dt.Codec.DecodeDatabaseSQLValue(ci, oid, formatCode, src)
+		if err != nil {
+			return err
+		}
+		return scanner.Scan(sqlValue)
+	}
 	var err error
 	switch formatCode {
 	case BinaryFormatCode:
@@ -648,46 +657,6 @@ func (scanPlanReflection) Scan(ci *ConnInfo, oid uint32, formatCode int16, src [
 	}
 
 	return scanUnknownType(oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryInt16 struct{}
-
-func (scanPlanBinaryInt16) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 2 {
-		return fmt.Errorf("invalid length for int2: %v", len(src))
-	}
-
-	if p, ok := (dst).(*int16); ok {
-		*p = int16(binary.BigEndian.Uint16(src))
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryInt32 struct{}
-
-func (scanPlanBinaryInt32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for int4: %v", len(src))
-	}
-
-	if p, ok := (dst).(*int32); ok {
-		*p = int32(binary.BigEndian.Uint32(src))
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
 type scanPlanBinaryInt64 struct{}
@@ -860,28 +829,6 @@ func tryBaseTypeScanPlan(dst interface{}) (plan *baseTypeScanPlan, nextDst inter
 
 // PlanScan prepares a plan to scan a value into dst.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
-	if oid != 0 {
-		if dt, ok := ci.DataTypeForOID(oid); ok && dt.Codec != nil {
-			if plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false); plan != nil {
-				return plan
-			}
-
-			if pointerPointerPlan, nextDst, ok := tryPointerPointerScanPlan(dst); ok {
-				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
-					pointerPointerPlan.next = nextPlan
-					return pointerPointerPlan
-				}
-			}
-
-			if baseTypePlan, nextDst, ok := tryBaseTypeScanPlan(dst); ok {
-				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
-					baseTypePlan.next = nextPlan
-					return baseTypePlan
-				}
-			}
-		}
-	}
-
 	switch formatCode {
 	case BinaryFormatCode:
 		switch dst.(type) {
@@ -889,14 +836,6 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 			switch oid {
 			case TextOID, VarcharOID:
 				return scanPlanString{}
-			}
-		case *int16:
-			if oid == Int2OID {
-				return scanPlanBinaryInt16{}
-			}
-		case *int32:
-			if oid == Int4OID {
-				return scanPlanBinaryInt32{}
 			}
 		case *int64:
 			if oid == Int8OID {
@@ -940,6 +879,26 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 	} else {
 		if dataType, ok := ci.DataTypeForOID(oid); ok {
 			dt = dataType
+		}
+	}
+
+	if dt != nil && dt.Codec != nil {
+		if plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false); plan != nil {
+			return plan
+		}
+
+		if pointerPointerPlan, nextDst, ok := tryPointerPointerScanPlan(dst); ok {
+			if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+				pointerPointerPlan.next = nextPlan
+				return pointerPointerPlan
+			}
+		}
+
+		if baseTypePlan, nextDst, ok := tryBaseTypeScanPlan(dst); ok {
+			if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+				baseTypePlan.next = nextPlan
+				return baseTypePlan
+			}
 		}
 	}
 
