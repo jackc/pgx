@@ -7,4 +7,4 @@ rule '.go' => '.go.erb' do |task|
 end
 
 desc "Generate code"
-task generate: ["pgtype/int.go"]
+task generate: ["pgtype/int.go", "pgtype/int_test.go"]
