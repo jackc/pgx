@@ -4,6 +4,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -90,6 +91,22 @@ func (src Int2) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+}
+
+func (dst *Int2) UnmarshalJSON(b []byte) error {
+	var n *int16
+	err := json.Unmarshal(b, &n)
+	if err != nil {
+		return err
+	}
+
+	if n == nil {
+		*dst = Int2{}
+	} else {
+		*dst = Int2{Int: *n, Valid: true}
+	}
+
+	return nil
 }
 
 type Int2Codec struct{}

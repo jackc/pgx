@@ -41,3 +41,44 @@ func TestInt2Codec(t *testing.T) {
 		{nil, new(*int16), isExpectedEq((*int16)(nil))},
 	})
 }
+
+func TestInt2MarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Int2
+		result string
+	}{
+		{source: pgtype.Int2{Int: 0}, result: "null"},
+		{source: pgtype.Int2{Int: 1, Valid: true}, result: "1"},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestInt2UnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Int2
+	}{
+		{source: "null", result: pgtype.Int2{Int: 0}},
+		{source: "1", result: pgtype.Int2{Int: 1, Valid: true}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Int2
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}
