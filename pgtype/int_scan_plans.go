@@ -1,3 +1,4 @@
+// Do not edit. Generated from pgtype/int_scan_plans.go.erb
 package pgtype
 
 import (
