@@ -1,0 +1,26 @@
+package zeronull_test
+
+import (
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgtype/zeronull"
+)
+
+<% [2, 4, 8].each do |pg_byte_size| %>
+<% pg_bit_size = pg_byte_size * 8 %>
+func TestInt<%= pg_byte_size %>Transcode(t *testing.T) {
+	testutil.TestSuccessfulTranscode(t, "int<%= pg_byte_size %>", []interface{}{
+		(zeronull.Int<%= pg_byte_size %>)(1),
+		(zeronull.Int<%= pg_byte_size %>)(0),
+	})
+}
+
+func TestInt<%= pg_byte_size %>ConvertsGoZeroToNull(t *testing.T) {
+	testutil.TestGoZeroToNullConversion(t, "int<%= pg_byte_size %>", (zeronull.Int<%= pg_byte_size %>)(0))
+}
+
+func TestInt<%= pg_byte_size %>ConvertsNullToGoZero(t *testing.T) {
+	testutil.TestNullToGoZeroConversion(t, "int<%= pg_byte_size %>", (zeronull.Int<%= pg_byte_size %>)(0))
+}
+<% end %>

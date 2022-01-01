@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/stretchr/testify/require"
 )
 
 func TestParseUntypedTextArray(t *testing.T) {
@@ -121,15 +120,4 @@ func TestParseUntypedTextArray(t *testing.T) {
 			t.Errorf("%d: expected %+v to be parsed to %+v, but it was %+v", i, tt.source, tt.result, *r)
 		}
 	}
-}
-
-// https://github.com/jackc/pgx/issues/881
-func TestArrayAssignToEmptyToNonSlice(t *testing.T) {
-	var a pgtype.Int4Array
-	err := a.Set([]int32{})
-	require.NoError(t, err)
-
-	var iface interface{}
-	err = a.AssignTo(&iface)
-	require.EqualError(t, err, "cannot assign *pgtype.Int4Array to *interface {}")
 }
