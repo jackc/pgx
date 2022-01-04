@@ -169,11 +169,7 @@ func (c BoolCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	}
 
 	var b bool
-	scanPlan := c.PlanScan(ci, oid, format, &b, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &b)
+	err := codecScan(c, ci, oid, format, src, &b)
 	if err != nil {
 		return nil, err
 	}

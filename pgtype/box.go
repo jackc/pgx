@@ -147,11 +147,7 @@ func (c BoxCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte
 	}
 
 	var box Box
-	scanPlan := c.PlanScan(ci, oid, format, &box, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &box)
+	err := codecScan(c, ci, oid, format, src, &box)
 	if err != nil {
 		return nil, err
 	}
