@@ -968,3 +968,19 @@ func codecScan(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte, 
 	}
 	return scanPlan.Scan(ci, oid, format, src, dst)
 }
+
+func codecDecodeToTextFormat(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if format == TextFormatCode {
+		return string(src), nil
+	} else {
+		value, err := codec.DecodeValue(ci, oid, format, src)
+		if err != nil {
+			return nil, err
+		}
+		buf, err := codec.Encode(ci, oid, TextFormatCode, value, nil)
+		if err != nil {
+			return nil, err
+		}
+		return string(buf), nil
+	}
+}

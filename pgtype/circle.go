@@ -124,19 +124,7 @@ func (CircleCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inter
 }
 
 func (c CircleCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	if format == TextFormatCode {
-		return string(src), nil
-	} else {
-		circle, err := c.DecodeValue(ci, oid, format, src)
-		if err != nil {
-			return nil, err
-		}
-		buf, err := c.Encode(ci, oid, TextFormatCode, circle, nil)
-		if err != nil {
-			return nil, err
-		}
-		return string(buf), nil
-	}
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
 }
 
 func (c CircleCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {

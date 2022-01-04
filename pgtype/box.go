@@ -126,19 +126,7 @@ func (BoxCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfac
 }
 
 func (c BoxCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	if format == TextFormatCode {
-		return string(src), nil
-	} else {
-		box, err := c.DecodeValue(ci, oid, format, src)
-		if err != nil {
-			return nil, err
-		}
-		buf, err := c.Encode(ci, oid, TextFormatCode, box, nil)
-		if err != nil {
-			return nil, err
-		}
-		return string(buf), nil
-	}
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
 }
 
 func (c BoxCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
