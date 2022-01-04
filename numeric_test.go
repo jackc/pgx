@@ -263,6 +263,7 @@ func TestNumericAssignTo(t *testing.T) {
 	var f64 float64
 	var pf32 *float32
 	var pf64 *float64
+	var br = new(big.Rat)
 
 	simpleTests := []struct {
 		src      *pgtype.Numeric
@@ -293,6 +294,9 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.Infinity}, dst: &f32, expected: float32(math.Inf(1))},
 		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}, dst: &f64, expected: math.Inf(-1)},
 		{src: &pgtype.Numeric{Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}, dst: &f32, expected: float32(math.Inf(-1))},
+		{src: &pgtype.Numeric{Int: big.NewInt(-1023), Exp: -2, Status: pgtype.Present}, dst: br, expected: big.NewRat(-1023, 100)},
+		{src: &pgtype.Numeric{Int: big.NewInt(-1023), Exp: 2, Status: pgtype.Present}, dst: br, expected: big.NewRat(-102300, 1)},
+		{src: &pgtype.Numeric{Int: big.NewInt(23), Exp: 0, Status: pgtype.Present}, dst: br, expected: big.NewRat(23, 1)},
 	}
 
 	for i, tt := range simpleTests {
@@ -316,6 +320,11 @@ func TestNumericAssignTo(t *testing.T) {
 				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
 			} else if !nanExpected && dst != tt.expected {
 				t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
+			}
+		case big.Rat:
+			if (&dstTyped).Cmp(tt.expected.(*big.Rat)) != 0 {
+				t.Errorf("%d: expected %v to assign %v, but result was %v",
+					i, tt.src, tt.expected, dst)
 			}
 		default:
 			if dst != tt.expected {
@@ -356,6 +365,10 @@ func TestNumericAssignTo(t *testing.T) {
 		{src: &pgtype.Numeric{Int: big.NewInt(-1), Status: pgtype.Present}, dst: &ui64},
 		{src: &pgtype.Numeric{Int: big.NewInt(-1), Status: pgtype.Present}, dst: &ui},
 		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: &i32},
+		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Null}, dst: br},
+		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Present, NaN: true}, dst: br},
+		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Present, InfinityModifier: pgtype.Infinity}, dst: br},
+		{src: &pgtype.Numeric{Int: big.NewInt(0), Status: pgtype.Present, InfinityModifier: pgtype.NegativeInfinity}, dst: br},
 	}
 
 	for i, tt := range errorTests {

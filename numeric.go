@@ -369,6 +369,12 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return fmt.Errorf("%d is greater than maximum value for %T", normalizedInt, *v)
 			}
 			*v = normalizedInt.Uint64()
+		case *big.Rat:
+			rat, err := src.toBigRat()
+			if err != nil {
+				return err
+			}
+			v.Set(rat)
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
@@ -402,6 +408,26 @@ func (dst *Numeric) toBigInt() (*big.Int, error) {
 	num.DivMod(num, div, remainder)
 	if remainder.Cmp(big0) != 0 {
 		return nil, fmt.Errorf("cannot convert %v to integer", dst)
+	}
+	return num, nil
+}
+
+func (dst *Numeric) toBigRat() (*big.Rat, error) {
+	if dst.NaN {
+		return nil, fmt.Errorf("%v is not a number", dst)
+	} else if dst.InfinityModifier == Infinity {
+		return nil, fmt.Errorf("%v is infinity", dst)
+	} else if dst.InfinityModifier == NegativeInfinity {
+		return nil, fmt.Errorf("%v is -infinity", dst)
+	}
+
+	num := new(big.Rat).SetInt(dst.Int)
+	if dst.Exp > 0 {
+		mul := new(big.Int).Exp(big10, big.NewInt(int64(dst.Exp)), nil)
+		num.Mul(num, new(big.Rat).SetInt(mul))
+	} else if dst.Exp < 0 {
+		mul := new(big.Int).Exp(big10, big.NewInt(int64(-dst.Exp)), nil)
+		num.Quo(num, new(big.Rat).SetInt(mul))
 	}
 	return num, nil
 }
