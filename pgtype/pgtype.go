@@ -320,7 +320,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
 	ci.RegisterDataType(DataType{Value: &CID{}, Name: "cid", OID: CIDOID})
 	ci.RegisterDataType(DataType{Value: &CIDR{}, Name: "cidr", OID: CIDROID})
-	ci.RegisterDataType(DataType{Value: &Circle{}, Name: "circle", OID: CircleOID})
+	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
 	ci.RegisterDataType(DataType{Value: &Date{}, Name: "date", OID: DateOID})
 	// ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
 	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
