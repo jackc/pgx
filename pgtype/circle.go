@@ -145,11 +145,7 @@ func (c CircleCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []b
 	}
 
 	var circle Circle
-	scanPlan := c.PlanScan(ci, oid, format, &circle, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &circle)
+	err := codecScan(c, ci, oid, format, src, &circle)
 	if err != nil {
 		return nil, err
 	}

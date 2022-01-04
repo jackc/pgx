@@ -960,3 +960,11 @@ func NewValue(v Value) Value {
 }
 
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
+
+func codecScan(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte, dst interface{}) error {
+	scanPlan := codec.PlanScan(ci, oid, format, dst, true)
+	if scanPlan == nil {
+		return fmt.Errorf("PlanScan did not find a plan")
+	}
+	return scanPlan.Scan(ci, oid, format, src, dst)
+}

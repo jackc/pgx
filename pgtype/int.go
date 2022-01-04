@@ -226,11 +226,7 @@ func (c Int2Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	}
 
 	var n int16
-	scanPlan := c.PlanScan(ci, oid, format, &n, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &n)
+	err := codecScan(c, ci, oid, format, src, &n)
 	if err != nil {
 		return nil, err
 	}
@@ -714,11 +710,7 @@ func (c Int4Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	}
 
 	var n int32
-	scanPlan := c.PlanScan(ci, oid, format, &n, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &n)
+	err := codecScan(c, ci, oid, format, src, &n)
 	if err != nil {
 		return nil, err
 	}
@@ -1213,11 +1205,7 @@ func (c Int8Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	}
 
 	var n int64
-	scanPlan := c.PlanScan(ci, oid, format, &n, true)
-	if scanPlan == nil {
-		return nil, fmt.Errorf("PlanScan did not find a plan")
-	}
-	err := scanPlan.Scan(ci, oid, format, src, &n)
+	err := codecScan(c, ci, oid, format, src, &n)
 	if err != nil {
 		return nil, err
 	}
