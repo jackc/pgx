@@ -312,7 +312,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &ACLItem{}, Name: "aclitem", OID: ACLItemOID})
 	ci.RegisterDataType(DataType{Value: &Bit{}, Name: "bit", OID: BitOID})
 	ci.RegisterDataType(DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
-	ci.RegisterDataType(DataType{Value: &Box{}, Name: "box", OID: BoxOID})
+	ci.RegisterDataType(DataType{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
 	ci.RegisterDataType(DataType{Value: &BPChar{}, Name: "bpchar", OID: BPCharOID})
 	ci.RegisterDataType(DataType{Value: &Bytea{}, Name: "bytea", OID: ByteaOID})
 	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
