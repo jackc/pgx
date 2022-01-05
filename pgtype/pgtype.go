@@ -177,13 +177,6 @@ type ResultDecoder interface {
 	DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error
 }
 
-type Encoder interface {
-	// Encode appends the encoded bytes of value to buf. If value is the SQL NULL then append nothing and return
-	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
-	// written.
-	Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error)
-}
-
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -191,7 +184,10 @@ type Codec interface {
 	// PreferredFormat returns the preferred format.
 	PreferredFormat() int16
 
-	Encoder
+	// Encode appends the encoded bytes of value to buf. If value is the SQL NULL then append nothing and return
+	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
+	// written.
+	Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error)
 
 	// PlanScan returns a ScanPlan for scanning a PostgreSQL value into a destination with the same type as target. If
 	// actualTarget is true then the returned ScanPlan may be optimized to directly scan into target. If no plan can be
