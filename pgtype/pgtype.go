@@ -148,27 +148,6 @@ type TypeValue interface {
 	TypeName() string
 }
 
-type FormatSupport interface {
-	BinaryFormatSupported() bool
-	TextFormatSupported() bool
-	PreferredFormat() int16
-}
-
-type ParamEncoder interface {
-	// EncodeParam should append the encoded value of self to buf. If self is the
-	// SQL value NULL then append nothing and return (nil, nil). The caller of
-	// EncodeText is responsible for writing the correct NULL value or the
-	// length of the data written.
-	EncodeParam(ci *ConnInfo, oid uint32, format int16, buf []byte) (newBuf []byte, err error)
-}
-
-type ResultDecoder interface {
-	// DecodeResult decodes src into ResultDecoder. If src is nil then the
-	// original SQL value is NULL. ResultDecoder takes ownership of src. The
-	// caller MUST not use it again.
-	DecodeResult(ci *ConnInfo, oid uint32, format int16, src []byte) error
-}
-
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -243,8 +222,6 @@ func (e *nullAssignmentError) Error() string {
 
 type DataType struct {
 	Value Value
-
-	resultDecoder ResultDecoder
 
 	textDecoder   TextDecoder
 	binaryDecoder BinaryDecoder
@@ -402,16 +379,10 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 		var formatCode int16
 		if t.Codec != nil {
 			formatCode = t.Codec.PreferredFormat()
-		} else if pfp, ok := t.Value.(FormatSupport); ok {
-			formatCode = pfp.PreferredFormat()
 		} else if _, ok := t.Value.(BinaryEncoder); ok {
 			formatCode = BinaryFormatCode
 		}
 		ci.oidToFormatCode[t.OID] = formatCode
-	}
-
-	if d, ok := t.Value.(ResultDecoder); ok {
-		t.resultDecoder = d
 	}
 
 	if d, ok := t.Value.(TextDecoder); ok {
@@ -501,10 +472,6 @@ type ScanPlan interface {
 type scanPlanDstResultDecoder struct{}
 
 func (scanPlanDstResultDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if d, ok := (dst).(ResultDecoder); ok {
-		return d.DecodeResult(ci, oid, formatCode, src)
-	}
-
 	newPlan := ci.PlanScan(oid, formatCode, dst)
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
@@ -571,21 +538,18 @@ type scanPlanDataTypeAssignTo DataType
 func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	dt := (*DataType)(plan)
 	var err error
-	if dt.resultDecoder != nil {
-		err = dt.resultDecoder.DecodeResult(ci, oid, formatCode, src)
-	} else {
-		switch formatCode {
-		case BinaryFormatCode:
-			if dt.binaryDecoder == nil {
-				return fmt.Errorf("dt.binaryDecoder is nil")
-			}
-			err = dt.binaryDecoder.DecodeBinary(ci, src)
-		case TextFormatCode:
-			if dt.textDecoder == nil {
-				return fmt.Errorf("dt.textDecoder is nil")
-			}
-			err = dt.textDecoder.DecodeText(ci, src)
+
+	switch formatCode {
+	case BinaryFormatCode:
+		if dt.binaryDecoder == nil {
+			return fmt.Errorf("dt.binaryDecoder is nil")
 		}
+		err = dt.binaryDecoder.DecodeBinary(ci, src)
+	case TextFormatCode:
+		if dt.textDecoder == nil {
+			return fmt.Errorf("dt.textDecoder is nil")
+		}
+		err = dt.textDecoder.DecodeText(ci, src)
 	}
 	if err != nil {
 		return err

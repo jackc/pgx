@@ -252,9 +252,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 // argument to a prepared statement. It defaults to TextFormatCode if no
 // determination can be made.
 func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{}) int16 {
-	switch arg := arg.(type) {
-	case pgtype.FormatSupport:
-		return arg.PreferredFormat()
+	switch arg.(type) {
 	case pgtype.BinaryEncoder:
 		return BinaryFormatCode
 	case string, *string, pgtype.TextEncoder:
