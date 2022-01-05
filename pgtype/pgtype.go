@@ -148,14 +148,6 @@ type TypeValue interface {
 	TypeName() string
 }
 
-// ValueTranscoder is a value that implements the text and binary encoding and decoding interfaces.
-type ValueTranscoder interface {
-	Value
-	FormatSupport
-	ParamEncoder
-	ResultDecoder
-}
-
 type FormatSupport interface {
 	BinaryFormatSupported() bool
 	TextFormatSupported() bool
