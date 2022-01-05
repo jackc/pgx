@@ -131,7 +131,7 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 			}
 			return eqb.encodeExtendedParamValue(ci, oid, formatCode, value)
 		} else if dt.Codec != nil {
-			buf, err := dt.Codec.Encode(ci, oid, formatCode, arg, eqb.paramValueBytes)
+			buf, err := ci.Encode(oid, formatCode, arg, eqb.paramValueBytes)
 			if err != nil {
 				return nil, err
 			}

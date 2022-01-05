@@ -120,7 +120,20 @@ func (Int<%= pg_byte_size %>Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int<%= pg_byte_size %>Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (Int<%= pg_byte_size %>Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanInt<%= pg_byte_size %>CodecBinary{}
+	case TextFormatCode:
+		return &encodePlanInt<%= pg_byte_size %>CodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanInt<%= pg_byte_size %>CodecBinary struct{}
+
+func (p *encodePlanInt<%= pg_byte_size %>CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)
@@ -136,14 +149,28 @@ func (Int<%= pg_byte_size %>Codec) Encode(ci *ConnInfo, oid uint32, format int16
 		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n)
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n)), nil
-	case TextFormatCode:
-		return append(buf, strconv.FormatInt(n, 10)...), nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+  return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n)), nil
+}
+
+type encodePlanInt<%= pg_byte_size %>CodecText struct{}
+
+func (p *encodePlanInt<%= pg_byte_size %>CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, valid, err := convertToInt64ForEncode(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)
 	}
+	if !valid {
+		return nil, nil
+	}
+
+	if n > math.MaxInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n)
+	}
+	if n < math.MinInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n)
+	}
+
+  return append(buf, strconv.FormatInt(n, 10)...), nil
 }
 
 func (Int<%= pg_byte_size %>Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {

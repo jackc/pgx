@@ -105,7 +105,20 @@ func (BoolCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoolCodec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (BoolCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanBoolCodecBinary{}
+	case TextFormatCode:
+		return &encodePlanBoolCodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanBoolCodecBinary struct{}
+
+func (p *encodePlanBoolCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	v, valid, err := convertToBoolForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to bool: %v", value, err)
@@ -117,24 +130,36 @@ func (BoolCodec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{
 		return nil, nil
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		if v {
-			buf = append(buf, 1)
-		} else {
-			buf = append(buf, 0)
-		}
-		return buf, nil
-	case TextFormatCode:
-		if v {
-			buf = append(buf, 't')
-		} else {
-			buf = append(buf, 'f')
-		}
-		return buf, nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+	if v {
+		buf = append(buf, 1)
+	} else {
+		buf = append(buf, 0)
 	}
+
+	return buf, nil
+}
+
+type encodePlanBoolCodecText struct{}
+
+func (p *encodePlanBoolCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	v, valid, err := convertToBoolForEncode(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %v to bool: %v", value, err)
+	}
+	if !valid {
+		return nil, nil
+	}
+	if value == nil {
+		return nil, nil
+	}
+
+	if v {
+		buf = append(buf, 't')
+	} else {
+		buf = append(buf, 'f')
+	}
+
+	return buf, nil
 }
 
 func (BoolCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
