@@ -51,7 +51,7 @@ func (dst *Circle) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Circle) Value() (driver.Value, error) {
-	buf, err := CircleCodec{}.Encode(nil, 0, TextFormatCode, src, nil)
+	buf, err := CircleCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -68,42 +68,49 @@ func (CircleCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (CircleCodec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	var circle Circle
-	if v, ok := value.(CircleValuer); ok {
-		c, err := v.CircleValue()
-		if err != nil {
-			return nil, err
-		}
-		circle = c
-	} else {
-		return nil, fmt.Errorf("cannot convert %v to circle: %v", value, err)
-	}
-
-	if !circle.Valid {
-		return nil, nil
+func (CircleCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(CircleValuer); !ok {
+		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.Y))
-		buf = pgio.AppendUint64(buf, math.Float64bits(circle.R))
-		return buf, nil
+		return &encodePlanCircleCodecBinary{}
 	case TextFormatCode:
-		buf = append(buf, fmt.Sprintf(`<(%s,%s),%s>`,
-			strconv.FormatFloat(circle.P.X, 'f', -1, 64),
-			strconv.FormatFloat(circle.P.Y, 'f', -1, 64),
-			strconv.FormatFloat(circle.R, 'f', -1, 64),
-		)...)
-		return buf, nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+		return &encodePlanCircleCodecText{}
 	}
+
+	return nil
+}
+
+type encodePlanCircleCodecBinary struct{}
+
+func (p *encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	circle, err := value.(CircleValuer).CircleValue()
+	if err != nil {
+		return nil, err
+	}
+
+	buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.X))
+	buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.Y))
+	buf = pgio.AppendUint64(buf, math.Float64bits(circle.R))
+	return buf, nil
+}
+
+type encodePlanCircleCodecText struct{}
+
+func (p *encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	circle, err := value.(CircleValuer).CircleValue()
+	if err != nil {
+		return nil, err
+	}
+
+	buf = append(buf, fmt.Sprintf(`<(%s,%s),%s>`,
+		strconv.FormatFloat(circle.P.X, 'f', -1, 64),
+		strconv.FormatFloat(circle.P.Y, 'f', -1, 64),
+		strconv.FormatFloat(circle.R, 'f', -1, 64),
+	)...)
+	return buf, nil
 }
 
 func (CircleCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {

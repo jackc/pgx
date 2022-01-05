@@ -42,63 +42,29 @@ func (c *ArrayCodec) PreferredFormat() int16 {
 	return c.ElementCodec.PreferredFormat()
 }
 
-func (c *ArrayCodec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
-	if value == nil {
-		return nil, nil
+func (c *ArrayCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanArrayCodecBinary{ac: c, ci: ci, oid: oid}
+	case TextFormatCode:
+		return &encodePlanArrayCodecText{ac: c, ci: ci, oid: oid}
 	}
 
+	return nil
+}
+
+type encodePlanArrayCodecText struct {
+	ac  *ArrayCodec
+	ci  *ConnInfo
+	oid uint32
+}
+
+func (p *encodePlanArrayCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	array, err := makeArrayGetter(value)
 	if err != nil {
 		return nil, err
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		return c.encodeBinary(ci, oid, array, buf)
-	case TextFormatCode:
-		return c.encodeText(ci, oid, array, buf)
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
-	}
-
-}
-
-func (c *ArrayCodec) encodeBinary(ci *ConnInfo, oid uint32, array ArrayGetter, buf []byte) (newBuf []byte, err error) {
-	dimensions := array.Dimensions()
-	if dimensions == nil {
-		return nil, nil
-	}
-
-	arrayHeader := ArrayHeader{
-		Dimensions: dimensions,
-		ElementOID: int32(c.ElementOID),
-	}
-
-	containsNullIndex := len(buf) + 4
-
-	buf = arrayHeader.EncodeBinary(ci, buf)
-
-	elementCount := cardinality(dimensions)
-	for i := 0; i < elementCount; i++ {
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-
-		elemBuf, err := c.ElementCodec.Encode(ci, c.ElementOID, BinaryFormatCode, array.Index(i), buf)
-		if err != nil {
-			return nil, err
-		}
-		if elemBuf == nil {
-			pgio.SetInt32(buf[containsNullIndex:], 1)
-		} else {
-			buf = elemBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-	}
-
-	return buf, nil
-}
-
-func (c *ArrayCodec) encodeText(ci *ConnInfo, oid uint32, array ArrayGetter, buf []byte) (newBuf []byte, err error) {
 	dimensions := array.Dimensions()
 	if dimensions == nil {
 		return nil, nil
@@ -134,7 +100,11 @@ func (c *ArrayCodec) encodeText(ci *ConnInfo, oid uint32, array ArrayGetter, buf
 			}
 		}
 
-		elemBuf, err := c.ElementCodec.Encode(ci, c.ElementOID, TextFormatCode, array.Index(i), inElemBuf)
+		encodePlan := p.ac.ElementCodec.PlanEncode(p.ci, p.ac.ElementOID, TextFormatCode, array.Index(i))
+		if encodePlan == nil {
+			return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+		}
+		elemBuf, err := encodePlan.Encode(array.Index(i), inElemBuf)
 		if err != nil {
 			return nil, err
 		}
@@ -148,6 +118,56 @@ func (c *ArrayCodec) encodeText(ci *ConnInfo, oid uint32, array ArrayGetter, buf
 			if (i+1)%dec == 0 {
 				buf = append(buf, '}')
 			}
+		}
+	}
+
+	return buf, nil
+}
+
+type encodePlanArrayCodecBinary struct {
+	ac  *ArrayCodec
+	ci  *ConnInfo
+	oid uint32
+}
+
+func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	array, err := makeArrayGetter(value)
+	if err != nil {
+		return nil, err
+	}
+
+	dimensions := array.Dimensions()
+	if dimensions == nil {
+		return nil, nil
+	}
+
+	arrayHeader := ArrayHeader{
+		Dimensions: dimensions,
+		ElementOID: int32(p.ac.ElementOID),
+	}
+
+	containsNullIndex := len(buf) + 4
+
+	buf = arrayHeader.EncodeBinary(p.ci, buf)
+
+	elementCount := cardinality(dimensions)
+	for i := 0; i < elementCount; i++ {
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+
+		encodePlan := p.ac.ElementCodec.PlanEncode(p.ci, p.ac.ElementOID, BinaryFormatCode, array.Index(i))
+		if encodePlan == nil {
+			return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+		}
+		elemBuf, err := encodePlan.Encode(array.Index(i), buf)
+		if err != nil {
+			return nil, err
+		}
+		if elemBuf == nil {
+			pgio.SetInt32(buf[containsNullIndex:], 1)
+		} else {
+			buf = elemBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 		}
 	}
 

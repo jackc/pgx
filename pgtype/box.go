@@ -50,7 +50,7 @@ func (dst *Box) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Box) Value() (driver.Value, error) {
-	buf, err := BoxCodec{}.Encode(nil, 0, TextFormatCode, src, nil)
+	buf, err := BoxCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -67,44 +67,51 @@ func (BoxCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoxCodec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	var box Box
-	if v, ok := value.(BoxValuer); ok {
-		b, err := v.BoxValue()
-		if err != nil {
-			return nil, err
-		}
-		box = b
-	} else {
-		return nil, fmt.Errorf("cannot convert %v to box: %v", value, err)
-	}
-
-	if !box.Valid {
-		return nil, nil
+func (BoxCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(BoxValuer); !ok {
+		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].Y))
-		buf = pgio.AppendUint64(buf, math.Float64bits(box.P[1].X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(box.P[1].Y))
-		return buf, nil
+		return &encodePlanBoxCodecBinary{}
 	case TextFormatCode:
-		buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
-			strconv.FormatFloat(box.P[0].X, 'f', -1, 64),
-			strconv.FormatFloat(box.P[0].Y, 'f', -1, 64),
-			strconv.FormatFloat(box.P[1].X, 'f', -1, 64),
-			strconv.FormatFloat(box.P[1].Y, 'f', -1, 64),
-		)...)
-		return buf, nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+		return &encodePlanBoxCodecText{}
 	}
+
+	return nil
+}
+
+type encodePlanBoxCodecBinary struct{}
+
+func (p *encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	box, err := value.(BoxValuer).BoxValue()
+	if err != nil {
+		return nil, err
+	}
+
+	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].X))
+	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].Y))
+	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[1].X))
+	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[1].Y))
+	return buf, nil
+}
+
+type encodePlanBoxCodecText struct{}
+
+func (p *encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	box, err := value.(BoxValuer).BoxValue()
+	if err != nil {
+		return nil, err
+	}
+
+	buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
+		strconv.FormatFloat(box.P[0].X, 'f', -1, 64),
+		strconv.FormatFloat(box.P[0].Y, 'f', -1, 64),
+		strconv.FormatFloat(box.P[1].X, 'f', -1, 64),
+		strconv.FormatFloat(box.P[1].Y, 'f', -1, 64),
+	)...)
+	return buf, nil
 }
 
 func (BoxCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {

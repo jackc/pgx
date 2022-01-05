@@ -130,7 +130,7 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 			}
 			return string(buf), nil
 		} else if dt.Codec != nil {
-			buf, err := dt.Codec.Encode(ci, 0, TextFormatCode, arg, nil)
+			buf, err := ci.Encode(0, TextFormatCode, arg, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -230,7 +230,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 		} else if dt.Codec != nil {
 			sp := len(buf)
 			buf = pgio.AppendInt32(buf, -1)
-			argBuf, err := dt.Codec.Encode(ci, oid, BinaryFormatCode, arg, buf)
+			argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)
 			if err != nil {
 				return nil, err
 			}

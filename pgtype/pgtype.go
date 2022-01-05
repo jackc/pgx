@@ -155,10 +155,9 @@ type Codec interface {
 	// PreferredFormat returns the preferred format.
 	PreferredFormat() int16
 
-	// Encode appends the encoded bytes of value to buf. If value is the SQL NULL then append nothing and return
-	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
-	// written.
-	Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error)
+	// PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
+	// found then nil is returned.
+	PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan
 
 	// PlanScan returns a ScanPlan for scanning a PostgreSQL value into a destination with the same type as target. If
 	// actualTarget is true then the returned ScanPlan may be optimized to directly scan into target. If no plan can be
@@ -170,12 +169,6 @@ type Codec interface {
 
 	// DecodeValue returns src decoded into its default format.
 	DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error)
-}
-
-// ResultFormatPreferrer allows a type to specify its preferred result format instead of it being inferred from
-// whether it is also a BinaryDecoder.
-type ResultFormatPreferrer interface {
-	PreferredResultFormat() int16
 }
 
 type BinaryDecoder interface {
@@ -460,6 +453,14 @@ func (ci *ConnInfo) FormatCodeForOID(oid uint32) int16 {
 // This is primarily for efficient integration with 3rd party numeric and UUID types.
 func (ci *ConnInfo) PreferAssignToOverSQLScannerForType(value interface{}) {
 	ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(value)] = struct{}{}
+}
+
+// EncodePlan is a precompiled plan to encode a particular type into a particular OID and format.
+type EncodePlan interface {
+	// Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
+	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
+	// written.
+	Encode(value interface{}, buf []byte) (newBuf []byte, err error)
 }
 
 // ScanPlan is a precompiled plan to scan into a type of destination.
@@ -929,10 +930,51 @@ func codecDecodeToTextFormat(codec Codec, ci *ConnInfo, oid uint32, format int16
 		if err != nil {
 			return nil, err
 		}
-		buf, err := codec.Encode(ci, oid, TextFormatCode, value, nil)
+		buf, err := ci.Encode(oid, TextFormatCode, value, nil)
 		if err != nil {
 			return nil, err
 		}
 		return string(buf), nil
 	}
+}
+
+// PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
+// found then nil is returned.
+func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan {
+
+	var dt *DataType
+
+	if oid == 0 {
+		if dataType, ok := ci.DataTypeForValue(value); ok {
+			dt = dataType
+		}
+	} else {
+		if dataType, ok := ci.DataTypeForOID(oid); ok {
+			dt = dataType
+		}
+	}
+
+	if dt != nil && dt.Codec != nil {
+		if plan := dt.Codec.PlanEncode(ci, oid, format, value); plan != nil {
+			return plan
+		}
+
+	}
+
+	return nil
+}
+
+// Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
+// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
+// written.
+func (ci *ConnInfo) Encode(oid uint32, formatCode int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	plan := ci.PlanEncode(oid, formatCode, value)
+	if plan == nil {
+		return nil, fmt.Errorf("unable to encode %v", value)
+	}
+	return plan.Encode(value, buf)
 }

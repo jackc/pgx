@@ -119,7 +119,20 @@ func (Int2Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int2Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (Int2Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanInt2CodecBinary{}
+	case TextFormatCode:
+		return &encodePlanInt2CodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanInt2CodecBinary struct{}
+
+func (p *encodePlanInt2CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
@@ -135,14 +148,28 @@ func (Int2Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{
 		return nil, fmt.Errorf("%d is less than minimum value for int2", n)
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		return pgio.AppendInt16(buf, int16(n)), nil
-	case TextFormatCode:
-		return append(buf, strconv.FormatInt(n, 10)...), nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+	return pgio.AppendInt16(buf, int16(n)), nil
+}
+
+type encodePlanInt2CodecText struct{}
+
+func (p *encodePlanInt2CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, valid, err := convertToInt64ForEncode(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
 	}
+	if !valid {
+		return nil, nil
+	}
+
+	if n > math.MaxInt16 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int2", n)
+	}
+	if n < math.MinInt16 {
+		return nil, fmt.Errorf("%d is less than minimum value for int2", n)
+	}
+
+	return append(buf, strconv.FormatInt(n, 10)...), nil
 }
 
 func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
@@ -599,7 +626,20 @@ func (Int4Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int4Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (Int4Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanInt4CodecBinary{}
+	case TextFormatCode:
+		return &encodePlanInt4CodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanInt4CodecBinary struct{}
+
+func (p *encodePlanInt4CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
@@ -615,14 +655,28 @@ func (Int4Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{
 		return nil, fmt.Errorf("%d is less than minimum value for int4", n)
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		return pgio.AppendInt32(buf, int32(n)), nil
-	case TextFormatCode:
-		return append(buf, strconv.FormatInt(n, 10)...), nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+	return pgio.AppendInt32(buf, int32(n)), nil
+}
+
+type encodePlanInt4CodecText struct{}
+
+func (p *encodePlanInt4CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, valid, err := convertToInt64ForEncode(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
 	}
+	if !valid {
+		return nil, nil
+	}
+
+	if n > math.MaxInt32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int4", n)
+	}
+	if n < math.MinInt32 {
+		return nil, fmt.Errorf("%d is less than minimum value for int4", n)
+	}
+
+	return append(buf, strconv.FormatInt(n, 10)...), nil
 }
 
 func (Int4Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
@@ -1090,7 +1144,20 @@ func (Int8Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int8Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (Int8Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		return &encodePlanInt8CodecBinary{}
+	case TextFormatCode:
+		return &encodePlanInt8CodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanInt8CodecBinary struct{}
+
+func (p *encodePlanInt8CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)
@@ -1106,14 +1173,28 @@ func (Int8Codec) Encode(ci *ConnInfo, oid uint32, format int16, value interface{
 		return nil, fmt.Errorf("%d is less than minimum value for int8", n)
 	}
 
-	switch format {
-	case BinaryFormatCode:
-		return pgio.AppendInt64(buf, int64(n)), nil
-	case TextFormatCode:
-		return append(buf, strconv.FormatInt(n, 10)...), nil
-	default:
-		return nil, fmt.Errorf("unknown format code: %v", format)
+	return pgio.AppendInt64(buf, int64(n)), nil
+}
+
+type encodePlanInt8CodecText struct{}
+
+func (p *encodePlanInt8CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, valid, err := convertToInt64ForEncode(value)
+	if err != nil {
+		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)
 	}
+	if !valid {
+		return nil, nil
+	}
+
+	if n > math.MaxInt64 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int8", n)
+	}
+	if n < math.MinInt64 {
+		return nil, fmt.Errorf("%d is less than minimum value for int8", n)
+	}
+
+	return append(buf, strconv.FormatInt(n, 10)...), nil
 }
 
 func (Int8Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
