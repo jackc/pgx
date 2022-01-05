@@ -34,24 +34,25 @@ func LoadDataType(ctx context.Context, conn Querier, ci *pgtype.ConnInfo, typeNa
 
 	switch typtype {
 	case "b": // array
-		elementOID, err := GetArrayElementOID(ctx, conn, oid)
-		if err != nil {
-			return pgtype.DataType{}, err
-		}
+		panic("TODO - restore array support")
+		// elementOID, err := GetArrayElementOID(ctx, conn, oid)
+		// if err != nil {
+		// 	return pgtype.DataType{}, err
+		// }
 
-		var element pgtype.ValueTranscoder
-		if dt, ok := ci.DataTypeForOID(elementOID); ok {
-			if element, ok = dt.Value.(pgtype.ValueTranscoder); !ok {
-				return pgtype.DataType{}, errors.New("array element OID not registered as ValueTranscoder")
-			}
-		}
+		// var element pgtype.ValueTranscoder
+		// if dt, ok := ci.DataTypeForOID(elementOID); ok {
+		// 	if element, ok = dt.Value.(pgtype.ValueTranscoder); !ok {
+		// 		return pgtype.DataType{}, errors.New("array element OID not registered as ValueTranscoder")
+		// 	}
+		// }
 
-		newElement := func() pgtype.ValueTranscoder {
-			return pgtype.NewValue(element).(pgtype.ValueTranscoder)
-		}
+		// newElement := func() pgtype.ValueTranscoder {
+		// 	return pgtype.NewValue(element).(pgtype.ValueTranscoder)
+		// }
 
-		at := pgtype.NewArrayType(typeName, elementOID, newElement)
-		return pgtype.DataType{Value: at, Name: typeName, OID: oid}, nil
+		// at := pgtype.NewArrayType(typeName, elementOID, newElement)
+		// return pgtype.DataType{Value: at, Name: typeName, OID: oid}, nil
 	case "c": // composite
 		panic("TODO - restore composite support")
 		// fields, err := GetCompositeFields(ctx, conn, oid)
