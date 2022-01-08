@@ -88,7 +88,7 @@ func (BoxCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interfa
 
 type encodePlanBoxCodecBinary struct{}
 
-func (p *encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	box, err := value.(BoxValuer).BoxValue()
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (p *encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf
 
 type encodePlanBoxCodecText struct{}
 
-func (p *encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	box, err := value.(BoxValuer).BoxValue()
 	if err != nil {
 		return nil, err

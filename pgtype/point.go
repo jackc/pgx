@@ -144,7 +144,7 @@ func (PointCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value inter
 
 type encodePlanPointCodecBinary struct{}
 
-func (p *encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	point, err := value.(PointValuer).PointValue()
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (p *encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newB
 
 type encodePlanPointCodecText struct{}
 
-func (p *encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	point, err := value.(PointValuer).PointValue()
 	if err != nil {
 		return nil, err

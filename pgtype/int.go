@@ -132,7 +132,7 @@ func (Int2Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 
 type encodePlanInt2CodecBinary struct{}
 
-func (p *encodePlanInt2CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
@@ -153,7 +153,7 @@ func (p *encodePlanInt2CodecBinary) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanInt2CodecText struct{}
 
-func (p *encodePlanInt2CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
@@ -639,7 +639,7 @@ func (Int4Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 
 type encodePlanInt4CodecBinary struct{}
 
-func (p *encodePlanInt4CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
@@ -660,7 +660,7 @@ func (p *encodePlanInt4CodecBinary) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanInt4CodecText struct{}
 
-func (p *encodePlanInt4CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
@@ -1157,7 +1157,7 @@ func (Int8Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 
 type encodePlanInt8CodecBinary struct{}
 
-func (p *encodePlanInt8CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)
@@ -1178,7 +1178,7 @@ func (p *encodePlanInt8CodecBinary) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanInt8CodecText struct{}
 
-func (p *encodePlanInt8CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)

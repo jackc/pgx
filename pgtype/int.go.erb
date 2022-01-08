@@ -133,7 +133,7 @@ func (Int<%= pg_byte_size %>Codec) PlanEncode(ci *ConnInfo, oid uint32, format i
 
 type encodePlanInt<%= pg_byte_size %>CodecBinary struct{}
 
-func (p *encodePlanInt<%= pg_byte_size %>CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)
@@ -154,7 +154,7 @@ func (p *encodePlanInt<%= pg_byte_size %>CodecBinary) Encode(value interface{}, 
 
 type encodePlanInt<%= pg_byte_size %>CodecText struct{}
 
-func (p *encodePlanInt<%= pg_byte_size %>CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	n, valid, err := convertToInt64ForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)

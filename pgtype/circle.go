@@ -89,7 +89,7 @@ func (CircleCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value inte
 
 type encodePlanCircleCodecBinary struct{}
 
-func (p *encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	circle, err := value.(CircleValuer).CircleValue()
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (p *encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (new
 
 type encodePlanCircleCodecText struct{}
 
-func (p *encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	circle, err := value.(CircleValuer).CircleValue()
 	if err != nil {
 		return nil, err

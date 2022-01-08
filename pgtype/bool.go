@@ -118,7 +118,7 @@ func (BoolCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 
 type encodePlanBoolCodecBinary struct{}
 
-func (p *encodePlanBoolCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	v, valid, err := convertToBoolForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to bool: %v", value, err)
@@ -141,7 +141,7 @@ func (p *encodePlanBoolCodecBinary) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanBoolCodecText struct{}
 
-func (p *encodePlanBoolCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	v, valid, err := convertToBoolForEncode(value)
 	if err != nil {
 		return nil, fmt.Errorf("cannot convert %v to bool: %v", value, err)
