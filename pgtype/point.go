@@ -134,9 +134,9 @@ func (PointCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value inter
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanPointCodecBinary{}
+		return encodePlanPointCodecBinary{}
 	case TextFormatCode:
-		return &encodePlanPointCodecText{}
+		return encodePlanPointCodecText{}
 	}
 
 	return nil
