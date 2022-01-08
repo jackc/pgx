@@ -254,7 +254,7 @@ func NewConnInfo() *ConnInfo {
 
 	ci.RegisterDataType(DataType{Value: &ACLItemArray{}, Name: "_aclitem", OID: ACLItemArrayOID})
 	ci.RegisterDataType(DataType{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementCodec: BoolCodec{}, ElementOID: BoolOID}})
-	ci.RegisterDataType(DataType{Value: &BPCharArray{}, Name: "_bpchar", OID: BPCharArrayOID})
+	ci.RegisterDataType(DataType{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: BPCharOID}})
 	ci.RegisterDataType(DataType{Value: &ByteaArray{}, Name: "_bytea", OID: ByteaArrayOID})
 	ci.RegisterDataType(DataType{Value: &CIDRArray{}, Name: "_cidr", OID: CIDRArrayOID})
 	ci.RegisterDataType(DataType{Value: &DateArray{}, Name: "_date", OID: DateArrayOID})
@@ -268,16 +268,16 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_circle", OID: CircleArrayOID, Codec: &ArrayCodec{ElementCodec: CircleCodec{}, ElementOID: CircleOID}})
 	ci.RegisterDataType(DataType{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementCodec: PointCodec{}, ElementOID: PointOID}})
 	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
-	ci.RegisterDataType(DataType{Value: &TextArray{}, Name: "_text", OID: TextArrayOID})
+	ci.RegisterDataType(DataType{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: TextOID}})
 	ci.RegisterDataType(DataType{Value: &TimestampArray{}, Name: "_timestamp", OID: TimestampArrayOID})
 	ci.RegisterDataType(DataType{Value: &TimestamptzArray{}, Name: "_timestamptz", OID: TimestamptzArrayOID})
 	ci.RegisterDataType(DataType{Value: &UUIDArray{}, Name: "_uuid", OID: UUIDArrayOID})
-	ci.RegisterDataType(DataType{Value: &VarcharArray{}, Name: "_varchar", OID: VarcharArrayOID})
+	ci.RegisterDataType(DataType{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: VarcharOID}})
 	ci.RegisterDataType(DataType{Value: &ACLItem{}, Name: "aclitem", OID: ACLItemOID})
 	ci.RegisterDataType(DataType{Value: &Bit{}, Name: "bit", OID: BitOID})
 	ci.RegisterDataType(DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
 	ci.RegisterDataType(DataType{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
-	ci.RegisterDataType(DataType{Value: &BPChar{}, Name: "bpchar", OID: BPCharOID})
+	ci.RegisterDataType(DataType{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &Bytea{}, Name: "bytea", OID: ByteaOID})
 	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
 	ci.RegisterDataType(DataType{Value: &CID{}, Name: "cid", OID: CIDOID})
@@ -300,7 +300,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Line{}, Name: "line", OID: LineOID})
 	ci.RegisterDataType(DataType{Value: &Lseg{}, Name: "lseg", OID: LsegOID})
 	ci.RegisterDataType(DataType{Value: &Macaddr{}, Name: "macaddr", OID: MacaddrOID})
-	ci.RegisterDataType(DataType{Value: &Name{}, Name: "name", OID: NameOID})
+	ci.RegisterDataType(DataType{Name: "name", OID: NameOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &Numeric{}, Name: "numeric", OID: NumericOID})
 	// ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
 	ci.RegisterDataType(DataType{Value: &OIDValue{}, Name: "oid", OID: OIDOID})
@@ -308,7 +308,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "point", OID: PointOID, Codec: PointCodec{}})
 	ci.RegisterDataType(DataType{Value: &Polygon{}, Name: "polygon", OID: PolygonOID})
 	// ci.RegisterDataType(DataType{Value: &Record{}, Name: "record", OID: RecordOID})
-	ci.RegisterDataType(DataType{Value: &Text{}, Name: "text", OID: TextOID})
+	ci.RegisterDataType(DataType{Name: "text", OID: TextOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &TID{}, Name: "tid", OID: TIDOID})
 	ci.RegisterDataType(DataType{Value: &Time{}, Name: "time", OID: TimeOID})
 	ci.RegisterDataType(DataType{Value: &Timestamp{}, Name: "timestamp", OID: TimestampOID})
@@ -317,10 +317,10 @@ func NewConnInfo() *ConnInfo {
 	// ci.RegisterDataType(DataType{Value: &TsrangeArray{}, Name: "_tsrange", OID: TsrangeArrayOID})
 	// ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
 	// ci.RegisterDataType(DataType{Value: &TstzrangeArray{}, Name: "_tstzrange", OID: TstzrangeArrayOID})
-	ci.RegisterDataType(DataType{Value: &Unknown{}, Name: "unknown", OID: UnknownOID})
+	ci.RegisterDataType(DataType{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &UUID{}, Name: "uuid", OID: UUIDOID})
 	ci.RegisterDataType(DataType{Value: &Varbit{}, Name: "varbit", OID: VarbitOID})
-	ci.RegisterDataType(DataType{Value: &Varchar{}, Name: "varchar", OID: VarcharOID})
+	ci.RegisterDataType(DataType{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &XID{}, Name: "xid", OID: XIDOID})
 
 	registerDefaultPgTypeVariants := func(name, arrayName string, value interface{}) {
@@ -786,6 +786,22 @@ func tryBaseTypeScanPlan(dst interface{}) (plan *baseTypeScanPlan, nextDst inter
 	return nil, nil, false
 }
 
+type pointerEmptyInterfaceScanPlan struct {
+	codec Codec
+}
+
+func (plan *pointerEmptyInterfaceScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	value, err := plan.codec.DecodeValue(ci, oid, formatCode, src)
+	if err != nil {
+		return err
+	}
+
+	ptrAny := dst.(*interface{})
+	*ptrAny = value
+
+	return nil
+}
+
 // PlanScan prepares a plan to scan a value into dst.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
 	switch formatCode {
@@ -826,6 +842,8 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 			}
 		case TextDecoder:
 			return scanPlanDstTextDecoder{}
+		case TextScanner:
+			return scanPlanTextAnyToTextScanner{}
 		}
 	}
 
@@ -858,6 +876,10 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 				baseTypePlan.next = nextPlan
 				return baseTypePlan
 			}
+		}
+
+		if _, ok := dst.(*interface{}); ok {
+			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec}
 		}
 	}
 
@@ -961,9 +983,81 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 			return plan
 		}
 
+		if derefPointerPlan, nextValue, ok := tryDerefPointerEncodePlan(value); ok {
+			if nextPlan := ci.PlanEncode(oid, format, nextValue); nextPlan != nil {
+				derefPointerPlan.next = nextPlan
+				return derefPointerPlan
+			}
+		}
+
+		if baseTypePlan, nextValue, ok := tryBaseTypeEncodePlan(value); ok {
+			if nextPlan := ci.PlanEncode(oid, format, nextValue); nextPlan != nil {
+				baseTypePlan.next = nextPlan
+				return baseTypePlan
+			}
+		}
+
 	}
 
 	return nil
+}
+
+type derefPointerEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *derefPointerEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	ptr := reflect.ValueOf(value)
+
+	if ptr.IsNil() {
+		return nil, nil
+	}
+
+	return plan.next.Encode(ptr.Elem().Interface(), buf)
+}
+
+func tryDerefPointerEncodePlan(value interface{}) (plan *derefPointerEncodePlan, nextValue interface{}, ok bool) {
+	if valueType := reflect.TypeOf(value); valueType.Kind() == reflect.Ptr {
+		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
+	}
+
+	return nil, nil, false
+}
+
+var kindToBaseTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
+	reflect.Int:     reflect.TypeOf(int(0)),
+	reflect.Int8:    reflect.TypeOf(int8(0)),
+	reflect.Int16:   reflect.TypeOf(int16(0)),
+	reflect.Int32:   reflect.TypeOf(int32(0)),
+	reflect.Int64:   reflect.TypeOf(int64(0)),
+	reflect.Uint:    reflect.TypeOf(uint(0)),
+	reflect.Uint8:   reflect.TypeOf(uint8(0)),
+	reflect.Uint16:  reflect.TypeOf(uint16(0)),
+	reflect.Uint32:  reflect.TypeOf(uint32(0)),
+	reflect.Uint64:  reflect.TypeOf(uint64(0)),
+	reflect.Float32: reflect.TypeOf(float32(0)),
+	reflect.Float64: reflect.TypeOf(float64(0)),
+	reflect.String:  reflect.TypeOf(""),
+}
+
+type baseTypeEncodePlan struct {
+	nextValueType reflect.Type
+	next          EncodePlan
+}
+
+func (plan *baseTypeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(reflect.ValueOf(value).Convert(plan.nextValueType).Interface(), buf)
+}
+
+func tryBaseTypeEncodePlan(value interface{}) (plan *baseTypeEncodePlan, nextValue interface{}, ok bool) {
+	refValue := reflect.ValueOf(value)
+
+	nextValueType := kindToBaseTypes[refValue.Kind()]
+	if nextValueType != nil && refValue.Type() != nextValueType {
+		return &baseTypeEncodePlan{nextValueType: nextValueType}, refValue.Convert(nextValueType).Interface(), true
+	}
+
+	return nil, nil, false
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return

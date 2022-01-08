@@ -91,13 +91,8 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 
 	var s pgtype.Text
 	err := conn.QueryRow(context.Background(), "select $1::int4", 42).Scan(&s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if s.Get() != "42" {
-		t.Fatalf(`expected "42", got %v`, s)
-	}
+	require.NoError(t, err)
+	require.Equal(t, pgtype.Text{String: "42", Valid: true}, s)
 
 	ensureConnValid(t, conn)
 }

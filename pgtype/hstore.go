@@ -159,7 +159,7 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 		}
 
 		var value Text
-		err := value.DecodeBinary(ci, valueBuf)
+		err := scanPlanTextAnyToTextScanner{}.Scan(ci, TextOID, TextFormatCode, valueBuf, &value)
 		if err != nil {
 			return err
 		}
@@ -189,7 +189,7 @@ func (src Hstore) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
 		buf = append(buf, "=>"...)
 
-		elemBuf, err := v.EncodeText(ci, inElemBuf)
+		elemBuf, err := ci.Encode(TextOID, TextFormatCode, v, inElemBuf)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +219,7 @@ func (src Hstore) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		elemBuf, err := v.EncodeText(ci, buf)
+		elemBuf, err := ci.Encode(TextOID, BinaryFormatCode, v, buf)
 		if err != nil {
 			return nil, err
 		}
