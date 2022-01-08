@@ -308,11 +308,6 @@ func testPgxCodec(t testing.TB, pgTypeName string, tests []PgxTranscodeTestCase)
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
-	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select $1::%s", pgTypeName))
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	formats := []struct {
 		name string
 		code int16
@@ -321,21 +316,30 @@ func testPgxCodec(t testing.TB, pgTypeName string, tests []PgxTranscodeTestCase)
 		{name: "BinaryFormat", code: pgx.BinaryFormatCode},
 	}
 
+	for _, format := range formats {
+		testPgxCodecFormat(t, pgTypeName, tests, conn, format.name, format.code)
+	}
+}
+
+func testPgxCodecFormat(t testing.TB, pgTypeName string, tests []PgxTranscodeTestCase, conn *pgx.Conn, formatName string, formatCode int16) {
+	_, err := conn.Prepare(context.Background(), "test", fmt.Sprintf("select $1::%s", pgTypeName))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	for i, tt := range tests {
-		for _, format := range formats {
-			err := conn.QueryRow(context.Background(), "test", pgx.QueryResultFormats{format.code}, tt.src).Scan(tt.dst)
-			if err != nil {
-				t.Errorf("%s %d: %v", format.name, i, err)
-			}
+		err := conn.QueryRow(context.Background(), "test", pgx.QueryResultFormats{formatCode}, tt.src).Scan(tt.dst)
+		if err != nil {
+			t.Errorf("%s %d: %v", formatName, i, err)
+		}
 
-			dst := reflect.ValueOf(tt.dst)
-			if dst.Kind() == reflect.Ptr {
-				dst = dst.Elem()
-			}
+		dst := reflect.ValueOf(tt.dst)
+		if dst.Kind() == reflect.Ptr {
+			dst = dst.Elem()
+		}
 
-			if !tt.test(dst.Interface()) {
-				t.Errorf("%s %d: unexpected result for %v: %v", format.name, i, tt.src, dst.Interface())
-			}
+		if !tt.test(dst.Interface()) {
+			t.Errorf("%s %d: unexpected result for %v: %v", formatName, i, tt.src, dst.Interface())
 		}
 	}
 }
