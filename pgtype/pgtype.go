@@ -949,6 +949,10 @@ func codecScan(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte, 
 }
 
 func codecDecodeToTextFormat(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if src == nil {
+		return nil, nil
+	}
+
 	if format == TextFormatCode {
 		return string(src), nil
 	} else {
