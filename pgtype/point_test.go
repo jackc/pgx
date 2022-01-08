@@ -5,61 +5,23 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPointTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "point", []interface{}{
-		&pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
-		&pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true},
-		&pgtype.Point{},
+func TestPointCodec(t *testing.T) {
+	testPgxCodec(t, "point", []PgxTranscodeTestCase{
+		{
+			pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
+			new(pgtype.Point),
+			isExpectedEq(pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true}),
+		},
+		{
+			pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true},
+			new(pgtype.Point),
+			isExpectedEq(pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true}),
+		},
+		{nil, new(pgtype.Point), isExpectedEq(pgtype.Point{})},
 	})
-}
-
-func TestPoint_Set(t *testing.T) {
-	tests := []struct {
-		name    string
-		arg     interface{}
-		valid   bool
-		wantErr bool
-	}{
-		{
-			name:    "first",
-			arg:     "(12312.123123,123123.123123)",
-			valid:   true,
-			wantErr: false,
-		},
-		{
-			name:    "second",
-			arg:     "(1231s2.123123,123123.123123)",
-			valid:   false,
-			wantErr: true,
-		},
-		{
-			name:    "third",
-			arg:     []byte("(122.123123,123.123123)"),
-			valid:   true,
-			wantErr: false,
-		},
-		{
-			name:    "third",
-			arg:     nil,
-			valid:   false,
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dst := &pgtype.Point{}
-			if err := dst.Set(tt.arg); (err != nil) != tt.wantErr {
-				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if dst.Valid != tt.valid {
-				t.Errorf("Expected status: %v; got: %v", tt.valid, dst.Valid)
-			}
-		})
-	}
 }
 
 func TestPoint_MarshalJSON(t *testing.T) {
