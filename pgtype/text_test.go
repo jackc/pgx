@@ -1,9 +1,12 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTextCodec(t *testing.T) {
@@ -66,6 +69,60 @@ func TestTextCodecBPChar(t *testing.T) {
 		{"", new(string), isExpectedEq("   ")},
 		{" 嗨 ", new(string), isExpectedEq(" 嗨 ")},
 	})
+}
+
+// ACLItem is used for PostgreSQL's aclitem data type. A sample aclitem
+// might look like this:
+//
+//	postgres=arwdDxt/postgres
+//
+// Note, however, that because the user/role name part of an aclitem is
+// an identifier, it follows all the usual formatting rules for SQL
+// identifiers: if it contains spaces and other special characters,
+// it should appear in double-quotes:
+//
+//	postgres=arwdDxt/"role with spaces"
+//
+// It only supports the text format.
+func TestTextCodecACLItem(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	testPgxCodecFormat(t, "aclitem", []PgxTranscodeTestCase{
+		{
+			pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true},
+			new(pgtype.Text),
+			isExpectedEq(pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true}),
+		},
+		{pgtype.Text{}, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
+		{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
+	}, conn, "Text", pgtype.TextFormatCode)
+}
+
+func TestTextCodecACLItemRoleWithSpecialCharacters(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	ctx := context.Background()
+
+	// The tricky test user, below, has to actually exist so that it can be used in a test
+	// of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
+	roleWithSpecialCharacters := ` tricky, ' } " \ test user `
+
+	commandTag, err := conn.Exec(ctx, `select * from pg_roles where rolname = $1`, roleWithSpecialCharacters)
+	require.NoError(t, err)
+
+	if commandTag.RowsAffected() == 0 {
+		t.Skipf("Role with special characters does not exist.")
+	}
+
+	testPgxCodecFormat(t, "aclitem", []PgxTranscodeTestCase{
+		{
+			pgtype.Text{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true},
+			new(pgtype.Text),
+			isExpectedEq(pgtype.Text{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}),
+		},
+	}, conn, "Text", pgtype.TextFormatCode)
 }
 
 func TestTextMarshalJSON(t *testing.T) {
