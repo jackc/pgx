@@ -122,9 +122,9 @@ func (Int2Codec) PreferredFormat() int16 {
 func (Int2Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanInt2CodecBinary{}
+		return encodePlanInt2CodecBinary{}
 	case TextFormatCode:
-		return &encodePlanInt2CodecText{}
+		return encodePlanInt2CodecText{}
 	}
 
 	return nil
@@ -629,9 +629,9 @@ func (Int4Codec) PreferredFormat() int16 {
 func (Int4Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanInt4CodecBinary{}
+		return encodePlanInt4CodecBinary{}
 	case TextFormatCode:
-		return &encodePlanInt4CodecText{}
+		return encodePlanInt4CodecText{}
 	}
 
 	return nil
@@ -1147,9 +1147,9 @@ func (Int8Codec) PreferredFormat() int16 {
 func (Int8Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanInt8CodecBinary{}
+		return encodePlanInt8CodecBinary{}
 	case TextFormatCode:
-		return &encodePlanInt8CodecText{}
+		return encodePlanInt8CodecText{}
 	}
 
 	return nil

@@ -79,9 +79,9 @@ func (CircleCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value inte
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanCircleCodecBinary{}
+		return encodePlanCircleCodecBinary{}
 	case TextFormatCode:
-		return &encodePlanCircleCodecText{}
+		return encodePlanCircleCodecText{}
 	}
 
 	return nil

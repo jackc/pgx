@@ -78,9 +78,9 @@ func (BoxCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interfa
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanBoxCodecBinary{}
+		return encodePlanBoxCodecBinary{}
 	case TextFormatCode:
-		return &encodePlanBoxCodecText{}
+		return encodePlanBoxCodecText{}
 	}
 
 	return nil

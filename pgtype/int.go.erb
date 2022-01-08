@@ -123,9 +123,9 @@ func (Int<%= pg_byte_size %>Codec) PreferredFormat() int16 {
 func (Int<%= pg_byte_size %>Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanInt<%= pg_byte_size %>CodecBinary{}
+		return encodePlanInt<%= pg_byte_size %>CodecBinary{}
 	case TextFormatCode:
-		return &encodePlanInt<%= pg_byte_size %>CodecText{}
+		return encodePlanInt<%= pg_byte_size %>CodecText{}
 	}
 
 	return nil

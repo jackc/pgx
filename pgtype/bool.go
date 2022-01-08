@@ -108,9 +108,9 @@ func (BoolCodec) PreferredFormat() int16 {
 func (BoolCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanBoolCodecBinary{}
+		return encodePlanBoolCodecBinary{}
 	case TextFormatCode:
-		return &encodePlanBoolCodecText{}
+		return encodePlanBoolCodecText{}
 	}
 
 	return nil
