@@ -51,6 +51,10 @@ func (dst *Circle) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Circle) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
 	buf, err := CircleCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
 	if err != nil {
 		return nil, err
@@ -91,6 +95,10 @@ func (p *encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (new
 		return nil, err
 	}
 
+	if !circle.Valid {
+		return nil, nil
+	}
+
 	buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.X))
 	buf = pgio.AppendUint64(buf, math.Float64bits(circle.P.Y))
 	buf = pgio.AppendUint64(buf, math.Float64bits(circle.R))
@@ -103,6 +111,10 @@ func (p *encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBu
 	circle, err := value.(CircleValuer).CircleValue()
 	if err != nil {
 		return nil, err
+	}
+
+	if !circle.Valid {
+		return nil, nil
 	}
 
 	buf = append(buf, fmt.Sprintf(`<(%s,%s),%s>`,

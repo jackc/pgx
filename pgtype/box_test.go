@@ -31,6 +31,7 @@ func TestBoxCodec(t *testing.T) {
 				Valid: true,
 			}),
 		},
+		{pgtype.Box{}, new(pgtype.Box), isExpectedEq(pgtype.Box{})},
 		{nil, new(pgtype.Box), isExpectedEq(pgtype.Box{})},
 	})
 }

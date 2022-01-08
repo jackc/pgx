@@ -85,6 +85,10 @@ func (dst *Point) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Point) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
 	buf, err := PointCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
 	if err != nil {
 		return nil, err
@@ -146,6 +150,10 @@ func (p *encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newB
 		return nil, err
 	}
 
+	if !point.Valid {
+		return nil, nil
+	}
+
 	buf = pgio.AppendUint64(buf, math.Float64bits(point.P.X))
 	buf = pgio.AppendUint64(buf, math.Float64bits(point.P.Y))
 	return buf, nil
@@ -157,6 +165,10 @@ func (p *encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf
 	point, err := value.(PointValuer).PointValue()
 	if err != nil {
 		return nil, err
+	}
+
+	if !point.Valid {
+		return nil, nil
 	}
 
 	return append(buf, fmt.Sprintf(`(%s,%s)`,

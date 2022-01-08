@@ -20,6 +20,7 @@ func TestPointCodec(t *testing.T) {
 			new(pgtype.Point),
 			isExpectedEq(pgtype.Point{P: pgtype.Vec2{-1.234, -5.6789}, Valid: true}),
 		},
+		{pgtype.Point{}, new(pgtype.Point), isExpectedEq(pgtype.Point{})},
 		{nil, new(pgtype.Point), isExpectedEq(pgtype.Point{})},
 	})
 }

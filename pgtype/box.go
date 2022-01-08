@@ -50,6 +50,10 @@ func (dst *Box) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Box) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
 	buf, err := BoxCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
 	if err != nil {
 		return nil, err
@@ -90,6 +94,10 @@ func (p *encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf
 		return nil, err
 	}
 
+	if !box.Valid {
+		return nil, nil
+	}
+
 	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].X))
 	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[0].Y))
 	buf = pgio.AppendUint64(buf, math.Float64bits(box.P[1].X))
@@ -103,6 +111,10 @@ func (p *encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	box, err := value.(BoxValuer).BoxValue()
 	if err != nil {
 		return nil, err
+	}
+
+	if !box.Valid {
+		return nil, nil
 	}
 
 	buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
