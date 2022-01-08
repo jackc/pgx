@@ -8,68 +8,22 @@ import (
 
 type Text string
 
-func (dst *Text) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.Text
-	err := nullable.DecodeText(ci, src)
-	if err != nil {
-		return err
+// ScanText implements the TextScanner interface.
+func (dst *Text) ScanText(v pgtype.Text) error {
+	if !v.Valid {
+		*dst = ""
+		return nil
 	}
 
-	if nullable.Valid {
-		*dst = Text(nullable.String)
-	} else {
-		*dst = Text("")
-	}
+	*dst = Text(v.String)
 
 	return nil
-}
-
-func (dst *Text) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.Text
-	err := nullable.DecodeBinary(ci, src)
-	if err != nil {
-		return err
-	}
-
-	if nullable.Valid {
-		*dst = Text(nullable.String)
-	} else {
-		*dst = Text("")
-	}
-
-	return nil
-}
-
-func (src Text) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if src == Text("") {
-		return nil, nil
-	}
-
-	nullable := pgtype.Text{
-		String: string(src),
-		Valid:  true,
-	}
-
-	return nullable.EncodeText(ci, buf)
-}
-
-func (src Text) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if src == Text("") {
-		return nil, nil
-	}
-
-	nullable := pgtype.Text{
-		String: string(src),
-		Valid:  true,
-	}
-
-	return nullable.EncodeBinary(ci, buf)
 }
 
 // Scan implements the database/sql Scanner interface.
 func (dst *Text) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Text("")
+		*dst = ""
 		return nil
 	}
 
@@ -86,5 +40,8 @@ func (dst *Text) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src Text) Value() (driver.Value, error) {
-	return pgtype.EncodeValueText(src)
+	if src == "" {
+		return nil, nil
+	}
+	return string(src), nil
 }

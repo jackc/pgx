@@ -1,125 +1,71 @@
 package pgtype_test
 
 import (
-	"bytes"
-	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
-func TestTextTranscode(t *testing.T) {
+func TestTextCodec(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
-		testutil.TestSuccessfulTranscode(t, pgTypeName, []interface{}{
-			&pgtype.Text{String: "", Valid: true},
-			&pgtype.Text{String: "foo", Valid: true},
-			&pgtype.Text{},
+		testPgxCodec(t, pgTypeName, []PgxTranscodeTestCase{
+			{
+				pgtype.Text{String: "", Valid: true},
+				new(pgtype.Text),
+				isExpectedEq(pgtype.Text{String: "", Valid: true}),
+			},
+			{
+				pgtype.Text{String: "foo", Valid: true},
+				new(pgtype.Text),
+				isExpectedEq(pgtype.Text{String: "foo", Valid: true}),
+			},
+			{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
+			{"foo", new(string), isExpectedEq("foo")},
+			{rune('R'), new(rune), isExpectedEq(rune('R'))},
 		})
 	}
 }
 
-func TestTextSet(t *testing.T) {
-	successfulTests := []struct {
-		source interface{}
-		result pgtype.Text
-	}{
-		{source: "foo", result: pgtype.Text{String: "foo", Valid: true}},
-		{source: _string("bar"), result: pgtype.Text{String: "bar", Valid: true}},
-		{source: (*string)(nil), result: pgtype.Text{}},
-	}
-
-	for i, tt := range successfulTests {
-		var d pgtype.Text
-		err := d.Set(tt.source)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if d != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, d)
-		}
-	}
+// name is PostgreSQL's special 63-byte data type, used for identifiers like table names.  The pg_class.relname column
+// is a good example of where the name data type is used.
+//
+// TextCodec does not do length checking. Inputting a longer name into PostgreSQL will result in silent truncation to
+// 63 bytes.
+//
+// Length checking would be possible with a Codec specialized for "name" but it would be perfect because a
+// custom-compiled PostgreSQL could have set NAMEDATALEN to a different value rather than the default 63.
+//
+// So this is simply a smoke test of the name type.
+func TestTextCodecName(t *testing.T) {
+	testPgxCodec(t, "name", []PgxTranscodeTestCase{
+		{
+			pgtype.Text{String: "", Valid: true},
+			new(pgtype.Text),
+			isExpectedEq(pgtype.Text{String: "", Valid: true}),
+		},
+		{
+			pgtype.Text{String: "foo", Valid: true},
+			new(pgtype.Text),
+			isExpectedEq(pgtype.Text{String: "foo", Valid: true}),
+		},
+		{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
+		{"foo", new(string), isExpectedEq("foo")},
+	})
 }
 
-func TestTextAssignTo(t *testing.T) {
-	var s string
-	var ps *string
-
-	stringTests := []struct {
-		src      pgtype.Text
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.Text{String: "foo", Valid: true}, dst: &s, expected: "foo"},
-		{src: pgtype.Text{}, dst: &ps, expected: ((*string)(nil))},
-	}
-
-	for i, tt := range stringTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
-
-	var buf []byte
-
-	bytesTests := []struct {
-		src      pgtype.Text
-		dst      *[]byte
-		expected []byte
-	}{
-		{src: pgtype.Text{String: "foo", Valid: true}, dst: &buf, expected: []byte("foo")},
-		{src: pgtype.Text{}, dst: &buf, expected: nil},
-	}
-
-	for i, tt := range bytesTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if bytes.Compare(*tt.dst, tt.expected) != 0 {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, tt.dst)
-		}
-	}
-
-	pointerAllocTests := []struct {
-		src      pgtype.Text
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.Text{String: "foo", Valid: true}, dst: &ps, expected: "foo"},
-	}
-
-	for i, tt := range pointerAllocTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
-
-	errorTests := []struct {
-		src pgtype.Text
-		dst interface{}
-	}{
-		{src: pgtype.Text{}, dst: &s},
-	}
-
-	for i, tt := range errorTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err == nil {
-			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
-		}
-	}
+// Test fixed length char types like char(3)
+func TestTextCodecBPChar(t *testing.T) {
+	testPgxCodec(t, "char(3)", []PgxTranscodeTestCase{
+		{
+			pgtype.Text{String: "a  ", Valid: true},
+			new(pgtype.Text),
+			isExpectedEq(pgtype.Text{String: "a  ", Valid: true}),
+		},
+		{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
+		{"   ", new(string), isExpectedEq("   ")},
+		{"", new(string), isExpectedEq("   ")},
+		{" 嗨 ", new(string), isExpectedEq(" 嗨 ")},
+	})
 }
 
 func TestTextMarshalJSON(t *testing.T) {

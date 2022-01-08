@@ -4,141 +4,29 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"unicode/utf8"
 )
+
+type TextScanner interface {
+	ScanText(v Text) error
+}
+
+type TextValuer interface {
+	TextValue() (Text, error)
+}
 
 type Text struct {
 	String string
 	Valid  bool
 }
 
-func (dst *Text) Set(src interface{}) error {
-	if src == nil {
-		*dst = Text{}
-		return nil
-	}
-
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
-
-	switch value := src.(type) {
-	case string:
-		*dst = Text{String: value, Valid: true}
-	case *string:
-		if value == nil {
-			*dst = Text{}
-		} else {
-			*dst = Text{String: *value, Valid: true}
-		}
-	case []byte:
-		if value == nil {
-			*dst = Text{}
-		} else {
-			*dst = Text{String: string(value), Valid: true}
-		}
-	case fmt.Stringer:
-		if value == fmt.Stringer(nil) {
-			*dst = Text{}
-		} else {
-			*dst = Text{String: value.String(), Valid: true}
-		}
-	default:
-		// Cannot be part of the switch: If Value() returns nil on
-		// non-string, we should still try to checks the underlying type
-		// using reflection.
-		//
-		// For example the struct might implement driver.Valuer with
-		// pointer receiver and fmt.Stringer with value receiver.
-		if value, ok := src.(driver.Valuer); ok {
-			if value == driver.Valuer(nil) {
-				*dst = Text{}
-				return nil
-			} else {
-				v, err := value.Value()
-				if err != nil {
-					return fmt.Errorf("driver.Valuer Value() method failed: %w", err)
-				}
-
-				// Handles also v == nil case.
-				if s, ok := v.(string); ok {
-					*dst = Text{String: s, Valid: true}
-					return nil
-				}
-			}
-		}
-
-		if originalSrc, ok := underlyingStringType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Text", value)
-	}
-
+func (t *Text) ScanText(v Text) error {
+	*t = v
 	return nil
 }
 
-func (dst Text) Get() interface{} {
-	if !dst.Valid {
-		return nil
-	}
-	return dst.String
-}
-
-func (src *Text) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
-	}
-
-	switch v := dst.(type) {
-	case *string:
-		*v = src.String
-		return nil
-	case *[]byte:
-		*v = make([]byte, len(src.String))
-		copy(*v, src.String)
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-		return fmt.Errorf("unable to assign to %T", dst)
-	}
-}
-
-func (Text) PreferredResultFormat() int16 {
-	return TextFormatCode
-}
-
-func (dst *Text) DecodeText(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Text{}
-		return nil
-	}
-
-	*dst = Text{String: string(src), Valid: true}
-	return nil
-}
-
-func (dst *Text) DecodeBinary(ci *ConnInfo, src []byte) error {
-	return dst.DecodeText(ci, src)
-}
-
-func (Text) PreferredParamFormat() int16 {
-	return TextFormatCode
-}
-
-func (src Text) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.String...), nil
-}
-
-func (src Text) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return src.EncodeText(ci, buf)
+func (t Text) TextValue() (Text, error) {
+	return t, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -150,11 +38,11 @@ func (dst *Text) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return dst.DecodeText(nil, []byte(src))
+		*dst = Text{String: src, Valid: true}
+		return nil
 	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
+		*dst = Text{String: string(src), Valid: true}
+		return nil
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -190,4 +78,170 @@ func (dst *Text) UnmarshalJSON(b []byte) error {
 	}
 
 	return nil
+}
+
+type TextCodec struct{}
+
+func (TextCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (TextCodec) PreferredFormat() int16 {
+	return TextFormatCode
+}
+
+func (TextCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case TextFormatCode, BinaryFormatCode:
+		switch value.(type) {
+		case string:
+			return encodePlanTextCodecString{}
+		case []byte:
+			return encodePlanTextCodecByteSlice{}
+		case rune:
+			return encodePlanTextCodecRune{}
+		case fmt.Stringer:
+			return encodePlanTextCodecStringer{}
+		case TextValuer:
+			return encodePlanTextCodecTextValuer{}
+		}
+	}
+
+	return nil
+}
+
+type encodePlanTextCodecString struct{}
+
+func (encodePlanTextCodecString) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	s := value.(string)
+	buf = append(buf, s...)
+	return buf, nil
+}
+
+type encodePlanTextCodecByteSlice struct{}
+
+func (encodePlanTextCodecByteSlice) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	s := value.([]byte)
+	buf = append(buf, s...)
+	return buf, nil
+}
+
+type encodePlanTextCodecRune struct{}
+
+func (encodePlanTextCodecRune) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	r := value.(rune)
+	buf = append(buf, string(r)...)
+	return buf, nil
+}
+
+type encodePlanTextCodecStringer struct{}
+
+func (encodePlanTextCodecStringer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	s := value.(fmt.Stringer)
+	buf = append(buf, s.String()...)
+	return buf, nil
+}
+
+type encodePlanTextCodecTextValuer struct{}
+
+func (encodePlanTextCodecTextValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	text, err := value.(TextValuer).TextValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !text.Valid {
+		return nil, nil
+	}
+
+	buf = append(buf, text.String...)
+	return buf, nil
+}
+
+func (TextCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case TextFormatCode, BinaryFormatCode:
+		switch target.(type) {
+		case *string:
+			return scanPlanTextAnyToString{}
+		case *[]byte:
+			return scanPlanAnyToNewByteSlice{}
+		case TextScanner:
+			return scanPlanTextAnyToTextScanner{}
+		case *rune:
+			return scanPlanTextAnyToRune{}
+		}
+	}
+
+	return nil
+}
+
+func (c TextCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return c.DecodeValue(ci, oid, format, src)
+}
+
+func (c TextCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	return string(src), nil
+}
+
+type scanPlanTextAnyToString struct{}
+
+func (scanPlanTextAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	p := (dst).(*string)
+	*p = string(src)
+
+	return nil
+}
+
+type scanPlanAnyToNewByteSlice struct{}
+
+func (scanPlanAnyToNewByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	p := (dst).(*[]byte)
+	if src == nil {
+		*p = nil
+	} else {
+		*p = make([]byte, len(src))
+		copy(*p, src)
+	}
+
+	return nil
+}
+
+type scanPlanTextAnyToRune struct{}
+
+func (scanPlanTextAnyToRune) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	r, size := utf8.DecodeRune(src)
+	if size != len(src) {
+		return fmt.Errorf("cannot scan %v into %T: more than one rune received", src, dst)
+	}
+
+	p := (dst).(*rune)
+	*p = r
+
+	return nil
+}
+
+type scanPlanTextAnyToTextScanner struct{}
+
+func (scanPlanTextAnyToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TextScanner)
+
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
+	return scanner.ScanText(Text{String: string(src), Valid: true})
 }
