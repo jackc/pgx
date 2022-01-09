@@ -11,7 +11,11 @@ import (
 )
 
 type Int64Scanner interface {
-	ScanInt64(v int64, valid bool) error
+	ScanInt64(Int8) error
+}
+
+type Int64Valuer interface {
+	Int64Value() (Int8, error)
 }
 
 
@@ -23,21 +27,25 @@ type Int<%= pg_byte_size %> struct {
 }
 
 // ScanInt64 implements the Int64Scanner interface.
-func (dst *Int<%= pg_byte_size %>) ScanInt64(n int64, valid bool) error {
-	if !valid {
+func (dst *Int<%= pg_byte_size %>) ScanInt64(n Int8) error {
+	if !n.Valid {
 		*dst = Int<%= pg_byte_size %>{}
 		return nil
 	}
 
-	if n < math.MinInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n)
+	if n.Int < math.MinInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int)
 	}
-	if n > math.MaxInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n)
+	if n.Int > math.MaxInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int)
 	}
-	*dst = Int<%= pg_byte_size %>{Int: int<%= pg_bit_size %>(n), Valid: true}
+	*dst = Int<%= pg_byte_size %>{Int: int<%= pg_bit_size %>(n.Int), Valid: true}
 
 	return nil
+}
+
+func (n Int<%= pg_byte_size %>) Int64Value() (Int8, error) {
+	return Int8{Int: int64(n.Int), Valid: n.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -397,7 +405,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(ci *ConnInfo, oid
 	}
 
 	if src == nil {
-    return s.ScanInt64(0, false)
+    return s.ScanInt64(Int8{})
 	}
 
 	if len(src) != <%= pg_byte_size %> {
@@ -407,7 +415,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(ci *ConnInfo, oid
 
 	n := int64(binary.BigEndian.Uint<%= pg_bit_size %>(src))
 
-  return s.ScanInt64(n, true)
+  return s.ScanInt64(Int8{Int: n, Valid: true})
 }
 <% end %>
 
@@ -471,7 +479,7 @@ func (scanPlanTextAnyToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 	}
 
 	if src == nil {
-    return s.ScanInt64(0, false)
+    return s.ScanInt64(Int8{})
 	}
 
 	n, err := strconv.ParseInt(string(src), 10, 64)
@@ -479,7 +487,7 @@ func (scanPlanTextAnyToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 		return err
 	}
 
-  err = s.ScanInt64(n, true)
+  err = s.ScanInt64(Int8{Int: n, Valid: true})
 	if err != nil {
 		return err
 	}
