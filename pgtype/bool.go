@@ -236,42 +236,6 @@ func (c BoolCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 	return b, nil
 }
 
-func convertToBoolForEncode(v interface{}) (b bool, valid bool, err error) {
-	if v == nil {
-		return false, false, nil
-	}
-
-	switch v := v.(type) {
-	case bool:
-		return v, true, nil
-	case *bool:
-		if v == nil {
-			return false, false, nil
-		}
-		return *v, true, nil
-	case string:
-		bb, err := strconv.ParseBool(v)
-		if err != nil {
-			return false, false, err
-		}
-		return bb, true, nil
-	case *string:
-		if v == nil {
-			return false, false, nil
-		}
-		bb, err := strconv.ParseBool(*v)
-		if err != nil {
-			return false, false, err
-		}
-		return bb, true, nil
-	default:
-		if originalvalue, ok := underlyingBoolType(v); ok {
-			return convertToBoolForEncode(originalvalue)
-		}
-		return false, false, fmt.Errorf("cannot convert %v to bool", v)
-	}
-}
-
 type scanPlanBinaryBoolToBool struct{}
 
 func (scanPlanBinaryBoolToBool) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
