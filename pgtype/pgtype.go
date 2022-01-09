@@ -286,7 +286,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
 	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
-	ci.RegisterDataType(DataType{Value: &CID{}, Name: "cid", OID: CIDOID})
+	ci.RegisterDataType(DataType{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
 	ci.RegisterDataType(DataType{Value: &CIDR{}, Name: "cidr", OID: CIDROID})
 	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
 	ci.RegisterDataType(DataType{Value: &Date{}, Name: "date", OID: DateOID})
@@ -309,7 +309,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "name", OID: NameOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &Numeric{}, Name: "numeric", OID: NumericOID})
 	// ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
-	ci.RegisterDataType(DataType{Value: &OIDValue{}, Name: "oid", OID: OIDOID})
+	ci.RegisterDataType(DataType{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
 	ci.RegisterDataType(DataType{Value: &Path{}, Name: "path", OID: PathOID})
 	ci.RegisterDataType(DataType{Name: "point", OID: PointOID, Codec: PointCodec{}})
 	ci.RegisterDataType(DataType{Value: &Polygon{}, Name: "polygon", OID: PolygonOID})
@@ -327,7 +327,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &UUID{}, Name: "uuid", OID: UUIDOID})
 	ci.RegisterDataType(DataType{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
-	ci.RegisterDataType(DataType{Value: &XID{}, Name: "xid", OID: XIDOID})
+	ci.RegisterDataType(DataType{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
 
 	registerDefaultPgTypeVariants := func(name, arrayName string, value interface{}) {
 		ci.RegisterDefaultPgType(value, name)
