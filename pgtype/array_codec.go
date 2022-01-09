@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
+	"reflect"
 
 	"github.com/jackc/pgio"
 )
@@ -88,6 +89,8 @@ func (p *encodePlanArrayCodecText) Encode(value interface{}, buf []byte) (newBuf
 		dimElemCounts[i] = int(dimensions[i].Length) * dimElemCounts[i+1]
 	}
 
+	var encodePlan EncodePlan
+	var lastElemType reflect.Type
 	inElemBuf := make([]byte, 0, 32)
 	for i := 0; i < elementCount; i++ {
 		if i > 0 {
@@ -100,14 +103,23 @@ func (p *encodePlanArrayCodecText) Encode(value interface{}, buf []byte) (newBuf
 			}
 		}
 
-		encodePlan := p.ac.ElementCodec.PlanEncode(p.ci, p.ac.ElementOID, TextFormatCode, array.Index(i))
-		if encodePlan == nil {
-			return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+		elem := array.Index(i)
+		var elemBuf []byte
+		if elem != nil {
+			elemType := reflect.TypeOf(elem)
+			if lastElemType != elemType {
+				lastElemType = elemType
+				encodePlan = p.ci.PlanEncode(p.ac.ElementOID, TextFormatCode, elem)
+				if encodePlan == nil {
+					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+				}
+			}
+			elemBuf, err = encodePlan.Encode(elem, inElemBuf)
+			if err != nil {
+				return nil, err
+			}
 		}
-		elemBuf, err := encodePlan.Encode(array.Index(i), inElemBuf)
-		if err != nil {
-			return nil, err
-		}
+
 		if elemBuf == nil {
 			buf = append(buf, `NULL`...)
 		} else {
@@ -151,18 +163,30 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 	buf = arrayHeader.EncodeBinary(p.ci, buf)
 
 	elementCount := cardinality(dimensions)
+
+	var encodePlan EncodePlan
+	var lastElemType reflect.Type
 	for i := 0; i < elementCount; i++ {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		encodePlan := p.ac.ElementCodec.PlanEncode(p.ci, p.ac.ElementOID, BinaryFormatCode, array.Index(i))
-		if encodePlan == nil {
-			return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+		elem := array.Index(i)
+		var elemBuf []byte
+		if elem != nil {
+			elemType := reflect.TypeOf(elem)
+			if lastElemType != elemType {
+				lastElemType = elemType
+				encodePlan = p.ci.PlanEncode(p.ac.ElementOID, BinaryFormatCode, elem)
+				if encodePlan == nil {
+					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
+				}
+			}
+			elemBuf, err = encodePlan.Encode(elem, buf)
+			if err != nil {
+				return nil, err
+			}
 		}
-		elemBuf, err := encodePlan.Encode(array.Index(i), buf)
-		if err != nil {
-			return nil, err
-		}
+
 		if elemBuf == nil {
 			pgio.SetInt32(buf[containsNullIndex:], 1)
 		} else {

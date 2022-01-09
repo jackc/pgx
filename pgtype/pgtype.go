@@ -1011,6 +1011,14 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 			}
 		}
 
+		if wrapperPlan, nextValue, ok := tryWrapBuiltinTypeEncodePlan(value); ok {
+			if nextPlan := ci.PlanEncode(oid, format, nextValue); nextPlan != nil {
+				wrapperPlan.SetNext(nextPlan)
+				return wrapperPlan
+			}
+
+		}
+
 	}
 
 	return nil
@@ -1072,6 +1080,174 @@ func tryBaseTypeEncodePlan(value interface{}) (plan *baseTypeEncodePlan, nextVal
 	}
 
 	return nil, nil, false
+}
+
+type WrappedEncodePlanNextSetter interface {
+	SetNext(EncodePlan)
+	EncodePlan
+}
+
+func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+	switch value.(type) {
+	case int8:
+		return &wrapInt8EncodePlan{}, int8Wrapper(value.(int8)), true
+	case int16:
+		return &wrapInt16EncodePlan{}, int16Wrapper(value.(int16)), true
+	case int32:
+		return &wrapInt32EncodePlan{}, int32Wrapper(value.(int32)), true
+	case int64:
+		return &wrapInt64EncodePlan{}, int64Wrapper(value.(int64)), true
+	case int:
+		return &wrapIntEncodePlan{}, intWrapper(value.(int)), true
+	case uint8:
+		return &wrapUint8EncodePlan{}, uint8Wrapper(value.(uint8)), true
+	case uint16:
+		return &wrapUint16EncodePlan{}, uint16Wrapper(value.(uint16)), true
+	case uint32:
+		return &wrapUint32EncodePlan{}, uint32Wrapper(value.(uint32)), true
+	case uint64:
+		return &wrapUint64EncodePlan{}, uint64Wrapper(value.(uint64)), true
+	case uint:
+		return &wrapUintEncodePlan{}, uintWrapper(value.(uint)), true
+	case float32:
+		return &wrapFloat32EncodePlan{}, float32Wrapper(value.(float32)), true
+	case float64:
+		return &wrapFloat64EncodePlan{}, float64Wrapper(value.(float64)), true
+	case string:
+		return &wrapStringEncodePlan{}, stringWrapper(value.(string)), true
+	}
+
+	return nil, nil, false
+}
+
+type wrapInt8EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapInt8EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapInt8EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(int8Wrapper(value.(int8)), buf)
+}
+
+type wrapInt16EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapInt16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapInt16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(int16Wrapper(value.(int16)), buf)
+}
+
+type wrapInt32EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapInt32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapInt32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(int32Wrapper(value.(int32)), buf)
+}
+
+type wrapInt64EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapInt64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapInt64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(int64Wrapper(value.(int64)), buf)
+}
+
+type wrapIntEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapIntEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapIntEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(intWrapper(value.(int)), buf)
+}
+
+type wrapUint8EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapUint8EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapUint8EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(uint8Wrapper(value.(uint8)), buf)
+}
+
+type wrapUint16EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapUint16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapUint16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(uint16Wrapper(value.(uint16)), buf)
+}
+
+type wrapUint32EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapUint32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapUint32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(uint32Wrapper(value.(uint32)), buf)
+}
+
+type wrapUint64EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapUint64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapUint64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(uint64Wrapper(value.(uint64)), buf)
+}
+
+type wrapUintEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapUintEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapUintEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(uintWrapper(value.(uint)), buf)
+}
+
+type wrapFloat32EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapFloat32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapFloat32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(float32Wrapper(value.(float32)), buf)
+}
+
+type wrapFloat64EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapFloat64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapFloat64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(float64Wrapper(value.(float64)), buf)
+}
+
+type wrapStringEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(stringWrapper(value.(string)), buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
