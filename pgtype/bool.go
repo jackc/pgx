@@ -113,14 +113,14 @@ func (BoolCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 		case bool:
 			return encodePlanBoolCodecBinaryBool{}
 		case BoolValuer:
-			return encodePlanBoolCodecBinaryBoolScanner{}
+			return encodePlanBoolCodecBinaryBoolValuer{}
 		}
 	case TextFormatCode:
 		switch value.(type) {
 		case bool:
 			return encodePlanBoolCodecTextBool{}
 		case BoolValuer:
-			return encodePlanBoolCodecTextBoolScanner{}
+			return encodePlanBoolCodecTextBoolValuer{}
 		}
 	}
 
@@ -141,9 +141,9 @@ func (encodePlanBoolCodecBinaryBool) Encode(value interface{}, buf []byte) (newB
 	return buf, nil
 }
 
-type encodePlanBoolCodecTextBoolScanner struct{}
+type encodePlanBoolCodecTextBoolValuer struct{}
 
-func (encodePlanBoolCodecTextBoolScanner) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecTextBoolValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BoolValuer).BoolValue()
 	if err != nil {
 		return nil, err
@@ -162,9 +162,9 @@ func (encodePlanBoolCodecTextBoolScanner) Encode(value interface{}, buf []byte) 
 	return buf, nil
 }
 
-type encodePlanBoolCodecBinaryBoolScanner struct{}
+type encodePlanBoolCodecBinaryBoolValuer struct{}
 
-func (encodePlanBoolCodecBinaryBoolScanner) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecBinaryBoolValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BoolValuer).BoolValue()
 	if err != nil {
 		return nil, err
