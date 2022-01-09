@@ -6,141 +6,249 @@ import (
 	"fmt"
 )
 
-type Bytea struct {
-	Bytes []byte
-	Valid bool
+type BytesScanner interface {
+	// ScanBytes receives a byte slice of driver memory that is only valid until the next database method call.
+	ScanBytes(v []byte) error
 }
 
-func (dst *Bytea) Set(src interface{}) error {
-	if src == nil {
-		*dst = Bytea{}
+type BytesValuer interface {
+	// BytesValue returns a byte slice of the byte data. The caller must not change the returned slice.
+	BytesValue() ([]byte, error)
+}
+
+// DriverBytes is a byte slice that holds a reference to memory owned by the driver. It is only valid until the next
+// database method call. e.g. Any call to a Rows or Conn method invalidates the slice.
+type DriverBytes []byte
+
+func (b *DriverBytes) ScanBytes(v []byte) error {
+	*b = v
+	return nil
+}
+
+// PreallocBytes is a byte slice of preallocated memory that scanned bytes will be copied to. If it is too small a new
+// slice will be allocated.
+type PreallocBytes []byte
+
+func (b *PreallocBytes) ScanBytes(v []byte) error {
+	if v == nil {
+		*b = nil
 		return nil
 	}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
+	if len(v) <= len(*b) {
+		*b = (*b)[:len(v)]
+	} else {
+		*b = make(PreallocBytes, len(v))
+	}
+	copy(*b, v)
+	return nil
+}
+
+// UndecodedBytes can be used as a scan target to get the raw bytes from PostgreSQL without any decoding.
+type UndecodedBytes []byte
+
+type scanPlanAnyToUndecodedBytes struct{}
+
+func (scanPlanAnyToUndecodedBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	dstBuf := dst.(*UndecodedBytes)
+	if src == nil {
+		*dstBuf = nil
+		return nil
 	}
 
-	switch value := src.(type) {
-	case []byte:
-		if value != nil {
-			*dst = Bytea{Bytes: value, Valid: true}
-		} else {
-			*dst = Bytea{}
+	*dstBuf = make([]byte, len(src))
+	copy(*dstBuf, src)
+	return nil
+}
+
+type ByteaCodec struct{}
+
+func (ByteaCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (ByteaCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (ByteaCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		switch value.(type) {
+		case []byte:
+			return encodePlanBytesCodecBinaryBytes{}
+		case BytesValuer:
+			return encodePlanBytesCodecBinaryBytesValuer{}
 		}
-	default:
-		if originalSrc, ok := underlyingBytesType(src); ok {
-			return dst.Set(originalSrc)
+	case TextFormatCode:
+		switch value.(type) {
+		case []byte:
+			return encodePlanBytesCodecTextBytes{}
+		case BytesValuer:
+			return encodePlanBytesCodecTextBytesValuer{}
 		}
-		return fmt.Errorf("cannot convert %v to Bytea", value)
 	}
 
 	return nil
 }
 
-func (dst Bytea) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanBytesCodecBinaryBytes struct{}
+
+func (encodePlanBytesCodecBinaryBytes) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	b := value.([]byte)
+	if b == nil {
+		return nil, nil
 	}
-	return dst.Bytes
+
+	return append(buf, b...), nil
 }
 
-func (src *Bytea) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
+type encodePlanBytesCodecBinaryBytesValuer struct{}
+
+func (encodePlanBytesCodecBinaryBytesValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	b, err := value.(BytesValuer).BytesValue()
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, nil
 	}
 
-	switch v := dst.(type) {
-	case *[]byte:
-		buf := make([]byte, len(src.Bytes))
-		copy(buf, src.Bytes)
-		*v = buf
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
+	return append(buf, b...), nil
+}
+
+type encodePlanBytesCodecTextBytes struct{}
+
+func (encodePlanBytesCodecTextBytes) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	b := value.([]byte)
+	if b == nil {
+		return nil, nil
+	}
+
+	buf = append(buf, `\x`...)
+	buf = append(buf, hex.EncodeToString(b)...)
+	return buf, nil
+}
+
+type encodePlanBytesCodecTextBytesValuer struct{}
+
+func (encodePlanBytesCodecTextBytesValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	b, err := value.(BytesValuer).BytesValue()
+	if err != nil {
+		return nil, err
+	}
+	if b == nil {
+		return nil, nil
+	}
+
+	buf = append(buf, `\x`...)
+	buf = append(buf, hex.EncodeToString(b)...)
+	return buf, nil
+}
+
+func (ByteaCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case *[]byte:
+			return scanPlanBinaryBytesToBytes{}
+		case BytesScanner:
+			return scanPlanBinaryBytesToBytesScanner{}
 		}
-		return fmt.Errorf("unable to assign to %T", dst)
+	case TextFormatCode:
+		switch target.(type) {
+		case *[]byte:
+			return scanPlanTextByteaToBytes{}
+		case BytesScanner:
+			return scanPlanTextByteaToBytesScanner{}
+		}
 	}
+
+	return nil
 }
 
-// DecodeText only supports the hex format. This has been the default since
-// PostgreSQL 9.0.
-func (dst *Bytea) DecodeText(ci *ConnInfo, src []byte) error {
+type scanPlanBinaryBytesToBytes struct{}
+
+func (scanPlanBinaryBytesToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	dstBuf := dst.(*[]byte)
 	if src == nil {
-		*dst = Bytea{}
+		*dstBuf = nil
 		return nil
+	}
+
+	*dstBuf = make([]byte, len(src))
+	copy(*dstBuf, src)
+	return nil
+}
+
+type scanPlanBinaryBytesToBytesScanner struct{}
+
+func (scanPlanBinaryBytesToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(BytesScanner)
+	return scanner.ScanBytes(src)
+}
+
+type scanPlanTextByteaToBytes struct{}
+
+func (scanPlanTextByteaToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	dstBuf := dst.(*[]byte)
+	if src == nil {
+		*dstBuf = nil
+		return nil
+	}
+
+	buf, err := decodeHexBytea(src)
+	if err != nil {
+		return err
+	}
+	*dstBuf = buf
+
+	return nil
+}
+
+type scanPlanTextByteaToBytesScanner struct{}
+
+func (scanPlanTextByteaToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(BytesScanner)
+	buf, err := decodeHexBytea(src)
+	if err != nil {
+		return err
+	}
+	return scanner.ScanBytes(buf)
+}
+
+func decodeHexBytea(src []byte) ([]byte, error) {
+	if src == nil {
+		return nil, nil
 	}
 
 	if len(src) < 2 || src[0] != '\\' || src[1] != 'x' {
-		return fmt.Errorf("invalid hex format")
+		return nil, fmt.Errorf("invalid hex format")
 	}
 
 	buf := make([]byte, (len(src)-2)/2)
 	_, err := hex.Decode(buf, src[2:])
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	*dst = Bytea{Bytes: buf, Valid: true}
-	return nil
-}
-
-func (dst *Bytea) DecodeBinary(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Bytea{}
-		return nil
-	}
-
-	*dst = Bytea{Bytes: src, Valid: true}
-	return nil
-}
-
-func (src Bytea) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf = append(buf, `\x`...)
-	buf = append(buf, hex.EncodeToString(src.Bytes)...)
 	return buf, nil
 }
 
-func (src Bytea) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.Bytes...), nil
+func (c ByteaCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
 }
 
-// Scan implements the database/sql Scanner interface.
-func (dst *Bytea) Scan(src interface{}) error {
+func (c ByteaCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Bytea{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		buf := make([]byte, len(src))
-		copy(buf, src)
-		*dst = Bytea{Bytes: buf, Valid: true}
-		return nil
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Bytea) Value() (driver.Value, error) {
-	if !src.Valid {
 		return nil, nil
 	}
-	return src.Bytes, nil
+
+	var buf []byte
+	err := codecScan(c, ci, oid, format, src, &buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }

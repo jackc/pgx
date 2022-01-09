@@ -262,15 +262,17 @@ func (rows *connRows) Values() ([]interface{}, error) {
 						values = append(values, string(buf))
 					}
 				case BinaryFormatCode:
-					decoder, ok := value.(pgtype.BinaryDecoder)
-					if !ok {
-						decoder = &pgtype.GenericBinary{}
+					if decoder, ok := value.(pgtype.BinaryDecoder); ok {
+						err := decoder.DecodeBinary(rows.connInfo, buf)
+						if err != nil {
+							rows.fatal(err)
+						}
+						values = append(values, value.Get())
+					} else {
+						newBuf := make([]byte, len(buf))
+						copy(newBuf, buf)
+						values = append(values, newBuf)
 					}
-					err := decoder.DecodeBinary(rows.connInfo, buf)
-					if err != nil {
-						rows.fatal(err)
-					}
-					values = append(values, value.Get())
 				default:
 					rows.fatal(errors.New("Unknown format code"))
 				}
@@ -286,12 +288,9 @@ func (rows *connRows) Values() ([]interface{}, error) {
 			case TextFormatCode:
 				values = append(values, string(buf))
 			case BinaryFormatCode:
-				decoder := &pgtype.GenericBinary{}
-				err := decoder.DecodeBinary(rows.connInfo, buf)
-				if err != nil {
-					rows.fatal(err)
-				}
-				values = append(values, decoder.Get())
+				newBuf := make([]byte, len(buf))
+				copy(newBuf, buf)
+				values = append(values, newBuf)
 			default:
 				rows.fatal(errors.New("Unknown format code"))
 			}
