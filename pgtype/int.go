@@ -130,54 +130,80 @@ func (Int2Codec) PreferredFormat() int16 {
 func (Int2Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return encodePlanInt2CodecBinary{}
+		switch value.(type) {
+		case int16:
+			return encodePlanInt2CodecBinaryInt16{}
+		case Int64Valuer:
+			return encodePlanInt2CodecBinaryInt64Valuer{}
+		}
 	case TextFormatCode:
-		return encodePlanInt2CodecText{}
+		switch value.(type) {
+		case int16:
+			return encodePlanInt2CodecTextInt16{}
+		case Int64Valuer:
+			return encodePlanInt2CodecTextInt64Valuer{}
+		}
 	}
 
 	return nil
 }
 
-type encodePlanInt2CodecBinary struct{}
+type encodePlanInt2CodecBinaryInt16 struct{}
 
-func (encodePlanInt2CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
-	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
-	}
-	if !valid {
-		return nil, nil
-	}
-
-	if n > math.MaxInt16 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int2", n)
-	}
-	if n < math.MinInt16 {
-		return nil, fmt.Errorf("%d is less than minimum value for int2", n)
-	}
-
+func (encodePlanInt2CodecBinaryInt16) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int16)
 	return pgio.AppendInt16(buf, int16(n)), nil
 }
 
-type encodePlanInt2CodecText struct{}
+type encodePlanInt2CodecTextInt16 struct{}
 
-func (encodePlanInt2CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
+func (encodePlanInt2CodecTextInt16) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int16)
+	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+}
+
+type encodePlanInt2CodecBinaryInt64Valuer struct{}
+
+func (encodePlanInt2CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int2: %v", value, err)
+		return nil, err
 	}
-	if !valid {
+
+	if !n.Valid {
 		return nil, nil
 	}
 
-	if n > math.MaxInt16 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int2", n)
+	if n.Int > math.MaxInt16 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int)
 	}
-	if n < math.MinInt16 {
-		return nil, fmt.Errorf("%d is less than minimum value for int2", n)
+	if n.Int < math.MinInt16 {
+		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int)
 	}
 
-	return append(buf, strconv.FormatInt(n, 10)...), nil
+	return pgio.AppendInt16(buf, int16(n.Int)), nil
+}
+
+type encodePlanInt2CodecTextInt64Valuer struct{}
+
+func (encodePlanInt2CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
+	if err != nil {
+		return nil, err
+	}
+
+	if !n.Valid {
+		return nil, nil
+	}
+
+	if n.Int > math.MaxInt16 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int)
+	}
+	if n.Int < math.MinInt16 {
+		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int)
+	}
+
+	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
 func (Int2Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
@@ -641,54 +667,80 @@ func (Int4Codec) PreferredFormat() int16 {
 func (Int4Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return encodePlanInt4CodecBinary{}
+		switch value.(type) {
+		case int32:
+			return encodePlanInt4CodecBinaryInt32{}
+		case Int64Valuer:
+			return encodePlanInt4CodecBinaryInt64Valuer{}
+		}
 	case TextFormatCode:
-		return encodePlanInt4CodecText{}
+		switch value.(type) {
+		case int32:
+			return encodePlanInt4CodecTextInt32{}
+		case Int64Valuer:
+			return encodePlanInt4CodecTextInt64Valuer{}
+		}
 	}
 
 	return nil
 }
 
-type encodePlanInt4CodecBinary struct{}
+type encodePlanInt4CodecBinaryInt32 struct{}
 
-func (encodePlanInt4CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
-	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
-	}
-	if !valid {
-		return nil, nil
-	}
-
-	if n > math.MaxInt32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int4", n)
-	}
-	if n < math.MinInt32 {
-		return nil, fmt.Errorf("%d is less than minimum value for int4", n)
-	}
-
+func (encodePlanInt4CodecBinaryInt32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int32)
 	return pgio.AppendInt32(buf, int32(n)), nil
 }
 
-type encodePlanInt4CodecText struct{}
+type encodePlanInt4CodecTextInt32 struct{}
 
-func (encodePlanInt4CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
+func (encodePlanInt4CodecTextInt32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int32)
+	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+}
+
+type encodePlanInt4CodecBinaryInt64Valuer struct{}
+
+func (encodePlanInt4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int4: %v", value, err)
+		return nil, err
 	}
-	if !valid {
+
+	if !n.Valid {
 		return nil, nil
 	}
 
-	if n > math.MaxInt32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int4", n)
+	if n.Int > math.MaxInt32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int)
 	}
-	if n < math.MinInt32 {
-		return nil, fmt.Errorf("%d is less than minimum value for int4", n)
+	if n.Int < math.MinInt32 {
+		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int)
 	}
 
-	return append(buf, strconv.FormatInt(n, 10)...), nil
+	return pgio.AppendInt32(buf, int32(n.Int)), nil
+}
+
+type encodePlanInt4CodecTextInt64Valuer struct{}
+
+func (encodePlanInt4CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
+	if err != nil {
+		return nil, err
+	}
+
+	if !n.Valid {
+		return nil, nil
+	}
+
+	if n.Int > math.MaxInt32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int)
+	}
+	if n.Int < math.MinInt32 {
+		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int)
+	}
+
+	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
 func (Int4Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
@@ -1163,54 +1215,80 @@ func (Int8Codec) PreferredFormat() int16 {
 func (Int8Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return encodePlanInt8CodecBinary{}
+		switch value.(type) {
+		case int64:
+			return encodePlanInt8CodecBinaryInt64{}
+		case Int64Valuer:
+			return encodePlanInt8CodecBinaryInt64Valuer{}
+		}
 	case TextFormatCode:
-		return encodePlanInt8CodecText{}
+		switch value.(type) {
+		case int64:
+			return encodePlanInt8CodecTextInt64{}
+		case Int64Valuer:
+			return encodePlanInt8CodecTextInt64Valuer{}
+		}
 	}
 
 	return nil
 }
 
-type encodePlanInt8CodecBinary struct{}
+type encodePlanInt8CodecBinaryInt64 struct{}
 
-func (encodePlanInt8CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
-	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)
-	}
-	if !valid {
-		return nil, nil
-	}
-
-	if n > math.MaxInt64 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int8", n)
-	}
-	if n < math.MinInt64 {
-		return nil, fmt.Errorf("%d is less than minimum value for int8", n)
-	}
-
+func (encodePlanInt8CodecBinaryInt64) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int64)
 	return pgio.AppendInt64(buf, int64(n)), nil
 }
 
-type encodePlanInt8CodecText struct{}
+type encodePlanInt8CodecTextInt64 struct{}
 
-func (encodePlanInt8CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
+func (encodePlanInt8CodecTextInt64) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(int64)
+	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+}
+
+type encodePlanInt8CodecBinaryInt64Valuer struct{}
+
+func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int8: %v", value, err)
+		return nil, err
 	}
-	if !valid {
+
+	if !n.Valid {
 		return nil, nil
 	}
 
-	if n > math.MaxInt64 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int8", n)
+	if n.Int > math.MaxInt64 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int)
 	}
-	if n < math.MinInt64 {
-		return nil, fmt.Errorf("%d is less than minimum value for int8", n)
+	if n.Int < math.MinInt64 {
+		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int)
 	}
 
-	return append(buf, strconv.FormatInt(n, 10)...), nil
+	return pgio.AppendInt64(buf, int64(n.Int)), nil
+}
+
+type encodePlanInt8CodecTextInt64Valuer struct{}
+
+func (encodePlanInt8CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
+	if err != nil {
+		return nil, err
+	}
+
+	if !n.Valid {
+		return nil, nil
+	}
+
+	if n.Int > math.MaxInt64 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int)
+	}
+	if n.Int < math.MinInt64 {
+		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int)
+	}
+
+	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
 func (Int8Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {

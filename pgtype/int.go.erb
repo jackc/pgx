@@ -131,54 +131,80 @@ func (Int<%= pg_byte_size %>Codec) PreferredFormat() int16 {
 func (Int<%= pg_byte_size %>Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		return encodePlanInt<%= pg_byte_size %>CodecBinary{}
+		switch value.(type) {
+		case int<%= pg_bit_size %>:
+			return encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %>{}
+		case Int64Valuer:
+			return encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer{}
+		}
 	case TextFormatCode:
-		return encodePlanInt<%= pg_byte_size %>CodecText{}
+		switch value.(type) {
+		case int<%= pg_bit_size %>:
+			return encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %>{}
+		case Int64Valuer:
+			return encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer{}
+		}
 	}
 
 	return nil
 }
 
-type encodePlanInt<%= pg_byte_size %>CodecBinary struct{}
+type encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %> struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
-	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)
-	}
-	if !valid {
-		return nil, nil
-	}
-
-	if n > math.MaxInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n)
-	}
-	if n < math.MinInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n)
-	}
-
+func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %>) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+  n := value.(int<%= pg_bit_size %>)
   return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n)), nil
 }
 
-type encodePlanInt<%= pg_byte_size %>CodecText struct{}
+type encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %> struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
-	n, valid, err := convertToInt64ForEncode(value)
+func (encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %>) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+  n := value.(int<%= pg_bit_size %>)
+  return append(buf, strconv.FormatInt(int64(n), 10)...), nil
+}
+
+type encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer struct{}
+
+func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+  n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
-		return nil, fmt.Errorf("cannot convert %v to int<%= pg_byte_size %>: %v", value, err)
+		return nil, err
 	}
-	if !valid {
+
+	if !n.Valid {
 		return nil, nil
 	}
 
-	if n > math.MaxInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n)
+	if n.Int > math.MaxInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int)
 	}
-	if n < math.MinInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n)
+	if n.Int < math.MinInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int)
 	}
 
-  return append(buf, strconv.FormatInt(n, 10)...), nil
+  return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n.Int)), nil
+}
+
+type encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer struct{}
+
+func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+  n, err := value.(Int64Valuer).Int64Value()
+	if err != nil {
+		return nil, err
+	}
+
+	if !n.Valid {
+		return nil, nil
+	}
+
+	if n.Int > math.MaxInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int)
+	}
+	if n.Int < math.MinInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int)
+	}
+
+  return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
 func (Int<%= pg_byte_size %>Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
