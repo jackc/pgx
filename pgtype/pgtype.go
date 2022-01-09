@@ -48,6 +48,8 @@ const (
 	Int4ArrayOID        = 1007
 	TextArrayOID        = 1009
 	ByteaArrayOID       = 1001
+	XIDArrayOID         = 1011
+	CIDArrayOID         = 1012
 	BPCharArrayOID      = 1014
 	VarcharArrayOID     = 1015
 	Int8ArrayOID        = 1016
@@ -55,6 +57,7 @@ const (
 	BoxArrayOID         = 1020
 	Float4ArrayOID      = 1021
 	Float8ArrayOID      = 1022
+	OIDArrayOID         = 1028
 	ACLItemOID          = 1033
 	ACLItemArrayOID     = 1034
 	InetArrayOID        = 1041
@@ -279,6 +282,9 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: VarcharOID}})
 	ci.RegisterDataType(DataType{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementCodec: BitsCodec{}, ElementOID: BitOID}})
 	ci.RegisterDataType(DataType{Name: "_varbit", OID: VarbitArrayOID, Codec: &ArrayCodec{ElementCodec: BitsCodec{}, ElementOID: VarbitOID}})
+	ci.RegisterDataType(DataType{Name: "_cid", OID: CIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: CIDOID}})
+	ci.RegisterDataType(DataType{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: OIDOID}})
+	ci.RegisterDataType(DataType{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: XIDOID}})
 	ci.RegisterDataType(DataType{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	ci.RegisterDataType(DataType{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
