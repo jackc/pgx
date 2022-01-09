@@ -747,7 +747,12 @@ func tryPointerPointerScanPlan(dst interface{}) (plan *pointerPointerScanPlan, n
 	return nil, nil, false
 }
 
-var elemKindToBasePointerTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
+// SkipUnderlyingTypePlanner prevents PlanScan and PlanDecode from trying to use the underlying type.
+type SkipUnderlyingTypePlanner interface {
+	SkipUnderlyingTypePlan()
+}
+
+var elemKindToPointerTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
 	reflect.Int:     reflect.TypeOf(new(int)),
 	reflect.Int8:    reflect.TypeOf(new(int8)),
 	reflect.Int16:   reflect.TypeOf(new(int16)),
@@ -763,13 +768,13 @@ var elemKindToBasePointerTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]
 	reflect.String:  reflect.TypeOf(new(string)),
 }
 
-type baseTypeScanPlan struct {
+type underlyingTypeScanPlan struct {
 	dstType     reflect.Type
 	nextDstType reflect.Type
 	next        ScanPlan
 }
 
-func (plan *baseTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (plan *underlyingTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if plan.dstType != reflect.TypeOf(dst) {
 		newPlan := ci.PlanScan(oid, formatCode, dst)
 		return newPlan.Scan(ci, oid, formatCode, src, dst)
@@ -778,14 +783,18 @@ func (plan *baseTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 	return plan.next.Scan(ci, oid, formatCode, src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
 }
 
-func tryBaseTypeScanPlan(dst interface{}) (plan *baseTypeScanPlan, nextDst interface{}, ok bool) {
+func tryUnderlyingTypeScanPlan(dst interface{}) (plan *underlyingTypeScanPlan, nextDst interface{}, ok bool) {
+	if _, ok := dst.(SkipUnderlyingTypePlanner); ok {
+		return nil, nil, false
+	}
+
 	dstValue := reflect.ValueOf(dst)
 
 	if dstValue.Kind() == reflect.Ptr {
 		elemValue := dstValue.Elem()
-		nextDstType := elemKindToBasePointerTypes[elemValue.Kind()]
+		nextDstType := elemKindToPointerTypes[elemValue.Kind()]
 		if nextDstType != nil && dstValue.Type() != nextDstType {
-			return &baseTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
+			return &underlyingTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
 		}
 	}
 
@@ -881,7 +890,7 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 			}
 		}
 
-		if baseTypePlan, nextDst, ok := tryBaseTypeScanPlan(dst); ok {
+		if baseTypePlan, nextDst, ok := tryUnderlyingTypeScanPlan(dst); ok {
 			if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
 				baseTypePlan.next = nextPlan
 				return baseTypePlan
@@ -1004,7 +1013,7 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 			}
 		}
 
-		if baseTypePlan, nextValue, ok := tryBaseTypeEncodePlan(value); ok {
+		if baseTypePlan, nextValue, ok := tryUnderlyingTypeEncodePlan(value); ok {
 			if nextPlan := ci.PlanEncode(oid, format, nextValue); nextPlan != nil {
 				baseTypePlan.next = nextPlan
 				return baseTypePlan
@@ -1046,7 +1055,7 @@ func tryDerefPointerEncodePlan(value interface{}) (plan *derefPointerEncodePlan,
 	return nil, nil, false
 }
 
-var kindToBaseTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
+var kindToTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
 	reflect.Int:     reflect.TypeOf(int(0)),
 	reflect.Int8:    reflect.TypeOf(int8(0)),
 	reflect.Int16:   reflect.TypeOf(int16(0)),
@@ -1062,21 +1071,25 @@ var kindToBaseTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Typ
 	reflect.String:  reflect.TypeOf(""),
 }
 
-type baseTypeEncodePlan struct {
+type underlyingTypeEncodePlan struct {
 	nextValueType reflect.Type
 	next          EncodePlan
 }
 
-func (plan *baseTypeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *underlyingTypeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(reflect.ValueOf(value).Convert(plan.nextValueType).Interface(), buf)
 }
 
-func tryBaseTypeEncodePlan(value interface{}) (plan *baseTypeEncodePlan, nextValue interface{}, ok bool) {
+func tryUnderlyingTypeEncodePlan(value interface{}) (plan *underlyingTypeEncodePlan, nextValue interface{}, ok bool) {
+	if _, ok := value.(SkipUnderlyingTypePlanner); ok {
+		return nil, nil, false
+	}
+
 	refValue := reflect.ValueOf(value)
 
-	nextValueType := kindToBaseTypes[refValue.Kind()]
+	nextValueType := kindToTypes[refValue.Kind()]
 	if nextValueType != nil && refValue.Type() != nextValueType {
-		return &baseTypeEncodePlan{nextValueType: nextValueType}, refValue.Convert(nextValueType).Interface(), true
+		return &underlyingTypeEncodePlan{nextValueType: nextValueType}, refValue.Convert(nextValueType).Interface(), true
 	}
 
 	return nil, nil, false
