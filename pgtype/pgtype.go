@@ -263,7 +263,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: BPCharOID}})
 	ci.RegisterDataType(DataType{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementCodec: ByteaCodec{}, ElementOID: ByteaOID}})
 	ci.RegisterDataType(DataType{Value: &CIDRArray{}, Name: "_cidr", OID: CIDRArrayOID})
-	ci.RegisterDataType(DataType{Value: &DateArray{}, Name: "_date", OID: DateArrayOID})
+	ci.RegisterDataType(DataType{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementCodec: DateCodec{}, ElementOID: DateOID}})
 	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
 	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
@@ -295,7 +295,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
 	ci.RegisterDataType(DataType{Value: &CIDR{}, Name: "cidr", OID: CIDROID})
 	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
-	ci.RegisterDataType(DataType{Value: &Date{}, Name: "date", OID: DateOID})
+	ci.RegisterDataType(DataType{Name: "date", OID: DateOID, Codec: DateCodec{}})
 	// ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
 	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
 	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
@@ -807,6 +807,30 @@ func tryUnderlyingTypeScanPlan(dst interface{}) (plan *underlyingTypeScanPlan, n
 	return nil, nil, false
 }
 
+type WrappedScanPlanNextSetter interface {
+	SetNext(ScanPlan)
+	ScanPlan
+}
+
+func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
+	switch dst := dst.(type) {
+	case *time.Time:
+		return &wrapTimeScanPlan{}, (*timeWrapper)(dst), true
+	}
+
+	return nil, nil, false
+}
+
+type wrapTimeScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapTimeScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapTimeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*timeWrapper)(dst.(*time.Time)))
+}
+
 type pointerEmptyInterfaceScanPlan struct {
 	codec Codec
 }
@@ -900,6 +924,13 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 			if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
 				baseTypePlan.next = nextPlan
 				return baseTypePlan
+			}
+		}
+
+		if wrapperPlan, nextValue, ok := tryWrapBuiltinTypeScanPlan(dst); ok {
+			if nextPlan := ci.PlanScan(oid, formatCode, nextValue); nextPlan != nil {
+				wrapperPlan.SetNext(nextPlan)
+				return wrapperPlan
 			}
 		}
 
@@ -1031,7 +1062,6 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 				wrapperPlan.SetNext(nextPlan)
 				return wrapperPlan
 			}
-
 		}
 
 	}
@@ -1107,33 +1137,35 @@ type WrappedEncodePlanNextSetter interface {
 }
 
 func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
-	switch value.(type) {
+	switch value := value.(type) {
 	case int8:
-		return &wrapInt8EncodePlan{}, int8Wrapper(value.(int8)), true
+		return &wrapInt8EncodePlan{}, int8Wrapper(value), true
 	case int16:
-		return &wrapInt16EncodePlan{}, int16Wrapper(value.(int16)), true
+		return &wrapInt16EncodePlan{}, int16Wrapper(value), true
 	case int32:
-		return &wrapInt32EncodePlan{}, int32Wrapper(value.(int32)), true
+		return &wrapInt32EncodePlan{}, int32Wrapper(value), true
 	case int64:
-		return &wrapInt64EncodePlan{}, int64Wrapper(value.(int64)), true
+		return &wrapInt64EncodePlan{}, int64Wrapper(value), true
 	case int:
-		return &wrapIntEncodePlan{}, intWrapper(value.(int)), true
+		return &wrapIntEncodePlan{}, intWrapper(value), true
 	case uint8:
-		return &wrapUint8EncodePlan{}, uint8Wrapper(value.(uint8)), true
+		return &wrapUint8EncodePlan{}, uint8Wrapper(value), true
 	case uint16:
-		return &wrapUint16EncodePlan{}, uint16Wrapper(value.(uint16)), true
+		return &wrapUint16EncodePlan{}, uint16Wrapper(value), true
 	case uint32:
-		return &wrapUint32EncodePlan{}, uint32Wrapper(value.(uint32)), true
+		return &wrapUint32EncodePlan{}, uint32Wrapper(value), true
 	case uint64:
-		return &wrapUint64EncodePlan{}, uint64Wrapper(value.(uint64)), true
+		return &wrapUint64EncodePlan{}, uint64Wrapper(value), true
 	case uint:
-		return &wrapUintEncodePlan{}, uintWrapper(value.(uint)), true
+		return &wrapUintEncodePlan{}, uintWrapper(value), true
 	case float32:
-		return &wrapFloat32EncodePlan{}, float32Wrapper(value.(float32)), true
+		return &wrapFloat32EncodePlan{}, float32Wrapper(value), true
 	case float64:
-		return &wrapFloat64EncodePlan{}, float64Wrapper(value.(float64)), true
+		return &wrapFloat64EncodePlan{}, float64Wrapper(value), true
 	case string:
-		return &wrapStringEncodePlan{}, stringWrapper(value.(string)), true
+		return &wrapStringEncodePlan{}, stringWrapper(value), true
+	case time.Time:
+		return &wrapTimeEncodePlan{}, timeWrapper(value), true
 	}
 
 	return nil, nil, false
@@ -1267,6 +1299,16 @@ func (plan *wrapStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(stringWrapper(value.(string)), buf)
+}
+
+type wrapTimeEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapTimeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapTimeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(timeWrapper(value.(time.Time)), buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return

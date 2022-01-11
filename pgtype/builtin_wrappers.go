@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"time"
 )
 
 type int8Wrapper int8
@@ -314,4 +315,28 @@ func (w stringWrapper) Int64Value() (Int8, error) {
 	}
 
 	return Int8{Int: int64(num), Valid: true}, nil
+}
+
+type timeWrapper time.Time
+
+func (w *timeWrapper) ScanDate(v Date) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *time.Time")
+	}
+
+	switch v.InfinityModifier {
+	case None:
+		*w = timeWrapper(v.Time)
+		return nil
+	case Infinity:
+		return fmt.Errorf("cannot scan Infinity into *time.Time")
+	case NegativeInfinity:
+		return fmt.Errorf("cannot scan -Infinity into *time.Time")
+	default:
+		return fmt.Errorf("invalid InfinityModifier: %v", v.InfinityModifier)
+	}
+}
+
+func (w timeWrapper) DateValue() (Date, error) {
+	return Date{Time: time.Time(w), Valid: true}, nil
 }
