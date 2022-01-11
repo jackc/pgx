@@ -1,121 +1,34 @@
 package pgtype_test
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
-func TestDateTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscodeEqFunc(t, "date", []interface{}{
-		&pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true},
-		&pgtype.Date{},
-		&pgtype.Date{Valid: true, InfinityModifier: pgtype.Infinity},
-		&pgtype.Date{Valid: true, InfinityModifier: -pgtype.Infinity},
-	}, func(a, b interface{}) bool {
-		at := a.(pgtype.Date)
-		bt := b.(pgtype.Date)
+func isExpectedEqTime(a interface{}) func(interface{}) bool {
+	return func(v interface{}) bool {
+		at := a.(time.Time)
+		vt := v.(time.Time)
 
-		return at.Time.Equal(bt.Time) && at.Valid == bt.Valid && at.InfinityModifier == bt.InfinityModifier
+		return at.Equal(vt)
+	}
+}
+
+func TestDateCodec(t *testing.T) {
+	testPgxCodec(t, "date", []PgxTranscodeTestCase{
+		{time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC))},
+		{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))},
+		{time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC))},
+		{time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))},
+		{time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC))},
+		{time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC))},
+		{pgtype.Date{InfinityModifier: pgtype.Infinity, Valid: true}, new(pgtype.Date), isExpectedEq(pgtype.Date{InfinityModifier: pgtype.Infinity, Valid: true})},
+		{pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(pgtype.Date), isExpectedEq(pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
+		{pgtype.Date{}, new(pgtype.Date), isExpectedEq(pgtype.Date{})},
+		{nil, new(*time.Time), isExpectedEq((*time.Time)(nil))},
 	})
-}
-
-func TestDateSet(t *testing.T) {
-	type _time time.Time
-
-	successfulTests := []struct {
-		source interface{}
-		result pgtype.Date
-	}{
-		{source: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2000, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), result: pgtype.Date{Time: time.Date(2200, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Date{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Valid: true}},
-		{source: "1999-12-31", result: pgtype.Date{Time: time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), Valid: true}},
-	}
-
-	for i, tt := range successfulTests {
-		var d pgtype.Date
-		err := d.Set(tt.source)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if d != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, d)
-		}
-	}
-}
-
-func TestDateAssignTo(t *testing.T) {
-	var tim time.Time
-	var ptim *time.Time
-
-	simpleTests := []struct {
-		src      pgtype.Date
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, dst: &tim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
-		{src: pgtype.Date{Time: time.Time{}}, dst: &ptim, expected: ((*time.Time)(nil))},
-	}
-
-	for i, tt := range simpleTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
-
-	pointerAllocTests := []struct {
-		src      pgtype.Date
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, dst: &ptim, expected: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)},
-	}
-
-	for i, tt := range pointerAllocTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
-
-	errorTests := []struct {
-		src pgtype.Date
-		dst interface{}
-	}{
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.Infinity, Valid: true}, dst: &tim},
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local), InfinityModifier: pgtype.NegativeInfinity, Valid: true}, dst: &tim},
-		{src: pgtype.Date{Time: time.Date(2015, 1, 1, 0, 0, 0, 0, time.Local)}, dst: &tim},
-	}
-
-	for i, tt := range errorTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err == nil {
-			t.Errorf("%d: expected error but none was returned (%v -> %v)", i, tt.src, tt.dst)
-		}
-	}
 }
 
 func TestDateMarshalJSON(t *testing.T) {
