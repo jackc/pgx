@@ -65,11 +65,7 @@ func LoadDataType(ctx context.Context, conn Querier, ci *pgtype.ConnInfo, typeNa
 		// }
 		// return pgtype.DataType{Value: ct, Name: typeName, OID: oid}, nil
 	case "e": // enum
-		members, err := GetEnumMembers(ctx, conn, oid)
-		if err != nil {
-			return pgtype.DataType{}, err
-		}
-		return pgtype.DataType{Value: pgtype.NewEnumType(typeName, members), Name: typeName, OID: oid}, nil
+		return pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
 	default:
 		return pgtype.DataType{}, errors.New("unknown typtype")
 	}
@@ -121,28 +117,3 @@ func GetArrayElementOID(ctx context.Context, conn Querier, oid uint32) (uint32, 
 
 // 	return fields, nil
 // }
-
-// GetEnumMembers gets the possible values of the enum by oid.
-func GetEnumMembers(ctx context.Context, conn Querier, oid uint32) ([]string, error) {
-	members := []string{}
-
-	rows, err := conn.Query(ctx, "select enumlabel from pg_enum where enumtypid=$1 order by enumsortorder", oid)
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		var m string
-		err := rows.Scan(&m)
-		if err != nil {
-			return nil, err
-		}
-		members = append(members, m)
-	}
-
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return members, nil
-}

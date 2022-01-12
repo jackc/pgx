@@ -918,8 +918,7 @@ func BenchmarkSelectManyRegisteredEnum(b *testing.B) {
 	err = conn.QueryRow(context.Background(), "select oid from pg_type where typname=$1;", "color").Scan(&oid)
 	require.NoError(b, err)
 
-	et := pgtype.NewEnumType("color", []string{"blue", "green", "orange"})
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{Value: et, Name: "color", OID: oid})
+	conn.ConnInfo().RegisterDataType(pgtype.DataType{Name: "color", OID: oid, Codec: &pgtype.EnumCodec{}})
 
 	b.ResetTimer()
 	var x, y, z string
