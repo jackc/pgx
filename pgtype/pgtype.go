@@ -856,6 +856,10 @@ func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter
 		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(dst), true
 	case *net.IP:
 		return &wrapNetIPScanPlan{}, (*netIPWrapper)(dst), true
+	case *map[string]*string:
+		return &wrapMapStringToPointerStringScanPlan{}, (*mapStringToPointerStringWrapper)(dst), true
+	case *map[string]string:
+		return &wrapMapStringToStringScanPlan{}, (*mapStringToStringWrapper)(dst), true
 	}
 
 	return nil, nil, false
@@ -1019,6 +1023,26 @@ func (plan *wrapNetIPScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
 func (plan *wrapNetIPScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	return plan.next.Scan(ci, oid, formatCode, src, (*netIPWrapper)(dst.(*net.IP)))
+}
+
+type wrapMapStringToPointerStringScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapMapStringToPointerStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapMapStringToPointerStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*mapStringToPointerStringWrapper)(dst.(*map[string]*string)))
+}
+
+type wrapMapStringToStringScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapMapStringToStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapMapStringToStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*mapStringToStringWrapper)(dst.(*map[string]string)))
 }
 
 type pointerEmptyInterfaceScanPlan struct {
@@ -1362,6 +1386,10 @@ func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNext
 		return &wrapNetIPNetEncodePlan{}, netIPNetWrapper(value), true
 	case net.IP:
 		return &wrapNetIPEncodePlan{}, netIPWrapper(value), true
+	case map[string]*string:
+		return &wrapMapStringToPointerStringEncodePlan{}, mapStringToPointerStringWrapper(value), true
+	case map[string]string:
+		return &wrapMapStringToStringEncodePlan{}, mapStringToStringWrapper(value), true
 	}
 
 	return nil, nil, false
@@ -1525,6 +1553,26 @@ func (plan *wrapNetIPEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapNetIPEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(netIPWrapper(value.(net.IP)), buf)
+}
+
+type wrapMapStringToPointerStringEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapMapStringToPointerStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapMapStringToPointerStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(mapStringToPointerStringWrapper(value.(map[string]*string)), buf)
+}
+
+type wrapMapStringToStringEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapMapStringToStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapMapStringToStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(mapStringToStringWrapper(value.(map[string]string)), buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return

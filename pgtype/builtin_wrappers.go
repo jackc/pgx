@@ -381,3 +381,40 @@ func (w netIPWrapper) InetValue() (Inet, error) {
 	mask := net.CIDRMask(bitCount, bitCount)
 	return Inet{IPNet: &net.IPNet{Mask: mask, IP: net.IP(w)}, Valid: true}, nil
 }
+
+type mapStringToPointerStringWrapper map[string]*string
+
+func (w *mapStringToPointerStringWrapper) ScanHstore(v Hstore) error {
+	*w = mapStringToPointerStringWrapper(v)
+	return nil
+}
+
+func (w mapStringToPointerStringWrapper) HstoreValue() (Hstore, error) {
+	return Hstore(w), nil
+}
+
+type mapStringToStringWrapper map[string]string
+
+func (w *mapStringToStringWrapper) ScanHstore(v Hstore) error {
+	*w = make(mapStringToStringWrapper, len(v))
+	for k, v := range v {
+		if v == nil {
+			return fmt.Errorf("cannot scan NULL to string")
+		}
+		(*w)[k] = *v
+	}
+	return nil
+}
+
+func (w mapStringToStringWrapper) HstoreValue() (Hstore, error) {
+	if w == nil {
+		return nil, nil
+	}
+
+	hstore := make(Hstore, len(w))
+	for k, v := range w {
+		s := v
+		hstore[k] = &s
+	}
+	return hstore, nil
+}
