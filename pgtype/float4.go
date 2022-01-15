@@ -15,198 +15,158 @@ type Float4 struct {
 	Valid bool
 }
 
-func (dst *Float4) Set(src interface{}) error {
+// ScanFloat64 implements the Float64Scanner interface.
+func (f *Float4) ScanFloat64(n Float8) error {
+	*f = Float4{Float: float32(n.Float), Valid: n.Valid}
+	return nil
+}
+
+func (f Float4) Float64Value() (Float8, error) {
+	return Float8{Float: float64(f.Float), Valid: f.Valid}, nil
+}
+
+// Scan implements the database/sql Scanner interface.
+func (f *Float4) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Float4{}
+		*f = Float4{}
 		return nil
 	}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
-
-	switch value := src.(type) {
-	case float32:
-		*dst = Float4{Float: value, Valid: true}
+	switch src := src.(type) {
 	case float64:
-		*dst = Float4{Float: float32(value), Valid: true}
-	case int8:
-		*dst = Float4{Float: float32(value), Valid: true}
-	case uint8:
-		*dst = Float4{Float: float32(value), Valid: true}
-	case int16:
-		*dst = Float4{Float: float32(value), Valid: true}
-	case uint16:
-		*dst = Float4{Float: float32(value), Valid: true}
-	case int32:
-		f32 := float32(value)
-		if int32(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
-	case uint32:
-		f32 := float32(value)
-		if uint32(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
-	case int64:
-		f32 := float32(value)
-		if int64(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
-	case uint64:
-		f32 := float32(value)
-		if uint64(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
-	case int:
-		f32 := float32(value)
-		if int(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
-	case uint:
-		f32 := float32(value)
-		if uint(f32) == value {
-			*dst = Float4{Float: f32, Valid: true}
-		} else {
-			return fmt.Errorf("%v cannot be exactly represented as float32", value)
-		}
+		*f = Float4{Float: float32(src), Valid: true}
+		return nil
 	case string:
-		num, err := strconv.ParseFloat(value, 32)
+		n, err := strconv.ParseFloat(string(src), 32)
 		if err != nil {
 			return err
 		}
-		*dst = Float4{Float: float32(num), Valid: true}
-	case *float64:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
+		*f = Float4{Float: float32(n), Valid: true}
+		return nil
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (f Float4) Value() (driver.Value, error) {
+	if !f.Valid {
+		return nil, nil
+	}
+	return float64(f.Float), nil
+}
+
+type Float4Codec struct{}
+
+func (Float4Codec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (Float4Codec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (Float4Codec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		switch value.(type) {
+		case float32:
+			return encodePlanFloat4CodecBinaryFloat32{}
+		case Float64Valuer:
+			return encodePlanFloat4CodecBinaryFloat64Valuer{}
+		case Int64Valuer:
+			return encodePlanFloat4CodecBinaryInt64Valuer{}
 		}
-	case *float32:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
+	case TextFormatCode:
+		switch value.(type) {
+		case float32:
+			return encodePlanTextFloat32{}
+		case Float64Valuer:
+			return encodePlanTextFloat64Valuer{}
+		case Int64Valuer:
+			return encodePlanTextInt64Valuer{}
 		}
-	case *int8:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *uint8:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *int16:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *uint16:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *int32:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *uint32:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *int64:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *uint64:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *int:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *uint:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *string:
-		if value == nil {
-			*dst = Float4{}
-		} else {
-			return dst.Set(*value)
-		}
-	default:
-		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Float8", value)
 	}
 
 	return nil
 }
 
-func (dst Float4) Get() interface{} {
-	if !dst.Valid {
-		return nil
-	}
-	return dst.Float
+type encodePlanFloat4CodecBinaryFloat32 struct{}
+
+func (encodePlanFloat4CodecBinaryFloat32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(float32)
+	return pgio.AppendUint32(buf, math.Float32bits(n)), nil
 }
 
-func (src *Float4) AssignTo(dst interface{}) error {
-	return float64AssignTo(float64(src.Float), src.Valid, dst)
+type encodePlanTextFloat32 struct{}
+
+func (encodePlanTextFloat32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n := value.(float32)
+	return append(buf, strconv.FormatFloat(float64(n), 'f', -1, 32)...), nil
 }
 
-func (dst *Float4) DecodeText(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Float4{}
-		return nil
-	}
+type encodePlanFloat4CodecBinaryFloat64Valuer struct{}
 
-	n, err := strconv.ParseFloat(string(src), 32)
+func (encodePlanFloat4CodecBinaryFloat64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Float64Valuer).Float64Value()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	*dst = Float4{Float: float32(n), Valid: true}
+	if !n.Valid {
+		return nil, nil
+	}
+
+	return pgio.AppendUint32(buf, math.Float32bits(float32(n.Float))), nil
+}
+
+type encodePlanFloat4CodecBinaryInt64Valuer struct{}
+
+func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	n, err := value.(Int64Valuer).Int64Value()
+	if err != nil {
+		return nil, err
+	}
+
+	if !n.Valid {
+		return nil, nil
+	}
+
+	f := float32(n.Int)
+	return pgio.AppendUint32(buf, math.Float32bits(f)), nil
+}
+
+func (Float4Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case *float32:
+			return scanPlanBinaryFloat4ToFloat32{}
+		case Float64Scanner:
+			return scanPlanBinaryFloat4ToFloat64Scanner{}
+		case Int64Scanner:
+			return scanPlanBinaryFloat4ToInt64Scanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case *float32:
+			return scanPlanTextAnyToFloat32{}
+		case Float64Scanner:
+			return scanPlanTextAnyToFloat64Scanner{}
+		case Int64Scanner:
+			return scanPlanTextAnyToInt64Scanner{}
+		}
+	}
+
 	return nil
 }
 
-func (dst *Float4) DecodeBinary(ci *ConnInfo, src []byte) error {
+type scanPlanBinaryFloat4ToFloat32 struct{}
+
+func (scanPlanBinaryFloat4ToFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
-		*dst = Float4{}
-		return nil
+		return fmt.Errorf("cannot scan null into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -214,55 +174,92 @@ func (dst *Float4) DecodeBinary(ci *ConnInfo, src []byte) error {
 	}
 
 	n := int32(binary.BigEndian.Uint32(src))
+	f := (dst).(*float32)
+	*f = math.Float32frombits(uint32(n))
 
-	*dst = Float4{Float: math.Float32frombits(uint32(n)), Valid: true}
 	return nil
 }
 
-func (src Float4) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
+type scanPlanBinaryFloat4ToFloat64Scanner struct{}
 
-	buf = append(buf, strconv.FormatFloat(float64(src.Float), 'f', -1, 32)...)
-	return buf, nil
-}
+func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s := (dst).(Float64Scanner)
 
-func (src Float4) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf = pgio.AppendUint32(buf, math.Float32bits(src.Float))
-	return buf, nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Float4) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Float4{}
-		return nil
+		return s.ScanFloat64(Float8{})
 	}
 
-	switch src := src.(type) {
-	case float64:
-		*dst = Float4{Float: float32(src), Valid: true}
-		return nil
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length for float4: %v", len(src))
 	}
 
-	return fmt.Errorf("cannot scan %T", src)
+	n := int32(binary.BigEndian.Uint32(src))
+	return s.ScanFloat64(Float8{Float: float64(math.Float32frombits(uint32(n))), Valid: true})
 }
 
-// Value implements the database/sql/driver Valuer interface.
-func (src Float4) Value() (driver.Value, error) {
-	if !src.Valid {
+type scanPlanBinaryFloat4ToInt64Scanner struct{}
+
+func (scanPlanBinaryFloat4ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	s := (dst).(Int64Scanner)
+
+	if src == nil {
+		return s.ScanInt64(Int8{})
+	}
+
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length for float4: %v", len(src))
+	}
+
+	ui32 := int32(binary.BigEndian.Uint32(src))
+	f32 := math.Float32frombits(uint32(ui32))
+	i64 := int64(f32)
+	if f32 != float32(i64) {
+		return fmt.Errorf("cannot losslessly convert %v to int64", f32)
+	}
+
+	return s.ScanInt64(Int8{Int: i64, Valid: true})
+}
+
+type scanPlanTextAnyToFloat32 struct{}
+
+func (scanPlanTextAnyToFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	n, err := strconv.ParseFloat(string(src), 32)
+	if err != nil {
+		return err
+	}
+
+	f := (dst).(*float32)
+	*f = float32(n)
+
+	return nil
+}
+
+func (c Float4Codec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if src == nil {
 		return nil, nil
 	}
-	return float64(src.Float), nil
+
+	var n float64
+	err := codecScan(c, ci, oid, format, src, &n)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
+}
+
+func (c Float4Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	var n float32
+	err := codecScan(c, ci, oid, format, src, &n)
+	if err != nil {
+		return nil, err
+	}
+	return n, nil
 }
