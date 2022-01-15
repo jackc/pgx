@@ -264,8 +264,8 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementCodec: ByteaCodec{}, ElementOID: ByteaOID}})
 	ci.RegisterDataType(DataType{Name: "_cidr", OID: CIDRArrayOID, Codec: &ArrayCodec{ElementCodec: InetCodec{}, ElementOID: CIDROID}})
 	ci.RegisterDataType(DataType{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementCodec: DateCodec{}, ElementOID: DateOID}})
-	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
-	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
+	ci.RegisterDataType(DataType{Name: "_float4", OID: Float4ArrayOID, Codec: &ArrayCodec{ElementCodec: Float4Codec{}, ElementOID: Float4OID}})
+	ci.RegisterDataType(DataType{Name: "_float8", OID: Float8ArrayOID, Codec: &ArrayCodec{ElementCodec: Float8Codec{}, ElementOID: Float8OID}})
 	ci.RegisterDataType(DataType{Name: "_inet", OID: InetArrayOID, Codec: &ArrayCodec{ElementCodec: InetCodec{}, ElementOID: InetOID}})
 	ci.RegisterDataType(DataType{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
 	ci.RegisterDataType(DataType{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementCodec: Int4Codec{}, ElementOID: Int4OID}})
@@ -297,8 +297,8 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
 	ci.RegisterDataType(DataType{Name: "date", OID: DateOID, Codec: DateCodec{}})
 	// ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
-	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
-	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
+	ci.RegisterDataType(DataType{Name: "float4", OID: Float4OID, Codec: Float4Codec{}})
+	ci.RegisterDataType(DataType{Name: "float8", OID: Float8OID, Codec: Float8Codec{}})
 	ci.RegisterDataType(DataType{Name: "inet", OID: InetOID, Codec: InetCodec{}})
 	ci.RegisterDataType(DataType{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
 	ci.RegisterDataType(DataType{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
@@ -824,6 +824,32 @@ type WrappedScanPlanNextSetter interface {
 
 func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
 	switch dst := dst.(type) {
+	case *int8:
+		return &wrapInt8ScanPlan{}, (*int8Wrapper)(dst), true
+	case *int16:
+		return &wrapInt16ScanPlan{}, (*int16Wrapper)(dst), true
+	case *int32:
+		return &wrapInt32ScanPlan{}, (*int32Wrapper)(dst), true
+	case *int64:
+		return &wrapInt64ScanPlan{}, (*int64Wrapper)(dst), true
+	case *int:
+		return &wrapIntScanPlan{}, (*intWrapper)(dst), true
+	case *uint8:
+		return &wrapUint8ScanPlan{}, (*uint8Wrapper)(dst), true
+	case *uint16:
+		return &wrapUint16ScanPlan{}, (*uint16Wrapper)(dst), true
+	case *uint32:
+		return &wrapUint32ScanPlan{}, (*uint32Wrapper)(dst), true
+	case *uint64:
+		return &wrapUint64ScanPlan{}, (*uint64Wrapper)(dst), true
+	case *uint:
+		return &wrapUintScanPlan{}, (*uintWrapper)(dst), true
+	case *float32:
+		return &wrapFloat32ScanPlan{}, (*float32Wrapper)(dst), true
+	case *float64:
+		return &wrapFloat64ScanPlan{}, (*float64Wrapper)(dst), true
+	case *string:
+		return &wrapStringScanPlan{}, (*stringWrapper)(dst), true
 	case *time.Time:
 		return &wrapTimeScanPlan{}, (*timeWrapper)(dst), true
 	case *net.IPNet:
@@ -833,6 +859,136 @@ func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter
 	}
 
 	return nil, nil, false
+}
+
+type wrapInt8ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapInt8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapInt8ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*int8Wrapper)(dst.(*int8)))
+}
+
+type wrapInt16ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapInt16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapInt16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*int16Wrapper)(dst.(*int16)))
+}
+
+type wrapInt32ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapInt32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapInt32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*int32Wrapper)(dst.(*int32)))
+}
+
+type wrapInt64ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapInt64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapInt64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*int64Wrapper)(dst.(*int64)))
+}
+
+type wrapIntScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapIntScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapIntScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*intWrapper)(dst.(*int)))
+}
+
+type wrapUint8ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapUint8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapUint8ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*uint8Wrapper)(dst.(*uint8)))
+}
+
+type wrapUint16ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapUint16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapUint16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*uint16Wrapper)(dst.(*uint16)))
+}
+
+type wrapUint32ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapUint32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapUint32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*uint32Wrapper)(dst.(*uint32)))
+}
+
+type wrapUint64ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapUint64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapUint64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*uint64Wrapper)(dst.(*uint64)))
+}
+
+type wrapUintScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapUintScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapUintScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*uintWrapper)(dst.(*uint)))
+}
+
+type wrapFloat32ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapFloat32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapFloat32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*float32Wrapper)(dst.(*float32)))
+}
+
+type wrapFloat64ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapFloat64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapFloat64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*float64Wrapper)(dst.(*float64)))
+}
+
+type wrapStringScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*stringWrapper)(dst.(*string)))
 }
 
 type wrapTimeScanPlan struct {
