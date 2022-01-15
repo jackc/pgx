@@ -3,6 +3,7 @@ package pgtype
 import (
 	"fmt"
 	"math"
+	"net"
 	"strconv"
 	"time"
 )
@@ -339,4 +340,44 @@ func (w *timeWrapper) ScanDate(v Date) error {
 
 func (w timeWrapper) DateValue() (Date, error) {
 	return Date{Time: time.Time(w), Valid: true}, nil
+}
+
+type netIPNetWrapper net.IPNet
+
+func (w *netIPNetWrapper) ScanInet(v Inet) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *net.IPNet")
+	}
+
+	*w = (netIPNetWrapper)(*v.IPNet)
+	return nil
+}
+
+func (w netIPNetWrapper) InetValue() (Inet, error) {
+	return Inet{IPNet: (*net.IPNet)(&w), Valid: true}, nil
+}
+
+type netIPWrapper net.IP
+
+func (w *netIPWrapper) ScanInet(v Inet) error {
+	if !v.Valid {
+		*w = nil
+		return nil
+	}
+
+	if oneCount, bitCount := v.IPNet.Mask.Size(); oneCount != bitCount {
+		return fmt.Errorf("cannot scan %v to *net.IP", v)
+	}
+	*w = netIPWrapper(v.IPNet.IP)
+	return nil
+}
+
+func (w netIPWrapper) InetValue() (Inet, error) {
+	if w == nil {
+		return Inet{}, nil
+	}
+
+	bitCount := len(w) * 8
+	mask := net.CIDRMask(bitCount, bitCount)
+	return Inet{IPNet: &net.IPNet{Mask: mask, IP: net.IP(w)}, Valid: true}, nil
 }

@@ -14,119 +14,208 @@ const (
 	defaultAFInet6 = 3
 )
 
+type InetScanner interface {
+	ScanInet(v Inet) error
+}
+
+type InetValuer interface {
+	InetValue() (Inet, error)
+}
+
 // Inet represents both inet and cidr PostgreSQL types.
 type Inet struct {
 	IPNet *net.IPNet
 	Valid bool
 }
 
-func (dst *Inet) Set(src interface{}) error {
+func (inet *Inet) ScanInet(v Inet) error {
+	*inet = v
+	return nil
+}
+
+func (inet Inet) InetValue() (Inet, error) {
+	return inet, nil
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *Inet) Scan(src interface{}) error {
 	if src == nil {
 		*dst = Inet{}
 		return nil
 	}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToInetScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
 	}
 
-	switch value := src.(type) {
-	case net.IPNet:
-		*dst = Inet{IPNet: &value, Valid: true}
-	case net.IP:
-		if len(value) == 0 {
-			*dst = Inet{}
-		} else {
-			bitCount := len(value) * 8
-			mask := net.CIDRMask(bitCount, bitCount)
-			*dst = Inet{IPNet: &net.IPNet{Mask: mask, IP: value}, Valid: true}
-		}
-	case string:
-		ip, ipnet, err := net.ParseCIDR(value)
-		if err != nil {
-			ip = net.ParseIP(value)
-			if ip == nil {
-				return fmt.Errorf("unable to parse inet address: %s", value)
-			}
-			ipnet = &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
-			if ipv4 := ip.To4(); ipv4 != nil {
-				ip = ipv4
-				ipnet.Mask = net.CIDRMask(32, 32)
-			}
-		}
-		ipnet.IP = ip
-		*dst = Inet{IPNet: ipnet, Valid: true}
-	case *net.IPNet:
-		if value == nil {
-			*dst = Inet{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *net.IP:
-		if value == nil {
-			*dst = Inet{}
-		} else {
-			return dst.Set(*value)
-		}
-	case *string:
-		if value == nil {
-			*dst = Inet{}
-		} else {
-			return dst.Set(*value)
-		}
-	default:
-		if originalSrc, ok := underlyingPtrType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Inet", value)
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src Inet) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
+	buf, err := InetCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
+	if err != nil {
+		return nil, err
+	}
+	return string(buf), err
+}
+
+type InetCodec struct{}
+
+func (InetCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (InetCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (InetCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(InetValuer); !ok {
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanInetCodecBinary{}
+	case TextFormatCode:
+		return encodePlanInetCodecText{}
 	}
 
 	return nil
 }
 
-func (dst Inet) Get() interface{} {
-	if !dst.Valid {
-		return nil
-	}
-	return dst.IPNet
-}
+type encodePlanInetCodecBinary struct{}
 
-func (src *Inet) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
+func (encodePlanInetCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	inet, err := value.(InetValuer).InetValue()
+	if err != nil {
+		return nil, err
 	}
 
-	switch v := dst.(type) {
-	case *net.IPNet:
-		*v = net.IPNet{
-			IP:   make(net.IP, len(src.IPNet.IP)),
-			Mask: make(net.IPMask, len(src.IPNet.Mask)),
-		}
-		copy(v.IP, src.IPNet.IP)
-		copy(v.Mask, src.IPNet.Mask)
-		return nil
-	case *net.IP:
-		if oneCount, bitCount := src.IPNet.Mask.Size(); oneCount != bitCount {
-			return fmt.Errorf("cannot assign %v to %T", src, dst)
-		}
-		*v = make(net.IP, len(src.IPNet.IP))
-		copy(*v, src.IPNet.IP)
-		return nil
+	if !inet.Valid {
+		return nil, nil
+	}
+
+	var family byte
+	switch len(inet.IPNet.IP) {
+	case net.IPv4len:
+		family = defaultAFInet
+	case net.IPv6len:
+		family = defaultAFInet6
 	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-		return fmt.Errorf("unable to assign to %T", dst)
+		return nil, fmt.Errorf("Unexpected IP length: %v", len(inet.IPNet.IP))
 	}
+
+	buf = append(buf, family)
+
+	ones, _ := inet.IPNet.Mask.Size()
+	buf = append(buf, byte(ones))
+
+	// is_cidr is ignored on server
+	buf = append(buf, 0)
+
+	buf = append(buf, byte(len(inet.IPNet.IP)))
+
+	return append(buf, inet.IPNet.IP...), nil
 }
 
-func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {
+type encodePlanInetCodecText struct{}
+
+func (encodePlanInetCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	inet, err := value.(InetValuer).InetValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !inet.Valid {
+		return nil, nil
+	}
+
+	return append(buf, inet.IPNet.String()...), nil
+}
+
+func (InetCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case InetScanner:
+			return scanPlanBinaryInetToInetScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case InetScanner:
+			return scanPlanTextAnyToInetScanner{}
+		}
+	}
+
+	return nil
+}
+
+func (c InetCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c InetCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Inet{}
-		return nil
+		return nil, nil
+	}
+
+	var inet Inet
+	err := codecScan(c, ci, oid, format, src, &inet)
+	if err != nil {
+		return nil, err
+	}
+
+	if !inet.Valid {
+		return nil, nil
+	}
+
+	return inet.IPNet, nil
+}
+
+type scanPlanBinaryInetToInetScanner struct{}
+
+func (scanPlanBinaryInetToInetScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(InetScanner)
+
+	if src == nil {
+		return scanner.ScanInet(Inet{})
+	}
+
+	if len(src) != 8 && len(src) != 20 {
+		return fmt.Errorf("Received an invalid size for a inet: %d", len(src))
+	}
+
+	// ignore family
+	bits := src[1]
+	// ignore is_cidr
+	addressLength := src[3]
+
+	var ipnet net.IPNet
+	ipnet.IP = make(net.IP, int(addressLength))
+	copy(ipnet.IP, src[4:])
+	if ipv4 := ipnet.IP.To4(); ipv4 != nil {
+		ipnet.IP = ipv4
+	}
+	ipnet.Mask = net.CIDRMask(int(bits), len(ipnet.IP)*8)
+
+	return scanner.ScanInet(Inet{IPNet: &ipnet, Valid: true})
+}
+
+type scanPlanTextAnyToInetScanner struct{}
+
+func (scanPlanTextAnyToInetScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(InetScanner)
+
+	if src == nil {
+		return scanner.ScanInet(Inet{})
 	}
 
 	var ipnet *net.IPNet
@@ -151,95 +240,5 @@ func (dst *Inet) DecodeText(ci *ConnInfo, src []byte) error {
 		*ipnet = net.IPNet{IP: ip, Mask: net.CIDRMask(ones, len(ip)*8)}
 	}
 
-	*dst = Inet{IPNet: ipnet, Valid: true}
-	return nil
-}
-
-func (dst *Inet) DecodeBinary(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Inet{}
-		return nil
-	}
-
-	if len(src) != 8 && len(src) != 20 {
-		return fmt.Errorf("Received an invalid size for a inet: %d", len(src))
-	}
-
-	// ignore family
-	bits := src[1]
-	// ignore is_cidr
-	addressLength := src[3]
-
-	var ipnet net.IPNet
-	ipnet.IP = make(net.IP, int(addressLength))
-	copy(ipnet.IP, src[4:])
-	if ipv4 := ipnet.IP.To4(); ipv4 != nil {
-		ipnet.IP = ipv4
-	}
-	ipnet.Mask = net.CIDRMask(int(bits), len(ipnet.IP)*8)
-
-	*dst = Inet{IPNet: &ipnet, Valid: true}
-
-	return nil
-}
-
-func (src Inet) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.IPNet.String()...), nil
-}
-
-// EncodeBinary encodes src into w.
-func (src Inet) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	var family byte
-	switch len(src.IPNet.IP) {
-	case net.IPv4len:
-		family = defaultAFInet
-	case net.IPv6len:
-		family = defaultAFInet6
-	default:
-		return nil, fmt.Errorf("Unexpected IP length: %v", len(src.IPNet.IP))
-	}
-
-	buf = append(buf, family)
-
-	ones, _ := src.IPNet.Mask.Size()
-	buf = append(buf, byte(ones))
-
-	// is_cidr is ignored on server
-	buf = append(buf, 0)
-
-	buf = append(buf, byte(len(src.IPNet.IP)))
-
-	return append(buf, src.IPNet.IP...), nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Inet) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Inet{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Inet) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return scanner.ScanInet(Inet{IPNet: ipnet, Valid: true})
 }

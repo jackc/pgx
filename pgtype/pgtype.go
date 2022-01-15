@@ -262,11 +262,11 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementCodec: BoolCodec{}, ElementOID: BoolOID}})
 	ci.RegisterDataType(DataType{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: BPCharOID}})
 	ci.RegisterDataType(DataType{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementCodec: ByteaCodec{}, ElementOID: ByteaOID}})
-	ci.RegisterDataType(DataType{Value: &CIDRArray{}, Name: "_cidr", OID: CIDRArrayOID})
+	ci.RegisterDataType(DataType{Name: "_cidr", OID: CIDRArrayOID, Codec: &ArrayCodec{ElementCodec: InetCodec{}, ElementOID: CIDROID}})
 	ci.RegisterDataType(DataType{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementCodec: DateCodec{}, ElementOID: DateOID}})
 	ci.RegisterDataType(DataType{Value: &Float4Array{}, Name: "_float4", OID: Float4ArrayOID})
 	ci.RegisterDataType(DataType{Value: &Float8Array{}, Name: "_float8", OID: Float8ArrayOID})
-	ci.RegisterDataType(DataType{Value: &InetArray{}, Name: "_inet", OID: InetArrayOID})
+	ci.RegisterDataType(DataType{Name: "_inet", OID: InetArrayOID, Codec: &ArrayCodec{ElementCodec: InetCodec{}, ElementOID: InetOID}})
 	ci.RegisterDataType(DataType{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementCodec: Int2Codec{}, ElementOID: Int2OID}})
 	ci.RegisterDataType(DataType{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementCodec: Int4Codec{}, ElementOID: Int4OID}})
 	ci.RegisterDataType(DataType{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementCodec: Int8Codec{}, ElementOID: Int8OID}})
@@ -293,13 +293,13 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
 	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
 	ci.RegisterDataType(DataType{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
-	ci.RegisterDataType(DataType{Value: &CIDR{}, Name: "cidr", OID: CIDROID})
+	ci.RegisterDataType(DataType{Name: "cidr", OID: CIDROID, Codec: InetCodec{}})
 	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
 	ci.RegisterDataType(DataType{Name: "date", OID: DateOID, Codec: DateCodec{}})
 	// ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
 	ci.RegisterDataType(DataType{Value: &Float4{}, Name: "float4", OID: Float4OID})
 	ci.RegisterDataType(DataType{Value: &Float8{}, Name: "float8", OID: Float8OID})
-	ci.RegisterDataType(DataType{Value: &Inet{}, Name: "inet", OID: InetOID})
+	ci.RegisterDataType(DataType{Name: "inet", OID: InetOID, Codec: InetCodec{}})
 	ci.RegisterDataType(DataType{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
 	ci.RegisterDataType(DataType{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
 	// ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
@@ -336,15 +336,26 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
 
 	registerDefaultPgTypeVariants := func(name, arrayName string, value interface{}) {
+		// T
 		ci.RegisterDefaultPgType(value, name)
-		valueType := reflect.TypeOf(value)
 
+		// *T
+		valueType := reflect.TypeOf(value)
 		ci.RegisterDefaultPgType(reflect.New(valueType).Interface(), name)
 
+		// []T
 		sliceType := reflect.SliceOf(valueType)
 		ci.RegisterDefaultPgType(reflect.MakeSlice(sliceType, 0, 0).Interface(), arrayName)
 
+		// *[]T
 		ci.RegisterDefaultPgType(reflect.New(sliceType).Interface(), arrayName)
+
+		// []*T
+		sliceOfPointerType := reflect.SliceOf(reflect.TypeOf(reflect.New(valueType).Interface()))
+		ci.RegisterDefaultPgType(reflect.MakeSlice(sliceOfPointerType, 0, 0).Interface(), arrayName)
+
+		// *[]*T
+		ci.RegisterDefaultPgType(reflect.New(sliceOfPointerType).Interface(), arrayName)
 	}
 
 	// Integer types that directly map to a PostgreSQL type
@@ -368,8 +379,7 @@ func NewConnInfo() *ConnInfo {
 	registerDefaultPgTypeVariants("bytea", "_bytea", []byte(nil))
 
 	registerDefaultPgTypeVariants("inet", "_inet", net.IP{})
-	ci.RegisterDefaultPgType((*net.IPNet)(nil), "cidr")
-	ci.RegisterDefaultPgType([]*net.IPNet(nil), "_cidr")
+	registerDefaultPgTypeVariants("cidr", "_cidr", net.IPNet{})
 
 	return ci
 }
@@ -816,6 +826,10 @@ func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter
 	switch dst := dst.(type) {
 	case *time.Time:
 		return &wrapTimeScanPlan{}, (*timeWrapper)(dst), true
+	case *net.IPNet:
+		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(dst), true
+	case *net.IP:
+		return &wrapNetIPScanPlan{}, (*netIPWrapper)(dst), true
 	}
 
 	return nil, nil, false
@@ -829,6 +843,26 @@ func (plan *wrapTimeScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
 func (plan *wrapTimeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	return plan.next.Scan(ci, oid, formatCode, src, (*timeWrapper)(dst.(*time.Time)))
+}
+
+type wrapNetIPNetScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapNetIPNetScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapNetIPNetScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*netIPNetWrapper)(dst.(*net.IPNet)))
+}
+
+type wrapNetIPScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapNetIPScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapNetIPScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*netIPWrapper)(dst.(*net.IP)))
 }
 
 type pointerEmptyInterfaceScanPlan struct {
@@ -901,6 +935,7 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 	if oid == 0 {
 		if dataType, ok := ci.DataTypeForValue(dst); ok {
 			dt = dataType
+			oid = dt.OID // Preserve assumed OID in case we are recursively called below.
 		}
 	} else {
 		if dataType, ok := ci.DataTypeForOID(oid); ok {
@@ -1031,6 +1066,7 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 	if oid == 0 {
 		if dataType, ok := ci.DataTypeForValue(value); ok {
 			dt = dataType
+			oid = dt.OID // Preserve assumed OID in case we are recursively called below.
 		}
 	} else {
 		if dataType, ok := ci.DataTypeForOID(oid); ok {
@@ -1166,6 +1202,10 @@ func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNext
 		return &wrapStringEncodePlan{}, stringWrapper(value), true
 	case time.Time:
 		return &wrapTimeEncodePlan{}, timeWrapper(value), true
+	case net.IPNet:
+		return &wrapNetIPNetEncodePlan{}, netIPNetWrapper(value), true
+	case net.IP:
+		return &wrapNetIPEncodePlan{}, netIPWrapper(value), true
 	}
 
 	return nil, nil, false
@@ -1309,6 +1349,26 @@ func (plan *wrapTimeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapTimeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(timeWrapper(value.(time.Time)), buf)
+}
+
+type wrapNetIPNetEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapNetIPNetEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapNetIPNetEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(netIPNetWrapper(value.(net.IPNet)), buf)
+}
+
+type wrapNetIPEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapNetIPEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapNetIPEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(netIPWrapper(value.(net.IP)), buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
