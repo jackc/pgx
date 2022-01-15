@@ -13,114 +13,168 @@ import (
 	"github.com/jackc/pgio"
 )
 
+type HstoreScanner interface {
+	ScanHstore(v Hstore) error
+}
+
+type HstoreValuer interface {
+	HstoreValue() (Hstore, error)
+}
+
 // Hstore represents an hstore column that can be null or have null values
 // associated with its keys.
-type Hstore struct {
-	Map   map[string]Text
-	Valid bool
-}
+type Hstore map[string]*string
 
-func (dst *Hstore) Set(src interface{}) error {
-	if src == nil {
-		*dst = Hstore{}
-		return nil
-	}
-
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
-
-	switch value := src.(type) {
-	case map[string]string:
-		m := make(map[string]Text, len(value))
-		for k, v := range value {
-			m[k] = Text{String: v, Valid: true}
-		}
-		*dst = Hstore{Map: m, Valid: true}
-	case map[string]*string:
-		m := make(map[string]Text, len(value))
-		for k, v := range value {
-			if v == nil {
-				m[k] = Text{}
-			} else {
-				m[k] = Text{String: *v, Valid: true}
-			}
-		}
-		*dst = Hstore{Map: m, Valid: true}
-	default:
-		return fmt.Errorf("cannot convert %v to Hstore", src)
-	}
-
+func (h *Hstore) ScanHstore(v Hstore) error {
+	*h = v
 	return nil
 }
 
-func (dst Hstore) Get() interface{} {
-	if !dst.Valid {
-		return nil
-	}
-	return dst.Map
+func (h Hstore) HstoreValue() (Hstore, error) {
+	return h, nil
 }
 
-func (src *Hstore) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
-	}
-
-	switch v := dst.(type) {
-	case *map[string]string:
-		*v = make(map[string]string, len(src.Map))
-		for k, val := range src.Map {
-			if !val.Valid {
-				return fmt.Errorf("cannot decode %#v into %T", src, dst)
-			}
-			(*v)[k] = val.String
-		}
-		return nil
-	case *map[string]*string:
-		*v = make(map[string]*string, len(src.Map))
-		for k, val := range src.Map {
-			if val.Valid {
-				(*v)[k] = &val.String
-			} else {
-				(*v)[k] = nil
-			}
-		}
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-		return fmt.Errorf("unable to assign to %T", dst)
-	}
-}
-
-func (dst *Hstore) DecodeText(ci *ConnInfo, src []byte) error {
+// Scan implements the database/sql Scanner interface.
+func (h *Hstore) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Hstore{}
+		*h = nil
 		return nil
 	}
 
-	keys, values, err := parseHstore(string(src))
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToHstoreScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), h)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (h Hstore) Value() (driver.Value, error) {
+	if h == nil {
+		return nil, nil
+	}
+
+	buf, err := HstoreCodec{}.PlanEncode(nil, 0, TextFormatCode, h).Encode(h, nil)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	return string(buf), err
+}
+
+type HstoreCodec struct{}
+
+func (HstoreCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (HstoreCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (HstoreCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(HstoreValuer); !ok {
+		return nil
 	}
 
-	m := make(map[string]Text, len(keys))
-	for i := range keys {
-		m[keys[i]] = values[i]
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanHstoreCodecBinary{}
+	case TextFormatCode:
+		return encodePlanHstoreCodecText{}
 	}
 
-	*dst = Hstore{Map: m, Valid: true}
 	return nil
 }
 
-func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
+type encodePlanHstoreCodecBinary struct{}
+
+func (encodePlanHstoreCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	hstore, err := value.(HstoreValuer).HstoreValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if hstore == nil {
+		return nil, nil
+	}
+
+	buf = pgio.AppendInt32(buf, int32(len(hstore)))
+
+	for k, v := range hstore {
+		buf = pgio.AppendInt32(buf, int32(len(k)))
+		buf = append(buf, k...)
+
+		if v == nil {
+			buf = pgio.AppendInt32(buf, -1)
+		} else {
+			buf = pgio.AppendInt32(buf, int32(len(*v)))
+			buf = append(buf, (*v)...)
+		}
+	}
+
+	return buf, nil
+}
+
+type encodePlanHstoreCodecText struct{}
+
+func (encodePlanHstoreCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	hstore, err := value.(HstoreValuer).HstoreValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if hstore == nil {
+		return nil, nil
+	}
+
+	firstPair := true
+
+	for k, v := range hstore {
+		if firstPair {
+			firstPair = false
+		} else {
+			buf = append(buf, ',')
+		}
+
+		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
+		buf = append(buf, "=>"...)
+
+		if v == nil {
+			buf = append(buf, "NULL"...)
+		} else {
+			buf = append(buf, quoteHstoreElementIfNeeded(*v)...)
+		}
+	}
+
+	return buf, nil
+}
+
+func (HstoreCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case HstoreScanner:
+			return scanPlanBinaryHstoreToHstoreScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case HstoreScanner:
+			return scanPlanTextAnyToHstoreScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryHstoreToHstoreScanner struct{}
+
+func (scanPlanBinaryHstoreToHstoreScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(HstoreScanner)
+
 	if src == nil {
-		*dst = Hstore{}
-		return nil
+		return scanner.ScanHstore(Hstore{})
 	}
 
 	rp := 0
@@ -131,7 +185,7 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 	pairCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
 	rp += 4
 
-	m := make(map[string]Text, pairCount)
+	hstore := make(Hstore, pairCount)
 
 	for i := 0; i < pairCount; i++ {
 		if len(src[rp:]) < 4 {
@@ -163,73 +217,58 @@ func (dst *Hstore) DecodeBinary(ci *ConnInfo, src []byte) error {
 		if err != nil {
 			return err
 		}
-		m[key] = value
+
+		if value.Valid {
+			hstore[key] = &value.String
+		} else {
+			hstore[key] = nil
+		}
 	}
 
-	*dst = Hstore{Map: m, Valid: true}
-
-	return nil
+	return scanner.ScanHstore(hstore)
 }
 
-func (src Hstore) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
+type scanPlanTextAnyToHstoreScanner struct{}
+
+func (scanPlanTextAnyToHstoreScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(HstoreScanner)
+
+	if src == nil {
+		return scanner.ScanHstore(Hstore{})
+	}
+
+	keys, values, err := parseHstore(string(src))
+	if err != nil {
+		return err
+	}
+
+	m := make(Hstore, len(keys))
+	for i := range keys {
+		if values[i].Valid {
+			m[keys[i]] = &values[i].String
+		} else {
+			m[keys[i]] = nil
+		}
+	}
+
+	return scanner.ScanHstore(m)
+}
+
+func (c HstoreCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c HstoreCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
 		return nil, nil
 	}
 
-	firstPair := true
-
-	inElemBuf := make([]byte, 0, 32)
-	for k, v := range src.Map {
-		if firstPair {
-			firstPair = false
-		} else {
-			buf = append(buf, ',')
-		}
-
-		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
-		buf = append(buf, "=>"...)
-
-		elemBuf, err := ci.Encode(TextOID, TextFormatCode, v, inElemBuf)
-		if err != nil {
-			return nil, err
-		}
-
-		if elemBuf == nil {
-			buf = append(buf, "NULL"...)
-		} else {
-			buf = append(buf, quoteHstoreElementIfNeeded(string(elemBuf))...)
-		}
+	var hstore Hstore
+	err := codecScan(c, ci, oid, format, src, &hstore)
+	if err != nil {
+		return nil, err
 	}
-
-	return buf, nil
-}
-
-func (src Hstore) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf = pgio.AppendInt32(buf, int32(len(src.Map)))
-
-	var err error
-	for k, v := range src.Map {
-		buf = pgio.AppendInt32(buf, int32(len(k)))
-		buf = append(buf, k...)
-
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-
-		elemBuf, err := ci.Encode(TextOID, BinaryFormatCode, v, buf)
-		if err != nil {
-			return nil, err
-		}
-		if elemBuf != nil {
-			buf = elemBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-	}
-
-	return buf, err
+	return hstore, nil
 }
 
 var quoteHstoreReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
@@ -419,28 +458,4 @@ func parseHstore(s string) (k []string, v []Text, err error) {
 	k = keys
 	v = values
 	return
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Hstore) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Hstore{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Hstore) Value() (driver.Value, error) {
-	return EncodeValueText(src)
 }
