@@ -305,7 +305,7 @@ func NewConnInfo() *ConnInfo {
 	// ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
 	ci.RegisterDataType(DataType{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
 	// ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
-	ci.RegisterDataType(DataType{Value: &Interval{}, Name: "interval", OID: IntervalOID})
+	ci.RegisterDataType(DataType{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
 	ci.RegisterDataType(DataType{Value: &JSON{}, Name: "json", OID: JSONOID})
 	ci.RegisterDataType(DataType{Value: &JSONB{}, Name: "jsonb", OID: JSONBOID})
 	ci.RegisterDataType(DataType{Value: &JSONBArray{}, Name: "_jsonb", OID: JSONBArrayOID})
@@ -858,6 +858,8 @@ func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter
 		return &wrapStringScanPlan{}, (*stringWrapper)(dst), true
 	case *time.Time:
 		return &wrapTimeScanPlan{}, (*timeWrapper)(dst), true
+	case *time.Duration:
+		return &wrapDurationScanPlan{}, (*durationWrapper)(dst), true
 	case *net.IPNet:
 		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(dst), true
 	case *net.IP:
@@ -1011,6 +1013,16 @@ func (plan *wrapTimeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 	return plan.next.Scan(ci, oid, formatCode, src, (*timeWrapper)(dst.(*time.Time)))
 }
 
+type wrapDurationScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapDurationScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapDurationScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*durationWrapper)(dst.(*time.Duration)))
+}
+
 type wrapNetIPNetScanPlan struct {
 	next ScanPlan
 }
@@ -1143,8 +1155,10 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 		for _, f := range tryWrappers {
 			if wrapperPlan, nextDst, ok := f(dst); ok {
 				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
-					wrapperPlan.SetNext(nextPlan)
-					return wrapperPlan
+					if _, ok := nextPlan.(*scanPlanDataTypeAssignTo); !ok { // avoid fallthrough -- this will go away when old system removed.
+						wrapperPlan.SetNext(nextPlan)
+						return wrapperPlan
+					}
 				}
 			}
 		}
@@ -1381,6 +1395,8 @@ func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNext
 		return &wrapStringEncodePlan{}, stringWrapper(value), true
 	case time.Time:
 		return &wrapTimeEncodePlan{}, timeWrapper(value), true
+	case time.Duration:
+		return &wrapDurationEncodePlan{}, durationWrapper(value), true
 	case net.IPNet:
 		return &wrapNetIPNetEncodePlan{}, netIPNetWrapper(value), true
 	case net.IP:
@@ -1532,6 +1548,16 @@ func (plan *wrapTimeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapTimeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(timeWrapper(value.(time.Time)), buf)
+}
+
+type wrapDurationEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapDurationEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapDurationEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(durationWrapper(value.(time.Duration)), buf)
 }
 
 type wrapNetIPNetEncodePlan struct {
