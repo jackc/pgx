@@ -144,23 +144,6 @@ func (BoxCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfac
 	return nil
 }
 
-func (c BoxCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
-}
-
-func (c BoxCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
-	if src == nil {
-		return nil, nil
-	}
-
-	var box Box
-	err := codecScan(c, ci, oid, format, src, &box)
-	if err != nil {
-		return nil, err
-	}
-	return box, nil
-}
-
 type scanPlanBinaryBoxToBoxScanner struct{}
 
 func (scanPlanBinaryBoxToBoxScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
@@ -235,4 +218,21 @@ func (scanPlanTextAnyToBoxScanner) Scan(ci *ConnInfo, oid uint32, formatCode int
 	}
 
 	return scanner.ScanBox(Box{P: [2]Vec2{{x1, y1}, {x2, y2}}, Valid: true})
+}
+
+func (c BoxCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c BoxCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	var box Box
+	err := codecScan(c, ci, oid, format, src, &box)
+	if err != nil {
+		return nil, err
+	}
+	return box, nil
 }
