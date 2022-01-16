@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgio"
 )
@@ -19,6 +18,14 @@ const (
 	microsecondsPerMonth  = 30 * microsecondsPerDay
 )
 
+type IntervalScanner interface {
+	ScanInterval(v Interval) error
+}
+
+type IntervalValuer interface {
+	IntervalValue() (Interval, error)
+}
+
 type Interval struct {
 	Microseconds int64
 	Days         int32
@@ -26,61 +33,169 @@ type Interval struct {
 	Valid        bool
 }
 
-func (dst *Interval) Set(src interface{}) error {
+func (interval *Interval) ScanInterval(v Interval) error {
+	*interval = v
+	return nil
+}
+
+func (interval Interval) IntervalValue() (Interval, error) {
+	return interval, nil
+}
+
+// Scan implements the database/sql Scanner interface.
+func (interval *Interval) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Interval{}
+		*interval = Interval{}
 		return nil
 	}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToIntervalScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), interval)
 	}
 
-	switch value := src.(type) {
-	case time.Duration:
-		*dst = Interval{Microseconds: int64(value) / 1000, Valid: true}
-	default:
-		if originalSrc, ok := underlyingPtrType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Interval", value)
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (interval Interval) Value() (driver.Value, error) {
+	if !interval.Valid {
+		return nil, nil
+	}
+
+	buf, err := IntervalCodec{}.PlanEncode(nil, 0, TextFormatCode, interval).Encode(interval, nil)
+	if err != nil {
+		return nil, err
+	}
+	return string(buf), err
+}
+
+type IntervalCodec struct{}
+
+func (IntervalCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (IntervalCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (IntervalCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(IntervalValuer); !ok {
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanIntervalCodecBinary{}
+	case TextFormatCode:
+		return encodePlanIntervalCodecText{}
 	}
 
 	return nil
 }
 
-func (dst Interval) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanIntervalCodecBinary struct{}
+
+func (encodePlanIntervalCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	interval, err := value.(IntervalValuer).IntervalValue()
+	if err != nil {
+		return nil, err
 	}
-	return dst
+
+	if !interval.Valid {
+		return nil, nil
+	}
+
+	buf = pgio.AppendInt64(buf, interval.Microseconds)
+	buf = pgio.AppendInt32(buf, interval.Days)
+	buf = pgio.AppendInt32(buf, interval.Months)
+	return buf, nil
 }
 
-func (src *Interval) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
+type encodePlanIntervalCodecText struct{}
+
+func (encodePlanIntervalCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	interval, err := value.(IntervalValuer).IntervalValue()
+	if err != nil {
+		return nil, err
 	}
 
-	switch v := dst.(type) {
-	case *time.Duration:
-		us := int64(src.Months)*microsecondsPerMonth + int64(src.Days)*microsecondsPerDay + src.Microseconds
-		*v = time.Duration(us) * time.Microsecond
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
+	if !interval.Valid {
+		return nil, nil
+	}
+
+	if interval.Months != 0 {
+		buf = append(buf, strconv.FormatInt(int64(interval.Months), 10)...)
+		buf = append(buf, " mon "...)
+	}
+
+	if interval.Days != 0 {
+		buf = append(buf, strconv.FormatInt(int64(interval.Days), 10)...)
+		buf = append(buf, " day "...)
+	}
+
+	absMicroseconds := interval.Microseconds
+	if absMicroseconds < 0 {
+		absMicroseconds = -absMicroseconds
+		buf = append(buf, '-')
+	}
+
+	hours := absMicroseconds / microsecondsPerHour
+	minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
+	seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
+	microseconds := absMicroseconds % microsecondsPerSecond
+
+	timeStr := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, microseconds)
+	buf = append(buf, timeStr...)
+	return buf, nil
+}
+
+func (IntervalCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case IntervalScanner:
+			return scanPlanBinaryIntervalToIntervalScanner{}
 		}
-		return fmt.Errorf("unable to assign to %T", dst)
+	case TextFormatCode:
+		switch target.(type) {
+		case IntervalScanner:
+			return scanPlanTextAnyToIntervalScanner{}
+		}
 	}
+
+	return nil
 }
 
-func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
+type scanPlanBinaryIntervalToIntervalScanner struct{}
+
+func (scanPlanBinaryIntervalToIntervalScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(IntervalScanner)
+
 	if src == nil {
-		*dst = Interval{}
-		return nil
+		return scanner.ScanInterval(Interval{})
+	}
+
+	if len(src) != 16 {
+		return fmt.Errorf("Received an invalid size for a interval: %d", len(src))
+	}
+
+	microseconds := int64(binary.BigEndian.Uint64(src))
+	days := int32(binary.BigEndian.Uint32(src[8:]))
+	months := int32(binary.BigEndian.Uint32(src[12:]))
+
+	return scanner.ScanInterval(Interval{Microseconds: microseconds, Days: days, Months: months, Valid: true})
+}
+
+type scanPlanTextAnyToIntervalScanner struct{}
+
+func (scanPlanTextAnyToIntervalScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(IntervalScanner)
+
+	if src == nil {
+		return scanner.ScanInterval(Interval{})
 	}
 
 	var microseconds int64
@@ -156,89 +271,22 @@ func (dst *Interval) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Interval{Months: months, Days: days, Microseconds: microseconds, Valid: true}
-	return nil
+	return scanner.ScanInterval(Interval{Months: months, Days: days, Microseconds: microseconds, Valid: true})
 }
 
-func (dst *Interval) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (c IntervalCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c IntervalCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Interval{}
-		return nil
-	}
-
-	if len(src) != 16 {
-		return fmt.Errorf("Received an invalid size for a interval: %d", len(src))
-	}
-
-	microseconds := int64(binary.BigEndian.Uint64(src))
-	days := int32(binary.BigEndian.Uint32(src[8:]))
-	months := int32(binary.BigEndian.Uint32(src[12:]))
-
-	*dst = Interval{Microseconds: microseconds, Days: days, Months: months, Valid: true}
-	return nil
-}
-
-func (src Interval) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	if src.Months != 0 {
-		buf = append(buf, strconv.FormatInt(int64(src.Months), 10)...)
-		buf = append(buf, " mon "...)
+	var interval Interval
+	err := codecScan(c, ci, oid, format, src, &interval)
+	if err != nil {
+		return nil, err
 	}
-
-	if src.Days != 0 {
-		buf = append(buf, strconv.FormatInt(int64(src.Days), 10)...)
-		buf = append(buf, " day "...)
-	}
-
-	absMicroseconds := src.Microseconds
-	if absMicroseconds < 0 {
-		absMicroseconds = -absMicroseconds
-		buf = append(buf, '-')
-	}
-
-	hours := absMicroseconds / microsecondsPerHour
-	minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
-	seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
-	microseconds := absMicroseconds % microsecondsPerSecond
-
-	timeStr := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, microseconds)
-	return append(buf, timeStr...), nil
-}
-
-// EncodeBinary encodes src into w.
-func (src Interval) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf = pgio.AppendInt64(buf, src.Microseconds)
-	buf = pgio.AppendInt32(buf, src.Days)
-	return pgio.AppendInt32(buf, src.Months), nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Interval) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Interval{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Interval) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return interval, nil
 }

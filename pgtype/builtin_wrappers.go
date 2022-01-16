@@ -342,6 +342,22 @@ func (w timeWrapper) DateValue() (Date, error) {
 	return Date{Time: time.Time(w), Valid: true}, nil
 }
 
+type durationWrapper time.Duration
+
+func (w *durationWrapper) ScanInterval(v Interval) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *time.Interval")
+	}
+
+	us := int64(v.Months)*microsecondsPerMonth + int64(v.Days)*microsecondsPerDay + v.Microseconds
+	*w = durationWrapper(time.Duration(us) * time.Microsecond)
+	return nil
+}
+
+func (w durationWrapper) IntervalValue() (Interval, error) {
+	return Interval{Microseconds: int64(w) / 1000, Valid: true}, nil
+}
+
 type netIPNetWrapper net.IPNet
 
 func (w *netIPNetWrapper) ScanInet(v Inet) error {
