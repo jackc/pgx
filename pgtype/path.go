@@ -11,31 +11,211 @@ import (
 	"github.com/jackc/pgio"
 )
 
+type PathScanner interface {
+	ScanPath(v Path) error
+}
+
+type PathValuer interface {
+	PathValue() (Path, error)
+}
+
 type Path struct {
 	P      []Vec2
 	Closed bool
 	Valid  bool
 }
 
-func (dst *Path) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Path", src)
+func (path *Path) ScanPath(v Path) error {
+	*path = v
+	return nil
 }
 
-func (dst Path) Get() interface{} {
-	if !dst.Valid {
+func (path Path) PathValue() (Path, error) {
+	return path, nil
+}
+
+// Scan implements the database/sql Scanner interface.
+func (path *Path) Scan(src interface{}) error {
+	if src == nil {
+		*path = Path{}
 		return nil
 	}
-	return dst
+
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToPathScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), path)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
 }
 
-func (src *Path) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+// Value implements the database/sql/driver Valuer interface.
+func (path Path) Value() (driver.Value, error) {
+	if !path.Valid {
+		return nil, nil
+	}
+
+	buf, err := PathCodec{}.PlanEncode(nil, 0, TextFormatCode, path).Encode(path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), err
 }
 
-func (dst *Path) DecodeText(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Path{}
+type PathCodec struct{}
+
+func (PathCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (PathCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (PathCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(PathValuer); !ok {
 		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanPathCodecBinary{}
+	case TextFormatCode:
+		return encodePlanPathCodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanPathCodecBinary struct{}
+
+func (encodePlanPathCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	path, err := value.(PathValuer).PathValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !path.Valid {
+		return nil, nil
+	}
+
+	var closeByte byte
+	if path.Closed {
+		closeByte = 1
+	}
+	buf = append(buf, closeByte)
+
+	buf = pgio.AppendInt32(buf, int32(len(path.P)))
+
+	for _, p := range path.P {
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
+	}
+
+	return buf, nil
+}
+
+type encodePlanPathCodecText struct{}
+
+func (encodePlanPathCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	path, err := value.(PathValuer).PathValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !path.Valid {
+		return nil, nil
+	}
+
+	var startByte, endByte byte
+	if path.Closed {
+		startByte = '('
+		endByte = ')'
+	} else {
+		startByte = '['
+		endByte = ']'
+	}
+	buf = append(buf, startByte)
+
+	for i, p := range path.P {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
+			strconv.FormatFloat(p.X, 'f', -1, 64),
+			strconv.FormatFloat(p.Y, 'f', -1, 64),
+		)...)
+	}
+
+	buf = append(buf, endByte)
+
+	return buf, nil
+}
+
+func (PathCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case PathScanner:
+			return scanPlanBinaryPathToPathScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case PathScanner:
+			return scanPlanTextAnyToPathScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryPathToPathScanner struct{}
+
+func (scanPlanBinaryPathToPathScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(PathScanner)
+
+	if src == nil {
+		return scanner.ScanPath(Path{})
+	}
+
+	if len(src) < 5 {
+		return fmt.Errorf("invalid length for Path: %v", len(src))
+	}
+
+	closed := src[0] == 1
+	pointCount := int(binary.BigEndian.Uint32(src[1:]))
+
+	rp := 5
+
+	if 5+pointCount*16 != len(src) {
+		return fmt.Errorf("invalid length for Path with %d points: %v", pointCount, len(src))
+	}
+
+	points := make([]Vec2, pointCount)
+	for i := 0; i < len(points); i++ {
+		x := binary.BigEndian.Uint64(src[rp:])
+		rp += 8
+		y := binary.BigEndian.Uint64(src[rp:])
+		rp += 8
+		points[i] = Vec2{math.Float64frombits(x), math.Float64frombits(y)}
+	}
+
+	return scanner.ScanPath(Path{
+		P:      points,
+		Closed: closed,
+		Valid:  true,
+	})
+}
+
+type scanPlanTextAnyToPathScanner struct{}
+
+func (scanPlanTextAnyToPathScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(PathScanner)
+
+	if src == nil {
+		return scanner.ScanPath(Path{})
 	}
 
 	if len(src) < 7 {
@@ -71,115 +251,22 @@ func (dst *Path) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Path{P: points, Closed: closed, Valid: true}
-	return nil
+	return scanner.ScanPath(Path{P: points, Closed: closed, Valid: true})
 }
 
-func (dst *Path) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (c PathCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c PathCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Path{}
-		return nil
-	}
-
-	if len(src) < 5 {
-		return fmt.Errorf("invalid length for Path: %v", len(src))
-	}
-
-	closed := src[0] == 1
-	pointCount := int(binary.BigEndian.Uint32(src[1:]))
-
-	rp := 5
-
-	if 5+pointCount*16 != len(src) {
-		return fmt.Errorf("invalid length for Path with %d points: %v", pointCount, len(src))
-	}
-
-	points := make([]Vec2, pointCount)
-	for i := 0; i < len(points); i++ {
-		x := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
-		y := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
-		points[i] = Vec2{math.Float64frombits(x), math.Float64frombits(y)}
-	}
-
-	*dst = Path{
-		P:      points,
-		Closed: closed,
-		Valid:  true,
-	}
-	return nil
-}
-
-func (src Path) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	var startByte, endByte byte
-	if src.Closed {
-		startByte = '('
-		endByte = ')'
-	} else {
-		startByte = '['
-		endByte = ']'
+	var path Path
+	err := codecScan(c, ci, oid, format, src, &path)
+	if err != nil {
+		return nil, err
 	}
-	buf = append(buf, startByte)
-
-	for i, p := range src.P {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
-			strconv.FormatFloat(p.X, 'f', -1, 64),
-			strconv.FormatFloat(p.Y, 'f', -1, 64),
-		)...)
-	}
-
-	return append(buf, endByte), nil
-}
-
-func (src Path) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	var closeByte byte
-	if src.Closed {
-		closeByte = 1
-	}
-	buf = append(buf, closeByte)
-
-	buf = pgio.AppendInt32(buf, int32(len(src.P)))
-
-	for _, p := range src.P {
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
-	}
-
-	return buf, nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Path) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Path{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Path) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return path, nil
 }
