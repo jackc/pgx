@@ -33,6 +33,7 @@ const (
 	BoxOID              = 603
 	PolygonOID          = 604
 	LineOID             = 628
+	LineArrayOID        = 629
 	CIDROID             = 650
 	CIDRArrayOID        = 651
 	Float4OID           = 700
@@ -273,6 +274,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementCodec: Int8Codec{}, ElementOID: Int8OID}})
 	ci.RegisterDataType(DataType{Name: "_interval", OID: IntervalArrayOID, Codec: &ArrayCodec{ElementCodec: IntervalCodec{}, ElementOID: IntervalOID}})
 	ci.RegisterDataType(DataType{Name: "_box", OID: BoxArrayOID, Codec: &ArrayCodec{ElementCodec: BoxCodec{}, ElementOID: BoxOID}})
+	ci.RegisterDataType(DataType{Name: "_line", OID: LineArrayOID, Codec: &ArrayCodec{ElementCodec: LineCodec{}, ElementOID: LineOID}})
 	ci.RegisterDataType(DataType{Name: "_circle", OID: CircleArrayOID, Codec: &ArrayCodec{ElementCodec: CircleCodec{}, ElementOID: CircleOID}})
 	ci.RegisterDataType(DataType{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementCodec: PointCodec{}, ElementOID: PointOID}})
 	ci.RegisterDataType(DataType{Name: "_name", OID: NameArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: NameOID}})
