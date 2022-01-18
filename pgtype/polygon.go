@@ -11,79 +11,193 @@ import (
 	"github.com/jackc/pgio"
 )
 
+type PolygonScanner interface {
+	ScanPolygon(v Polygon) error
+}
+
+type PolygonValuer interface {
+	PolygonValue() (Polygon, error)
+}
+
 type Polygon struct {
 	P     []Vec2
 	Valid bool
 }
 
-// Set converts src to dest.
-//
-// src can be nil, string, []float64, and []pgtype.Vec2.
-//
-// If src is string the format must be ((x1,y1),(x2,y2),...,(xn,yn)).
-// Important that there are no spaces in it.
-func (dst *Polygon) Set(src interface{}) error {
-	if src == nil {
-		dst.Valid = false
-		return nil
-	}
-	err := fmt.Errorf("cannot convert %v to Polygon", src)
-	var p *Polygon
-	switch value := src.(type) {
-	case string:
-		p, err = stringToPolygon(value)
-	case []Vec2:
-		p = &Polygon{Valid: true, P: value}
-		err = nil
-	case []float64:
-		p, err = float64ToPolygon(value)
-	default:
-		return err
-	}
-	if err != nil {
-		return err
-	}
-	*dst = *p
+func (p *Polygon) ScanPolygon(v Polygon) error {
+	*p = v
 	return nil
 }
 
-func stringToPolygon(src string) (*Polygon, error) {
-	p := &Polygon{}
-	err := p.DecodeText(nil, []byte(src))
-	return p, err
-}
-
-func float64ToPolygon(src []float64) (*Polygon, error) {
-	p := &Polygon{}
-	if len(src) == 0 {
-		return p, nil
-	}
-	if len(src)%2 != 0 {
-		return p, fmt.Errorf("invalid length for polygon: %v", len(src))
-	}
-	p.Valid = true
-	p.P = make([]Vec2, 0)
-	for i := 0; i < len(src); i += 2 {
-		p.P = append(p.P, Vec2{X: src[i], Y: src[i+1]})
-	}
+func (p Polygon) PolygonValue() (Polygon, error) {
 	return p, nil
 }
 
-func (dst Polygon) Get() interface{} {
-	if !dst.Valid {
+// Scan implements the database/sql Scanner interface.
+func (p *Polygon) Scan(src interface{}) error {
+	if src == nil {
+		*p = Polygon{}
 		return nil
 	}
-	return dst
+
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToPolygonScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), p)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
 }
 
-func (src *Polygon) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
+// Value implements the database/sql/driver Valuer interface.
+func (p Polygon) Value() (driver.Value, error) {
+	if !p.Valid {
+		return nil, nil
+	}
+
+	buf, err := PolygonCodec{}.PlanEncode(nil, 0, TextFormatCode, p).Encode(p, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), err
 }
 
-func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Polygon{}
+type PolygonCodec struct{}
+
+func (PolygonCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (PolygonCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (PolygonCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(PolygonValuer); !ok {
 		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanPolygonCodecBinary{}
+	case TextFormatCode:
+		return encodePlanPolygonCodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanPolygonCodecBinary struct{}
+
+func (encodePlanPolygonCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	polygon, err := value.(PolygonValuer).PolygonValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !polygon.Valid {
+		return nil, nil
+	}
+
+	buf = pgio.AppendInt32(buf, int32(len(polygon.P)))
+
+	for _, p := range polygon.P {
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
+		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
+	}
+
+	return buf, nil
+}
+
+type encodePlanPolygonCodecText struct{}
+
+func (encodePlanPolygonCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	polygon, err := value.(PolygonValuer).PolygonValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !polygon.Valid {
+		return nil, nil
+	}
+
+	buf = append(buf, '(')
+
+	for i, p := range polygon.P {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
+			strconv.FormatFloat(p.X, 'f', -1, 64),
+			strconv.FormatFloat(p.Y, 'f', -1, 64),
+		)...)
+	}
+
+	buf = append(buf, ')')
+
+	return buf, nil
+}
+
+func (PolygonCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case PolygonScanner:
+			return scanPlanBinaryPolygonToPolygonScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case PolygonScanner:
+			return scanPlanTextAnyToPolygonScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryPolygonToPolygonScanner struct{}
+
+func (scanPlanBinaryPolygonToPolygonScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(PolygonScanner)
+
+	if src == nil {
+		return scanner.ScanPolygon(Polygon{})
+	}
+
+	if len(src) < 5 {
+		return fmt.Errorf("invalid length for polygon: %v", len(src))
+	}
+
+	pointCount := int(binary.BigEndian.Uint32(src))
+	rp := 4
+
+	if 4+pointCount*16 != len(src) {
+		return fmt.Errorf("invalid length for Polygon with %d points: %v", pointCount, len(src))
+	}
+
+	points := make([]Vec2, pointCount)
+	for i := 0; i < len(points); i++ {
+		x := binary.BigEndian.Uint64(src[rp:])
+		rp += 8
+		y := binary.BigEndian.Uint64(src[rp:])
+		rp += 8
+		points[i] = Vec2{math.Float64frombits(x), math.Float64frombits(y)}
+	}
+
+	return scanner.ScanPolygon(Polygon{
+		P:     points,
+		Valid: true,
+	})
+}
+
+type scanPlanTextAnyToPolygonScanner struct{}
+
+func (scanPlanTextAnyToPolygonScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(PolygonScanner)
+
+	if src == nil {
+		return scanner.ScanPolygon(Polygon{})
 	}
 
 	if len(src) < 7 {
@@ -118,98 +232,22 @@ func (dst *Polygon) DecodeText(ci *ConnInfo, src []byte) error {
 		}
 	}
 
-	*dst = Polygon{P: points, Valid: true}
-	return nil
+	return scanner.ScanPolygon(Polygon{P: points, Valid: true})
 }
 
-func (dst *Polygon) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (c PolygonCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c PolygonCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Polygon{}
-		return nil
-	}
-
-	if len(src) < 5 {
-		return fmt.Errorf("invalid length for Polygon: %v", len(src))
-	}
-
-	pointCount := int(binary.BigEndian.Uint32(src))
-	rp := 4
-
-	if 4+pointCount*16 != len(src) {
-		return fmt.Errorf("invalid length for Polygon with %d points: %v", pointCount, len(src))
-	}
-
-	points := make([]Vec2, pointCount)
-	for i := 0; i < len(points); i++ {
-		x := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
-		y := binary.BigEndian.Uint64(src[rp:])
-		rp += 8
-		points[i] = Vec2{math.Float64frombits(x), math.Float64frombits(y)}
-	}
-
-	*dst = Polygon{
-		P:     points,
-		Valid: true,
-	}
-	return nil
-}
-
-func (src Polygon) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	buf = append(buf, '(')
-
-	for i, p := range src.P {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		buf = append(buf, fmt.Sprintf(`(%s,%s)`,
-			strconv.FormatFloat(p.X, 'f', -1, 64),
-			strconv.FormatFloat(p.Y, 'f', -1, 64),
-		)...)
+	var polygon Polygon
+	err := codecScan(c, ci, oid, format, src, &polygon)
+	if err != nil {
+		return nil, err
 	}
-
-	return append(buf, ')'), nil
-}
-
-func (src Polygon) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf = pgio.AppendInt32(buf, int32(len(src.P)))
-
-	for _, p := range src.P {
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.X))
-		buf = pgio.AppendUint64(buf, math.Float64bits(p.Y))
-	}
-
-	return buf, nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Polygon) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Polygon{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Polygon) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return polygon, nil
 }
