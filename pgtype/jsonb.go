@@ -2,35 +2,64 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 )
 
-type JSONB JSON
+type JSONBCodec struct{}
 
-func (dst *JSONB) Set(src interface{}) error {
-	return (*JSON)(dst).Set(src)
+func (JSONBCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (dst JSONB) Get() interface{} {
-	return (JSON)(dst).Get()
-}
-
-func (src *JSONB) AssignTo(dst interface{}) error {
-	return (*JSON)(src).AssignTo(dst)
-}
-
-func (JSONB) PreferredResultFormat() int16 {
+func (JSONBCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (dst *JSONB) DecodeText(ci *ConnInfo, src []byte) error {
-	return (*JSON)(dst).DecodeText(ci, src)
+func (JSONBCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		plan := JSONCodec{}.PlanEncode(ci, oid, TextFormatCode, value)
+		if plan != nil {
+			return &encodePlanJSONBCodecBinaryWrapper{textPlan: plan}
+		}
+	case TextFormatCode:
+		return JSONCodec{}.PlanEncode(ci, oid, format, value)
+	}
+
+	return nil
 }
 
-func (dst *JSONB) DecodeBinary(ci *ConnInfo, src []byte) error {
+type encodePlanJSONBCodecBinaryWrapper struct {
+	textPlan EncodePlan
+}
+
+func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	buf = append(buf, 1)
+	return plan.textPlan.Encode(value, buf)
+}
+
+func (JSONBCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+	switch format {
+	case BinaryFormatCode:
+		plan := JSONCodec{}.PlanScan(ci, oid, TextFormatCode, target, actualTarget)
+		if plan != nil {
+			return &scanPlanJSONBCodecBinaryUnwrapper{textPlan: plan}
+		}
+	case TextFormatCode:
+		return JSONCodec{}.PlanScan(ci, oid, format, target, actualTarget)
+	}
+
+	return nil
+}
+
+type scanPlanJSONBCodecBinaryUnwrapper struct {
+	textPlan ScanPlan
+}
+
+func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
-		*dst = JSONB{}
-		return nil
+		return plan.textPlan.Scan(ci, oid, formatCode, src, dst)
 	}
 
 	if len(src) == 0 {
@@ -41,42 +70,58 @@ func (dst *JSONB) DecodeBinary(ci *ConnInfo, src []byte) error {
 		return fmt.Errorf("unknown jsonb version number %d", src[0])
 	}
 
-	*dst = JSONB{Bytes: src[1:], Valid: true}
-	return nil
-
+	return plan.textPlan.Scan(ci, oid, formatCode, src[1:], dst)
 }
 
-func (JSONB) PreferredParamFormat() int16 {
-	return TextFormatCode
-}
-
-func (src JSONB) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return (JSON)(src).EncodeText(ci, buf)
-}
-
-func (src JSONB) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
+func (c JSONBCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if src == nil {
 		return nil, nil
 	}
 
-	buf = append(buf, 1)
-	return append(buf, src.Bytes...), nil
+	switch format {
+	case BinaryFormatCode:
+		if len(src) == 0 {
+			return nil, fmt.Errorf("jsonb too short")
+		}
+
+		if src[0] != 1 {
+			return nil, fmt.Errorf("unknown jsonb version number %d", src[0])
+		}
+
+		dstBuf := make([]byte, len(src)-1)
+		copy(dstBuf, src[1:])
+		return dstBuf, nil
+	case TextFormatCode:
+		dstBuf := make([]byte, len(src))
+		copy(dstBuf, src)
+		return dstBuf, nil
+	default:
+		return nil, fmt.Errorf("unknown format code: %v", format)
+	}
 }
 
-// Scan implements the database/sql Scanner interface.
-func (dst *JSONB) Scan(src interface{}) error {
-	return (*JSON)(dst).Scan(src)
-}
+func (c JSONBCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
 
-// Value implements the database/sql/driver Valuer interface.
-func (src JSONB) Value() (driver.Value, error) {
-	return (JSON)(src).Value()
-}
+	switch format {
+	case BinaryFormatCode:
+		if len(src) == 0 {
+			return nil, fmt.Errorf("jsonb too short")
+		}
 
-func (src JSONB) MarshalJSON() ([]byte, error) {
-	return (JSON)(src).MarshalJSON()
-}
+		if src[0] != 1 {
+			return nil, fmt.Errorf("unknown jsonb version number %d", src[0])
+		}
 
-func (dst *JSONB) UnmarshalJSON(b []byte) error {
-	return (*JSON)(dst).UnmarshalJSON(b)
+		src = src[1:]
+	case TextFormatCode:
+	default:
+		return nil, fmt.Errorf("unknown format code: %v", format)
+	}
+
+	var dst interface{}
+	err := json.Unmarshal(src, &dst)
+	return dst, err
 }

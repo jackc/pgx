@@ -3,187 +3,129 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"reflect"
 )
 
-type JSON struct {
-	Bytes []byte
-	Valid bool
+type JSONCodec struct{}
+
+func (JSONCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (dst *JSON) Set(src interface{}) error {
-	if src == nil {
-		*dst = JSON{}
-		return nil
-	}
+func (JSONCodec) PreferredFormat() int16 {
+	return TextFormatCode
+}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
-
-	switch value := src.(type) {
-	case string:
-		*dst = JSON{Bytes: []byte(value), Valid: true}
-	case *string:
-		if value == nil {
-			*dst = JSON{}
-		} else {
-			*dst = JSON{Bytes: []byte(*value), Valid: true}
-		}
+func (JSONCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch value.(type) {
 	case []byte:
-		if value == nil {
-			*dst = JSON{}
-		} else {
-			*dst = JSON{Bytes: value, Valid: true}
-		}
-	// Encode* methods are defined on *JSON. If JSON is passed directly then the
-	// struct itself would be encoded instead of Bytes. This is clearly a footgun
-	// so detect and return an error. See https://github.com/jackc/pgx/issues/350.
-	case JSON:
-		return errors.New("use pointer to pgtype.JSON instead of value")
-	// Same as above but for JSONB (because they share implementation)
-	case JSONB:
-		return errors.New("use pointer to pgtype.JSONB instead of value")
-
+		return encodePlanJSONCodecEitherFormatByteSlice{}
 	default:
-		buf, err := json.Marshal(value)
-		if err != nil {
-			return err
-		}
-		*dst = JSON{Bytes: buf, Valid: true}
+		return encodePlanJSONCodecEitherFormatMarshal{}
 	}
-
-	return nil
 }
 
-func (dst JSON) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanJSONCodecEitherFormatByteSlice struct{}
+
+func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	jsonBytes := value.([]byte)
+	if jsonBytes == nil {
+		return nil, nil
 	}
 
-	var i interface{}
-	err := json.Unmarshal(dst.Bytes, &i)
+	buf = append(buf, jsonBytes...)
+	return buf, nil
+}
+
+type encodePlanJSONCodecEitherFormatMarshal struct{}
+
+func (encodePlanJSONCodecEitherFormatMarshal) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	jsonBytes, err := json.Marshal(value)
 	if err != nil {
-		return dst
+		return nil, err
 	}
-	return i
+
+	buf = append(buf, jsonBytes...)
+	return buf, nil
 }
 
-func (src *JSON) AssignTo(dst interface{}) error {
-	switch v := dst.(type) {
+func (JSONCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+	switch target.(type) {
 	case *string:
-		if src.Valid {
-			*v = string(src.Bytes)
-		} else {
-			return fmt.Errorf("cannot assign non-valid to %T", dst)
-		}
-	case **string:
-		if src.Valid {
-			s := string(src.Bytes)
-			*v = &s
-			return nil
-		} else {
-			*v = nil
-			return nil
-		}
+		return scanPlanAnyToString{}
 	case *[]byte:
-		if !src.Valid {
-			*v = nil
-		} else {
-			buf := make([]byte, len(src.Bytes))
-			copy(buf, src.Bytes)
-			*v = buf
-		}
+		return scanPlanJSONToByteSlice{}
+	case BytesScanner:
+		return scanPlanBinaryBytesToBytesScanner{}
 	default:
-		data := src.Bytes
-		if data == nil || !src.Valid {
-			data = []byte("null")
+		return scanPlanJSONToJSONUnmarshal{}
+	}
+
+}
+
+type scanPlanAnyToString struct{}
+
+func (scanPlanAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	p := dst.(*string)
+	*p = string(src)
+	return nil
+}
+
+type scanPlanJSONToByteSlice struct{}
+
+func (scanPlanJSONToByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	dstBuf := dst.(*[]byte)
+	if src == nil {
+		*dstBuf = nil
+		return nil
+	}
+
+	*dstBuf = make([]byte, len(src))
+	copy(*dstBuf, src)
+	return nil
+}
+
+type scanPlanJSONToBytesScanner struct{}
+
+func (scanPlanJSONToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(BytesScanner)
+	return scanner.ScanBytes(src)
+}
+
+type scanPlanJSONToJSONUnmarshal struct{}
+
+func (scanPlanJSONToJSONUnmarshal) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		dstValue := reflect.ValueOf(dst)
+		if dstValue.Kind() == reflect.Ptr {
+			el := dstValue.Elem()
+			switch el.Kind() {
+			case reflect.Ptr, reflect.Slice, reflect.Map:
+				el.Set(reflect.Zero(el.Type()))
+				return nil
+			}
 		}
-
-		return json.Unmarshal(data, dst)
 	}
 
-	return nil
+	return json.Unmarshal(src, dst)
 }
 
-func (JSON) PreferredResultFormat() int16 {
-	return TextFormatCode
-}
-
-func (dst *JSON) DecodeText(ci *ConnInfo, src []byte) error {
+func (c JSONCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
-		*dst = JSON{}
-		return nil
-	}
-
-	*dst = JSON{Bytes: src, Valid: true}
-	return nil
-}
-
-func (dst *JSON) DecodeBinary(ci *ConnInfo, src []byte) error {
-	return dst.DecodeText(ci, src)
-}
-
-func (JSON) PreferredParamFormat() int16 {
-	return TextFormatCode
-}
-
-func (src JSON) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	return append(buf, src.Bytes...), nil
+	dstBuf := make([]byte, len(src))
+	copy(dstBuf, src)
+	return dstBuf, nil
 }
 
-func (src JSON) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	return src.EncodeText(ci, buf)
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *JSON) Scan(src interface{}) error {
+func (c JSONCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = JSON{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src JSON) Value() (driver.Value, error) {
-	if !src.Valid {
 		return nil, nil
 	}
-	return src.Bytes, nil
-}
 
-func (src JSON) MarshalJSON() ([]byte, error) {
-	if !src.Valid {
-		return []byte("null"), nil
-	}
-	return src.Bytes, nil
-}
-
-func (dst *JSON) UnmarshalJSON(b []byte) error {
-	if b == nil || string(b) == "null" {
-		*dst = JSON{}
-	} else {
-		*dst = JSON{Bytes: b, Valid: true}
-	}
-	return nil
-
+	var dst interface{}
+	err := json.Unmarshal(src, &dst)
+	return dst, err
 }
