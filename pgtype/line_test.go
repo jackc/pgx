@@ -10,6 +10,7 @@ import (
 
 func TestLineTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
+	defer conn.Close(context.Background())
 	if _, ok := conn.ConnInfo().DataTypeForName("line"); !ok {
 		t.Skip("Skipping due to no line type")
 	}
@@ -24,15 +25,30 @@ func TestLineTranscode(t *testing.T) {
 		t.Skip("Skipping due to unimplemented line type in PG 9.3")
 	}
 
-	testutil.TestSuccessfulTranscode(t, "line", []interface{}{
-		&pgtype.Line{
-			A: 1.23, B: 4.56, C: 7.89012345,
-			Valid: true,
+	testPgxCodec(t, "line", []PgxTranscodeTestCase{
+		{
+			pgtype.Line{
+				A: 1.23, B: 4.56, C: 7.89012345,
+				Valid: true,
+			},
+			new(pgtype.Line),
+			isExpectedEq(pgtype.Line{
+				A: 1.23, B: 4.56, C: 7.89012345,
+				Valid: true,
+			}),
 		},
-		&pgtype.Line{
-			A: -1.23, B: -4.56, C: -7.89,
-			Valid: true,
+		{
+			pgtype.Line{
+				A: -1.23, B: -4.56, C: -7.89,
+				Valid: true,
+			},
+			new(pgtype.Line),
+			isExpectedEq(pgtype.Line{
+				A: -1.23, B: -4.56, C: -7.89,
+				Valid: true,
+			}),
 		},
-		&pgtype.Line{},
+		{pgtype.Line{}, new(pgtype.Line), isExpectedEq(pgtype.Line{})},
+		{nil, new(pgtype.Line), isExpectedEq(pgtype.Line{})},
 	})
 }
