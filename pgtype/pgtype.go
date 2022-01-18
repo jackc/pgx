@@ -27,6 +27,7 @@ const (
 	XIDOID              = 28
 	CIDOID              = 29
 	JSONOID             = 114
+	JSONArrayOID        = 199
 	PointOID            = 600
 	LsegOID             = 601
 	PathOID             = 602
@@ -289,6 +290,8 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &TimestampArray{}, Name: "_timestamp", OID: TimestampArrayOID})
 	ci.RegisterDataType(DataType{Value: &TimestamptzArray{}, Name: "_timestamptz", OID: TimestamptzArrayOID})
 	ci.RegisterDataType(DataType{Value: &UUIDArray{}, Name: "_uuid", OID: UUIDArrayOID})
+	ci.RegisterDataType(DataType{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementCodec: JSONBCodec{}, ElementOID: JSONBOID}})
+	ci.RegisterDataType(DataType{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementCodec: JSONCodec{}, ElementOID: JSONOID}})
 	ci.RegisterDataType(DataType{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: VarcharOID}})
 	ci.RegisterDataType(DataType{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementCodec: BitsCodec{}, ElementOID: BitOID}})
 	ci.RegisterDataType(DataType{Name: "_varbit", OID: VarbitArrayOID, Codec: &ArrayCodec{ElementCodec: BitsCodec{}, ElementOID: VarbitOID}})
@@ -316,9 +319,8 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
 	// ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
 	ci.RegisterDataType(DataType{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
-	ci.RegisterDataType(DataType{Value: &JSON{}, Name: "json", OID: JSONOID})
-	ci.RegisterDataType(DataType{Value: &JSONB{}, Name: "jsonb", OID: JSONBOID})
-	ci.RegisterDataType(DataType{Value: &JSONBArray{}, Name: "_jsonb", OID: JSONBArrayOID})
+	ci.RegisterDataType(DataType{Name: "json", OID: JSONOID, Codec: JSONCodec{}})
+	ci.RegisterDataType(DataType{Name: "jsonb", OID: JSONBOID, Codec: JSONBCodec{}})
 	ci.RegisterDataType(DataType{Name: "line", OID: LineOID, Codec: LineCodec{}})
 	ci.RegisterDataType(DataType{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
 	ci.RegisterDataType(DataType{Value: &Macaddr{}, Name: "macaddr", OID: MacaddrOID})

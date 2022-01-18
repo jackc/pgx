@@ -670,25 +670,15 @@ func (r *Rows) Next(dest []driver.Value) error {
 					err := scanPlan.Scan(ci, dataTypeOID, format, src, &d)
 					return d, err
 				}
-			case pgtype.JSONOID:
-				var d pgtype.JSON
+			case pgtype.JSONOID, pgtype.JSONBOID:
+				var d []byte
 				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(ci, dataTypeOID, format, src, &d)
 					if err != nil {
 						return nil, err
 					}
-					return d.Value()
-				}
-			case pgtype.JSONBOID:
-				var d pgtype.JSONB
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
-				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
-					err := scanPlan.Scan(ci, dataTypeOID, format, src, &d)
-					if err != nil {
-						return nil, err
-					}
-					return d.Value()
+					return d, nil
 				}
 			case pgtype.TimestampOID:
 				var d pgtype.Timestamp
