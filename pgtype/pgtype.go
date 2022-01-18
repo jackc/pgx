@@ -314,7 +314,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &JSONB{}, Name: "jsonb", OID: JSONBOID})
 	ci.RegisterDataType(DataType{Value: &JSONBArray{}, Name: "_jsonb", OID: JSONBArrayOID})
 	ci.RegisterDataType(DataType{Name: "line", OID: LineOID, Codec: LineCodec{}})
-	ci.RegisterDataType(DataType{Value: &Lseg{}, Name: "lseg", OID: LsegOID})
+	ci.RegisterDataType(DataType{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
 	ci.RegisterDataType(DataType{Value: &Macaddr{}, Name: "macaddr", OID: MacaddrOID})
 	ci.RegisterDataType(DataType{Name: "name", OID: NameOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Value: &Numeric{}, Name: "numeric", OID: NumericOID})
