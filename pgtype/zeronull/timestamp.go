@@ -2,6 +2,7 @@ package zeronull
 
 import (
 	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -9,68 +10,37 @@ import (
 
 type Timestamp time.Time
 
-func (dst *Timestamp) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.Timestamp
-	err := nullable.DecodeText(ci, src)
-	if err != nil {
-		return err
+func (ts *Timestamp) ScanTimestamp(v pgtype.Timestamp) error {
+	if !v.Valid {
+		*ts = Timestamp{}
+		return nil
 	}
 
-	if nullable.Valid {
-		*dst = Timestamp(nullable.Time)
-	} else {
-		*dst = Timestamp{}
+	switch v.InfinityModifier {
+	case pgtype.None:
+		*ts = Timestamp(v.Time)
+		return nil
+	case pgtype.Infinity:
+		return fmt.Errorf("cannot scan Infinity into *time.Time")
+	case pgtype.NegativeInfinity:
+		return fmt.Errorf("cannot scan -Infinity into *time.Time")
+	default:
+		return fmt.Errorf("invalid InfinityModifier: %v", v.InfinityModifier)
 	}
-
-	return nil
 }
 
-func (dst *Timestamp) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.Timestamp
-	err := nullable.DecodeBinary(ci, src)
-	if err != nil {
-		return err
+func (ts Timestamp) TimestampValue() (pgtype.Timestamp, error) {
+	if time.Time(ts).IsZero() {
+		return pgtype.Timestamp{}, nil
 	}
 
-	if nullable.Valid {
-		*dst = Timestamp(nullable.Time)
-	} else {
-		*dst = Timestamp{}
-	}
-
-	return nil
-}
-
-func (src Timestamp) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if (src == Timestamp{}) {
-		return nil, nil
-	}
-
-	nullable := pgtype.Timestamp{
-		Time:  time.Time(src),
-		Valid: true,
-	}
-
-	return nullable.EncodeText(ci, buf)
-}
-
-func (src Timestamp) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if (src == Timestamp{}) {
-		return nil, nil
-	}
-
-	nullable := pgtype.Timestamp{
-		Time:  time.Time(src),
-		Valid: true,
-	}
-
-	return nullable.EncodeBinary(ci, buf)
+	return pgtype.Timestamp{Time: time.Time(ts), Valid: true}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Timestamp) Scan(src interface{}) error {
+func (ts *Timestamp) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Timestamp{}
+		*ts = Timestamp{}
 		return nil
 	}
 
@@ -80,12 +50,16 @@ func (dst *Timestamp) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = Timestamp(nullable.Time)
+	*ts = Timestamp(nullable.Time)
 
 	return nil
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src Timestamp) Value() (driver.Value, error) {
-	return pgtype.EncodeValueText(src)
+func (ts Timestamp) Value() (driver.Value, error) {
+	if time.Time(ts).IsZero() {
+		return nil, nil
+	}
+
+	return time.Time(ts), nil
 }
