@@ -342,6 +342,50 @@ func (w timeWrapper) DateValue() (Date, error) {
 	return Date{Time: time.Time(w), Valid: true}, nil
 }
 
+func (w *timeWrapper) ScanTimestamp(v Timestamp) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *time.Time")
+	}
+
+	switch v.InfinityModifier {
+	case None:
+		*w = timeWrapper(v.Time)
+		return nil
+	case Infinity:
+		return fmt.Errorf("cannot scan Infinity into *time.Time")
+	case NegativeInfinity:
+		return fmt.Errorf("cannot scan -Infinity into *time.Time")
+	default:
+		return fmt.Errorf("invalid InfinityModifier: %v", v.InfinityModifier)
+	}
+}
+
+func (w timeWrapper) TimestampValue() (Timestamp, error) {
+	return Timestamp{Time: time.Time(w), Valid: true}, nil
+}
+
+func (w *timeWrapper) ScanTimestamptz(v Timestamptz) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *time.Time")
+	}
+
+	switch v.InfinityModifier {
+	case None:
+		*w = timeWrapper(v.Time)
+		return nil
+	case Infinity:
+		return fmt.Errorf("cannot scan Infinity into *time.Time")
+	case NegativeInfinity:
+		return fmt.Errorf("cannot scan -Infinity into *time.Time")
+	default:
+		return fmt.Errorf("invalid InfinityModifier: %v", v.InfinityModifier)
+	}
+}
+
+func (w timeWrapper) TimestamptzValue() (Timestamptz, error) {
+	return Timestamptz{Time: time.Time(w), Valid: true}, nil
+}
+
 type durationWrapper time.Duration
 
 func (w *durationWrapper) ScanInterval(v Interval) error {
