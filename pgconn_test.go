@@ -1298,6 +1298,7 @@ func TestConnOnNotice(t *testing.T) {
 	config.OnNotice = func(c *pgconn.PgConn, notice *pgconn.Notice) {
 		msg = notice.Message
 	}
+	config.RuntimeParams["client_min_messages"] = "notice" // Ensure we only get the message we expect.
 
 	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
@@ -1954,7 +1955,11 @@ func TestConnSendBytesAndReceiveMessage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	config.RuntimeParams["client_min_messages"] = "notice" // Ensure we only get the messages we expect.
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
