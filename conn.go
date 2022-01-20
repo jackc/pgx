@@ -19,8 +19,9 @@ import (
 // then it can be modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type ConnConfig struct {
 	pgconn.Config
-	Logger   Logger
-	LogLevel LogLevel
+	Logger    Logger
+	LogLevel  LogLevel
+	LogFilter LogFilter
 
 	// Original connection string that was parsed into config.
 	connString string
@@ -65,6 +66,7 @@ type Conn struct {
 	stmtcache          stmtcache.Cache
 	logger             Logger
 	logLevel           LogLevel
+	logFilter          LogFilter
 
 	notifications []*pgconn.Notification
 
@@ -202,10 +204,11 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 
 	c = &Conn{
-		config:   originalConfig,
-		connInfo: pgtype.NewConnInfo(),
-		logLevel: config.LogLevel,
-		logger:   config.Logger,
+		config:    originalConfig,
+		connInfo:  pgtype.NewConnInfo(),
+		logLevel:  config.LogLevel,
+		logger:    config.Logger,
+		logFilter: config.LogFilter,
 	}
 
 	// Only install pgx notification system if no other callback handler is present.
@@ -345,6 +348,9 @@ func (c *Conn) shouldLog(lvl LogLevel) bool {
 }
 
 func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[string]interface{}) {
+	if c.logFilter != nil && c.logFilter(ctx, lvl, msg, data) {
+		return
+	}
 	if data == nil {
 		data = map[string]interface{}{}
 	}

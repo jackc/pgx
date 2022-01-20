@@ -47,6 +47,9 @@ type Logger interface {
 	Log(ctx context.Context, level LogLevel, msg string, data map[string]interface{})
 }
 
+// LogFilter is the function to filter out some logs based on custom logic, returns true if log should be filtered
+type LogFilter func(ctx context.Context, level LogLevel, msg string, data map[string]interface{}) bool
+
 // LogLevelFromString converts log level string to constant
 //
 // Valid levels:
