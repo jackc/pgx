@@ -304,7 +304,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
 	ci.RegisterDataType(DataType{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
-	ci.RegisterDataType(DataType{Value: &QChar{}, Name: "char", OID: QCharOID})
+	ci.RegisterDataType(DataType{Name: "char", OID: QCharOID, Codec: QCharCodec{}})
 	ci.RegisterDataType(DataType{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
 	ci.RegisterDataType(DataType{Name: "cidr", OID: CIDROID, Codec: InetCodec{}})
 	ci.RegisterDataType(DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})

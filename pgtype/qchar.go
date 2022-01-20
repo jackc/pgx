@@ -1,145 +1,141 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"math"
-	"strconv"
 )
 
-// QChar is for PostgreSQL's special 8-bit-only "char" type more akin to the C
+// QCharCodec is for PostgreSQL's special 8-bit-only "char" type more akin to the C
 // language's char type, or Go's byte type. (Note that the name in PostgreSQL
 // itself is "char", in double-quotes, and not char.) It gets used a lot in
 // PostgreSQL's system tables to hold a single ASCII character value (eg
 // pg_class.relkind). It is named Qchar for quoted char to disambiguate from SQL
 // standard type char.
-//
-// Not all possible values of QChar are representable in the text format.
-// Therefore, QChar does not implement TextEncoder and TextDecoder. In
-// addition, database/sql Scanner and database/sql/driver Value are not
-// implemented.
-type QChar struct {
-	Int   int8
-	Valid bool
+type QCharCodec struct{}
+
+func (QCharCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (dst *QChar) Set(src interface{}) error {
-	if src == nil {
-		*dst = QChar{}
-		return nil
-	}
+func (QCharCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
+func (QCharCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case TextFormatCode, BinaryFormatCode:
+		switch value.(type) {
+		case byte:
+			return encodePlanQcharCodecByte{}
+		case rune:
+			return encodePlanQcharCodecRune{}
 		}
-	}
-
-	switch value := src.(type) {
-	case int8:
-		*dst = QChar{Int: value, Valid: true}
-	case uint8:
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case int16:
-		if value < math.MinInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case uint16:
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case int32:
-		if value < math.MinInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case uint32:
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case int64:
-		if value < math.MinInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case uint64:
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case int:
-		if value < math.MinInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case uint:
-		if value > math.MaxInt8 {
-			return fmt.Errorf("%d is greater than maximum value for QChar", value)
-		}
-		*dst = QChar{Int: int8(value), Valid: true}
-	case string:
-		num, err := strconv.ParseInt(value, 10, 8)
-		if err != nil {
-			return err
-		}
-		*dst = QChar{Int: int8(num), Valid: true}
-	default:
-		if originalSrc, ok := underlyingNumberType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to QChar", value)
 	}
 
 	return nil
 }
 
-func (dst QChar) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanQcharCodecByte struct{}
+
+func (encodePlanQcharCodecByte) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	b := value.(byte)
+	buf = append(buf, b)
+	return buf, nil
+}
+
+type encodePlanQcharCodecRune struct{}
+
+func (encodePlanQcharCodecRune) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	r := value.(rune)
+	if r > math.MaxUint8 {
+		return nil, fmt.Errorf(`%v cannot be encoded to "char"`, r)
 	}
-	return dst.Int
+	b := byte(r)
+	buf = append(buf, b)
+	return buf, nil
 }
 
-func (src *QChar) AssignTo(dst interface{}) error {
-	return int64AssignTo(int64(src.Int), src.Valid, dst)
+func (QCharCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+	switch format {
+	case TextFormatCode, BinaryFormatCode:
+		switch target.(type) {
+		case *byte:
+			return scanPlanQcharCodecByte{}
+		case *rune:
+			return scanPlanQcharCodecRune{}
+		}
+	}
+
+	return nil
 }
 
-func (dst *QChar) DecodeBinary(ci *ConnInfo, src []byte) error {
+type scanPlanQcharCodecByte struct{}
+
+func (scanPlanQcharCodecByte) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	if src == nil {
-		*dst = QChar{}
-		return nil
+		return fmt.Errorf("cannot scan null into %T", dst)
 	}
 
-	if len(src) != 1 {
+	if len(src) > 1 {
 		return fmt.Errorf(`invalid length for "char": %v`, len(src))
 	}
 
-	*dst = QChar{Int: int8(src[0]), Valid: true}
+	b := dst.(*byte)
+	// In the text format the zero value is returned as a zero byte value instead of 0
+	if len(src) == 0 {
+		*b = 0
+	} else {
+		*b = src[0]
+	}
+
 	return nil
 }
 
-func (src QChar) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
+type scanPlanQcharCodecRune struct{}
+
+func (scanPlanQcharCodecRune) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	if src == nil {
+		return fmt.Errorf("cannot scan null into %T", dst)
+	}
+
+	if len(src) > 1 {
+		return fmt.Errorf(`invalid length for "char": %v`, len(src))
+	}
+
+	r := dst.(*rune)
+	// In the text format the zero value is returned as a zero byte value instead of 0
+	if len(src) == 0 {
+		*r = 0
+	} else {
+		*r = rune(src[0])
+	}
+
+	return nil
+}
+
+func (c QCharCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if src == nil {
 		return nil, nil
 	}
 
-	return append(buf, byte(src.Int)), nil
+	var r rune
+	err := codecScan(c, ci, oid, format, src, &r)
+	if err != nil {
+		return nil, err
+	}
+	return string(r), nil
+}
+
+func (c QCharCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	var r rune
+	err := codecScan(c, ci, oid, format, src, &r)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
