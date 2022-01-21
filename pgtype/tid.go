@@ -10,6 +10,14 @@ import (
 	"github.com/jackc/pgio"
 )
 
+type TIDScanner interface {
+	ScanTID(v TID) error
+}
+
+type TIDValuer interface {
+	TIDValue() (TID, error)
+}
+
 // TID is PostgreSQL's Tuple Identifier type.
 //
 // When one does
@@ -27,38 +35,146 @@ type TID struct {
 	Valid        bool
 }
 
-func (dst *TID) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to TID", src)
+func (b *TID) ScanTID(v TID) error {
+	*b = v
+	return nil
 }
 
-func (dst TID) Get() interface{} {
-	if !dst.Valid {
-		return nil
-	}
-	return dst
+func (b TID) TIDValue() (TID, error) {
+	return b, nil
 }
 
-func (src *TID) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return fmt.Errorf("cannot assign %v to %T", src, dst)
-	}
-
-	switch v := dst.(type) {
-	case *string:
-		*v = fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-		return fmt.Errorf("unable to assign to %T", dst)
-	}
-}
-
-func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
+// Scan implements the database/sql Scanner interface.
+func (dst *TID) Scan(src interface{}) error {
 	if src == nil {
 		*dst = TID{}
 		return nil
+	}
+
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToTIDScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+	}
+
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src TID) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+
+	buf, err := TIDCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
+	if err != nil {
+		return nil, err
+	}
+	return string(buf), err
+}
+
+type TIDCodec struct{}
+
+func (TIDCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (TIDCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (TIDCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(TIDValuer); !ok {
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanTIDCodecBinary{}
+	case TextFormatCode:
+		return encodePlanTIDCodecText{}
+	}
+
+	return nil
+}
+
+type encodePlanTIDCodecBinary struct{}
+
+func (encodePlanTIDCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	tid, err := value.(TIDValuer).TIDValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !tid.Valid {
+		return nil, nil
+	}
+
+	buf = pgio.AppendUint32(buf, tid.BlockNumber)
+	buf = pgio.AppendUint16(buf, tid.OffsetNumber)
+	return buf, nil
+}
+
+type encodePlanTIDCodecText struct{}
+
+func (encodePlanTIDCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	tid, err := value.(TIDValuer).TIDValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !tid.Valid {
+		return nil, nil
+	}
+
+	buf = append(buf, fmt.Sprintf(`(%d,%d)`, tid.BlockNumber, tid.OffsetNumber)...)
+	return buf, nil
+}
+
+func (TIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case TIDScanner:
+			return scanPlanBinaryTIDToTIDScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case TIDScanner:
+			return scanPlanTextAnyToTIDScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryTIDToTIDScanner struct{}
+
+func (scanPlanBinaryTIDToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TIDScanner)
+
+	if src == nil {
+		return scanner.ScanTID(TID{})
+	}
+
+	if len(src) != 6 {
+		return fmt.Errorf("invalid length for tid: %v", len(src))
+	}
+
+	return scanner.ScanTID(TID{
+		BlockNumber:  binary.BigEndian.Uint32(src),
+		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
+		Valid:        true,
+	})
+}
+
+type scanPlanTextAnyToTIDScanner struct{}
+
+func (scanPlanTextAnyToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TIDScanner)
+
+	if src == nil {
+		return scanner.ScanTID(TID{})
 	}
 
 	if len(src) < 5 {
@@ -80,67 +196,22 @@ func (dst *TID) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Valid: true}
-	return nil
+	return scanner.ScanTID(TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Valid: true})
 }
 
-func (dst *TID) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (c TIDCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c TIDCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = TID{}
-		return nil
-	}
-
-	if len(src) != 6 {
-		return fmt.Errorf("invalid length for tid: %v", len(src))
-	}
-
-	*dst = TID{
-		BlockNumber:  binary.BigEndian.Uint32(src),
-		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
-		Valid:        true,
-	}
-	return nil
-}
-
-func (src TID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	buf = append(buf, fmt.Sprintf(`(%d,%d)`, src.BlockNumber, src.OffsetNumber)...)
-	return buf, nil
-}
-
-func (src TID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
+	var tid TID
+	err := codecScan(c, ci, oid, format, src, &tid)
+	if err != nil {
+		return nil, err
 	}
-
-	buf = pgio.AppendUint32(buf, src.BlockNumber)
-	buf = pgio.AppendUint16(buf, src.OffsetNumber)
-	return buf, nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *TID) Scan(src interface{}) error {
-	if src == nil {
-		*dst = TID{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src TID) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return tid, nil
 }

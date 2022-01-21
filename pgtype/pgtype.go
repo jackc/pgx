@@ -337,7 +337,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
 	// ci.RegisterDataType(DataType{Value: &Record{}, Name: "record", OID: RecordOID})
 	ci.RegisterDataType(DataType{Name: "text", OID: TextOID, Codec: TextCodec{}})
-	ci.RegisterDataType(DataType{Value: &TID{}, Name: "tid", OID: TIDOID})
+	ci.RegisterDataType(DataType{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
 	ci.RegisterDataType(DataType{Value: &Time{}, Name: "time", OID: TimeOID})
 	ci.RegisterDataType(DataType{Name: "timestamp", OID: TimestampOID, Codec: TimestampCodec{}})
 	ci.RegisterDataType(DataType{Name: "timestamptz", OID: TimestamptzOID, Codec: TimestamptzCodec{}})

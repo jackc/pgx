@@ -1,62 +1,24 @@
 package pgtype_test
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
-func TestTIDTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "tid", []interface{}{
-		&pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},
-		&pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true},
-		&pgtype.TID{},
+func TestTIDCodec(t *testing.T) {
+	testPgxCodec(t, "tid", []PgxTranscodeTestCase{
+		{
+			pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},
+			new(pgtype.TID),
+			isExpectedEq(pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true}),
+		},
+		{
+			pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true},
+			new(pgtype.TID),
+			isExpectedEq(pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true}),
+		},
+		{pgtype.TID{}, new(pgtype.TID), isExpectedEq(pgtype.TID{})},
+		{nil, new(pgtype.TID), isExpectedEq(pgtype.TID{})},
 	})
-}
-
-func TestTIDAssignTo(t *testing.T) {
-	var s string
-	var sp *string
-
-	simpleTests := []struct {
-		src      pgtype.TID
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true}, dst: &s, expected: "(42,43)"},
-		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true}, dst: &s, expected: "(4294967295,65535)"},
-	}
-
-	for i, tt := range simpleTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
-
-	pointerAllocTests := []struct {
-		src      pgtype.TID
-		dst      interface{}
-		expected interface{}
-	}{
-		{src: pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true}, dst: &sp, expected: "(42,43)"},
-		{src: pgtype.TID{BlockNumber: 4294967295, OffsetNumber: 65535, Valid: true}, dst: &sp, expected: "(4294967295,65535)"},
-	}
-
-	for i, tt := range pointerAllocTests {
-		err := tt.src.AssignTo(tt.dst)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if dst := reflect.ValueOf(tt.dst).Elem().Elem().Interface(); dst != tt.expected {
-			t.Errorf("%d: expected %v to assign %v, but result was %v", i, tt.src, tt.expected, dst)
-		}
-	}
 }
