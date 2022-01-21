@@ -5,10 +5,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/jackc/pgio"
 )
+
+type TimeScanner interface {
+	ScanTime(v Time) error
+}
+
+type TimeValuer interface {
+	TimeValue() (Time, error)
+}
 
 // Time represents the PostgreSQL time type. The PostgreSQL time is a time of day without time zone.
 //
@@ -20,86 +27,151 @@ type Time struct {
 	Valid        bool
 }
 
-// Set converts src into a Time and stores in dst.
-func (dst *Time) Set(src interface{}) error {
+func (t *Time) ScanTime(v Time) error {
+	*t = v
+	return nil
+}
+
+func (t Time) TimeValue() (Time, error) {
+	return t, nil
+}
+
+// Scan implements the database/sql Scanner interface.
+func (t *Time) Scan(src interface{}) error {
 	if src == nil {
-		*dst = Time{}
+		*t = Time{}
 		return nil
 	}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
+	switch src := src.(type) {
+	case string:
+		return scanPlanTextAnyToTimeScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), t)
 	}
 
-	switch value := src.(type) {
-	case time.Time:
-		usec := int64(value.Hour())*microsecondsPerHour +
-			int64(value.Minute())*microsecondsPerMinute +
-			int64(value.Second())*microsecondsPerSecond +
-			int64(value.Nanosecond())/1000
-		*dst = Time{Microseconds: usec, Valid: true}
-	case *time.Time:
-		if value == nil {
-			*dst = Time{}
-		} else {
-			return dst.Set(*value)
-		}
-	default:
-		if originalSrc, ok := underlyingTimeType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Time", value)
+	return fmt.Errorf("cannot scan %T", src)
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (t Time) Value() (driver.Value, error) {
+	if !t.Valid {
+		return nil, nil
+	}
+
+	buf, err := TimeCodec{}.PlanEncode(nil, 0, TextFormatCode, t).Encode(t, nil)
+	if err != nil {
+		return nil, err
+	}
+	return string(buf), err
+}
+
+type TimeCodec struct{}
+
+func (TimeCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (TimeCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (TimeCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(TimeValuer); !ok {
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanTimeCodecBinary{}
+	case TextFormatCode:
+		return encodePlanTimeCodecText{}
 	}
 
 	return nil
 }
 
-func (dst Time) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanTimeCodecBinary struct{}
+
+func (encodePlanTimeCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	t, err := value.(TimeValuer).TimeValue()
+	if err != nil {
+		return nil, err
 	}
-	return dst.Microseconds
+
+	if !t.Valid {
+		return nil, nil
+	}
+
+	return pgio.AppendInt64(buf, t.Microseconds), nil
 }
 
-func (src *Time) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
+type encodePlanTimeCodecText struct{}
+
+func (encodePlanTimeCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	t, err := value.(TimeValuer).TimeValue()
+	if err != nil {
+		return nil, err
 	}
 
-	switch v := dst.(type) {
-	case *time.Time:
-		// 24:00:00 is max allowed time in PostgreSQL, but time.Time will normalize that to 00:00:00 the next day.
-		var maxRepresentableByTime int64 = 24*60*60*1000000 - 1
-		if src.Microseconds > maxRepresentableByTime {
-			return fmt.Errorf("%d microseconds cannot be represented as time.Time", src.Microseconds)
-		}
-
-		usec := src.Microseconds
-		hours := usec / microsecondsPerHour
-		usec -= hours * microsecondsPerHour
-		minutes := usec / microsecondsPerMinute
-		usec -= minutes * microsecondsPerMinute
-		seconds := usec / microsecondsPerSecond
-		usec -= seconds * microsecondsPerSecond
-		ns := usec * 1000
-		*v = time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), time.UTC)
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
-		}
-		return fmt.Errorf("unable to assign to %T", dst)
+	if !t.Valid {
+		return nil, nil
 	}
+
+	usec := t.Microseconds
+	hours := usec / microsecondsPerHour
+	usec -= hours * microsecondsPerHour
+	minutes := usec / microsecondsPerMinute
+	usec -= minutes * microsecondsPerMinute
+	seconds := usec / microsecondsPerSecond
+	usec -= seconds * microsecondsPerSecond
+
+	s := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, usec)
+
+	return append(buf, s...), nil
 }
 
-// DecodeText decodes from src into dst.
-func (dst *Time) DecodeText(ci *ConnInfo, src []byte) error {
+func (TimeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case TimeScanner:
+			return scanPlanBinaryTimeToTimeScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case TimeScanner:
+			return scanPlanTextAnyToTimeScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryTimeToTimeScanner struct{}
+
+func (scanPlanBinaryTimeToTimeScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TimeScanner)
+
 	if src == nil {
-		*dst = Time{}
-		return nil
+		return scanner.ScanTime(Time{})
+	}
+
+	if len(src) != 8 {
+		return fmt.Errorf("invalid length for time: %v", len(src))
+	}
+
+	usec := int64(binary.BigEndian.Uint64(src))
+
+	return scanner.ScanTime(Time{Microseconds: usec, Valid: true})
+}
+
+type scanPlanTextAnyToTimeScanner struct{}
+
+func (scanPlanTextAnyToTimeScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TimeScanner)
+
+	if src == nil {
+		return scanner.ScanTime(Time{})
 	}
 
 	s := string(src)
@@ -140,79 +212,22 @@ func (dst *Time) DecodeText(ci *ConnInfo, src []byte) error {
 		usec += n
 	}
 
-	*dst = Time{Microseconds: usec, Valid: true}
-
-	return nil
+	return scanner.ScanTime(Time{Microseconds: usec, Valid: true})
 }
 
-// DecodeBinary decodes from src into dst.
-func (dst *Time) DecodeBinary(ci *ConnInfo, src []byte) error {
+func (c TimeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
+}
+
+func (c TimeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Time{}
-		return nil
-	}
-
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for time: %v", len(src))
-	}
-
-	usec := int64(binary.BigEndian.Uint64(src))
-	*dst = Time{Microseconds: usec, Valid: true}
-
-	return nil
-}
-
-// EncodeText writes the text encoding of src into w.
-func (src Time) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
 		return nil, nil
 	}
 
-	usec := src.Microseconds
-	hours := usec / microsecondsPerHour
-	usec -= hours * microsecondsPerHour
-	minutes := usec / microsecondsPerMinute
-	usec -= minutes * microsecondsPerMinute
-	seconds := usec / microsecondsPerSecond
-	usec -= seconds * microsecondsPerSecond
-
-	s := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, usec)
-
-	return append(buf, s...), nil
-}
-
-// EncodeBinary writes the binary encoding of src into w. If src.Time is not in
-// the UTC time zone it returns an error.
-func (src Time) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
+	var t Time
+	err := codecScan(c, ci, oid, format, src, &t)
+	if err != nil {
+		return nil, err
 	}
-
-	return pgio.AppendInt64(buf, src.Microseconds), nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Time) Scan(src interface{}) error {
-	if src == nil {
-		*dst = Time{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
-	case time.Time:
-		return dst.Set(src)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Time) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return t, nil
 }
