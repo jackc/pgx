@@ -137,6 +137,8 @@ func (TIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfac
 		switch target.(type) {
 		case TIDScanner:
 			return scanPlanBinaryTIDToTIDScanner{}
+		case TextScanner:
+			return scanPlanBinaryTIDToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -165,6 +167,28 @@ func (scanPlanBinaryTIDToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 		BlockNumber:  binary.BigEndian.Uint32(src),
 		OffsetNumber: binary.BigEndian.Uint16(src[4:]),
 		Valid:        true,
+	})
+}
+
+type scanPlanBinaryTIDToTextScanner struct{}
+
+func (scanPlanBinaryTIDToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TextScanner)
+
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
+	if len(src) != 6 {
+		return fmt.Errorf("invalid length for tid: %v", len(src))
+	}
+
+	blockNumber := binary.BigEndian.Uint32(src)
+	offsetNumber := binary.BigEndian.Uint16(src[4:])
+
+	return scanner.ScanText(Text{
+		String: fmt.Sprintf(`(%d,%d)`, blockNumber, offsetNumber),
+		Valid:  true,
 	})
 }
 
