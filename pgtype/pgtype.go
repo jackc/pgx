@@ -66,6 +66,7 @@ const (
 	OIDArrayOID         = 1028
 	ACLItemOID          = 1033
 	ACLItemArrayOID     = 1034
+	MacaddrArrayOID     = 1040
 	InetArrayOID        = 1041
 	BPCharOID           = 1042
 	VarcharOID          = 1043
@@ -291,6 +292,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: TextOID}})
 	ci.RegisterDataType(DataType{Name: "_timestamp", OID: TimestampArrayOID, Codec: &ArrayCodec{ElementCodec: TimestampCodec{}, ElementOID: TimestampOID}})
 	ci.RegisterDataType(DataType{Name: "_timestamptz", OID: TimestamptzArrayOID, Codec: &ArrayCodec{ElementCodec: TimestamptzCodec{}, ElementOID: TimestamptzOID}})
+	ci.RegisterDataType(DataType{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementCodec: MacaddrCodec{}, ElementOID: MacaddrOID}})
 	ci.RegisterDataType(DataType{Value: &UUIDArray{}, Name: "_uuid", OID: UUIDArrayOID})
 	ci.RegisterDataType(DataType{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementCodec: JSONBCodec{}, ElementOID: JSONBOID}})
 	ci.RegisterDataType(DataType{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementCodec: JSONCodec{}, ElementOID: JSONOID}})
