@@ -45,6 +45,7 @@ const (
 	MacaddrOID          = 829
 	InetOID             = 869
 	BoolArrayOID        = 1000
+	QCharArrayOID       = 1003
 	NameArrayOID        = 1003
 	Int2ArrayOID        = 1005
 	Int4ArrayOID        = 1007
@@ -285,6 +286,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementCodec: PointCodec{}, ElementOID: PointOID}})
 	ci.RegisterDataType(DataType{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementCodec: PolygonCodec{}, ElementOID: PolygonOID}})
 	ci.RegisterDataType(DataType{Name: "_name", OID: NameArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: NameOID}})
+	ci.RegisterDataType(DataType{Name: "_char", OID: QCharArrayOID, Codec: &ArrayCodec{ElementCodec: QCharCodec{}, ElementOID: QCharOID}})
 	ci.RegisterDataType(DataType{Value: &NumericArray{}, Name: "_numeric", OID: NumericArrayOID})
 	ci.RegisterDataType(DataType{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: TextOID}})
 	ci.RegisterDataType(DataType{Name: "_timestamp", OID: TimestampArrayOID, Codec: &ArrayCodec{ElementCodec: TimestampCodec{}, ElementOID: TimestampOID}})
