@@ -491,3 +491,11 @@ func (w mapStringToStringWrapper) HstoreValue() (Hstore, error) {
 	}
 	return hstore, nil
 }
+
+type fmtStringerWrapper struct {
+	s fmt.Stringer
+}
+
+func (w fmtStringerWrapper) TextValue() (Text, error) {
+	return Text{String: w.s.String(), Valid: true}, nil
+}

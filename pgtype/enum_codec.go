@@ -30,8 +30,6 @@ func (EnumCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 			return encodePlanTextCodecByteSlice{}
 		case rune:
 			return encodePlanTextCodecRune{}
-		case fmt.Stringer:
-			return encodePlanTextCodecStringer{}
 		case TextValuer:
 			return encodePlanTextCodecTextValuer{}
 		}

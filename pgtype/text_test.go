@@ -9,6 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type someFmtStringer struct{}
+
+func (someFmtStringer) String() string {
+	return "some fmt.Stringer"
+}
+
 func TestTextCodec(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
 		testPgxCodec(t, pgTypeName, []PgxTranscodeTestCase{
@@ -24,6 +30,7 @@ func TestTextCodec(t *testing.T) {
 			},
 			{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
 			{"foo", new(string), isExpectedEq("foo")},
+			{someFmtStringer{}, new(string), isExpectedEq("some fmt.Stringer")},
 			{rune('R'), new(rune), isExpectedEq(rune('R'))},
 		})
 	}
