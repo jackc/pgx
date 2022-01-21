@@ -1421,6 +1421,8 @@ func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNext
 		return &wrapMapStringToPointerStringEncodePlan{}, mapStringToPointerStringWrapper(value), true
 	case map[string]string:
 		return &wrapMapStringToStringEncodePlan{}, mapStringToStringWrapper(value), true
+	case fmt.Stringer:
+		return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{value}, true
 	}
 
 	return nil, nil, false
@@ -1614,6 +1616,16 @@ func (plan *wrapMapStringToStringEncodePlan) SetNext(next EncodePlan) { plan.nex
 
 func (plan *wrapMapStringToStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(mapStringToStringWrapper(value.(map[string]string)), buf)
+}
+
+type wrapFmtStringerEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapFmtStringerEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapFmtStringerEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(fmtStringerWrapper{value.(fmt.Stringer)}, buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
