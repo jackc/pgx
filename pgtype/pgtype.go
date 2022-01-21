@@ -76,6 +76,7 @@ const (
 	TimestampOID        = 1114
 	TimestampArrayOID   = 1115
 	DateArrayOID        = 1182
+	TimeArrayOID        = 1183
 	TimestamptzOID      = 1184
 	TimestamptzArrayOID = 1185
 	IntervalOID         = 1186
@@ -304,6 +305,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_cid", OID: CIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: CIDOID}})
 	ci.RegisterDataType(DataType{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: OIDOID}})
 	ci.RegisterDataType(DataType{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementCodec: Uint32Codec{}, ElementOID: XIDOID}})
+	ci.RegisterDataType(DataType{Name: "_time", OID: TimeArrayOID, Codec: &ArrayCodec{ElementCodec: TimeCodec{}, ElementOID: TimeOID}})
 	ci.RegisterDataType(DataType{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	ci.RegisterDataType(DataType{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
