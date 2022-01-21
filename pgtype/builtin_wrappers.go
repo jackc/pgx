@@ -399,6 +399,38 @@ func (w timeWrapper) TimestamptzValue() (Timestamptz, error) {
 	return Timestamptz{Time: time.Time(w), Valid: true}, nil
 }
 
+func (w *timeWrapper) ScanTime(v Time) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *time.Time")
+	}
+
+	// 24:00:00 is max allowed time in PostgreSQL, but time.Time will normalize that to 00:00:00 the next day.
+	var maxRepresentableByTime int64 = 24*60*60*1000000 - 1
+	if v.Microseconds > maxRepresentableByTime {
+		return fmt.Errorf("%d microseconds cannot be represented as time.Time", v.Microseconds)
+	}
+
+	usec := v.Microseconds
+	hours := usec / microsecondsPerHour
+	usec -= hours * microsecondsPerHour
+	minutes := usec / microsecondsPerMinute
+	usec -= minutes * microsecondsPerMinute
+	seconds := usec / microsecondsPerSecond
+	usec -= seconds * microsecondsPerSecond
+	ns := usec * 1000
+	*w = timeWrapper(time.Date(2000, 1, 1, int(hours), int(minutes), int(seconds), int(ns), time.UTC))
+	return nil
+}
+
+func (w timeWrapper) TimeValue() (Time, error) {
+	t := time.Time(w)
+	usec := int64(t.Hour())*microsecondsPerHour +
+		int64(t.Minute())*microsecondsPerMinute +
+		int64(t.Second())*microsecondsPerSecond +
+		int64(t.Nanosecond())/1000
+	return Time{Microseconds: usec, Valid: true}, nil
+}
+
 type durationWrapper time.Duration
 
 func (w *durationWrapper) ScanInterval(v Interval) error {
