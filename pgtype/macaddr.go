@@ -2,92 +2,135 @@ package pgtype
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"net"
 )
 
-type Macaddr struct {
-	Addr  net.HardwareAddr
-	Valid bool
+type MacaddrCodec struct{}
+
+func (MacaddrCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
 }
 
-func (dst *Macaddr) Set(src interface{}) error {
-	if src == nil {
-		*dst = Macaddr{}
-		return nil
-	}
+func (MacaddrCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
 
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
+func (MacaddrCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	switch format {
+	case BinaryFormatCode:
+		switch value.(type) {
+		case net.HardwareAddr:
+			return encodePlanMacaddrCodecBinaryHardwareAddr{}
+		case TextValuer:
+			return encodePlanMacAddrCodecTextValuer{}
 
-	switch value := src.(type) {
-	case net.HardwareAddr:
-		addr := make(net.HardwareAddr, len(value))
-		copy(addr, value)
-		*dst = Macaddr{Addr: addr, Valid: true}
-	case string:
-		addr, err := net.ParseMAC(value)
-		if err != nil {
-			return err
 		}
-		*dst = Macaddr{Addr: addr, Valid: true}
-	case *net.HardwareAddr:
-		if value == nil {
-			*dst = Macaddr{}
-		} else {
-			return dst.Set(*value)
+	case TextFormatCode:
+		switch value.(type) {
+		case net.HardwareAddr:
+			return encodePlanMacaddrCodecTextHardwareAddr{}
+		case TextValuer:
+			return encodePlanTextCodecTextValuer{}
 		}
-	case *string:
-		if value == nil {
-			*dst = Macaddr{}
-		} else {
-			return dst.Set(*value)
-		}
-	default:
-		if originalSrc, ok := underlyingPtrType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to Macaddr", value)
 	}
 
 	return nil
 }
 
-func (dst Macaddr) Get() interface{} {
-	if !dst.Valid {
-		return nil
+type encodePlanMacaddrCodecBinaryHardwareAddr struct{}
+
+func (encodePlanMacaddrCodecBinaryHardwareAddr) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	addr := value.(net.HardwareAddr)
+	if addr == nil {
+		return nil, nil
 	}
-	return dst.Addr
+
+	return append(buf, addr...), nil
 }
 
-func (src *Macaddr) AssignTo(dst interface{}) error {
-	if !src.Valid {
-		return NullAssignTo(dst)
+type encodePlanMacAddrCodecTextValuer struct{}
+
+func (encodePlanMacAddrCodecTextValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	t, err := value.(TextValuer).TextValue()
+	if err != nil {
+		return nil, err
+	}
+	if !t.Valid {
+		return nil, nil
 	}
 
-	switch v := dst.(type) {
-	case *net.HardwareAddr:
-		*v = make(net.HardwareAddr, len(src.Addr))
-		copy(*v, src.Addr)
-		return nil
-	case *string:
-		*v = src.Addr.String()
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(dst); retry {
-			return src.AssignTo(nextDst)
+	addr, err := net.ParseMAC(t.String)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(buf, addr...), nil
+}
+
+type encodePlanMacaddrCodecTextHardwareAddr struct{}
+
+func (encodePlanMacaddrCodecTextHardwareAddr) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	addr := value.(net.HardwareAddr)
+	if addr == nil {
+		return nil, nil
+	}
+
+	return append(buf, addr.String()...), nil
+}
+
+func (MacaddrCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case *net.HardwareAddr:
+			return scanPlanBinaryMacaddrToHardwareAddr{}
+		case TextScanner:
+			return scanPlanBinaryMacaddrToTextScanner{}
 		}
-		return fmt.Errorf("unable to assign to %T", dst)
+	case TextFormatCode:
+		switch target.(type) {
+		case *net.HardwareAddr:
+			return scanPlanTextMacaddrToHardwareAddr{}
+		case TextScanner:
+			return scanPlanTextAnyToTextScanner{}
+		}
 	}
+
+	return nil
 }
 
-func (dst *Macaddr) DecodeText(ci *ConnInfo, src []byte) error {
+type scanPlanBinaryMacaddrToHardwareAddr struct{}
+
+func (scanPlanBinaryMacaddrToHardwareAddr) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	dstBuf := dst.(*net.HardwareAddr)
 	if src == nil {
-		*dst = Macaddr{}
+		*dstBuf = nil
+		return nil
+	}
+
+	*dstBuf = make([]byte, len(src))
+	copy(*dstBuf, src)
+	return nil
+}
+
+type scanPlanBinaryMacaddrToTextScanner struct{}
+
+func (scanPlanBinaryMacaddrToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(TextScanner)
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
+	return scanner.ScanText(Text{String: net.HardwareAddr(src).String(), Valid: true})
+}
+
+type scanPlanTextMacaddrToHardwareAddr struct{}
+
+func (scanPlanTextMacaddrToHardwareAddr) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	p := dst.(*net.HardwareAddr)
+
+	if src == nil {
+		*p = nil
 		return nil
 	}
 
@@ -96,65 +139,24 @@ func (dst *Macaddr) DecodeText(ci *ConnInfo, src []byte) error {
 		return err
 	}
 
-	*dst = Macaddr{Addr: addr, Valid: true}
-	return nil
-}
-
-func (dst *Macaddr) DecodeBinary(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Macaddr{}
-		return nil
-	}
-
-	if len(src) != 6 {
-		return fmt.Errorf("Received an invalid size for a macaddr: %d", len(src))
-	}
-
-	addr := make(net.HardwareAddr, 6)
-	copy(addr, src)
-
-	*dst = Macaddr{Addr: addr, Valid: true}
+	*p = addr
 
 	return nil
 }
 
-func (src Macaddr) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.Addr.String()...), nil
+func (c MacaddrCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, ci, oid, format, src)
 }
 
-// EncodeBinary encodes src into w.
-func (src Macaddr) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.Addr...), nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Macaddr) Scan(src interface{}) error {
+func (c MacaddrCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
-		*dst = Macaddr{}
-		return nil
+		return nil, nil
 	}
 
-	switch src := src.(type) {
-	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
+	var addr net.HardwareAddr
+	err := codecScan(c, ci, oid, format, src, &addr)
+	if err != nil {
+		return nil, err
 	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Macaddr) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	return addr, nil
 }

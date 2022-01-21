@@ -3,76 +3,43 @@ package pgtype_test
 import (
 	"bytes"
 	"net"
-	"reflect"
 	"testing"
-
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
-func TestMacaddrTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "macaddr", []interface{}{
-		&pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
-		&pgtype.Macaddr{},
+func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
+	return func(v interface{}) bool {
+		aa := a.(net.HardwareAddr)
+		vv := v.(net.HardwareAddr)
+
+		if (aa == nil) != (vv == nil) {
+			return false
+		}
+
+		if aa == nil {
+			return true
+		}
+
+		return bytes.Compare(aa, vv) == 0
+	}
+}
+
+func TestMacaddrCodec(t *testing.T) {
+	testPgxCodec(t, "macaddr", []PgxTranscodeTestCase{
+		{
+			mustParseMacaddr(t, "01:23:45:67:89:ab"),
+			new(net.HardwareAddr),
+			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
+		},
+		{
+			"01:23:45:67:89:ab",
+			new(net.HardwareAddr),
+			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab")),
+		},
+		{
+			mustParseMacaddr(t, "01:23:45:67:89:ab"),
+			new(string),
+			isExpectedEq("01:23:45:67:89:ab"),
+		},
+		{nil, new(*net.HardwareAddr), isExpectedEq((*net.HardwareAddr)(nil))},
 	})
-}
-
-func TestMacaddrSet(t *testing.T) {
-	successfulTests := []struct {
-		source interface{}
-		result pgtype.Macaddr
-	}{
-		{
-			source: mustParseMacaddr(t, "01:23:45:67:89:ab"),
-			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
-		},
-		{
-			source: "01:23:45:67:89:ab",
-			result: pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true},
-		},
-	}
-
-	for i, tt := range successfulTests {
-		var r pgtype.Macaddr
-		err := r.Set(tt.source)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if !reflect.DeepEqual(r, tt.result) {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
-		}
-	}
-}
-
-func TestMacaddrAssignTo(t *testing.T) {
-	{
-		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}
-		var dst net.HardwareAddr
-		expected := mustParseMacaddr(t, "01:23:45:67:89:ab")
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if bytes.Compare([]byte(dst), []byte(expected)) != 0 {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
-
-	{
-		src := pgtype.Macaddr{Addr: mustParseMacaddr(t, "01:23:45:67:89:ab"), Valid: true}
-		var dst string
-		expected := "01:23:45:67:89:ab"
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if dst != expected {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
 }

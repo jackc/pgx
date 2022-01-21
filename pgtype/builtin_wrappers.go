@@ -299,6 +299,19 @@ type stringWrapper string
 
 func (w stringWrapper) SkipUnderlyingTypePlan() {}
 
+func (w *stringWrapper) ScanText(v Text) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *string")
+	}
+
+	*w = stringWrapper(v.String)
+	return nil
+}
+
+func (w stringWrapper) TextValue() (Text, error) {
+	return Text{String: string(w), Valid: true}, nil
+}
+
 func (w *stringWrapper) ScanInt64(v Int8) error {
 	if !v.Valid {
 		return fmt.Errorf("cannot scan NULL into *string")
