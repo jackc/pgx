@@ -175,22 +175,42 @@ type ConnInfo struct {
 
 	reflectTypeToDataType map[reflect.Type]*DataType
 
+	// TryWrapEncodePlanFuncs is a slice of functions that will wrap a value that cannot be encoded by the Codec. Every
+	// time a wrapper is found the PlanEncode method will be recursively called with the new value. This allows several layers of wrappers
+	// to be built up. There are default functions placed in this slice by NewConnInfo(). In most cases these functions
+	// should run last. i.e. Additional functions should typically be prepended not appended.
+	TryWrapEncodePlanFuncs []TryWrapEncodePlanFunc
+
+	// TryWrapScanPlanFuncs is a slice of functions that will wrap a target that cannot be scanned into by the Codec. Every
+	// time a wrapper is found the PlanScan method will be recursively called with the new target. This allows several layers of wrappers
+	// to be built up. There are default functions placed in this slice by NewConnInfo(). In most cases these functions
+	// should run last. i.e. Additional functions should typically be prepended not appended.
+	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
+
 	preferAssignToOverSQLScannerTypes map[reflect.Type]struct{}
 }
 
-func newConnInfo() *ConnInfo {
-	return &ConnInfo{
+func NewConnInfo() *ConnInfo {
+	ci := &ConnInfo{
 		oidToDataType:                     make(map[uint32]*DataType),
 		nameToDataType:                    make(map[string]*DataType),
 		reflectTypeToName:                 make(map[reflect.Type]string),
 		oidToFormatCode:                   make(map[uint32]int16),
 		oidToResultFormatCode:             make(map[uint32]int16),
 		preferAssignToOverSQLScannerTypes: make(map[reflect.Type]struct{}),
-	}
-}
 
-func NewConnInfo() *ConnInfo {
-	ci := newConnInfo()
+		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
+			TryWrapDerefPointerEncodePlan,
+			TryWrapFindUnderlyingTypeEncodePlan,
+			TryWrapBuiltinTypeEncodePlan,
+		},
+
+		TryWrapScanPlanFuncs: []TryWrapScanPlanFunc{
+			TryPointerPointerScanPlan,
+			TryFindUnderlyingTypeScanPlan,
+			TryWrapBuiltinTypeScanPlan,
+		},
+	}
 
 	ci.RegisterDataType(DataType{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementCodec: &TextFormatOnlyCodec{TextCodec{}}, ElementOID: ACLItemOID}})
 	ci.RegisterDataType(DataType{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementCodec: BoolCodec{}, ElementOID: BoolOID}})
@@ -553,7 +573,11 @@ func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byt
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type tryWrapScanPlanFunc func(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool)
+// TryWrapScanPlanFunc is a function that tries to create a wrapper plan for target. If successful it returns a plan
+// that will convert the target passed to Scan and then call the next plan. nextTarget is target as it will be converted
+// by plan. It must be used to find another suitable ScanPlan. When it is found SetNext must be called on plan for it
+// to be usabled. ok indicates if a suitable wrapper was found.
+type TryWrapScanPlanFunc func(target interface{}) (plan WrappedScanPlanNextSetter, nextTarget interface{}, ok bool)
 
 type pointerPointerScanPlan struct {
 	dstType reflect.Type
@@ -578,8 +602,10 @@ func (plan *pointerPointerScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode in
 	return plan.next.Scan(ci, oid, formatCode, src, el.Interface())
 }
 
-func tryPointerPointerScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
-	if dstValue := reflect.ValueOf(dst); dstValue.Kind() == reflect.Ptr {
+// TryPointerPointerScanPlan handles a pointer to a pointer by setting the target to nil for SQL NULL and allocating and
+// scanning for non-NULL.
+func TryPointerPointerScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextTarget interface{}, ok bool) {
+	if dstValue := reflect.ValueOf(target); dstValue.Kind() == reflect.Ptr {
 		elemValue := dstValue.Elem()
 		if elemValue.Kind() == reflect.Ptr {
 			plan = &pointerPointerScanPlan{dstType: dstValue.Type()}
@@ -628,7 +654,9 @@ func (plan *underlyingTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode in
 	return plan.next.Scan(ci, oid, formatCode, src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
 }
 
-func tryUnderlyingTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
+// TryFindUnderlyingTypeScanPlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
+// MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
+func TryFindUnderlyingTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
 	if _, ok := dst.(SkipUnderlyingTypePlanner); ok {
 		return nil, nil, false
 	}
@@ -651,50 +679,53 @@ type WrappedScanPlanNextSetter interface {
 	ScanPlan
 }
 
-func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
-	switch dst := dst.(type) {
+// TryWrapBuiltinTypeScanPlan tries to wrap a builtin type with a wrapper that provides additional methods. e.g. If
+// value was of type int32 then a wrapper plan would be returned that converts target to a value that implements
+// Int64Scanner.
+func TryWrapBuiltinTypeScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
+	switch target := target.(type) {
 	case *int8:
-		return &wrapInt8ScanPlan{}, (*int8Wrapper)(dst), true
+		return &wrapInt8ScanPlan{}, (*int8Wrapper)(target), true
 	case *int16:
-		return &wrapInt16ScanPlan{}, (*int16Wrapper)(dst), true
+		return &wrapInt16ScanPlan{}, (*int16Wrapper)(target), true
 	case *int32:
-		return &wrapInt32ScanPlan{}, (*int32Wrapper)(dst), true
+		return &wrapInt32ScanPlan{}, (*int32Wrapper)(target), true
 	case *int64:
-		return &wrapInt64ScanPlan{}, (*int64Wrapper)(dst), true
+		return &wrapInt64ScanPlan{}, (*int64Wrapper)(target), true
 	case *int:
-		return &wrapIntScanPlan{}, (*intWrapper)(dst), true
+		return &wrapIntScanPlan{}, (*intWrapper)(target), true
 	case *uint8:
-		return &wrapUint8ScanPlan{}, (*uint8Wrapper)(dst), true
+		return &wrapUint8ScanPlan{}, (*uint8Wrapper)(target), true
 	case *uint16:
-		return &wrapUint16ScanPlan{}, (*uint16Wrapper)(dst), true
+		return &wrapUint16ScanPlan{}, (*uint16Wrapper)(target), true
 	case *uint32:
-		return &wrapUint32ScanPlan{}, (*uint32Wrapper)(dst), true
+		return &wrapUint32ScanPlan{}, (*uint32Wrapper)(target), true
 	case *uint64:
-		return &wrapUint64ScanPlan{}, (*uint64Wrapper)(dst), true
+		return &wrapUint64ScanPlan{}, (*uint64Wrapper)(target), true
 	case *uint:
-		return &wrapUintScanPlan{}, (*uintWrapper)(dst), true
+		return &wrapUintScanPlan{}, (*uintWrapper)(target), true
 	case *float32:
-		return &wrapFloat32ScanPlan{}, (*float32Wrapper)(dst), true
+		return &wrapFloat32ScanPlan{}, (*float32Wrapper)(target), true
 	case *float64:
-		return &wrapFloat64ScanPlan{}, (*float64Wrapper)(dst), true
+		return &wrapFloat64ScanPlan{}, (*float64Wrapper)(target), true
 	case *string:
-		return &wrapStringScanPlan{}, (*stringWrapper)(dst), true
+		return &wrapStringScanPlan{}, (*stringWrapper)(target), true
 	case *time.Time:
-		return &wrapTimeScanPlan{}, (*timeWrapper)(dst), true
+		return &wrapTimeScanPlan{}, (*timeWrapper)(target), true
 	case *time.Duration:
-		return &wrapDurationScanPlan{}, (*durationWrapper)(dst), true
+		return &wrapDurationScanPlan{}, (*durationWrapper)(target), true
 	case *net.IPNet:
-		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(dst), true
+		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(target), true
 	case *net.IP:
-		return &wrapNetIPScanPlan{}, (*netIPWrapper)(dst), true
+		return &wrapNetIPScanPlan{}, (*netIPWrapper)(target), true
 	case *map[string]*string:
-		return &wrapMapStringToPointerStringScanPlan{}, (*mapStringToPointerStringWrapper)(dst), true
+		return &wrapMapStringToPointerStringScanPlan{}, (*mapStringToPointerStringWrapper)(target), true
 	case *map[string]string:
-		return &wrapMapStringToStringScanPlan{}, (*mapStringToStringWrapper)(dst), true
+		return &wrapMapStringToStringScanPlan{}, (*mapStringToStringWrapper)(target), true
 	case *[16]byte:
-		return &wrapByte16ScanPlan{}, (*byte16Wrapper)(dst), true
+		return &wrapByte16ScanPlan{}, (*byte16Wrapper)(target), true
 	case *[]byte:
-		return &wrapByteSliceScanPlan{}, (*byteSliceWrapper)(dst), true
+		return &wrapByteSliceScanPlan{}, (*byteSliceWrapper)(target), true
 	}
 
 	return nil, nil, false
@@ -989,13 +1020,7 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 			return plan
 		}
 
-		tryWrappers := []tryWrapScanPlanFunc{
-			tryPointerPointerScanPlan,
-			tryUnderlyingTypeScanPlan,
-			tryWrapBuiltinTypeScanPlan,
-		}
-
-		for _, f := range tryWrappers {
+		for _, f := range ci.TryWrapScanPlanFuncs {
 			if wrapperPlan, nextDst, ok := f(dst); ok {
 				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
 					if _, ok := nextPlan.(scanPlanReflection); !ok { // avoid fallthrough -- this will go away when old system removed.
@@ -1102,13 +1127,7 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 			return plan
 		}
 
-		tryWrappers := []tryWrapEncodePlanFunc{
-			tryDerefPointerEncodePlan,
-			tryUnderlyingTypeEncodePlan,
-			tryWrapBuiltinTypeEncodePlan,
-		}
-
-		for _, f := range tryWrappers {
+		for _, f := range ci.TryWrapEncodePlanFuncs {
 			if wrapperPlan, nextValue, ok := f(value); ok {
 				if nextPlan := ci.PlanEncode(oid, format, nextValue); nextPlan != nil {
 					wrapperPlan.SetNext(nextPlan)
@@ -1121,7 +1140,11 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 	return nil
 }
 
-type tryWrapEncodePlanFunc func(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool)
+// TryWrapEncodePlanFunc is a function that tries to create a wrapper plan for value. If successful it returns a plan
+// that will convert the value passed to Encode and then call the next plan. nextValue is value as it will be converted
+// by plan. It must be used to find another suitable EncodePlan. When it is found SetNext must be called on plan for it
+// to be usabled. ok indicates if a suitable wrapper was found.
+type TryWrapEncodePlanFunc func(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool)
 
 type derefPointerEncodePlan struct {
 	next EncodePlan
@@ -1139,7 +1162,9 @@ func (plan *derefPointerEncodePlan) Encode(value interface{}, buf []byte) (newBu
 	return plan.next.Encode(ptr.Elem().Interface(), buf)
 }
 
-func tryDerefPointerEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+// TryWrapDerefPointerEncodePlan tries to dereference a pointer. e.g. If value was of type *string then a wrapper plan
+// would be returned that derefences the value.
+func TryWrapDerefPointerEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
 	if valueType := reflect.TypeOf(value); valueType.Kind() == reflect.Ptr {
 		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
 	}
@@ -1174,7 +1199,9 @@ func (plan *underlyingTypeEncodePlan) Encode(value interface{}, buf []byte) (new
 	return plan.next.Encode(reflect.ValueOf(value).Convert(plan.nextValueType).Interface(), buf)
 }
 
-func tryUnderlyingTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+// TryWrapFindUnderlyingTypeEncodePlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
+// MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
+func TryWrapFindUnderlyingTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
 	if _, ok := value.(SkipUnderlyingTypePlanner); ok {
 		return nil, nil, false
 	}
@@ -1194,7 +1221,10 @@ type WrappedEncodePlanNextSetter interface {
 	EncodePlan
 }
 
-func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+// TryWrapBuiltinTypeEncodePlan tries to wrap a builtin type with a wrapper that provides additional methods. e.g. If
+// value was of type int32 then a wrapper plan would be returned that converts value to a type that implements
+// Int64Valuer.
+func TryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
 	switch value := value.(type) {
 	case int8:
 		return &wrapInt8EncodePlan{}, int8Wrapper(value), true
