@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqTime(a interface{}) func(interface{}) bool {
@@ -17,7 +18,7 @@ func isExpectedEqTime(a interface{}) func(interface{}) bool {
 }
 
 func TestDateCodec(t *testing.T) {
-	testPgxCodec(t, "date", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "date", []testutil.TranscodeTestCase{
 		{time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC))},
 		{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC))},
 		{time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEqTime(time.Date(1999, 12, 31, 0, 0, 0, 0, time.UTC))},

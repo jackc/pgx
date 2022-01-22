@@ -8,6 +8,8 @@ import (
 
 type UUID [16]byte
 
+func (UUID) SkipUnderlyingTypePlan() {}
+
 // ScanUUID implements the UUIDScanner interface.
 func (u *UUID) ScanUUID(v pgtype.UUID) error {
 	if !v.Valid {

@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPointCodec(t *testing.T) {
-	testPgxCodec(t, "point", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "point", []testutil.TranscodeTestCase{
 		{
 			pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
 			new(pgtype.Point),

@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestFloat8Codec(t *testing.T) {
-	testPgxCodec(t, "float8", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "float8", []testutil.TranscodeTestCase{
 		{pgtype.Float8{Float: -1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: -1, Valid: true})},
 		{pgtype.Float8{Float: 0, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: 0, Valid: true})},
 		{pgtype.Float8{Float: 1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: 1, Valid: true})},

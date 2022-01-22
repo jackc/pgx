@@ -25,7 +25,7 @@ func TestLineTranscode(t *testing.T) {
 		t.Skip("Skipping due to unimplemented line type in PG 9.3")
 	}
 
-	testPgxCodec(t, "line", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "line", []testutil.TranscodeTestCase{
 		{
 			pgtype.Line{
 				A: 1.23, B: 4.56, C: 7.89012345,

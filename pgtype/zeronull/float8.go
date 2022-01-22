@@ -8,6 +8,8 @@ import (
 
 type Float8 float64
 
+func (Float8) SkipUnderlyingTypePlan() {}
+
 // ScanFloat64 implements the Float64Scanner interface.
 func (f *Float8) ScanFloat64(n pgtype.Float8) error {
 	if !n.Valid {

@@ -11,6 +11,8 @@ import (
 
 type Int2 int16
 
+func (Int2) SkipUnderlyingTypePlan() {}
+
 // ScanInt64 implements the Int64Scanner interface.
 func (dst *Int2) ScanInt64(n int64, valid bool) error {
 	if !valid {
@@ -57,6 +59,8 @@ func (src Int2) Value() (driver.Value, error) {
 
 type Int4 int32
 
+func (Int4) SkipUnderlyingTypePlan() {}
+
 // ScanInt64 implements the Int64Scanner interface.
 func (dst *Int4) ScanInt64(n int64, valid bool) error {
 	if !valid {
@@ -102,6 +106,8 @@ func (src Int4) Value() (driver.Value, error) {
 }
 
 type Int8 int64
+
+func (Int8) SkipUnderlyingTypePlan() {}
 
 // ScanInt64 implements the Int64Scanner interface.
 func (dst *Int8) ScanInt64(n int64, valid bool) error {

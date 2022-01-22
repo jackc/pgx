@@ -75,7 +75,7 @@ func TestHstoreCodec(t *testing.T) {
 		return &s
 	}
 
-	tests := []PgxTranscodeTestCase{
+	tests := []testutil.TranscodeTestCase{
 		{
 			map[string]string{},
 			new(map[string]string),
@@ -134,25 +134,25 @@ func TestHstoreCodec(t *testing.T) {
 		// Special key values
 
 		// at beginning
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{s + "foo": "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{s + "foo": "bar"}),
 		})
 		// in middle
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo" + s + "bar": "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo" + s + "bar": "bar"}),
 		})
 		// at end
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo" + s: "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo" + s: "bar"}),
 		})
 		// is key
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{s: "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{s: "bar"}),
@@ -161,25 +161,25 @@ func TestHstoreCodec(t *testing.T) {
 		// Special value values
 
 		// at beginning
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo": s + "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": s + "bar"}),
 		})
 		// in middle
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo": "foo" + s + "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s + "bar"}),
 		})
 		// at end
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo": "foo" + s},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s}),
 		})
 		// is key
-		tests = append(tests, PgxTranscodeTestCase{
+		tests = append(tests, testutil.TranscodeTestCase{
 			map[string]string{"foo": s},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": s}),
@@ -187,6 +187,6 @@ func TestHstoreCodec(t *testing.T) {
 	}
 
 	for _, format := range formats {
-		testPgxCodecFormat(t, "hstore", tests, conn, format.name, format.code)
+		testutil.RunTranscodeTestsFormat(t, "hstore", tests, conn, format.name, format.code)
 	}
 }

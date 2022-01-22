@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestInt2Codec(t *testing.T) {
-	testPgxCodec(t, "int2", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "int2", []testutil.TranscodeTestCase{
 		{int8(1), new(int16), isExpectedEq(int16(1))},
 		{int16(1), new(int16), isExpectedEq(int16(1))},
 		{int32(1), new(int16), isExpectedEq(int16(1))},
@@ -89,7 +90,7 @@ func TestInt2UnmarshalJSON(t *testing.T) {
 }
 
 func TestInt4Codec(t *testing.T) {
-	testPgxCodec(t, "int4", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "int4", []testutil.TranscodeTestCase{
 		{int8(1), new(int32), isExpectedEq(int32(1))},
 		{int16(1), new(int32), isExpectedEq(int32(1))},
 		{int32(1), new(int32), isExpectedEq(int32(1))},
@@ -169,7 +170,7 @@ func TestInt4UnmarshalJSON(t *testing.T) {
 }
 
 func TestInt8Codec(t *testing.T) {
-	testPgxCodec(t, "int8", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "int8", []testutil.TranscodeTestCase{
 		{int8(1), new(int64), isExpectedEq(int64(1))},
 		{int16(1), new(int64), isExpectedEq(int64(1))},
 		{int32(1), new(int64), isExpectedEq(int64(1))},

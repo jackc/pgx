@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestBoolCodec(t *testing.T) {
-	testPgxCodec(t, "bool", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "bool", []testutil.TranscodeTestCase{
 		{true, new(bool), isExpectedEq(true)},
 		{false, new(bool), isExpectedEq(false)},
 		{true, new(pgtype.Bool), isExpectedEq(pgtype.Bool{Bool: true, Valid: true})},

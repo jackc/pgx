@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"net"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
@@ -24,7 +26,7 @@ func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
 }
 
 func TestMacaddrCodec(t *testing.T) {
-	testPgxCodec(t, "macaddr", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "macaddr", []testutil.TranscodeTestCase{
 		{
 			mustParseMacaddr(t, "01:23:45:67:89:ab"),
 			new(net.HardwareAddr),

@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestIntervalCodec(t *testing.T) {
-	testPgxCodec(t, "interval", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "interval", []testutil.TranscodeTestCase{
 		{
 			pgtype.Interval{Microseconds: 1, Valid: true},
 			new(pgtype.Interval),

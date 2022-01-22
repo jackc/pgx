@@ -37,15 +37,6 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	switch arg := arg.(type) {
 	case driver.Valuer:
 		return callValuerValue(arg)
-	case pgtype.TextEncoder:
-		buf, err := arg.EncodeText(ci, nil)
-		if err != nil {
-			return nil, err
-		}
-		if buf == nil {
-			return nil, nil
-		}
-		return string(buf), nil
 	case float32:
 		return float64(arg), nil
 	case float64:
@@ -89,21 +80,7 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 	}
 
 	if dt, found := ci.DataTypeForValue(arg); found {
-		if dt.Value != nil {
-			v := dt.Value
-			err := v.Set(arg)
-			if err != nil {
-				return nil, err
-			}
-			buf, err := v.(pgtype.TextEncoder).EncodeText(ci, nil)
-			if err != nil {
-				return nil, err
-			}
-			if buf == nil {
-				return nil, nil
-			}
-			return string(buf), nil
-		} else if dt.Codec != nil {
+		if dt.Codec != nil {
 			buf, err := ci.Encode(0, TextFormatCode, arg, nil)
 			if err != nil {
 				return nil, err
@@ -132,30 +109,6 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 	}
 
 	switch arg := arg.(type) {
-	case pgtype.BinaryEncoder:
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := arg.EncodeBinary(ci, buf)
-		if err != nil {
-			return nil, err
-		}
-		if argBuf != nil {
-			buf = argBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-		return buf, nil
-	case pgtype.TextEncoder:
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := arg.EncodeText(ci, buf)
-		if err != nil {
-			return nil, err
-		}
-		if argBuf != nil {
-			buf = argBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-		return buf, nil
 	case string:
 		buf = pgio.AppendInt32(buf, int32(len(arg)))
 		buf = append(buf, arg...)
@@ -173,35 +126,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 	}
 
 	if dt, ok := ci.DataTypeForOID(oid); ok {
-		if dt.Value != nil {
-			value := dt.Value
-			err := value.Set(arg)
-			if err != nil {
-				{
-					if arg, ok := arg.(driver.Valuer); ok {
-						v, err := callValuerValue(arg)
-						if err != nil {
-							return nil, err
-						}
-						return encodePreparedStatementArgument(ci, buf, oid, v)
-					}
-				}
-
-				return nil, err
-			}
-
-			sp := len(buf)
-			buf = pgio.AppendInt32(buf, -1)
-			argBuf, err := value.(pgtype.BinaryEncoder).EncodeBinary(ci, buf)
-			if err != nil {
-				return nil, err
-			}
-			if argBuf != nil {
-				buf = argBuf
-				pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-			}
-			return buf, nil
-		} else if dt.Codec != nil {
+		if dt.Codec != nil {
 			sp := len(buf)
 			buf = pgio.AppendInt32(buf, -1)
 			argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)
@@ -227,9 +152,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 // determination can be made.
 func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{}) int16 {
 	switch arg.(type) {
-	case pgtype.BinaryEncoder:
-		return BinaryFormatCode
-	case string, *string, pgtype.TextEncoder:
+	case string, *string:
 		return TextFormatCode
 	}
 

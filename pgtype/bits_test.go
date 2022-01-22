@@ -17,7 +17,7 @@ func isExpectedEqBits(a interface{}) func(interface{}) bool {
 }
 
 func TestBitsCodecBit(t *testing.T) {
-	testPgxCodec(t, "bit(40)", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "bit(40)", []testutil.TranscodeTestCase{
 		{
 			pgtype.Bits{Bytes: []byte{0, 0, 0, 0, 0}, Len: 40, Valid: true},
 			new(pgtype.Bits),
@@ -34,7 +34,7 @@ func TestBitsCodecBit(t *testing.T) {
 }
 
 func TestBitsCodecVarbit(t *testing.T) {
-	testPgxCodec(t, "varbit", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "varbit", []testutil.TranscodeTestCase{
 		{
 			pgtype.Bits{Bytes: []byte{}, Len: 0, Valid: true},
 			new(pgtype.Bits),
@@ -52,14 +52,5 @@ func TestBitsCodecVarbit(t *testing.T) {
 		},
 		{pgtype.Bits{}, new(pgtype.Bits), isExpectedEqBits(pgtype.Bits{})},
 		{nil, new(pgtype.Bits), isExpectedEqBits(pgtype.Bits{})},
-	})
-}
-
-func TestBitsNormalize(t *testing.T) {
-	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
-		{
-			SQL:   "select B'111111111'",
-			Value: &pgtype.Bits{Bytes: []byte{255, 128}, Len: 9, Valid: true},
-		},
 	})
 }

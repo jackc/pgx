@@ -8,7 +8,7 @@ import (
 )
 
 func TestBoxCodec(t *testing.T) {
-	testPgxCodec(t, "box", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "box", []testutil.TranscodeTestCase{
 		{
 			pgtype.Box{
 				P:     [2]pgtype.Vec2{{7.1, 5.2345678}, {3.14, 1.678}},
@@ -33,17 +33,5 @@ func TestBoxCodec(t *testing.T) {
 		},
 		{pgtype.Box{}, new(pgtype.Box), isExpectedEq(pgtype.Box{})},
 		{nil, new(pgtype.Box), isExpectedEq(pgtype.Box{})},
-	})
-}
-
-func TestBoxNormalize(t *testing.T) {
-	testutil.TestSuccessfulNormalize(t, []testutil.NormalizeTest{
-		{
-			SQL: "select '3.14, 1.678, 7.1, 5.234'::box",
-			Value: &pgtype.Box{
-				P:     [2]pgtype.Vec2{{7.1, 5.234}, {3.14, 1.678}},
-				Valid: true,
-			},
-		},
 	})
 }

@@ -28,7 +28,7 @@ func isExpectedEqBytes(a interface{}) func(interface{}) bool {
 }
 
 func TestByteaCodec(t *testing.T) {
-	testPgxCodec(t, "bytea", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "bytea", []testutil.TranscodeTestCase{
 		{[]byte{1, 2, 3}, new([]byte), isExpectedEqBytes([]byte{1, 2, 3})},
 		{[]byte{}, new([]byte), isExpectedEqBytes([]byte{})},
 		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},

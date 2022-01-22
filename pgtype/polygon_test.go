@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqPolygon(a interface{}) func(interface{}) bool {
@@ -26,7 +27,7 @@ func isExpectedEqPolygon(a interface{}) func(interface{}) bool {
 }
 
 func TestPolygonTranscode(t *testing.T) {
-	testPgxCodec(t, "polygon", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "polygon", []testutil.TranscodeTestCase{
 		{
 			pgtype.Polygon{
 				P:     []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}, {5.0, 3.234}},

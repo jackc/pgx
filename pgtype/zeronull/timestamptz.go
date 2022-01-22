@@ -10,6 +10,8 @@ import (
 
 type Timestamptz time.Time
 
+func (Timestamptz) SkipUnderlyingTypePlan() {}
+
 func (ts *Timestamptz) ScanTimestamptz(v pgtype.Timestamptz) error {
 	if !v.Valid {
 		*ts = Timestamptz{}

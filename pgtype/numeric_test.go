@@ -74,7 +74,7 @@ func TestNumericCodec(t *testing.T) {
 	max.Add(max, big.NewInt(1))
 	longestNumeric := pgtype.Numeric{Int: max, Exp: -16383, Valid: true}
 
-	testPgxCodec(t, "numeric", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "numeric", []testutil.TranscodeTestCase{
 		{mustParseNumeric(t, "1"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "1"))},
 		{mustParseNumeric(t, "3.14159"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "3.14159"))},
 		{mustParseNumeric(t, "100010001"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "100010001"))},
@@ -122,22 +122,22 @@ func TestNumericCodecFuzz(t *testing.T) {
 	max := &big.Int{}
 	max.SetString("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 10)
 
-	tests := make([]PgxTranscodeTestCase, 0, 2000)
+	tests := make([]testutil.TranscodeTestCase, 0, 2000)
 	for i := 0; i < 10; i++ {
 		for j := -50; j < 50; j++ {
 			num := (&big.Int{}).Rand(r, max)
 
 			n := pgtype.Numeric{Int: num, Exp: int32(j), Valid: true}
-			tests = append(tests, PgxTranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
+			tests = append(tests, testutil.TranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
 
 			negNum := &big.Int{}
 			negNum.Neg(num)
 			n = pgtype.Numeric{Int: negNum, Exp: int32(j), Valid: true}
-			tests = append(tests, PgxTranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
+			tests = append(tests, testutil.TranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
 		}
 	}
 
-	testPgxCodec(t, "numeric", tests)
+	testutil.RunTranscodeTests(t, "numeric", tests)
 }
 
 func TestNumericMarshalJSON(t *testing.T) {

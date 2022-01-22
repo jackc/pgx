@@ -8,6 +8,8 @@ import (
 
 type Text string
 
+func (Text) SkipUnderlyingTypePlan() {}
+
 // ScanText implements the TextScanner interface.
 func (dst *Text) ScanText(v pgtype.Text) error {
 	if !v.Valid {

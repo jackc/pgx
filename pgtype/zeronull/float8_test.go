@@ -7,17 +7,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
 )
 
+func isExpectedEq(a interface{}) func(interface{}) bool {
+	return func(v interface{}) bool {
+		return a == v
+	}
+}
+
 func TestFloat8Transcode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "float8", []interface{}{
-		(zeronull.Float8)(1),
-		(zeronull.Float8)(0),
+	testutil.RunTranscodeTests(t, "float8", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Float8)(1),
+			new(zeronull.Float8),
+			isExpectedEq((zeronull.Float8)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Float8),
+			isExpectedEq((zeronull.Float8)(0)),
+		},
+		{
+			(zeronull.Float8)(0),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestFloat8ConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "float8", (zeronull.Float8)(0))
-}
-
-func TestFloat8ConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "float8", (zeronull.Float8)(0))
 }

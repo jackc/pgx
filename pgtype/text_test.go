@@ -17,7 +17,7 @@ func (someFmtStringer) String() string {
 
 func TestTextCodec(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
-		testPgxCodec(t, pgTypeName, []PgxTranscodeTestCase{
+		testutil.RunTranscodeTests(t, pgTypeName, []testutil.TranscodeTestCase{
 			{
 				pgtype.Text{String: "", Valid: true},
 				new(pgtype.Text),
@@ -47,7 +47,7 @@ func TestTextCodec(t *testing.T) {
 //
 // So this is simply a smoke test of the name type.
 func TestTextCodecName(t *testing.T) {
-	testPgxCodec(t, "name", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "name", []testutil.TranscodeTestCase{
 		{
 			pgtype.Text{String: "", Valid: true},
 			new(pgtype.Text),
@@ -65,7 +65,7 @@ func TestTextCodecName(t *testing.T) {
 
 // Test fixed length char types like char(3)
 func TestTextCodecBPChar(t *testing.T) {
-	testPgxCodec(t, "char(3)", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "char(3)", []testutil.TranscodeTestCase{
 		{
 			pgtype.Text{String: "a  ", Valid: true},
 			new(pgtype.Text),
@@ -95,7 +95,7 @@ func TestTextCodecACLItem(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
-	testPgxCodecFormat(t, "aclitem", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTestsFormat(t, "aclitem", []testutil.TranscodeTestCase{
 		{
 			pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true},
 			new(pgtype.Text),
@@ -123,7 +123,7 @@ func TestTextCodecACLItemRoleWithSpecialCharacters(t *testing.T) {
 		t.Skipf("Role with special characters does not exist.")
 	}
 
-	testPgxCodecFormat(t, "aclitem", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTestsFormat(t, "aclitem", []testutil.TranscodeTestCase{
 		{
 			pgtype.Text{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true},
 			new(pgtype.Text),

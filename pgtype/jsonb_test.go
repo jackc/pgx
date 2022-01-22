@@ -2,6 +2,8 @@ package pgtype_test
 
 import (
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestJSONBTranscode(t *testing.T) {
@@ -10,7 +12,7 @@ func TestJSONBTranscode(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
-	testPgxCodec(t, "jsonb", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "jsonb", []testutil.TranscodeTestCase{
 		{[]byte("{}"), new([]byte), isExpectedEqBytes([]byte("{}"))},
 		{[]byte("null"), new([]byte), isExpectedEqBytes([]byte("null"))},
 		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},

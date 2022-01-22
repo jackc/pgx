@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUUIDCodec(t *testing.T) {
-	testPgxCodec(t, "uuid", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "uuid", []testutil.TranscodeTestCase{
 		{
 			pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
 			new(pgtype.UUID),

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqPath(a interface{}) func(interface{}) bool {
@@ -26,7 +27,7 @@ func isExpectedEqPath(a interface{}) func(interface{}) bool {
 }
 
 func TestPathTranscode(t *testing.T) {
-	testPgxCodec(t, "path", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "path", []testutil.TranscodeTestCase{
 		{
 			pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}},

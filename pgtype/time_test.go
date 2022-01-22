@@ -5,10 +5,11 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestTimeCodec(t *testing.T) {
-	testPgxCodec(t, "time", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "time", []testutil.TranscodeTestCase{
 		{
 			pgtype.Time{Microseconds: 0, Valid: true},
 			new(pgtype.Time),
