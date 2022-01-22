@@ -1,151 +1,44 @@
 package pgtype_test
 
 import (
-	"bytes"
 	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/require"
 )
 
-func TestUUIDTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "uuid", []interface{}{
-		&pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		&pgtype.UUID{},
+func TestUUIDCodec(t *testing.T) {
+	testPgxCodec(t, "uuid", []PgxTranscodeTestCase{
+		{
+			pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
+			new(pgtype.UUID),
+			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
+		},
+		{
+			[16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			new(pgtype.UUID),
+			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
+		},
+		{
+			[]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			new(pgtype.UUID),
+			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
+		},
+		{
+			"00010203-0405-0607-0809-0a0b0c0d0e0f",
+			new(pgtype.UUID),
+			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
+		},
+		{
+			"000102030405060708090a0b0c0d0e0f",
+			new(pgtype.UUID),
+			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
+		},
+		{pgtype.UUID{}, new([]byte), isExpectedEqBytes([]byte(nil))},
+		{pgtype.UUID{}, new(pgtype.UUID), isExpectedEq(pgtype.UUID{})},
+		{nil, new(pgtype.UUID), isExpectedEq(pgtype.UUID{})},
 	})
-}
-
-type SomeUUIDWrapper struct {
-	SomeUUIDType
-}
-
-type SomeUUIDType [16]byte
-
-func TestUUIDSet(t *testing.T) {
-	successfulTests := []struct {
-		source interface{}
-		result pgtype.UUID
-	}{
-		{
-			source: nil,
-			result: pgtype.UUID{},
-		},
-		{
-			source: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		},
-		{
-			source: []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		},
-		{
-			source: SomeUUIDType{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		},
-		{
-			source: ([]byte)(nil),
-			result: pgtype.UUID{},
-		},
-		{
-			source: "00010203-0405-0607-0809-0a0b0c0d0e0f",
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		},
-		{
-			source: "000102030405060708090a0b0c0d0e0f",
-			result: pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
-		},
-	}
-
-	for i, tt := range successfulTests {
-		var r pgtype.UUID
-		err := r.Set(tt.source)
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
-
-		if r.Bytes != tt.result.Bytes || r.Valid != tt.result.Valid {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
-		}
-	}
-}
-
-func TestUUIDAssignTo(t *testing.T) {
-	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
-		var dst [16]byte
-		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if dst != expected {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
-
-	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
-		var dst []byte
-		expected := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if bytes.Compare(dst, expected) != 0 {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
-
-	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
-		var dst SomeUUIDType
-		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if dst != expected {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
-
-	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
-		var dst string
-		expected := "00010203-0405-0607-0809-0a0b0c0d0e0f"
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if dst != expected {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
-
-	{
-		src := pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}
-		var dst SomeUUIDWrapper
-		expected := [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
-
-		err := src.AssignTo(&dst)
-		if err != nil {
-			t.Error(err)
-		}
-
-		if dst.SomeUUIDType != expected {
-			t.Errorf("expected %v to assign %v, but result was %v", src, expected, dst)
-		}
-	}
 }
 
 func TestUUID_MarshalJSON(t *testing.T) {

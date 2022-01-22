@@ -7,144 +7,26 @@ import (
 	"fmt"
 )
 
+type UUIDScanner interface {
+	ScanUUID(v UUID) error
+}
+
+type UUIDValuer interface {
+	UUIDValue() (UUID, error)
+}
+
 type UUID struct {
 	Bytes [16]byte
 	Valid bool
-
-	UUIDDecoderWrapper func(interface{}) UUIDDecoder
-	Getter             func(UUID) interface{}
 }
 
-func (n *UUID) NewTypeValue() Value {
-	return &UUID{
-		UUIDDecoderWrapper: n.UUIDDecoderWrapper,
-		Getter:             n.Getter,
-	}
-}
-
-func (n *UUID) TypeName() string {
-	return "uuid"
-}
-
-func (dst *UUID) setNil() {
-	dst.Bytes = [16]byte{}
-	dst.Valid = false
-}
-
-func (dst *UUID) setByteArray(value [16]byte) {
-	dst.Bytes = value
-	dst.Valid = true
-}
-
-func (dst *UUID) setByteSlice(value []byte) error {
-	if value != nil {
-		if len(value) != 16 {
-			return fmt.Errorf("[]byte must be 16 bytes to convert to UUID: %d", len(value))
-		}
-		copy(dst.Bytes[:], value)
-		dst.Valid = true
-	} else {
-		dst.setNil()
-	}
-
+func (b *UUID) ScanUUID(v UUID) error {
+	*b = v
 	return nil
 }
 
-func (dst *UUID) setString(value string) error {
-	uuid, err := parseUUID(value)
-	if err != nil {
-		return err
-	}
-	dst.setByteArray(uuid)
-	return nil
-}
-
-func (dst *UUID) Set(src interface{}) error {
-	if src == nil {
-		dst.setNil()
-		return nil
-	}
-
-	if value, ok := src.(interface{ Get() interface{} }); ok {
-		value2 := value.Get()
-		if value2 != value {
-			return dst.Set(value2)
-		}
-	}
-
-	switch value := src.(type) {
-	case [16]byte:
-		dst.setByteArray(value)
-	case []byte:
-		return dst.setByteSlice(value)
-	case string:
-		return dst.setString(value)
-	case *string:
-		if value == nil {
-			dst.setNil()
-		} else {
-			return dst.setString(*value)
-		}
-	default:
-		if originalSrc, ok := underlyingUUIDType(src); ok {
-			return dst.Set(originalSrc)
-		}
-		return fmt.Errorf("cannot convert %v to UUID", value)
-	}
-
-	return nil
-}
-
-func (dst UUID) Get() interface{} {
-	if dst.Getter != nil {
-		return dst.Getter(dst)
-	}
-
-	if !dst.Valid {
-		return nil
-	}
-
-	return dst.Bytes
-}
-
-type UUIDDecoder interface {
-	DecodeUUID(*UUID) error
-}
-
-func (src *UUID) AssignTo(dst interface{}) error {
-	if d, ok := dst.(UUIDDecoder); ok {
-		return d.DecodeUUID(src)
-	} else {
-		if src.UUIDDecoderWrapper != nil {
-			d = src.UUIDDecoderWrapper(dst)
-			if d != nil {
-				return d.DecodeUUID(src)
-			}
-		}
-	}
-
-	if !src.Valid {
-		return NullAssignTo(dst)
-	}
-
-	switch v := dst.(type) {
-	case *[16]byte:
-		*v = src.Bytes
-		return nil
-	case *[]byte:
-		*v = make([]byte, 16)
-		copy(*v, src.Bytes[:])
-		return nil
-	case *string:
-		*v = encodeUUID(src.Bytes)
-		return nil
-	default:
-		if nextDst, retry := GetAssignToDstType(v); retry {
-			return src.AssignTo(nextDst)
-		}
-	}
-
-	return nil
+func (b UUID) UUIDValue() (UUID, error) {
+	return b, nil
 }
 
 // parseUUID converts a string UUID in standard form to a byte array.
@@ -173,68 +55,21 @@ func encodeUUID(src [16]byte) string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", src[0:4], src[4:6], src[6:8], src[8:10], src[10:16])
 }
 
-func (dst *UUID) DecodeText(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		dst.setNil()
-		return nil
-	}
-
-	if len(src) != 36 {
-		return fmt.Errorf("invalid length for UUID: %v", len(src))
-	}
-
-	buf, err := parseUUID(string(src))
-	if err != nil {
-		return err
-	}
-
-	dst.setByteArray(buf)
-	return nil
-}
-
-func (dst *UUID) DecodeBinary(ci *ConnInfo, src []byte) error {
-	if src == nil {
-		dst.setNil()
-		return nil
-	}
-
-	if len(src) != 16 {
-		return fmt.Errorf("invalid length for UUID: %v", len(src))
-	}
-
-	return dst.setByteSlice(src)
-}
-
-func (src UUID) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, encodeUUID(src.Bytes)...), nil
-}
-
-func (src UUID) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	return append(buf, src.Bytes[:]...), nil
-}
-
 // Scan implements the database/sql Scanner interface.
 func (dst *UUID) Scan(src interface{}) error {
 	if src == nil {
-		dst.setNil()
+		*dst = UUID{}
 		return nil
 	}
 
 	switch src := src.(type) {
 	case string:
-		return dst.DecodeText(nil, []byte(src))
-	case []byte:
-		srcCopy := make([]byte, len(src))
-		copy(srcCopy, src)
-		return dst.DecodeText(nil, srcCopy)
+		buf, err := parseUUID(src)
+		if err != nil {
+			return err
+		}
+		*dst = UUID{Bytes: buf, Valid: true}
+		return nil
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -242,7 +77,11 @@ func (dst *UUID) Scan(src interface{}) error {
 
 // Value implements the database/sql/driver Valuer interface.
 func (src UUID) Value() (driver.Value, error) {
-	return EncodeValueText(src)
+	if !src.Valid {
+		return nil, nil
+	}
+
+	return encodeUUID(src.Bytes), nil
 }
 
 func (src UUID) MarshalJSON() ([]byte, error) {
@@ -259,10 +98,151 @@ func (src UUID) MarshalJSON() ([]byte, error) {
 
 func (dst *UUID) UnmarshalJSON(src []byte) error {
 	if bytes.Compare(src, []byte("null")) == 0 {
-		return dst.Set(nil)
+		*dst = UUID{}
+		return nil
 	}
 	if len(src) != 38 {
 		return fmt.Errorf("invalid length for UUID: %v", len(src))
 	}
-	return dst.Set(string(src[1 : len(src)-1]))
+	buf, err := parseUUID(string(src[1 : len(src)-1]))
+	if err != nil {
+		return err
+	}
+	*dst = UUID{Bytes: buf, Valid: true}
+	return nil
+}
+
+type UUIDCodec struct{}
+
+func (UUIDCodec) FormatSupported(format int16) bool {
+	return format == TextFormatCode || format == BinaryFormatCode
+}
+
+func (UUIDCodec) PreferredFormat() int16 {
+	return BinaryFormatCode
+}
+
+func (UUIDCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+	if _, ok := value.(UUIDValuer); !ok {
+		return nil
+	}
+
+	switch format {
+	case BinaryFormatCode:
+		return encodePlanUUIDCodecBinaryUUIDValuer{}
+	case TextFormatCode:
+		return encodePlanUUIDCodecTextUUIDValuer{}
+	}
+
+	return nil
+}
+
+type encodePlanUUIDCodecBinaryUUIDValuer struct{}
+
+func (encodePlanUUIDCodecBinaryUUIDValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	uuid, err := value.(UUIDValuer).UUIDValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !uuid.Valid {
+		return nil, nil
+	}
+
+	return append(buf, uuid.Bytes[:]...), nil
+}
+
+type encodePlanUUIDCodecTextUUIDValuer struct{}
+
+func (encodePlanUUIDCodecTextUUIDValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	uuid, err := value.(UUIDValuer).UUIDValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !uuid.Valid {
+		return nil, nil
+	}
+
+	return append(buf, encodeUUID(uuid.Bytes)...), nil
+}
+
+func (UUIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+	switch format {
+	case BinaryFormatCode:
+		switch target.(type) {
+		case UUIDScanner:
+			return scanPlanBinaryUUIDToUUIDScanner{}
+		}
+	case TextFormatCode:
+		switch target.(type) {
+		case UUIDScanner:
+			return scanPlanTextAnyToUUIDScanner{}
+		}
+	}
+
+	return nil
+}
+
+type scanPlanBinaryUUIDToUUIDScanner struct{}
+
+func (scanPlanBinaryUUIDToUUIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(UUIDScanner)
+
+	if src == nil {
+		return scanner.ScanUUID(UUID{})
+	}
+
+	if len(src) != 16 {
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
+	}
+
+	uuid := UUID{Valid: true}
+	copy(uuid.Bytes[:], src)
+
+	return scanner.ScanUUID(uuid)
+}
+
+type scanPlanTextAnyToUUIDScanner struct{}
+
+func (scanPlanTextAnyToUUIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	scanner := (dst).(UUIDScanner)
+
+	if src == nil {
+		return scanner.ScanUUID(UUID{})
+	}
+
+	buf, err := parseUUID(string(src))
+	if err != nil {
+		return err
+	}
+
+	return scanner.ScanUUID(UUID{Bytes: buf, Valid: true})
+}
+
+func (c UUIDCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	var uuid UUID
+	err := codecScan(c, ci, oid, format, src, &uuid)
+	if err != nil {
+		return nil, err
+	}
+
+	return encodeUUID(uuid.Bytes), nil
+}
+
+func (c UUIDCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+	if src == nil {
+		return nil, nil
+	}
+
+	var uuid UUID
+	err := codecScan(c, ci, oid, format, src, &uuid)
+	if err != nil {
+		return nil, err
+	}
+	return uuid.Bytes, nil
 }
