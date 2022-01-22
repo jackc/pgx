@@ -246,7 +246,7 @@ func (c Uint32Codec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []b
 
 type scanPlanBinaryUint32ToUint32 struct{}
 
-func (scanPlanBinaryUint32ToUint32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -263,7 +263,7 @@ func (scanPlanBinaryUint32ToUint32) Scan(ci *ConnInfo, oid uint32, formatCode in
 
 type scanPlanBinaryUint32ToUint32Scanner struct{}
 
-func (scanPlanBinaryUint32ToUint32Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -284,7 +284,7 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(ci *ConnInfo, oid uint32, format
 
 type scanPlanTextAnyToUint32Scanner struct{}
 
-func (scanPlanTextAnyToUint32Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint32Scanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

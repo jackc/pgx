@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/jackc/pgproto3/v2"
@@ -111,6 +112,7 @@ type connRows struct {
 	multiResultReader *pgconn.MultiResultReader
 
 	scanPlans []pgtype.ScanPlan
+	scanTypes []reflect.Type
 }
 
 func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
@@ -208,8 +210,10 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 
 	if rows.scanPlans == nil {
 		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
+		rows.scanTypes = make([]reflect.Type, len(values))
 		for i := range dest {
 			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
+			rows.scanTypes[i] = reflect.TypeOf(dest[i])
 		}
 	}
 
@@ -218,7 +222,12 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 			continue
 		}
 
-		err := rows.scanPlans[i].Scan(ci, fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], dst)
+		if rows.scanTypes[i] != reflect.TypeOf(dst) {
+			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
+			rows.scanTypes[i] = reflect.TypeOf(dest[i])
+		}
+
+		err := rows.scanPlans[i].Scan(values[i], dst)
 		if err != nil {
 			err = ScanArgError{ColumnIndex: i, Err: err}
 			rows.fatal(err)

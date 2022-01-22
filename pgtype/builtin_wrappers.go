@@ -494,6 +494,8 @@ func (w netIPNetWrapper) InetValue() (Inet, error) {
 
 type netIPWrapper net.IP
 
+func (w netIPWrapper) SkipUnderlyingTypePlan() {}
+
 func (w *netIPWrapper) ScanInet(v Inet) error {
 	if !v.Valid {
 		*w = nil
@@ -577,6 +579,26 @@ func (w byte16Wrapper) UUIDValue() (UUID, error) {
 }
 
 type byteSliceWrapper []byte
+
+func (w byteSliceWrapper) SkipUnderlyingTypePlan() {}
+
+func (w *byteSliceWrapper) ScanText(v Text) error {
+	if !v.Valid {
+		*w = nil
+		return nil
+	}
+
+	*w = byteSliceWrapper(v.String)
+	return nil
+}
+
+func (w byteSliceWrapper) TextValue() (Text, error) {
+	if w == nil {
+		return Text{}, nil
+	}
+
+	return Text{String: string(w), Valid: true}, nil
+}
 
 func (w *byteSliceWrapper) ScanUUID(v UUID) error {
 	if !v.Valid {

@@ -53,7 +53,7 @@ func (tstz *Timestamptz) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextTimestamptzToTimestamptzScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), tstz)
+		return scanPlanTextTimestamptzToTimestamptzScanner{}.Scan([]byte(src), tstz)
 	case time.Time:
 		*tstz = Timestamptz{Time: src, Valid: true}
 		return nil
@@ -220,7 +220,7 @@ func (TimestamptzCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target 
 
 type scanPlanBinaryTimestamptzToTimestamptzScanner struct{}
 
-func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TimestamptzScanner)
 
 	if src == nil {
@@ -252,7 +252,7 @@ func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(ci *ConnInfo, oid uint
 
 type scanPlanTextTimestamptzToTimestamptzScanner struct{}
 
-func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TimestamptzScanner)
 
 	if src == nil {

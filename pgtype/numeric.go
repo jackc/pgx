@@ -175,7 +175,7 @@ func (n *Numeric) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToNumericScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), n)
+		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -522,7 +522,7 @@ func (NumericCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inte
 
 type scanPlanBinaryNumericToNumericScanner struct{}
 
-func (scanPlanBinaryNumericToNumericScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(NumericScanner)
 
 	if src == nil {
@@ -628,7 +628,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(ci *ConnInfo, oid uint32, form
 
 type scanPlanBinaryNumericToFloat64Scanner struct{}
 
-func (scanPlanBinaryNumericToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(Float64Scanner)
 
 	if src == nil {
@@ -637,7 +637,7 @@ func (scanPlanBinaryNumericToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, form
 
 	var n Numeric
 
-	err := scanPlanBinaryNumericToNumericScanner{}.Scan(ci, oid, formatCode, src, &n)
+	err := scanPlanBinaryNumericToNumericScanner{}.Scan(src, &n)
 	if err != nil {
 		return err
 	}
@@ -652,7 +652,7 @@ func (scanPlanBinaryNumericToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, form
 
 type scanPlanBinaryNumericToInt64Scanner struct{}
 
-func (scanPlanBinaryNumericToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(Int64Scanner)
 
 	if src == nil {
@@ -661,7 +661,7 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(ci *ConnInfo, oid uint32, format
 
 	var n Numeric
 
-	err := scanPlanBinaryNumericToNumericScanner{}.Scan(ci, oid, formatCode, src, &n)
+	err := scanPlanBinaryNumericToNumericScanner{}.Scan(src, &n)
 	if err != nil {
 		return err
 	}
@@ -680,7 +680,7 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(ci *ConnInfo, oid uint32, format
 
 type scanPlanTextAnyToNumericScanner struct{}
 
-func (scanPlanTextAnyToNumericScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(NumericScanner)
 
 	if src == nil {

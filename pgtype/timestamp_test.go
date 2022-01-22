@@ -52,6 +52,6 @@ func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 	c := &pgtype.TimestampCodec{}
 	var ts pgtype.Timestamp
 	plan := c.PlanScan(nil, pgtype.TimestampOID, pgtype.TextFormatCode, &ts, false)
-	err := plan.Scan(nil, pgtype.TimestampOID, pgtype.TextFormatCode, []byte(`eeeee`), &ts)
+	err := plan.Scan([]byte(`eeeee`), &ts)
 	require.Error(t, err)
 }

@@ -45,7 +45,7 @@ func (t *Time) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToTimeScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), t)
+		return scanPlanTextAnyToTimeScanner{}.Scan([]byte(src), t)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -149,7 +149,7 @@ func (TimeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryTimeToTimeScanner struct{}
 
-func (scanPlanBinaryTimeToTimeScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryTimeToTimeScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TimeScanner)
 
 	if src == nil {
@@ -167,7 +167,7 @@ func (scanPlanBinaryTimeToTimeScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToTimeScanner struct{}
 
-func (scanPlanTextAnyToTimeScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToTimeScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TimeScanner)
 
 	if src == nil {

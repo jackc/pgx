@@ -72,7 +72,7 @@ func (QCharCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interf
 
 type scanPlanQcharCodecByte struct{}
 
-func (scanPlanQcharCodecByte) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanQcharCodecByte) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -94,7 +94,7 @@ func (scanPlanQcharCodecByte) Scan(ci *ConnInfo, oid uint32, formatCode int16, s
 
 type scanPlanQcharCodecRune struct{}
 
-func (scanPlanQcharCodecRune) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanQcharCodecRune) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}

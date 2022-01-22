@@ -43,7 +43,7 @@ func (path *Path) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToPathScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), path)
+		return scanPlanTextAnyToPathScanner{}.Scan([]byte(src), path)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -173,7 +173,7 @@ func (PathCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryPathToPathScanner struct{}
 
-func (scanPlanBinaryPathToPathScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PathScanner)
 
 	if src == nil {
@@ -211,7 +211,7 @@ func (scanPlanBinaryPathToPathScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToPathScanner struct{}
 
-func (scanPlanTextAnyToPathScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PathScanner)
 
 	if src == nil {

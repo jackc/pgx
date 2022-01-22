@@ -42,7 +42,7 @@ func (p *Polygon) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToPolygonScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), p)
+		return scanPlanTextAnyToPolygonScanner{}.Scan([]byte(src), p)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -158,7 +158,7 @@ func (PolygonCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inte
 
 type scanPlanBinaryPolygonToPolygonScanner struct{}
 
-func (scanPlanBinaryPolygonToPolygonScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PolygonScanner)
 
 	if src == nil {
@@ -193,7 +193,7 @@ func (scanPlanBinaryPolygonToPolygonScanner) Scan(ci *ConnInfo, oid uint32, form
 
 type scanPlanTextAnyToPolygonScanner struct{}
 
-func (scanPlanTextAnyToPolygonScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PolygonScanner)
 
 	if src == nil {

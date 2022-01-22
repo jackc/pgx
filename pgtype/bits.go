@@ -41,7 +41,7 @@ func (dst *Bits) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToBitsScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToBitsScanner{}.Scan([]byte(src), dst)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -163,7 +163,7 @@ func (c BitsCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 
 type scanPlanBinaryBitsToBitsScanner struct{}
 
-func (scanPlanBinaryBitsToBitsScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BitsScanner)
 
 	if src == nil {
@@ -182,7 +182,7 @@ func (scanPlanBinaryBitsToBitsScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToBitsScanner struct{}
 
-func (scanPlanTextAnyToBitsScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBitsScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BitsScanner)
 
 	if src == nil {

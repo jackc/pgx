@@ -47,7 +47,7 @@ func (dst *Date) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToDateScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToDateScanner{}.Scan([]byte(src), dst)
 	case time.Time:
 		*dst = Date{Time: src, Valid: true}
 		return nil
@@ -216,7 +216,7 @@ func (DateCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryDateToDateScanner struct{}
 
-func (scanPlanBinaryDateToDateScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(DateScanner)
 
 	if src == nil {
@@ -242,7 +242,7 @@ func (scanPlanBinaryDateToDateScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToDateScanner struct{}
 
-func (scanPlanTextAnyToDateScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(DateScanner)
 
 	if src == nil {

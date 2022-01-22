@@ -186,7 +186,7 @@ func (UUIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryUUIDToUUIDScanner struct{}
 
-func (scanPlanBinaryUUIDToUUIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryUUIDToUUIDScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(UUIDScanner)
 
 	if src == nil {
@@ -205,7 +205,7 @@ func (scanPlanBinaryUUIDToUUIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToUUIDScanner struct{}
 
-func (scanPlanTextAnyToUUIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUUIDScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(UUIDScanner)
 
 	if src == nil {

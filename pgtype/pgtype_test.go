@@ -118,16 +118,8 @@ func TestConnInfoScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("foo"), b)
 
-	err = ci.Scan(unknownOID, pgx.BinaryFormatCode, srcBuf, &b)
-	assert.NoError(t, err)
-	assert.Equal(t, []byte("foo"), b)
-
 	var rb _byteSlice
 	err = ci.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rb)
-	assert.NoError(t, err)
-	assert.Equal(t, []byte("foo"), []byte(rb))
-
-	err = ci.Scan(unknownOID, pgx.BinaryFormatCode, srcBuf, &b)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("foo"), []byte(rb))
 }
@@ -219,21 +211,6 @@ func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
 	}
 }
 
-func TestScanPlanBinaryInt32ScanChangedType(t *testing.T) {
-	ci := pgtype.NewConnInfo()
-	src := []byte{0, 0, 0, 42}
-	var v int32
-
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
-	err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
-	require.NoError(t, err)
-	require.EqualValues(t, 42, v)
-
-	var d pgtype.Int4
-	err = plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &d)
-	require.EqualError(t, err, pgtype.ErrScanTargetTypeChanged.Error())
-}
-
 func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
 	ci := pgtype.NewConnInfo()
 	src := []byte{0, 0, 0, 42}
@@ -260,7 +237,7 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		v = pgtype.Int4{}
-		err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		err := plan.Scan(src, &v)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -279,7 +256,7 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		v = 0
-		err := plan.Scan(ci, pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		err := plan.Scan(src, &v)
 		if err != nil {
 			b.Fatal(err)
 		}

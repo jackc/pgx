@@ -42,7 +42,7 @@ func (lseg *Lseg) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToLsegScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), lseg)
+		return scanPlanTextAnyToLsegScanner{}.Scan([]byte(src), lseg)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -146,7 +146,7 @@ func (LsegCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryLsegToLsegScanner struct{}
 
-func (scanPlanBinaryLsegToLsegScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(LsegScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryLsegToLsegScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToLsegScanner struct{}
 
-func (scanPlanTextAnyToLsegScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(LsegScanner)
 
 	if src == nil {

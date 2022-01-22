@@ -53,7 +53,7 @@ func (dst *TID) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToTIDScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToTIDScanner{}.Scan([]byte(src), dst)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -152,7 +152,7 @@ func (TIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfac
 
 type scanPlanBinaryTIDToTIDScanner struct{}
 
-func (scanPlanBinaryTIDToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TIDScanner)
 
 	if src == nil {
@@ -172,7 +172,7 @@ func (scanPlanBinaryTIDToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 
 type scanPlanBinaryTIDToTextScanner struct{}
 
-func (scanPlanBinaryTIDToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {
@@ -194,7 +194,7 @@ func (scanPlanBinaryTIDToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode 
 
 type scanPlanTextAnyToTIDScanner struct{}
 
-func (scanPlanTextAnyToTIDScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TIDScanner)
 
 	if src == nil {

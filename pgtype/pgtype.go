@@ -3,10 +3,8 @@ package pgtype
 import (
 	"database/sql"
 	"database/sql/driver"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 	"reflect"
 	"time"
@@ -198,14 +196,14 @@ func NewConnInfo() *ConnInfo {
 
 		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
 			TryWrapDerefPointerEncodePlan,
-			TryWrapFindUnderlyingTypeEncodePlan,
 			TryWrapBuiltinTypeEncodePlan,
+			TryWrapFindUnderlyingTypeEncodePlan,
 		},
 
 		TryWrapScanPlanFuncs: []TryWrapScanPlanFunc{
 			TryPointerPointerScanPlan,
-			TryFindUnderlyingTypeScanPlan,
 			TryWrapBuiltinTypeScanPlan,
+			TryFindUnderlyingTypeScanPlan,
 		},
 	}
 
@@ -409,22 +407,19 @@ type EncodePlan interface {
 
 // ScanPlan is a precompiled plan to scan into a type of destination.
 type ScanPlan interface {
-	// Scan scans src into dst. If the dst type has changed in an incompatible way a ScanPlan should automatically
-	// replan and scan.
-	Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error
+	// Scan scans src into target.
+	Scan(src []byte, target interface{}) error
 }
 
-type scanPlanDstResultDecoder struct{}
-
-func (scanPlanDstResultDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
+type scanPlanCodecSQLScanner struct {
+	c          Codec
+	ci         *ConnInfo
+	oid        uint32
+	formatCode int16
 }
 
-type scanPlanCodecSQLScanner struct{ c Codec }
-
-func (plan *scanPlanCodecSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	value, err := plan.c.DecodeDatabaseSQLValue(ci, oid, formatCode, src)
+func (plan *scanPlanCodecSQLScanner) Scan(src []byte, dst interface{}) error {
+	value, err := plan.c.DecodeDatabaseSQLValue(plan.ci, plan.oid, plan.formatCode, src)
 	if err != nil {
 		return err
 	}
@@ -433,135 +428,56 @@ func (plan *scanPlanCodecSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 	return scanner.Scan(value)
 }
 
-type scanPlanSQLScanner struct{}
+type scanPlanSQLScanner struct {
+	formatCode int16
+}
 
-func (scanPlanSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (plan *scanPlanSQLScanner) Scan(src []byte, dst interface{}) error {
 	scanner := dst.(sql.Scanner)
 	if src == nil {
 		// This is necessary because interface value []byte:nil does not equal nil:nil for the binary format path and the
 		// text format path would be converted to empty string.
 		return scanner.Scan(nil)
-	} else if formatCode == BinaryFormatCode {
+	} else if plan.formatCode == BinaryFormatCode {
 		return scanner.Scan(src)
 	} else {
 		return scanner.Scan(string(src))
 	}
 }
 
-type scanPlanReflection struct{}
-
-func (scanPlanReflection) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	// We might be given a pointer to something that implements the decoder interface(s),
-	// even though the pointer itself doesn't.
-	refVal := reflect.ValueOf(dst)
-	if refVal.Kind() == reflect.Ptr && refVal.Type().Elem().Kind() == reflect.Ptr {
-		// If the database returned NULL, then we set dest as nil to indicate that.
-		if src == nil {
-			nilPtr := reflect.Zero(refVal.Type().Elem())
-			refVal.Elem().Set(nilPtr)
-			return nil
-		}
-
-		// We need to allocate an element, and set the destination to it
-		// Then we can retry as that element.
-		elemPtr := reflect.New(refVal.Type().Elem().Elem())
-		refVal.Elem().Set(elemPtr)
-
-		plan := ci.PlanScan(oid, formatCode, elemPtr.Interface())
-		return plan.Scan(ci, oid, formatCode, src, elemPtr.Interface())
-	}
-
-	return scanUnknownType(oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryInt64 struct{}
-
-func (scanPlanBinaryInt64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for int8: %v", len(src))
-	}
-
-	if p, ok := (dst).(*int64); ok {
-		*p = int64(binary.BigEndian.Uint64(src))
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryFloat32 struct{}
-
-func (scanPlanBinaryFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 4 {
-		return fmt.Errorf("invalid length for int4: %v", len(src))
-	}
-
-	if p, ok := (dst).(*float32); ok {
-		n := int32(binary.BigEndian.Uint32(src))
-		*p = float32(math.Float32frombits(uint32(n)))
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryFloat64 struct{}
-
-func (scanPlanBinaryFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	if len(src) != 8 {
-		return fmt.Errorf("invalid length for int8: %v", len(src))
-	}
-
-	if p, ok := (dst).(*float64); ok {
-		n := int64(binary.BigEndian.Uint64(src))
-		*p = float64(math.Float64frombits(uint64(n)))
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
-}
-
-type scanPlanBinaryBytes struct{}
-
-func (scanPlanBinaryBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if p, ok := (dst).(*[]byte); ok {
-		*p = src
-		return nil
-	}
-
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
-}
-
 type scanPlanString struct{}
 
-func (scanPlanString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanString) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
 
-	if p, ok := (dst).(*string); ok {
-		*p = string(src)
+	p := (dst).(*string)
+	*p = string(src)
+	return nil
+}
+
+type scanPlanAnyTextToBytes struct{}
+
+func (scanPlanAnyTextToBytes) Scan(src []byte, dst interface{}) error {
+	dstBuf := dst.(*[]byte)
+	if src == nil {
+		*dstBuf = nil
 		return nil
 	}
 
-	newPlan := ci.PlanScan(oid, formatCode, dst)
-	return newPlan.Scan(ci, oid, formatCode, src, dst)
+	*dstBuf = make([]byte, len(src))
+	copy(*dstBuf, src)
+	return nil
+}
+
+type scanPlanFail struct {
+	oid        uint32
+	formatCode int16
+}
+
+func (plan *scanPlanFail) Scan(src []byte, dst interface{}) error {
+	return fmt.Errorf("cannot scan OID %v in format %v into %T", plan.oid, plan.formatCode, dst)
 }
 
 // TryWrapScanPlanFunc is a function that tries to create a wrapper plan for target. If successful it returns a plan
@@ -577,12 +493,7 @@ type pointerPointerScanPlan struct {
 
 func (plan *pointerPointerScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *pointerPointerScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if plan.dstType != reflect.TypeOf(dst) {
-		newPlan := ci.PlanScan(oid, formatCode, dst)
-		return newPlan.Scan(ci, oid, formatCode, src, dst)
-	}
-
+func (plan *pointerPointerScanPlan) Scan(src []byte, dst interface{}) error {
 	el := reflect.ValueOf(dst).Elem()
 	if src == nil {
 		el.Set(reflect.Zero(el.Type()))
@@ -590,7 +501,7 @@ func (plan *pointerPointerScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode in
 	}
 
 	el.Set(reflect.New(el.Type().Elem()))
-	return plan.next.Scan(ci, oid, formatCode, src, el.Interface())
+	return plan.next.Scan(src, el.Interface())
 }
 
 // TryPointerPointerScanPlan handles a pointer to a pointer by setting the target to nil for SQL NULL and allocating and
@@ -636,13 +547,8 @@ type underlyingTypeScanPlan struct {
 
 func (plan *underlyingTypeScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *underlyingTypeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	if plan.dstType != reflect.TypeOf(dst) {
-		newPlan := ci.PlanScan(oid, formatCode, dst)
-		return newPlan.Scan(ci, oid, formatCode, src, dst)
-	}
-
-	return plan.next.Scan(ci, oid, formatCode, src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
+func (plan *underlyingTypeScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
 }
 
 // TryFindUnderlyingTypeScanPlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
@@ -657,9 +563,17 @@ func TryFindUnderlyingTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSet
 	if dstValue.Kind() == reflect.Ptr {
 		elemValue := dstValue.Elem()
 		nextDstType := elemKindToPointerTypes[elemValue.Kind()]
+		if nextDstType == nil && elemValue.Kind() == reflect.Slice {
+			if elemValue.Type().Elem().Kind() == reflect.Uint8 {
+				var v *[]byte
+				nextDstType = reflect.TypeOf(v)
+			}
+		}
+
 		if nextDstType != nil && dstValue.Type() != nextDstType {
 			return &underlyingTypeScanPlan{dstType: dstValue.Type(), nextDstType: nextDstType}, dstValue.Convert(nextDstType).Interface(), true
 		}
+
 	}
 
 	return nil, nil, false
@@ -728,8 +642,8 @@ type wrapInt8ScanPlan struct {
 
 func (plan *wrapInt8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt8ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*int8Wrapper)(dst.(*int8)))
+func (plan *wrapInt8ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*int8Wrapper)(dst.(*int8)))
 }
 
 type wrapInt16ScanPlan struct {
@@ -738,8 +652,8 @@ type wrapInt16ScanPlan struct {
 
 func (plan *wrapInt16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*int16Wrapper)(dst.(*int16)))
+func (plan *wrapInt16ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*int16Wrapper)(dst.(*int16)))
 }
 
 type wrapInt32ScanPlan struct {
@@ -748,8 +662,8 @@ type wrapInt32ScanPlan struct {
 
 func (plan *wrapInt32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*int32Wrapper)(dst.(*int32)))
+func (plan *wrapInt32ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*int32Wrapper)(dst.(*int32)))
 }
 
 type wrapInt64ScanPlan struct {
@@ -758,8 +672,8 @@ type wrapInt64ScanPlan struct {
 
 func (plan *wrapInt64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*int64Wrapper)(dst.(*int64)))
+func (plan *wrapInt64ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*int64Wrapper)(dst.(*int64)))
 }
 
 type wrapIntScanPlan struct {
@@ -768,8 +682,8 @@ type wrapIntScanPlan struct {
 
 func (plan *wrapIntScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapIntScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*intWrapper)(dst.(*int)))
+func (plan *wrapIntScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*intWrapper)(dst.(*int)))
 }
 
 type wrapUint8ScanPlan struct {
@@ -778,8 +692,8 @@ type wrapUint8ScanPlan struct {
 
 func (plan *wrapUint8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint8ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*uint8Wrapper)(dst.(*uint8)))
+func (plan *wrapUint8ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*uint8Wrapper)(dst.(*uint8)))
 }
 
 type wrapUint16ScanPlan struct {
@@ -788,8 +702,8 @@ type wrapUint16ScanPlan struct {
 
 func (plan *wrapUint16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*uint16Wrapper)(dst.(*uint16)))
+func (plan *wrapUint16ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*uint16Wrapper)(dst.(*uint16)))
 }
 
 type wrapUint32ScanPlan struct {
@@ -798,8 +712,8 @@ type wrapUint32ScanPlan struct {
 
 func (plan *wrapUint32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*uint32Wrapper)(dst.(*uint32)))
+func (plan *wrapUint32ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*uint32Wrapper)(dst.(*uint32)))
 }
 
 type wrapUint64ScanPlan struct {
@@ -808,8 +722,8 @@ type wrapUint64ScanPlan struct {
 
 func (plan *wrapUint64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*uint64Wrapper)(dst.(*uint64)))
+func (plan *wrapUint64ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*uint64Wrapper)(dst.(*uint64)))
 }
 
 type wrapUintScanPlan struct {
@@ -818,8 +732,8 @@ type wrapUintScanPlan struct {
 
 func (plan *wrapUintScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUintScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*uintWrapper)(dst.(*uint)))
+func (plan *wrapUintScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*uintWrapper)(dst.(*uint)))
 }
 
 type wrapFloat32ScanPlan struct {
@@ -828,8 +742,8 @@ type wrapFloat32ScanPlan struct {
 
 func (plan *wrapFloat32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapFloat32ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*float32Wrapper)(dst.(*float32)))
+func (plan *wrapFloat32ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*float32Wrapper)(dst.(*float32)))
 }
 
 type wrapFloat64ScanPlan struct {
@@ -838,8 +752,8 @@ type wrapFloat64ScanPlan struct {
 
 func (plan *wrapFloat64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapFloat64ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*float64Wrapper)(dst.(*float64)))
+func (plan *wrapFloat64ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*float64Wrapper)(dst.(*float64)))
 }
 
 type wrapStringScanPlan struct {
@@ -848,8 +762,8 @@ type wrapStringScanPlan struct {
 
 func (plan *wrapStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*stringWrapper)(dst.(*string)))
+func (plan *wrapStringScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*stringWrapper)(dst.(*string)))
 }
 
 type wrapTimeScanPlan struct {
@@ -858,8 +772,8 @@ type wrapTimeScanPlan struct {
 
 func (plan *wrapTimeScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapTimeScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*timeWrapper)(dst.(*time.Time)))
+func (plan *wrapTimeScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*timeWrapper)(dst.(*time.Time)))
 }
 
 type wrapDurationScanPlan struct {
@@ -868,8 +782,8 @@ type wrapDurationScanPlan struct {
 
 func (plan *wrapDurationScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapDurationScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*durationWrapper)(dst.(*time.Duration)))
+func (plan *wrapDurationScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*durationWrapper)(dst.(*time.Duration)))
 }
 
 type wrapNetIPNetScanPlan struct {
@@ -878,8 +792,8 @@ type wrapNetIPNetScanPlan struct {
 
 func (plan *wrapNetIPNetScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapNetIPNetScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*netIPNetWrapper)(dst.(*net.IPNet)))
+func (plan *wrapNetIPNetScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*netIPNetWrapper)(dst.(*net.IPNet)))
 }
 
 type wrapNetIPScanPlan struct {
@@ -888,8 +802,8 @@ type wrapNetIPScanPlan struct {
 
 func (plan *wrapNetIPScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapNetIPScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*netIPWrapper)(dst.(*net.IP)))
+func (plan *wrapNetIPScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*netIPWrapper)(dst.(*net.IP)))
 }
 
 type wrapMapStringToPointerStringScanPlan struct {
@@ -898,8 +812,8 @@ type wrapMapStringToPointerStringScanPlan struct {
 
 func (plan *wrapMapStringToPointerStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapMapStringToPointerStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*mapStringToPointerStringWrapper)(dst.(*map[string]*string)))
+func (plan *wrapMapStringToPointerStringScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*mapStringToPointerStringWrapper)(dst.(*map[string]*string)))
 }
 
 type wrapMapStringToStringScanPlan struct {
@@ -908,8 +822,8 @@ type wrapMapStringToStringScanPlan struct {
 
 func (plan *wrapMapStringToStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapMapStringToStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*mapStringToStringWrapper)(dst.(*map[string]string)))
+func (plan *wrapMapStringToStringScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*mapStringToStringWrapper)(dst.(*map[string]string)))
 }
 
 type wrapByte16ScanPlan struct {
@@ -918,8 +832,8 @@ type wrapByte16ScanPlan struct {
 
 func (plan *wrapByte16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapByte16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*byte16Wrapper)(dst.(*[16]byte)))
+func (plan *wrapByte16ScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*byte16Wrapper)(dst.(*[16]byte)))
 }
 
 type wrapByteSliceScanPlan struct {
@@ -928,16 +842,19 @@ type wrapByteSliceScanPlan struct {
 
 func (plan *wrapByteSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapByteSliceScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	return plan.next.Scan(ci, oid, formatCode, src, (*byteSliceWrapper)(dst.(*[]byte)))
+func (plan *wrapByteSliceScanPlan) Scan(src []byte, dst interface{}) error {
+	return plan.next.Scan(src, (*byteSliceWrapper)(dst.(*[]byte)))
 }
 
 type pointerEmptyInterfaceScanPlan struct {
-	codec Codec
+	codec      Codec
+	ci         *ConnInfo
+	oid        uint32
+	formatCode int16
 }
 
-func (plan *pointerEmptyInterfaceScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	value, err := plan.codec.DecodeValue(ci, oid, formatCode, src)
+func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst interface{}) error {
+	value, err := plan.codec.DecodeValue(plan.ci, plan.oid, plan.formatCode, src)
 	if err != nil {
 		return err
 	}
@@ -948,45 +865,28 @@ func (plan *pointerEmptyInterfaceScanPlan) Scan(ci *ConnInfo, oid uint32, format
 	return nil
 }
 
-// PlanScan prepares a plan to scan a value into dst.
-func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) ScanPlan {
-	if _, ok := dst.(*UndecodedBytes); ok {
+// PlanScan prepares a plan to scan a value into target.
+func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
+	if _, ok := target.(*UndecodedBytes); ok {
 		return scanPlanAnyToUndecodedBytes{}
 	}
 
 	switch formatCode {
 	case BinaryFormatCode:
-		switch dst.(type) {
+		switch target.(type) {
 		case *string:
 			switch oid {
 			case TextOID, VarcharOID:
 				return scanPlanString{}
 			}
-		case *int64:
-			if oid == Int8OID {
-				return scanPlanBinaryInt64{}
-			}
-		case *float32:
-			if oid == Float4OID {
-				return scanPlanBinaryFloat32{}
-			}
-		case *float64:
-			if oid == Float8OID {
-				return scanPlanBinaryFloat64{}
-			}
-		case *[]byte:
-			switch oid {
-			case ByteaOID, TextOID, VarcharOID, JSONOID:
-				return scanPlanBinaryBytes{}
-			}
 		}
 	case TextFormatCode:
-		switch dst.(type) {
+		switch target.(type) {
 		case *string:
 			return scanPlanString{}
 		case *[]byte:
 			if oid != ByteaOID {
-				return scanPlanBinaryBytes{}
+				return scanPlanAnyTextToBytes{}
 			}
 		case TextScanner:
 			return scanPlanTextAnyToTextScanner{}
@@ -995,47 +895,43 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 
 	var dt *DataType
 
-	if oid == 0 {
-		if dataType, ok := ci.DataTypeForValue(dst); ok {
-			dt = dataType
-			oid = dt.OID // Preserve assumed OID in case we are recursively called below.
-		}
-	} else {
-		if dataType, ok := ci.DataTypeForOID(oid); ok {
-			dt = dataType
-		}
+	if dataType, ok := ci.DataTypeForOID(oid); ok {
+		dt = dataType
+	} else if dataType, ok := ci.DataTypeForValue(target); ok {
+		dt = dataType
+		oid = dt.OID // Preserve assumed OID in case we are recursively called below.
 	}
 
 	if dt != nil {
-		if plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false); plan != nil {
+		if plan := dt.Codec.PlanScan(ci, oid, formatCode, target, false); plan != nil {
 			return plan
 		}
 
-		for _, f := range ci.TryWrapScanPlanFuncs {
-			if wrapperPlan, nextDst, ok := f(dst); ok {
-				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
-					if _, ok := nextPlan.(scanPlanReflection); !ok { // avoid fallthrough -- this will go away when old system removed.
-						wrapperPlan.SetNext(nextPlan)
-						return wrapperPlan
-					}
+		if _, ok := target.(*interface{}); ok {
+			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
+		}
+
+		if _, ok := target.(sql.Scanner); ok {
+			return &scanPlanCodecSQLScanner{c: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
+		}
+	}
+
+	for _, f := range ci.TryWrapScanPlanFuncs {
+		if wrapperPlan, nextDst, ok := f(target); ok {
+			if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+				if _, failed := nextPlan.(*scanPlanFail); !failed {
+					wrapperPlan.SetNext(nextPlan)
+					return wrapperPlan
 				}
 			}
 		}
-
-		if _, ok := dst.(*interface{}); ok {
-			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec}
-		}
-
-		if _, ok := dst.(sql.Scanner); ok {
-			return &scanPlanCodecSQLScanner{c: dt.Codec}
-		}
 	}
 
-	if _, ok := dst.(sql.Scanner); ok {
-		return scanPlanSQLScanner{}
+	if _, ok := target.(sql.Scanner); ok {
+		return &scanPlanSQLScanner{formatCode: formatCode}
 	}
 
-	return scanPlanReflection{}
+	return &scanPlanFail{oid: oid, formatCode: formatCode}
 }
 
 func (ci *ConnInfo) Scan(oid uint32, formatCode int16, src []byte, dst interface{}) error {
@@ -1044,7 +940,7 @@ func (ci *ConnInfo) Scan(oid uint32, formatCode int16, src []byte, dst interface
 	}
 
 	plan := ci.PlanScan(oid, formatCode, dst)
-	return plan.Scan(ci, oid, formatCode, src, dst)
+	return plan.Scan(src, dst)
 }
 
 func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
@@ -1073,7 +969,7 @@ func codecScan(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte, 
 	if scanPlan == nil {
 		return fmt.Errorf("PlanScan did not find a plan")
 	}
-	return scanPlan.Scan(ci, oid, format, src, dst)
+	return scanPlan.Scan(src, dst)
 }
 
 func codecDecodeToTextFormat(codec Codec, ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {

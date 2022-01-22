@@ -101,7 +101,7 @@ func (MacaddrCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inte
 
 type scanPlanBinaryMacaddrToHardwareAddr struct{}
 
-func (scanPlanBinaryMacaddrToHardwareAddr) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryMacaddrToHardwareAddr) Scan(src []byte, dst interface{}) error {
 	dstBuf := dst.(*net.HardwareAddr)
 	if src == nil {
 		*dstBuf = nil
@@ -115,7 +115,7 @@ func (scanPlanBinaryMacaddrToHardwareAddr) Scan(ci *ConnInfo, oid uint32, format
 
 type scanPlanBinaryMacaddrToTextScanner struct{}
 
-func (scanPlanBinaryMacaddrToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryMacaddrToTextScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TextScanner)
 	if src == nil {
 		return scanner.ScanText(Text{})
@@ -126,7 +126,7 @@ func (scanPlanBinaryMacaddrToTextScanner) Scan(ci *ConnInfo, oid uint32, formatC
 
 type scanPlanTextMacaddrToHardwareAddr struct{}
 
-func (scanPlanTextMacaddrToHardwareAddr) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextMacaddrToHardwareAddr) Scan(src []byte, dst interface{}) error {
 	p := dst.(*net.HardwareAddr)
 
 	if src == nil {

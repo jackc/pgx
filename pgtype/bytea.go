@@ -49,7 +49,7 @@ type UndecodedBytes []byte
 
 type scanPlanAnyToUndecodedBytes struct{}
 
-func (scanPlanAnyToUndecodedBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanAnyToUndecodedBytes) Scan(src []byte, dst interface{}) error {
 	dstBuf := dst.(*UndecodedBytes)
 	if src == nil {
 		*dstBuf = nil
@@ -170,7 +170,7 @@ func (ByteaCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interf
 
 type scanPlanBinaryBytesToBytes struct{}
 
-func (scanPlanBinaryBytesToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBytesToBytes) Scan(src []byte, dst interface{}) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -184,14 +184,14 @@ func (scanPlanBinaryBytesToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int1
 
 type scanPlanBinaryBytesToBytesScanner struct{}
 
-func (scanPlanBinaryBytesToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBytesToBytesScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BytesScanner)
 	return scanner.ScanBytes(src)
 }
 
 type scanPlanTextByteaToBytes struct{}
 
-func (scanPlanTextByteaToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextByteaToBytes) Scan(src []byte, dst interface{}) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -209,7 +209,7 @@ func (scanPlanTextByteaToBytes) Scan(ci *ConnInfo, oid uint32, formatCode int16,
 
 type scanPlanTextByteaToBytesScanner struct{}
 
-func (scanPlanTextByteaToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextByteaToBytesScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BytesScanner)
 	buf, err := decodeHexBytea(src)
 	if err != nil {
