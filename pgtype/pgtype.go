@@ -520,41 +520,6 @@ func (plan scanPlanDstTextDecoder) Scan(ci *ConnInfo, oid uint32, formatCode int
 	return newPlan.Scan(ci, oid, formatCode, src, dst)
 }
 
-type scanPlanDataTypeSQLScanner DataType
-
-func (plan *scanPlanDataTypeSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	scanner, ok := dst.(sql.Scanner)
-	if !ok {
-		newPlan := ci.PlanScan(oid, formatCode, dst)
-		return newPlan.Scan(ci, oid, formatCode, src, dst)
-	}
-
-	dt := (*DataType)(plan)
-	if dt.Codec != nil {
-		sqlValue, err := dt.Codec.DecodeDatabaseSQLValue(ci, oid, formatCode, src)
-		if err != nil {
-			return err
-		}
-		return scanner.Scan(sqlValue)
-	}
-	var err error
-	switch formatCode {
-	case BinaryFormatCode:
-		err = dt.binaryDecoder.DecodeBinary(ci, src)
-	case TextFormatCode:
-		err = dt.textDecoder.DecodeText(ci, src)
-	}
-	if err != nil {
-		return err
-	}
-
-	sqlSrc, err := DatabaseSQLValue(ci, dt.Value)
-	if err != nil {
-		return err
-	}
-	return scanner.Scan(sqlSrc)
-}
-
 type scanPlanDataTypeAssignTo DataType
 
 func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
@@ -594,6 +559,18 @@ func (plan *scanPlanDataTypeAssignTo) Scan(ci *ConnInfo, oid uint32, formatCode 
 	}
 
 	return assignToErr
+}
+
+type scanPlanCodecSQLScanner struct{ c Codec }
+
+func (plan *scanPlanCodecSQLScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	value, err := plan.c.DecodeDatabaseSQLValue(ci, oid, formatCode, src)
+	if err != nil {
+		return err
+	}
+
+	scanner := dst.(sql.Scanner)
+	return scanner.Scan(value)
 }
 
 type scanPlanSQLScanner struct{}
@@ -1176,7 +1153,7 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 		for _, f := range tryWrappers {
 			if wrapperPlan, nextDst, ok := f(dst); ok {
 				if nextPlan := ci.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
-					if _, ok := nextPlan.(*scanPlanDataTypeAssignTo); !ok { // avoid fallthrough -- this will go away when old system removed.
+					if _, ok := nextPlan.(scanPlanReflection); !ok { // avoid fallthrough -- this will go away when old system removed.
 						wrapperPlan.SetNext(nextPlan)
 						return wrapperPlan
 					}
@@ -1187,15 +1164,10 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 		if _, ok := dst.(*interface{}); ok {
 			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec}
 		}
-	}
 
-	if dt != nil {
 		if _, ok := dst.(sql.Scanner); ok {
-			if _, found := ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(dst)]; !found {
-				return (*scanPlanDataTypeSQLScanner)(dt)
-			}
+			return &scanPlanCodecSQLScanner{c: dt.Codec}
 		}
-		return (*scanPlanDataTypeAssignTo)(dt)
 	}
 
 	if _, ok := dst.(sql.Scanner); ok {

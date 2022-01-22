@@ -461,6 +461,8 @@ func (w timeWrapper) TimeValue() (Time, error) {
 
 type durationWrapper time.Duration
 
+func (w durationWrapper) SkipUnderlyingTypePlan() {}
+
 func (w *durationWrapper) ScanInterval(v Interval) error {
 	if !v.Valid {
 		return fmt.Errorf("cannot scan NULL into *time.Interval")
