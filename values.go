@@ -79,17 +79,15 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return int64(arg), nil
 	}
 
-	if dt, found := ci.DataTypeForValue(arg); found {
-		if dt.Codec != nil {
-			buf, err := ci.Encode(0, TextFormatCode, arg, nil)
-			if err != nil {
-				return nil, err
-			}
-			if buf == nil {
-				return nil, nil
-			}
-			return string(buf), nil
+	if _, found := ci.DataTypeForValue(arg); found {
+		buf, err := ci.Encode(0, TextFormatCode, arg, nil)
+		if err != nil {
+			return nil, err
 		}
+		if buf == nil {
+			return nil, nil
+		}
+		return string(buf), nil
 	}
 
 	if refVal.Kind() == reflect.Ptr {
@@ -125,20 +123,18 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 		return encodePreparedStatementArgument(ci, buf, oid, arg)
 	}
 
-	if dt, ok := ci.DataTypeForOID(oid); ok {
-		if dt.Codec != nil {
-			sp := len(buf)
-			buf = pgio.AppendInt32(buf, -1)
-			argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)
-			if err != nil {
-				return nil, err
-			}
-			if argBuf != nil {
-				buf = argBuf
-				pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-			}
-			return buf, nil
+	if _, ok := ci.DataTypeForOID(oid); ok {
+		sp := len(buf)
+		buf = pgio.AppendInt32(buf, -1)
+		argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)
+		if err != nil {
+			return nil, err
 		}
+		if argBuf != nil {
+			buf = argBuf
+			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
+		}
+		return buf, nil
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {

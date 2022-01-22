@@ -246,13 +246,11 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		}
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
-			if dt.Codec != nil {
-				value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
-				if err != nil {
-					rows.fatal(err)
-				}
-				values = append(values, value)
+			value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
+			if err != nil {
+				rows.fatal(err)
 			}
+			values = append(values, value)
 		} else {
 			switch fd.Format {
 			case TextFormatCode:
