@@ -149,22 +149,6 @@ type Value interface {
 	AssignTo(dst interface{}) error
 }
 
-// TypeValue is a Value where instances can represent different PostgreSQL types. This can be useful for
-// representing types such as enums, composites, and arrays.
-//
-// In general, instances of TypeValue should not be used to directly represent a value. It should only be used as an
-// encoder and decoder internal to ConnInfo.
-type TypeValue interface {
-	Value
-
-	// NewTypeValue creates a TypeValue including references to internal type information. e.g. the list of members
-	// in an EnumType.
-	NewTypeValue() Value
-
-	// TypeName returns the PostgreSQL name of this type.
-	TypeName() string
-}
-
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -456,9 +440,7 @@ func (ci *ConnInfo) buildReflectTypeToDataType() {
 
 	for _, dt := range ci.oidToDataType {
 		if dt.Value != nil {
-			if _, is := dt.Value.(TypeValue); !is {
-				ci.reflectTypeToDataType[reflect.ValueOf(dt.Value).Type()] = dt
-			}
+			ci.reflectTypeToDataType[reflect.ValueOf(dt.Value).Type()] = dt
 		}
 	}
 
@@ -474,11 +456,6 @@ func (ci *ConnInfo) buildReflectTypeToDataType() {
 func (ci *ConnInfo) DataTypeForValue(v interface{}) (*DataType, bool) {
 	if ci.reflectTypeToDataType == nil {
 		ci.buildReflectTypeToDataType()
-	}
-
-	if tv, ok := v.(TypeValue); ok {
-		dt, ok := ci.nameToDataType[tv.TypeName()]
-		return dt, ok
 	}
 
 	dt, ok := ci.reflectTypeToDataType[reflect.TypeOf(v)]
@@ -1258,11 +1235,7 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 
 // NewValue returns a new instance of the same type as v.
 func NewValue(v Value) Value {
-	if tv, ok := v.(TypeValue); ok {
-		return tv.NewTypeValue()
-	} else {
-		return reflect.New(reflect.ValueOf(v).Elem().Type()).Interface().(Value)
-	}
+	return reflect.New(reflect.ValueOf(v).Elem().Type()).Interface().(Value)
 }
 
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
