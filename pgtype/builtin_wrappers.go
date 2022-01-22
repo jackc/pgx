@@ -273,6 +273,20 @@ func (w float32Wrapper) Int64Value() (Int8, error) {
 	return Int8{Int: int64(w), Valid: true}, nil
 }
 
+func (w *float32Wrapper) ScanFloat64(v Float8) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *float32")
+	}
+
+	*w = float32Wrapper(v.Float)
+
+	return nil
+}
+
+func (w float32Wrapper) Float64Value() (Float8, error) {
+	return Float8{Float: float64(w), Valid: true}, nil
+}
+
 type float64Wrapper float64
 
 func (w float64Wrapper) SkipUnderlyingTypePlan() {}
@@ -293,6 +307,20 @@ func (w float64Wrapper) Int64Value() (Int8, error) {
 	}
 
 	return Int8{Int: int64(w), Valid: true}, nil
+}
+
+func (w *float64Wrapper) ScanFloat64(v Float8) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *float64")
+	}
+
+	*w = float64Wrapper(v.Float)
+
+	return nil
+}
+
+func (w float64Wrapper) Float64Value() (Float8, error) {
+	return Float8{Float: float64(w), Valid: true}, nil
 }
 
 type stringWrapper string
