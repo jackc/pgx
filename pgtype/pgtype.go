@@ -331,15 +331,7 @@ func NewConnInfo() *ConnInfo {
 func (ci *ConnInfo) RegisterDataType(t DataType) {
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
-
-	{
-		var formatCode int16
-		if t.Codec != nil {
-			formatCode = t.Codec.PreferredFormat()
-		}
-		ci.oidToFormatCode[t.OID] = formatCode
-	}
-
+	ci.oidToFormatCode[t.OID] = t.Codec.PreferredFormat()
 	ci.reflectTypeToDataType = nil // Invalidated by type registration
 }
 
@@ -992,7 +984,7 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, dst interface{}) Scan
 		}
 	}
 
-	if dt != nil && dt.Codec != nil {
+	if dt != nil {
 		if plan := dt.Codec.PlanScan(ci, oid, formatCode, dst, false); plan != nil {
 			return plan
 		}
@@ -1105,7 +1097,7 @@ func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) Enco
 		}
 	}
 
-	if dt != nil && dt.Codec != nil {
+	if dt != nil {
 		if plan := dt.Codec.PlanEncode(ci, oid, format, value); plan != nil {
 			return plan
 		}
