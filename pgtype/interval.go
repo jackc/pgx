@@ -51,7 +51,7 @@ func (interval *Interval) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToIntervalScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), interval)
+		return scanPlanTextAnyToIntervalScanner{}.Scan([]byte(src), interval)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -171,7 +171,7 @@ func (IntervalCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target int
 
 type scanPlanBinaryIntervalToIntervalScanner struct{}
 
-func (scanPlanBinaryIntervalToIntervalScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(IntervalScanner)
 
 	if src == nil {
@@ -191,7 +191,7 @@ func (scanPlanBinaryIntervalToIntervalScanner) Scan(ci *ConnInfo, oid uint32, fo
 
 type scanPlanTextAnyToIntervalScanner struct{}
 
-func (scanPlanTextAnyToIntervalScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(IntervalScanner)
 
 	if src == nil {

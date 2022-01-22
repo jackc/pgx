@@ -42,7 +42,7 @@ func (dst *Box) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToBoxScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToBoxScanner{}.Scan([]byte(src), dst)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -146,7 +146,7 @@ func (BoxCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfac
 
 type scanPlanBinaryBoxToBoxScanner struct{}
 
-func (scanPlanBinaryBoxToBoxScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BoxScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryBoxToBoxScanner) Scan(ci *ConnInfo, oid uint32, formatCode i
 
 type scanPlanTextAnyToBoxScanner struct{}
 
-func (scanPlanTextAnyToBoxScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BoxScanner)
 
 	if src == nil {

@@ -64,7 +64,7 @@ func mustParseNumeric(t *testing.T, src string) pgtype.Numeric {
 	var n pgtype.Numeric
 	plan := pgtype.NumericCodec{}.PlanScan(nil, pgtype.NumericOID, pgtype.TextFormatCode, &n, false)
 	require.NotNil(t, plan)
-	err := plan.Scan(nil, pgtype.NumericOID, pgtype.TextFormatCode, []byte(src), &n)
+	err := plan.Scan([]byte(src), &n)
 	require.NoError(t, err)
 	return n
 }

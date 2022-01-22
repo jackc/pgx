@@ -295,7 +295,7 @@ func (c Int<%= pg_byte_size %>Codec) DecodeValue(ci *ConnInfo, oid uint32, forma
 <% [8, 16, 32, 64].each do |dst_bit_size| %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %> struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -329,7 +329,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(ci *Con
 
 type scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %> struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -361,7 +361,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(ci *Co
 <%# PostgreSQL binary format integer to Go machine integers %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -393,7 +393,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(ci *ConnInfo, oid uint32, 
 
 type scanPlanBinaryInt<%= pg_byte_size %>ToUint struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -424,7 +424,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(ci *ConnInfo, oid uint32,
 <%# PostgreSQL binary format integer to Go Int64Scanner %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -455,7 +455,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(ci *ConnInfo, oid
 ].each do |type_suffix, bit_size| %>
 type scanPlanTextAnyToInt<%= type_suffix %> struct{}
 
-func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -476,7 +476,7 @@ func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, for
 
 type scanPlanTextAnyToUint<%= type_suffix %> struct{}
 
-func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -498,7 +498,7 @@ func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(ci *ConnInfo, oid uint32, fo
 
 type scanPlanTextAnyToInt64Scanner struct{}
 
-func (scanPlanTextAnyToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

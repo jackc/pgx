@@ -43,7 +43,7 @@ func (h *Hstore) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToHstoreScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), h)
+		return scanPlanTextAnyToHstoreScanner{}.Scan([]byte(src), h)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -170,7 +170,7 @@ func (HstoreCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inter
 
 type scanPlanBinaryHstoreToHstoreScanner struct{}
 
-func (scanPlanBinaryHstoreToHstoreScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
@@ -213,7 +213,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(ci *ConnInfo, oid uint32, format
 		}
 
 		var value Text
-		err := scanPlanTextAnyToTextScanner{}.Scan(ci, TextOID, TextFormatCode, valueBuf, &value)
+		err := scanPlanTextAnyToTextScanner{}.Scan(valueBuf, &value)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(ci *ConnInfo, oid uint32, format
 
 type scanPlanTextAnyToHstoreScanner struct{}
 
-func (scanPlanTextAnyToHstoreScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {

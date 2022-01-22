@@ -43,7 +43,7 @@ func (dst *Circle) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToCircleScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToCircleScanner{}.Scan([]byte(src), dst)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -161,7 +161,7 @@ func (c CircleCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []b
 
 type scanPlanBinaryCircleToCircleScanner struct{}
 
-func (scanPlanBinaryCircleToCircleScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(CircleScanner)
 
 	if src == nil {
@@ -185,7 +185,7 @@ func (scanPlanBinaryCircleToCircleScanner) Scan(ci *ConnInfo, oid uint32, format
 
 type scanPlanTextAnyToCircleScanner struct{}
 
-func (scanPlanTextAnyToCircleScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(CircleScanner)
 
 	if src == nil {

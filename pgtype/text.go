@@ -189,7 +189,7 @@ func (c TextCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 
 type scanPlanTextAnyToString struct{}
 
-func (scanPlanTextAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToString) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -202,7 +202,7 @@ func (scanPlanTextAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, 
 
 type scanPlanAnyToNewByteSlice struct{}
 
-func (scanPlanAnyToNewByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst interface{}) error {
 	p := (dst).(*[]byte)
 	if src == nil {
 		*p = nil
@@ -216,7 +216,7 @@ func (scanPlanAnyToNewByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16
 
 type scanPlanTextAnyToRune struct{}
 
-func (scanPlanTextAnyToRune) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToRune) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -234,7 +234,7 @@ func (scanPlanTextAnyToRune) Scan(ci *ConnInfo, oid uint32, formatCode int16, sr
 
 type scanPlanTextAnyToTextScanner struct{}
 
-func (scanPlanTextAnyToTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToTextScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {

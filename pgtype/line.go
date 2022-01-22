@@ -46,7 +46,7 @@ func (line *Line) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToLineScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), line)
+		return scanPlanTextAnyToLineScanner{}.Scan([]byte(src), line)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -148,7 +148,7 @@ func (LineCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanBinaryLineToLineScanner struct{}
 
-func (scanPlanBinaryLineToLineScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(LineScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryLineToLineScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToLineScanner struct{}
 
-func (scanPlanTextAnyToLineScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToLineScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(LineScanner)
 
 	if src == nil {

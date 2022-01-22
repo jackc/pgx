@@ -238,7 +238,7 @@ func (c BoolCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byt
 
 type scanPlanBinaryBoolToBool struct{}
 
-func (scanPlanBinaryBoolToBool) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBoolToBool) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -259,7 +259,7 @@ func (scanPlanBinaryBoolToBool) Scan(ci *ConnInfo, oid uint32, formatCode int16,
 
 type scanPlanTextAnyToBool struct{}
 
-func (scanPlanTextAnyToBool) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBool) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -280,7 +280,7 @@ func (scanPlanTextAnyToBool) Scan(ci *ConnInfo, oid uint32, formatCode int16, sr
 
 type scanPlanBinaryBoolToBoolScanner struct{}
 
-func (scanPlanBinaryBoolToBoolScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryBoolToBoolScanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(BoolScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -299,7 +299,7 @@ func (scanPlanBinaryBoolToBoolScanner) Scan(ci *ConnInfo, oid uint32, formatCode
 
 type scanPlanTextAnyToBoolScanner struct{}
 
-func (scanPlanTextAnyToBoolScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBoolScanner) Scan(src []byte, dst interface{}) error {
 	s, ok := (dst).(BoolScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

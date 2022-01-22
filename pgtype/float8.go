@@ -202,7 +202,7 @@ func (Float8Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inter
 
 type scanPlanBinaryFloat8ToFloat64 struct{}
 
-func (scanPlanBinaryFloat8ToFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat8ToFloat64) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -220,7 +220,7 @@ func (scanPlanBinaryFloat8ToFloat64) Scan(ci *ConnInfo, oid uint32, formatCode i
 
 type scanPlanBinaryFloat8ToFloat64Scanner struct{}
 
-func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(src []byte, dst interface{}) error {
 	s := (dst).(Float64Scanner)
 
 	if src == nil {
@@ -237,7 +237,7 @@ func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, forma
 
 type scanPlanBinaryFloat8ToInt64Scanner struct{}
 
-func (scanPlanBinaryFloat8ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat8ToInt64Scanner) Scan(src []byte, dst interface{}) error {
 	s := (dst).(Int64Scanner)
 
 	if src == nil {
@@ -260,7 +260,7 @@ func (scanPlanBinaryFloat8ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatC
 
 type scanPlanTextAnyToFloat64 struct{}
 
-func (scanPlanTextAnyToFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToFloat64) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -278,7 +278,7 @@ func (scanPlanTextAnyToFloat64) Scan(ci *ConnInfo, oid uint32, formatCode int16,
 
 type scanPlanTextAnyToFloat64Scanner struct{}
 
-func (scanPlanTextAnyToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToFloat64Scanner) Scan(src []byte, dst interface{}) error {
 	s := (dst).(Float64Scanner)
 
 	if src == nil {

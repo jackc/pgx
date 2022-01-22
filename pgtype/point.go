@@ -77,7 +77,7 @@ func (dst *Point) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToPointScanner{}.Scan(nil, 0, TextFormatCode, []byte(src), dst)
+		return scanPlanTextAnyToPointScanner{}.Scan([]byte(src), dst)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -214,7 +214,7 @@ func (c PointCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []by
 
 type scanPlanBinaryPointToPointScanner struct{}
 
-func (scanPlanBinaryPointToPointScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PointScanner)
 
 	if src == nil {
@@ -236,7 +236,7 @@ func (scanPlanBinaryPointToPointScanner) Scan(ci *ConnInfo, oid uint32, formatCo
 
 type scanPlanTextAnyToPointScanner struct{}
 
-func (scanPlanTextAnyToPointScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPointScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(PointScanner)
 
 	if src == nil {

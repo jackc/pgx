@@ -86,7 +86,7 @@ type scanPlanTextAnyToEnumString struct {
 	codec *EnumCodec
 }
 
-func (plan *scanPlanTextAnyToEnumString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (plan *scanPlanTextAnyToEnumString) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -101,7 +101,7 @@ type scanPlanTextAnyToEnumTextScanner struct {
 	codec *EnumCodec
 }
 
-func (plan *scanPlanTextAnyToEnumTextScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (plan *scanPlanTextAnyToEnumTextScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {

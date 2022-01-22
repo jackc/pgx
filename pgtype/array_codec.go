@@ -204,7 +204,12 @@ func (c *ArrayCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target int
 		return nil
 	}
 
-	return (*scanPlanArrayCodec)(c)
+	return &scanPlanArrayCodec{
+		arrayCodec: c,
+		ci:         ci,
+		oid:        oid,
+		formatCode: format,
+	}
 }
 
 func (c *ArrayCodec) decodeBinary(ci *ConnInfo, arrayOID uint32, src []byte, array ArraySetter) error {
@@ -244,7 +249,7 @@ func (c *ArrayCodec) decodeBinary(ci *ConnInfo, arrayOID uint32, src []byte, arr
 			elemSrc = src[rp : rp+elemLen]
 			rp += elemLen
 		}
-		err = elementScanPlan.Scan(ci, c.ElementOID, BinaryFormatCode, elemSrc, elem)
+		err = elementScanPlan.Scan(elemSrc, elem)
 		if err != nil {
 			return err
 		}
@@ -286,7 +291,7 @@ func (c *ArrayCodec) decodeText(ci *ConnInfo, arrayOID uint32, src []byte, array
 			elemSrc = []byte(s)
 		}
 
-		err = elementScanPlan.Scan(ci, c.ElementOID, TextFormatCode, elemSrc, elem)
+		err = elementScanPlan.Scan(elemSrc, elem)
 		if err != nil {
 			return err
 		}
@@ -295,15 +300,23 @@ func (c *ArrayCodec) decodeText(ci *ConnInfo, arrayOID uint32, src []byte, array
 	return nil
 }
 
-type scanPlanArrayCodec ArrayCodec
+type scanPlanArrayCodec struct {
+	arrayCodec *ArrayCodec
+	ci         *ConnInfo
+	oid        uint32
+	formatCode int16
+}
 
-func (spac *scanPlanArrayCodec) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
-	c := (*ArrayCodec)(spac)
+func (spac *scanPlanArrayCodec) Scan(src []byte, dst interface{}) error {
+	c := spac.arrayCodec
+	ci := spac.ci
+	oid := spac.oid
+	formatCode := spac.formatCode
 
 	array, err := makeArraySetter(dst)
 	if err != nil {
 		newPlan := ci.PlanScan(oid, formatCode, dst)
-		return newPlan.Scan(ci, oid, formatCode, src, dst)
+		return newPlan.Scan(src, dst)
 	}
 
 	if src == nil {

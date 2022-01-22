@@ -164,7 +164,7 @@ func (Float4Codec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inter
 
 type scanPlanBinaryFloat4ToFloat32 struct{}
 
-func (scanPlanBinaryFloat4ToFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -182,7 +182,7 @@ func (scanPlanBinaryFloat4ToFloat32) Scan(ci *ConnInfo, oid uint32, formatCode i
 
 type scanPlanBinaryFloat4ToFloat64Scanner struct{}
 
-func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst interface{}) error {
 	s := (dst).(Float64Scanner)
 
 	if src == nil {
@@ -199,7 +199,7 @@ func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(ci *ConnInfo, oid uint32, forma
 
 type scanPlanBinaryFloat4ToInt64Scanner struct{}
 
-func (scanPlanBinaryFloat4ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst interface{}) error {
 	s := (dst).(Int64Scanner)
 
 	if src == nil {
@@ -222,7 +222,7 @@ func (scanPlanBinaryFloat4ToInt64Scanner) Scan(ci *ConnInfo, oid uint32, formatC
 
 type scanPlanTextAnyToFloat32 struct{}
 
-func (scanPlanTextAnyToFloat32) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanTextAnyToFloat32) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}

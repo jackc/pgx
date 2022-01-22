@@ -57,9 +57,9 @@ type scanPlanJSONBCodecBinaryUnwrapper struct {
 	textPlan ScanPlan
 }
 
-func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(src []byte, dst interface{}) error {
 	if src == nil {
-		return plan.textPlan.Scan(ci, oid, formatCode, src, dst)
+		return plan.textPlan.Scan(src, dst)
 	}
 
 	if len(src) == 0 {
@@ -70,7 +70,7 @@ func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(ci *ConnInfo, oid uint32, fo
 		return fmt.Errorf("unknown jsonb version number %d", src[0])
 	}
 
-	return plan.textPlan.Scan(ci, oid, formatCode, src[1:], dst)
+	return plan.textPlan.Scan(src[1:], dst)
 }
 
 func (c JSONBCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {

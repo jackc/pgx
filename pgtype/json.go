@@ -65,7 +65,7 @@ func (JSONCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 
 type scanPlanAnyToString struct{}
 
-func (scanPlanAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanAnyToString) Scan(src []byte, dst interface{}) error {
 	p := dst.(*string)
 	*p = string(src)
 	return nil
@@ -73,7 +73,7 @@ func (scanPlanAnyToString) Scan(ci *ConnInfo, oid uint32, formatCode int16, src 
 
 type scanPlanJSONToByteSlice struct{}
 
-func (scanPlanJSONToByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanJSONToByteSlice) Scan(src []byte, dst interface{}) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -87,14 +87,14 @@ func (scanPlanJSONToByteSlice) Scan(ci *ConnInfo, oid uint32, formatCode int16, 
 
 type scanPlanJSONToBytesScanner struct{}
 
-func (scanPlanJSONToBytesScanner) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanJSONToBytesScanner) Scan(src []byte, dst interface{}) error {
 	scanner := (dst).(BytesScanner)
 	return scanner.ScanBytes(src)
 }
 
 type scanPlanJSONToJSONUnmarshal struct{}
 
-func (scanPlanJSONToJSONUnmarshal) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst interface{}) error {
 	if src == nil {
 		dstValue := reflect.ValueOf(dst)
 		if dstValue.Kind() == reflect.Ptr {
