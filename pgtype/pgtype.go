@@ -129,26 +129,6 @@ const (
 	BinaryFormatCode = 1
 )
 
-// Value translates values to and from an internal canonical representation for the type. To actually be usable a type
-// that implements Value should also implement some combination of BinaryDecoder, BinaryEncoder, TextDecoder,
-// and TextEncoder.
-//
-// Operations that update a Value (e.g. Set, DecodeText, DecodeBinary) should entirely replace the value. e.g. Internal
-// slices should be replaced not resized and reused. This allows Get and AssignTo to return a slice directly rather
-// than incur a usually unnecessary copy.
-type Value interface {
-	// Set converts and assigns src to itself. Value takes ownership of src.
-	Set(src interface{}) error
-
-	// Get returns the simplest representation of Value. Get may return a pointer to an internal value but it must never
-	// mutate that value. e.g. If Get returns a []byte Value must never change the contents of the []byte.
-	Get() interface{}
-
-	// AssignTo converts and assigns the Value to dst. AssignTo may a pointer to an internal value but it must never
-	// mutate that value. e.g. If Get returns a []byte Value must never change the contents of the []byte.
-	AssignTo(dst interface{}) error
-}
-
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -181,12 +161,9 @@ func (e *nullAssignmentError) Error() string {
 }
 
 type DataType struct {
-	Value Value
-
 	Codec Codec
-
-	Name string
-	OID  uint32
+	Name  string
+	OID   uint32
 }
 
 type ConnInfo struct {
@@ -352,10 +329,6 @@ func NewConnInfo() *ConnInfo {
 }
 
 func (ci *ConnInfo) RegisterDataType(t DataType) {
-	if t.Value != nil {
-		t.Value = NewValue(t.Value)
-	}
-
 	ci.oidToDataType[t.OID] = &t
 	ci.nameToDataType[t.Name] = &t
 
@@ -390,12 +363,6 @@ func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
 
 func (ci *ConnInfo) buildReflectTypeToDataType() {
 	ci.reflectTypeToDataType = make(map[reflect.Type]*DataType)
-
-	for _, dt := range ci.oidToDataType {
-		if dt.Value != nil {
-			ci.reflectTypeToDataType[reflect.ValueOf(dt.Value).Type()] = dt
-		}
-	}
 
 	for reflectType, name := range ci.reflectTypeToName {
 		if dt, ok := ci.nameToDataType[name]; ok {
@@ -1089,11 +1056,6 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 		}
 		return fmt.Errorf("unknown oid %d cannot be scanned into %T", oid, dest)
 	}
-}
-
-// NewValue returns a new instance of the same type as v.
-func NewValue(v Value) Value {
-	return reflect.New(reflect.ValueOf(v).Elem().Type()).Interface().(Value)
 }
 
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")

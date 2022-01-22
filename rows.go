@@ -246,18 +246,7 @@ func (rows *connRows) Values() ([]interface{}, error) {
 		}
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
-			if dt.Value != nil {
-				switch fd.Format {
-				case TextFormatCode:
-					values = append(values, string(buf))
-				case BinaryFormatCode:
-					newBuf := make([]byte, len(buf))
-					copy(newBuf, buf)
-					values = append(values, newBuf)
-				default:
-					rows.fatal(errors.New("Unknown format code"))
-				}
-			} else if dt.Codec != nil {
+			if dt.Codec != nil {
 				value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
 				if err != nil {
 					rows.fatal(err)
