@@ -186,18 +186,15 @@ type ConnInfo struct {
 	// to be built up. There are default functions placed in this slice by NewConnInfo(). In most cases these functions
 	// should run last. i.e. Additional functions should typically be prepended not appended.
 	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
-
-	preferAssignToOverSQLScannerTypes map[reflect.Type]struct{}
 }
 
 func NewConnInfo() *ConnInfo {
 	ci := &ConnInfo{
-		oidToDataType:                     make(map[uint32]*DataType),
-		nameToDataType:                    make(map[string]*DataType),
-		reflectTypeToName:                 make(map[reflect.Type]string),
-		oidToFormatCode:                   make(map[uint32]int16),
-		oidToResultFormatCode:             make(map[uint32]int16),
-		preferAssignToOverSQLScannerTypes: make(map[reflect.Type]struct{}),
+		oidToDataType:         make(map[uint32]*DataType),
+		nameToDataType:        make(map[string]*DataType),
+		reflectTypeToName:     make(map[reflect.Type]string),
+		oidToFormatCode:       make(map[uint32]int16),
+		oidToResultFormatCode: make(map[uint32]int16),
 
 		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
 			TryWrapDerefPointerEncodePlan,
@@ -400,12 +397,6 @@ func (ci *ConnInfo) FormatCodeForOID(oid uint32) int16 {
 		return fc
 	}
 	return TextFormatCode
-}
-
-// PreferAssignToOverSQLScannerForType makes a sql.Scanner type use the AssignTo scan path instead of sql.Scanner.
-// This is primarily for efficient integration with 3rd party numeric and UUID types.
-func (ci *ConnInfo) PreferAssignToOverSQLScannerForType(value interface{}) {
-	ci.preferAssignToOverSQLScannerTypes[reflect.TypeOf(value)] = struct{}{}
 }
 
 // EncodePlan is a precompiled plan to encode a particular type into a particular OID and format.
