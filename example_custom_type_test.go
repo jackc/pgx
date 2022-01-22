@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strconv"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -15,50 +14,24 @@ var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 
 // Point represents a point that may be null.
 type Point struct {
-	X, Y  float64 // Coordinates of point
+	X, Y  float32 // Coordinates of point
 	Valid bool
 }
 
-func (dst *Point) Set(src interface{}) error {
-	return fmt.Errorf("cannot convert %v to Point", src)
-}
-
-func (dst *Point) Get() interface{} {
-	if !dst.Valid {
-		return nil
+func (p *Point) ScanPoint(v pgtype.Point) error {
+	*p = Point{
+		X:     float32(v.P.X),
+		Y:     float32(v.P.Y),
+		Valid: v.Valid,
 	}
-
-	return dst
-}
-
-func (src *Point) AssignTo(dst interface{}) error {
-	return fmt.Errorf("cannot assign %v to %T", src, dst)
-}
-
-func (dst *Point) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
-	if src == nil {
-		*dst = Point{}
-		return nil
-	}
-
-	s := string(src)
-	match := pointRegexp.FindStringSubmatch(s)
-	if match == nil {
-		return fmt.Errorf("Received invalid point: %v", s)
-	}
-
-	x, err := strconv.ParseFloat(match[1], 64)
-	if err != nil {
-		return fmt.Errorf("Received invalid point: %v", s)
-	}
-	y, err := strconv.ParseFloat(match[2], 64)
-	if err != nil {
-		return fmt.Errorf("Received invalid point: %v", s)
-	}
-
-	*dst = Point{X: x, Y: y, Valid: true}
-
 	return nil
+}
+
+func (p Point) PointValue() (pgtype.Point, error) {
+	return pgtype.Point{
+		P:     pgtype.Vec2{X: float64(p.X), Y: float64(p.Y)},
+		Valid: true,
+	}, nil
 }
 
 func (src *Point) String() string {
@@ -84,13 +57,6 @@ func Example_CustomType() {
 		fmt.Println("1.5, 2.5")
 		return
 	}
-
-	// Override registered handler for point
-	conn.ConnInfo().RegisterDataType(pgtype.DataType{
-		Value: &Point{},
-		Name:  "point",
-		OID:   600,
-	})
 
 	p := &Point{}
 	err = conn.QueryRow(context.Background(), "select null::point").Scan(p)

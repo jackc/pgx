@@ -247,32 +247,13 @@ func (rows *connRows) Values() ([]interface{}, error) {
 
 		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
 			if dt.Value != nil {
-
-				value := dt.Value
-
 				switch fd.Format {
 				case TextFormatCode:
-					if decoder, ok := value.(pgtype.TextDecoder); ok {
-						err := decoder.DecodeText(rows.connInfo, buf)
-						if err != nil {
-							rows.fatal(err)
-						}
-						values = append(values, decoder.(pgtype.Value).Get())
-					} else {
-						values = append(values, string(buf))
-					}
+					values = append(values, string(buf))
 				case BinaryFormatCode:
-					if decoder, ok := value.(pgtype.BinaryDecoder); ok {
-						err := decoder.DecodeBinary(rows.connInfo, buf)
-						if err != nil {
-							rows.fatal(err)
-						}
-						values = append(values, value.Get())
-					} else {
-						newBuf := make([]byte, len(buf))
-						copy(newBuf, buf)
-						values = append(values, newBuf)
-					}
+					newBuf := make([]byte, len(buf))
+					copy(newBuf, buf)
+					values = append(values, newBuf)
 				default:
 					rows.fatal(errors.New("Unknown format code"))
 				}
