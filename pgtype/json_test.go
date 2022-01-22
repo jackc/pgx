@@ -2,6 +2,8 @@ package pgtype_test
 
 import (
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqMap(a interface{}) func(interface{}) bool {
@@ -37,7 +39,7 @@ func TestJSONCodec(t *testing.T) {
 		Age  int    `json:"age"`
 	}
 
-	testPgxCodec(t, "json", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "json", []testutil.TranscodeTestCase{
 		{[]byte("{}"), new([]byte), isExpectedEqBytes([]byte("{}"))},
 		{[]byte("null"), new([]byte), isExpectedEqBytes([]byte("null"))},
 		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},

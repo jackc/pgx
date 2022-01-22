@@ -8,16 +8,21 @@ import (
 )
 
 func TestTextTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "text", []interface{}{
-		(zeronull.Text)("foo"),
-		(zeronull.Text)(""),
+	testutil.RunTranscodeTests(t, "text", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Text)("foo"),
+			new(zeronull.Text),
+			isExpectedEq((zeronull.Text)("foo")),
+		},
+		{
+			nil,
+			new(zeronull.Text),
+			isExpectedEq((zeronull.Text)("")),
+		},
+		{
+			(zeronull.Text)(""),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestTextConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "text", (zeronull.Text)(""))
-}
-
-func TestTextConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "text", (zeronull.Text)(""))
 }

@@ -11,7 +11,7 @@ import (
 )
 
 func TestTimestamptzCodec(t *testing.T) {
-	testPgxCodec(t, "timestamptz", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "timestamptz", []testutil.TranscodeTestCase{
 		{time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local))},
 		{time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local))},
 		{time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1999, 12, 31, 0, 0, 0, 0, time.Local))},

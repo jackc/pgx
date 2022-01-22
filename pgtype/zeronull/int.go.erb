@@ -12,6 +12,8 @@ import (
 <% pg_bit_size = pg_byte_size * 8 %>
 type Int<%= pg_byte_size %> int<%= pg_bit_size %>
 
+func (Int<%= pg_byte_size %>) SkipUnderlyingTypePlan() {}
+
 // ScanInt64 implements the Int64Scanner interface.
 func (dst *Int<%= pg_byte_size %>) ScanInt64(n int64, valid bool) error {
 	if !valid {

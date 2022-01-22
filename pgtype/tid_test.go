@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestTIDCodec(t *testing.T) {
-	testPgxCodec(t, "tid", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "tid", []testutil.TranscodeTestCase{
 		{
 			pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},
 			new(pgtype.TID),

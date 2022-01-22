@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestLsegTranscode(t *testing.T) {
-	testPgxCodec(t, "lseg", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "lseg", []testutil.TranscodeTestCase{
 		{
 			pgtype.Lseg{
 				P:     [2]pgtype.Vec2{{3.14, 1.678}, {7.1, 5.2345678901}},

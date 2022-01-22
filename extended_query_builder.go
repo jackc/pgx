@@ -71,38 +71,10 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		eqb.paramValueBytes = make([]byte, 0, 128)
 	}
 
-	var err error
-	var buf []byte
 	pos := len(eqb.paramValueBytes)
 
 	if arg, ok := arg.(string); ok {
 		return []byte(arg), nil
-	}
-
-	if formatCode == TextFormatCode {
-		if arg, ok := arg.(pgtype.TextEncoder); ok {
-			buf, err = arg.EncodeText(ci, eqb.paramValueBytes)
-			if err != nil {
-				return nil, err
-			}
-			if buf == nil {
-				return nil, nil
-			}
-			eqb.paramValueBytes = buf
-			return eqb.paramValueBytes[pos:], nil
-		}
-	} else if formatCode == BinaryFormatCode {
-		if arg, ok := arg.(pgtype.BinaryEncoder); ok {
-			buf, err = arg.EncodeBinary(ci, eqb.paramValueBytes)
-			if err != nil {
-				return nil, err
-			}
-			if buf == nil {
-				return nil, nil
-			}
-			eqb.paramValueBytes = buf
-			return eqb.paramValueBytes[pos:], nil
-		}
 	}
 
 	if argIsPtr {
@@ -132,28 +104,6 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 			return eqb.encodeExtendedParamValue(ci, oid, formatCode, value)
 		} else if dt.Codec != nil {
 			buf, err := ci.Encode(oid, formatCode, arg, eqb.paramValueBytes)
-			if err != nil {
-				return nil, err
-			}
-			if buf == nil {
-				return nil, nil
-			}
-			eqb.paramValueBytes = buf
-			return eqb.paramValueBytes[pos:], nil
-		}
-	}
-
-	// There is no data type registered for the destination OID, but maybe there is data type registered for the arg
-	// type. If so use it's text encoder (if available).
-	if dt, ok := ci.DataTypeForValue(arg); ok {
-		value := dt.Value
-		if textEncoder, ok := value.(pgtype.TextEncoder); ok {
-			err := value.Set(arg)
-			if err != nil {
-				return nil, err
-			}
-
-			buf, err = textEncoder.EncodeText(ci, eqb.paramValueBytes)
 			if err != nil {
 				return nil, err
 			}

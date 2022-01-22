@@ -10,17 +10,22 @@ import (
 <% [2, 4, 8].each do |pg_byte_size| %>
 <% pg_bit_size = pg_byte_size * 8 %>
 func TestInt<%= pg_byte_size %>Transcode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "int<%= pg_byte_size %>", []interface{}{
-		(zeronull.Int<%= pg_byte_size %>)(1),
-		(zeronull.Int<%= pg_byte_size %>)(0),
+	testutil.RunTranscodeTests(t, "int<%= pg_byte_size %>", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Int<%= pg_byte_size %>)(1),
+			new(zeronull.Int<%= pg_byte_size %>),
+			isExpectedEq((zeronull.Int<%= pg_byte_size %>)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Int<%= pg_byte_size %>),
+			isExpectedEq((zeronull.Int<%= pg_byte_size %>)(0)),
+		},
+		{
+			(zeronull.Int<%= pg_byte_size %>)(0),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestInt<%= pg_byte_size %>ConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "int<%= pg_byte_size %>", (zeronull.Int<%= pg_byte_size %>)(0))
-}
-
-func TestInt<%= pg_byte_size %>ConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "int<%= pg_byte_size %>", (zeronull.Int<%= pg_byte_size %>)(0))
 }
 <% end %>

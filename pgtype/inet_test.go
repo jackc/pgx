@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func isExpectedEqIPNet(a interface{}) func(interface{}) bool {
@@ -17,7 +18,7 @@ func isExpectedEqIPNet(a interface{}) func(interface{}) bool {
 }
 
 func TestInetTranscode(t *testing.T) {
-	testPgxCodec(t, "inet", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "inet", []testutil.TranscodeTestCase{
 		{mustParseInet(t, "0.0.0.0/32"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "0.0.0.0/32"))},
 		{mustParseInet(t, "127.0.0.1/8"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "127.0.0.1/8"))},
 		{mustParseInet(t, "12.34.56.65/32"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "12.34.56.65/32"))},
@@ -34,7 +35,7 @@ func TestInetTranscode(t *testing.T) {
 }
 
 func TestCidrTranscode(t *testing.T) {
-	testPgxCodec(t, "cidr", []PgxTranscodeTestCase{
+	testutil.RunTranscodeTests(t, "cidr", []testutil.TranscodeTestCase{
 		{mustParseInet(t, "0.0.0.0/32"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "0.0.0.0/32"))},
 		{mustParseInet(t, "127.0.0.1/32"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "127.0.0.1/32"))},
 		{mustParseInet(t, "12.34.56.0/32"), new(net.IPNet), isExpectedEqIPNet(mustParseInet(t, "12.34.56.0/32"))},

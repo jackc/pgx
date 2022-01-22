@@ -9,46 +9,61 @@ import (
 )
 
 func TestInt2Transcode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "int2", []interface{}{
-		(zeronull.Int2)(1),
-		(zeronull.Int2)(0),
+	testutil.RunTranscodeTests(t, "int2", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Int2)(1),
+			new(zeronull.Int2),
+			isExpectedEq((zeronull.Int2)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Int2),
+			isExpectedEq((zeronull.Int2)(0)),
+		},
+		{
+			(zeronull.Int2)(0),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestInt2ConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "int2", (zeronull.Int2)(0))
-}
-
-func TestInt2ConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "int2", (zeronull.Int2)(0))
 }
 
 func TestInt4Transcode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "int4", []interface{}{
-		(zeronull.Int4)(1),
-		(zeronull.Int4)(0),
+	testutil.RunTranscodeTests(t, "int4", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Int4)(1),
+			new(zeronull.Int4),
+			isExpectedEq((zeronull.Int4)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Int4),
+			isExpectedEq((zeronull.Int4)(0)),
+		},
+		{
+			(zeronull.Int4)(0),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestInt4ConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "int4", (zeronull.Int4)(0))
-}
-
-func TestInt4ConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "int4", (zeronull.Int4)(0))
 }
 
 func TestInt8Transcode(t *testing.T) {
-	testutil.TestSuccessfulTranscode(t, "int8", []interface{}{
-		(zeronull.Int8)(1),
-		(zeronull.Int8)(0),
+	testutil.RunTranscodeTests(t, "int8", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Int8)(1),
+			new(zeronull.Int8),
+			isExpectedEq((zeronull.Int8)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Int8),
+			isExpectedEq((zeronull.Int8)(0)),
+		},
+		{
+			(zeronull.Int8)(0),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestInt8ConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "int8", (zeronull.Int8)(0))
-}
-
-func TestInt8ConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "int8", (zeronull.Int8)(0))
 }

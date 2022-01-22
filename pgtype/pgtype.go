@@ -186,26 +186,6 @@ type TextDecoder interface {
 	DecodeText(ci *ConnInfo, src []byte) error
 }
 
-// BinaryEncoder is implemented by types that can encode themselves into the
-// PostgreSQL binary wire format.
-type BinaryEncoder interface {
-	// EncodeBinary should append the binary format of self to buf. If self is the
-	// SQL value NULL then append nothing and return (nil, nil). The caller of
-	// EncodeBinary is responsible for writing the correct NULL value or the
-	// length of the data written.
-	EncodeBinary(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
-}
-
-// TextEncoder is implemented by types that can encode themselves into the
-// PostgreSQL text wire format.
-type TextEncoder interface {
-	// EncodeText should append the text format of self to buf. If self is the
-	// SQL value NULL then append nothing and return (nil, nil). The caller of
-	// EncodeText is responsible for writing the correct NULL value or the
-	// length of the data written.
-	EncodeText(ci *ConnInfo, buf []byte) (newBuf []byte, err error)
-}
-
 type nullAssignmentError struct {
 	dst interface{}
 }
@@ -400,8 +380,6 @@ func (ci *ConnInfo) RegisterDataType(t DataType) {
 		var formatCode int16
 		if t.Codec != nil {
 			formatCode = t.Codec.PreferredFormat()
-		} else if _, ok := t.Value.(BinaryEncoder); ok {
-			formatCode = BinaryFormatCode
 		}
 		ci.oidToFormatCode[t.OID] = formatCode
 	}

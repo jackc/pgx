@@ -3,16 +3,18 @@ package pgtype_test
 import (
 	"math"
 	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 )
 
 func TestQcharTranscode(t *testing.T) {
-	var tests []PgxTranscodeTestCase
+	var tests []testutil.TranscodeTestCase
 	for i := 0; i <= math.MaxUint8; i++ {
-		tests = append(tests, PgxTranscodeTestCase{rune(i), new(rune), isExpectedEq(rune(i))})
-		tests = append(tests, PgxTranscodeTestCase{byte(i), new(byte), isExpectedEq(byte(i))})
+		tests = append(tests, testutil.TranscodeTestCase{rune(i), new(rune), isExpectedEq(rune(i))})
+		tests = append(tests, testutil.TranscodeTestCase{byte(i), new(byte), isExpectedEq(byte(i))})
 	}
-	tests = append(tests, PgxTranscodeTestCase{nil, new(*rune), isExpectedEq((*rune)(nil))})
-	tests = append(tests, PgxTranscodeTestCase{nil, new(*byte), isExpectedEq((*byte)(nil))})
+	tests = append(tests, testutil.TranscodeTestCase{nil, new(*rune), isExpectedEq((*rune)(nil))})
+	tests = append(tests, testutil.TranscodeTestCase{nil, new(*byte), isExpectedEq((*byte)(nil))})
 
-	testPgxCodec(t, `"char"`, tests)
+	testutil.RunTranscodeTests(t, `"char"`, tests)
 }

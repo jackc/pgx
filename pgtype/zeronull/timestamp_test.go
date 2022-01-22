@@ -8,22 +8,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
 )
 
+func isExpectedEqTimestamp(a interface{}) func(interface{}) bool {
+	return func(v interface{}) bool {
+		at := time.Time(a.(zeronull.Timestamp))
+		vt := time.Time(v.(zeronull.Timestamp))
+
+		return at.Equal(vt)
+	}
+}
+
 func TestTimestampTranscode(t *testing.T) {
-	testutil.TestSuccessfulTranscodeEqFunc(t, "timestamp", []interface{}{
-		(zeronull.Timestamp)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
-		(zeronull.Timestamp)(time.Time{}),
-	}, func(a, b interface{}) bool {
-		at := a.(zeronull.Timestamp)
-		bt := b.(zeronull.Timestamp)
-
-		return time.Time(at).Equal(time.Time(bt))
+	testutil.RunTranscodeTests(t, "timestamp", []testutil.TranscodeTestCase{
+		{
+			(zeronull.Timestamp)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
+			new(zeronull.Timestamp),
+			isExpectedEqTimestamp((zeronull.Timestamp)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))),
+		},
+		{
+			nil,
+			new(zeronull.Timestamp),
+			isExpectedEqTimestamp((zeronull.Timestamp)(time.Time{})),
+		},
+		{
+			(zeronull.Timestamp)(time.Time{}),
+			new(interface{}),
+			isExpectedEq(nil),
+		},
 	})
-}
-
-func TestTimestampConvertsGoZeroToNull(t *testing.T) {
-	testutil.TestGoZeroToNullConversion(t, "timestamp", (zeronull.Timestamp)(time.Time{}))
-}
-
-func TestTimestampConvertsNullToGoZero(t *testing.T) {
-	testutil.TestNullToGoZeroConversion(t, "timestamp", (zeronull.Timestamp)(time.Time{}))
 }
