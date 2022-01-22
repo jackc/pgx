@@ -8,68 +8,29 @@ import (
 
 type UUID [16]byte
 
-func (dst *UUID) DecodeText(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.UUID
-	err := nullable.DecodeText(ci, src)
-	if err != nil {
-		return err
+// ScanUUID implements the UUIDScanner interface.
+func (u *UUID) ScanUUID(v pgtype.UUID) error {
+	if !v.Valid {
+		*u = UUID{}
+		return nil
 	}
 
-	if nullable.Valid {
-		*dst = UUID(nullable.Bytes)
-	} else {
-		*dst = UUID{}
-	}
+	*u = UUID(v.Bytes)
 
 	return nil
 }
 
-func (dst *UUID) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
-	var nullable pgtype.UUID
-	err := nullable.DecodeBinary(ci, src)
-	if err != nil {
-		return err
+func (u UUID) UUIDValue() (pgtype.UUID, error) {
+	if u == (UUID{}) {
+		return pgtype.UUID{}, nil
 	}
-
-	if nullable.Valid {
-		*dst = UUID(nullable.Bytes)
-	} else {
-		*dst = UUID{}
-	}
-
-	return nil
-}
-
-func (src UUID) EncodeText(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if (src == UUID{}) {
-		return nil, nil
-	}
-
-	nullable := pgtype.UUID{
-		Bytes: [16]byte(src),
-		Valid: true,
-	}
-
-	return nullable.EncodeText(ci, buf)
-}
-
-func (src UUID) EncodeBinary(ci *pgtype.ConnInfo, buf []byte) ([]byte, error) {
-	if (src == UUID{}) {
-		return nil, nil
-	}
-
-	nullable := pgtype.UUID{
-		Bytes: [16]byte(src),
-		Valid: true,
-	}
-
-	return nullable.EncodeBinary(ci, buf)
+	return pgtype.UUID{Bytes: u, Valid: true}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *UUID) Scan(src interface{}) error {
+func (u *UUID) Scan(src interface{}) error {
 	if src == nil {
-		*dst = UUID{}
+		*u = UUID{}
 		return nil
 	}
 
@@ -79,12 +40,21 @@ func (dst *UUID) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = UUID(nullable.Bytes)
+	*u = UUID(nullable.Bytes)
 
 	return nil
 }
 
 // Value implements the database/sql/driver Valuer interface.
-func (src UUID) Value() (driver.Value, error) {
-	return pgtype.EncodeValueText(src)
+func (u UUID) Value() (driver.Value, error) {
+	if u == (UUID{}) {
+		return nil, nil
+	}
+
+	buf, err := pgtype.UUIDCodec{}.PlanEncode(nil, pgtype.UUIDOID, pgtype.TextFormatCode, u).Encode(u, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(buf), nil
 }

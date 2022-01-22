@@ -296,7 +296,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_timestamptz", OID: TimestamptzArrayOID, Codec: &ArrayCodec{ElementCodec: TimestamptzCodec{}, ElementOID: TimestamptzOID}})
 	ci.RegisterDataType(DataType{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementCodec: MacaddrCodec{}, ElementOID: MacaddrOID}})
 	ci.RegisterDataType(DataType{Name: "_tid", OID: TIDArrayOID, Codec: &ArrayCodec{ElementCodec: TIDCodec{}, ElementOID: TIDOID}})
-	ci.RegisterDataType(DataType{Value: &UUIDArray{}, Name: "_uuid", OID: UUIDArrayOID})
+	ci.RegisterDataType(DataType{Name: "_uuid", OID: UUIDArrayOID, Codec: &ArrayCodec{ElementCodec: UUIDCodec{}, ElementOID: UUIDOID}})
 	ci.RegisterDataType(DataType{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementCodec: JSONBCodec{}, ElementOID: JSONBOID}})
 	ci.RegisterDataType(DataType{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementCodec: JSONCodec{}, ElementOID: JSONOID}})
 	ci.RegisterDataType(DataType{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementCodec: TextCodec{}, ElementOID: VarcharOID}})
@@ -350,7 +350,7 @@ func NewConnInfo() *ConnInfo {
 	// ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
 	// ci.RegisterDataType(DataType{Value: &TstzrangeArray{}, Name: "_tstzrange", OID: TstzrangeArrayOID})
 	ci.RegisterDataType(DataType{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
-	ci.RegisterDataType(DataType{Value: &UUID{}, Name: "uuid", OID: UUIDOID})
+	ci.RegisterDataType(DataType{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
 	ci.RegisterDataType(DataType{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
@@ -888,6 +888,10 @@ func tryWrapBuiltinTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter
 		return &wrapMapStringToPointerStringScanPlan{}, (*mapStringToPointerStringWrapper)(dst), true
 	case *map[string]string:
 		return &wrapMapStringToStringScanPlan{}, (*mapStringToStringWrapper)(dst), true
+	case *[16]byte:
+		return &wrapByte16ScanPlan{}, (*byte16Wrapper)(dst), true
+	case *[]byte:
+		return &wrapByteSliceScanPlan{}, (*byteSliceWrapper)(dst), true
 	}
 
 	return nil, nil, false
@@ -1081,6 +1085,26 @@ func (plan *wrapMapStringToStringScanPlan) SetNext(next ScanPlan) { plan.next = 
 
 func (plan *wrapMapStringToStringScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
 	return plan.next.Scan(ci, oid, formatCode, src, (*mapStringToStringWrapper)(dst.(*map[string]string)))
+}
+
+type wrapByte16ScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapByte16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapByte16ScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*byte16Wrapper)(dst.(*[16]byte)))
+}
+
+type wrapByteSliceScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapByteSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapByteSliceScanPlan) Scan(ci *ConnInfo, oid uint32, formatCode int16, src []byte, dst interface{}) error {
+	return plan.next.Scan(ci, oid, formatCode, src, (*byteSliceWrapper)(dst.(*[]byte)))
 }
 
 type pointerEmptyInterfaceScanPlan struct {
@@ -1425,6 +1449,10 @@ func tryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNext
 		return &wrapMapStringToPointerStringEncodePlan{}, mapStringToPointerStringWrapper(value), true
 	case map[string]string:
 		return &wrapMapStringToStringEncodePlan{}, mapStringToStringWrapper(value), true
+	case [16]byte:
+		return &wrapByte16EncodePlan{}, byte16Wrapper(value), true
+	case []byte:
+		return &wrapByteSliceEncodePlan{}, byteSliceWrapper(value), true
 	case fmt.Stringer:
 		return &wrapFmtStringerEncodePlan{}, fmtStringerWrapper{value}, true
 	}
@@ -1620,6 +1648,26 @@ func (plan *wrapMapStringToStringEncodePlan) SetNext(next EncodePlan) { plan.nex
 
 func (plan *wrapMapStringToStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(mapStringToStringWrapper(value.(map[string]string)), buf)
+}
+
+type wrapByte16EncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapByte16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapByte16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(byte16Wrapper(value.([16]byte)), buf)
+}
+
+type wrapByteSliceEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapByteSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapByteSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(byteSliceWrapper(value.([]byte)), buf)
 }
 
 type wrapFmtStringerEncodePlan struct {

@@ -559,3 +559,39 @@ type fmtStringerWrapper struct {
 func (w fmtStringerWrapper) TextValue() (Text, error) {
 	return Text{String: w.s.String(), Valid: true}, nil
 }
+
+type byte16Wrapper [16]byte
+
+func (w *byte16Wrapper) ScanUUID(v UUID) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *[16]byte")
+	}
+	*w = byte16Wrapper(v.Bytes)
+	return nil
+}
+
+func (w byte16Wrapper) UUIDValue() (UUID, error) {
+	return UUID{Bytes: [16]byte(w), Valid: true}, nil
+}
+
+type byteSliceWrapper []byte
+
+func (w *byteSliceWrapper) ScanUUID(v UUID) error {
+	if !v.Valid {
+		*w = nil
+		return nil
+	}
+	*w = make(byteSliceWrapper, 16)
+	copy(*w, v.Bytes[:])
+	return nil
+}
+
+func (w byteSliceWrapper) UUIDValue() (UUID, error) {
+	if w == nil {
+		return UUID{}, nil
+	}
+
+	uuid := UUID{Valid: true}
+	copy(uuid.Bytes[:], w)
+	return uuid, nil
+}

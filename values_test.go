@@ -243,6 +243,8 @@ func mustParseCIDR(t *testing.T, s string) *net.IPNet {
 }
 
 func TestStringToNotTextTypeTranscode(t *testing.T) {
+	t.Skip("TODO - unskip later in v5") // Should this even be a thing... i.e. anything is scanable to a string to a string
+
 	t.Parallel()
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
