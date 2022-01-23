@@ -906,14 +906,6 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) S
 		if plan := dt.Codec.PlanScan(ci, oid, formatCode, target, false); plan != nil {
 			return plan
 		}
-
-		if _, ok := target.(*interface{}); ok {
-			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
-		}
-
-		if _, ok := target.(sql.Scanner); ok {
-			return &scanPlanCodecSQLScanner{c: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
-		}
 	}
 
 	for _, f := range ci.TryWrapScanPlanFuncs {
@@ -924,6 +916,16 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) S
 					return wrapperPlan
 				}
 			}
+		}
+	}
+
+	if dt != nil {
+		if _, ok := target.(*interface{}); ok {
+			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
+		}
+
+		if _, ok := target.(sql.Scanner); ok {
+			return &scanPlanCodecSQLScanner{c: dt.Codec, ci: ci, oid: oid, formatCode: formatCode}
 		}
 	}
 
