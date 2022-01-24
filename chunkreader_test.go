@@ -2,6 +2,7 @@ package chunkreader
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 )
 
@@ -92,5 +93,36 @@ func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
 
 	if bytes.Compare(n1, src[0:4]) != 0 {
 		t.Fatalf("Expected KeepLast to prevent Next from overwriting buf, expected %v but it was %v", src[0:4], n1)
+	}
+}
+
+type randomReader struct {
+	rnd *rand.Rand
+}
+
+// Read reads a random number of random bytes.
+func (r *randomReader) Read(p []byte) (n int, err error) {
+	n = r.rnd.Intn(len(p) + 1)
+	return r.rnd.Read(p[:n])
+}
+
+func TestChunkReaderNextFuzz(t *testing.T) {
+	rr := &randomReader{rnd: rand.New(rand.NewSource(1))}
+	r, err := NewConfig(rr, Config{MinBufLen: 8192})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	randomSizes := rand.New(rand.NewSource(0))
+
+	for i := 0; i < 100000; i++ {
+		size := randomSizes.Intn(16384) + 1
+		buf, err := r.Next(size)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(buf) != size {
+			t.Fatalf("Expected to get %v bytes but got %v bytes", size, len(buf))
+		}
 	}
 }
