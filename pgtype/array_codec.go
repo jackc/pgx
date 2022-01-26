@@ -160,7 +160,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 
 	containsNullIndex := len(buf) + 4
 
-	buf = arrayHeader.EncodeBinary(p.ci, buf)
+	buf = arrayHeader.EncodeBinary(buf)
 
 	elementCount := cardinality(dimensions)
 
