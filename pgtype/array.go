@@ -75,7 +75,7 @@ func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	return rp, nil
 }
 
-func (src ArrayHeader) EncodeBinary(ci *ConnInfo, buf []byte) []byte {
+func (src ArrayHeader) EncodeBinary(buf []byte) []byte {
 	buf = pgio.AppendInt32(buf, int32(len(src.Dimensions)))
 
 	var containsNull int32
