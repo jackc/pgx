@@ -19,7 +19,7 @@ import (
 
 type ArrayHeader struct {
 	ContainsNull bool
-	ElementOID   int32
+	ElementOID   uint32
 	Dimensions   []ArrayDimension
 }
 
@@ -55,7 +55,7 @@ func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	dst.ContainsNull = binary.BigEndian.Uint32(src[rp:]) == 1
 	rp += 4
 
-	dst.ElementOID = int32(binary.BigEndian.Uint32(src[rp:]))
+	dst.ElementOID = binary.BigEndian.Uint32(src[rp:])
 	rp += 4
 
 	if numDims > 0 {
@@ -84,7 +84,7 @@ func (src ArrayHeader) EncodeBinary(ci *ConnInfo, buf []byte) []byte {
 	}
 	buf = pgio.AppendInt32(buf, containsNull)
 
-	buf = pgio.AppendInt32(buf, src.ElementOID)
+	buf = pgio.AppendUint32(buf, src.ElementOID)
 
 	for i := range src.Dimensions {
 		buf = pgio.AppendInt32(buf, src.Dimensions[i].Length)

@@ -155,7 +155,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 
 	arrayHeader := ArrayHeader{
 		Dimensions: dimensions,
-		ElementOID: int32(p.ac.ElementOID),
+		ElementOID: p.ac.ElementOID,
 	}
 
 	containsNullIndex := len(buf) + 4
