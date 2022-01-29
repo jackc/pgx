@@ -41,10 +41,13 @@ type Rows interface {
 
 	// Scan reads the values from the current row into dest values positionally.
 	// dest can include pointers to core types, values implementing the Scanner
-	// interface, and nil. nil will skip the value entirely.
+	// interface, and nil. nil will skip the value entirely. It is an error to
+	// call Scan without first calling Next() and checking that it returned true.
 	Scan(dest ...interface{}) error
 
-	// Values returns the decoded row values.
+	// Values returns the decoded row values. As with Scan(), it is an error to
+	// call Values without first calling Next() and checking that it returned
+	// true.
 	Values() ([]interface{}, error)
 
 	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid until the next Next
