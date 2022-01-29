@@ -887,15 +887,12 @@ func (c *Conn) LoadDataType(ctx context.Context, typeName string) (*pgtype.DataT
 			return nil, err
 		}
 
-		var elementCodec pgtype.Codec
-		if dt, ok := c.ConnInfo().DataTypeForOID(elementOID); ok {
-			if dt.Codec == nil {
-				return nil, errors.New("array element OID not registered with Codec")
-			}
-			elementCodec = dt.Codec
+		dt, ok := c.ConnInfo().DataTypeForOID(elementOID)
+		if !ok {
+			return nil, errors.New("array element OID not registered")
 		}
 
-		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementOID: elementOID, ElementCodec: elementCodec}}, nil
+		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementDataType: dt}}, nil
 	case "c": // composite
 		fields, err := c.getCompositeFields(ctx, oid)
 		if err != nil {
