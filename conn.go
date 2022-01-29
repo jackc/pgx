@@ -862,3 +862,93 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 
 	return sanitize.SanitizeSQL(sql, valueArgs...)
 }
+
+// LoadDataType inspects the database for typeName and produces a pgtype.DataType suitable for
+// registration.
+func (c *Conn) LoadDataType(ctx context.Context, typeName string) (*pgtype.DataType, error) {
+	var oid uint32
+
+	err := c.QueryRow(ctx, "select $1::text::regtype::oid;", typeName).Scan(&oid)
+	if err != nil {
+		return nil, err
+	}
+
+	var typtype string
+
+	err = c.QueryRow(ctx, "select typtype::text from pg_type where oid=$1", oid).Scan(&typtype)
+	if err != nil {
+		return nil, err
+	}
+
+	switch typtype {
+	case "b": // array
+		elementOID, err := c.getArrayElementOID(ctx, oid)
+		if err != nil {
+			return nil, err
+		}
+
+		var elementCodec pgtype.Codec
+		if dt, ok := c.ConnInfo().DataTypeForOID(elementOID); ok {
+			if dt.Codec == nil {
+				return nil, errors.New("array element OID not registered with Codec")
+			}
+			elementCodec = dt.Codec
+		}
+
+		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementOID: elementOID, ElementCodec: elementCodec}}, nil
+	case "c": // composite
+		fields, err := c.getCompositeFields(ctx, oid)
+		if err != nil {
+			return nil, err
+		}
+
+		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.CompositeCodec{Fields: fields}}, nil
+	case "e": // enum
+		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
+	default:
+		return &pgtype.DataType{}, errors.New("unknown typtype")
+	}
+}
+
+func (c *Conn) getArrayElementOID(ctx context.Context, oid uint32) (uint32, error) {
+	var typelem uint32
+
+	err := c.QueryRow(ctx, "select typelem from pg_type where oid=$1", oid).Scan(&typelem)
+	if err != nil {
+		return 0, err
+	}
+
+	return typelem, nil
+}
+
+func (c *Conn) getCompositeFields(ctx context.Context, oid uint32) ([]pgtype.CompositeCodecField, error) {
+	var typrelid uint32
+
+	err := c.QueryRow(ctx, "select typrelid from pg_type where oid=$1", oid).Scan(&typrelid)
+	if err != nil {
+		return nil, err
+	}
+
+	var fields []pgtype.CompositeCodecField
+	var fieldName string
+	var fieldOID uint32
+	_, err = c.QueryFunc(ctx, `select attname, atttypid
+from pg_attribute
+where attrelid=$1
+order by attnum`,
+		[]interface{}{typrelid},
+		[]interface{}{&fieldName, &fieldOID},
+		func(qfr QueryFuncRow) error {
+			dt, ok := c.ConnInfo().DataTypeForOID(fieldOID)
+			if !ok {
+				return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
+			}
+			fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, DataType: dt})
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	return fields, nil
+}
