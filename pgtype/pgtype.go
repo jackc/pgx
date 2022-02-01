@@ -86,6 +86,7 @@ const (
 	VarbitArrayOID      = 1563
 	NumericOID          = 1700
 	RecordOID           = 2249
+	RecordArrayOID      = 2287
 	UUIDOID             = 2950
 	UUIDArrayOID        = 2951
 	JSONBOID            = 3802
@@ -211,7 +212,6 @@ func NewConnInfo() *ConnInfo {
 	// ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
 	// ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
 	// ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
-	// ci.RegisterDataType(DataType{Value: &Record{}, Name: "record", OID: RecordOID})
 	// ci.RegisterDataType(DataType{Value: &Tsrange{}, Name: "tsrange", OID: TsrangeOID})
 	// ci.RegisterDataType(DataType{Value: &TsrangeArray{}, Name: "_tsrange", OID: TsrangeArrayOID})
 	// ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
@@ -245,6 +245,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "path", OID: PathOID, Codec: PathCodec{}})
 	ci.RegisterDataType(DataType{Name: "point", OID: PointOID, Codec: PointCodec{}})
 	ci.RegisterDataType(DataType{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
+	ci.RegisterDataType(DataType{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
 	ci.RegisterDataType(DataType{Name: "text", OID: TextOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
 	ci.RegisterDataType(DataType{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
@@ -285,6 +286,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "_path", OID: PathArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PathOID]}})
 	ci.RegisterDataType(DataType{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PointOID]}})
 	ci.RegisterDataType(DataType{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PolygonOID]}})
+	ci.RegisterDataType(DataType{Name: "_record", OID: RecordArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[RecordOID]}})
 	ci.RegisterDataType(DataType{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TextOID]}})
 	ci.RegisterDataType(DataType{Name: "_tid", OID: TIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TIDOID]}})
 	ci.RegisterDataType(DataType{Name: "_time", OID: TimeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TimeOID]}})
