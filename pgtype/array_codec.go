@@ -332,26 +332,29 @@ func (spac *scanPlanArrayCodec) Scan(src []byte, dst interface{}) error {
 	}
 }
 
-func (c ArrayCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c *ArrayCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
 
-	// var n int64
-	// err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	// return n, err
-
-	return nil, fmt.Errorf("not implemented")
+	switch format {
+	case TextFormatCode:
+		return string(src), nil
+	case BinaryFormatCode:
+		buf := make([]byte, len(src))
+		copy(buf, src)
+		return buf, nil
+	default:
+		return nil, fmt.Errorf("unknown format code %d", format)
+	}
 }
 
-func (c ArrayCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *ArrayCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
-	// var n int16
-	// err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	// return n, err
-
-	return nil, fmt.Errorf("not implemented")
+	var slice []interface{}
+	err := ci.PlanScan(oid, format, &slice).Scan(src, &slice)
+	return slice, err
 }
