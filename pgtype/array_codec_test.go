@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestArrayCodec(t *testing.T) {
@@ -68,5 +69,42 @@ func TestArrayCodecAnySlice(t *testing.T) {
 		).Scan(&actual)
 		assert.NoErrorf(t, err, "%d", i)
 		assert.Equalf(t, tt.expected, actual, "%d", i)
+	}
+}
+
+func TestArrayCodecDecodeValue(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	for _, tt := range []struct {
+		sql      string
+		expected interface{}
+	}{
+		{
+			sql:      `select '{}'::int4[]`,
+			expected: []interface{}{},
+		},
+		{
+			sql:      `select '{1,2}'::int8[]`,
+			expected: []interface{}{int64(1), int64(2)},
+		},
+		{
+			sql:      `select '{foo,bar}'::text[]`,
+			expected: []interface{}{"foo", "bar"},
+		},
+	} {
+		t.Run(tt.sql, func(t *testing.T) {
+			rows, err := conn.Query(context.Background(), tt.sql)
+			require.NoError(t, err)
+
+			for rows.Next() {
+				values, err := rows.Values()
+				require.NoError(t, err)
+				require.Len(t, values, 1)
+				require.Equal(t, tt.expected, values[0])
+			}
+
+			require.NoError(t, rows.Err())
+		})
 	}
 }
