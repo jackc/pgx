@@ -208,14 +208,6 @@ func NewConnInfo() *ConnInfo {
 		},
 	}
 
-	// ci.RegisterDataType(DataType{Value: &Daterange{}, Name: "daterange", OID: DaterangeOID})
-	// ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
-	// ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
-	// ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
-	// ci.RegisterDataType(DataType{Value: &Tsrange{}, Name: "tsrange", OID: TsrangeOID})
-	// ci.RegisterDataType(DataType{Value: &TsrangeArray{}, Name: "_tsrange", OID: TsrangeArrayOID})
-	// ci.RegisterDataType(DataType{Value: &Tstzrange{}, Name: "tstzrange", OID: TstzrangeOID})
-	// ci.RegisterDataType(DataType{Value: &TstzrangeArray{}, Name: "_tstzrange", OID: TstzrangeArrayOID})
 	ci.RegisterDataType(DataType{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	ci.RegisterDataType(DataType{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
@@ -256,6 +248,16 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
 	ci.RegisterDataType(DataType{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
 	ci.RegisterDataType(DataType{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
+
+	ci.RegisterDataType(DataType{Name: "daterange", OID: DaterangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[DateOID]}})
+	ci.RegisterDataType(DataType{Name: "int4range", OID: Int4rangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[Int4OID]}})
+	ci.RegisterDataType(DataType{Name: "int8range", OID: Int8rangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[Int8OID]}})
+	ci.RegisterDataType(DataType{Name: "numrange", OID: NumrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[NumericOID]}})
+	ci.RegisterDataType(DataType{Name: "tsrange", OID: TsrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[TimestampOID]}})
+	ci.RegisterDataType(DataType{Name: "tstzrange", OID: TstzrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[TimestamptzOID]}})
+
+	// ci.RegisterDataType(DataType{Value: &TsrangeArray{}, Name: "_tsrange", OID: TsrangeArrayOID})
+	// ci.RegisterDataType(DataType{Value: &TstzrangeArray{}, Name: "_tstzrange", OID: TstzrangeArrayOID})
 
 	ci.RegisterDataType(DataType{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[ACLItemOID]}})
 	ci.RegisterDataType(DataType{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[BitOID]}})
