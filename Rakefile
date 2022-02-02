@@ -6,5 +6,14 @@ rule '.go' => '.go.erb' do |task|
   sh "goimports", "-w", task.name
 end
 
+generated_code_files = [
+  "pgtype/int.go",
+  "pgtype/int_test.go",
+  "pgtype/integration_benchmark_test.go",
+  "pgtype/range_types.go",
+  "pgtype/zeronull/int.go",
+  "pgtype/zeronull/int_test.go"
+]
+
 desc "Generate code"
-task generate: ["pgtype/int.go", "pgtype/int_test.go", "pgtype/integration_benchmark_test.go", "pgtype/zeronull/int.go", "pgtype/zeronull/int_test.go"]
+task generate: generated_code_files
