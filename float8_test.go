@@ -56,6 +56,9 @@ func TestFloat8Set(t *testing.T) {
 }
 
 func TestFloat8AssignTo(t *testing.T) {
+	type aliasf32 float32
+	type aliasf64 float64
+
 	var i8 int8
 	var i16 int16
 	var i32 int32
@@ -73,6 +76,8 @@ func TestFloat8AssignTo(t *testing.T) {
 	var f64 float64
 	var pf32 *float32
 	var pf64 *float64
+	var a32 aliasf32
+	var a64 aliasf64
 
 	simpleTests := []struct {
 		src      pgtype.Float8
@@ -91,6 +96,9 @@ func TestFloat8AssignTo(t *testing.T) {
 		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui64, expected: uint64(42)},
 		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &ui, expected: uint(42)},
 		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &_i8, expected: _int8(42)},
+		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &a32, expected: aliasf32(42)},
+		{src: pgtype.Float8{Float: 42, Status: pgtype.Present}, dst: &a64, expected: aliasf64(42)},
+
 		{src: pgtype.Float8{Float: 0, Status: pgtype.Null}, dst: &pi8, expected: ((*int8)(nil))},
 		{src: pgtype.Float8{Float: 0, Status: pgtype.Null}, dst: &_pi8, expected: ((*_int8)(nil))},
 	}

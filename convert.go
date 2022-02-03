@@ -337,6 +337,10 @@ func float64AssignTo(srcVal float64, srcStatus Status, dst interface{}) error {
 			if v := reflect.ValueOf(dst); v.Kind() == reflect.Ptr {
 				el := v.Elem()
 				switch el.Kind() {
+				// if dst is a type alias of a float32 or 64, set dst val
+				case reflect.Float32, reflect.Float64:
+					el.SetFloat(srcVal)
+					return nil
 				// if dst is a pointer to pointer, strip the pointer and try again
 				case reflect.Ptr:
 					if el.IsNil() {
