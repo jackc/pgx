@@ -25,6 +25,15 @@ func (f Float4) Float64Value() (Float8, error) {
 	return Float8{Float: float64(f.Float), Valid: f.Valid}, nil
 }
 
+func (f *Float4) ScanInt64(n Int8) error {
+	*f = Float4{Float: float32(n.Int), Valid: n.Valid}
+	return nil
+}
+
+func (f Float4) Int64Value() (Int8, error) {
+	return Int8{Int: int64(f.Float), Valid: f.Valid}, nil
+}
+
 // Scan implements the database/sql Scanner interface.
 func (f *Float4) Scan(src interface{}) error {
 	if src == nil {
