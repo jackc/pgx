@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -115,6 +116,30 @@ func TestNumericCodec(t *testing.T) {
 		{pgtype.Numeric{}, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 		{nil, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 	})
+}
+
+func TestNumericFloat64Valuer(t *testing.T) {
+	for i, tt := range []struct {
+		n pgtype.Numeric
+		f pgtype.Float8
+	}{
+		{mustParseNumeric(t, "1"), pgtype.Float8{Float: 1, Valid: true}},
+		{mustParseNumeric(t, "0.0000000000000000001"), pgtype.Float8{Float: 0.0000000000000000001, Valid: true}},
+		{mustParseNumeric(t, "-99999999999"), pgtype.Float8{Float: -99999999999, Valid: true}},
+		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, pgtype.Float8{Float: math.Inf(1), Valid: true}},
+		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, pgtype.Float8{Float: math.Inf(-1), Valid: true}},
+		{pgtype.Numeric{Valid: true}, pgtype.Float8{Valid: true}},
+		{pgtype.Numeric{}, pgtype.Float8{}},
+	} {
+		f, err := tt.n.Float64Value()
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, tt.f, f, "%d", i)
+	}
+
+	f, err := pgtype.Numeric{NaN: true, Valid: true}.Float64Value()
+	assert.NoError(t, err)
+	assert.True(t, math.IsNaN(f.Float))
+	assert.True(t, f.Valid)
 }
 
 func TestNumericCodecFuzz(t *testing.T) {

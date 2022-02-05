@@ -80,6 +80,35 @@ func (n Numeric) NumericValue() (Numeric, error) {
 	return n, nil
 }
 
+func (n Numeric) Float64Value() (Float8, error) {
+	if !n.Valid {
+		return Float8{}, nil
+	} else if n.NaN {
+		return Float8{Float: math.NaN(), Valid: true}, nil
+	} else if n.InfinityModifier == Infinity {
+		return Float8{Float: math.Inf(1), Valid: true}, nil
+	} else if n.InfinityModifier == NegativeInfinity {
+		return Float8{Float: math.Inf(-1), Valid: true}, nil
+	}
+
+	buf := make([]byte, 0, 32)
+
+	if n.Int == nil {
+		buf = append(buf, '0')
+	} else {
+		buf = append(buf, n.Int.String()...)
+	}
+	buf = append(buf, 'e')
+	buf = append(buf, strconv.FormatInt(int64(n.Exp), 10)...)
+
+	f, err := strconv.ParseFloat(string(buf), 64)
+	if err != nil {
+		return Float8{}, err
+	}
+
+	return Float8{Float: f, Valid: true}, nil
+}
+
 func (n *Numeric) toBigInt() (*big.Int, error) {
 	if n.Exp == 0 {
 		return n.Int, nil
@@ -102,28 +131,6 @@ func (n *Numeric) toBigInt() (*big.Int, error) {
 		return nil, fmt.Errorf("cannot convert %v to integer", n)
 	}
 	return num, nil
-}
-
-func (n *Numeric) toFloat64() (float64, error) {
-	if n.NaN {
-		return math.NaN(), nil
-	} else if n.InfinityModifier == Infinity {
-		return math.Inf(1), nil
-	} else if n.InfinityModifier == NegativeInfinity {
-		return math.Inf(-1), nil
-	}
-
-	buf := make([]byte, 0, 32)
-
-	buf = append(buf, n.Int.String()...)
-	buf = append(buf, 'e')
-	buf = append(buf, strconv.FormatInt(int64(n.Exp), 10)...)
-
-	f, err := strconv.ParseFloat(string(buf), 64)
-	if err != nil {
-		return 0, err
-	}
-	return f, nil
 }
 
 func parseNumericString(str string) (n *big.Int, exp int32, err error) {
@@ -642,12 +649,12 @@ func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst interface{}) e
 		return err
 	}
 
-	f64, err := n.toFloat64()
+	f8, err := n.Float64Value()
 	if err != nil {
 		return err
 	}
 
-	return scanner.ScanFloat64(Float8{Float: f64, Valid: true})
+	return scanner.ScanFloat64(f8)
 }
 
 type scanPlanBinaryNumericToInt64Scanner struct{}
