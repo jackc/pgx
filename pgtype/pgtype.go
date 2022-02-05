@@ -489,7 +489,17 @@ type scanPlanFail struct {
 }
 
 func (plan *scanPlanFail) Scan(src []byte, dst interface{}) error {
-	return fmt.Errorf("cannot scan OID %v in format %v into %T", plan.oid, plan.formatCode, dst)
+	var format string
+	switch plan.formatCode {
+	case TextFormatCode:
+		format = "text"
+	case BinaryFormatCode:
+		format = "binary"
+	default:
+		format = fmt.Sprintf("unknown %d", plan.formatCode)
+	}
+
+	return fmt.Errorf("cannot scan OID %v in %v format into %T", plan.oid, format, dst)
 }
 
 // TryWrapScanPlanFunc is a function that tries to create a wrapper plan for target. If successful it returns a plan

@@ -250,7 +250,7 @@ func (c *ArrayCodec) decodeBinary(ci *ConnInfo, arrayOID uint32, src []byte, arr
 		}
 		err = elementScanPlan.Scan(elemSrc, elem)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to scan array element %d: %w", i, err)
 		}
 	}
 
