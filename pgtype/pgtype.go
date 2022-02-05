@@ -1416,7 +1416,7 @@ func (ci *ConnInfo) Encode(oid uint32, formatCode int16, value interface{}, buf 
 
 	plan := ci.PlanEncode(oid, formatCode, value)
 	if plan == nil {
-		return nil, fmt.Errorf("unable to encode %v", value)
+		return nil, fmt.Errorf("unable to encode %#v into OID %d", value, oid)
 	}
 	return plan.Encode(value, buf)
 }
