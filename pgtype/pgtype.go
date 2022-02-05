@@ -203,12 +203,14 @@ func NewConnInfo() *ConnInfo {
 			TryWrapDerefPointerEncodePlan,
 			TryWrapBuiltinTypeEncodePlan,
 			TryWrapFindUnderlyingTypeEncodePlan,
+			TryWrapStructEncodePlan,
 		},
 
 		TryWrapScanPlanFuncs: []TryWrapScanPlanFunc{
 			TryPointerPointerScanPlan,
 			TryWrapBuiltinTypeScanPlan,
 			TryFindUnderlyingTypeScanPlan,
+			TryWrapStructScanPlan,
 		},
 	}
 
@@ -887,6 +889,47 @@ func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst interface{}) err
 	return nil
 }
 
+// TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
+func TryWrapStructScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Ptr {
+		return nil, nil, false
+	}
+
+	targetElemValue := targetValue.Elem()
+	targetElemType := targetElemValue.Type()
+
+	if targetElemType.Kind() == reflect.Struct {
+		exportedFields := getExportedFieldValues(targetElemValue)
+		if len(exportedFields) == 0 {
+			return nil, nil, false
+		}
+
+		w := ptrStructWrapper{
+			s:              target,
+			exportedFields: exportedFields,
+		}
+		return &wrapAnyPtrStructScanPlan{}, &w, true
+	}
+
+	return nil, nil, false
+}
+
+type wrapAnyPtrStructScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapAnyPtrStructScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target interface{}) error {
+	w := ptrStructWrapper{
+		s:              target,
+		exportedFields: getExportedFieldValues(reflect.ValueOf(target).Elem()),
+	}
+
+	return plan.next.Scan(src, &w)
+}
+
 // PlanScan prepares a plan to scan a value into target.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
 	if _, ok := target.(*UndecodedBytes); ok {
@@ -1404,6 +1447,52 @@ func (plan *wrapFmtStringerEncodePlan) SetNext(next EncodePlan) { plan.next = ne
 
 func (plan *wrapFmtStringerEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(fmtStringerWrapper{value.(fmt.Stringer)}, buf)
+}
+
+// TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
+func TryWrapStructEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+	if reflect.TypeOf(value).Kind() == reflect.Struct {
+		exportedFields := getExportedFieldValues(reflect.ValueOf(value))
+		if len(exportedFields) == 0 {
+			return nil, nil, false
+		}
+
+		w := structWrapper{
+			s:              value,
+			exportedFields: exportedFields,
+		}
+		return &wrapAnyStructEncodePlan{}, w, true
+	}
+
+	return nil, nil, false
+}
+
+type wrapAnyStructEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapAnyStructEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapAnyStructEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	w := structWrapper{
+		s:              value,
+		exportedFields: getExportedFieldValues(reflect.ValueOf(value)),
+	}
+
+	return plan.next.Encode(w, buf)
+}
+
+func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
+	structType := structValue.Type()
+	exportedFields := make([]reflect.Value, 0, structValue.NumField())
+	for i := 0; i < structType.NumField(); i++ {
+		sf := structType.Field(i)
+		if sf.IsExported() {
+			exportedFields = append(exportedFields, structValue.Field(i))
+		}
+	}
+
+	return exportedFields
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
