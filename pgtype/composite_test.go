@@ -123,3 +123,42 @@ create type point3d as (
 		require.Equalf(t, input, output, "%v", format.name)
 	}
 }
+
+func TestCompositeCodecTranscodeStructWrapper(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	_, err := conn.Exec(context.Background(), `drop type if exists point3d;
+
+create type point3d as (
+	x float8,
+	y float8,
+	z float8
+);`)
+	require.NoError(t, err)
+	defer conn.Exec(context.Background(), "drop type point3d")
+
+	dt, err := conn.LoadDataType(context.Background(), "point3d")
+	require.NoError(t, err)
+	conn.ConnInfo().RegisterDataType(*dt)
+
+	formats := []struct {
+		name string
+		code int16
+	}{
+		{name: "TextFormat", code: pgx.TextFormatCode},
+		{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+	}
+
+	type anotherPoint struct {
+		X, Y, Z float64
+	}
+
+	for _, format := range formats {
+		input := anotherPoint{X: 1, Y: 2, Z: 3}
+		var output anotherPoint
+		err := conn.QueryRow(context.Background(), "select $1::point3d", pgx.QueryResultFormats{format.code}, input).Scan(&output)
+		require.NoErrorf(t, err, "%v", format.name)
+		require.Equalf(t, input, output, "%v", format.name)
+	}
+}

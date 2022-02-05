@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"reflect"
 	"strconv"
 	"time"
 )
@@ -618,4 +619,40 @@ func (w byteSliceWrapper) UUIDValue() (UUID, error) {
 	uuid := UUID{Valid: true}
 	copy(uuid.Bytes[:], w)
 	return uuid, nil
+}
+
+// structWrapper implements CompositeIndexGetter for a struct.
+type structWrapper struct {
+	s              interface{}
+	exportedFields []reflect.Value
+}
+
+func (w structWrapper) IsNull() bool {
+	return w.s == nil
+}
+
+func (w structWrapper) Index(i int) interface{} {
+	if i >= len(w.exportedFields) {
+		return fmt.Errorf("%#v only has %d public fields - %d is out of bounds", w.s, len(w.exportedFields), i)
+	}
+
+	return w.exportedFields[i].Interface()
+}
+
+// ptrStructWrapper implements CompositeIndexScanner for a pointer to a struct.
+type ptrStructWrapper struct {
+	s              interface{}
+	exportedFields []reflect.Value
+}
+
+func (w *ptrStructWrapper) ScanNull() error {
+	return fmt.Errorf("cannot scan NULL into %#v", w.s)
+}
+
+func (w *ptrStructWrapper) ScanIndex(i int) interface{} {
+	if i >= len(w.exportedFields) {
+		return fmt.Errorf("%#v only has %d public fields - %d is out of bounds", w.s, len(w.exportedFields), i)
+	}
+
+	return w.exportedFields[i].Addr().Interface()
 }
