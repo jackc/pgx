@@ -216,3 +216,39 @@ func (r *Daterange) SetBoundTypes(lower, upper BoundType) error {
 	r.Valid = true
 	return nil
 }
+
+type Float8range struct {
+	Lower     Float8
+	Upper     Float8
+	LowerType BoundType
+	UpperType BoundType
+	Valid     bool
+}
+
+func (r Float8range) IsNull() bool {
+	return !r.Valid
+}
+
+func (r Float8range) BoundTypes() (lower, upper BoundType) {
+	return r.LowerType, r.UpperType
+}
+
+func (r Float8range) Bounds() (lower, upper interface{}) {
+	return &r.Lower, &r.Upper
+}
+
+func (r *Float8range) ScanNull() error {
+	*r = Float8range{}
+	return nil
+}
+
+func (r *Float8range) ScanBounds() (lowerTarget, upperTarget interface{}) {
+	return &r.Lower, &r.Upper
+}
+
+func (r *Float8range) SetBoundTypes(lower, upper BoundType) error {
+	r.LowerType = lower
+	r.UpperType = upper
+	r.Valid = true
+	return nil
+}

@@ -36,6 +36,33 @@ func TestRangeCodecTranscode(t *testing.T) {
 	})
 }
 
+func TestRangeCodecTranscodeCompatibleRangeElementTypes(t *testing.T) {
+	testutil.RunTranscodeTests(t, "numrange", []testutil.TranscodeTestCase{
+		{
+			pgtype.Float8range{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Valid: true},
+			new(pgtype.Float8range),
+			isExpectedEq(pgtype.Float8range{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Valid: true}),
+		},
+		{
+			pgtype.Float8range{
+				LowerType: pgtype.Inclusive,
+				Lower:     pgtype.Float8{Float: 1, Valid: true},
+				Upper:     pgtype.Float8{Float: 5, Valid: true},
+				UpperType: pgtype.Exclusive, Valid: true,
+			},
+			new(pgtype.Float8range),
+			isExpectedEq(pgtype.Float8range{
+				LowerType: pgtype.Inclusive,
+				Lower:     pgtype.Float8{Float: 1, Valid: true},
+				Upper:     pgtype.Float8{Float: 5, Valid: true},
+				UpperType: pgtype.Exclusive, Valid: true,
+			}),
+		},
+		{pgtype.Float8range{}, new(pgtype.Float8range), isExpectedEq(pgtype.Float8range{})},
+		{nil, new(pgtype.Float8range), isExpectedEq(pgtype.Float8range{})},
+	})
+}
+
 func TestRangeCodecDecodeValue(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
