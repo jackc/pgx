@@ -76,10 +76,11 @@ func (c *EnumCodec) lookupAndCacheString(src []byte) string {
 
 	if s, found := c.membersMap[string(src)]; found {
 		return s
-	} else {
-		c.membersMap[s] = s
-		return s
 	}
+
+	s := string(src)
+	c.membersMap[s] = s
+	return s
 }
 
 type scanPlanTextAnyToEnumString struct {
