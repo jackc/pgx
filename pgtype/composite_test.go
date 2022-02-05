@@ -162,3 +162,42 @@ create type point3d as (
 		require.Equalf(t, input, output, "%v", format.name)
 	}
 }
+
+func TestCompositeCodecDecodeValue(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	_, err := conn.Exec(context.Background(), `drop type if exists point3d;
+
+create type point3d as (
+	x float8,
+	y float8,
+	z float8
+);`)
+	require.NoError(t, err)
+	defer conn.Exec(context.Background(), "drop type point3d")
+
+	dt, err := conn.LoadDataType(context.Background(), "point3d")
+	require.NoError(t, err)
+	conn.ConnInfo().RegisterDataType(*dt)
+
+	formats := []struct {
+		name string
+		code int16
+	}{
+		{name: "TextFormat", code: pgx.TextFormatCode},
+		{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+	}
+
+	for _, format := range formats {
+		rows, err := conn.Query(context.Background(), "select '(1,2,3)'::point3d", pgx.QueryResultFormats{format.code})
+		require.NoErrorf(t, err, "%v", format.name)
+		require.True(t, rows.Next())
+		values, err := rows.Values()
+		require.NoErrorf(t, err, "%v", format.name)
+		require.Lenf(t, values, 1, "%v", format.name)
+		require.Equalf(t, map[string]interface{}{"x": 1.0, "y": 2.0, "z": 3.0}, values[0], "%v", format.name)
+		require.False(t, rows.Next())
+		require.NoErrorf(t, rows.Err(), "%v", format.name)
+	}
+}

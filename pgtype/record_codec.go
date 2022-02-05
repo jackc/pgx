@@ -75,7 +75,16 @@ func (RecordCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16
 		return nil, nil
 	}
 
-	return nil, fmt.Errorf("not implemented")
+	switch format {
+	case TextFormatCode:
+		return string(src), nil
+	case BinaryFormatCode:
+		buf := make([]byte, len(src))
+		copy(buf, src)
+		return buf, nil
+	default:
+		return nil, fmt.Errorf("unknown format code %d", format)
+	}
 }
 
 func (RecordCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {

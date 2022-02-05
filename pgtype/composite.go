@@ -209,11 +209,16 @@ func (c *CompositeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format
 		return nil, nil
 	}
 
-	// var n int64
-	// err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	// return n, err
-
-	return nil, fmt.Errorf("not implemented")
+	switch format {
+	case TextFormatCode:
+		return string(src), nil
+	case BinaryFormatCode:
+		buf := make([]byte, len(src))
+		copy(buf, src)
+		return buf, nil
+	default:
+		return nil, fmt.Errorf("unknown format code %d", format)
+	}
 }
 
 func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
@@ -221,11 +226,57 @@ func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src
 		return nil, nil
 	}
 
-	// var n int16
-	// err := c.PlanScan(ci, oid, format, &n, true).Scan(ci, oid, format, src, &n)
-	// return n, err
+	switch format {
+	case TextFormatCode:
+		scanner := NewCompositeTextScanner(ci, src)
+		values := make(map[string]interface{}, len(c.Fields))
+		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
+			var v interface{}
+			fieldPlan := ci.PlanScan(c.Fields[i].DataType.OID, TextFormatCode, &v)
+			if fieldPlan == nil {
+				return nil, fmt.Errorf("unable to scan OID %d in text format into %v", c.Fields[i].DataType.OID, v)
+			}
 
-	return nil, fmt.Errorf("not implemented")
+			err := fieldPlan.Scan(scanner.Bytes(), &v)
+			if err != nil {
+				return nil, err
+			}
+
+			values[c.Fields[i].Name] = v
+		}
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+
+		return values, nil
+	case BinaryFormatCode:
+		scanner := NewCompositeBinaryScanner(ci, src)
+		values := make(map[string]interface{}, len(c.Fields))
+		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
+			var v interface{}
+			fieldPlan := ci.PlanScan(scanner.OID(), BinaryFormatCode, &v)
+			if fieldPlan == nil {
+				return nil, fmt.Errorf("unable to scan OID %d in binary format into %v", scanner.OID(), v)
+			}
+
+			err := fieldPlan.Scan(scanner.Bytes(), &v)
+			if err != nil {
+				return nil, err
+			}
+
+			values[c.Fields[i].Name] = v
+		}
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+
+		return values, nil
+	default:
+		return nil, fmt.Errorf("unknown format code %d", format)
+	}
+
 }
 
 type CompositeBinaryScanner struct {
