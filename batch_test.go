@@ -2,6 +2,7 @@ package pgx_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -33,6 +34,7 @@ func TestConnSendBatch(t *testing.T) {
 	batch.Queue("insert into ledger(description, amount) values($1, $2)", "q3", 3)
 	batch.Queue("select id, description, amount from ledger order by id")
 	batch.Queue("select id, description, amount from ledger order by id")
+	batch.Queue("select * from ledger where false")
 	batch.Queue("select sum(amount) from ledger")
 
 	br := conn.SendBatch(context.Background(), batch)
@@ -125,6 +127,11 @@ func TestConnSendBatch(t *testing.T) {
 	})
 	if err != nil {
 		t.Error(err)
+	}
+
+	err = br.QueryRow().Scan(&id, &description, &amount)
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Errorf("expected pgx.ErrNoRows but got: %v", err)
 	}
 
 	err = br.QueryRow().Scan(&amount)
