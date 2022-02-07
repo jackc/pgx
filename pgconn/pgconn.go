@@ -230,7 +230,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
-	pgConn.conn, err = config.DialFunc(ctx, network, address)
+	netConn, err := config.DialFunc(ctx, network, address)
 	if err != nil {
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
@@ -239,24 +239,27 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
 
-	pgConn.parameterStatuses = make(map[string]string)
+	pgConn.conn = netConn
+	pgConn.contextWatcher = newContextWatcher(netConn)
+	pgConn.contextWatcher.Watch(ctx)
 
 	if fallbackConfig.TLSConfig != nil {
-		if err := pgConn.startTLS(fallbackConfig.TLSConfig); err != nil {
-			pgConn.conn.Close()
+		tlsConn, err := startTLS(netConn, fallbackConfig.TLSConfig)
+		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
+		if err != nil {
+			netConn.Close()
 			return nil, &connectError{config: config, msg: "tls error", err: err}
 		}
+
+		pgConn.conn = tlsConn
+		pgConn.contextWatcher = newContextWatcher(tlsConn)
+		pgConn.contextWatcher.Watch(ctx)
 	}
 
-	pgConn.status = connStatusConnecting
-	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
-		func() { pgConn.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
-		func() { pgConn.conn.SetDeadline(time.Time{}) },
-	)
-
-	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
 
+	pgConn.parameterStatuses = make(map[string]string)
+	pgConn.status = connStatusConnecting
 	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
@@ -332,7 +335,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				}
 			}
 			return pgConn, nil
-		case *pgproto3.ParameterStatus:
+		case *pgproto3.ParameterStatus, *pgproto3.NoticeResponse:
 			// handled by ReceiveMessage
 		case *pgproto3.ErrorResponse:
 			pgConn.conn.Close()
@@ -344,24 +347,29 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 }
 
-func (pgConn *PgConn) startTLS(tlsConfig *tls.Config) (err error) {
-	err = binary.Write(pgConn.conn, binary.BigEndian, []int32{8, 80877103})
+func newContextWatcher(conn net.Conn) *ctxwatch.ContextWatcher {
+	return ctxwatch.NewContextWatcher(
+		func() { conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
+		func() { conn.SetDeadline(time.Time{}) },
+	)
+}
+
+func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
+	err := binary.Write(conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	response := make([]byte, 1)
-	if _, err = io.ReadFull(pgConn.conn, response); err != nil {
-		return
+	if _, err = io.ReadFull(conn, response); err != nil {
+		return nil, err
 	}
 
 	if response[0] != 'S' {
-		return errors.New("server refused TLS connection")
+		return nil, errors.New("server refused TLS connection")
 	}
 
-	pgConn.conn = tls.Client(pgConn.conn, tlsConfig)
-
-	return nil
+	return tls.Client(conn, tlsConfig), nil
 }
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {
@@ -1709,10 +1717,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		cleanupDone: make(chan struct{}),
 	}
 
-	pgConn.contextWatcher = ctxwatch.NewContextWatcher(
-		func() { pgConn.conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
-		func() { pgConn.conn.SetDeadline(time.Time{}) },
-	)
+	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
 
 	return pgConn, nil
 }
