@@ -979,3 +979,55 @@ func TestCreateMinPoolReturnsFirstError(t *testing.T) {
 	require.True(t, connectAttempts >= 5, "Expected %d got %d", 5, connectAttempts)
 	require.ErrorIs(t, err, mockErr)
 }
+
+func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
+	t.Parallel()
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	errChan := make(chan error)
+	testCount := 5000
+
+	for i := 0; i < testCount; i++ {
+		go func() {
+			batch := &pgx.Batch{}
+			batch.Queue("select 1")
+			batch.Queue("select 2")
+
+			br := pool.SendBatch(context.Background(), batch)
+			defer br.Close()
+
+			var err error
+			var n int32
+			err = br.QueryRow().Scan(&n)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if n != 1 {
+				errChan <- fmt.Errorf("expected 1 got %v", n)
+				return
+			}
+
+			err = br.QueryRow().Scan(&n)
+			if err != nil {
+				errChan <- err
+				return
+			}
+			if n != 2 {
+				errChan <- fmt.Errorf("expected 2 got %v", n)
+				return
+			}
+
+			err = br.Close()
+			errChan <- err
+		}()
+	}
+
+	for i := 0; i < testCount; i++ {
+		err := <-errChan
+		assert.NoError(t, err)
+	}
+}

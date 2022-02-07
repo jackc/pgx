@@ -8,6 +8,12 @@
 * Types now have Valid boolean field instead of Status byte. This matches database/sql pattern.
 * Extracted integrations with github.com/shopspring/decimal and github.com/gofrs/uuid to https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid respectively.
 
+# 4.15.0 (February 7, 2022)
+
+* Upgrade to pgconn v1.11.0
+* Upgrade to pgtype v1.10.0
+* Upgrade puddle to v1.2.1
+* Make BatchResults.Close safe to be called multiple times
 
 # 4.14.1 (November 28, 2021)
 
