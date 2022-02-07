@@ -1,3 +1,10 @@
+# 1.10.0 (February 7, 2022)
+
+* Normalize UTC timestamps to comply with stdlib (Torkel Rogstad)
+* Assign Numeric to *big.Rat (Oleg Lomaka)
+* Fix typo in float8 error message (Pinank Solanki)
+* Scan type aliases for floating point types (Collin Forsyth)
+
 # 1.9.1 (November 28, 2021)
 
 * Fix: binary timestamp is assumed to be in UTC (restored behavior changed in v1.9.0)
