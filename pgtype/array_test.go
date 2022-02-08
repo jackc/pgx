@@ -15,9 +15,9 @@ func TestParseUntypedTextArray(t *testing.T) {
 		{
 			source: "{}",
 			result: pgtype.UntypedTextArray{
-				Elements:   nil,
-				Quoted:     nil,
-				Dimensions: nil,
+				Elements:   []string{},
+				Quoted:     []bool{},
+				Dimensions: []pgtype.ArrayDimension{},
 			},
 		},
 		{

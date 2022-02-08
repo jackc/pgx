@@ -238,12 +238,6 @@ func (c *ArrayCodec) decodeBinary(ci *ConnInfo, arrayOID uint32, src []byte, arr
 		return err
 	}
 
-	// TODO - ArrayHeader.DecodeBinary should do this. But doing this there breaks old array code. Leave until old code
-	// can be removed.
-	if arrayHeader.Dimensions == nil {
-		arrayHeader.Dimensions = []ArrayDimension{}
-	}
-
 	err = array.SetDimensions(arrayHeader.Dimensions)
 	if err != nil {
 		return err
@@ -281,12 +275,6 @@ func (c *ArrayCodec) decodeText(ci *ConnInfo, arrayOID uint32, src []byte, array
 	uta, err := ParseUntypedTextArray(string(src))
 	if err != nil {
 		return err
-	}
-
-	// TODO - ParseUntypedTextArray should do this. But doing this there breaks old array code. Leave until old code
-	// can be removed.
-	if uta.Dimensions == nil {
-		uta.Dimensions = []ArrayDimension{}
 	}
 
 	err = array.SetDimensions(uta.Dimensions)

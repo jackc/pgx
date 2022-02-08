@@ -58,9 +58,7 @@ func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
 	dst.ElementOID = binary.BigEndian.Uint32(src[rp:])
 	rp += 4
 
-	if numDims > 0 {
-		dst.Dimensions = make([]ArrayDimension, numDims)
-	}
+	dst.Dimensions = make([]ArrayDimension, numDims)
 	if len(src) < 12+numDims*8 {
 		return 0, fmt.Errorf("array header too short for %d dimensions: %d", numDims, len(src))
 	}
@@ -101,7 +99,11 @@ type UntypedTextArray struct {
 }
 
 func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
-	dst := &UntypedTextArray{}
+	dst := &UntypedTextArray{
+		Elements:   []string{},
+		Quoted:     []bool{},
+		Dimensions: []ArrayDimension{},
+	}
 
 	buf := bytes.NewBufferString(src)
 
@@ -234,7 +236,6 @@ func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
 	}
 
 	if len(dst.Elements) == 0 {
-		dst.Dimensions = nil
 	} else if len(explicitDimensions) > 0 {
 		dst.Dimensions = explicitDimensions
 	} else {
