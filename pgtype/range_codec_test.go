@@ -63,6 +63,58 @@ func TestRangeCodecTranscodeCompatibleRangeElementTypes(t *testing.T) {
 	})
 }
 
+func TestRangeCodecScanRangeTwiceWithUnbounded(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	var r pgtype.Int4range
+
+	err := conn.QueryRow(context.Background(), `select '[1,5)'::int4range`).Scan(&r)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		pgtype.Int4range{
+			Lower:     pgtype.Int4{Int: 1, Valid: true},
+			Upper:     pgtype.Int4{Int: 5, Valid: true},
+			LowerType: pgtype.Inclusive,
+			UpperType: pgtype.Exclusive,
+			Valid:     true,
+		},
+		r,
+	)
+
+	err = conn.QueryRow(context.Background(), `select '[1,)'::int4range`).Scan(&r)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		pgtype.Int4range{
+			Lower:     pgtype.Int4{Int: 1, Valid: true},
+			Upper:     pgtype.Int4{},
+			LowerType: pgtype.Inclusive,
+			UpperType: pgtype.Unbounded,
+			Valid:     true,
+		},
+		r,
+	)
+
+	err = conn.QueryRow(context.Background(), `select 'empty'::int4range`).Scan(&r)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		pgtype.Int4range{
+			Lower:     pgtype.Int4{},
+			Upper:     pgtype.Int4{},
+			LowerType: pgtype.Empty,
+			UpperType: pgtype.Empty,
+			Valid:     true,
+		},
+		r,
+	)
+}
+
 func TestRangeCodecDecodeValue(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)

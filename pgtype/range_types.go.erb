@@ -41,6 +41,12 @@ func (r *<%= range_type %>) ScanBounds() (lowerTarget, upperTarget interface{}) 
 }
 
 func (r *<%= range_type %>) SetBoundTypes(lower, upper BoundType) error {
+  if lower == Unbounded || lower == Empty {
+    r.Lower = <%= element_type %>{}
+  }
+  if upper == Unbounded || upper == Empty {
+    r.Upper = <%= element_type %>{}
+  }
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
