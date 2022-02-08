@@ -763,7 +763,10 @@ func (a *anyMultiDimSliceArray) SetDimensions(dimensions []ArrayDimension) error
 
 	switch len(dimensions) {
 	case 0:
-		return fmt.Errorf("impossible: non-nil dimensions but zero elements")
+		// Empty, but non-nil array
+		slice := reflect.MakeSlice(sliceType, 0, 0)
+		a.slice.Set(slice)
+		return nil
 	case 1:
 		elementCount := cardinality(dimensions)
 		slice := reflect.MakeSlice(sliceType, elementCount, elementCount)

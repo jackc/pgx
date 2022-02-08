@@ -126,6 +126,23 @@ func TestArrayCodecScanMultipleDimensions(t *testing.T) {
 	require.NoError(t, rows.Err())
 }
 
+func TestArrayCodecScanMultipleDimensionsEmpty(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	rows, err := conn.Query(context.Background(), `select '{}'::int4[]`)
+	require.NoError(t, err)
+
+	for rows.Next() {
+		var ss [][]int32
+		err := rows.Scan(&ss)
+		require.NoError(t, err)
+		require.Equal(t, [][]int32{}, ss)
+	}
+
+	require.NoError(t, rows.Err())
+}
+
 func TestArrayCodecScanWrongMultipleDimensions(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
