@@ -439,7 +439,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst i
 	}
 
 
-	n := int64(binary.BigEndian.Uint<%= pg_bit_size %>(src))
+	n := int64(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
 
   return s.ScanInt64(Int8{Int: n, Valid: true})
 }

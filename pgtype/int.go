@@ -552,7 +552,7 @@ func (scanPlanBinaryInt2ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 		return fmt.Errorf("invalid length for int2: %v", len(src))
 	}
 
-	n := int64(binary.BigEndian.Uint16(src))
+	n := int64(int16(binary.BigEndian.Uint16(src)))
 
 	return s.ScanInt64(Int8{Int: n, Valid: true})
 }
@@ -1100,7 +1100,7 @@ func (scanPlanBinaryInt4ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 		return fmt.Errorf("invalid length for int4: %v", len(src))
 	}
 
-	n := int64(binary.BigEndian.Uint32(src))
+	n := int64(int32(binary.BigEndian.Uint32(src)))
 
 	return s.ScanInt64(Int8{Int: n, Valid: true})
 }
@@ -1670,7 +1670,7 @@ func (scanPlanBinaryInt8ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 		return fmt.Errorf("invalid length for int8: %v", len(src))
 	}
 
-	n := int64(binary.BigEndian.Uint64(src))
+	n := int64(int64(binary.BigEndian.Uint64(src)))
 
 	return s.ScanInt64(Int8{Int: n, Valid: true})
 }
