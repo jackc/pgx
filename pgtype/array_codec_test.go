@@ -108,3 +108,60 @@ func TestArrayCodecDecodeValue(t *testing.T) {
 		})
 	}
 }
+
+func TestArrayCodecScanMultipleDimensions(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	rows, err := conn.Query(context.Background(), `select '{{1,2,3,4}, {5,6,7,8}, {9,10,11,12}}'::int4[]`)
+	require.NoError(t, err)
+
+	for rows.Next() {
+		var ss [][]int32
+		err := rows.Scan(&ss)
+		require.NoError(t, err)
+		require.Equal(t, [][]int32{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}, ss)
+	}
+
+	require.NoError(t, rows.Err())
+}
+
+func TestArrayCodecScanWrongMultipleDimensions(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	rows, err := conn.Query(context.Background(), `select '{{1,2,3,4}, {5,6,7,8}, {9,10,11,12}}'::int4[]`)
+	require.NoError(t, err)
+
+	for rows.Next() {
+		var ss [][][]int32
+		err := rows.Scan(&ss)
+		require.Error(t, err, "can't scan into dest[0]: PostgreSQL array has 2 dimensions but slice has 3 dimensions")
+	}
+}
+
+func TestArrayCodecEncodeMultipleDimensions(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	rows, err := conn.Query(context.Background(), `select $1::int4[]`, [][]int32{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}})
+	require.NoError(t, err)
+
+	for rows.Next() {
+		var ss [][]int32
+		err := rows.Scan(&ss)
+		require.NoError(t, err)
+		require.Equal(t, [][]int32{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}}, ss)
+	}
+
+	require.NoError(t, rows.Err())
+}
+
+func TestArrayCodecEncodeMultipleDimensionsRagged(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	rows, err := conn.Query(context.Background(), `select $1::int4[]`, [][]int32{{1, 2, 3, 4}, {5}, {9, 10, 11, 12}})
+	require.Error(t, err, "cannot convert [][]int32 to ArrayGetter because it is a ragged multi-dimensional")
+	defer rows.Close()
+}

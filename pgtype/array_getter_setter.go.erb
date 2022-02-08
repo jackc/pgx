@@ -27,6 +27,11 @@ import (
     return a[i]
   }
 
+  func (a <%= array_type %>) IndexType() interface{} {
+    var el <%= element_type %>
+    return el
+  }
+
   func (a *<%= array_type %>) SetDimensions(dimensions []ArrayDimension) error {
     if dimensions == nil {
       a = nil
@@ -41,77 +46,8 @@ import (
   func (a <%= array_type %>) ScanIndex(i int) interface{} {
     return &a[i]
   }
-<% end %>
 
-type anySliceArray struct {
-	slice reflect.Value
-}
-
-func (a anySliceArray) Dimensions() []ArrayDimension {
-	if a.slice.IsNil() {
-		return nil
-	}
-
-	return []ArrayDimension{{Length: int32(a.slice.Len()), LowerBound: 1}}
-}
-
-func (a anySliceArray) Index(i int) interface{} {
-	return a.slice.Index(i).Interface()
-}
-
-func (a *anySliceArray) SetDimensions(dimensions []ArrayDimension) error {
-  sliceType := a.slice.Type()
-
-	if dimensions == nil {
-		a.slice.Set(reflect.Zero(sliceType))
-		return nil
-	}
-
-	elementCount := cardinality(dimensions)
-	slice := reflect.MakeSlice(sliceType, elementCount, elementCount)
-  a.slice.Set(slice)
-	return nil
-}
-
-func (a anySliceArray) ScanIndex(i int) interface{} {
-	return a.slice.Index(i).Addr().Interface()
-}
-
-func makeArrayGetter(a interface{}) (ArrayGetter, error) {
-	switch a := a.(type) {
-	case ArrayGetter:
-		return a, nil
-  <% types.each do |array_type, element_type| %>
-	case []<%= element_type %>:
-		return (*<%= array_type %>)(&a), nil
-  <% end %>
-	}
-
-  reflectValue := reflect.ValueOf(a)
-  if reflectValue.Kind() == reflect.Slice {
-    return &anySliceArray{slice: reflectValue}, nil
+  func (a <%= array_type %>) ScanIndexType() interface{} {
+    return new(<%= element_type %>)
   }
-
-	return nil, fmt.Errorf("cannot convert %T to ArrayGetter", a)
-}
-
-func makeArraySetter(a interface{}) (ArraySetter, error) {
-	switch a := a.(type) {
-	case ArraySetter:
-		return a, nil
-  <% types.each do |array_type, element_type| %>
-	case *[]<%= element_type %>:
-		return (*<%= array_type %>)(a), nil
-  <% end %>
-	}
-
-	value := reflect.ValueOf(a)
-	if value.Kind() == reflect.Ptr {
-		elemValue := value.Elem()
-		if elemValue.Kind() == reflect.Slice {
-			return &anySliceArray{slice: elemValue}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("cannot convert %T to ArraySetter", a)
-}
+<% end %>

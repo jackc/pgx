@@ -204,6 +204,8 @@ func NewConnInfo() *ConnInfo {
 			TryWrapBuiltinTypeEncodePlan,
 			TryWrapFindUnderlyingTypeEncodePlan,
 			TryWrapStructEncodePlan,
+			TryWrapSliceEncodePlan,
+			TryWrapMultiDimSliceEncodePlan,
 		},
 
 		TryWrapScanPlanFuncs: []TryWrapScanPlanFunc{
@@ -211,6 +213,8 @@ func NewConnInfo() *ConnInfo {
 			TryWrapBuiltinTypeScanPlan,
 			TryFindUnderlyingTypeScanPlan,
 			TryWrapStructScanPlan,
+			TryWrapPtrSliceScanPlan,
+			TryWrapPtrMultiDimSliceScanPlan,
 		},
 	}
 
@@ -930,6 +934,62 @@ func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target interface{}) error
 	return plan.next.Scan(src, &w)
 }
 
+// TryWrapPtrSliceScanPlan tries to wrap a pointer to a single dimension slice.
+func TryWrapPtrSliceScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Ptr {
+		return nil, nil, false
+	}
+
+	targetElemValue := targetValue.Elem()
+
+	if targetElemValue.Kind() == reflect.Slice {
+		return &wrapPtrSliceScanPlan{}, &anySliceArray{slice: targetElemValue}, true
+	}
+	return nil, nil, false
+}
+
+type wrapPtrSliceScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapPtrSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapPtrSliceScanPlan) Scan(src []byte, target interface{}) error {
+	return plan.next.Scan(src, &anySliceArray{slice: reflect.ValueOf(target).Elem()})
+}
+
+// TryWrapPtrMultiDimSliceScanPlan tries to wrap a pointer to a multi-dimension slice.
+func TryWrapPtrMultiDimSliceScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Ptr {
+		return nil, nil, false
+	}
+
+	targetElemValue := targetValue.Elem()
+
+	if targetElemValue.Kind() == reflect.Slice {
+		elemElemKind := targetElemValue.Type().Elem().Kind()
+		if elemElemKind == reflect.Slice {
+			if !isRagged(targetElemValue) {
+				return &wrapPtrMultiDimSliceScanPlan{}, &anyMultiDimSliceArray{slice: targetValue.Elem()}, true
+			}
+		}
+	}
+
+	return nil, nil, false
+}
+
+type wrapPtrMultiDimSliceScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapPtrMultiDimSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target interface{}) error {
+	return plan.next.Scan(src, &anyMultiDimSliceArray{slice: reflect.ValueOf(target).Elem()})
+}
+
 // PlanScan prepares a plan to scan a value into target.
 func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
 	if _, ok := target.(*UndecodedBytes); ok {
@@ -1493,6 +1553,63 @@ func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 	}
 
 	return exportedFields
+}
+
+func TryWrapSliceEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+	if reflect.TypeOf(value).Kind() == reflect.Slice {
+		w := anySliceArray{
+			slice: reflect.ValueOf(value),
+		}
+		return &wrapSliceEncodePlan{}, w, true
+	}
+
+	return nil, nil, false
+}
+
+type wrapSliceEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	w := anySliceArray{
+		slice: reflect.ValueOf(value),
+	}
+
+	return plan.next.Encode(w, buf)
+}
+
+func TryWrapMultiDimSliceEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+	sliceValue := reflect.ValueOf(value)
+	if sliceValue.Kind() == reflect.Slice {
+		valueElemType := sliceValue.Type().Elem()
+
+		if valueElemType.Kind() == reflect.Slice {
+			if !isRagged(sliceValue) {
+				w := anyMultiDimSliceArray{
+					slice: reflect.ValueOf(value),
+				}
+				return &wrapMultiDimSliceEncodePlan{}, &w, true
+			}
+		}
+	}
+
+	return nil, nil, false
+}
+
+type wrapMultiDimSliceEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapMultiDimSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapMultiDimSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	w := anyMultiDimSliceArray{
+		slice: reflect.ValueOf(value),
+	}
+
+	return plan.next.Encode(&w, buf)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
