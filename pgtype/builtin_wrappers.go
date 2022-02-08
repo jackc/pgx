@@ -656,3 +656,168 @@ func (w *ptrStructWrapper) ScanIndex(i int) interface{} {
 
 	return w.exportedFields[i].Addr().Interface()
 }
+
+type anySliceArray struct {
+	slice reflect.Value
+}
+
+func (a anySliceArray) Dimensions() []ArrayDimension {
+	if a.slice.IsNil() {
+		return nil
+	}
+
+	return []ArrayDimension{{Length: int32(a.slice.Len()), LowerBound: 1}}
+}
+
+func (a anySliceArray) Index(i int) interface{} {
+	return a.slice.Index(i).Interface()
+}
+
+func (a anySliceArray) IndexType() interface{} {
+	return reflect.New(a.slice.Type().Elem()).Elem().Interface()
+}
+
+func (a *anySliceArray) SetDimensions(dimensions []ArrayDimension) error {
+	sliceType := a.slice.Type()
+
+	if dimensions == nil {
+		a.slice.Set(reflect.Zero(sliceType))
+		return nil
+	}
+
+	elementCount := cardinality(dimensions)
+	slice := reflect.MakeSlice(sliceType, elementCount, elementCount)
+	a.slice.Set(slice)
+	return nil
+}
+
+func (a *anySliceArray) ScanIndex(i int) interface{} {
+	return a.slice.Index(i).Addr().Interface()
+}
+
+func (a *anySliceArray) ScanIndexType() interface{} {
+	return reflect.New(a.slice.Type().Elem()).Interface()
+}
+
+type anyMultiDimSliceArray struct {
+	slice reflect.Value
+	dims  []ArrayDimension
+}
+
+func (a *anyMultiDimSliceArray) Dimensions() []ArrayDimension {
+	if a.slice.IsNil() {
+		return nil
+	}
+
+	s := a.slice
+	for {
+		a.dims = append(a.dims, ArrayDimension{Length: int32(s.Len()), LowerBound: 1})
+		if s.Len() > 0 {
+			s = s.Index(0)
+		} else {
+			break
+		}
+		if s.Type().Kind() == reflect.Slice {
+		} else {
+			break
+		}
+	}
+
+	return a.dims
+}
+
+func (a *anyMultiDimSliceArray) Index(i int) interface{} {
+	if len(a.dims) == 1 {
+		return a.slice.Index(i).Interface()
+	}
+
+	indexes := make([]int, len(a.dims))
+	for j := len(a.dims) - 1; j >= 0; j-- {
+		dimLen := int(a.dims[j].Length)
+		indexes[j] = i % dimLen
+		i = i / dimLen
+	}
+
+	v := a.slice
+	for _, si := range indexes {
+		v = v.Index(si)
+	}
+
+	return v.Interface()
+}
+
+func (a *anyMultiDimSliceArray) IndexType() interface{} {
+	lowestSliceType := a.slice.Type()
+	for ; lowestSliceType.Elem().Kind() == reflect.Slice; lowestSliceType = lowestSliceType.Elem() {
+	}
+	return reflect.New(lowestSliceType.Elem()).Elem().Interface()
+}
+
+func (a *anyMultiDimSliceArray) SetDimensions(dimensions []ArrayDimension) error {
+	sliceType := a.slice.Type()
+
+	if dimensions == nil {
+		a.slice.Set(reflect.Zero(sliceType))
+		return nil
+	}
+
+	switch len(dimensions) {
+	case 0:
+		return fmt.Errorf("impossible: non-nil dimensions but zero elements")
+	case 1:
+		elementCount := cardinality(dimensions)
+		slice := reflect.MakeSlice(sliceType, elementCount, elementCount)
+		a.slice.Set(slice)
+		return nil
+	default:
+		sliceDimensionCount := 1
+		lowestSliceType := sliceType
+		for ; lowestSliceType.Elem().Kind() == reflect.Slice; lowestSliceType = lowestSliceType.Elem() {
+			sliceDimensionCount++
+		}
+
+		if sliceDimensionCount != len(dimensions) {
+			return fmt.Errorf("PostgreSQL array has %d dimensions but slice has %d dimensions", len(dimensions), sliceDimensionCount)
+		}
+
+		elementCount := cardinality(dimensions)
+		flatSlice := reflect.MakeSlice(lowestSliceType, elementCount, elementCount)
+
+		multiDimSlice := a.makeMultidimensionalSlice(sliceType, dimensions, flatSlice, 0)
+		a.slice.Set(multiDimSlice)
+
+		// Now that a.slice is a multi-dimensional slice with the underlying data pointed at flatSlice change a.slice to
+		// flatSlice so ScanIndex only has to handle simple one dimensional slices.
+		a.slice = flatSlice
+
+		return nil
+	}
+
+}
+
+func (a *anyMultiDimSliceArray) makeMultidimensionalSlice(sliceType reflect.Type, dimensions []ArrayDimension, flatSlice reflect.Value, flatSliceIdx int) reflect.Value {
+	if len(dimensions) == 1 {
+		endIdx := flatSliceIdx + int(dimensions[0].Length)
+		return flatSlice.Slice3(flatSliceIdx, endIdx, endIdx)
+	}
+
+	sliceLen := int(dimensions[0].Length)
+	slice := reflect.MakeSlice(sliceType, sliceLen, sliceLen)
+	for i := 0; i < sliceLen; i++ {
+		subSlice := a.makeMultidimensionalSlice(sliceType.Elem(), dimensions[1:], flatSlice, flatSliceIdx+(i*int(dimensions[1].Length)))
+		slice.Index(i).Set(subSlice)
+	}
+
+	return slice
+}
+
+func (a *anyMultiDimSliceArray) ScanIndex(i int) interface{} {
+	return a.slice.Index(i).Addr().Interface()
+}
+
+func (a *anyMultiDimSliceArray) ScanIndexType() interface{} {
+	lowestSliceType := a.slice.Type()
+	for ; lowestSliceType.Elem().Kind() == reflect.Slice; lowestSliceType = lowestSliceType.Elem() {
+	}
+	return reflect.New(lowestSliceType.Elem()).Interface()
+}
