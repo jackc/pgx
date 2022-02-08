@@ -31,6 +31,12 @@ func (r *Int4range) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Int4range) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Int4{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Int4{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -67,6 +73,12 @@ func (r *Int8range) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Int8range) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Int8{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Int8{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -103,6 +115,12 @@ func (r *Numrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Numrange) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Numeric{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Numeric{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -139,6 +157,12 @@ func (r *Tsrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Tsrange) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Timestamp{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Timestamp{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -175,6 +199,12 @@ func (r *Tstzrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Tstzrange) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Timestamptz{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Timestamptz{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -211,6 +241,12 @@ func (r *Daterange) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Daterange) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Date{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Date{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true
@@ -247,6 +283,12 @@ func (r *Float8range) ScanBounds() (lowerTarget, upperTarget interface{}) {
 }
 
 func (r *Float8range) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		r.Lower = Float8{}
+	}
+	if upper == Unbounded || upper == Empty {
+		r.Upper = Float8{}
+	}
 	r.LowerType = lower
 	r.UpperType = upper
 	r.Valid = true

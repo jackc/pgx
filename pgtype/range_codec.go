@@ -29,7 +29,8 @@ type RangeScanner interface {
 	ScanBounds() (lowerTarget, upperTarget interface{})
 
 	// SetBoundTypes sets the lower and upper bound types. ScanBounds will be called and the returned values scanned
-	// (if appropriate) before SetBoundTypes is called.
+	// (if appropriate) before SetBoundTypes is called. If the bound types are unbounded or empty this method must
+	// also set the bound values.
 	SetBoundTypes(lower, upper BoundType) error
 }
 
