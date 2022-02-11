@@ -163,7 +163,7 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 	return nil
 }
 
-func OpenDB(config pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
+func GetConnector(config pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector {
 	c := connector{
 		ConnConfig:    config,
 		BeforeConnect: func(context.Context, *pgx.ConnConfig) error { return nil }, // noop before connect by default
@@ -175,7 +175,11 @@ func OpenDB(config pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
 	for _, opt := range opts {
 		opt(&c)
 	}
+	return c
+}
 
+func OpenDB(config pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
+	c := GetConnector(config, opts...)
 	return sql.OpenDB(c)
 }
 
