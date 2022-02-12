@@ -470,7 +470,7 @@ func (p *Pool) Stat() *Stat {
 func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 	defer c.Release()
 
@@ -527,7 +527,7 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 func (p *Pool) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 	defer c.Release()
 

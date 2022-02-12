@@ -64,10 +64,10 @@ type batchResults struct {
 // Exec reads the results from the next query in the batch as if the query has been sent with Exec.
 func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 	if br.err != nil {
-		return nil, br.err
+		return pgconn.CommandTag{}, br.err
 	}
 	if br.closed {
-		return nil, fmt.Errorf("batch already closed")
+		return pgconn.CommandTag{}, fmt.Errorf("batch already closed")
 	}
 
 	query, arguments, _ := br.nextQueryAndArgs()
@@ -84,7 +84,7 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 				"err":  err,
 			})
 		}
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 
 	commandTag, err := br.mrr.ResultReader().Close()
@@ -151,29 +151,29 @@ func (br *batchResults) Query() (Rows, error) {
 // QueryFunc reads the results from the next query in the batch as if the query has been sent with Conn.QueryFunc.
 func (br *batchResults) QueryFunc(scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	if br.closed {
-		return nil, fmt.Errorf("batch already closed")
+		return pgconn.CommandTag{}, fmt.Errorf("batch already closed")
 	}
 
 	rows, err := br.Query()
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		err = rows.Scan(scans...)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 
 		err = f(rows)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 
 	return rows.CommandTag(), nil

@@ -538,7 +538,7 @@ func TestConnExec(t *testing.T) {
 
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
-	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Equal(t, "SELECT 1", results[0].CommandTag.String())
 	assert.Len(t, results[0].Rows, 1)
 	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
 
@@ -579,12 +579,12 @@ func TestConnExecMultipleQueries(t *testing.T) {
 	assert.Len(t, results, 2)
 
 	assert.Nil(t, results[0].Err)
-	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Equal(t, "SELECT 1", results[0].CommandTag.String())
 	assert.Len(t, results[0].Rows, 1)
 	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
 
 	assert.Nil(t, results[1].Err)
-	assert.Equal(t, "SELECT 1", string(results[1].CommandTag))
+	assert.Equal(t, "SELECT 1", results[1].CommandTag.String())
 	assert.Len(t, results[1].Rows, 1)
 	assert.Equal(t, "1", string(results[1].Rows[0][0]))
 
@@ -741,7 +741,7 @@ func TestConnExecParams(t *testing.T) {
 	}
 	assert.Equal(t, 1, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Equal(t, "SELECT 1", commandTag.String())
 	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
@@ -840,7 +840,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
+	assert.Equal(t, pgconn.CommandTag{}, commandTag)
 	assert.True(t, pgconn.Timeout(err))
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
@@ -880,7 +880,7 @@ func TestConnExecParamsEmptySQL(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	result := pgConn.ExecParams(ctx, "", nil, nil, nil, nil).Read()
-	assert.Nil(t, result.CommandTag)
+	assert.Equal(t, pgconn.CommandTag{}, result.CommandTag)
 	assert.Len(t, result.Rows, 0)
 	assert.NoError(t, result.Err)
 
@@ -907,7 +907,7 @@ func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
 	}
 	assert.Equal(t, 1, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Equal(t, "SELECT 1", commandTag.String())
 	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
@@ -937,7 +937,7 @@ func TestConnExecPrepared(t *testing.T) {
 	}
 	assert.Equal(t, 1, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, "SELECT 1", string(commandTag))
+	assert.Equal(t, "SELECT 1", commandTag.String())
 	assert.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
@@ -1025,7 +1025,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	}
 	assert.Equal(t, 0, rowCount)
 	commandTag, err := result.Close()
-	assert.Equal(t, pgconn.CommandTag(nil), commandTag)
+	assert.Equal(t, pgconn.CommandTag{}, commandTag)
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
 	select {
@@ -1069,7 +1069,7 @@ func TestConnExecPreparedEmptySQL(t *testing.T) {
 	require.NoError(t, err)
 
 	result := pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Read()
-	assert.Nil(t, result.CommandTag)
+	assert.Equal(t, pgconn.CommandTag{}, result.CommandTag)
 	assert.Len(t, result.Rows, 0)
 	assert.NoError(t, result.Err)
 
@@ -1097,15 +1097,15 @@ func TestConnExecBatch(t *testing.T) {
 
 	require.Len(t, results[0].Rows, 1)
 	require.Equal(t, "ExecParams 1", string(results[0].Rows[0][0]))
-	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Equal(t, "SELECT 1", results[0].CommandTag.String())
 
 	require.Len(t, results[1].Rows, 1)
 	require.Equal(t, "ExecPrepared 1", string(results[1].Rows[0][0]))
-	assert.Equal(t, "SELECT 1", string(results[1].CommandTag))
+	assert.Equal(t, "SELECT 1", results[1].CommandTag.String())
 
 	require.Len(t, results[2].Rows, 1)
 	require.Equal(t, "ExecParams 2", string(results[2].Rows[0][0]))
-	assert.Equal(t, "SELECT 1", string(results[2].CommandTag))
+	assert.Equal(t, "SELECT 1", results[2].CommandTag.String())
 }
 
 func TestConnExecBatchDeferredError(t *testing.T) {
@@ -1199,7 +1199,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 	for i := range args {
 		require.Len(t, results[i].Rows, 1)
 		require.Equal(t, args[i], string(results[i].Rows[0][0]))
-		assert.Equal(t, "SELECT 1", string(results[i].CommandTag))
+		assert.Equal(t, "SELECT 1", results[i].CommandTag.String())
 	}
 }
 
@@ -1247,45 +1247,11 @@ func TestConnLocking(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
-	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Equal(t, "SELECT 1", results[0].CommandTag.String())
 	assert.Len(t, results[0].Rows, 1)
 	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
 
 	ensureConnValid(t, pgConn)
-}
-
-func TestCommandTag(t *testing.T) {
-	t.Parallel()
-
-	var tests = []struct {
-		commandTag   pgconn.CommandTag
-		rowsAffected int64
-		isInsert     bool
-		isUpdate     bool
-		isDelete     bool
-		isSelect     bool
-	}{
-		{commandTag: pgconn.CommandTag("INSERT 0 5"), rowsAffected: 5, isInsert: true},
-		{commandTag: pgconn.CommandTag("UPDATE 0"), rowsAffected: 0, isUpdate: true},
-		{commandTag: pgconn.CommandTag("UPDATE 1"), rowsAffected: 1, isUpdate: true},
-		{commandTag: pgconn.CommandTag("DELETE 0"), rowsAffected: 0, isDelete: true},
-		{commandTag: pgconn.CommandTag("DELETE 1"), rowsAffected: 1, isDelete: true},
-		{commandTag: pgconn.CommandTag("DELETE 1234567890"), rowsAffected: 1234567890, isDelete: true},
-		{commandTag: pgconn.CommandTag("SELECT 1"), rowsAffected: 1, isSelect: true},
-		{commandTag: pgconn.CommandTag("SELECT 99999999999"), rowsAffected: 99999999999, isSelect: true},
-		{commandTag: pgconn.CommandTag("CREATE TABLE"), rowsAffected: 0},
-		{commandTag: pgconn.CommandTag("ALTER TABLE"), rowsAffected: 0},
-		{commandTag: pgconn.CommandTag("DROP TABLE"), rowsAffected: 0},
-	}
-
-	for i, tt := range tests {
-		ct := tt.commandTag
-		assert.Equalf(t, tt.rowsAffected, ct.RowsAffected(), "%d. %v", i, tt.commandTag)
-		assert.Equalf(t, tt.isInsert, ct.Insert(), "%d. %v", i, tt.commandTag)
-		assert.Equalf(t, tt.isUpdate, ct.Update(), "%d. %v", i, tt.commandTag)
-		assert.Equalf(t, tt.isDelete, ct.Delete(), "%d. %v", i, tt.commandTag)
-		assert.Equalf(t, tt.isSelect, ct.Select(), "%d. %v", i, tt.commandTag)
-	}
 }
 
 func TestConnOnNotice(t *testing.T) {
@@ -1546,7 +1512,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 	defer cancel()
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
 	assert.Error(t, err)
-	assert.Equal(t, pgconn.CommandTag(nil), res)
+	assert.Equal(t, pgconn.CommandTag{}, res)
 
 	assert.True(t, pgConn.IsClosed())
 	select {
@@ -1571,7 +1537,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
-	assert.Equal(t, pgconn.CommandTag(nil), res)
+	assert.Equal(t, pgconn.CommandTag{}, res)
 
 	ensureConnValid(t, pgConn)
 }
@@ -1692,7 +1658,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
-	assert.Equal(t, pgconn.CommandTag(nil), ct)
+	assert.Equal(t, pgconn.CommandTag{}, ct)
 
 	ensureConnValid(t, pgConn)
 }
@@ -2014,7 +1980,7 @@ func TestHijackAndConstruct(t *testing.T) {
 
 	assert.Len(t, results, 1)
 	assert.Nil(t, results[0].Err)
-	assert.Equal(t, "SELECT 1", string(results[0].CommandTag))
+	assert.Equal(t, "SELECT 1", results[0].CommandTag.String())
 	assert.Len(t, results[0].Rows, 1)
 	assert.Equal(t, "Hello, world", string(results[0].Rows[0][0]))
 

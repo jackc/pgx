@@ -685,15 +685,17 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 }
 
 // CommandTag is the result of an Exec function
-type CommandTag []byte
+type CommandTag struct {
+	buf []byte
+}
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
 func (ct CommandTag) RowsAffected() int64 {
 	// Find last non-digit
 	idx := -1
-	for i := len(ct) - 1; i >= 0; i-- {
-		if ct[i] >= '0' && ct[i] <= '9' {
+	for i := len(ct.buf) - 1; i >= 0; i-- {
+		if ct.buf[i] >= '0' && ct.buf[i] <= '9' {
 			idx = i
 		} else {
 			break
@@ -705,7 +707,7 @@ func (ct CommandTag) RowsAffected() int64 {
 	}
 
 	var n int64
-	for _, b := range ct[idx:] {
+	for _, b := range ct.buf[idx:] {
 		n = n*10 + int64(b-'0')
 	}
 
@@ -713,51 +715,51 @@ func (ct CommandTag) RowsAffected() int64 {
 }
 
 func (ct CommandTag) String() string {
-	return string(ct)
+	return string(ct.buf)
 }
 
 // Insert is true if the command tag starts with "INSERT".
 func (ct CommandTag) Insert() bool {
-	return len(ct) >= 6 &&
-		ct[0] == 'I' &&
-		ct[1] == 'N' &&
-		ct[2] == 'S' &&
-		ct[3] == 'E' &&
-		ct[4] == 'R' &&
-		ct[5] == 'T'
+	return len(ct.buf) >= 6 &&
+		ct.buf[0] == 'I' &&
+		ct.buf[1] == 'N' &&
+		ct.buf[2] == 'S' &&
+		ct.buf[3] == 'E' &&
+		ct.buf[4] == 'R' &&
+		ct.buf[5] == 'T'
 }
 
 // Update is true if the command tag starts with "UPDATE".
 func (ct CommandTag) Update() bool {
-	return len(ct) >= 6 &&
-		ct[0] == 'U' &&
-		ct[1] == 'P' &&
-		ct[2] == 'D' &&
-		ct[3] == 'A' &&
-		ct[4] == 'T' &&
-		ct[5] == 'E'
+	return len(ct.buf) >= 6 &&
+		ct.buf[0] == 'U' &&
+		ct.buf[1] == 'P' &&
+		ct.buf[2] == 'D' &&
+		ct.buf[3] == 'A' &&
+		ct.buf[4] == 'T' &&
+		ct.buf[5] == 'E'
 }
 
 // Delete is true if the command tag starts with "DELETE".
 func (ct CommandTag) Delete() bool {
-	return len(ct) >= 6 &&
-		ct[0] == 'D' &&
-		ct[1] == 'E' &&
-		ct[2] == 'L' &&
-		ct[3] == 'E' &&
-		ct[4] == 'T' &&
-		ct[5] == 'E'
+	return len(ct.buf) >= 6 &&
+		ct.buf[0] == 'D' &&
+		ct.buf[1] == 'E' &&
+		ct.buf[2] == 'L' &&
+		ct.buf[3] == 'E' &&
+		ct.buf[4] == 'T' &&
+		ct.buf[5] == 'E'
 }
 
 // Select is true if the command tag starts with "SELECT".
 func (ct CommandTag) Select() bool {
-	return len(ct) >= 6 &&
-		ct[0] == 'S' &&
-		ct[1] == 'E' &&
-		ct[2] == 'L' &&
-		ct[3] == 'E' &&
-		ct[4] == 'C' &&
-		ct[5] == 'T'
+	return len(ct.buf) >= 6 &&
+		ct.buf[0] == 'S' &&
+		ct.buf[1] == 'E' &&
+		ct.buf[2] == 'L' &&
+		ct.buf[3] == 'E' &&
+		ct.buf[4] == 'C' &&
+		ct.buf[5] == 'T'
 }
 
 type StatementDescription struct {
@@ -1076,13 +1078,13 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	result := &pgConn.resultReader
 
 	if err := pgConn.lock(); err != nil {
-		result.concludeCommand(nil, err)
+		result.concludeCommand(CommandTag{}, err)
 		result.closed = true
 		return result
 	}
 
 	if len(paramValues) > math.MaxUint16 {
-		result.concludeCommand(nil, fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
+		result.concludeCommand(CommandTag{}, fmt.Errorf("extended protocol limited to %v parameters", math.MaxUint16))
 		result.closed = true
 		pgConn.unlock()
 		return result
@@ -1091,7 +1093,7 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
-			result.concludeCommand(nil, newContextAlreadyDoneError(ctx))
+			result.concludeCommand(CommandTag{}, newContextAlreadyDoneError(ctx))
 			result.closed = true
 			pgConn.unlock()
 			return result
@@ -1111,7 +1113,7 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.asyncClose()
-		result.concludeCommand(nil, &writeError{err: err, safeToRetry: n == 0})
+		result.concludeCommand(CommandTag{}, &writeError{err: err, safeToRetry: n == 0})
 		pgConn.contextWatcher.Unwatch()
 		result.closed = true
 		pgConn.unlock()
@@ -1124,14 +1126,14 @@ func (pgConn *PgConn) execExtendedSuffix(buf []byte, result *ResultReader) {
 // CopyTo executes the copy command sql and copies the results to w.
 func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (CommandTag, error) {
 	if err := pgConn.lock(); err != nil {
-		return nil, err
+		return CommandTag{}, err
 	}
 
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
 			pgConn.unlock()
-			return nil, newContextAlreadyDoneError(ctx)
+			return CommandTag{}, newContextAlreadyDoneError(ctx)
 		default:
 		}
 		pgConn.contextWatcher.Watch(ctx)
@@ -1146,7 +1148,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	if err != nil {
 		pgConn.asyncClose()
 		pgConn.unlock()
-		return nil, &writeError{err: err, safeToRetry: n == 0}
+		return CommandTag{}, &writeError{err: err, safeToRetry: n == 0}
 	}
 
 	// Read results
@@ -1156,7 +1158,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
 			pgConn.asyncClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -1165,13 +1167,13 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 			_, err := w.Write(msg.Data)
 			if err != nil {
 				pgConn.asyncClose()
-				return nil, err
+				return CommandTag{}, err
 			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.unlock()
 			return commandTag, pgErr
 		case *pgproto3.CommandComplete:
-			commandTag = CommandTag(msg.CommandTag)
+			commandTag = pgConn.makeCommandTag(msg.CommandTag)
 		case *pgproto3.ErrorResponse:
 			pgErr = ErrorResponseToPgError(msg)
 		}
@@ -1184,14 +1186,14 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 // could still block.
 func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (CommandTag, error) {
 	if err := pgConn.lock(); err != nil {
-		return nil, err
+		return CommandTag{}, err
 	}
 	defer pgConn.unlock()
 
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
-			return nil, newContextAlreadyDoneError(ctx)
+			return CommandTag{}, newContextAlreadyDoneError(ctx)
 		default:
 		}
 		pgConn.contextWatcher.Watch(ctx)
@@ -1205,7 +1207,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	n, err := pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.asyncClose()
-		return nil, &writeError{err: err, safeToRetry: n == 0}
+		return CommandTag{}, &writeError{err: err, safeToRetry: n == 0}
 	}
 
 	// Send copy data
@@ -1255,7 +1257,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			msg, err := pgConn.receiveMessage()
 			if err != nil {
 				pgConn.asyncClose()
-				return nil, preferContextOverNetTimeoutError(ctx, err)
+				return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
 			}
 
 			switch msg := msg.(type) {
@@ -1279,7 +1281,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	_, err = pgConn.conn.Write(buf)
 	if err != nil {
 		pgConn.asyncClose()
-		return nil, err
+		return CommandTag{}, err
 	}
 
 	// Read results
@@ -1288,14 +1290,14 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
 			pgConn.asyncClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.ReadyForQuery:
 			return commandTag, pgErr
 		case *pgproto3.CommandComplete:
-			commandTag = CommandTag(msg.CommandTag)
+			commandTag = pgConn.makeCommandTag(msg.CommandTag)
 		case *pgproto3.ErrorResponse:
 			pgErr = ErrorResponseToPgError(msg)
 		}
@@ -1368,7 +1370,7 @@ func (mrr *MultiResultReader) NextResult() bool {
 			return true
 		case *pgproto3.CommandComplete:
 			mrr.pgConn.resultReader = ResultReader{
-				commandTag:       CommandTag(msg.CommandTag),
+				commandTag:       mrr.pgConn.makeCommandTag(msg.CommandTag),
 				commandConcluded: true,
 				closed:           true,
 			}
@@ -1483,7 +1485,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 	for !rr.commandConcluded {
 		_, err := rr.receiveMessage()
 		if err != nil {
-			return nil, rr.err
+			return CommandTag{}, rr.err
 		}
 	}
 
@@ -1491,7 +1493,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 		for {
 			msg, err := rr.receiveMessage()
 			if err != nil {
-				return nil, rr.err
+				return CommandTag{}, rr.err
 			}
 
 			switch msg := msg.(type) {
@@ -1538,7 +1540,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 
 	if err != nil {
 		err = preferContextOverNetTimeoutError(rr.ctx, err)
-		rr.concludeCommand(nil, err)
+		rr.concludeCommand(CommandTag{}, err)
 		rr.pgConn.contextWatcher.Unwatch()
 		rr.closed = true
 		if rr.multiResultReader == nil {
@@ -1552,11 +1554,11 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	case *pgproto3.RowDescription:
 		rr.fieldDescriptions = msg.Fields
 	case *pgproto3.CommandComplete:
-		rr.concludeCommand(CommandTag(msg.CommandTag), nil)
+		rr.concludeCommand(rr.pgConn.makeCommandTag(msg.CommandTag), nil)
 	case *pgproto3.EmptyQueryResponse:
-		rr.concludeCommand(nil, nil)
+		rr.concludeCommand(CommandTag{}, nil)
 	case *pgproto3.ErrorResponse:
-		rr.concludeCommand(nil, ErrorResponseToPgError(msg))
+		rr.concludeCommand(CommandTag{}, ErrorResponseToPgError(msg))
 	}
 
 	return msg, nil
@@ -1657,6 +1659,13 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 	}
 
 	return strings.Replace(s, "'", "''", -1), nil
+}
+
+// makeCommandTag makes a CommandTag. It does not retain a reference to buf or buf's underlying memory.
+func (pgConn *PgConn) makeCommandTag(buf []byte) CommandTag {
+	ct := make([]byte, len(buf))
+	copy(ct, buf)
+	return CommandTag{buf: ct}
 }
 
 // HijackedConn is the result of hijacking a connection.

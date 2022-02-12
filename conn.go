@@ -432,7 +432,7 @@ optionLoop:
 	if c.stmtcache != nil {
 		sd, err := c.stmtcache.Get(ctx, sql)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 
 		if c.stmtcache.Mode() == stmtcache.ModeDescribe {
@@ -443,7 +443,7 @@ optionLoop:
 
 	sd, err := c.Prepare(ctx, "", sql)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 	return c.execPrepared(ctx, sd, arguments)
 }
@@ -452,7 +452,7 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 	if len(arguments) > 0 {
 		sql, err = c.sanitizeForSimpleQuery(sql, arguments...)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 	}
 
@@ -493,7 +493,7 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
 	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 
 	result := c.pgConn.ExecParams(ctx, sd.SQL, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats).Read()
@@ -504,7 +504,7 @@ func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, 
 func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
 	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 
 	result := c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, c.eqb.resultFormats).Read()
@@ -688,24 +688,24 @@ type QueryFuncRow interface {
 func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	rows, err := c.Query(ctx, sql, args...)
 	if err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
 		err = rows.Scan(scans...)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 
 		err = f(rows)
 		if err != nil {
-			return nil, err
+			return pgconn.CommandTag{}, err
 		}
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return pgconn.CommandTag{}, err
 	}
 
 	return rows.CommandTag(), nil

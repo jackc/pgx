@@ -27,7 +27,7 @@ type execer interface {
 func testExec(t *testing.T, db execer) {
 	results, err := db.Exec(context.Background(), "set time zone 'America/Chicago'")
 	require.NoError(t, err)
-	assert.EqualValues(t, "SET", results)
+	assert.EqualValues(t, "SET", results.String())
 }
 
 type queryer interface {

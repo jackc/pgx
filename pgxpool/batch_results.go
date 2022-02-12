@@ -10,7 +10,7 @@ type errBatchResults struct {
 }
 
 func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
-	return nil, br.err
+	return pgconn.CommandTag{}, br.err
 }
 
 func (br errBatchResults) Query() (pgx.Rows, error) {
@@ -18,7 +18,7 @@ func (br errBatchResults) Query() (pgx.Rows, error) {
 }
 
 func (br errBatchResults) QueryFunc(scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
-	return nil, br.err
+	return pgconn.CommandTag{}, br.err
 }
 
 func (br errBatchResults) QueryRow() pgx.Row {
