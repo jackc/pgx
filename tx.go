@@ -235,7 +235,7 @@ func (tx *dbTx) Commit(ctx context.Context) error {
 		}
 		return err
 	}
-	if string(commandTag) == "ROLLBACK" {
+	if commandTag.String() == "ROLLBACK" {
 		return ErrTxCommitRollback
 	}
 
@@ -296,7 +296,7 @@ func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...interface{}) R
 // QueryFunc delegates to the underlying *Conn.
 func (tx *dbTx) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	if tx.closed {
-		return nil, ErrTxClosed
+		return pgconn.CommandTag{}, ErrTxClosed
 	}
 
 	return tx.conn.QueryFunc(ctx, sql, args, scans, f)
@@ -380,7 +380,7 @@ func (sp *dbSavepoint) Rollback(ctx context.Context) error {
 // Exec delegates to the underlying Tx
 func (sp *dbSavepoint) Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
 	if sp.closed {
-		return nil, ErrTxClosed
+		return pgconn.CommandTag{}, ErrTxClosed
 	}
 
 	return sp.tx.Exec(ctx, sql, arguments...)
@@ -415,7 +415,7 @@ func (sp *dbSavepoint) QueryRow(ctx context.Context, sql string, args ...interfa
 // QueryFunc delegates to the underlying Tx.
 func (sp *dbSavepoint) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	if sp.closed {
-		return nil, ErrTxClosed
+		return pgconn.CommandTag{}, ErrTxClosed
 	}
 
 	return sp.tx.QueryFunc(ctx, sql, args, scans, f)

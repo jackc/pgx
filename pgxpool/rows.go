@@ -12,7 +12,7 @@ type errRows struct {
 
 func (errRows) Close()                                         {}
 func (e errRows) Err() error                                   { return e.err }
-func (errRows) CommandTag() pgconn.CommandTag                  { return nil }
+func (errRows) CommandTag() pgconn.CommandTag                  { return pgconn.CommandTag{} }
 func (errRows) FieldDescriptions() []pgproto3.FieldDescription { return nil }
 func (errRows) Next() bool                                     { return false }
 func (e errRows) Scan(dest ...interface{}) error               { return e.err }

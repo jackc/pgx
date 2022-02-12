@@ -188,31 +188,31 @@ func TestExec(t *testing.T) {
 	t.Parallel()
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); string(results) != "CREATE TABLE" {
+		if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
 
 		// Accept parameters
-		if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); string(results) != "INSERT 0 1" {
+		if results := mustExec(t, conn, "insert into foo(id) values($1)", 1); results.String() != "INSERT 0 1" {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 
-		if results := mustExec(t, conn, "drop table foo;"); string(results) != "DROP TABLE" {
+		if results := mustExec(t, conn, "drop table foo;"); results.String() != "DROP TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
 
 		// Multiple statements can be executed -- last command tag is returned
-		if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); string(results) != "DROP TABLE" {
+		if results := mustExec(t, conn, "create temporary table foo(id serial primary key); drop table foo;"); results.String() != "DROP TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
 
 		// Can execute longer SQL strings than sharedBufferSize
-		if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); string(results) != "SELECT 1" {
+		if results := mustExec(t, conn, strings.Repeat("select 42; ", 1000)); results.String() != "SELECT 1" {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 
 		// Exec no-op which does not return a command tag
-		if results := mustExec(t, conn, "--;"); string(results) != "" {
+		if results := mustExec(t, conn, "--;"); results.String() != "" {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 	})
@@ -260,7 +260,7 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if string(commandTag) != "CREATE TABLE" {
+		if commandTag.String() != "CREATE TABLE" {
 			t.Fatalf("Unexpected results from Exec: %v", commandTag)
 		}
 		assert.False(t, pgconn.SafeToRetry(err))
@@ -350,15 +350,15 @@ func TestExecStatementCacheModes(t *testing.T) {
 
 			commandTag, err := conn.Exec(context.Background(), "select 1")
 			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 1", string(commandTag), tt.name)
+			assert.Equal(t, "SELECT 1", commandTag.String(), tt.name)
 
 			commandTag, err = conn.Exec(context.Background(), "select 1 union all select 1")
 			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 2", string(commandTag), tt.name)
+			assert.Equal(t, "SELECT 2", commandTag.String(), tt.name)
 
 			commandTag, err = conn.Exec(context.Background(), "select 1")
 			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 1", string(commandTag), tt.name)
+			assert.Equal(t, "SELECT 1", commandTag.String(), tt.name)
 
 			ensureConnValid(t, conn)
 		}()
@@ -378,7 +378,7 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(commandTag) != "CREATE TABLE" {
+	if commandTag.String() != "CREATE TABLE" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
 
@@ -390,7 +390,7 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(commandTag) != "INSERT 0 1" {
+	if commandTag.String() != "INSERT 0 1" {
 		t.Fatalf("Unexpected results from Exec: %v", commandTag)
 	}
 
@@ -720,12 +720,12 @@ func TestInsertBoolArray(t *testing.T) {
 	t.Parallel()
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); string(results) != "CREATE TABLE" {
+		if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
 
 		// Accept parameters
-		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); string(results) != "INSERT 0 1" {
+		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []bool{true, false, true}); results.String() != "INSERT 0 1" {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 	})
@@ -735,12 +735,12 @@ func TestInsertTimestampArray(t *testing.T) {
 	t.Parallel()
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); string(results) != "CREATE TABLE" {
+		if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
 
 		// Accept parameters
-		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); string(results) != "INSERT 0 1" {
+		if results := mustExec(t, conn, "insert into foo(spice) values($1)", []time.Time{time.Unix(1419143667, 0), time.Unix(1419143672, 0)}); results.String() != "INSERT 0 1" {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 	})
