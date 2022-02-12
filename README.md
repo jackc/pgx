@@ -98,26 +98,6 @@ There are three areas in particular where pgx can provide a significant performa
    perform nearly 3x the number of queries per second.
 3. Batched queries - Multiple queries can be batched together to minimize network round trips.
 
-## Comparison with Alternatives
-
-* [pq](http://godoc.org/github.com/lib/pq)
-* [go-pg](https://github.com/go-pg/pg)
-
-For prepared queries with small sets of simple data types, all drivers will have have similar performance. However, if prepared statements aren't being explicitly used, pgx can have a significant performance advantage due to automatic statement preparation.
-pgx also can perform better when using PostgreSQL-specific data types or query batching. See
-[go_db_bench](https://github.com/jackc/go_db_bench) for some database driver benchmarks.
-
-### Compatibility with `database/sql`
-
-pq is exclusively used with `database/sql`. go-pg does not use `database/sql` at all. pgx supports `database/sql` as well as
-its own interface.
-
-### Level of access, ORM
-
-go-pg is a PostgreSQL client and ORM. It includes many features that traditionally sit above the database driver, such as ORM, struct mapping, soft deletes, schema migrations, and sharding support.
-
-pgx is "closer to the metal" and such abstractions are beyond the scope of the pgx project, which first and foremost, aims to be a performant driver and toolkit.
-
 ## Testing
 
 pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE` environment
