@@ -366,30 +366,6 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return err
 }
 
-func connInfoFromRows(rows Rows, err error) (map[string]uint32, error) {
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	nameOIDs := make(map[string]uint32, 256)
-	for rows.Next() {
-		var oid uint32
-		var name pgtype.Text
-		if err = rows.Scan(&oid, &name); err != nil {
-			return nil, err
-		}
-
-		nameOIDs[name.String] = oid
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return nameOIDs, err
-}
-
 // PgConn returns the underlying *pgconn.PgConn. This is an escape hatch method that allows lower level access to the
 // PostgreSQL connection than pgx exposes.
 //
