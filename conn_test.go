@@ -874,34 +874,28 @@ func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 }
 
 func TestDomainType(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
-
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
 
-		var n uint64
-
 		// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
 
-		err := conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+		// Unregistered type can be used as string.
+		var s string
+		err := conn.QueryRow(context.Background(), "select $1::uint64", "24").Scan(&s)
 		require.NoError(t, err)
+		require.Equal(t, "24", s)
 
-		// A string can be used. But a string cannot be the result because the describe result from the PostgreSQL server gives
-		// the underlying type of numeric.
-		err = conn.QueryRow(context.Background(), "select $1::uint64", "42").Scan(&n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n != 42 {
-			t.Fatalf("Expected n to be 42, but was %v", n)
-		}
-
+		// Register type
 		var uint64OID uint32
 		err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
 		if err != nil {
 			t.Fatalf("did not find uint64 OID, %v", err)
 		}
 		conn.ConnInfo().RegisterDataType(pgtype.DataType{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
+
+		var n uint64
+		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+		require.NoError(t, err)
 
 		// String is still an acceptable argument after registration
 		err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)
@@ -910,15 +904,6 @@ func TestDomainType(t *testing.T) {
 		}
 		if n != 7 {
 			t.Fatalf("Expected n to be 7, but was %v", n)
-		}
-
-		// But a uint64 is acceptable
-		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if n != 24 {
-			t.Fatalf("Expected n to be 24, but was %v", n)
 		}
 	})
 }
