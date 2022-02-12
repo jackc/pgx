@@ -369,7 +369,6 @@ func TestConnQueryCloseEarlyWithErrorOnWire(t *testing.T) {
 
 // Test that a connection stays valid when query results read incorrectly
 func TestConnQueryReadWrongTypeError(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -397,7 +396,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
+	if rows.Err().Error() != "can't scan into dest[0]: cannot scan OID 23 in binary format into *time.Time" {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
