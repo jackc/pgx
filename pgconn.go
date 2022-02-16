@@ -99,7 +99,7 @@ type PgConn struct {
 }
 
 // Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
-// to provide configuration. See documention for ParseConfig for details. ctx can be used to cancel a connect attempt.
+// to provide configuration. See documentation for ParseConfig for details. ctx can be used to cancel a connect attempt.
 func Connect(ctx context.Context, connString string) (*PgConn, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -154,7 +154,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 			break
 		} else if pgerr, ok := err.(*PgError); ok {
 			err = &connectError{config: config, msg: "server error", err: pgerr}
-			ERRCODE_INVALID_PASSWORD := "28P01"                    // worng password
+			ERRCODE_INVALID_PASSWORD := "28P01"                    // wrong password
 			ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION := "28000" // db does not exist
 			if pgerr.Code == ERRCODE_INVALID_PASSWORD || pgerr.Code == ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION {
 				break
