@@ -773,8 +773,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			var err error
 			sd, err = stmtCache.Get(ctx, bi.query)
 			if err != nil {
-				// the stmtCache was prefilled from distinctUnpreparedQueries above so we are guaranteed no errors
-				panic("BUG: unexpected error from stmtCache")
+				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
 		}
 
