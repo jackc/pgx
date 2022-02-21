@@ -73,9 +73,8 @@ type Conn struct {
 
 	connInfo *pgtype.ConnInfo
 
-	wbuf             []byte
-	preallocatedRows []connRows
-	eqb              extendedQueryBuilder
+	wbuf []byte
+	eqb  extendedQueryBuilder
 }
 
 // Identifier a PostgreSQL identifier or name. Identifiers can be composed of
@@ -513,12 +512,7 @@ func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription
 }
 
 func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *connRows {
-	if len(c.preallocatedRows) == 0 {
-		c.preallocatedRows = make([]connRows, 64)
-	}
-
-	r := &c.preallocatedRows[len(c.preallocatedRows)-1]
-	c.preallocatedRows = c.preallocatedRows[0 : len(c.preallocatedRows)-1]
+	r := &connRows{}
 
 	r.ctx = ctx
 	r.logger = c
@@ -773,8 +767,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			var err error
 			sd, err = stmtCache.Get(ctx, bi.query)
 			if err != nil {
-				// the stmtCache was prefilled from distinctUnpreparedQueries above so we are guaranteed no errors
-				panic("BUG: unexpected error from stmtCache")
+				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
 		}
 
