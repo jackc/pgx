@@ -11,7 +11,7 @@ import (
 func TestLineTranscode(t *testing.T) {
 	conn := testutil.MustConnectPgx(t)
 	defer conn.Close(context.Background())
-	if _, ok := conn.ConnInfo().DataTypeForName("line"); !ok {
+	if _, ok := conn.ConnInfo().TypeForName("line"); !ok {
 		t.Skip("Skipping due to no line type")
 	}
 

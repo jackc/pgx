@@ -257,7 +257,7 @@ func (rows *connRows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		if dt, ok := rows.connInfo.DataTypeForOID(fd.DataTypeOID); ok {
+		if dt, ok := rows.connInfo.TypeForOID(fd.DataTypeOID); ok {
 			value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
 			if err != nil {
 				rows.fatal(err)

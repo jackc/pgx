@@ -79,7 +79,7 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return int64(arg), nil
 	}
 
-	if _, found := ci.DataTypeForValue(arg); found {
+	if _, found := ci.TypeForValue(arg); found {
 		buf, err := ci.Encode(0, TextFormatCode, arg, nil)
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 		return encodePreparedStatementArgument(ci, buf, oid, arg)
 	}
 
-	if _, ok := ci.DataTypeForOID(oid); ok {
+	if _, ok := ci.TypeForOID(oid); ok {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 		argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)

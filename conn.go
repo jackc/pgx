@@ -832,9 +832,8 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	return sanitize.SanitizeSQL(sql, valueArgs...)
 }
 
-// LoadDataType inspects the database for typeName and produces a pgtype.DataType suitable for
-// registration.
-func (c *Conn) LoadDataType(ctx context.Context, typeName string) (*pgtype.DataType, error) {
+// LoadType inspects the database for typeName and produces a pgtype.Type suitable for registration.
+func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, error) {
 	var oid uint32
 
 	err := c.QueryRow(ctx, "select $1::text::regtype::oid;", typeName).Scan(&oid)
@@ -856,23 +855,23 @@ func (c *Conn) LoadDataType(ctx context.Context, typeName string) (*pgtype.DataT
 			return nil, err
 		}
 
-		dt, ok := c.ConnInfo().DataTypeForOID(elementOID)
+		dt, ok := c.ConnInfo().TypeForOID(elementOID)
 		if !ok {
 			return nil, errors.New("array element OID not registered")
 		}
 
-		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementDataType: dt}}, nil
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.ArrayCodec{ElementType: dt}}, nil
 	case "c": // composite
 		fields, err := c.getCompositeFields(ctx, oid)
 		if err != nil {
 			return nil, err
 		}
 
-		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.CompositeCodec{Fields: fields}}, nil
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.CompositeCodec{Fields: fields}}, nil
 	case "e": // enum
-		return &pgtype.DataType{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
 	default:
-		return &pgtype.DataType{}, errors.New("unknown typtype")
+		return &pgtype.Type{}, errors.New("unknown typtype")
 	}
 }
 
@@ -905,11 +904,11 @@ order by attnum`,
 		[]interface{}{typrelid},
 		[]interface{}{&fieldName, &fieldOID},
 		func(qfr QueryFuncRow) error {
-			dt, ok := c.ConnInfo().DataTypeForOID(fieldOID)
+			dt, ok := c.ConnInfo().TypeForOID(fieldOID)
 			if !ok {
 				return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
 			}
-			fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, DataType: dt})
+			fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, Type: dt})
 			return nil
 		})
 	if err != nil {

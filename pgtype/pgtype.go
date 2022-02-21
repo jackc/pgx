@@ -163,20 +163,20 @@ func (e *nullAssignmentError) Error() string {
 	return fmt.Sprintf("cannot assign NULL to %T", e.dst)
 }
 
-type DataType struct {
+type Type struct {
 	Codec Codec
 	Name  string
 	OID   uint32
 }
 
 type ConnInfo struct {
-	oidToDataType         map[uint32]*DataType
-	nameToDataType        map[string]*DataType
+	oidToType             map[uint32]*Type
+	nameToType            map[string]*Type
 	reflectTypeToName     map[reflect.Type]string
 	oidToFormatCode       map[uint32]int16
 	oidToResultFormatCode map[uint32]int16
 
-	reflectTypeToDataType map[reflect.Type]*DataType
+	reflectTypeToType map[reflect.Type]*Type
 
 	// TryWrapEncodePlanFuncs is a slice of functions that will wrap a value that cannot be encoded by the Codec. Every
 	// time a wrapper is found the PlanEncode method will be recursively called with the new value. This allows several layers of wrappers
@@ -193,8 +193,8 @@ type ConnInfo struct {
 
 func NewConnInfo() *ConnInfo {
 	ci := &ConnInfo{
-		oidToDataType:         make(map[uint32]*DataType),
-		nameToDataType:        make(map[string]*DataType),
+		oidToType:             make(map[uint32]*Type),
+		nameToType:            make(map[string]*Type),
 		reflectTypeToName:     make(map[reflect.Type]string),
 		oidToFormatCode:       make(map[uint32]int16),
 		oidToResultFormatCode: make(map[uint32]int16),
@@ -218,99 +218,99 @@ func NewConnInfo() *ConnInfo {
 		},
 	}
 
-	ci.RegisterDataType(&DataType{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
-	ci.RegisterDataType(&DataType{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
-	ci.RegisterDataType(&DataType{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
-	ci.RegisterDataType(&DataType{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
-	ci.RegisterDataType(&DataType{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
-	ci.RegisterDataType(&DataType{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
-	ci.RegisterDataType(&DataType{Name: "char", OID: QCharOID, Codec: QCharCodec{}})
-	ci.RegisterDataType(&DataType{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
-	ci.RegisterDataType(&DataType{Name: "cidr", OID: CIDROID, Codec: InetCodec{}})
-	ci.RegisterDataType(&DataType{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
-	ci.RegisterDataType(&DataType{Name: "date", OID: DateOID, Codec: DateCodec{}})
-	ci.RegisterDataType(&DataType{Name: "float4", OID: Float4OID, Codec: Float4Codec{}})
-	ci.RegisterDataType(&DataType{Name: "float8", OID: Float8OID, Codec: Float8Codec{}})
-	ci.RegisterDataType(&DataType{Name: "inet", OID: InetOID, Codec: InetCodec{}})
-	ci.RegisterDataType(&DataType{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
-	ci.RegisterDataType(&DataType{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
-	ci.RegisterDataType(&DataType{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
-	ci.RegisterDataType(&DataType{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
-	ci.RegisterDataType(&DataType{Name: "json", OID: JSONOID, Codec: JSONCodec{}})
-	ci.RegisterDataType(&DataType{Name: "jsonb", OID: JSONBOID, Codec: JSONBCodec{}})
-	ci.RegisterDataType(&DataType{Name: "line", OID: LineOID, Codec: LineCodec{}})
-	ci.RegisterDataType(&DataType{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
-	ci.RegisterDataType(&DataType{Name: "macaddr", OID: MacaddrOID, Codec: MacaddrCodec{}})
-	ci.RegisterDataType(&DataType{Name: "name", OID: NameOID, Codec: TextCodec{}})
-	ci.RegisterDataType(&DataType{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
-	ci.RegisterDataType(&DataType{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
-	ci.RegisterDataType(&DataType{Name: "path", OID: PathOID, Codec: PathCodec{}})
-	ci.RegisterDataType(&DataType{Name: "point", OID: PointOID, Codec: PointCodec{}})
-	ci.RegisterDataType(&DataType{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
-	ci.RegisterDataType(&DataType{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
-	ci.RegisterDataType(&DataType{Name: "text", OID: TextOID, Codec: TextCodec{}})
-	ci.RegisterDataType(&DataType{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
-	ci.RegisterDataType(&DataType{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
-	ci.RegisterDataType(&DataType{Name: "timestamp", OID: TimestampOID, Codec: TimestampCodec{}})
-	ci.RegisterDataType(&DataType{Name: "timestamptz", OID: TimestamptzOID, Codec: TimestamptzCodec{}})
-	ci.RegisterDataType(&DataType{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
-	ci.RegisterDataType(&DataType{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
-	ci.RegisterDataType(&DataType{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
-	ci.RegisterDataType(&DataType{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
-	ci.RegisterDataType(&DataType{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
+	ci.RegisterType(&Type{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
+	ci.RegisterType(&Type{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
+	ci.RegisterType(&Type{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
+	ci.RegisterType(&Type{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
+	ci.RegisterType(&Type{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
+	ci.RegisterType(&Type{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
+	ci.RegisterType(&Type{Name: "char", OID: QCharOID, Codec: QCharCodec{}})
+	ci.RegisterType(&Type{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
+	ci.RegisterType(&Type{Name: "cidr", OID: CIDROID, Codec: InetCodec{}})
+	ci.RegisterType(&Type{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
+	ci.RegisterType(&Type{Name: "date", OID: DateOID, Codec: DateCodec{}})
+	ci.RegisterType(&Type{Name: "float4", OID: Float4OID, Codec: Float4Codec{}})
+	ci.RegisterType(&Type{Name: "float8", OID: Float8OID, Codec: Float8Codec{}})
+	ci.RegisterType(&Type{Name: "inet", OID: InetOID, Codec: InetCodec{}})
+	ci.RegisterType(&Type{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
+	ci.RegisterType(&Type{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
+	ci.RegisterType(&Type{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
+	ci.RegisterType(&Type{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
+	ci.RegisterType(&Type{Name: "json", OID: JSONOID, Codec: JSONCodec{}})
+	ci.RegisterType(&Type{Name: "jsonb", OID: JSONBOID, Codec: JSONBCodec{}})
+	ci.RegisterType(&Type{Name: "line", OID: LineOID, Codec: LineCodec{}})
+	ci.RegisterType(&Type{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
+	ci.RegisterType(&Type{Name: "macaddr", OID: MacaddrOID, Codec: MacaddrCodec{}})
+	ci.RegisterType(&Type{Name: "name", OID: NameOID, Codec: TextCodec{}})
+	ci.RegisterType(&Type{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
+	ci.RegisterType(&Type{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
+	ci.RegisterType(&Type{Name: "path", OID: PathOID, Codec: PathCodec{}})
+	ci.RegisterType(&Type{Name: "point", OID: PointOID, Codec: PointCodec{}})
+	ci.RegisterType(&Type{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
+	ci.RegisterType(&Type{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
+	ci.RegisterType(&Type{Name: "text", OID: TextOID, Codec: TextCodec{}})
+	ci.RegisterType(&Type{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
+	ci.RegisterType(&Type{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
+	ci.RegisterType(&Type{Name: "timestamp", OID: TimestampOID, Codec: TimestampCodec{}})
+	ci.RegisterType(&Type{Name: "timestamptz", OID: TimestamptzOID, Codec: TimestamptzCodec{}})
+	ci.RegisterType(&Type{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
+	ci.RegisterType(&Type{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
+	ci.RegisterType(&Type{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
+	ci.RegisterType(&Type{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
+	ci.RegisterType(&Type{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
 
-	ci.RegisterDataType(&DataType{Name: "daterange", OID: DaterangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[DateOID]}})
-	ci.RegisterDataType(&DataType{Name: "int4range", OID: Int4rangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[Int4OID]}})
-	ci.RegisterDataType(&DataType{Name: "int8range", OID: Int8rangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[Int8OID]}})
-	ci.RegisterDataType(&DataType{Name: "numrange", OID: NumrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[NumericOID]}})
-	ci.RegisterDataType(&DataType{Name: "tsrange", OID: TsrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[TimestampOID]}})
-	ci.RegisterDataType(&DataType{Name: "tstzrange", OID: TstzrangeOID, Codec: &RangeCodec{ElementDataType: ci.oidToDataType[TimestamptzOID]}})
+	ci.RegisterType(&Type{Name: "daterange", OID: DaterangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[DateOID]}})
+	ci.RegisterType(&Type{Name: "int4range", OID: Int4rangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[Int4OID]}})
+	ci.RegisterType(&Type{Name: "int8range", OID: Int8rangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[Int8OID]}})
+	ci.RegisterType(&Type{Name: "numrange", OID: NumrangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[NumericOID]}})
+	ci.RegisterType(&Type{Name: "tsrange", OID: TsrangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[TimestampOID]}})
+	ci.RegisterType(&Type{Name: "tstzrange", OID: TstzrangeOID, Codec: &RangeCodec{ElementType: ci.oidToType[TimestamptzOID]}})
 
-	ci.RegisterDataType(&DataType{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[ACLItemOID]}})
-	ci.RegisterDataType(&DataType{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[BitOID]}})
-	ci.RegisterDataType(&DataType{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[BoolOID]}})
-	ci.RegisterDataType(&DataType{Name: "_box", OID: BoxArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[BoxOID]}})
-	ci.RegisterDataType(&DataType{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[BPCharOID]}})
-	ci.RegisterDataType(&DataType{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[ByteaOID]}})
-	ci.RegisterDataType(&DataType{Name: "_char", OID: QCharArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[QCharOID]}})
-	ci.RegisterDataType(&DataType{Name: "_cid", OID: CIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[CIDOID]}})
-	ci.RegisterDataType(&DataType{Name: "_cidr", OID: CIDRArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[CIDROID]}})
-	ci.RegisterDataType(&DataType{Name: "_circle", OID: CircleArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[CircleOID]}})
-	ci.RegisterDataType(&DataType{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[DateOID]}})
-	ci.RegisterDataType(&DataType{Name: "_daterange", OID: DaterangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[DaterangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_float4", OID: Float4ArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Float4OID]}})
-	ci.RegisterDataType(&DataType{Name: "_float8", OID: Float8ArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Float8OID]}})
-	ci.RegisterDataType(&DataType{Name: "_inet", OID: InetArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[InetOID]}})
-	ci.RegisterDataType(&DataType{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Int2OID]}})
-	ci.RegisterDataType(&DataType{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Int4OID]}})
-	ci.RegisterDataType(&DataType{Name: "_int4range", OID: Int4rangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Int4rangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Int8OID]}})
-	ci.RegisterDataType(&DataType{Name: "_int8range", OID: Int8rangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[Int8rangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_interval", OID: IntervalArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[IntervalOID]}})
-	ci.RegisterDataType(&DataType{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[JSONOID]}})
-	ci.RegisterDataType(&DataType{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[JSONBOID]}})
-	ci.RegisterDataType(&DataType{Name: "_line", OID: LineArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[LineOID]}})
-	ci.RegisterDataType(&DataType{Name: "_lseg", OID: LsegArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[LsegOID]}})
-	ci.RegisterDataType(&DataType{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[MacaddrOID]}})
-	ci.RegisterDataType(&DataType{Name: "_name", OID: NameArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[NameOID]}})
-	ci.RegisterDataType(&DataType{Name: "_numeric", OID: NumericArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[NumericOID]}})
-	ci.RegisterDataType(&DataType{Name: "_numrange", OID: NumrangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[NumrangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[OIDOID]}})
-	ci.RegisterDataType(&DataType{Name: "_path", OID: PathArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PathOID]}})
-	ci.RegisterDataType(&DataType{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PointOID]}})
-	ci.RegisterDataType(&DataType{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[PolygonOID]}})
-	ci.RegisterDataType(&DataType{Name: "_record", OID: RecordArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[RecordOID]}})
-	ci.RegisterDataType(&DataType{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TextOID]}})
-	ci.RegisterDataType(&DataType{Name: "_tid", OID: TIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TIDOID]}})
-	ci.RegisterDataType(&DataType{Name: "_time", OID: TimeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TimeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_timestamp", OID: TimestampArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TimestampOID]}})
-	ci.RegisterDataType(&DataType{Name: "_timestamptz", OID: TimestamptzArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TimestamptzOID]}})
-	ci.RegisterDataType(&DataType{Name: "_tsrange", OID: TsrangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TsrangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_tstzrange", OID: TstzrangeArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[TstzrangeOID]}})
-	ci.RegisterDataType(&DataType{Name: "_uuid", OID: UUIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[UUIDOID]}})
-	ci.RegisterDataType(&DataType{Name: "_varbit", OID: VarbitArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[VarbitOID]}})
-	ci.RegisterDataType(&DataType{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[VarcharOID]}})
-	ci.RegisterDataType(&DataType{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementDataType: ci.oidToDataType[XIDOID]}})
+	ci.RegisterType(&Type{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[ACLItemOID]}})
+	ci.RegisterType(&Type{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[BitOID]}})
+	ci.RegisterType(&Type{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[BoolOID]}})
+	ci.RegisterType(&Type{Name: "_box", OID: BoxArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[BoxOID]}})
+	ci.RegisterType(&Type{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[BPCharOID]}})
+	ci.RegisterType(&Type{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[ByteaOID]}})
+	ci.RegisterType(&Type{Name: "_char", OID: QCharArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[QCharOID]}})
+	ci.RegisterType(&Type{Name: "_cid", OID: CIDArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[CIDOID]}})
+	ci.RegisterType(&Type{Name: "_cidr", OID: CIDRArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[CIDROID]}})
+	ci.RegisterType(&Type{Name: "_circle", OID: CircleArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[CircleOID]}})
+	ci.RegisterType(&Type{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[DateOID]}})
+	ci.RegisterType(&Type{Name: "_daterange", OID: DaterangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[DaterangeOID]}})
+	ci.RegisterType(&Type{Name: "_float4", OID: Float4ArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Float4OID]}})
+	ci.RegisterType(&Type{Name: "_float8", OID: Float8ArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Float8OID]}})
+	ci.RegisterType(&Type{Name: "_inet", OID: InetArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[InetOID]}})
+	ci.RegisterType(&Type{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Int2OID]}})
+	ci.RegisterType(&Type{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Int4OID]}})
+	ci.RegisterType(&Type{Name: "_int4range", OID: Int4rangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Int4rangeOID]}})
+	ci.RegisterType(&Type{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Int8OID]}})
+	ci.RegisterType(&Type{Name: "_int8range", OID: Int8rangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[Int8rangeOID]}})
+	ci.RegisterType(&Type{Name: "_interval", OID: IntervalArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[IntervalOID]}})
+	ci.RegisterType(&Type{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[JSONOID]}})
+	ci.RegisterType(&Type{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[JSONBOID]}})
+	ci.RegisterType(&Type{Name: "_line", OID: LineArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[LineOID]}})
+	ci.RegisterType(&Type{Name: "_lseg", OID: LsegArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[LsegOID]}})
+	ci.RegisterType(&Type{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[MacaddrOID]}})
+	ci.RegisterType(&Type{Name: "_name", OID: NameArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[NameOID]}})
+	ci.RegisterType(&Type{Name: "_numeric", OID: NumericArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[NumericOID]}})
+	ci.RegisterType(&Type{Name: "_numrange", OID: NumrangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[NumrangeOID]}})
+	ci.RegisterType(&Type{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[OIDOID]}})
+	ci.RegisterType(&Type{Name: "_path", OID: PathArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[PathOID]}})
+	ci.RegisterType(&Type{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[PointOID]}})
+	ci.RegisterType(&Type{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[PolygonOID]}})
+	ci.RegisterType(&Type{Name: "_record", OID: RecordArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[RecordOID]}})
+	ci.RegisterType(&Type{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TextOID]}})
+	ci.RegisterType(&Type{Name: "_tid", OID: TIDArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TIDOID]}})
+	ci.RegisterType(&Type{Name: "_time", OID: TimeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TimeOID]}})
+	ci.RegisterType(&Type{Name: "_timestamp", OID: TimestampArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TimestampOID]}})
+	ci.RegisterType(&Type{Name: "_timestamptz", OID: TimestamptzArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TimestamptzOID]}})
+	ci.RegisterType(&Type{Name: "_tsrange", OID: TsrangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TsrangeOID]}})
+	ci.RegisterType(&Type{Name: "_tstzrange", OID: TstzrangeArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[TstzrangeOID]}})
+	ci.RegisterType(&Type{Name: "_uuid", OID: UUIDArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[UUIDOID]}})
+	ci.RegisterType(&Type{Name: "_varbit", OID: VarbitArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[VarbitOID]}})
+	ci.RegisterType(&Type{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[VarcharOID]}})
+	ci.RegisterType(&Type{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementType: ci.oidToType[XIDOID]}})
 
 	registerDefaultPgTypeVariants := func(name, arrayName string, value interface{}) {
 		// T
@@ -361,49 +361,49 @@ func NewConnInfo() *ConnInfo {
 	return ci
 }
 
-func (ci *ConnInfo) RegisterDataType(t *DataType) {
-	ci.oidToDataType[t.OID] = t
-	ci.nameToDataType[t.Name] = t
+func (ci *ConnInfo) RegisterType(t *Type) {
+	ci.oidToType[t.OID] = t
+	ci.nameToType[t.Name] = t
 	ci.oidToFormatCode[t.OID] = t.Codec.PreferredFormat()
-	ci.reflectTypeToDataType = nil // Invalidated by type registration
+	ci.reflectTypeToType = nil // Invalidated by type registration
 }
 
 // RegisterDefaultPgType registers a mapping of a Go type to a PostgreSQL type name. Typically the data type to be
 // encoded or decoded is determined by the PostgreSQL OID. But if the OID of a value to be encoded or decoded is
-// unknown, this additional mapping will be used by DataTypeForValue to determine a suitable data type.
+// unknown, this additional mapping will be used by TypeForValue to determine a suitable data type.
 func (ci *ConnInfo) RegisterDefaultPgType(value interface{}, name string) {
 	ci.reflectTypeToName[reflect.TypeOf(value)] = name
-	ci.reflectTypeToDataType = nil // Invalidated by registering a default type
+	ci.reflectTypeToType = nil // Invalidated by registering a default type
 }
 
-func (ci *ConnInfo) DataTypeForOID(oid uint32) (*DataType, bool) {
-	dt, ok := ci.oidToDataType[oid]
+func (ci *ConnInfo) TypeForOID(oid uint32) (*Type, bool) {
+	dt, ok := ci.oidToType[oid]
 	return dt, ok
 }
 
-func (ci *ConnInfo) DataTypeForName(name string) (*DataType, bool) {
-	dt, ok := ci.nameToDataType[name]
+func (ci *ConnInfo) TypeForName(name string) (*Type, bool) {
+	dt, ok := ci.nameToType[name]
 	return dt, ok
 }
 
-func (ci *ConnInfo) buildReflectTypeToDataType() {
-	ci.reflectTypeToDataType = make(map[reflect.Type]*DataType)
+func (ci *ConnInfo) buildReflectTypeToType() {
+	ci.reflectTypeToType = make(map[reflect.Type]*Type)
 
 	for reflectType, name := range ci.reflectTypeToName {
-		if dt, ok := ci.nameToDataType[name]; ok {
-			ci.reflectTypeToDataType[reflectType] = dt
+		if dt, ok := ci.nameToType[name]; ok {
+			ci.reflectTypeToType[reflectType] = dt
 		}
 	}
 }
 
-// DataTypeForValue finds a data type suitable for v. Use RegisterDataType to register types that can encode and decode
+// TypeForValue finds a data type suitable for v. Use RegisterType to register types that can encode and decode
 // themselves. Use RegisterDefaultPgType to register that can be handled by a registered data type.
-func (ci *ConnInfo) DataTypeForValue(v interface{}) (*DataType, bool) {
-	if ci.reflectTypeToDataType == nil {
-		ci.buildReflectTypeToDataType()
+func (ci *ConnInfo) TypeForValue(v interface{}) (*Type, bool) {
+	if ci.reflectTypeToType == nil {
+		ci.buildReflectTypeToType()
 	}
 
-	dt, ok := ci.reflectTypeToDataType[reflect.TypeOf(v)]
+	dt, ok := ci.reflectTypeToType[reflect.TypeOf(v)]
 	return dt, ok
 }
 
@@ -1018,11 +1018,11 @@ func (ci *ConnInfo) PlanScan(oid uint32, formatCode int16, target interface{}) S
 		}
 	}
 
-	var dt *DataType
+	var dt *Type
 
-	if dataType, ok := ci.DataTypeForOID(oid); ok {
+	if dataType, ok := ci.TypeForOID(oid); ok {
 		dt = dataType
-	} else if dataType, ok := ci.DataTypeForValue(target); ok {
+	} else if dataType, ok := ci.TypeForValue(target); ok {
 		dt = dataType
 		oid = dt.OID // Preserve assumed OID in case we are recursively called below.
 	}
@@ -1123,15 +1123,15 @@ func codecDecodeToTextFormat(codec Codec, ci *ConnInfo, oid uint32, format int16
 // found then nil is returned.
 func (ci *ConnInfo) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan {
 
-	var dt *DataType
+	var dt *Type
 
 	if oid == 0 {
-		if dataType, ok := ci.DataTypeForValue(value); ok {
+		if dataType, ok := ci.TypeForValue(value); ok {
 			dt = dataType
 			oid = dt.OID // Preserve assumed OID in case we are recursively called below.
 		}
 	} else {
-		if dataType, ok := ci.DataTypeForOID(oid); ok {
+		if dataType, ok := ci.TypeForOID(oid); ok {
 			dt = dataType
 		}
 	}
