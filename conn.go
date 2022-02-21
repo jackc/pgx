@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v5/internal/sanitize"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/stmtcache"
+	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
