@@ -126,7 +126,7 @@ func (DateCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (DateCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (DateCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(DateValuer); !ok {
 		return nil
 	}
@@ -196,7 +196,7 @@ func (encodePlanDateCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return append(buf, s...), nil
 }
 
-func (DateCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -265,17 +265,17 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst interface{}) error {
 	}
 }
 
-func (c DateCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c DateCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c DateCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var date Date
-	err := codecScan(c, ci, oid, format, src, &date)
+	err := codecScan(c, m, oid, format, src, &date)
 	if err != nil {
 		return nil, err
 	}

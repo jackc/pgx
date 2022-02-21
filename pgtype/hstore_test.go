@@ -61,7 +61,7 @@ func TestHstoreCodec(t *testing.T) {
 		t.Skipf("Skipping: cannot find hstore OID")
 	}
 
-	conn.ConnInfo().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
+	conn.TypeMap().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
 
 	formats := []struct {
 		name string

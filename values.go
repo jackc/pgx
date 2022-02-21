@@ -24,7 +24,7 @@ func (e SerializationError) Error() string {
 	return string(e)
 }
 
-func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, error) {
+func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) {
 	if arg == nil {
 		return nil, nil
 	}
@@ -79,8 +79,8 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 		return int64(arg), nil
 	}
 
-	if _, found := ci.TypeForValue(arg); found {
-		buf, err := ci.Encode(0, TextFormatCode, arg, nil)
+	if _, found := m.TypeForValue(arg); found {
+		buf, err := m.Encode(0, TextFormatCode, arg, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -92,16 +92,16 @@ func convertSimpleArgument(ci *pgtype.ConnInfo, arg interface{}) (interface{}, e
 
 	if refVal.Kind() == reflect.Ptr {
 		arg = refVal.Elem().Interface()
-		return convertSimpleArgument(ci, arg)
+		return convertSimpleArgument(m, arg)
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return convertSimpleArgument(ci, strippedArg)
+		return convertSimpleArgument(m, strippedArg)
 	}
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
-func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
+func encodePreparedStatementArgument(m *pgtype.Map, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
 	if arg == nil {
 		return pgio.AppendInt32(buf, -1), nil
 	}
@@ -120,13 +120,13 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 			return pgio.AppendInt32(buf, -1), nil
 		}
 		arg = refVal.Elem().Interface()
-		return encodePreparedStatementArgument(ci, buf, oid, arg)
+		return encodePreparedStatementArgument(m, buf, oid, arg)
 	}
 
-	if _, ok := ci.TypeForOID(oid); ok {
+	if _, ok := m.TypeForOID(oid); ok {
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := ci.Encode(oid, BinaryFormatCode, arg, buf)
+		argBuf, err := m.Encode(oid, BinaryFormatCode, arg, buf)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +138,7 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return encodePreparedStatementArgument(ci, buf, oid, strippedArg)
+		return encodePreparedStatementArgument(m, buf, oid, strippedArg)
 	}
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }
@@ -146,13 +146,13 @@ func encodePreparedStatementArgument(ci *pgtype.ConnInfo, buf []byte, oid uint32
 // chooseParameterFormatCode determines the correct format code for an
 // argument to a prepared statement. It defaults to TextFormatCode if no
 // determination can be made.
-func chooseParameterFormatCode(ci *pgtype.ConnInfo, oid uint32, arg interface{}) int16 {
+func chooseParameterFormatCode(m *pgtype.Map, oid uint32, arg interface{}) int16 {
 	switch arg.(type) {
 	case string, *string:
 		return TextFormatCode
 	}
 
-	return ci.FormatCodeForOID(oid)
+	return m.FormatCodeForOID(oid)
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {

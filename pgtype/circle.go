@@ -72,7 +72,7 @@ func (CircleCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (CircleCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (CircleCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(CircleValuer); !ok {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	return buf, nil
 }
 
-func (CircleCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -142,17 +142,17 @@ func (CircleCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inter
 	return nil
 }
 
-func (c CircleCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c CircleCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c CircleCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c CircleCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var circle Circle
-	err := codecScan(c, ci, oid, format, src, &circle)
+	err := codecScan(c, m, oid, format, src, &circle)
 	if err != nil {
 		return nil, err
 	}

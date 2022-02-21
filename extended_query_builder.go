@@ -14,11 +14,11 @@ type extendedQueryBuilder struct {
 	resultFormats   []int16
 }
 
-func (eqb *extendedQueryBuilder) AppendParam(ci *pgtype.ConnInfo, oid uint32, arg interface{}) error {
-	f := chooseParameterFormatCode(ci, oid, arg)
+func (eqb *extendedQueryBuilder) AppendParam(m *pgtype.Map, oid uint32, arg interface{}) error {
+	f := chooseParameterFormatCode(m, oid, arg)
 	eqb.paramFormats = append(eqb.paramFormats, f)
 
-	v, err := eqb.encodeExtendedParamValue(ci, oid, f, arg)
+	v, err := eqb.encodeExtendedParamValue(m, oid, f, arg)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func (eqb *extendedQueryBuilder) Reset() {
 	}
 }
 
-func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, oid uint32, formatCode int16, arg interface{}) ([]byte, error) {
+func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uint32, formatCode int16, arg interface{}) ([]byte, error) {
 	if arg == nil {
 		return nil, nil
 	}
@@ -80,11 +80,11 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		// We have already checked that arg is not pointing to nil,
 		// so it is safe to dereference here.
 		arg = refVal.Elem().Interface()
-		return eqb.encodeExtendedParamValue(ci, oid, formatCode, arg)
+		return eqb.encodeExtendedParamValue(m, oid, formatCode, arg)
 	}
 
-	if _, ok := ci.TypeForOID(oid); ok {
-		buf, err := ci.Encode(oid, formatCode, arg, eqb.paramValueBytes)
+	if _, ok := m.TypeForOID(oid); ok {
+		buf, err := m.Encode(oid, formatCode, arg, eqb.paramValueBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +96,7 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 	}
 
 	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return eqb.encodeExtendedParamValue(ci, oid, formatCode, strippedArg)
+		return eqb.encodeExtendedParamValue(m, oid, formatCode, strippedArg)
 	}
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }

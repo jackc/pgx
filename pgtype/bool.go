@@ -106,7 +106,7 @@ func (BoolCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoolCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (BoolCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -197,7 +197,7 @@ func (encodePlanBoolCodecTextBool) Encode(value interface{}, buf []byte) (newBuf
 	return buf, nil
 }
 
-func (BoolCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (BoolCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -219,17 +219,17 @@ func (BoolCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interfa
 	return nil
 }
 
-func (c BoolCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return c.DecodeValue(ci, oid, format, src)
+func (c BoolCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return c.DecodeValue(m, oid, format, src)
 }
 
-func (c BoolCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c BoolCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var b bool
-	err := codecScan(c, ci, oid, format, src, &b)
+	err := codecScan(c, m, oid, format, src, &b)
 	if err != nil {
 		return nil, err
 	}

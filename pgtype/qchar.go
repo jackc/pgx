@@ -22,7 +22,7 @@ func (QCharCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (QCharCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (QCharCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch value.(type) {
@@ -56,7 +56,7 @@ func (encodePlanQcharCodecRune) Encode(value interface{}, buf []byte) (newBuf []
 	return buf, nil
 }
 
-func (QCharCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {
@@ -114,26 +114,26 @@ func (scanPlanQcharCodecRune) Scan(src []byte, dst interface{}) error {
 	return nil
 }
 
-func (c QCharCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c QCharCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var r rune
-	err := codecScan(c, ci, oid, format, src, &r)
+	err := codecScan(c, m, oid, format, src, &r)
 	if err != nil {
 		return nil, err
 	}
 	return string(r), nil
 }
 
-func (c QCharCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c QCharCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var r rune
-	err := codecScan(c, ci, oid, format, src, &r)
+	err := codecScan(c, m, oid, format, src, &r)
 	if err != nil {
 		return nil, err
 	}

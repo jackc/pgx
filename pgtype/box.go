@@ -71,7 +71,7 @@ func (BoxCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoxCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (BoxCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(BoxValuer); !ok {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (BoxCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -220,17 +220,17 @@ func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanBox(Box{P: [2]Vec2{{x1, y1}, {x2, y2}}, Valid: true})
 }
 
-func (c BoxCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c BoxCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c BoxCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c BoxCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var box Box
-	err := codecScan(c, ci, oid, format, src, &box)
+	err := codecScan(c, m, oid, format, src, &box)
 	if err != nil {
 		return nil, err
 	}

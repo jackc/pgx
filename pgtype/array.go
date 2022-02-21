@@ -42,7 +42,7 @@ func cardinality(dimensions []ArrayDimension) int {
 	return elementCount
 }
 
-func (dst *ArrayHeader) DecodeBinary(ci *ConnInfo, src []byte) (int, error) {
+func (dst *ArrayHeader) DecodeBinary(m *Map, src []byte) (int, error) {
 	if len(src) < 12 {
 		return 0, fmt.Errorf("array header too short: %d", len(src))
 	}

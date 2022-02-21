@@ -122,7 +122,7 @@ func (UUIDCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (UUIDCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (UUIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(UUIDValuer); !ok {
 		return nil
 	}
@@ -167,7 +167,7 @@ func (encodePlanUUIDCodecTextUUIDValuer) Encode(value interface{}, buf []byte) (
 	return append(buf, encodeUUID(uuid.Bytes)...), nil
 }
 
-func (UUIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -220,13 +220,13 @@ func (scanPlanTextAnyToUUIDScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanUUID(UUID{Bytes: buf, Valid: true})
 }
 
-func (c UUIDCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c UUIDCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var uuid UUID
-	err := codecScan(c, ci, oid, format, src, &uuid)
+	err := codecScan(c, m, oid, format, src, &uuid)
 	if err != nil {
 		return nil, err
 	}
@@ -234,13 +234,13 @@ func (c UUIDCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16
 	return encodeUUID(uuid.Bytes), nil
 }
 
-func (c UUIDCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c UUIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var uuid UUID
-	err := codecScan(c, ci, oid, format, src, &uuid)
+	err := codecScan(c, m, oid, format, src, &uuid)
 	if err != nil {
 		return nil, err
 	}

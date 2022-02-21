@@ -67,59 +67,59 @@ func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 	return addr
 }
 
-func TestConnInfoScanNilIsNoOp(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanNilIsNoOp(t *testing.T) {
+	m := pgtype.NewMap()
 
-	err := ci.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), nil)
+	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), nil)
 	assert.NoError(t, err)
 }
 
-func TestConnInfoScanTextFormatInterfacePtr(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanTextFormatInterfacePtr(t *testing.T) {
+	m := pgtype.NewMap()
 	var got interface{}
-	err := ci.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), &got)
+	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), &got)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", got)
 }
 
-func TestConnInfoScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
+	m := pgtype.NewMap()
 	var got []byte
-	err := ci.Scan(pgtype.JSONBOID, pgx.TextFormatCode, []byte("{}"), &got)
+	err := m.Scan(pgtype.JSONBOID, pgx.TextFormatCode, []byte("{}"), &got)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("{}"), got)
 }
 
-func TestConnInfoScanBinaryFormatInterfacePtr(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanBinaryFormatInterfacePtr(t *testing.T) {
+	m := pgtype.NewMap()
 	var got interface{}
-	err := ci.Scan(pgtype.TextOID, pgx.BinaryFormatCode, []byte("foo"), &got)
+	err := m.Scan(pgtype.TextOID, pgx.BinaryFormatCode, []byte("foo"), &got)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", got)
 }
 
-func TestConnInfoScanUnknownOIDToStringsAndBytes(t *testing.T) {
+func TestTypeMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")
-	ci := pgtype.NewConnInfo()
+	m := pgtype.NewMap()
 
 	var s string
-	err := ci.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &s)
+	err := m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &s)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", s)
 
 	var rs _string
-	err = ci.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rs)
+	err = m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rs)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", string(rs))
 
 	var b []byte
-	err = ci.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &b)
+	err = m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &b)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("foo"), b)
 
 	var rb _byteSlice
-	err = ci.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rb)
+	err = m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rb)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("foo"), []byte(rb))
 }
@@ -129,7 +129,7 @@ type pgCustomType struct {
 	b string
 }
 
-func (ct *pgCustomType) DecodeText(ci *pgtype.ConnInfo, buf []byte) error {
+func (ct *pgCustomType) DecodeText(m *pgtype.Map, buf []byte) error {
 	// This is not a complete parser for the text format of composite types. This is just for test purposes.
 	if buf == nil {
 		return errors.New("cannot parse null")
@@ -150,58 +150,58 @@ func (ct *pgCustomType) DecodeText(ci *pgtype.ConnInfo, buf []byte) error {
 	return nil
 }
 
-func TestConnInfoScanUnregisteredOIDToCustomType(t *testing.T) {
+func TestTypeMapScanUnregisteredOIDToCustomType(t *testing.T) {
 	t.Skip("TODO - unskip later in v5") // may no longer be relevent
 	unregisteredOID := uint32(999999)
-	ci := pgtype.NewConnInfo()
+	m := pgtype.NewMap()
 
 	var ct pgCustomType
-	err := ci.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &ct)
+	err := m.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &ct)
 	assert.NoError(t, err)
 	assert.Equal(t, "foo", ct.a)
 	assert.Equal(t, "bar", ct.b)
 
 	// Scan value into pointer to custom type
 	var pCt *pgCustomType
-	err = ci.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &pCt)
+	err = m.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &pCt)
 	assert.NoError(t, err)
 	require.NotNil(t, pCt)
 	assert.Equal(t, "foo", pCt.a)
 	assert.Equal(t, "bar", pCt.b)
 
 	// Scan null into pointer to custom type
-	err = ci.Scan(unregisteredOID, pgx.TextFormatCode, nil, &pCt)
+	err = m.Scan(unregisteredOID, pgx.TextFormatCode, nil, &pCt)
 	assert.NoError(t, err)
 	assert.Nil(t, pCt)
 }
 
-func TestConnInfoScanUnknownOIDTextFormat(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanUnknownOIDTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
 
 	var n int32
-	err := ci.Scan(0, pgx.TextFormatCode, []byte("123"), &n)
+	err := m.Scan(0, pgx.TextFormatCode, []byte("123"), &n)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 123, n)
 }
 
-func TestConnInfoScanUnknownOIDIntoSQLScanner(t *testing.T) {
-	ci := pgtype.NewConnInfo()
+func TestTypeMapScanUnknownOIDIntoSQLScanner(t *testing.T) {
+	m := pgtype.NewMap()
 
 	var s sql.NullString
-	err := ci.Scan(0, pgx.TextFormatCode, []byte(nil), &s)
+	err := m.Scan(0, pgx.TextFormatCode, []byte(nil), &s)
 	assert.NoError(t, err)
 	assert.Equal(t, "", s.String)
 	assert.False(t, s.Valid)
 }
 
-func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
-	ci := pgtype.NewConnInfo()
+func BenchmarkTypeMapScanInt4IntoBinaryDecoder(b *testing.B) {
+	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v pgtype.Int4
 
 	for i := 0; i < b.N; i++ {
 		v = pgtype.Int4{}
-		err := ci.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		err := m.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -211,14 +211,14 @@ func BenchmarkConnInfoScanInt4IntoBinaryDecoder(b *testing.B) {
 	}
 }
 
-func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
-	ci := pgtype.NewConnInfo()
+func BenchmarkTypeMapScanInt4IntoGoInt32(b *testing.B) {
+	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v int32
 
 	for i := 0; i < b.N; i++ {
 		v = 0
-		err := ci.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
+		err := m.Scan(pgtype.Int4OID, pgtype.BinaryFormatCode, src, &v)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -229,11 +229,11 @@ func BenchmarkConnInfoScanInt4IntoGoInt32(b *testing.B) {
 }
 
 func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
-	ci := pgtype.NewConnInfo()
+	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v pgtype.Int4
 
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
+	plan := m.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
 	for i := 0; i < b.N; i++ {
 		v = pgtype.Int4{}
@@ -248,11 +248,11 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 }
 
 func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
-	ci := pgtype.NewConnInfo()
+	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v int32
 
-	plan := ci.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
+	plan := m.PlanScan(pgtype.Int4OID, pgtype.BinaryFormatCode, &v)
 
 	for i := 0; i < b.N; i++ {
 		v = 0
