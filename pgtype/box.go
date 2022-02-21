@@ -126,7 +126,7 @@ func (encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

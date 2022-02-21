@@ -501,7 +501,7 @@ func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
 	return buf, nil
 }
 
-func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

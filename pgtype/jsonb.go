@@ -39,15 +39,15 @@ func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value interface{}, buf []b
 	return plan.textPlan.Encode(value, buf)
 }
 
-func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		plan := JSONCodec{}.PlanScan(m, oid, TextFormatCode, target, actualTarget)
+		plan := JSONCodec{}.PlanScan(m, oid, TextFormatCode, target)
 		if plan != nil {
 			return &scanPlanJSONBCodecBinaryUnwrapper{textPlan: plan}
 		}
 	case TextFormatCode:
-		return JSONCodec{}.PlanScan(m, oid, format, target, actualTarget)
+		return JSONCodec{}.PlanScan(m, oid, format, target)
 	}
 
 	return nil

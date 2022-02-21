@@ -151,7 +151,7 @@ func (encodePlanIntervalCodecText) Encode(value interface{}, buf []byte) (newBuf
 	return buf, nil
 }
 
-func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

@@ -63,7 +63,7 @@ func isExpectedEqNumeric(a interface{}) func(interface{}) bool {
 
 func mustParseNumeric(t *testing.T, src string) pgtype.Numeric {
 	var n pgtype.Numeric
-	plan := pgtype.NumericCodec{}.PlanScan(nil, pgtype.NumericOID, pgtype.TextFormatCode, &n, false)
+	plan := pgtype.NumericCodec{}.PlanScan(nil, pgtype.NumericOID, pgtype.TextFormatCode, &n)
 	require.NotNil(t, plan)
 	err := plan.Scan([]byte(src), &n)
 	require.NoError(t, err)

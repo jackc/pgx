@@ -126,7 +126,7 @@ func (encodePlanLsegCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

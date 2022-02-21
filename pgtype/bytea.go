@@ -147,7 +147,7 @@ func (encodePlanBytesCodecTextBytesValuer) Encode(value interface{}, buf []byte)
 	return buf, nil
 }
 
-func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

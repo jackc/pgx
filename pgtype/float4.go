@@ -145,7 +145,7 @@ func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 	return pgio.AppendUint32(buf, math.Float32bits(f)), nil
 }
 
-func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

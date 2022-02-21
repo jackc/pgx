@@ -49,7 +49,7 @@ func (encodePlanJSONCodecEitherFormatMarshal) Encode(value interface{}, buf []by
 	return buf, nil
 }
 
-func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch target.(type) {
 	case *string:
 		return scanPlanAnyToString{}

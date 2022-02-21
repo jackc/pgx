@@ -130,7 +130,7 @@ func (encodePlanTIDCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
