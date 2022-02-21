@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/chunkreader/v2"
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgservicefile"
+	"github.com/jackc/pgx/v5/chunkreader"
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 

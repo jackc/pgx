@@ -3,7 +3,7 @@ package pgproto3
 import (
 	"io"
 
-	"github.com/jackc/chunkreader/v2"
+	"github.com/jackc/pgx/v5/chunkreader"
 )
 
 // ChunkReader is an interface to decouple github.com/jackc/chunkreader from this package.
