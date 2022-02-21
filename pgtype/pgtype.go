@@ -179,6 +179,8 @@ type Map struct {
 
 	reflectTypeToType map[reflect.Type]*Type
 
+	memoizedScanPlans map[uint32]map[reflect.Type][2]ScanPlan
+
 	// TryWrapEncodePlanFuncs is a slice of functions that will wrap a value that cannot be encoded by the Codec. Every
 	// time a wrapper is found the PlanEncode method will be recursively called with the new value. This allows several layers of wrappers
 	// to be built up. There are default functions placed in this slice by NewMap(). In most cases these functions
@@ -199,6 +201,8 @@ func NewMap() *Map {
 		reflectTypeToName:     make(map[reflect.Type]string),
 		oidToFormatCode:       make(map[uint32]int16),
 		oidToResultFormatCode: make(map[uint32]int16),
+
+		memoizedScanPlans: make(map[uint32]map[reflect.Type][2]ScanPlan),
 
 		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
 			TryWrapDerefPointerEncodePlan,
@@ -366,7 +370,12 @@ func (m *Map) RegisterType(t *Type) {
 	m.oidToType[t.OID] = t
 	m.nameToType[t.Name] = t
 	m.oidToFormatCode[t.OID] = t.Codec.PreferredFormat()
-	m.reflectTypeToType = nil // Invalidated by type registration
+
+	// Invalidated by type registration
+	m.reflectTypeToType = nil
+	for k := range m.memoizedScanPlans {
+		delete(m.memoizedScanPlans, k)
+	}
 }
 
 // RegisterDefaultPgType registers a mapping of a Go type to a PostgreSQL type name. Typically the data type to be
@@ -374,7 +383,12 @@ func (m *Map) RegisterType(t *Type) {
 // unknown, this additional mapping will be used by TypeForValue to determine a suitable data type.
 func (m *Map) RegisterDefaultPgType(value interface{}, name string) {
 	m.reflectTypeToName[reflect.TypeOf(value)] = name
-	m.reflectTypeToType = nil // Invalidated by registering a default type
+
+	// Invalidated by type registration
+	m.reflectTypeToType = nil
+	for k := range m.memoizedScanPlans {
+		delete(m.memoizedScanPlans, k)
+	}
 }
 
 func (m *Map) TypeForOID(oid uint32) (*Type, bool) {
@@ -993,6 +1007,24 @@ func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target interface{}) e
 
 // PlanScan prepares a plan to scan a value into target.
 func (m *Map) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
+	oidMemo := m.memoizedScanPlans[oid]
+	if oidMemo == nil {
+		oidMemo = make(map[reflect.Type][2]ScanPlan)
+		m.memoizedScanPlans[oid] = oidMemo
+	}
+	targetReflectType := reflect.TypeOf(target)
+	typeMemo := oidMemo[targetReflectType]
+	plan := typeMemo[formatCode]
+	if plan == nil {
+		plan = m.planScan(oid, formatCode, target)
+		typeMemo[formatCode] = plan
+		oidMemo[targetReflectType] = typeMemo
+	}
+
+	return plan
+}
+
+func (m *Map) planScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
 	if _, ok := target.(*UndecodedBytes); ok {
 		return scanPlanAnyToUndecodedBytes{}
 	}
