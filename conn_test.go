@@ -841,11 +841,11 @@ func TestConnInitConnInfo(t *testing.T) {
 		"text":  pgtype.TextOID,
 	}
 	for name, oid := range nameOIDs {
-		dtByName, ok := conn.ConnInfo().DataTypeForName(name)
+		dtByName, ok := conn.ConnInfo().TypeForName(name)
 		if !ok {
 			t.Fatalf("Expected type named %v to be present", name)
 		}
-		dtByOID, ok := conn.ConnInfo().DataTypeForOID(oid)
+		dtByOID, ok := conn.ConnInfo().TypeForOID(oid)
 		if !ok {
 			t.Fatalf("Expected type OID %v to be present", oid)
 		}
@@ -891,7 +891,7 @@ func TestDomainType(t *testing.T) {
 		if err != nil {
 			t.Fatalf("did not find uint64 OID, %v", err)
 		}
-		conn.ConnInfo().RegisterDataType(&pgtype.DataType{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
+		conn.ConnInfo().RegisterType(&pgtype.Type{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
 
 		var n uint64
 		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)

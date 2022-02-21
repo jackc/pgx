@@ -83,7 +83,7 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(ci *pgtype.ConnInfo, o
 		return eqb.encodeExtendedParamValue(ci, oid, formatCode, arg)
 	}
 
-	if _, ok := ci.DataTypeForOID(oid); ok {
+	if _, ok := ci.TypeForOID(oid); ok {
 		buf, err := ci.Encode(oid, formatCode, arg, eqb.paramValueBytes)
 		if err != nil {
 			return nil, err

@@ -24,9 +24,9 @@ create type ct_test as (
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), "drop type ct_test")
 
-	dt, err := conn.LoadDataType(context.Background(), "ct_test")
+	dt, err := conn.LoadType(context.Background(), "ct_test")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(dt)
+	conn.ConnInfo().RegisterType(dt)
 
 	formats := []struct {
 		name string
@@ -103,9 +103,9 @@ create type point3d as (
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), "drop type point3d")
 
-	dt, err := conn.LoadDataType(context.Background(), "point3d")
+	dt, err := conn.LoadType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(dt)
+	conn.ConnInfo().RegisterType(dt)
 
 	formats := []struct {
 		name string
@@ -138,9 +138,9 @@ create type point3d as (
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), "drop type point3d")
 
-	dt, err := conn.LoadDataType(context.Background(), "point3d")
+	dt, err := conn.LoadType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(dt)
+	conn.ConnInfo().RegisterType(dt)
 
 	formats := []struct {
 		name string
@@ -177,9 +177,9 @@ create type point3d as (
 	require.NoError(t, err)
 	defer conn.Exec(context.Background(), "drop type point3d")
 
-	dt, err := conn.LoadDataType(context.Background(), "point3d")
+	dt, err := conn.LoadType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(dt)
+	conn.ConnInfo().RegisterType(dt)
 
 	formats := []struct {
 		name string

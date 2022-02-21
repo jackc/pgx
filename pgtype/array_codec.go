@@ -38,15 +38,15 @@ type ArraySetter interface {
 
 // ArrayCodec is a codec for any array type.
 type ArrayCodec struct {
-	ElementDataType *DataType
+	ElementType *Type
 }
 
 func (c *ArrayCodec) FormatSupported(format int16) bool {
-	return c.ElementDataType.Codec.FormatSupported(format)
+	return c.ElementType.Codec.FormatSupported(format)
 }
 
 func (c *ArrayCodec) PreferredFormat() int16 {
-	return c.ElementDataType.Codec.PreferredFormat()
+	return c.ElementType.Codec.PreferredFormat()
 }
 
 func (c *ArrayCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
@@ -57,7 +57,7 @@ func (c *ArrayCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value in
 
 	elementType := arrayValuer.IndexType()
 
-	elementEncodePlan := ci.PlanEncode(c.ElementDataType.OID, format, elementType)
+	elementEncodePlan := ci.PlanEncode(c.ElementType.OID, format, elementType)
 	if elementEncodePlan == nil {
 		return nil
 	}
@@ -124,7 +124,7 @@ func (p *encodePlanArrayCodecText) Encode(value interface{}, buf []byte) (newBuf
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
-				encodePlan = p.ci.PlanEncode(p.ac.ElementDataType.OID, TextFormatCode, elem)
+				encodePlan = p.ci.PlanEncode(p.ac.ElementType.OID, TextFormatCode, elem)
 				if encodePlan == nil {
 					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
 				}
@@ -167,7 +167,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 
 	arrayHeader := ArrayHeader{
 		Dimensions: dimensions,
-		ElementOID: p.ac.ElementDataType.OID,
+		ElementOID: p.ac.ElementType.OID,
 	}
 
 	containsNullIndex := len(buf) + 4
@@ -188,7 +188,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 			elemType := reflect.TypeOf(elem)
 			if lastElemType != elemType {
 				lastElemType = elemType
-				encodePlan = p.ci.PlanEncode(p.ac.ElementDataType.OID, BinaryFormatCode, elem)
+				encodePlan = p.ci.PlanEncode(p.ac.ElementType.OID, BinaryFormatCode, elem)
 				if encodePlan == nil {
 					return nil, fmt.Errorf("unable to encode %v", array.Index(i))
 				}
@@ -218,7 +218,7 @@ func (c *ArrayCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target int
 
 	elementType := arrayScanner.ScanIndexType()
 
-	elementScanPlan := ci.PlanScan(c.ElementDataType.OID, format, elementType)
+	elementScanPlan := ci.PlanScan(c.ElementType.OID, format, elementType)
 	if _, ok := elementScanPlan.(*scanPlanFail); ok {
 		return nil
 	}
@@ -248,9 +248,9 @@ func (c *ArrayCodec) decodeBinary(ci *ConnInfo, arrayOID uint32, src []byte, arr
 		return nil
 	}
 
-	elementScanPlan := c.ElementDataType.Codec.PlanScan(ci, c.ElementDataType.OID, BinaryFormatCode, array.ScanIndex(0), false)
+	elementScanPlan := c.ElementType.Codec.PlanScan(ci, c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0), false)
 	if elementScanPlan == nil {
-		elementScanPlan = ci.PlanScan(c.ElementDataType.OID, BinaryFormatCode, array.ScanIndex(0))
+		elementScanPlan = ci.PlanScan(c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0))
 	}
 
 	for i := 0; i < elementCount; i++ {
@@ -286,9 +286,9 @@ func (c *ArrayCodec) decodeText(ci *ConnInfo, arrayOID uint32, src []byte, array
 		return nil
 	}
 
-	elementScanPlan := c.ElementDataType.Codec.PlanScan(ci, c.ElementDataType.OID, TextFormatCode, array.ScanIndex(0), false)
+	elementScanPlan := c.ElementType.Codec.PlanScan(ci, c.ElementType.OID, TextFormatCode, array.ScanIndex(0), false)
 	if elementScanPlan == nil {
-		elementScanPlan = ci.PlanScan(c.ElementDataType.OID, TextFormatCode, array.ScanIndex(0))
+		elementScanPlan = ci.PlanScan(c.ElementType.OID, TextFormatCode, array.ScanIndex(0))
 	}
 
 	for i, s := range uta.Elements {

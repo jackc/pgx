@@ -72,11 +72,11 @@ func (r *GenericRange) SetBoundTypes(lower, upper BoundType) error {
 
 // RangeCodec is a codec for any range type.
 type RangeCodec struct {
-	ElementDataType *DataType
+	ElementType *Type
 }
 
 func (c *RangeCodec) FormatSupported(format int16) bool {
-	return c.ElementDataType.Codec.FormatSupported(format)
+	return c.ElementType.Codec.FormatSupported(format)
 }
 
 func (c *RangeCodec) PreferredFormat() int16 {
@@ -149,7 +149,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, b
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementDataType.OID, BinaryFormatCode, lower)
+		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, lower)
 		if lowerPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
@@ -173,7 +173,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, b
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		upperPlan := plan.ci.PlanEncode(plan.rc.ElementDataType.OID, BinaryFormatCode, upper)
+		upperPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, upper)
 		if upperPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
@@ -223,7 +223,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 			return nil, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
 		}
 
-		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementDataType.OID, TextFormatCode, lower)
+		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, lower)
 		if lowerPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
@@ -244,7 +244,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 			return nil, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
 		}
 
-		upperPlan := plan.ci.PlanEncode(plan.rc.ElementDataType.OID, TextFormatCode, upper)
+		upperPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, upper)
 		if upperPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
@@ -311,7 +311,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface
 	lowerTarget, upperTarget := rangeScanner.ScanBounds()
 
 	if ubr.LowerType == Inclusive || ubr.LowerType == Exclusive {
-		lowerPlan := plan.ci.PlanScan(plan.rc.ElementDataType.OID, BinaryFormatCode, lowerTarget)
+		lowerPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, lowerTarget)
 		if lowerPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", lowerTarget)
 		}
@@ -323,7 +323,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface
 	}
 
 	if ubr.UpperType == Inclusive || ubr.UpperType == Exclusive {
-		upperPlan := plan.ci.PlanScan(plan.rc.ElementDataType.OID, BinaryFormatCode, upperTarget)
+		upperPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, upperTarget)
 		if upperPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", upperTarget)
 		}
@@ -361,7 +361,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}
 	lowerTarget, upperTarget := rangeScanner.ScanBounds()
 
 	if utr.LowerType == Inclusive || utr.LowerType == Exclusive {
-		lowerPlan := plan.ci.PlanScan(plan.rc.ElementDataType.OID, TextFormatCode, lowerTarget)
+		lowerPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, TextFormatCode, lowerTarget)
 		if lowerPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", lowerTarget)
 		}
@@ -373,7 +373,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}
 	}
 
 	if utr.UpperType == Inclusive || utr.UpperType == Exclusive {
-		upperPlan := plan.ci.PlanScan(plan.rc.ElementDataType.OID, TextFormatCode, upperTarget)
+		upperPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, TextFormatCode, upperTarget)
 		if upperPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", upperTarget)
 		}

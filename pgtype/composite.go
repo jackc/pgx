@@ -29,8 +29,8 @@ type CompositeIndexScanner interface {
 }
 
 type CompositeCodecField struct {
-	Name     string
-	DataType *DataType
+	Name string
+	Type *Type
 }
 
 type CompositeCodec struct {
@@ -39,7 +39,7 @@ type CompositeCodec struct {
 
 func (c *CompositeCodec) FormatSupported(format int16) bool {
 	for _, f := range c.Fields {
-		if !f.DataType.Codec.FormatSupported(format) {
+		if !f.Type.Codec.FormatSupported(format) {
 			return false
 		}
 	}
@@ -83,7 +83,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value i
 
 	builder := NewCompositeBinaryBuilder(plan.ci, buf)
 	for i, field := range plan.cc.Fields {
-		builder.AppendValue(field.DataType.OID, getter.Index(i))
+		builder.AppendValue(field.Type.OID, getter.Index(i))
 	}
 
 	return builder.Finish()
@@ -103,7 +103,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value int
 
 	b := NewCompositeTextBuilder(plan.ci, buf)
 	for i, field := range plan.cc.Fields {
-		b.AppendValue(field.DataType.OID, getter.Index(i))
+		b.AppendValue(field.Type.OID, getter.Index(i))
 	}
 
 	return b.Finish()
@@ -143,9 +143,9 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.ci.PlanScan(field.DataType.OID, BinaryFormatCode, fieldTarget)
+				fieldPlan := plan.ci.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
 				if fieldPlan == nil {
-					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.DataType.OID)
+					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.Type.OID)
 				}
 
 				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
@@ -182,9 +182,9 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.ci.PlanScan(field.DataType.OID, TextFormatCode, fieldTarget)
+				fieldPlan := plan.ci.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
 				if fieldPlan == nil {
-					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.DataType.OID)
+					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.Type.OID)
 				}
 
 				err := fieldPlan.Scan(scanner.Bytes(), fieldTarget)
@@ -232,9 +232,9 @@ func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src
 		values := make(map[string]interface{}, len(c.Fields))
 		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
 			var v interface{}
-			fieldPlan := ci.PlanScan(c.Fields[i].DataType.OID, TextFormatCode, &v)
+			fieldPlan := ci.PlanScan(c.Fields[i].Type.OID, TextFormatCode, &v)
 			if fieldPlan == nil {
-				return nil, fmt.Errorf("unable to scan OID %d in text format into %v", c.Fields[i].DataType.OID, v)
+				return nil, fmt.Errorf("unable to scan OID %d in text format into %v", c.Fields[i].Type.OID, v)
 			}
 
 			err := fieldPlan.Scan(scanner.Bytes(), &v)
