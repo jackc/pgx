@@ -519,7 +519,7 @@ func (r *Rows) Columns() []string {
 
 // ColumnTypeDatabaseTypeName returns the database system type name. If the name is unknown the OID is returned.
 func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
-	if dt, ok := r.conn.conn.ConnInfo().TypeForOID(r.rows.FieldDescriptions()[index].DataTypeOID); ok {
+	if dt, ok := r.conn.conn.TypeMap().TypeForOID(r.rows.FieldDescriptions()[index].DataTypeOID); ok {
 		return strings.ToUpper(dt.Name)
 	}
 
@@ -594,7 +594,7 @@ func (r *Rows) Close() error {
 }
 
 func (r *Rows) Next(dest []driver.Value) error {
-	ci := r.conn.conn.ConnInfo()
+	m := r.conn.conn.TypeMap()
 	fieldDescriptions := r.rows.FieldDescriptions()
 
 	if r.valueFuncs == nil {
@@ -607,21 +607,21 @@ func (r *Rows) Next(dest []driver.Value) error {
 			switch fd.DataTypeOID {
 			case pgtype.BoolOID:
 				var d bool
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
 			case pgtype.ByteaOID:
 				var d []byte
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
 			case pgtype.CIDOID, pgtype.OIDOID, pgtype.XIDOID:
 				var d pgtype.Uint32
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -631,7 +631,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 				}
 			case pgtype.DateOID:
 				var d pgtype.Date
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -641,42 +641,42 @@ func (r *Rows) Next(dest []driver.Value) error {
 				}
 			case pgtype.Float4OID:
 				var d float32
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return float64(d), err
 				}
 			case pgtype.Float8OID:
 				var d float64
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
 			case pgtype.Int2OID:
 				var d int16
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return int64(d), err
 				}
 			case pgtype.Int4OID:
 				var d int32
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return int64(d), err
 				}
 			case pgtype.Int8OID:
 				var d int64
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err
 				}
 			case pgtype.JSONOID, pgtype.JSONBOID:
 				var d []byte
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -686,7 +686,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 				}
 			case pgtype.TimestampOID:
 				var d pgtype.Timestamp
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -696,7 +696,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 				}
 			case pgtype.TimestamptzOID:
 				var d pgtype.Timestamptz
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					if err != nil {
@@ -706,7 +706,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 				}
 			default:
 				var d string
-				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(src, &d)
 					return d, err

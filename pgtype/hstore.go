@@ -72,7 +72,7 @@ func (HstoreCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (HstoreCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (HstoreCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(HstoreValuer); !ok {
 		return nil
 	}
@@ -150,7 +150,7 @@ func (encodePlanHstoreCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	return buf, nil
 }
 
-func (HstoreCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -254,17 +254,17 @@ func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanHstore(m)
 }
 
-func (c HstoreCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c HstoreCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c HstoreCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var hstore Hstore
-	err := codecScan(c, ci, oid, format, src, &hstore)
+	err := codecScan(c, m, oid, format, src, &hstore)
 	if err != nil {
 		return nil, err
 	}

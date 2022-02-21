@@ -16,15 +16,15 @@ func (JSONBCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (JSONBCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (JSONBCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
-		plan := JSONCodec{}.PlanEncode(ci, oid, TextFormatCode, value)
+		plan := JSONCodec{}.PlanEncode(m, oid, TextFormatCode, value)
 		if plan != nil {
 			return &encodePlanJSONBCodecBinaryWrapper{textPlan: plan}
 		}
 	case TextFormatCode:
-		return JSONCodec{}.PlanEncode(ci, oid, format, value)
+		return JSONCodec{}.PlanEncode(m, oid, format, value)
 	}
 
 	return nil
@@ -39,15 +39,15 @@ func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value interface{}, buf []b
 	return plan.textPlan.Encode(value, buf)
 }
 
-func (JSONBCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		plan := JSONCodec{}.PlanScan(ci, oid, TextFormatCode, target, actualTarget)
+		plan := JSONCodec{}.PlanScan(m, oid, TextFormatCode, target, actualTarget)
 		if plan != nil {
 			return &scanPlanJSONBCodecBinaryUnwrapper{textPlan: plan}
 		}
 	case TextFormatCode:
-		return JSONCodec{}.PlanScan(ci, oid, format, target, actualTarget)
+		return JSONCodec{}.PlanScan(m, oid, format, target, actualTarget)
 	}
 
 	return nil
@@ -73,7 +73,7 @@ func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(src []byte, dst interface{})
 	return plan.textPlan.Scan(src[1:], dst)
 }
 
-func (c JSONBCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c JSONBCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -100,7 +100,7 @@ func (c JSONBCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int1
 	}
 }
 
-func (c JSONBCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c JSONBCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}

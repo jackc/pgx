@@ -71,7 +71,7 @@ func (LsegCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (LsegCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (LsegCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(LsegValuer); !ok {
 		return nil
 	}
@@ -126,7 +126,7 @@ func (encodePlanLsegCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (LsegCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -220,17 +220,17 @@ func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanLseg(Lseg{P: [2]Vec2{{x1, y1}, {x2, y2}}, Valid: true})
 }
 
-func (c LsegCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c LsegCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c LsegCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c LsegCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var lseg Lseg
-	err := codecScan(c, ci, oid, format, src, &lseg)
+	err := codecScan(c, m, oid, format, src, &lseg)
 	if err != nil {
 		return nil, err
 	}

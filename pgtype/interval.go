@@ -80,7 +80,7 @@ func (IntervalCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (IntervalCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (IntervalCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(IntervalValuer); !ok {
 		return nil
 	}
@@ -151,7 +151,7 @@ func (encodePlanIntervalCodecText) Encode(value interface{}, buf []byte) (newBuf
 	return buf, nil
 }
 
-func (IntervalCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -274,17 +274,17 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst interface{}) error 
 	return scanner.ScanInterval(Interval{Months: months, Days: days, Microseconds: microseconds, Valid: true})
 }
 
-func (c IntervalCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c IntervalCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c IntervalCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c IntervalCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var interval Interval
-	err := codecScan(c, ci, oid, format, src, &interval)
+	err := codecScan(c, m, oid, format, src, &interval)
 	if err != nil {
 		return nil, err
 	}

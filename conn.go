@@ -71,7 +71,7 @@ type Conn struct {
 	doneChan   chan struct{}
 	closedChan chan error
 
-	connInfo *pgtype.ConnInfo
+	typeMap *pgtype.Map
 
 	wbuf []byte
 	eqb  extendedQueryBuilder
@@ -202,7 +202,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 
 	c = &Conn{
 		config:   originalConfig,
-		connInfo: pgtype.NewConnInfo(),
+		typeMap:  pgtype.NewMap(),
 		logLevel: config.LogLevel,
 		logger:   config.Logger,
 	}
@@ -375,8 +375,8 @@ func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
 // StatementCache returns the statement cache used for this connection.
 func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 
-// ConnInfo returns the connection info used for this connection.
-func (c *Conn) ConnInfo() *pgtype.ConnInfo { return c.connInfo }
+// TypeMap returns the connection info used for this connection.
+func (c *Conn) TypeMap() *pgtype.Map { return c.typeMap }
 
 // Config returns a copy of config that was used to establish this connection.
 func (c *Conn) Config() *ConnConfig { return c.config.Copy() }
@@ -476,14 +476,14 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			return err
 		}
 	}
 
 	for i := range sd.Fields {
-		c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
+		c.eqb.AppendResultFormat(c.TypeMap().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 	}
 
 	return nil
@@ -516,7 +516,7 @@ func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *con
 
 	r.ctx = ctx
 	r.logger = c
-	r.connInfo = c.connInfo
+	r.typeMap = c.typeMap
 	r.startTime = time.Now()
 	r.sql = sql
 	r.args = args
@@ -622,7 +622,7 @@ optionLoop:
 	}
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
+		err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			rows.fatal(err)
 			return rows, rows.err
@@ -638,7 +638,7 @@ optionLoop:
 
 	if resultFormats == nil {
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.TypeMap().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		resultFormats = c.eqb.resultFormats
@@ -781,14 +781,14 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		for i := range args {
-			err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
+			err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
 		}
 
 		for i := range sd.Fields {
-			c.eqb.AppendResultFormat(c.ConnInfo().FormatCodeForOID(sd.Fields[i].DataTypeOID))
+			c.eqb.AppendResultFormat(c.TypeMap().FormatCodeForOID(sd.Fields[i].DataTypeOID))
 		}
 
 		if sd.Name == "" {
@@ -823,7 +823,7 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	var err error
 	valueArgs := make([]interface{}, len(args))
 	for i, a := range args {
-		valueArgs[i], err = convertSimpleArgument(c.connInfo, a)
+		valueArgs[i], err = convertSimpleArgument(c.typeMap, a)
 		if err != nil {
 			return "", err
 		}
@@ -855,7 +855,7 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 			return nil, err
 		}
 
-		dt, ok := c.ConnInfo().TypeForOID(elementOID)
+		dt, ok := c.TypeMap().TypeForOID(elementOID)
 		if !ok {
 			return nil, errors.New("array element OID not registered")
 		}
@@ -904,7 +904,7 @@ order by attnum`,
 		[]interface{}{typrelid},
 		[]interface{}{&fieldName, &fieldOID},
 		func(qfr QueryFuncRow) error {
-			dt, ok := c.ConnInfo().TypeForOID(fieldOID)
+			dt, ok := c.TypeMap().TypeForOID(fieldOID)
 			if !ok {
 				return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
 			}

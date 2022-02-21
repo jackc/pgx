@@ -82,7 +82,7 @@ func (TIDCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (TIDCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (TIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(TIDValuer); !ok {
 		return nil
 	}
@@ -130,7 +130,7 @@ func (encodePlanTIDCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (TIDCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -223,17 +223,17 @@ func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanTID(TID{BlockNumber: uint32(blockNumber), OffsetNumber: uint16(offsetNumber), Valid: true})
 }
 
-func (c TIDCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c TIDCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c TIDCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c TIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var tid TID
-	err := codecScan(c, ci, oid, format, src, &tid)
+	err := codecScan(c, m, oid, format, src, &tid)
 	if err != nil {
 		return nil, err
 	}

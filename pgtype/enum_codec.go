@@ -20,7 +20,7 @@ func (EnumCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (EnumCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch value.(type) {
@@ -38,7 +38,7 @@ func (EnumCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interf
 	return nil
 }
 
-func (c *EnumCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {
@@ -56,11 +56,11 @@ func (c *EnumCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target inte
 	return nil
 }
 
-func (c *EnumCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return c.DecodeValue(ci, oid, format, src)
+func (c *EnumCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return c.DecodeValue(m, oid, format, src)
 }
 
-func (c *EnumCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *EnumCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}

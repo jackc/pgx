@@ -127,7 +127,7 @@ func (PointCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (PointCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (PointCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(PointValuer); !ok {
 		return nil
 	}
@@ -177,7 +177,7 @@ func (encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf []
 	)...), nil
 }
 
-func (PointCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (PointCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -195,17 +195,17 @@ func (PointCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interf
 	return nil
 }
 
-func (c PointCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c PointCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c PointCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c PointCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var point Point
-	err := codecScan(c, ci, oid, format, src, &point)
+	err := codecScan(c, m, oid, format, src, &point)
 	if err != nil {
 		return nil, err
 	}

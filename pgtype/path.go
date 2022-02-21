@@ -73,7 +73,7 @@ func (PathCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (PathCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (PathCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(PathValuer); !ok {
 		return nil
 	}
@@ -153,7 +153,7 @@ func (encodePlanPathCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (PathCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -254,17 +254,17 @@ func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst interface{}) error {
 	return scanner.ScanPath(Path{P: points, Closed: closed, Valid: true})
 }
 
-func (c PathCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c PathCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c PathCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c PathCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var path Path
-	err := codecScan(c, ci, oid, format, src, &path)
+	err := codecScan(c, m, oid, format, src, &path)
 	if err != nil {
 		return nil, err
 	}

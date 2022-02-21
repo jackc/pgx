@@ -72,7 +72,7 @@ func (ByteaCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (ByteaCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (ByteaCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -147,7 +147,7 @@ func (encodePlanBytesCodecTextBytesValuer) Encode(value interface{}, buf []byte)
 	return buf, nil
 }
 
-func (ByteaCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -237,17 +237,17 @@ func decodeHexBytea(src []byte) ([]byte, error) {
 	return buf, nil
 }
 
-func (c ByteaCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, ci, oid, format, src)
+func (c ByteaCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c ByteaCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c ByteaCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var buf []byte
-	err := codecScan(c, ci, oid, format, src, &buf)
+	err := codecScan(c, m, oid, format, src, &buf)
 	if err != nil {
 		return nil, err
 	}

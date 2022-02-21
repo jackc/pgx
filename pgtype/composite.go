@@ -54,16 +54,16 @@ func (c *CompositeCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c *CompositeCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (c *CompositeCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(CompositeIndexGetter); !ok {
 		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanCompositeCodecCompositeIndexGetterToBinary{cc: c, ci: ci}
+		return &encodePlanCompositeCodecCompositeIndexGetterToBinary{cc: c, m: m}
 	case TextFormatCode:
-		return &encodePlanCompositeCodecCompositeIndexGetterToText{cc: c, ci: ci}
+		return &encodePlanCompositeCodecCompositeIndexGetterToText{cc: c, m: m}
 	}
 
 	return nil
@@ -71,7 +71,7 @@ func (c *CompositeCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, valu
 
 type encodePlanCompositeCodecCompositeIndexGetterToBinary struct {
 	cc *CompositeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
@@ -81,7 +81,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value i
 		return nil, nil
 	}
 
-	builder := NewCompositeBinaryBuilder(plan.ci, buf)
+	builder := NewCompositeBinaryBuilder(plan.m, buf)
 	for i, field := range plan.cc.Fields {
 		builder.AppendValue(field.Type.OID, getter.Index(i))
 	}
@@ -91,7 +91,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value i
 
 type encodePlanCompositeCodecCompositeIndexGetterToText struct {
 	cc *CompositeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
@@ -101,7 +101,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value int
 		return nil, nil
 	}
 
-	b := NewCompositeTextBuilder(plan.ci, buf)
+	b := NewCompositeTextBuilder(plan.m, buf)
 	for i, field := range plan.cc.Fields {
 		b.AppendValue(field.Type.OID, getter.Index(i))
 	}
@@ -109,17 +109,17 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value int
 	return b.Finish()
 }
 
-func (c *CompositeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
 		case CompositeIndexScanner:
-			return &scanPlanBinaryCompositeToCompositeIndexScanner{cc: c, ci: ci}
+			return &scanPlanBinaryCompositeToCompositeIndexScanner{cc: c, m: m}
 		}
 	case TextFormatCode:
 		switch target.(type) {
 		case CompositeIndexScanner:
-			return &scanPlanTextCompositeToCompositeIndexScanner{cc: c, ci: ci}
+			return &scanPlanTextCompositeToCompositeIndexScanner{cc: c, m: m}
 		}
 	}
 
@@ -128,7 +128,7 @@ func (c *CompositeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target
 
 type scanPlanBinaryCompositeToCompositeIndexScanner struct {
 	cc *CompositeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, target interface{}) error {
@@ -138,12 +138,12 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 		return targetScanner.ScanNull()
 	}
 
-	scanner := NewCompositeBinaryScanner(plan.ci, src)
+	scanner := NewCompositeBinaryScanner(plan.m, src)
 	for i, field := range plan.cc.Fields {
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.ci.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
+				fieldPlan := plan.m.PlanScan(field.Type.OID, BinaryFormatCode, fieldTarget)
 				if fieldPlan == nil {
 					return fmt.Errorf("unable to encode %v into OID %d in binary format", field, field.Type.OID)
 				}
@@ -167,7 +167,7 @@ func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, tar
 
 type scanPlanTextCompositeToCompositeIndexScanner struct {
 	cc *CompositeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, target interface{}) error {
@@ -177,12 +177,12 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 		return targetScanner.ScanNull()
 	}
 
-	scanner := NewCompositeTextScanner(plan.ci, src)
+	scanner := NewCompositeTextScanner(plan.m, src)
 	for i, field := range plan.cc.Fields {
 		if scanner.Next() {
 			fieldTarget := targetScanner.ScanIndex(i)
 			if fieldTarget != nil {
-				fieldPlan := plan.ci.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
+				fieldPlan := plan.m.PlanScan(field.Type.OID, TextFormatCode, fieldTarget)
 				if fieldPlan == nil {
 					return fmt.Errorf("unable to encode %v into OID %d in text format", field, field.Type.OID)
 				}
@@ -204,7 +204,7 @@ func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, targe
 	return nil
 }
 
-func (c *CompositeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c *CompositeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -221,18 +221,18 @@ func (c *CompositeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format
 	}
 }
 
-func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	switch format {
 	case TextFormatCode:
-		scanner := NewCompositeTextScanner(ci, src)
+		scanner := NewCompositeTextScanner(m, src)
 		values := make(map[string]interface{}, len(c.Fields))
 		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
 			var v interface{}
-			fieldPlan := ci.PlanScan(c.Fields[i].Type.OID, TextFormatCode, &v)
+			fieldPlan := m.PlanScan(c.Fields[i].Type.OID, TextFormatCode, &v)
 			if fieldPlan == nil {
 				return nil, fmt.Errorf("unable to scan OID %d in text format into %v", c.Fields[i].Type.OID, v)
 			}
@@ -251,11 +251,11 @@ func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src
 
 		return values, nil
 	case BinaryFormatCode:
-		scanner := NewCompositeBinaryScanner(ci, src)
+		scanner := NewCompositeBinaryScanner(m, src)
 		values := make(map[string]interface{}, len(c.Fields))
 		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
 			var v interface{}
-			fieldPlan := ci.PlanScan(scanner.OID(), BinaryFormatCode, &v)
+			fieldPlan := m.PlanScan(scanner.OID(), BinaryFormatCode, &v)
 			if fieldPlan == nil {
 				return nil, fmt.Errorf("unable to scan OID %d in binary format into %v", scanner.OID(), v)
 			}
@@ -280,7 +280,7 @@ func (c *CompositeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src
 }
 
 type CompositeBinaryScanner struct {
-	ci  *ConnInfo
+	m   *Map
 	rp  int
 	src []byte
 
@@ -291,7 +291,7 @@ type CompositeBinaryScanner struct {
 }
 
 // NewCompositeBinaryScanner a scanner over a binary encoded composite balue.
-func NewCompositeBinaryScanner(ci *ConnInfo, src []byte) *CompositeBinaryScanner {
+func NewCompositeBinaryScanner(m *Map, src []byte) *CompositeBinaryScanner {
 	rp := 0
 	if len(src[rp:]) < 4 {
 		return &CompositeBinaryScanner{err: fmt.Errorf("Record incomplete %v", src)}
@@ -301,7 +301,7 @@ func NewCompositeBinaryScanner(ci *ConnInfo, src []byte) *CompositeBinaryScanner
 	rp += 4
 
 	return &CompositeBinaryScanner{
-		ci:         ci,
+		m:          m,
 		rp:         rp,
 		src:        src,
 		fieldCount: fieldCount,
@@ -363,7 +363,7 @@ func (cfs *CompositeBinaryScanner) Err() error {
 }
 
 type CompositeTextScanner struct {
-	ci  *ConnInfo
+	m   *Map
 	rp  int
 	src []byte
 
@@ -372,7 +372,7 @@ type CompositeTextScanner struct {
 }
 
 // NewCompositeTextScanner a scanner over a text encoded composite value.
-func NewCompositeTextScanner(ci *ConnInfo, src []byte) *CompositeTextScanner {
+func NewCompositeTextScanner(m *Map, src []byte) *CompositeTextScanner {
 	if len(src) < 2 {
 		return &CompositeTextScanner{err: fmt.Errorf("Record incomplete %v", src)}
 	}
@@ -386,7 +386,7 @@ func NewCompositeTextScanner(ci *ConnInfo, src []byte) *CompositeTextScanner {
 	}
 
 	return &CompositeTextScanner{
-		ci:  ci,
+		m:   m,
 		rp:  1,
 		src: src,
 	}
@@ -459,17 +459,17 @@ func (cfs *CompositeTextScanner) Err() error {
 }
 
 type CompositeBinaryBuilder struct {
-	ci         *ConnInfo
+	m          *Map
 	buf        []byte
 	startIdx   int
 	fieldCount uint32
 	err        error
 }
 
-func NewCompositeBinaryBuilder(ci *ConnInfo, buf []byte) *CompositeBinaryBuilder {
+func NewCompositeBinaryBuilder(m *Map, buf []byte) *CompositeBinaryBuilder {
 	startIdx := len(buf)
 	buf = append(buf, 0, 0, 0, 0) // allocate room for number of fields
-	return &CompositeBinaryBuilder{ci: ci, buf: buf, startIdx: startIdx}
+	return &CompositeBinaryBuilder{m: m, buf: buf, startIdx: startIdx}
 }
 
 func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field interface{}) {
@@ -484,7 +484,7 @@ func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field interface{}) {
 		return
 	}
 
-	plan := b.ci.PlanEncode(oid, BinaryFormatCode, field)
+	plan := b.m.PlanEncode(oid, BinaryFormatCode, field)
 	if plan == nil {
 		b.err = fmt.Errorf("unable to encode %v into OID %d in binary format", field, oid)
 		return
@@ -516,7 +516,7 @@ func (b *CompositeBinaryBuilder) Finish() ([]byte, error) {
 }
 
 type CompositeTextBuilder struct {
-	ci         *ConnInfo
+	m          *Map
 	buf        []byte
 	startIdx   int
 	fieldCount uint32
@@ -524,9 +524,9 @@ type CompositeTextBuilder struct {
 	fieldBuf   [32]byte
 }
 
-func NewCompositeTextBuilder(ci *ConnInfo, buf []byte) *CompositeTextBuilder {
+func NewCompositeTextBuilder(m *Map, buf []byte) *CompositeTextBuilder {
 	buf = append(buf, '(') // allocate room for number of fields
-	return &CompositeTextBuilder{ci: ci, buf: buf}
+	return &CompositeTextBuilder{m: m, buf: buf}
 }
 
 func (b *CompositeTextBuilder) AppendValue(oid uint32, field interface{}) {
@@ -539,7 +539,7 @@ func (b *CompositeTextBuilder) AppendValue(oid uint32, field interface{}) {
 		return
 	}
 
-	plan := b.ci.PlanEncode(oid, TextFormatCode, field)
+	plan := b.m.PlanEncode(oid, TextFormatCode, field)
 	if plan == nil {
 		b.err = fmt.Errorf("unable to encode %v into OID %d in text format", field, oid)
 		return

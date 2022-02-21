@@ -86,16 +86,16 @@ func (c *RangeCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c *RangeCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (c *RangeCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(RangeValuer); !ok {
 		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanRangeCodecRangeValuerToBinary{rc: c, ci: ci}
+		return &encodePlanRangeCodecRangeValuerToBinary{rc: c, m: m}
 	case TextFormatCode:
-		return &encodePlanRangeCodecRangeValuerToText{rc: c, ci: ci}
+		return &encodePlanRangeCodecRangeValuerToText{rc: c, m: m}
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func (c *RangeCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value in
 
 type encodePlanRangeCodecRangeValuerToBinary struct {
 	rc *RangeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
@@ -149,7 +149,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, b
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, lower)
+		lowerPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, lower)
 		if lowerPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
@@ -173,7 +173,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, b
 		sp := len(buf)
 		buf = pgio.AppendInt32(buf, -1)
 
-		upperPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, upper)
+		upperPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, BinaryFormatCode, upper)
 		if upperPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
@@ -194,7 +194,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, b
 
 type encodePlanRangeCodecRangeValuerToText struct {
 	rc *RangeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
@@ -223,7 +223,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 			return nil, fmt.Errorf("Lower cannot be null unless LowerType is Unbounded")
 		}
 
-		lowerPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, lower)
+		lowerPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, lower)
 		if lowerPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
@@ -244,7 +244,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 			return nil, fmt.Errorf("Upper cannot be null unless UpperType is Unbounded")
 		}
 
-		upperPlan := plan.ci.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, upper)
+		upperPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, upper)
 		if upperPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
@@ -270,17 +270,17 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 	return buf, nil
 }
 
-func (c *RangeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
 		case RangeScanner:
-			return &scanPlanBinaryRangeToRangeScanner{rc: c, ci: ci}
+			return &scanPlanBinaryRangeToRangeScanner{rc: c, m: m}
 		}
 	case TextFormatCode:
 		switch target.(type) {
 		case RangeScanner:
-			return &scanPlanTextRangeToRangeScanner{rc: c, ci: ci}
+			return &scanPlanTextRangeToRangeScanner{rc: c, m: m}
 		}
 	}
 
@@ -289,7 +289,7 @@ func (c *RangeCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target int
 
 type scanPlanBinaryRangeToRangeScanner struct {
 	rc *RangeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface{}) error {
@@ -311,7 +311,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface
 	lowerTarget, upperTarget := rangeScanner.ScanBounds()
 
 	if ubr.LowerType == Inclusive || ubr.LowerType == Exclusive {
-		lowerPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, lowerTarget)
+		lowerPlan := plan.m.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, lowerTarget)
 		if lowerPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", lowerTarget)
 		}
@@ -323,7 +323,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface
 	}
 
 	if ubr.UpperType == Inclusive || ubr.UpperType == Exclusive {
-		upperPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, upperTarget)
+		upperPlan := plan.m.PlanScan(plan.rc.ElementType.OID, BinaryFormatCode, upperTarget)
 		if upperPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", upperTarget)
 		}
@@ -339,7 +339,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface
 
 type scanPlanTextRangeToRangeScanner struct {
 	rc *RangeCodec
-	ci *ConnInfo
+	m  *Map
 }
 
 func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}) error {
@@ -361,7 +361,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}
 	lowerTarget, upperTarget := rangeScanner.ScanBounds()
 
 	if utr.LowerType == Inclusive || utr.LowerType == Exclusive {
-		lowerPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, TextFormatCode, lowerTarget)
+		lowerPlan := plan.m.PlanScan(plan.rc.ElementType.OID, TextFormatCode, lowerTarget)
 		if lowerPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", lowerTarget)
 		}
@@ -373,7 +373,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}
 	}
 
 	if utr.UpperType == Inclusive || utr.UpperType == Exclusive {
-		upperPlan := plan.ci.PlanScan(plan.rc.ElementType.OID, TextFormatCode, upperTarget)
+		upperPlan := plan.m.PlanScan(plan.rc.ElementType.OID, TextFormatCode, upperTarget)
 		if upperPlan == nil {
 			return fmt.Errorf("cannot scan into %v from range element", upperTarget)
 		}
@@ -387,7 +387,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}
 	return rangeScanner.SetBoundTypes(utr.LowerType, utr.UpperType)
 }
 
-func (c *RangeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c *RangeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -404,12 +404,12 @@ func (c *RangeCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int
 	}
 }
 
-func (c *RangeCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var r GenericRange
-	err := c.PlanScan(ci, oid, format, &r, true).Scan(src, &r)
+	err := c.PlanScan(m, oid, format, &r, true).Scan(src, &r)
 	return r, err
 }

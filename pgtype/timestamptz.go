@@ -133,7 +133,7 @@ func (TimestamptzCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (TimestamptzCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (TimestamptzCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	if _, ok := value.(TimestamptzValuer); !ok {
 		return nil
 	}
@@ -200,7 +200,7 @@ func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (new
 	return buf, nil
 }
 
-func (TimestamptzCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -287,13 +287,13 @@ func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst interfac
 	return scanner.ScanTimestamptz(tstz)
 }
 
-func (c TimestamptzCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c TimestamptzCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var tstz Timestamptz
-	err := codecScan(c, ci, oid, format, src, &tstz)
+	err := codecScan(c, m, oid, format, src, &tstz)
 	if err != nil {
 		return nil, err
 	}
@@ -305,13 +305,13 @@ func (c TimestamptzCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, forma
 	return tstz.Time, nil
 }
 
-func (c TimestamptzCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c TimestamptzCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}
 
 	var tstz Timestamptz
-	err := codecScan(c, ci, oid, format, src, &tstz)
+	err := codecScan(c, m, oid, format, src, &tstz)
 	if err != nil {
 		return nil, err
 	}

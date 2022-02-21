@@ -1358,7 +1358,7 @@ func TestScanRow(t *testing.T) {
 
 	for resultReader.NextRow() {
 		var n int32
-		err := pgx.ScanRow(conn.ConnInfo(), resultReader.FieldDescriptions(), resultReader.Values(), &n)
+		err := pgx.ScanRow(conn.TypeMap(), resultReader.FieldDescriptions(), resultReader.Values(), &n)
 		assert.NoError(t, err)
 		sum += n
 		rowCount++

@@ -16,7 +16,7 @@ func (JSONCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (JSONCodec) PlanEncode(ci *ConnInfo, oid uint32, format int16, value interface{}) EncodePlan {
+func (JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch value.(type) {
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
@@ -49,7 +49,7 @@ func (encodePlanJSONCodecEitherFormatMarshal) Encode(value interface{}, buf []by
 	return buf, nil
 }
 
-func (JSONCodec) PlanScan(ci *ConnInfo, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
 	switch target.(type) {
 	case *string:
 		return scanPlanAnyToString{}
@@ -110,7 +110,7 @@ func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst interface{}) error {
 	return json.Unmarshal(src, dst)
 }
 
-func (c JSONCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c JSONCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -120,7 +120,7 @@ func (c JSONCodec) DecodeDatabaseSQLValue(ci *ConnInfo, oid uint32, format int16
 	return dstBuf, nil
 }
 
-func (c JSONCodec) DecodeValue(ci *ConnInfo, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c JSONCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
 	if src == nil {
 		return nil, nil
 	}

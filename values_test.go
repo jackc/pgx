@@ -79,7 +79,7 @@ func TestJSONAndJSONBTranscode(t *testing.T) {
 
 	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
 		for _, typename := range []string{"json", "jsonb"} {
-			if _, ok := conn.ConnInfo().TypeForName(typename); !ok {
+			if _, ok := conn.TypeMap().TypeForName(typename); !ok {
 				continue // No JSON/JSONB type -- must be running against old PostgreSQL
 			}
 
@@ -96,7 +96,7 @@ func TestJSONAndJSONBTranscodeExtendedOnly(t *testing.T) {
 	defer closeConn(t, conn)
 
 	for _, typename := range []string{"json", "jsonb"} {
-		if _, ok := conn.ConnInfo().TypeForName(typename); !ok {
+		if _, ok := conn.TypeMap().TypeForName(typename); !ok {
 			continue // No JSON/JSONB type -- must be running against old PostgreSQL
 		}
 		testJSONSingleLevelStringMap(t, conn, typename)

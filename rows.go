@@ -100,7 +100,7 @@ type rowLog interface {
 type connRows struct {
 	ctx        context.Context
 	logger     rowLog
-	connInfo   *pgtype.ConnInfo
+	typeMap    *pgtype.Map
 	values     [][]byte
 	rowCount   int
 	err        error
@@ -196,7 +196,7 @@ func (rows *connRows) Next() bool {
 }
 
 func (rows *connRows) Scan(dest ...interface{}) error {
-	ci := rows.connInfo
+	m := rows.typeMap
 	fieldDescriptions := rows.FieldDescriptions()
 	values := rows.values
 
@@ -215,7 +215,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 		rows.scanPlans = make([]pgtype.ScanPlan, len(values))
 		rows.scanTypes = make([]reflect.Type, len(values))
 		for i := range dest {
-			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
+			rows.scanPlans[i] = m.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 			rows.scanTypes[i] = reflect.TypeOf(dest[i])
 		}
 	}
@@ -226,7 +226,7 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 		}
 
 		if rows.scanTypes[i] != reflect.TypeOf(dst) {
-			rows.scanPlans[i] = ci.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
+			rows.scanPlans[i] = m.PlanScan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, dest[i])
 			rows.scanTypes[i] = reflect.TypeOf(dest[i])
 		}
 
@@ -257,8 +257,8 @@ func (rows *connRows) Values() ([]interface{}, error) {
 			continue
 		}
 
-		if dt, ok := rows.connInfo.TypeForOID(fd.DataTypeOID); ok {
-			value, err := dt.Codec.DecodeValue(rows.connInfo, fd.DataTypeOID, fd.Format, buf)
+		if dt, ok := rows.typeMap.TypeForOID(fd.DataTypeOID); ok {
+			value, err := dt.Codec.DecodeValue(rows.typeMap, fd.DataTypeOID, fd.Format, buf)
 			if err != nil {
 				rows.fatal(err)
 			}
@@ -303,11 +303,11 @@ func (e ScanArgError) Unwrap() error {
 
 // ScanRow decodes raw row data into dest. It can be used to scan rows read from the lower level pgconn interface.
 //
-// connInfo - OID to Go type mapping.
+// typeMap - OID to Go type mapping.
 // fieldDescriptions - OID and format of values
 // values - the raw data as returned from the PostgreSQL server
 // dest - the destination that values will be decoded into
-func ScanRow(connInfo *pgtype.ConnInfo, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...interface{}) error {
+func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...interface{}) error {
 	if len(fieldDescriptions) != len(values) {
 		return fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 	}
@@ -320,7 +320,7 @@ func ScanRow(connInfo *pgtype.ConnInfo, fieldDescriptions []pgproto3.FieldDescri
 			continue
 		}
 
-		err := connInfo.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
+		err := typeMap.Scan(fieldDescriptions[i].DataTypeOID, fieldDescriptions[i].Format, values[i], d)
 		if err != nil {
 			return ScanArgError{ColumnIndex: i, Err: err}
 		}
