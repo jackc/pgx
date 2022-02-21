@@ -368,7 +368,7 @@ func (w *timeWrapper) ScanDate(v Date) error {
 	}
 
 	switch v.InfinityModifier {
-	case None:
+	case Finite:
 		*w = timeWrapper(v.Time)
 		return nil
 	case Infinity:
@@ -390,7 +390,7 @@ func (w *timeWrapper) ScanTimestamp(v Timestamp) error {
 	}
 
 	switch v.InfinityModifier {
-	case None:
+	case Finite:
 		*w = timeWrapper(v.Time)
 		return nil
 	case Infinity:
@@ -412,7 +412,7 @@ func (w *timeWrapper) ScanTimestamptz(v Timestamptz) error {
 	}
 
 	switch v.InfinityModifier {
-	case None:
+	case Finite:
 		*w = timeWrapper(v.Time)
 		return nil
 	case Infinity:

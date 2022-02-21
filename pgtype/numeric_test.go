@@ -42,7 +42,7 @@ func isExpectedEqNumeric(a interface{}) func(interface{}) bool {
 		}
 
 		// If NaN or InfinityModifier are set then Int and Exp don't matter.
-		if aa.NaN || aa.InfinityModifier != pgtype.None {
+		if aa.NaN || aa.InfinityModifier != pgtype.Finite {
 			return true
 		}
 

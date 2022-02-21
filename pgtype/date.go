@@ -62,7 +62,7 @@ func (src Date) Value() (driver.Value, error) {
 		return nil, nil
 	}
 
-	if src.InfinityModifier != None {
+	if src.InfinityModifier != Finite {
 		return src.InfinityModifier.String(), nil
 	}
 	return src.Time, nil
@@ -76,7 +76,7 @@ func (src Date) MarshalJSON() ([]byte, error) {
 	var s string
 
 	switch src.InfinityModifier {
-	case None:
+	case Finite:
 		s = src.Time.Format("2006-01-02")
 	case Infinity:
 		s = "infinity"
@@ -155,7 +155,7 @@ func (encodePlanDateCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 	var daysSinceDateEpoch int32
 	switch date.InfinityModifier {
-	case None:
+	case Finite:
 		tUnix := time.Date(date.Time.Year(), date.Time.Month(), date.Time.Day(), 0, 0, 0, 0, time.UTC).Unix()
 		dateEpoch := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
 
@@ -185,7 +185,7 @@ func (encodePlanDateCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	var s string
 
 	switch date.InfinityModifier {
-	case None:
+	case Finite:
 		s = date.Time.Format("2006-01-02")
 	case Infinity:
 		s = "infinity"
@@ -282,7 +282,7 @@ func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 	if date.Valid {
 		switch date.InfinityModifier {
-		case None:
+		case Finite:
 			return date.Time, nil
 		case Infinity:
 			return "infinity", nil

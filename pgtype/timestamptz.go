@@ -68,7 +68,7 @@ func (tstz Timestamptz) Value() (driver.Value, error) {
 		return nil, nil
 	}
 
-	if tstz.InfinityModifier != None {
+	if tstz.InfinityModifier != Finite {
 		return tstz.InfinityModifier.String(), nil
 	}
 	return tstz.Time, nil
@@ -82,7 +82,7 @@ func (tstz Timestamptz) MarshalJSON() ([]byte, error) {
 	var s string
 
 	switch tstz.InfinityModifier {
-	case None:
+	case Finite:
 		s = tstz.Time.Format(time.RFC3339Nano)
 	case Infinity:
 		s = "infinity"
@@ -162,7 +162,7 @@ func (encodePlanTimestamptzCodecBinary) Encode(value interface{}, buf []byte) (n
 
 	var microsecSinceY2K int64
 	switch ts.InfinityModifier {
-	case None:
+	case Finite:
 		microsecSinceUnixEpoch := ts.Time.Unix()*1000000 + int64(ts.Time.Nanosecond())/1000
 		microsecSinceY2K = microsecSinceUnixEpoch - microsecFromUnixEpochToY2K
 	case Infinity:
@@ -187,7 +187,7 @@ func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (new
 	var s string
 
 	switch ts.InfinityModifier {
-	case None:
+	case Finite:
 		s = ts.Time.UTC().Truncate(time.Microsecond).Format(pgTimestamptzSecondFormat)
 	case Infinity:
 		s = "infinity"
@@ -298,7 +298,7 @@ func (c TimestamptzCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int1
 		return nil, err
 	}
 
-	if tstz.InfinityModifier != None {
+	if tstz.InfinityModifier != Finite {
 		return tstz.InfinityModifier.String(), nil
 	}
 
@@ -316,7 +316,7 @@ func (c TimestamptzCodec) DecodeValue(m *Map, oid uint32, format int16, src []by
 		return nil, err
 	}
 
-	if tstz.InfinityModifier != None {
+	if tstz.InfinityModifier != Finite {
 		return tstz.InfinityModifier, nil
 	}
 

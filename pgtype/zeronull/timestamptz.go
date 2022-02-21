@@ -19,7 +19,7 @@ func (ts *Timestamptz) ScanTimestamptz(v pgtype.Timestamptz) error {
 	}
 
 	switch v.InfinityModifier {
-	case pgtype.None:
+	case pgtype.Finite:
 		*ts = Timestamptz(v.Time)
 		return nil
 	case pgtype.Infinity:

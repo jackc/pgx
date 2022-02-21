@@ -109,14 +109,14 @@ type InfinityModifier int8
 
 const (
 	Infinity         InfinityModifier = 1
-	None             InfinityModifier = 0
+	Finite           InfinityModifier = 0
 	NegativeInfinity InfinityModifier = -Infinity
 )
 
 func (im InfinityModifier) String() string {
 	switch im {
-	case None:
-		return "none"
+	case Finite:
+		return "finite"
 	case Infinity:
 		return "infinity"
 	case NegativeInfinity:
