@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 const pgTimestamptzHourFormat = "2006-01-02 15:04:05.999999999Z07"

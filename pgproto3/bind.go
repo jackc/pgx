@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 type Bind struct {

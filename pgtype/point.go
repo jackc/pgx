@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 type Vec2 struct {

@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 )

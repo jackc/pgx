@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
 )
 
 // AuthenticationMD5Password is a message sent from the backend indicating that an MD5 hashed password is required.
