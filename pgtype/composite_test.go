@@ -26,7 +26,7 @@ create type ct_test as (
 
 	dt, err := conn.LoadDataType(context.Background(), "ct_test")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	formats := []struct {
 		name string
@@ -105,7 +105,7 @@ create type point3d as (
 
 	dt, err := conn.LoadDataType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	formats := []struct {
 		name string
@@ -140,7 +140,7 @@ create type point3d as (
 
 	dt, err := conn.LoadDataType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	formats := []struct {
 		name string
@@ -179,7 +179,7 @@ create type point3d as (
 
 	dt, err := conn.LoadDataType(context.Background(), "point3d")
 	require.NoError(t, err)
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	formats := []struct {
 		name string

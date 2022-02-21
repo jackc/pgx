@@ -21,7 +21,7 @@ create type enum_test as enum ('foo', 'bar', 'baz');`)
 	dt, err := conn.LoadDataType(context.Background(), "enum_test")
 	require.NoError(t, err)
 
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	var s string
 	err = conn.QueryRow(context.Background(), `select 'foo'::enum_test`).Scan(&s)
@@ -58,7 +58,7 @@ create type enum_test as enum ('foo', 'bar', 'baz');`)
 	dt, err := conn.LoadDataType(context.Background(), "enum_test")
 	require.NoError(t, err)
 
-	conn.ConnInfo().RegisterDataType(*dt)
+	conn.ConnInfo().RegisterDataType(dt)
 
 	rows, err := conn.Query(context.Background(), `select 'foo'::enum_test`)
 	require.NoError(t, err)

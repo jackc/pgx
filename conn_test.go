@@ -891,7 +891,7 @@ func TestDomainType(t *testing.T) {
 		if err != nil {
 			t.Fatalf("did not find uint64 OID, %v", err)
 		}
-		conn.ConnInfo().RegisterDataType(pgtype.DataType{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
+		conn.ConnInfo().RegisterDataType(&pgtype.DataType{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
 
 		var n uint64
 		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
