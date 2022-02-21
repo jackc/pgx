@@ -183,7 +183,7 @@ func (encodePlanTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf [
 	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
-func (Float8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Float8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

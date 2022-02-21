@@ -210,7 +210,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 	return buf, nil
 }
 
-func (c *ArrayCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *ArrayCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	arrayScanner, ok := target.(ArraySetter)
 	if !ok {
 		return nil
@@ -248,7 +248,7 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 		return nil
 	}
 
-	elementScanPlan := c.ElementType.Codec.PlanScan(m, c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0), false)
+	elementScanPlan := c.ElementType.Codec.PlanScan(m, c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0))
 	if elementScanPlan == nil {
 		elementScanPlan = m.PlanScan(c.ElementType.OID, BinaryFormatCode, array.ScanIndex(0))
 	}
@@ -286,7 +286,7 @@ func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array Array
 		return nil
 	}
 
-	elementScanPlan := c.ElementType.Codec.PlanScan(m, c.ElementType.OID, TextFormatCode, array.ScanIndex(0), false)
+	elementScanPlan := c.ElementType.Codec.PlanScan(m, c.ElementType.OID, TextFormatCode, array.ScanIndex(0))
 	if elementScanPlan == nil {
 		elementScanPlan = m.PlanScan(c.ElementType.OID, TextFormatCode, array.ScanIndex(0))
 	}

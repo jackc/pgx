@@ -140,7 +140,7 @@ func (encodePlanInetCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return append(buf, inet.IPNet.String()...), nil
 }
 
-func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

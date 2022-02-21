@@ -38,7 +38,7 @@ func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 	return nil
 }
 
-func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {

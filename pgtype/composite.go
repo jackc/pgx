@@ -109,7 +109,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value int
 	return b.Finish()
 }
 
-func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

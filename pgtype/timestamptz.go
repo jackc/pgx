@@ -200,7 +200,7 @@ func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (new
 	return buf, nil
 }
 
-func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

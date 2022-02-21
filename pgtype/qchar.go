@@ -56,7 +56,7 @@ func (encodePlanQcharCodecRune) Encode(value interface{}, buf []byte) (newBuf []
 	return buf, nil
 }
 
-func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {

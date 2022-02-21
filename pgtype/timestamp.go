@@ -152,7 +152,7 @@ func discardTimeZone(t time.Time) time.Time {
 	return t
 }
 
-func (TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

@@ -51,7 +51,7 @@ func TestTimestamptzTranscodeBigTimeBinary(t *testing.T) {
 func TestTimestamptzDecodeTextInvalid(t *testing.T) {
 	c := &pgtype.TimestamptzCodec{}
 	var tstz pgtype.Timestamptz
-	plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz, false)
+	plan := c.PlanScan(nil, pgtype.TimestamptzOID, pgtype.TextFormatCode, &tstz)
 	err := plan.Scan([]byte(`eeeee`), &tstz)
 	require.Error(t, err)
 }

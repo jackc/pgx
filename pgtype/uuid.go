@@ -167,7 +167,7 @@ func (encodePlanUUIDCodecTextUUIDValuer) Encode(value interface{}, buf []byte) (
 	return append(buf, encodeUUID(uuid.Bytes)...), nil
 }
 
-func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

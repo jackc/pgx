@@ -206,7 +206,7 @@ func (encodePlanInt2CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
-func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -743,7 +743,7 @@ func (encodePlanInt4CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
-func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -1291,7 +1291,7 @@ func (encodePlanInt8CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
-func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

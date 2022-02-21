@@ -207,7 +207,7 @@ func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value interfa
   return append(buf, strconv.FormatInt(n.Int, 10)...), nil
 }
 
-func (Int<%= pg_byte_size %>Codec) PlanScan(m *TypeMap, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (Int<%= pg_byte_size %>Codec) PlanScan(m *TypeMap, oid uint32, format int16, target interface{}) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:

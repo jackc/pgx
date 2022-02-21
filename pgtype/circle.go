@@ -125,7 +125,7 @@ func (encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	return buf, nil
 }
 
-func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {

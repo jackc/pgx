@@ -144,9 +144,8 @@ type Codec interface {
 	PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan
 
 	// PlanScan returns a ScanPlan for scanning a PostgreSQL value into a destination with the same type as target. If
-	// actualTarget is true then the returned ScanPlan may be optimized to directly scan into target. If no plan can be
-	// found then nil is returned.
-	PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan
+	// no plan can be found then nil is returned.
+	PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan
 
 	// DecodeDatabaseSQLValue returns src decoded into a value compatible with the sql.Scanner interface.
 	DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error)
@@ -1030,7 +1029,7 @@ func (m *Map) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPla
 	}
 
 	if dt != nil {
-		if plan := dt.Codec.PlanScan(m, oid, formatCode, target, false); plan != nil {
+		if plan := dt.Codec.PlanScan(m, oid, formatCode, target); plan != nil {
 			return plan
 		}
 	}
@@ -1094,7 +1093,7 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
 
 func codecScan(codec Codec, m *Map, oid uint32, format int16, src []byte, dst interface{}) error {
-	scanPlan := codec.PlanScan(m, oid, format, dst, true)
+	scanPlan := codec.PlanScan(m, oid, format, dst)
 	if scanPlan == nil {
 		return fmt.Errorf("PlanScan did not find a plan")
 	}

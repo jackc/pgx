@@ -270,7 +270,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 	return buf, nil
 }
 
-func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}, actualTarget bool) ScanPlan {
+func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -410,6 +410,6 @@ func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 	}
 
 	var r GenericRange
-	err := c.PlanScan(m, oid, format, &r, true).Scan(src, &r)
+	err := c.PlanScan(m, oid, format, &r).Scan(src, &r)
 	return r, err
 }
