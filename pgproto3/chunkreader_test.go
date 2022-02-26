@@ -32,11 +32,11 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	if bytes.Compare(r.buf, src) != 0 {
 		t.Fatalf("Expected r.buf to be %v, but it was %v", src, r.buf)
 	}
-	if r.rp != 4 {
-		t.Fatalf("Expected r.rp to be %v, but it was %v", 4, r.rp)
+	if r.rp != 0 {
+		t.Fatalf("Expected r.rp to be %v, but it was %v", 0, r.rp)
 	}
-	if r.wp != 4 {
-		t.Fatalf("Expected r.wp to be %v, but it was %v", 4, r.wp)
+	if r.wp != 0 {
+		t.Fatalf("Expected r.wp to be %v, but it was %v", 0, r.wp)
 	}
 }
 
@@ -54,12 +54,12 @@ func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	if bytes.Compare(n1, src[0:5]) != 0 {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:5], n1)
 	}
-	if len(r.buf) != 5 {
-		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", 5, len(r.buf))
+	if len(r.buf) != 4 {
+		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", 4, len(r.buf))
 	}
 }
 
-func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
+func TestChunkReaderReusesBuf(t *testing.T) {
 	server := &bytes.Buffer{}
 	r := newChunkReader(server, 4)
 
@@ -82,8 +82,8 @@ func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[4:8], n2)
 	}
 
-	if bytes.Compare(n1, src[0:4]) != 0 {
-		t.Fatalf("Expected KeepLast to prevent Next from overwriting buf, expected %v but it was %v", src[0:4], n1)
+	if bytes.Compare(n1, src[4:8]) != 0 {
+		t.Fatalf("Expected slice to be reused, expected %v but it was %v", src[4:8], n1)
 	}
 }
 
