@@ -1433,8 +1433,12 @@ func (rr *ResultReader) Read() *Result {
 			copy(br.FieldDescriptions, rr.FieldDescriptions())
 		}
 
-		row := make([][]byte, len(rr.Values()))
-		copy(row, rr.Values())
+		values := rr.Values()
+		row := make([][]byte, len(values))
+		for i := range row {
+			row[i] = make([]byte, len(values[i]))
+			copy(row[i], values[i])
+		}
 		br.Rows = append(br.Rows, row)
 	}
 

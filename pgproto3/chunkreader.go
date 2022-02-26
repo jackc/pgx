@@ -6,11 +6,9 @@ import (
 
 // chunkReader is a io.Reader wrapper that minimizes IO reads and memory allocations. It allocates memory in chunks and
 // will read as much as will fit in the current buffer in a single call regardless of how large a read is actually
-// requested. The memory returned via Next is owned by the caller. This avoids the need for an additional copy.
+// requested. The memory returned via Next is only valid until the next call to Next.
 //
-// The downside of this approach is that a large buffer can be pinned in memory even if only a small slice is
-// referenced. For example, an entire 4096 byte block could be pinned in memory by even a 1 byte slice. In these rare
-// cases it would be advantageous to copy the bytes to another slice.
+// This is roughly equivalent to a bufio.Reader that only uses Peek and Discard to never copy bytes.
 type chunkReader struct {
 	r io.Reader
 
@@ -38,13 +36,14 @@ func newChunkReader(r io.Reader, minBufSize int) *chunkReader {
 	}
 }
 
-// Next returns buf filled with the next n bytes. The caller gains ownership of buf. It is not necessary to make a copy
-// of buf. If an error occurs, buf will be nil.
+// Next returns buf filled with the next n bytes. buf is only valid until next call of Next. If an error occurs, buf
+// will be nil.
 func (r *chunkReader) Next(n int) (buf []byte, err error) {
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
 		buf = r.buf[r.rp : r.rp+n]
 		r.rp += n
+		r.resetBufIfEmpty()
 		return buf, err
 	}
 
@@ -66,6 +65,7 @@ func (r *chunkReader) Next(n int) (buf []byte, err error) {
 
 	buf = r.buf[r.rp : r.rp+n]
 	r.rp += n
+	r.resetBufIfEmpty()
 	return buf, nil
 }
 
@@ -86,4 +86,14 @@ func (r *chunkReader) copyBufContents(dest []byte) {
 	r.wp = copy(dest, r.buf[r.rp:r.wp])
 	r.rp = 0
 	r.buf = dest
+}
+
+func (r *chunkReader) resetBufIfEmpty() {
+	if r.rp == r.wp {
+		if len(r.buf) > r.minBufLen {
+			r.buf = make([]byte, r.minBufLen)
+		}
+		r.rp = 0
+		r.wp = 0
+	}
 }
