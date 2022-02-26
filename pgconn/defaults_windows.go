@@ -46,8 +46,6 @@ func defaultSettings() map[string]string {
 
 	settings["target_session_attrs"] = "any"
 
-	settings["min_read_buffer_size"] = "8192"
-
 	return settings
 }
 

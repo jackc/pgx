@@ -572,13 +572,13 @@ func TestParseConfig(t *testing.T) {
 			name:       "target_session_attrs primary",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&target_session_attrs=primary",
 			config: &pgconn.Config{
-				User:          "jack",
-				Password:      "secret",
-				Host:          "localhost",
-				Port:          5432,
-				Database:      "mydb",
-				TLSConfig:     nil,
-				RuntimeParams: map[string]string{},
+				User:            "jack",
+				Password:        "secret",
+				Host:            "localhost",
+				Port:            5432,
+				Database:        "mydb",
+				TLSConfig:       nil,
+				RuntimeParams:   map[string]string{},
 				ValidateConnect: pgconn.ValidateConnectTargetSessionAttrsPrimary,
 			},
 		},
@@ -586,13 +586,13 @@ func TestParseConfig(t *testing.T) {
 			name:       "target_session_attrs standby",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&target_session_attrs=standby",
 			config: &pgconn.Config{
-				User:          "jack",
-				Password:      "secret",
-				Host:          "localhost",
-				Port:          5432,
-				Database:      "mydb",
-				TLSConfig:     nil,
-				RuntimeParams: map[string]string{},
+				User:            "jack",
+				Password:        "secret",
+				Host:            "localhost",
+				Port:            5432,
+				Database:        "mydb",
+				TLSConfig:       nil,
+				RuntimeParams:   map[string]string{},
 				ValidateConnect: pgconn.ValidateConnectTargetSessionAttrsStandby,
 			},
 		},
@@ -966,16 +966,4 @@ application_name = spaced string
 
 		assertConfigsEqual(t, tt.config, config, fmt.Sprintf("Test %d (%s)", i, tt.name))
 	}
-}
-
-func TestParseConfigExtractsMinReadBufferSize(t *testing.T) {
-	t.Parallel()
-
-	config, err := pgconn.ParseConfig("min_read_buffer_size=0")
-	require.NoError(t, err)
-	_, present := config.RuntimeParams["min_read_buffer_size"]
-	require.False(t, present)
-
-	// The buffer size is internal so there isn't much that can be done to test it other than see that the runtime param
-	// was removed.
 }

@@ -1,4 +1,4 @@
-package chunkreader
+package pgproto3
 
 import (
 	"bytes"
@@ -8,10 +8,7 @@ import (
 
 func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewConfig(server, Config{MinBufLen: 4})
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := newChunkReader(server, 4)
 
 	src := []byte{1, 2, 3, 4}
 	server.Write(src)
@@ -45,10 +42,7 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 
 func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewConfig(server, Config{MinBufLen: 4})
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := newChunkReader(server, 4)
 
 	src := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 	server.Write(src)
@@ -67,10 +61,7 @@ func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 
 func TestChunkReaderDoesNotReuseBuf(t *testing.T) {
 	server := &bytes.Buffer{}
-	r, err := NewConfig(server, Config{MinBufLen: 4})
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := newChunkReader(server, 4)
 
 	src := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 	server.Write(src)
@@ -108,10 +99,7 @@ func (r *randomReader) Read(p []byte) (n int, err error) {
 
 func TestChunkReaderNextFuzz(t *testing.T) {
 	rr := &randomReader{rnd: rand.New(rand.NewSource(1))}
-	r, err := NewConfig(rr, Config{MinBufLen: 8192})
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := newChunkReader(rr, 8192)
 
 	randomSizes := rand.New(rand.NewSource(0))
 

@@ -141,7 +141,7 @@ func TestConnectTimeout(t *testing.T) {
 					return
 				}
 
-				err = script.Run(pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn))
+				err = script.Run(pgproto3.NewBackend(conn, conn))
 				if err != nil {
 					serverErrChan <- err
 					return
@@ -2044,7 +2044,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 			return
 		}
 
-		err = script.Run(pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn))
+		err = script.Run(pgproto3.NewBackend(conn, conn))
 		if err != nil {
 			serverErrChan <- err
 			return
