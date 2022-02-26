@@ -9,7 +9,7 @@ import (
 
 // Frontend acts as a client for the PostgreSQL wire protocol version 3.
 type Frontend struct {
-	cr ChunkReader
+	cr *chunkReader
 	w  io.Writer
 
 	// Backend message flyweights
@@ -49,7 +49,8 @@ type Frontend struct {
 }
 
 // NewFrontend creates a new Frontend.
-func NewFrontend(cr ChunkReader, w io.Writer) *Frontend {
+func NewFrontend(r io.Reader, w io.Writer) *Frontend {
+	cr := newChunkReader(r, 0)
 	return &Frontend{cr: cr, w: w}
 }
 

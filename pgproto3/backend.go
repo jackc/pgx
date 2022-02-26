@@ -8,7 +8,7 @@ import (
 
 // Backend acts as a server for the PostgreSQL wire protocol version 3.
 type Backend struct {
-	cr ChunkReader
+	cr *chunkReader
 	w  io.Writer
 
 	// Frontend message flyweights
@@ -30,11 +30,10 @@ type Backend struct {
 	sync           Sync
 	terminate      Terminate
 
-	bodyLen      int
-	msgType      byte
-	partialMsg   bool
-	authType     uint32
-	
+	bodyLen    int
+	msgType    byte
+	partialMsg bool
+	authType   uint32
 }
 
 const (
@@ -43,7 +42,8 @@ const (
 )
 
 // NewBackend creates a new Backend.
-func NewBackend(cr ChunkReader, w io.Writer) *Backend {
+func NewBackend(r io.Reader, w io.Writer) *Backend {
+	cr := newChunkReader(r, 0)
 	return &Backend{cr: cr, w: w}
 }
 

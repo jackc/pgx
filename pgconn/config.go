@@ -19,7 +19,6 @@ import (
 
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgservicefile"
-	"github.com/jackc/pgx/v5/chunkreader"
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
@@ -183,8 +182,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // In addition, ParseConfig accepts the following options:
 //
-// 	min_read_buffer_size
-// 		The minimum size of the internal read buffer. Default 8192.
 // 	servicefile
 // 		libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
 // 		part of the connection string.
@@ -219,18 +216,15 @@ func ParseConfig(connString string) (*Config, error) {
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
 	}
 
-	minReadBufferSize, err := strconv.ParseInt(settings["min_read_buffer_size"], 10, 32)
-	if err != nil {
-		return nil, &parseConfigError{connString: connString, msg: "cannot parse min_read_buffer_size", err: err}
-	}
-
 	config := &Config{
 		createdByParseConfig: true,
 		Database:             settings["database"],
 		User:                 settings["user"],
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
-		BuildFrontend:        makeDefaultBuildFrontendFunc(int(minReadBufferSize)),
+		BuildFrontend: func(r io.Reader, w io.Writer) Frontend {
+			return pgproto3.NewFrontend(r, w)
+		},
 	}
 
 	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
@@ -260,7 +254,6 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslcert":              {},
 		"sslrootcert":          {},
 		"target_session_attrs": {},
-		"min_read_buffer_size": {},
 		"service":              {},
 		"servicefile":          {},
 	}
@@ -691,18 +684,6 @@ func makeDefaultDialer() *net.Dialer {
 
 func makeDefaultResolver() *net.Resolver {
 	return net.DefaultResolver
-}
-
-func makeDefaultBuildFrontendFunc(minBufferLen int) BuildFrontendFunc {
-	return func(r io.Reader, w io.Writer) Frontend {
-		cr, err := chunkreader.NewConfig(r, chunkreader.Config{MinBufLen: minBufferLen})
-		if err != nil {
-			panic(fmt.Sprintf("BUG: chunkreader.NewConfig failed: %v", err))
-		}
-		frontend := pgproto3.NewFrontend(cr, w)
-
-		return frontend
-	}
 }
 
 func parseConnectTimeoutSetting(s string) (time.Duration, error) {
