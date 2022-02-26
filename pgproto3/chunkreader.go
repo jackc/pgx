@@ -41,7 +41,7 @@ func newChunkReader(r io.Reader, minBufSize int) *chunkReader {
 func (r *chunkReader) Next(n int) (buf []byte, err error) {
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
-		buf = r.buf[r.rp : r.rp+n]
+		buf = r.buf[r.rp : r.rp+n : r.rp+n]
 		r.rp += n
 		r.resetBufIfEmpty()
 		return buf, err
@@ -63,7 +63,7 @@ func (r *chunkReader) Next(n int) (buf []byte, err error) {
 		return nil, err
 	}
 
-	buf = r.buf[r.rp : r.rp+n]
+	buf = r.buf[r.rp : r.rp+n : r.rp+n]
 	r.rp += n
 	r.resetBufIfEmpty()
 	return buf, nil
