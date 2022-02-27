@@ -165,6 +165,8 @@ func (TextCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 			return scanPlanTextAnyToString{}
 		case *[]byte:
 			return scanPlanAnyToNewByteSlice{}
+		case BytesScanner:
+			return scanPlanAnyToByteScanner{}
 		case TextScanner:
 			return scanPlanTextAnyToTextScanner{}
 		case *rune:
@@ -212,6 +214,13 @@ func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst interface{}) error {
 	}
 
 	return nil
+}
+
+type scanPlanAnyToByteScanner struct{}
+
+func (scanPlanAnyToByteScanner) Scan(src []byte, dst interface{}) error {
+	p := (dst).(BytesScanner)
+	return p.ScanBytes(src)
 }
 
 type scanPlanTextAnyToRune struct{}
