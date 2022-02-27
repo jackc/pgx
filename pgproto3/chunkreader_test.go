@@ -32,6 +32,12 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	if bytes.Compare(r.buf, src) != 0 {
 		t.Fatalf("Expected r.buf to be %v, but it was %v", src, r.buf)
 	}
+
+	_, err = r.Next(0) // Trigger the buffer reset.
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if r.rp != 0 {
 		t.Fatalf("Expected r.rp to be %v, but it was %v", 0, r.rp)
 	}
@@ -40,7 +46,7 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	}
 }
 
-func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
+func TestChunkReaderNextGetsBiggerBufAsNeededFromBigBufPools(t *testing.T) {
 	server := &bytes.Buffer{}
 	r := newChunkReader(server, 4)
 
@@ -54,8 +60,8 @@ func TestChunkReaderNextExpandsBufAsNeeded(t *testing.T) {
 	if bytes.Compare(n1, src[0:5]) != 0 {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:5], n1)
 	}
-	if len(r.buf) != 4 {
-		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", 4, len(r.buf))
+	if len(r.buf) != bigBufPools[0].byteSize {
+		t.Fatalf("Expected len(r.buf) to be %v, but it was %v", bigBufPools[0].byteSize, len(r.buf))
 	}
 }
 
