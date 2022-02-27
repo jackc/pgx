@@ -2,7 +2,47 @@ package pgproto3
 
 import (
 	"io"
+	"sync"
 )
+
+type bigBufPool struct {
+	pool     sync.Pool
+	byteSize int
+}
+
+var bigBufPools []*bigBufPool
+
+func init() {
+	KiB := 1024
+	bigBufSizes := []int{64 * KiB, 256 * KiB, 1024 * KiB, 4096 * KiB}
+	bigBufPools = make([]*bigBufPool, len(bigBufSizes))
+
+	for i := range bigBufPools {
+		byteSize := bigBufSizes[i]
+		bigBufPools[i] = &bigBufPool{
+			pool:     sync.Pool{New: func() interface{} { return make([]byte, byteSize) }},
+			byteSize: byteSize,
+		}
+	}
+}
+
+func getBigBuf(size int) []byte {
+	for _, bigBufPool := range bigBufPools {
+		if size < bigBufPool.byteSize {
+			return bigBufPool.pool.Get().([]byte)
+		}
+	}
+	return make([]byte, size)
+}
+
+func releaseBigBuf(buf []byte) {
+	for _, bigBufPool := range bigBufPools {
+		if len(buf) == bigBufPool.byteSize {
+			bigBufPool.pool.Put(buf)
+			return
+		}
+	}
+}
 
 // chunkReader is a io.Reader wrapper that minimizes IO reads and memory allocations. It allocates memory in chunks and
 // will read as much as will fit in the current buffer in a single call regardless of how large a read is actually
@@ -15,85 +55,75 @@ type chunkReader struct {
 	buf    []byte
 	rp, wp int // buf read position and write position
 
-	minBufLen int
+	ownBuf []byte // buf owned by chunkReader
 }
 
-// newChunkReader creates and returns a new chunkReader for r with default configuration with minBufSize internal buffer.
+// newChunkReader creates and returns a new chunkReader for r with default configuration with bufSize internal buffer.
 // If bufSize is <= 0 it uses a default value.
-func newChunkReader(r io.Reader, minBufSize int) *chunkReader {
-	if minBufSize <= 0 {
+func newChunkReader(r io.Reader, bufSize int) *chunkReader {
+	if bufSize <= 0 {
 		// By historical reasons Postgres currently has 8KB send buffer inside,
 		// so here we want to have at least the same size buffer.
 		// @see https://github.com/postgres/postgres/blob/249d64999615802752940e017ee5166e726bc7cd/src/backend/libpq/pqcomm.c#L134
 		// @see https://www.postgresql.org/message-id/0cdc5485-cb3c-5e16-4a46-e3b2f7a41322%40ya.ru
-		minBufSize = 8192
+		//
+		// In addition, testing has found no benefit of any larger buffer.
+		bufSize = 8192
 	}
 
+	buf := make([]byte, bufSize)
+
 	return &chunkReader{
-		r:         r,
-		buf:       make([]byte, minBufSize),
-		minBufLen: minBufSize,
+		r:      r,
+		buf:    buf,
+		ownBuf: buf,
 	}
 }
 
 // Next returns buf filled with the next n bytes. buf is only valid until next call of Next. If an error occurs, buf
 // will be nil.
 func (r *chunkReader) Next(n int) (buf []byte, err error) {
+	// Reset the buffer if it is empty
+	if r.rp == r.wp {
+		if len(r.buf) != len(r.ownBuf) {
+			releaseBigBuf(r.buf)
+			r.buf = r.ownBuf
+		}
+		r.rp = 0
+		r.wp = 0
+	}
+
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
 		buf = r.buf[r.rp : r.rp+n : r.rp+n]
 		r.rp += n
-		r.resetBufIfEmpty()
 		return buf, err
 	}
 
-	// available space in buf is less than n
+	// buf is smaller than requested number of bytes
 	if len(r.buf) < n {
-		r.copyBufContents(r.newBuf(n))
+		bigBuf := getBigBuf(n)
+		r.wp = copy(bigBuf, r.buf[r.rp:r.wp])
+		r.rp = 0
+		r.buf = bigBuf
 	}
 
 	// buf is large enough, but need to shift filled area to start to make enough contiguous space
 	minReadCount := n - (r.wp - r.rp)
 	if (len(r.buf) - r.wp) < minReadCount {
-		newBuf := r.newBuf(n)
-		r.copyBufContents(newBuf)
+		r.wp = copy(r.buf, r.buf[r.rp:r.wp])
+		r.rp = 0
 	}
 
-	if err := r.appendAtLeast(minReadCount); err != nil {
+	// Read at least the required number of bytes from the underlying io.Reader
+	readBytesCount, err := io.ReadAtLeast(r.r, r.buf[r.wp:], minReadCount)
+	r.wp += readBytesCount
+	// fmt.Println("read", n)
+	if err != nil {
 		return nil, err
 	}
 
 	buf = r.buf[r.rp : r.rp+n : r.rp+n]
 	r.rp += n
-	r.resetBufIfEmpty()
 	return buf, nil
-}
-
-func (r *chunkReader) appendAtLeast(fillLen int) error {
-	n, err := io.ReadAtLeast(r.r, r.buf[r.wp:], fillLen)
-	r.wp += n
-	return err
-}
-
-func (r *chunkReader) newBuf(size int) []byte {
-	if size < r.minBufLen {
-		size = r.minBufLen
-	}
-	return make([]byte, size)
-}
-
-func (r *chunkReader) copyBufContents(dest []byte) {
-	r.wp = copy(dest, r.buf[r.rp:r.wp])
-	r.rp = 0
-	r.buf = dest
-}
-
-func (r *chunkReader) resetBufIfEmpty() {
-	if r.rp == r.wp {
-		if len(r.buf) > r.minBufLen {
-			r.buf = make([]byte, r.minBufLen)
-		}
-		r.rp = 0
-		r.wp = 0
-	}
 }
