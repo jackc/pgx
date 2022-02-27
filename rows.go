@@ -79,6 +79,13 @@ func (r *connRow) Scan(dest ...interface{}) (err error) {
 		return rows.Err()
 	}
 
+	for _, d := range dest {
+		if _, ok := d.(*pgtype.DriverBytes); ok {
+			rows.Close()
+			return fmt.Errorf("cannot scan into *pgtype.DriverBytes from QueryRow")
+		}
+	}
+
 	if !rows.Next() {
 		if rows.Err() == nil {
 			return ErrNoRows
