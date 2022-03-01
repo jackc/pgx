@@ -74,12 +74,15 @@ const (
 	JSONBArrayOID       = 3807
 	DaterangeOID        = 3912
 	Int4rangeOID        = 3904
+	Int4multirangeOID   = 4451
 	NumrangeOID         = 3906
+	NummultirangeOID    = 4532
 	TsrangeOID          = 3908
 	TsrangeArrayOID     = 3909
 	TstzrangeOID        = 3910
 	TstzrangeArrayOID   = 3911
 	Int8rangeOID        = 3926
+	Int8multirangeOID   = 4536
 )
 
 type Status byte
@@ -288,8 +291,10 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Int2{}, Name: "int2", OID: Int2OID})
 	ci.RegisterDataType(DataType{Value: &Int4{}, Name: "int4", OID: Int4OID})
 	ci.RegisterDataType(DataType{Value: &Int4range{}, Name: "int4range", OID: Int4rangeOID})
+	ci.RegisterDataType(DataType{Value: &Int4multirange{}, Name: "int4multirange", OID: Int4multirangeOID})
 	ci.RegisterDataType(DataType{Value: &Int8{}, Name: "int8", OID: Int8OID})
 	ci.RegisterDataType(DataType{Value: &Int8range{}, Name: "int8range", OID: Int8rangeOID})
+	ci.RegisterDataType(DataType{Value: &Int8multirange{}, Name: "int8multirange", OID: Int8multirangeOID})
 	ci.RegisterDataType(DataType{Value: &Interval{}, Name: "interval", OID: IntervalOID})
 	ci.RegisterDataType(DataType{Value: &JSON{}, Name: "json", OID: JSONOID})
 	ci.RegisterDataType(DataType{Value: &JSONB{}, Name: "jsonb", OID: JSONBOID})
@@ -300,6 +305,7 @@ func NewConnInfo() *ConnInfo {
 	ci.RegisterDataType(DataType{Value: &Name{}, Name: "name", OID: NameOID})
 	ci.RegisterDataType(DataType{Value: &Numeric{}, Name: "numeric", OID: NumericOID})
 	ci.RegisterDataType(DataType{Value: &Numrange{}, Name: "numrange", OID: NumrangeOID})
+	ci.RegisterDataType(DataType{Value: &Nummultirange{}, Name: "nummultirange", OID: NummultirangeOID})
 	ci.RegisterDataType(DataType{Value: &OIDValue{}, Name: "oid", OID: OIDOID})
 	ci.RegisterDataType(DataType{Value: &Path{}, Name: "path", OID: PathOID})
 	ci.RegisterDataType(DataType{Value: &Point{}, Name: "point", OID: PointOID})
@@ -873,72 +879,75 @@ var nameValues map[string]Value
 
 func init() {
 	nameValues = map[string]Value{
-		"_aclitem":     &ACLItemArray{},
-		"_bool":        &BoolArray{},
-		"_bpchar":      &BPCharArray{},
-		"_bytea":       &ByteaArray{},
-		"_cidr":        &CIDRArray{},
-		"_date":        &DateArray{},
-		"_float4":      &Float4Array{},
-		"_float8":      &Float8Array{},
-		"_inet":        &InetArray{},
-		"_int2":        &Int2Array{},
-		"_int4":        &Int4Array{},
-		"_int8":        &Int8Array{},
-		"_numeric":     &NumericArray{},
-		"_text":        &TextArray{},
-		"_timestamp":   &TimestampArray{},
-		"_timestamptz": &TimestamptzArray{},
-		"_uuid":        &UUIDArray{},
-		"_varchar":     &VarcharArray{},
-		"_jsonb":       &JSONBArray{},
-		"aclitem":      &ACLItem{},
-		"bit":          &Bit{},
-		"bool":         &Bool{},
-		"box":          &Box{},
-		"bpchar":       &BPChar{},
-		"bytea":        &Bytea{},
-		"char":         &QChar{},
-		"cid":          &CID{},
-		"cidr":         &CIDR{},
-		"circle":       &Circle{},
-		"date":         &Date{},
-		"daterange":    &Daterange{},
-		"float4":       &Float4{},
-		"float8":       &Float8{},
-		"hstore":       &Hstore{},
-		"inet":         &Inet{},
-		"int2":         &Int2{},
-		"int4":         &Int4{},
-		"int4range":    &Int4range{},
-		"int8":         &Int8{},
-		"int8range":    &Int8range{},
-		"interval":     &Interval{},
-		"json":         &JSON{},
-		"jsonb":        &JSONB{},
-		"line":         &Line{},
-		"lseg":         &Lseg{},
-		"macaddr":      &Macaddr{},
-		"name":         &Name{},
-		"numeric":      &Numeric{},
-		"numrange":     &Numrange{},
-		"oid":          &OIDValue{},
-		"path":         &Path{},
-		"point":        &Point{},
-		"polygon":      &Polygon{},
-		"record":       &Record{},
-		"text":         &Text{},
-		"tid":          &TID{},
-		"timestamp":    &Timestamp{},
-		"timestamptz":  &Timestamptz{},
-		"tsrange":      &Tsrange{},
-		"_tsrange":     &TsrangeArray{},
-		"tstzrange":    &Tstzrange{},
-		"_tstzrange":   &TstzrangeArray{},
-		"unknown":      &Unknown{},
-		"uuid":         &UUID{},
-		"varbit":       &Varbit{},
-		"varchar":      &Varchar{},
-		"xid":          &XID{},
+		"_aclitem":       &ACLItemArray{},
+		"_bool":          &BoolArray{},
+		"_bpchar":        &BPCharArray{},
+		"_bytea":         &ByteaArray{},
+		"_cidr":          &CIDRArray{},
+		"_date":          &DateArray{},
+		"_float4":        &Float4Array{},
+		"_float8":        &Float8Array{},
+		"_inet":          &InetArray{},
+		"_int2":          &Int2Array{},
+		"_int4":          &Int4Array{},
+		"_int8":          &Int8Array{},
+		"_numeric":       &NumericArray{},
+		"_text":          &TextArray{},
+		"_timestamp":     &TimestampArray{},
+		"_timestamptz":   &TimestamptzArray{},
+		"_uuid":          &UUIDArray{},
+		"_varchar":       &VarcharArray{},
+		"_jsonb":         &JSONBArray{},
+		"aclitem":        &ACLItem{},
+		"bit":            &Bit{},
+		"bool":           &Bool{},
+		"box":            &Box{},
+		"bpchar":         &BPChar{},
+		"bytea":          &Bytea{},
+		"char":           &QChar{},
+		"cid":            &CID{},
+		"cidr":           &CIDR{},
+		"circle":         &Circle{},
+		"date":           &Date{},
+		"daterange":      &Daterange{},
+		"float4":         &Float4{},
+		"float8":         &Float8{},
+		"hstore":         &Hstore{},
+		"inet":           &Inet{},
+		"int2":           &Int2{},
+		"int4":           &Int4{},
+		"int4range":      &Int4range{},
+		"int4multirange": &Int4multirange{},
+		"int8":           &Int8{},
+		"int8range":      &Int8range{},
+		"int8multirange": &Int8multirange{},
+		"interval":       &Interval{},
+		"json":           &JSON{},
+		"jsonb":          &JSONB{},
+		"line":           &Line{},
+		"lseg":           &Lseg{},
+		"macaddr":        &Macaddr{},
+		"name":           &Name{},
+		"numeric":        &Numeric{},
+		"numrange":       &Numrange{},
+		"nummultirange":  &Nummultirange{},
+		"oid":            &OIDValue{},
+		"path":           &Path{},
+		"point":          &Point{},
+		"polygon":        &Polygon{},
+		"record":         &Record{},
+		"text":           &Text{},
+		"tid":            &TID{},
+		"timestamp":      &Timestamp{},
+		"timestamptz":    &Timestamptz{},
+		"tsrange":        &Tsrange{},
+		"_tsrange":       &TsrangeArray{},
+		"tstzrange":      &Tstzrange{},
+		"_tstzrange":     &TstzrangeArray{},
+		"unknown":        &Unknown{},
+		"uuid":           &UUID{},
+		"varbit":         &Varbit{},
+		"varchar":        &Varchar{},
+		"xid":            &XID{},
 	}
 }
