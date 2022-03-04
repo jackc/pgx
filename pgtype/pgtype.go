@@ -1068,7 +1068,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target interface{}) ScanPla
 
 	for _, f := range m.TryWrapScanPlanFuncs {
 		if wrapperPlan, nextDst, ok := f(target); ok {
-			if nextPlan := m.PlanScan(oid, formatCode, nextDst); nextPlan != nil {
+			if nextPlan := m.planScan(oid, formatCode, nextDst); nextPlan != nil {
 				if _, failed := nextPlan.(*scanPlanFail); !failed {
 					wrapperPlan.SetNext(nextPlan)
 					return wrapperPlan
