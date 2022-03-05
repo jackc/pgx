@@ -171,11 +171,10 @@ type Type struct {
 // Map is the mapping between PostgreSQL server types and Go type handling logic. It can encode values for
 // transmission to a PostgreSQL server and scan received values.
 type Map struct {
-	oidToType             map[uint32]*Type
-	nameToType            map[string]*Type
-	reflectTypeToName     map[reflect.Type]string
-	oidToFormatCode       map[uint32]int16
-	oidToResultFormatCode map[uint32]int16
+	oidToType         map[uint32]*Type
+	nameToType        map[string]*Type
+	reflectTypeToName map[reflect.Type]string
+	oidToFormatCode   map[uint32]int16
 
 	reflectTypeToType map[reflect.Type]*Type
 
@@ -196,11 +195,10 @@ type Map struct {
 
 func NewMap() *Map {
 	m := &Map{
-		oidToType:             make(map[uint32]*Type),
-		nameToType:            make(map[string]*Type),
-		reflectTypeToName:     make(map[reflect.Type]string),
-		oidToFormatCode:       make(map[uint32]int16),
-		oidToResultFormatCode: make(map[uint32]int16),
+		oidToType:         make(map[uint32]*Type),
+		nameToType:        make(map[string]*Type),
+		reflectTypeToName: make(map[reflect.Type]string),
+		oidToFormatCode:   make(map[uint32]int16),
 
 		memoizedScanPlans: make(map[uint32]map[reflect.Type][2]ScanPlan),
 
