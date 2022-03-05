@@ -20,8 +20,8 @@ type Uint32Valuer interface {
 
 // Uint32 is the core type that is used to represent PostgreSQL types such as OID, CID, and XID.
 type Uint32 struct {
-	Uint  uint32
-	Valid bool
+	Uint32 uint32
+	Valid  bool
 }
 
 func (n *Uint32) ScanUint32(v Uint32) error {
@@ -62,7 +62,7 @@ func (dst *Uint32) Scan(src interface{}) error {
 		return fmt.Errorf("%d is greater than maximum value for Uint32", n)
 	}
 
-	*dst = Uint32{Uint: uint32(n), Valid: true}
+	*dst = Uint32{Uint32: uint32(n), Valid: true}
 
 	return nil
 }
@@ -72,7 +72,7 @@ func (src Uint32) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return int64(src.Uint), nil
+	return int64(src.Uint32), nil
 }
 
 type Uint32Codec struct{}
@@ -127,7 +127,7 @@ func (encodePlanUint32CodecBinaryUint32Valuer) Encode(value interface{}, buf []b
 		return nil, nil
 	}
 
-	return pgio.AppendUint32(buf, v.Uint), nil
+	return pgio.AppendUint32(buf, v.Uint32), nil
 }
 
 type encodePlanUint32CodecBinaryInt64Valuer struct{}
@@ -171,7 +171,7 @@ func (encodePlanUint32CodecTextUint32Valuer) Encode(value interface{}, buf []byt
 		return nil, nil
 	}
 
-	return append(buf, strconv.FormatUint(uint64(v.Uint), 10)...), nil
+	return append(buf, strconv.FormatUint(uint64(v.Uint32), 10)...), nil
 }
 
 type encodePlanUint32CodecTextInt64Valuer struct{}
@@ -279,7 +279,7 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst interface{}) err
 
 	n := binary.BigEndian.Uint32(src)
 
-	return s.ScanUint32(Uint32{Uint: n, Valid: true})
+	return s.ScanUint32(Uint32{Uint32: n, Valid: true})
 }
 
 type scanPlanTextAnyToUint32Scanner struct{}
@@ -299,5 +299,5 @@ func (scanPlanTextAnyToUint32Scanner) Scan(src []byte, dst interface{}) error {
 		return err
 	}
 
-	return s.ScanUint32(Uint32{Uint: uint32(n), Valid: true})
+	return s.ScanUint32(Uint32{Uint32: uint32(n), Valid: true})
 }
