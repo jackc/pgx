@@ -17,7 +17,7 @@ func (f *Float8) ScanFloat64(n pgtype.Float8) error {
 		return nil
 	}
 
-	*f = Float8(n.Float)
+	*f = Float8(n.Float64)
 
 	return nil
 }
@@ -26,7 +26,7 @@ func (f Float8) Float64Value() (pgtype.Float8, error) {
 	if f == 0 {
 		return pgtype.Float8{}, nil
 	}
-	return pgtype.Float8{Float: float64(f), Valid: true}, nil
+	return pgtype.Float8{Float64: float64(f), Valid: true}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -42,7 +42,7 @@ func (f *Float8) Scan(src interface{}) error {
 		return err
 	}
 
-	*f = Float8(nullable.Float)
+	*f = Float8(nullable.Float64)
 
 	return nil
 }

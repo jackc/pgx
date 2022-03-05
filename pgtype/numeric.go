@@ -84,11 +84,11 @@ func (n Numeric) Float64Value() (Float8, error) {
 	if !n.Valid {
 		return Float8{}, nil
 	} else if n.NaN {
-		return Float8{Float: math.NaN(), Valid: true}, nil
+		return Float8{Float64: math.NaN(), Valid: true}, nil
 	} else if n.InfinityModifier == Infinity {
-		return Float8{Float: math.Inf(1), Valid: true}, nil
+		return Float8{Float64: math.Inf(1), Valid: true}, nil
 	} else if n.InfinityModifier == NegativeInfinity {
-		return Float8{Float: math.Inf(-1), Valid: true}, nil
+		return Float8{Float64: math.Inf(-1), Valid: true}, nil
 	}
 
 	buf := make([]byte, 0, 32)
@@ -106,7 +106,7 @@ func (n Numeric) Float64Value() (Float8, error) {
 		return Float8{}, err
 	}
 
-	return Float8{Float: f, Valid: true}, nil
+	return Float8{Float64: f, Valid: true}, nil
 }
 
 func (n *Numeric) toBigInt() (*big.Int, error) {
@@ -297,14 +297,14 @@ func (encodePlanNumericCodecBinaryFloat64Valuer) Encode(value interface{}, buf [
 		return nil, nil
 	}
 
-	if math.IsNaN(n.Float) {
+	if math.IsNaN(n.Float64) {
 		return encodeNumericBinary(Numeric{NaN: true, Valid: true}, buf)
-	} else if math.IsInf(n.Float, 1) {
+	} else if math.IsInf(n.Float64, 1) {
 		return encodeNumericBinary(Numeric{InfinityModifier: Infinity, Valid: true}, buf)
-	} else if math.IsInf(n.Float, -1) {
+	} else if math.IsInf(n.Float64, -1) {
 		return encodeNumericBinary(Numeric{InfinityModifier: NegativeInfinity, Valid: true}, buf)
 	}
-	num, exp, err := parseNumericString(strconv.FormatFloat(n.Float, 'f', -1, 64))
+	num, exp, err := parseNumericString(strconv.FormatFloat(n.Float64, 'f', -1, 64))
 	if err != nil {
 		return nil, err
 	}
@@ -449,14 +449,14 @@ func (encodePlanNumericCodecTextFloat64Valuer) Encode(value interface{}, buf []b
 		return nil, nil
 	}
 
-	if math.IsNaN(n.Float) {
+	if math.IsNaN(n.Float64) {
 		return encodeNumericBinary(Numeric{NaN: true, Valid: true}, buf)
-	} else if math.IsInf(n.Float, 1) {
+	} else if math.IsInf(n.Float64, 1) {
 		return encodeNumericBinary(Numeric{InfinityModifier: Infinity, Valid: true}, buf)
-	} else if math.IsInf(n.Float, -1) {
+	} else if math.IsInf(n.Float64, -1) {
 		return encodeNumericBinary(Numeric{InfinityModifier: NegativeInfinity, Valid: true}, buf)
 	}
-	num, exp, err := parseNumericString(strconv.FormatFloat(n.Float, 'f', -1, 64))
+	num, exp, err := parseNumericString(strconv.FormatFloat(n.Float64, 'f', -1, 64))
 	if err != nil {
 		return nil, err
 	}

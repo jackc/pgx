@@ -46,15 +46,15 @@ func TestRangeCodecTranscodeCompatibleRangeElementTypes(t *testing.T) {
 		{
 			pgtype.Float8range{
 				LowerType: pgtype.Inclusive,
-				Lower:     pgtype.Float8{Float: 1, Valid: true},
-				Upper:     pgtype.Float8{Float: 5, Valid: true},
+				Lower:     pgtype.Float8{Float64: 1, Valid: true},
+				Upper:     pgtype.Float8{Float64: 5, Valid: true},
 				UpperType: pgtype.Exclusive, Valid: true,
 			},
 			new(pgtype.Float8range),
 			isExpectedEq(pgtype.Float8range{
 				LowerType: pgtype.Inclusive,
-				Lower:     pgtype.Float8{Float: 1, Valid: true},
-				Upper:     pgtype.Float8{Float: 5, Valid: true},
+				Lower:     pgtype.Float8{Float64: 1, Valid: true},
+				Upper:     pgtype.Float8{Float64: 5, Valid: true},
 				UpperType: pgtype.Exclusive, Valid: true,
 			}),
 		},
