@@ -422,6 +422,8 @@ func (m *Map) TypeForValue(v interface{}) (*Type, bool) {
 	return dt, ok
 }
 
+// FormatCodeForOID returns the preferred format code for type oid. If the type is not registered it returns the text
+// format code.
 func (m *Map) FormatCodeForOID(oid uint32) int16 {
 	fc, ok := m.oidToFormatCode[oid]
 	if ok {
