@@ -15,7 +15,7 @@ type extendedQueryBuilder struct {
 }
 
 func (eqb *extendedQueryBuilder) AppendParam(m *pgtype.Map, oid uint32, arg interface{}) error {
-	f := chooseParameterFormatCode(m, oid, arg)
+	f := eqb.chooseParameterFormatCode(m, oid, arg)
 	eqb.paramFormats = append(eqb.paramFormats, f)
 
 	v, err := eqb.encodeExtendedParamValue(m, oid, f, arg)
@@ -99,4 +99,16 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uin
 		return eqb.encodeExtendedParamValue(m, oid, formatCode, strippedArg)
 	}
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+}
+
+// chooseParameterFormatCode determines the correct format code for an
+// argument to a prepared statement. It defaults to TextFormatCode if no
+// determination can be made.
+func (eqb *extendedQueryBuilder) chooseParameterFormatCode(m *pgtype.Map, oid uint32, arg interface{}) int16 {
+	switch arg.(type) {
+	case string, *string:
+		return TextFormatCode
+	}
+
+	return m.FormatCodeForOID(oid)
 }
