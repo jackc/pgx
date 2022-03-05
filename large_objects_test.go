@@ -32,7 +32,7 @@ func TestLargeObjects(t *testing.T) {
 	testLargeObjects(t, ctx, tx)
 }
 
-func TestLargeObjectsPreferSimpleProtocol(t *testing.T) {
+func TestLargeObjectsSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -43,7 +43,7 @@ func TestLargeObjectsPreferSimpleProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	config.PreferSimpleProtocol = true
+	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	conn, err := pgx.ConnectConfig(ctx, config)
 	if err != nil {

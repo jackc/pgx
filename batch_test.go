@@ -803,7 +803,7 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.PreferSimpleProtocol = true
+	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()

@@ -29,13 +29,11 @@ type ConnConfig struct {
 	// to nil to disable automatic prepared statements.
 	BuildStatementCache BuildStatementCacheFunc
 
-	// PreferSimpleProtocol disables implicit prepared statement usage. By default pgx automatically uses the extended
-	// protocol. This can improve performance due to being able to use the binary format. It also does not rely on client
-	// side parameter sanitization. However, it does incur two round-trips per query (unless using a prepared statement)
-	// and may be incompatible proxies such as PGBouncer. Setting PreferSimpleProtocol causes the simple protocol to be
-	// used by default. The same functionality can be controlled on a per query basis by setting
-	// QueryExOptions.SimpleProtocol.
-	PreferSimpleProtocol bool
+	// DefaultQueryExecMode controls the default mode for executing queries. By default pgx uses the extended protocol
+	// and automatically prepares and caches prepared statements. However, this may be incompatible with proxies such as
+	// PGBouncer. In this case it may be preferrable to use QueryExecModeExec or QueryExecModeSimpleProtocol. The same
+	// functionality can be controlled on a per query basis by passing a QueryExecMode as the first query argument.
+	DefaultQueryExecMode QueryExecMode
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
@@ -125,8 +123,9 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 // 		server. "describe" is primarily useful when the environment does not allow prepared statements such as when
 // 		running a connection pooler like PgBouncer. Default: "prepare"
 //
-//	prefer_simple_protocol
-//		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
+//	default_query_exec_mode
+//		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
+//		QueryExecMode constant documentation for the meaning of these values. Default: "cache_statement".
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
@@ -163,13 +162,22 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		}
 	}
 
-	preferSimpleProtocol := false
-	if s, ok := config.RuntimeParams["prefer_simple_protocol"]; ok {
-		delete(config.RuntimeParams, "prefer_simple_protocol")
-		if b, err := strconv.ParseBool(s); err == nil {
-			preferSimpleProtocol = b
-		} else {
-			return nil, fmt.Errorf("invalid prefer_simple_protocol: %v", err)
+	defaultQueryExecMode := QueryExecModeCacheStatement
+	if s, ok := config.RuntimeParams["default_query_exec_mode"]; ok {
+		delete(config.RuntimeParams, "default_query_exec_mode")
+		switch s {
+		case "cache_statement":
+			defaultQueryExecMode = QueryExecModeCacheStatement
+		case "cache_describe":
+			defaultQueryExecMode = QueryExecModeCacheDescribe
+		case "describe_exec":
+			defaultQueryExecMode = QueryExecModeDescribeExec
+		case "exec":
+			defaultQueryExecMode = QueryExecModeExec
+		case "simple_protocol":
+			defaultQueryExecMode = QueryExecModeSimpleProtocol
+		default:
+			return nil, fmt.Errorf("invalid default_query_exec_mode: %v", err)
 		}
 	}
 
@@ -178,7 +186,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		createdByParseConfig: true,
 		LogLevel:             LogLevelInfo,
 		BuildStatementCache:  buildStatementCache,
-		PreferSimpleProtocol: preferSimpleProtocol,
+		DefaultQueryExecMode: defaultQueryExecMode,
 		connString:           connString,
 	}
 
@@ -403,13 +411,13 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 }
 
 func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
-	simpleProtocol := c.config.PreferSimpleProtocol
+	simpleProtocol := c.config.DefaultQueryExecMode == QueryExecModeSimpleProtocol
 
 optionLoop:
 	for len(arguments) > 0 {
 		switch arg := arguments[0].(type) {
-		case QuerySimpleProtocol:
-			simpleProtocol = bool(arg)
+		case QueryExecMode:
+			simpleProtocol = arg == QueryExecModeSimpleProtocol
 			arguments = arguments[1:]
 		default:
 			break optionLoop
@@ -525,8 +533,39 @@ func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *con
 	return r
 }
 
-// QuerySimpleProtocol controls whether the simple or extended protocol is used to send the query.
-type QuerySimpleProtocol bool
+type QueryExecMode int32
+
+const (
+	_ QueryExecMode = iota
+
+	// Automatically prepare and cache statements. This uses the extended protocol. Queries are executed in a single
+	// round trip after the statement is cached. This is the default.
+	QueryExecModeCacheStatement
+
+	// Cache statement descriptions (i.e. argument and result types) and assume they do not change. This uses the
+	// extended protocol. Queries are executed in a single round trip after the description is cached. If the database
+	// schema is modified or the search_path is changed this may result in undetected result decoding errors.
+	QueryExecModeCacheDescribe
+
+	// Get the statement description on every execution. This uses the extended protocol. Queries require two round trips
+	// to execute. It does not use prepared statements (allowing usage with most connection poolers) and is safe even
+	// when the the database schema is modified concurrently.
+	QueryExecModeDescribeExec
+
+	// Assume the PostgreSQL query parameter types based on the Go type of the arguments. This uses the extended
+	// protocol. Queries are executed in a single round trip. Type mappings can be registered with
+	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambigious.
+	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
+	// a map[string]string directly as an argument. This mode cannot.
+	QueryExecModeExec
+
+	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments.
+	// Queries are executed in a single round trip. Type mappings can be registered with
+	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambigious.
+	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
+	// a map[string]string directly as an argument. This mode cannot.
+	QueryExecModeSimpleProtocol
+)
 
 // QueryResultFormats controls the result format (text=0, binary=1) of a query by result column position.
 type QueryResultFormats []int16
@@ -547,7 +586,7 @@ type QueryResultFormatsByOID map[uint32]int16
 func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
-	simpleProtocol := c.config.PreferSimpleProtocol
+	simpleProtocol := c.config.DefaultQueryExecMode == QueryExecModeSimpleProtocol
 
 optionLoop:
 	for len(args) > 0 {
@@ -558,8 +597,8 @@ optionLoop:
 		case QueryResultFormatsByOID:
 			resultFormatsByOID = arg
 			args = args[1:]
-		case QuerySimpleProtocol:
-			simpleProtocol = bool(arg)
+		case QueryExecMode:
+			simpleProtocol = arg == QueryExecModeSimpleProtocol
 			args = args[1:]
 		default:
 			break optionLoop
@@ -709,7 +748,7 @@ func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, sc
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
-	simpleProtocol := c.config.PreferSimpleProtocol
+	simpleProtocol := c.config.DefaultQueryExecMode == QueryExecModeSimpleProtocol
 	var sb strings.Builder
 	if simpleProtocol {
 		for i, bi := range b.items {
