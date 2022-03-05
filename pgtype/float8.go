@@ -34,12 +34,12 @@ func (f Float8) Float64Value() (Float8, error) {
 }
 
 func (f *Float8) ScanInt64(n Int8) error {
-	*f = Float8{Float: float64(n.Int), Valid: n.Valid}
+	*f = Float8{Float: float64(n.Int64), Valid: n.Valid}
 	return nil
 }
 
 func (f Float8) Int64Value() (Int8, error) {
-	return Int8{Int: int64(f.Float), Valid: f.Valid}, nil
+	return Int8{Int64: int64(f.Float), Valid: f.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -164,7 +164,7 @@ func (encodePlanFloat8CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 		return nil, nil
 	}
 
-	f := float64(n.Int)
+	f := float64(n.Int64)
 	return pgio.AppendUint64(buf, math.Float64bits(f)), nil
 }
 
@@ -180,7 +180,7 @@ func (encodePlanTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf [
 		return nil, nil
 	}
 
-	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
+	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
 func (Float8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -264,7 +264,7 @@ func (scanPlanBinaryFloat8ToInt64Scanner) Scan(src []byte, dst interface{}) erro
 		return fmt.Errorf("cannot losslessly convert %v to int64", f64)
 	}
 
-	return s.ScanInt64(Int8{Int: i64, Valid: true})
+	return s.ScanInt64(Int8{Int64: i64, Valid: true})
 }
 
 type scanPlanTextAnyToFloat64 struct{}

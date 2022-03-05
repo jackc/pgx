@@ -44,7 +44,7 @@ func (dst *Int2) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = Int2(nullable.Int)
+	*dst = Int2(nullable.Int16)
 
 	return nil
 }
@@ -92,7 +92,7 @@ func (dst *Int4) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = Int4(nullable.Int)
+	*dst = Int4(nullable.Int32)
 
 	return nil
 }
@@ -140,7 +140,7 @@ func (dst *Int8) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = Int8(nullable.Int)
+	*dst = Int8(nullable.Int64)
 
 	return nil
 }

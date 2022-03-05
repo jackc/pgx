@@ -22,7 +22,7 @@ type Int64Valuer interface {
 <% [2, 4, 8].each do |pg_byte_size| %>
 <% pg_bit_size = pg_byte_size * 8 %>
 type Int<%= pg_byte_size %> struct {
-	Int   int<%= pg_bit_size %>
+	Int<%= pg_bit_size %>   int<%= pg_bit_size %>
 	Valid bool
 }
 
@@ -33,19 +33,19 @@ func (dst *Int<%= pg_byte_size %>) ScanInt64(n Int8) error {
 		return nil
 	}
 
-	if n.Int < math.MinInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int)
+	if n.Int64 < math.MinInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int64)
 	}
-	if n.Int > math.MaxInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int)
+	if n.Int64 > math.MaxInt<%= pg_bit_size %> {
+		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int64)
 	}
-	*dst = Int<%= pg_byte_size %>{Int: int<%= pg_bit_size %>(n.Int), Valid: true}
+	*dst = Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: int<%= pg_bit_size %>(n.Int64), Valid: true}
 
 	return nil
 }
 
 func (n Int<%= pg_byte_size %>) Int64Value() (Int8, error) {
-	return Int8{Int: int64(n.Int), Valid: n.Valid}, nil
+	return Int8{Int64: int64(n.Int<%= pg_bit_size %>), Valid: n.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -82,7 +82,7 @@ func (dst *Int<%= pg_byte_size %>) Scan(src interface{}) error {
 	if n > math.MaxInt<%= pg_bit_size %> {
 		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n)
 	}
-	*dst = Int<%= pg_byte_size %>{Int: int<%= pg_bit_size %>(n), Valid: true}
+	*dst = Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: int<%= pg_bit_size %>(n), Valid: true}
 
 	return nil
 }
@@ -92,14 +92,14 @@ func (src Int<%= pg_byte_size %>) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return int64(src.Int), nil
+	return int64(src.Int<%= pg_bit_size %>), nil
 }
 
 func (src Int<%= pg_byte_size %>) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
 	}
-	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+	return []byte(strconv.FormatInt(int64(src.Int<%= pg_bit_size %>), 10)), nil
 }
 
 func (dst *Int<%= pg_byte_size %>) UnmarshalJSON(b []byte) error {
@@ -112,7 +112,7 @@ func (dst *Int<%= pg_byte_size %>) UnmarshalJSON(b []byte) error {
 	if n == nil {
 		*dst = Int<%= pg_byte_size %>{}
 	} else {
-		*dst = Int<%= pg_byte_size %>{Int: *n, Valid: true}
+		*dst = Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: *n, Valid: true}
 	}
 
 	return nil
@@ -175,14 +175,14 @@ func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer) Encode(value inter
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int)
+	if n.Int64 > math.MaxInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int64)
 	}
-	if n.Int < math.MinInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int)
+	if n.Int64 < math.MinInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int64)
 	}
 
-  return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n.Int)), nil
+  return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n.Int64)), nil
 }
 
 type encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer struct{}
@@ -197,14 +197,14 @@ func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value interfa
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int)
+	if n.Int64 > math.MaxInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is greater than maximum value for int<%= pg_byte_size %>", n.Int64)
 	}
-	if n.Int < math.MinInt<%= pg_bit_size %> {
-		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int)
+	if n.Int64 < math.MinInt<%= pg_bit_size %> {
+		return nil, fmt.Errorf("%d is less than minimum value for int<%= pg_byte_size %>", n.Int64)
 	}
 
-  return append(buf, strconv.FormatInt(n.Int, 10)...), nil
+  return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
 func (Int<%= pg_byte_size %>Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -441,7 +441,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst i
 
 	n := int64(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
 
-  return s.ScanInt64(Int8{Int: n, Valid: true})
+  return s.ScanInt64(Int8{Int64: n, Valid: true})
 }
 <% end %>
 
@@ -513,7 +513,7 @@ func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst interface{}) error {
 		return err
 	}
 
-  err = s.ScanInt64(Int8{Int: n, Valid: true})
+  err = s.ScanInt64(Int8{Int64: n, Valid: true})
 	if err != nil {
 		return err
 	}
