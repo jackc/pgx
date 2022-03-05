@@ -21,7 +21,7 @@ type Int64Valuer interface {
 }
 
 type Int2 struct {
-	Int   int16
+	Int16 int16
 	Valid bool
 }
 
@@ -32,19 +32,19 @@ func (dst *Int2) ScanInt64(n Int8) error {
 		return nil
 	}
 
-	if n.Int < math.MinInt16 {
-		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int)
+	if n.Int64 < math.MinInt16 {
+		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int64)
 	}
-	if n.Int > math.MaxInt16 {
-		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int)
+	if n.Int64 > math.MaxInt16 {
+		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int64)
 	}
-	*dst = Int2{Int: int16(n.Int), Valid: true}
+	*dst = Int2{Int16: int16(n.Int64), Valid: true}
 
 	return nil
 }
 
 func (n Int2) Int64Value() (Int8, error) {
-	return Int8{Int: int64(n.Int), Valid: n.Valid}, nil
+	return Int8{Int64: int64(n.Int16), Valid: n.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -81,7 +81,7 @@ func (dst *Int2) Scan(src interface{}) error {
 	if n > math.MaxInt16 {
 		return fmt.Errorf("%d is greater than maximum value for Int2", n)
 	}
-	*dst = Int2{Int: int16(n), Valid: true}
+	*dst = Int2{Int16: int16(n), Valid: true}
 
 	return nil
 }
@@ -91,14 +91,14 @@ func (src Int2) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return int64(src.Int), nil
+	return int64(src.Int16), nil
 }
 
 func (src Int2) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
 	}
-	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+	return []byte(strconv.FormatInt(int64(src.Int16), 10)), nil
 }
 
 func (dst *Int2) UnmarshalJSON(b []byte) error {
@@ -111,7 +111,7 @@ func (dst *Int2) UnmarshalJSON(b []byte) error {
 	if n == nil {
 		*dst = Int2{}
 	} else {
-		*dst = Int2{Int: *n, Valid: true}
+		*dst = Int2{Int16: *n, Valid: true}
 	}
 
 	return nil
@@ -174,14 +174,14 @@ func (encodePlanInt2CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt16 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int)
+	if n.Int64 > math.MaxInt16 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int64)
 	}
-	if n.Int < math.MinInt16 {
-		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int)
+	if n.Int64 < math.MinInt16 {
+		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int64)
 	}
 
-	return pgio.AppendInt16(buf, int16(n.Int)), nil
+	return pgio.AppendInt16(buf, int16(n.Int64)), nil
 }
 
 type encodePlanInt2CodecTextInt64Valuer struct{}
@@ -196,14 +196,14 @@ func (encodePlanInt2CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt16 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int)
+	if n.Int64 > math.MaxInt16 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int2", n.Int64)
 	}
-	if n.Int < math.MinInt16 {
-		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int)
+	if n.Int64 < math.MinInt16 {
+		return nil, fmt.Errorf("%d is less than minimum value for int2", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
+	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
 func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -554,11 +554,11 @@ func (scanPlanBinaryInt2ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 	n := int64(int16(binary.BigEndian.Uint16(src)))
 
-	return s.ScanInt64(Int8{Int: n, Valid: true})
+	return s.ScanInt64(Int8{Int64: n, Valid: true})
 }
 
 type Int4 struct {
-	Int   int32
+	Int32 int32
 	Valid bool
 }
 
@@ -569,19 +569,19 @@ func (dst *Int4) ScanInt64(n Int8) error {
 		return nil
 	}
 
-	if n.Int < math.MinInt32 {
-		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int)
+	if n.Int64 < math.MinInt32 {
+		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int64)
 	}
-	if n.Int > math.MaxInt32 {
-		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int)
+	if n.Int64 > math.MaxInt32 {
+		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int64)
 	}
-	*dst = Int4{Int: int32(n.Int), Valid: true}
+	*dst = Int4{Int32: int32(n.Int64), Valid: true}
 
 	return nil
 }
 
 func (n Int4) Int64Value() (Int8, error) {
-	return Int8{Int: int64(n.Int), Valid: n.Valid}, nil
+	return Int8{Int64: int64(n.Int32), Valid: n.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -618,7 +618,7 @@ func (dst *Int4) Scan(src interface{}) error {
 	if n > math.MaxInt32 {
 		return fmt.Errorf("%d is greater than maximum value for Int4", n)
 	}
-	*dst = Int4{Int: int32(n), Valid: true}
+	*dst = Int4{Int32: int32(n), Valid: true}
 
 	return nil
 }
@@ -628,14 +628,14 @@ func (src Int4) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return int64(src.Int), nil
+	return int64(src.Int32), nil
 }
 
 func (src Int4) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
 	}
-	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+	return []byte(strconv.FormatInt(int64(src.Int32), 10)), nil
 }
 
 func (dst *Int4) UnmarshalJSON(b []byte) error {
@@ -648,7 +648,7 @@ func (dst *Int4) UnmarshalJSON(b []byte) error {
 	if n == nil {
 		*dst = Int4{}
 	} else {
-		*dst = Int4{Int: *n, Valid: true}
+		*dst = Int4{Int32: *n, Valid: true}
 	}
 
 	return nil
@@ -711,14 +711,14 @@ func (encodePlanInt4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int)
+	if n.Int64 > math.MaxInt32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int64)
 	}
-	if n.Int < math.MinInt32 {
-		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int)
+	if n.Int64 < math.MinInt32 {
+		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int64)
 	}
 
-	return pgio.AppendInt32(buf, int32(n.Int)), nil
+	return pgio.AppendInt32(buf, int32(n.Int64)), nil
 }
 
 type encodePlanInt4CodecTextInt64Valuer struct{}
@@ -733,14 +733,14 @@ func (encodePlanInt4CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int)
+	if n.Int64 > math.MaxInt32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int4", n.Int64)
 	}
-	if n.Int < math.MinInt32 {
-		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int)
+	if n.Int64 < math.MinInt32 {
+		return nil, fmt.Errorf("%d is less than minimum value for int4", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
+	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
 func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -1102,11 +1102,11 @@ func (scanPlanBinaryInt4ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 	n := int64(int32(binary.BigEndian.Uint32(src)))
 
-	return s.ScanInt64(Int8{Int: n, Valid: true})
+	return s.ScanInt64(Int8{Int64: n, Valid: true})
 }
 
 type Int8 struct {
-	Int   int64
+	Int64 int64
 	Valid bool
 }
 
@@ -1117,19 +1117,19 @@ func (dst *Int8) ScanInt64(n Int8) error {
 		return nil
 	}
 
-	if n.Int < math.MinInt64 {
-		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int)
+	if n.Int64 < math.MinInt64 {
+		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int64)
 	}
-	if n.Int > math.MaxInt64 {
-		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int)
+	if n.Int64 > math.MaxInt64 {
+		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int64)
 	}
-	*dst = Int8{Int: int64(n.Int), Valid: true}
+	*dst = Int8{Int64: int64(n.Int64), Valid: true}
 
 	return nil
 }
 
 func (n Int8) Int64Value() (Int8, error) {
-	return Int8{Int: int64(n.Int), Valid: n.Valid}, nil
+	return Int8{Int64: int64(n.Int64), Valid: n.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -1166,7 +1166,7 @@ func (dst *Int8) Scan(src interface{}) error {
 	if n > math.MaxInt64 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n)
 	}
-	*dst = Int8{Int: int64(n), Valid: true}
+	*dst = Int8{Int64: int64(n), Valid: true}
 
 	return nil
 }
@@ -1176,14 +1176,14 @@ func (src Int8) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return int64(src.Int), nil
+	return int64(src.Int64), nil
 }
 
 func (src Int8) MarshalJSON() ([]byte, error) {
 	if !src.Valid {
 		return []byte("null"), nil
 	}
-	return []byte(strconv.FormatInt(int64(src.Int), 10)), nil
+	return []byte(strconv.FormatInt(int64(src.Int64), 10)), nil
 }
 
 func (dst *Int8) UnmarshalJSON(b []byte) error {
@@ -1196,7 +1196,7 @@ func (dst *Int8) UnmarshalJSON(b []byte) error {
 	if n == nil {
 		*dst = Int8{}
 	} else {
-		*dst = Int8{Int: *n, Valid: true}
+		*dst = Int8{Int64: *n, Valid: true}
 	}
 
 	return nil
@@ -1259,14 +1259,14 @@ func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt64 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int)
+	if n.Int64 > math.MaxInt64 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int64)
 	}
-	if n.Int < math.MinInt64 {
-		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int)
+	if n.Int64 < math.MinInt64 {
+		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int64)
 	}
 
-	return pgio.AppendInt64(buf, int64(n.Int)), nil
+	return pgio.AppendInt64(buf, int64(n.Int64)), nil
 }
 
 type encodePlanInt8CodecTextInt64Valuer struct{}
@@ -1281,14 +1281,14 @@ func (encodePlanInt8CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 		return nil, nil
 	}
 
-	if n.Int > math.MaxInt64 {
-		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int)
+	if n.Int64 > math.MaxInt64 {
+		return nil, fmt.Errorf("%d is greater than maximum value for int8", n.Int64)
 	}
-	if n.Int < math.MinInt64 {
-		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int)
+	if n.Int64 < math.MinInt64 {
+		return nil, fmt.Errorf("%d is less than minimum value for int8", n.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(n.Int, 10)...), nil
+	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
 func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -1672,7 +1672,7 @@ func (scanPlanBinaryInt8ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 	n := int64(int64(binary.BigEndian.Uint64(src)))
 
-	return s.ScanInt64(Int8{Int: n, Valid: true})
+	return s.ScanInt64(Int8{Int64: n, Valid: true})
 }
 
 type scanPlanTextAnyToInt8 struct{}
@@ -1902,7 +1902,7 @@ func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst interface{}) error {
 		return err
 	}
 
-	err = s.ScanInt64(Int8{Int: n, Valid: true})
+	err = s.ScanInt64(Int8{Int64: n, Valid: true})
 	if err != nil {
 		return err
 	}

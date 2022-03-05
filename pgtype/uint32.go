@@ -142,14 +142,14 @@ func (encodePlanUint32CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 		return nil, nil
 	}
 
-	if v.Int < 0 {
-		return nil, fmt.Errorf("%d is less than minimum value for uint32", v.Int)
+	if v.Int64 < 0 {
+		return nil, fmt.Errorf("%d is less than minimum value for uint32", v.Int64)
 	}
-	if v.Int > math.MaxUint32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for uint32", v.Int)
+	if v.Int64 > math.MaxUint32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for uint32", v.Int64)
 	}
 
-	return pgio.AppendUint32(buf, uint32(v.Int)), nil
+	return pgio.AppendUint32(buf, uint32(v.Int64)), nil
 }
 
 type encodePlanUint32CodecTextUint32 struct{}
@@ -186,14 +186,14 @@ func (encodePlanUint32CodecTextInt64Valuer) Encode(value interface{}, buf []byte
 		return nil, nil
 	}
 
-	if v.Int < 0 {
-		return nil, fmt.Errorf("%d is less than minimum value for uint32", v.Int)
+	if v.Int64 < 0 {
+		return nil, fmt.Errorf("%d is less than minimum value for uint32", v.Int64)
 	}
-	if v.Int > math.MaxUint32 {
-		return nil, fmt.Errorf("%d is greater than maximum value for uint32", v.Int)
+	if v.Int64 > math.MaxUint32 {
+		return nil, fmt.Errorf("%d is greater than maximum value for uint32", v.Int64)
 	}
 
-	return append(buf, strconv.FormatInt(v.Int, 10)...), nil
+	return append(buf, strconv.FormatInt(v.Int64, 10)...), nil
 }
 
 func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {

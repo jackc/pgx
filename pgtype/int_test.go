@@ -21,8 +21,8 @@ func TestInt2Codec(t *testing.T) {
 		{uint64(1), new(int16), isExpectedEq(int16(1))},
 		{int(1), new(int16), isExpectedEq(int16(1))},
 		{uint(1), new(int16), isExpectedEq(int16(1))},
-		{pgtype.Int2{Int: 1, Valid: true}, new(int16), isExpectedEq(int16(1))},
-		{int32(-1), new(pgtype.Int2), isExpectedEq(pgtype.Int2{Int: -1, Valid: true})},
+		{pgtype.Int2{Int16: 1, Valid: true}, new(int16), isExpectedEq(int16(1))},
+		{int32(-1), new(pgtype.Int2), isExpectedEq(pgtype.Int2{Int16: -1, Valid: true})},
 		{1, new(int8), isExpectedEq(int8(1))},
 		{1, new(int16), isExpectedEq(int16(1))},
 		{1, new(int32), isExpectedEq(int32(1))},
@@ -43,7 +43,7 @@ func TestInt2Codec(t *testing.T) {
 		{0, new(int16), isExpectedEq(int16(0))},
 		{1, new(int16), isExpectedEq(int16(1))},
 		{math.MaxInt16, new(int16), isExpectedEq(int16(math.MaxInt16))},
-		{1, new(pgtype.Int2), isExpectedEq(pgtype.Int2{Int: 1, Valid: true})},
+		{1, new(pgtype.Int2), isExpectedEq(pgtype.Int2{Int16: 1, Valid: true})},
 		{pgtype.Int2{}, new(pgtype.Int2), isExpectedEq(pgtype.Int2{})},
 		{nil, new(*int16), isExpectedEq((*int16)(nil))},
 	})
@@ -54,8 +54,8 @@ func TestInt2MarshalJSON(t *testing.T) {
 		source pgtype.Int2
 		result string
 	}{
-		{source: pgtype.Int2{Int: 0}, result: "null"},
-		{source: pgtype.Int2{Int: 1, Valid: true}, result: "1"},
+		{source: pgtype.Int2{Int16: 0}, result: "null"},
+		{source: pgtype.Int2{Int16: 1, Valid: true}, result: "1"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -74,8 +74,8 @@ func TestInt2UnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Int2
 	}{
-		{source: "null", result: pgtype.Int2{Int: 0}},
-		{source: "1", result: pgtype.Int2{Int: 1, Valid: true}},
+		{source: "null", result: pgtype.Int2{Int16: 0}},
+		{source: "1", result: pgtype.Int2{Int16: 1, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Int2
@@ -102,8 +102,8 @@ func TestInt4Codec(t *testing.T) {
 		{uint64(1), new(int32), isExpectedEq(int32(1))},
 		{int(1), new(int32), isExpectedEq(int32(1))},
 		{uint(1), new(int32), isExpectedEq(int32(1))},
-		{pgtype.Int4{Int: 1, Valid: true}, new(int32), isExpectedEq(int32(1))},
-		{int32(-1), new(pgtype.Int4), isExpectedEq(pgtype.Int4{Int: -1, Valid: true})},
+		{pgtype.Int4{Int32: 1, Valid: true}, new(int32), isExpectedEq(int32(1))},
+		{int32(-1), new(pgtype.Int4), isExpectedEq(pgtype.Int4{Int32: -1, Valid: true})},
 		{1, new(int8), isExpectedEq(int8(1))},
 		{1, new(int16), isExpectedEq(int16(1))},
 		{1, new(int32), isExpectedEq(int32(1))},
@@ -124,7 +124,7 @@ func TestInt4Codec(t *testing.T) {
 		{0, new(int32), isExpectedEq(int32(0))},
 		{1, new(int32), isExpectedEq(int32(1))},
 		{math.MaxInt32, new(int32), isExpectedEq(int32(math.MaxInt32))},
-		{1, new(pgtype.Int4), isExpectedEq(pgtype.Int4{Int: 1, Valid: true})},
+		{1, new(pgtype.Int4), isExpectedEq(pgtype.Int4{Int32: 1, Valid: true})},
 		{pgtype.Int4{}, new(pgtype.Int4), isExpectedEq(pgtype.Int4{})},
 		{nil, new(*int32), isExpectedEq((*int32)(nil))},
 	})
@@ -135,8 +135,8 @@ func TestInt4MarshalJSON(t *testing.T) {
 		source pgtype.Int4
 		result string
 	}{
-		{source: pgtype.Int4{Int: 0}, result: "null"},
-		{source: pgtype.Int4{Int: 1, Valid: true}, result: "1"},
+		{source: pgtype.Int4{Int32: 0}, result: "null"},
+		{source: pgtype.Int4{Int32: 1, Valid: true}, result: "1"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -155,8 +155,8 @@ func TestInt4UnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Int4
 	}{
-		{source: "null", result: pgtype.Int4{Int: 0}},
-		{source: "1", result: pgtype.Int4{Int: 1, Valid: true}},
+		{source: "null", result: pgtype.Int4{Int32: 0}},
+		{source: "1", result: pgtype.Int4{Int32: 1, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Int4
@@ -183,8 +183,8 @@ func TestInt8Codec(t *testing.T) {
 		{uint64(1), new(int64), isExpectedEq(int64(1))},
 		{int(1), new(int64), isExpectedEq(int64(1))},
 		{uint(1), new(int64), isExpectedEq(int64(1))},
-		{pgtype.Int8{Int: 1, Valid: true}, new(int64), isExpectedEq(int64(1))},
-		{int32(-1), new(pgtype.Int8), isExpectedEq(pgtype.Int8{Int: -1, Valid: true})},
+		{pgtype.Int8{Int64: 1, Valid: true}, new(int64), isExpectedEq(int64(1))},
+		{int32(-1), new(pgtype.Int8), isExpectedEq(pgtype.Int8{Int64: -1, Valid: true})},
 		{1, new(int8), isExpectedEq(int8(1))},
 		{1, new(int16), isExpectedEq(int16(1))},
 		{1, new(int32), isExpectedEq(int32(1))},
@@ -205,7 +205,7 @@ func TestInt8Codec(t *testing.T) {
 		{0, new(int64), isExpectedEq(int64(0))},
 		{1, new(int64), isExpectedEq(int64(1))},
 		{math.MaxInt64, new(int64), isExpectedEq(int64(math.MaxInt64))},
-		{1, new(pgtype.Int8), isExpectedEq(pgtype.Int8{Int: 1, Valid: true})},
+		{1, new(pgtype.Int8), isExpectedEq(pgtype.Int8{Int64: 1, Valid: true})},
 		{pgtype.Int8{}, new(pgtype.Int8), isExpectedEq(pgtype.Int8{})},
 		{nil, new(*int64), isExpectedEq((*int64)(nil))},
 	})
@@ -216,8 +216,8 @@ func TestInt8MarshalJSON(t *testing.T) {
 		source pgtype.Int8
 		result string
 	}{
-		{source: pgtype.Int8{Int: 0}, result: "null"},
-		{source: pgtype.Int8{Int: 1, Valid: true}, result: "1"},
+		{source: pgtype.Int8{Int64: 0}, result: "null"},
+		{source: pgtype.Int8{Int64: 1, Valid: true}, result: "1"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -236,8 +236,8 @@ func TestInt8UnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Int8
 	}{
-		{source: "null", result: pgtype.Int8{Int: 0}},
-		{source: "1", result: pgtype.Int8{Int: 1, Valid: true}},
+		{source: "null", result: pgtype.Int8{Int64: 0}},
+		{source: "1", result: pgtype.Int8{Int64: 1, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Int8

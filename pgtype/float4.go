@@ -26,12 +26,12 @@ func (f Float4) Float64Value() (Float8, error) {
 }
 
 func (f *Float4) ScanInt64(n Int8) error {
-	*f = Float4{Float: float32(n.Int), Valid: n.Valid}
+	*f = Float4{Float: float32(n.Int64), Valid: n.Valid}
 	return nil
 }
 
 func (f Float4) Int64Value() (Int8, error) {
-	return Int8{Int: int64(f.Float), Valid: f.Valid}, nil
+	return Int8{Int64: int64(f.Float), Valid: f.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -141,7 +141,7 @@ func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 		return nil, nil
 	}
 
-	f := float32(n.Int)
+	f := float32(n.Int64)
 	return pgio.AppendUint32(buf, math.Float32bits(f)), nil
 }
 
@@ -226,7 +226,7 @@ func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst interface{}) erro
 		return fmt.Errorf("cannot losslessly convert %v to int64", f32)
 	}
 
-	return s.ScanInt64(Int8{Int: i64, Valid: true})
+	return s.ScanInt64(Int8{Int64: i64, Valid: true})
 }
 
 type scanPlanTextAnyToFloat32 struct{}

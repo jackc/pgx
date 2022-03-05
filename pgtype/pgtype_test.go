@@ -205,7 +205,7 @@ func BenchmarkTypeMapScanInt4IntoBinaryDecoder(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if v != (pgtype.Int4{Int: 42, Valid: true}) {
+		if v != (pgtype.Int4{Int32: 42, Valid: true}) {
 			b.Fatal("scan failed due to bad value")
 		}
 	}
@@ -241,7 +241,7 @@ func BenchmarkScanPlanScanInt4IntoBinaryDecoder(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if v != (pgtype.Int4{Int: 42, Valid: true}) {
+		if v != (pgtype.Int4{Int32: 42, Valid: true}) {
 			b.Fatal("scan failed due to bad value")
 		}
 	}

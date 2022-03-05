@@ -324,7 +324,7 @@ func (encodePlanNumericCodecBinaryInt64Valuer) Encode(value interface{}, buf []b
 		return nil, nil
 	}
 
-	return encodeNumericBinary(Numeric{Int: big.NewInt(n.Int), Valid: true}, buf)
+	return encodeNumericBinary(Numeric{Int: big.NewInt(n.Int64), Valid: true}, buf)
 }
 
 func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
@@ -476,7 +476,7 @@ func (encodePlanNumericCodecTextInt64Valuer) Encode(value interface{}, buf []byt
 		return nil, nil
 	}
 
-	return encodeNumericText(Numeric{Int: big.NewInt(n.Int), Valid: true}, buf)
+	return encodeNumericText(Numeric{Int: big.NewInt(n.Int64), Valid: true}, buf)
 }
 
 func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
@@ -682,7 +682,7 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst interface{}) err
 		return fmt.Errorf("%v is out of range for int64", bigInt)
 	}
 
-	return scanner.ScanInt64(Int8{Int: bigInt.Int64(), Valid: true})
+	return scanner.ScanInt64(Int8{Int64: bigInt.Int64(), Valid: true})
 }
 
 type scanPlanTextAnyToNumericScanner struct{}

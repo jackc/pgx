@@ -45,7 +45,7 @@ func (dst *Int<%= pg_byte_size %>) Scan(src interface{}) error {
 		return err
 	}
 
-	*dst = Int<%= pg_byte_size %>(nullable.Int)
+	*dst = Int<%= pg_byte_size %>(nullable.Int<%= pg_bit_size %>)
 
 	return nil
 }

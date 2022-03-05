@@ -19,15 +19,15 @@ func TestRangeCodecTranscode(t *testing.T) {
 		{
 			pgtype.Int4range{
 				LowerType: pgtype.Inclusive,
-				Lower:     pgtype.Int4{Int: 1, Valid: true},
-				Upper:     pgtype.Int4{Int: 5, Valid: true},
+				Lower:     pgtype.Int4{Int32: 1, Valid: true},
+				Upper:     pgtype.Int4{Int32: 5, Valid: true},
 				UpperType: pgtype.Exclusive, Valid: true,
 			},
 			new(pgtype.Int4range),
 			isExpectedEq(pgtype.Int4range{
 				LowerType: pgtype.Inclusive,
-				Lower:     pgtype.Int4{Int: 1, Valid: true},
-				Upper:     pgtype.Int4{Int: 5, Valid: true},
+				Lower:     pgtype.Int4{Int32: 1, Valid: true},
+				Upper:     pgtype.Int4{Int32: 5, Valid: true},
 				UpperType: pgtype.Exclusive, Valid: true,
 			}),
 		},
@@ -75,8 +75,8 @@ func TestRangeCodecScanRangeTwiceWithUnbounded(t *testing.T) {
 	require.Equal(
 		t,
 		pgtype.Int4range{
-			Lower:     pgtype.Int4{Int: 1, Valid: true},
-			Upper:     pgtype.Int4{Int: 5, Valid: true},
+			Lower:     pgtype.Int4{Int32: 1, Valid: true},
+			Upper:     pgtype.Int4{Int32: 5, Valid: true},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Exclusive,
 			Valid:     true,
@@ -90,7 +90,7 @@ func TestRangeCodecScanRangeTwiceWithUnbounded(t *testing.T) {
 	require.Equal(
 		t,
 		pgtype.Int4range{
-			Lower:     pgtype.Int4{Int: 1, Valid: true},
+			Lower:     pgtype.Int4{Int32: 1, Valid: true},
 			Upper:     pgtype.Int4{},
 			LowerType: pgtype.Inclusive,
 			UpperType: pgtype.Unbounded,
