@@ -291,7 +291,7 @@ func TestConnQueryRawValues(t *testing.T) {
 	rows, err := conn.Query(
 		context.Background(),
 		"select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		10,
 	)
 	require.NoError(t, err)
@@ -1385,7 +1385,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::int8",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1402,7 +1402,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::float8",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1419,7 +1419,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1436,7 +1436,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::bytea",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1453,7 +1453,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::text",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1478,7 +1478,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::text[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1499,7 +1499,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::smallint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1520,7 +1520,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::int[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1541,7 +1541,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1562,7 +1562,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1583,7 +1583,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::smallint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1604,7 +1604,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1625,7 +1625,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1646,7 +1646,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1667,7 +1667,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::float4[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1688,7 +1688,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::float8[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1706,7 +1706,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::circle",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				&expected,
 			).Scan(&actual)
 			if err != nil {
@@ -1734,7 +1734,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::int8, $2::float8, $3, $4::bytea, $5::text",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
 		).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
 		if err != nil {
@@ -1765,7 +1765,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1793,7 +1793,7 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	err := conn.QueryRow(
 		context.Background(),
 		"select $1",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		"test",
 	).Scan(&expected)
 	if err == nil {
@@ -1817,7 +1817,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	err := conn.QueryRow(
 		context.Background(),
 		"select $1",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		`\'; drop table users; --`,
 	).Scan(&expected)
 	if err == nil {

@@ -81,7 +81,7 @@ func TestConnectWithPreferSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
 	connConfig := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	connConfig.PreferSimpleProtocol = true
+	connConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	conn := mustConnect(t, connConfig)
 	defer closeConn(t, conn)
@@ -164,23 +164,24 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
 }
 
-func TestParseConfigExtractsPreferSimpleProtocol(t *testing.T) {
+func TestParseConfigExtractsDefaultQueryExecMode(t *testing.T) {
 	t.Parallel()
 
 	for _, tt := range []struct {
 		connString           string
-		preferSimpleProtocol bool
+		defaultQueryExecMode pgx.QueryExecMode
 	}{
-		{"", false},
-		{"prefer_simple_protocol=false", false},
-		{"prefer_simple_protocol=0", false},
-		{"prefer_simple_protocol=true", true},
-		{"prefer_simple_protocol=1", true},
+		{"", pgx.QueryExecModeCacheStatement},
+		{"default_query_exec_mode=cache_statement", pgx.QueryExecModeCacheStatement},
+		{"default_query_exec_mode=cache_describe", pgx.QueryExecModeCacheDescribe},
+		{"default_query_exec_mode=describe_exec", pgx.QueryExecModeDescribeExec},
+		{"default_query_exec_mode=exec", pgx.QueryExecModeExec},
+		{"default_query_exec_mode=simple_protocol", pgx.QueryExecModeSimpleProtocol},
 	} {
 		config, err := pgx.ParseConfig(tt.connString)
 		require.NoError(t, err)
-		require.Equalf(t, tt.preferSimpleProtocol, config.PreferSimpleProtocol, "connString: `%s`", tt.connString)
-		require.Empty(t, config.RuntimeParams["prefer_simple_protocol"])
+		require.Equalf(t, tt.defaultQueryExecMode, config.DefaultQueryExecMode, "connString: `%s`", tt.connString)
+		require.Empty(t, config.RuntimeParams["default_query_exec_mode"])
 	}
 }
 
@@ -384,7 +385,7 @@ func TestExecPerQuerySimpleProtocol(t *testing.T) {
 
 	commandTag, err = conn.Exec(ctx,
 		"insert into foo(name) values($1);",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		"bar'; drop table foo;--",
 	)
 	if err != nil {

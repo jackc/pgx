@@ -18,7 +18,7 @@ func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, c
 			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 			require.NoError(t, err)
 
-			config.PreferSimpleProtocol = true
+			config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 			conn, err := pgx.ConnectConfig(context.Background(), config)
 			require.NoError(t, err)
 			defer func() {
@@ -130,7 +130,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 	assert.Equalf(t, expected.ConnString(), actual.ConnString(), "%s - ConnString", testName)
 	// Can't test function equality, so just test that they are set or not.
 	assert.Equalf(t, expected.BuildStatementCache == nil, actual.BuildStatementCache == nil, "%s - BuildStatementCache", testName)
-	assert.Equalf(t, expected.PreferSimpleProtocol, actual.PreferSimpleProtocol, "%s - PreferSimpleProtocol", testName)
+	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
 
 	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
 	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)

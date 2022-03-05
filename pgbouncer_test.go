@@ -34,7 +34,7 @@ func TestPgbouncerSimpleProtocol(t *testing.T) {
 
 	config := mustParseConfig(t, connString)
 	config.BuildStatementCache = nil
-	config.PreferSimpleProtocol = true
+	config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	testPgbouncer(t, config, 10, 100)
 }

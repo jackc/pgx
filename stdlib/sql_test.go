@@ -80,7 +80,7 @@ func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, d
 			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 			require.NoError(t, err)
 
-			config.PreferSimpleProtocol = true
+			config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 			db := stdlib.OpenDB(*config)
 			defer func() {
 				err := db.Close()
