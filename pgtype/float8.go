@@ -19,8 +19,8 @@ type Float64Valuer interface {
 }
 
 type Float8 struct {
-	Float float64
-	Valid bool
+	Float64 float64
+	Valid   bool
 }
 
 // ScanFloat64 implements the Float64Scanner interface.
@@ -34,12 +34,12 @@ func (f Float8) Float64Value() (Float8, error) {
 }
 
 func (f *Float8) ScanInt64(n Int8) error {
-	*f = Float8{Float: float64(n.Int64), Valid: n.Valid}
+	*f = Float8{Float64: float64(n.Int64), Valid: n.Valid}
 	return nil
 }
 
 func (f Float8) Int64Value() (Int8, error) {
-	return Int8{Int64: int64(f.Float), Valid: f.Valid}, nil
+	return Int8{Int64: int64(f.Float64), Valid: f.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -51,14 +51,14 @@ func (f *Float8) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case float64:
-		*f = Float8{Float: src, Valid: true}
+		*f = Float8{Float64: src, Valid: true}
 		return nil
 	case string:
 		n, err := strconv.ParseFloat(string(src), 64)
 		if err != nil {
 			return err
 		}
-		*f = Float8{Float: n, Valid: true}
+		*f = Float8{Float64: n, Valid: true}
 		return nil
 	}
 
@@ -70,7 +70,7 @@ func (f Float8) Value() (driver.Value, error) {
 	if !f.Valid {
 		return nil, nil
 	}
-	return f.Float, nil
+	return f.Float64, nil
 }
 
 type Float8Codec struct{}
@@ -134,7 +134,7 @@ func (encodePlanFloat8CodecBinaryFloat64Valuer) Encode(value interface{}, buf []
 		return nil, nil
 	}
 
-	return pgio.AppendUint64(buf, math.Float64bits(n.Float)), nil
+	return pgio.AppendUint64(buf, math.Float64bits(n.Float64)), nil
 }
 
 type encodePlanTextFloat64Valuer struct{}
@@ -149,7 +149,7 @@ func (encodePlanTextFloat64Valuer) Encode(value interface{}, buf []byte) (newBuf
 		return nil, nil
 	}
 
-	return append(buf, strconv.FormatFloat(n.Float, 'f', -1, 64)...), nil
+	return append(buf, strconv.FormatFloat(n.Float64, 'f', -1, 64)...), nil
 }
 
 type encodePlanFloat8CodecBinaryInt64Valuer struct{}
@@ -241,7 +241,7 @@ func (scanPlanBinaryFloat8ToFloat64Scanner) Scan(src []byte, dst interface{}) er
 	}
 
 	n := int64(binary.BigEndian.Uint64(src))
-	return s.ScanFloat64(Float8{Float: math.Float64frombits(uint64(n)), Valid: true})
+	return s.ScanFloat64(Float8{Float64: math.Float64frombits(uint64(n)), Valid: true})
 }
 
 type scanPlanBinaryFloat8ToInt64Scanner struct{}
@@ -299,7 +299,7 @@ func (scanPlanTextAnyToFloat64Scanner) Scan(src []byte, dst interface{}) error {
 		return err
 	}
 
-	return s.ScanFloat64(Float8{Float: n, Valid: true})
+	return s.ScanFloat64(Float8{Float64: n, Valid: true})
 }
 
 func (c Float8Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {

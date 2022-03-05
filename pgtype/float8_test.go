@@ -9,9 +9,9 @@ import (
 
 func TestFloat8Codec(t *testing.T) {
 	testutil.RunTranscodeTests(t, "float8", []testutil.TranscodeTestCase{
-		{pgtype.Float8{Float: -1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: -1, Valid: true})},
-		{pgtype.Float8{Float: 0, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: 0, Valid: true})},
-		{pgtype.Float8{Float: 1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float: 1, Valid: true})},
+		{pgtype.Float8{Float64: -1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: -1, Valid: true})},
+		{pgtype.Float8{Float64: 0, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: 0, Valid: true})},
+		{pgtype.Float8{Float64: 1, Valid: true}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{Float64: 1, Valid: true})},
 		{float64(0.00001), new(float64), isExpectedEq(float64(0.00001))},
 		{float64(9999.99), new(float64), isExpectedEq(float64(9999.99))},
 		{pgtype.Float8{}, new(pgtype.Float8), isExpectedEq(pgtype.Float8{})},

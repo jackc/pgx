@@ -123,11 +123,11 @@ func TestNumericFloat64Valuer(t *testing.T) {
 		n pgtype.Numeric
 		f pgtype.Float8
 	}{
-		{mustParseNumeric(t, "1"), pgtype.Float8{Float: 1, Valid: true}},
-		{mustParseNumeric(t, "0.0000000000000000001"), pgtype.Float8{Float: 0.0000000000000000001, Valid: true}},
-		{mustParseNumeric(t, "-99999999999"), pgtype.Float8{Float: -99999999999, Valid: true}},
-		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, pgtype.Float8{Float: math.Inf(1), Valid: true}},
-		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, pgtype.Float8{Float: math.Inf(-1), Valid: true}},
+		{mustParseNumeric(t, "1"), pgtype.Float8{Float64: 1, Valid: true}},
+		{mustParseNumeric(t, "0.0000000000000000001"), pgtype.Float8{Float64: 0.0000000000000000001, Valid: true}},
+		{mustParseNumeric(t, "-99999999999"), pgtype.Float8{Float64: -99999999999, Valid: true}},
+		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, pgtype.Float8{Float64: math.Inf(1), Valid: true}},
+		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, pgtype.Float8{Float64: math.Inf(-1), Valid: true}},
 		{pgtype.Numeric{Valid: true}, pgtype.Float8{Valid: true}},
 		{pgtype.Numeric{}, pgtype.Float8{}},
 	} {
@@ -138,7 +138,7 @@ func TestNumericFloat64Valuer(t *testing.T) {
 
 	f, err := pgtype.Numeric{NaN: true, Valid: true}.Float64Value()
 	assert.NoError(t, err)
-	assert.True(t, math.IsNaN(f.Float))
+	assert.True(t, math.IsNaN(f.Float64))
 	assert.True(t, f.Valid)
 }
 

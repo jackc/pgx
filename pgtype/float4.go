@@ -11,27 +11,27 @@ import (
 )
 
 type Float4 struct {
-	Float float32
-	Valid bool
+	Float32 float32
+	Valid   bool
 }
 
 // ScanFloat64 implements the Float64Scanner interface.
 func (f *Float4) ScanFloat64(n Float8) error {
-	*f = Float4{Float: float32(n.Float), Valid: n.Valid}
+	*f = Float4{Float32: float32(n.Float64), Valid: n.Valid}
 	return nil
 }
 
 func (f Float4) Float64Value() (Float8, error) {
-	return Float8{Float: float64(f.Float), Valid: f.Valid}, nil
+	return Float8{Float64: float64(f.Float32), Valid: f.Valid}, nil
 }
 
 func (f *Float4) ScanInt64(n Int8) error {
-	*f = Float4{Float: float32(n.Int64), Valid: n.Valid}
+	*f = Float4{Float32: float32(n.Int64), Valid: n.Valid}
 	return nil
 }
 
 func (f Float4) Int64Value() (Int8, error) {
-	return Int8{Int64: int64(f.Float), Valid: f.Valid}, nil
+	return Int8{Int64: int64(f.Float32), Valid: f.Valid}, nil
 }
 
 // Scan implements the database/sql Scanner interface.
@@ -43,14 +43,14 @@ func (f *Float4) Scan(src interface{}) error {
 
 	switch src := src.(type) {
 	case float64:
-		*f = Float4{Float: float32(src), Valid: true}
+		*f = Float4{Float32: float32(src), Valid: true}
 		return nil
 	case string:
 		n, err := strconv.ParseFloat(string(src), 32)
 		if err != nil {
 			return err
 		}
-		*f = Float4{Float: float32(n), Valid: true}
+		*f = Float4{Float32: float32(n), Valid: true}
 		return nil
 	}
 
@@ -62,7 +62,7 @@ func (f Float4) Value() (driver.Value, error) {
 	if !f.Valid {
 		return nil, nil
 	}
-	return float64(f.Float), nil
+	return float64(f.Float32), nil
 }
 
 type Float4Codec struct{}
@@ -126,7 +126,7 @@ func (encodePlanFloat4CodecBinaryFloat64Valuer) Encode(value interface{}, buf []
 		return nil, nil
 	}
 
-	return pgio.AppendUint32(buf, math.Float32bits(float32(n.Float))), nil
+	return pgio.AppendUint32(buf, math.Float32bits(float32(n.Float64))), nil
 }
 
 type encodePlanFloat4CodecBinaryInt64Valuer struct{}
@@ -203,7 +203,7 @@ func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst interface{}) er
 	}
 
 	n := int32(binary.BigEndian.Uint32(src))
-	return s.ScanFloat64(Float8{Float: float64(math.Float32frombits(uint32(n))), Valid: true})
+	return s.ScanFloat64(Float8{Float64: float64(math.Float32frombits(uint32(n))), Valid: true})
 }
 
 type scanPlanBinaryFloat4ToInt64Scanner struct{}
