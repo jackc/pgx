@@ -567,6 +567,23 @@ const (
 	QueryExecModeSimpleProtocol
 )
 
+func (m QueryExecMode) String() string {
+	switch m {
+	case QueryExecModeCacheStatement:
+		return "cache statement"
+	case QueryExecModeCacheDescribe:
+		return "cache describe"
+	case QueryExecModeDescribeExec:
+		return "describe exec"
+	case QueryExecModeExec:
+		return "exec"
+	case QueryExecModeSimpleProtocol:
+		return "simple protocol"
+	default:
+		return "invalid"
+	}
+}
+
 // QueryResultFormats controls the result format (text=0, binary=1) of a query by result column position.
 type QueryResultFormats []int16
 

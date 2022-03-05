@@ -18,7 +18,7 @@ import (
 func TestDateTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		dates := []time.Time{
 			time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -57,7 +57,7 @@ func TestDateTranscode(t *testing.T) {
 func TestTimestampTzTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		inputTime := time.Date(2013, 1, 2, 3, 4, 5, 6000, time.Local)
 
 		var outputTime time.Time
@@ -77,7 +77,7 @@ func TestTimestampTzTranscode(t *testing.T) {
 func TestJSONAndJSONBTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		for _, typename := range []string{"json", "jsonb"} {
 			if _, ok := conn.TypeMap().TypeForName(typename); !ok {
 				continue // No JSON/JSONB type -- must be running against old PostgreSQL
@@ -247,7 +247,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		input := "01086ee0-4963-4e35-9116-30c173a8d0bd"
 
 		var output string
@@ -272,7 +272,7 @@ func TestStringToNotTextTypeTranscode(t *testing.T) {
 func TestInetCIDRTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value *net.IPNet
@@ -323,7 +323,7 @@ func TestInetCIDRTranscodeIPNet(t *testing.T) {
 func TestInetCIDRTranscodeIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value net.IP
@@ -387,7 +387,7 @@ func TestInetCIDRTranscodeIP(t *testing.T) {
 func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value []*net.IPNet
@@ -450,7 +450,7 @@ func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value []net.IP
@@ -536,7 +536,7 @@ func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value string
@@ -582,7 +582,7 @@ func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		tests := []struct {
 			sql    string
 			query  interface{}
@@ -698,7 +698,7 @@ func TestArrayDecoding(t *testing.T) {
 func TestEmptyArrayDecoding(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		var val []string
 
 		err := conn.QueryRow(context.Background(), "select array[]::text[]").Scan(&val)
@@ -743,7 +743,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 func TestPointerPointer(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server auto converts ints to bigint and test relies on exact types")
 
 		type allTypes struct {
@@ -829,7 +829,7 @@ func TestPointerPointer(t *testing.T) {
 func TestPointerPointerNonZero(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		f := "foo"
 		dest := &f
 
@@ -846,7 +846,7 @@ func TestPointerPointerNonZero(t *testing.T) {
 func TestEncodeTypeRename(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		type _int int
 		inInt := _int(1)
 		var outInt _int
@@ -993,7 +993,7 @@ func TestEncodeTypeRename(t *testing.T) {
 func TestRowsScanNilThenScanValue(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		sql := `select null as a, null as b
 union
 select 1, 2
