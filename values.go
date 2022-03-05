@@ -143,18 +143,6 @@ func encodePreparedStatementArgument(m *pgtype.Map, buf []byte, oid uint32, arg 
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
 }
 
-// chooseParameterFormatCode determines the correct format code for an
-// argument to a prepared statement. It defaults to TextFormatCode if no
-// determination can be made.
-func chooseParameterFormatCode(m *pgtype.Map, oid uint32, arg interface{}) int16 {
-	switch arg.(type) {
-	case string, *string:
-		return TextFormatCode
-	}
-
-	return m.FormatCodeForOID(oid)
-}
-
 func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	switch val.Kind() {
 	case reflect.Int:
