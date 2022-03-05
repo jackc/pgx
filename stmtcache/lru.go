@@ -102,10 +102,14 @@ func (c *LRU) StatementErrored(sql string, err error) {
 		return
 	}
 
-	isInvalidCachedPlanError := pgErr.Severity == "ERROR" &&
-		pgErr.Code == "0A000" &&
-		pgErr.Message == "cached plan must not change result type"
-	if isInvalidCachedPlanError {
+	// https://github.com/jackc/pgx/issues/1162
+	//
+	// We used to look for the message "cached plan must not change result type". However, that message can be localized.
+	// Unfortunately, error code "0A000" - "FEATURE NOT SUPPORTED" is used for many different errors and the only way to
+	// tell the difference is by the message. But all that happens is we clear a statement that we otherwise wouldn't
+	// have so it should be safe.
+	possibleInvalidCachedPlanError := pgErr.Code == "0A000"
+	if possibleInvalidCachedPlanError {
 		c.stmtsToClear = append(c.stmtsToClear, sql)
 	}
 }
