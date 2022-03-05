@@ -1912,7 +1912,7 @@ func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
 func TestConnQueryFunc(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		var actualResults []interface{}
 
 		var a, b int
@@ -1942,7 +1942,7 @@ func TestConnQueryFuncScanError(t *testing.T) {
 	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		var actualResults []interface{}
 
 		var a, b int
@@ -1964,7 +1964,7 @@ func TestConnQueryFuncScanError(t *testing.T) {
 func TestConnQueryFuncAbort(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
+	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
 		var a, b int
 		ct, err := conn.QueryFunc(
 			context.Background(),

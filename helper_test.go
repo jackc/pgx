@@ -12,43 +12,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
-	t.Run("SimpleProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
-
-			config.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-			conn, err := pgx.ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			defer func() {
-				err := conn.Close(context.Background())
+func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
+	for _, mode := range []pgx.QueryExecMode{
+		pgx.QueryExecModeCacheStatement,
+		pgx.QueryExecModeCacheDescribe,
+		pgx.QueryExecModeDescribeExec,
+		pgx.QueryExecModeExec,
+		pgx.QueryExecModeSimpleProtocol,
+	} {
+		t.Run(mode.String(),
+			func(t *testing.T) {
+				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 				require.NoError(t, err)
-			}()
 
-			f(t, conn)
-
-			ensureConnValid(t, conn)
-		},
-	)
-
-	t.Run("DefaultProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
-
-			conn, err := pgx.ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			defer func() {
-				err := conn.Close(context.Background())
+				config.DefaultQueryExecMode = mode
+				conn, err := pgx.ConnectConfig(context.Background(), config)
 				require.NoError(t, err)
-			}()
+				defer func() {
+					err := conn.Close(context.Background())
+					require.NoError(t, err)
+				}()
 
-			f(t, conn)
+				f(t, conn)
 
-			ensureConnValid(t, conn)
-		},
-	)
+				ensureConnValid(t, conn)
+			},
+		)
+	}
 }
 
 func mustConnectString(t testing.TB, connString string) *pgx.Conn {
