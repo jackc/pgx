@@ -472,22 +472,17 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 	return commandTag, err
 }
 
-func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, arguments []interface{}) error {
-	if len(sd.ParamOIDs) != len(arguments) {
-		return fmt.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(arguments))
+func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, args []interface{}) error {
+	if len(sd.ParamOIDs) != len(args) {
+		return fmt.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(args))
 	}
 
 	c.eqb.Reset()
 
-	anynil.NormalizeSlice(arguments)
-
-	args, err := evaluateDriverValuers(arguments)
-	if err != nil {
-		return err
-	}
+	anynil.NormalizeSlice(args)
 
 	for i := range args {
-		err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
+		err := c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 		if err != nil {
 			return err
 		}
@@ -675,11 +670,6 @@ optionLoop:
 	rows.sql = sd.SQL
 
 	anynil.NormalizeSlice(args)
-	args, err = evaluateDriverValuers(args)
-	if err != nil {
-		rows.fatal(err)
-		return rows, rows.err
-	}
 
 	for i := range args {
 		err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
@@ -836,13 +826,9 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 		}
 
 		anynil.NormalizeSlice(bi.arguments)
-		args, err := evaluateDriverValuers(bi.arguments)
-		if err != nil {
-			return &batchResults{ctx: ctx, conn: c, err: err}
-		}
 
-		for i := range args {
-			err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
+		for i := range bi.arguments {
+			err := c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], bi.arguments[i])
 			if err != nil {
 				return &batchResults{ctx: ctx, conn: c, err: err}
 			}
