@@ -98,46 +98,22 @@ func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) 
 	return nil, SerializationError(fmt.Sprintf("Cannot encode %T in simple protocol - %T must implement driver.Valuer, pgtype.TextEncoder, or be a native type", arg, arg))
 }
 
-func encodePreparedStatementArgument(m *pgtype.Map, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
-	if arg == nil {
+func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
+	if anynil.Is(arg) {
 		return pgio.AppendInt32(buf, -1), nil
 	}
 
-	switch arg := arg.(type) {
-	case string:
-		buf = pgio.AppendInt32(buf, int32(len(arg)))
-		buf = append(buf, arg...)
-		return buf, nil
+	sp := len(buf)
+	buf = pgio.AppendInt32(buf, -1)
+	argBuf, err := m.Encode(oid, BinaryFormatCode, arg, buf)
+	if err != nil {
+		return nil, err
 	}
-
-	refVal := reflect.ValueOf(arg)
-
-	if refVal.Kind() == reflect.Ptr {
-		if refVal.IsNil() {
-			return pgio.AppendInt32(buf, -1), nil
-		}
-		arg = refVal.Elem().Interface()
-		return encodePreparedStatementArgument(m, buf, oid, arg)
+	if argBuf != nil {
+		buf = argBuf
+		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 	}
-
-	if _, ok := m.TypeForOID(oid); ok {
-		sp := len(buf)
-		buf = pgio.AppendInt32(buf, -1)
-		argBuf, err := m.Encode(oid, BinaryFormatCode, arg, buf)
-		if err != nil {
-			return nil, err
-		}
-		if argBuf != nil {
-			buf = argBuf
-			pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
-		}
-		return buf, nil
-	}
-
-	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return encodePreparedStatementArgument(m, buf, oid, strippedArg)
-	}
-	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+	return buf, nil
 }
 
 func stripNamedType(val *reflect.Value) (interface{}, bool) {

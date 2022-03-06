@@ -211,6 +211,14 @@ func TestConnCopyFromEnum(t *testing.T) {
 	_, err = tx.Exec(ctx, `create type fruit as enum ('apple', 'orange', 'grape')`)
 	require.NoError(t, err)
 
+	// Obviously using conn while a tx is in use and registering a type after the connection has been established are
+	// really bad practices, but for the sake of convenience we do it in the test here.
+	for _, name := range []string{"fruit", "color"} {
+		typ, err := conn.LoadType(ctx, name)
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(typ)
+	}
+
 	_, err = tx.Exec(ctx, `create table foo(
 		a text,
 		b color,
