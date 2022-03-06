@@ -1418,7 +1418,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		var actual bool
 		err := conn.QueryRow(
 			context.Background(),
-			"select $1",
+			"select $1::boolean",
 			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
@@ -1733,7 +1733,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		var actualString string
 		err := conn.QueryRow(
 			context.Background(),
-			"select $1::int8, $2::float8, $3, $4::bytea, $5::text",
+			"select $1::int8, $2::float8, $3::boolean, $4::bytea, $5::text",
 			pgx.QueryExecModeSimpleProtocol,
 			expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
 		).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
