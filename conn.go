@@ -555,6 +555,9 @@ const (
 	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambigious.
 	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
 	// a map[string]string directly as an argument. This mode cannot.
+	//
+	// It may be necessary to specify the desired type of an argument in the SQL string when it cannot be inferred. e.g.
+	// "SELECT $1::boolean".
 	QueryExecModeExec
 
 	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments.
@@ -562,6 +565,9 @@ const (
 	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambigious.
 	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
 	// a map[string]string directly as an argument. This mode cannot.
+	//
+	// This mode uses client side parameter interpolation. All values are quoted and escaped. It may be necessary to
+	// specify the desired type of an argument in the SQL string when it cannot be inferred. e.g. "SELECT $1::boolean".
 	QueryExecModeSimpleProtocol
 )
 
