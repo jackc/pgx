@@ -30,9 +30,13 @@ func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) 
 		return nil, nil
 	}
 
+	if dv, ok := arg.(driver.Valuer); ok {
+		return dv.Value()
+	}
+
+	// All these could be handled by m.Encode below. However, that transforms the argument to a string. That could change
+	// the type of the argument. e.g. '42' instead of 42. So standard types are special cased.
 	switch arg := arg.(type) {
-	case driver.Valuer:
-		return arg.Value()
 	case float32:
 		return float64(arg), nil
 	case float64:
