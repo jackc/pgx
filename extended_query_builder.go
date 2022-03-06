@@ -1,9 +1,7 @@
 package pgx
 
 import (
-	"fmt"
-	"reflect"
-
+	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -55,14 +53,7 @@ func (eqb *extendedQueryBuilder) Reset() {
 }
 
 func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uint32, formatCode int16, arg interface{}) ([]byte, error) {
-	if arg == nil {
-		return nil, nil
-	}
-
-	refVal := reflect.ValueOf(arg)
-	argIsPtr := refVal.Kind() == reflect.Ptr
-
-	if argIsPtr && refVal.IsNil() {
+	if anynil.Is(arg) {
 		return nil, nil
 	}
 
@@ -72,33 +63,15 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uin
 
 	pos := len(eqb.paramValueBytes)
 
-	if arg, ok := arg.(string); ok {
-		return []byte(arg), nil
+	buf, err := m.Encode(oid, formatCode, arg, eqb.paramValueBytes)
+	if err != nil {
+		return nil, err
 	}
-
-	if argIsPtr {
-		// We have already checked that arg is not pointing to nil,
-		// so it is safe to dereference here.
-		arg = refVal.Elem().Interface()
-		return eqb.encodeExtendedParamValue(m, oid, formatCode, arg)
+	if buf == nil {
+		return nil, nil
 	}
-
-	if _, ok := m.TypeForOID(oid); ok {
-		buf, err := m.Encode(oid, formatCode, arg, eqb.paramValueBytes)
-		if err != nil {
-			return nil, err
-		}
-		if buf == nil {
-			return nil, nil
-		}
-		eqb.paramValueBytes = buf
-		return eqb.paramValueBytes[pos:], nil
-	}
-
-	if strippedArg, ok := stripNamedType(&refVal); ok {
-		return eqb.encodeExtendedParamValue(m, oid, formatCode, strippedArg)
-	}
-	return nil, SerializationError(fmt.Sprintf("Cannot encode %T into oid %v - %T must implement Encoder or be converted to a string", arg, oid, arg))
+	eqb.paramValueBytes = buf
+	return eqb.paramValueBytes[pos:], nil
 }
 
 // chooseParameterFormatCode determines the correct format code for an
