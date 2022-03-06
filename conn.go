@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/internal/sanitize"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgconn/stmtcache"
@@ -478,7 +479,9 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 
 	c.eqb.Reset()
 
-	args, err := convertDriverValuers(arguments)
+	anynil.NormalizeSlice(arguments)
+
+	args, err := evaluateDriverValuers(arguments)
 	if err != nil {
 		return err
 	}
@@ -671,7 +674,8 @@ optionLoop:
 
 	rows.sql = sd.SQL
 
-	args, err = convertDriverValuers(args)
+	anynil.NormalizeSlice(args)
+	args, err = evaluateDriverValuers(args)
 	if err != nil {
 		rows.fatal(err)
 		return rows, rows.err
@@ -831,7 +835,8 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("mismatched param and argument count")}
 		}
 
-		args, err := convertDriverValuers(bi.arguments)
+		anynil.NormalizeSlice(bi.arguments)
+		args, err := evaluateDriverValuers(bi.arguments)
 		if err != nil {
 			return &batchResults{ctx: ctx, conn: c, err: err}
 		}
