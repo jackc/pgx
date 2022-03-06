@@ -21,8 +21,8 @@ func TestJSONBTranscode(t *testing.T) {
 		{map[string]interface{}{"foo": "bar"}, new(map[string]interface{}), isExpectedEqMap(map[string]interface{}{"foo": "bar"})},
 		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
-		{map[string]interface{}(nil), new(string), isExpectedEq(`null`)},
-		{map[string]interface{}(nil), new([]byte), isExpectedEqBytes([]byte("null"))},
+		{map[string]interface{}(nil), new(*string), isExpectedEq((*string)(nil))},
+		{map[string]interface{}(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
 	})

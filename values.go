@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -25,18 +26,13 @@ func (e SerializationError) Error() string {
 }
 
 func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) {
-	if arg == nil {
-		return nil, nil
-	}
-
-	refVal := reflect.ValueOf(arg)
-	if refVal.Kind() == reflect.Ptr && refVal.IsNil() {
+	if anynil.Is(arg) {
 		return nil, nil
 	}
 
 	switch arg := arg.(type) {
 	case driver.Valuer:
-		return callValuerValue(arg)
+		return arg.Value()
 	case float32:
 		return float64(arg), nil
 	case float64:
@@ -90,6 +86,7 @@ func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) 
 		return string(buf), nil
 	}
 
+	refVal := reflect.ValueOf(arg)
 	if refVal.Kind() == reflect.Ptr {
 		arg = refVal.Elem().Interface()
 		return convertSimpleArgument(m, arg)
@@ -181,4 +178,18 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 	}
 
 	return nil, false
+}
+
+func evaluateDriverValuers(args []interface{}) ([]interface{}, error) {
+	for i, arg := range args {
+		switch arg := arg.(type) {
+		case driver.Valuer:
+			v, err := arg.Value()
+			if err != nil {
+				return nil, err
+			}
+			args[i] = v
+		}
+	}
+	return args, nil
 }
