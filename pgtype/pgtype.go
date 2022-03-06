@@ -1155,6 +1155,14 @@ func codecDecodeToTextFormat(codec Codec, m *Map, oid uint32, format int16, src 
 // PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
 // found then nil is returned.
 func (m *Map) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan {
+	if format == TextFormatCode {
+		switch value.(type) {
+		case string:
+			return encodePlanStringToAnyTextFormat{}
+		case TextValuer:
+			return encodePlanTextValuerToAnyTextFormat{}
+		}
+	}
 
 	var dt *Type
 
@@ -1185,6 +1193,27 @@ func (m *Map) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan
 	}
 
 	return nil
+}
+
+type encodePlanStringToAnyTextFormat struct{}
+
+func (encodePlanStringToAnyTextFormat) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	s := value.(string)
+	return append(buf, s...), nil
+}
+
+type encodePlanTextValuerToAnyTextFormat struct{}
+
+func (encodePlanTextValuerToAnyTextFormat) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	t, err := value.(TextValuer).TextValue()
+	if err != nil {
+		return nil, err
+	}
+	if !t.Valid {
+		return nil, nil
+	}
+
+	return append(buf, t.String...), nil
 }
 
 // TryWrapEncodePlanFunc is a function that tries to create a wrapper plan for value. If successful it returns a plan

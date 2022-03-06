@@ -16,13 +16,37 @@ func (JSONCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
 	switch value.(type) {
+	case string:
+		return encodePlanJSONCodecEitherFormatString{}
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
-	default:
-		return encodePlanJSONCodecEitherFormatMarshal{}
 	}
+
+	// Because anything can be marshalled the normal wrapping in Map.PlanScan doesn't get a chance to run. So try the
+	// appropriate wrappers here.
+	for _, f := range []TryWrapEncodePlanFunc{
+		TryWrapDerefPointerEncodePlan,
+		TryWrapFindUnderlyingTypeEncodePlan,
+	} {
+		if wrapperPlan, nextValue, ok := f(value); ok {
+			if nextPlan := c.PlanEncode(m, oid, format, nextValue); nextPlan != nil {
+				wrapperPlan.SetNext(nextPlan)
+				return wrapperPlan
+			}
+		}
+	}
+
+	return encodePlanJSONCodecEitherFormatMarshal{}
+}
+
+type encodePlanJSONCodecEitherFormatString struct{}
+
+func (encodePlanJSONCodecEitherFormatString) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+	jsonString := value.(string)
+	buf = append(buf, jsonString...)
+	return buf, nil
 }
 
 type encodePlanJSONCodecEitherFormatByteSlice struct{}
