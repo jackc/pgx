@@ -159,17 +159,3 @@ func stripNamedType(val *reflect.Value) (interface{}, bool) {
 
 	return nil, false
 }
-
-func evaluateDriverValuers(args []interface{}) ([]interface{}, error) {
-	for i, arg := range args {
-		switch arg := arg.(type) {
-		case driver.Valuer:
-			v, err := arg.Value()
-			if err != nil {
-				return nil, err
-			}
-			args[i] = v
-		}
-	}
-	return args, nil
-}
