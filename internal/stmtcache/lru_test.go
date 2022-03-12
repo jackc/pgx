@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgconn/stmtcache"
 
 	"github.com/stretchr/testify/require"
 )

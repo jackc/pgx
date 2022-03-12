@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgconn/stmtcache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

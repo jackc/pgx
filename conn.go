@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/internal/sanitize"
+	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgconn/stmtcache"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -380,9 +380,6 @@ func (c *Conn) Ping(ctx context.Context) error {
 // It is strongly recommended that the connection be idle (no in-progress queries) before the underlying *pgconn.PgConn
 // is used and the connection must be returned to the same state before any *pgx.Conn methods are again used.
 func (c *Conn) PgConn() *pgconn.PgConn { return c.pgConn }
-
-// StatementCache returns the statement cache used for this connection.
-func (c *Conn) StatementCache() stmtcache.Cache { return c.stmtcache }
 
 // TypeMap returns the connection info used for this connection.
 func (c *Conn) TypeMap() *pgtype.Map { return c.typeMap }
