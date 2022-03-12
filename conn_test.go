@@ -256,7 +256,15 @@ func TestExecFailureWithArguments(t *testing.T) {
 		assert.False(t, pgconn.SafeToRetry(err))
 
 		_, err = conn.Exec(context.Background(), "select $1::varchar(1);", "1", "2")
-		require.Error(t, err)
+		if conn.Config().DefaultQueryExecMode == pgx.QueryExecModeExec {
+			// The PostgreSQL server apparently doesn't care about receiving too many arguments and the only way to detect it
+			// locally would be to parse the SQL. The simple protocol path has to parse the SQL so it can cheaply do a check
+			// for the correct number of arguments. But since exec doesn't need to it doesn't make sense to waste time parsing
+			// the SQL.
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+		}
 	})
 }
 
