@@ -244,12 +244,6 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		c.descriptionCache = stmtcache.New(c.pgConn, stmtcache.ModeDescribe, c.config.DescriptionCacheCapacity)
 	}
 
-	// Replication connections can't execute the queries to
-	// populate the c.PgTypes and c.pgsqlAfInet
-	if _, ok := config.Config.RuntimeParams["replication"]; ok {
-		return c, nil
-	}
-
 	return c, nil
 }
 
