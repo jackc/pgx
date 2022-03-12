@@ -14,9 +14,13 @@ type extendedQueryBuilder struct {
 
 func (eqb *extendedQueryBuilder) AppendParam(m *pgtype.Map, oid uint32, arg interface{}) error {
 	f := eqb.chooseParameterFormatCode(m, oid, arg)
-	eqb.paramFormats = append(eqb.paramFormats, f)
+	return eqb.AppendParamFormat(m, oid, f, arg)
+}
 
-	v, err := eqb.encodeExtendedParamValue(m, oid, f, arg)
+func (eqb *extendedQueryBuilder) AppendParamFormat(m *pgtype.Map, oid uint32, format int16, arg interface{}) error {
+	eqb.paramFormats = append(eqb.paramFormats, format)
+
+	v, err := eqb.encodeExtendedParamValue(m, oid, format, arg)
 	if err != nil {
 		return err
 	}
