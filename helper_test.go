@@ -13,13 +13,18 @@ import (
 )
 
 func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
-	for _, mode := range []pgx.QueryExecMode{
+	modes := []pgx.QueryExecMode{
 		pgx.QueryExecModeCacheStatement,
 		pgx.QueryExecModeCacheDescribe,
 		pgx.QueryExecModeDescribeExec,
 		pgx.QueryExecModeExec,
 		pgx.QueryExecModeSimpleProtocol,
-	} {
+	}
+	testWithQueryExecModes(t, modes, f)
+}
+
+func testWithQueryExecModes(t *testing.T, modes []pgx.QueryExecMode, f func(t *testing.T, conn *pgx.Conn)) {
+	for _, mode := range modes {
 		t.Run(mode.String(),
 			func(t *testing.T) {
 				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
