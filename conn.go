@@ -26,9 +26,13 @@ type ConnConfig struct {
 	// Original connection string that was parsed into config.
 	connString string
 
-	// BuildStatementCache creates the stmtcache.Cache implementation for connections created with this config. Set
-	// to nil to disable automatic prepared statements.
-	BuildStatementCache BuildStatementCacheFunc
+	// StatementCacheCapacity is maximum size of the statement cache used when executing a query with "cache_statement"
+	// query exec mode.
+	StatementCacheCapacity int
+
+	// DescriptionCacheCapacity is the maximum size of the description cache used when executing a query with
+	// "cache_describe" query exec mode.
+	DescriptionCacheCapacity int
 
 	// DefaultQueryExecMode controls the default mode for executing queries. By default pgx uses the extended protocol
 	// and automatically prepares and caches prepared statements. However, this may be incompatible with proxies such as
@@ -52,16 +56,14 @@ func (cc *ConnConfig) Copy() *ConnConfig {
 // ConnString returns the connection string as parsed by pgx.ParseConfig into pgx.ConnConfig.
 func (cc *ConnConfig) ConnString() string { return cc.connString }
 
-// BuildStatementCacheFunc is a function that can be used to create a stmtcache.Cache implementation for connection.
-type BuildStatementCacheFunc func(conn *pgconn.PgConn) stmtcache.Cache
-
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage. Use a connection pool to manage access
 // to multiple database connections from multiple goroutines.
 type Conn struct {
 	pgConn             *pgconn.PgConn
 	config             *ConnConfig // config used when establishing this connection
 	preparedStatements map[string]*pgconn.StatementDescription
-	stmtcache          stmtcache.Cache
+	statementCache     stmtcache.Cache
+	descriptionCache   stmtcache.Cache
 	logger             Logger
 	logLevel           LogLevel
 
@@ -115,27 +117,24 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 // ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
 // does. In addition, it accepts the following options:
 //
-// 	statement_cache_capacity
-// 		The maximum size of the automatic statement cache. Set to 0 to disable automatic statement caching. Default: 512.
-//
-// 	statement_cache_mode
-// 		Possible values: "prepare" and "describe". "prepare" will create prepared statements on the PostgreSQL server.
-// 		"describe" will use the anonymous prepared statement to describe a statement without creating a statement on the
-// 		server. "describe" is primarily useful when the environment does not allow prepared statements such as when
-// 		running a connection pooler like PgBouncer. Default: "prepare"
-//
 //	default_query_exec_mode
 //		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
 //		QueryExecMode constant documentation for the meaning of these values. Default: "cache_statement".
+//
+// 	statement_cache_capacity
+// 		The maximum size of the statement cache used when executing a query with "cache_statement" query exec mode.
+// 		Default: 512.
+//
+// 	description_cache_capacity
+// 		The maximum size of the description cache used when executing a query with "cache_describe" query exec mode.
+// 		Default: 512.
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 
-	var buildStatementCache BuildStatementCacheFunc
 	statementCacheCapacity := 512
-	statementCacheMode := stmtcache.ModePrepare
 	if s, ok := config.RuntimeParams["statement_cache_capacity"]; ok {
 		delete(config.RuntimeParams, "statement_cache_capacity")
 		n, err := strconv.ParseInt(s, 10, 32)
@@ -145,22 +144,14 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		statementCacheCapacity = int(n)
 	}
 
-	if s, ok := config.RuntimeParams["statement_cache_mode"]; ok {
-		delete(config.RuntimeParams, "statement_cache_mode")
-		switch s {
-		case "prepare":
-			statementCacheMode = stmtcache.ModePrepare
-		case "describe":
-			statementCacheMode = stmtcache.ModeDescribe
-		default:
-			return nil, fmt.Errorf("invalid statement_cache_mod: %s", s)
+	descriptionCacheCapacity := 512
+	if s, ok := config.RuntimeParams["description_cache_capacity"]; ok {
+		delete(config.RuntimeParams, "description_cache_capacity")
+		n, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse description_cache_capacity: %w", err)
 		}
-	}
-
-	if statementCacheCapacity > 0 {
-		buildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-			return stmtcache.New(conn, statementCacheMode, statementCacheCapacity)
-		}
+		descriptionCacheCapacity = int(n)
 	}
 
 	defaultQueryExecMode := QueryExecModeCacheStatement
@@ -183,12 +174,13 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	}
 
 	connConfig := &ConnConfig{
-		Config:               *config,
-		createdByParseConfig: true,
-		LogLevel:             LogLevelInfo,
-		BuildStatementCache:  buildStatementCache,
-		DefaultQueryExecMode: defaultQueryExecMode,
-		connString:           connString,
+		Config:                   *config,
+		createdByParseConfig:     true,
+		LogLevel:                 LogLevelInfo,
+		StatementCacheCapacity:   statementCacheCapacity,
+		DescriptionCacheCapacity: descriptionCacheCapacity,
+		DefaultQueryExecMode:     defaultQueryExecMode,
+		connString:               connString,
 	}
 
 	return connConfig, nil
@@ -241,8 +233,12 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.closedChan = make(chan error)
 	c.wbuf = make([]byte, 0, 1024)
 
-	if c.config.BuildStatementCache != nil {
-		c.stmtcache = c.config.BuildStatementCache(c.pgConn)
+	if c.config.StatementCacheCapacity > 0 {
+		c.statementCache = stmtcache.New(c.pgConn, stmtcache.ModePrepare, c.config.StatementCacheCapacity)
+	}
+
+	if c.config.DescriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.New(c.pgConn, stmtcache.ModeDescribe, c.config.DescriptionCacheCapacity)
 	}
 
 	// Replication connections can't execute the queries to
@@ -434,13 +430,13 @@ optionLoop:
 		return c.execSimpleProtocol(ctx, sql, arguments)
 	}
 
-	if c.stmtcache != nil {
-		sd, err := c.stmtcache.Get(ctx, sql)
+	if c.statementCache != nil {
+		sd, err := c.statementCache.Get(ctx, sql)
 		if err != nil {
 			return pgconn.CommandTag{}, err
 		}
 
-		if c.stmtcache.Mode() == stmtcache.ModeDescribe {
+		if c.statementCache.Mode() == stmtcache.ModeDescribe {
 			return c.execParams(ctx, sd, arguments)
 		}
 		return c.execPrepared(ctx, sd, arguments)
@@ -651,8 +647,8 @@ optionLoop:
 	c.eqb.Reset()
 
 	if !ok {
-		if c.stmtcache != nil {
-			sd, err = c.stmtcache.Get(ctx, sql)
+		if c.statementCache != nil {
+			sd, err = c.statementCache.Get(ctx, sql)
 			if err != nil {
 				rows.fatal(err)
 				return rows, rows.err
@@ -697,7 +693,7 @@ optionLoop:
 		resultFormats = c.eqb.resultFormats
 	}
 
-	if c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe {
+	if c.statementCache != nil && c.statementCache.Mode() == stmtcache.ModeDescribe {
 		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 	} else {
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
@@ -796,8 +792,8 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 
 	var stmtCache stmtcache.Cache
 	if len(distinctUnpreparedQueries) > 0 {
-		if c.stmtcache != nil && c.stmtcache.Cap() >= len(distinctUnpreparedQueries) {
-			stmtCache = c.stmtcache
+		if c.statementCache != nil && c.statementCache.Cap() >= len(distinctUnpreparedQueries) {
+			stmtCache = c.statementCache
 		} else {
 			stmtCache = stmtcache.New(c.pgConn, stmtcache.ModeDescribe, len(distinctUnpreparedQueries))
 		}

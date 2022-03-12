@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -1827,63 +1826,14 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestQueryStatementCacheModes(t *testing.T) {
-	t.Parallel()
-
-	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-
-	tests := []struct {
-		name                string
-		buildStatementCache pgx.BuildStatementCacheFunc
-	}{
-		{
-			name:                "disabled",
-			buildStatementCache: nil,
-		},
-		{
-			name: "prepare",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-			},
-		},
-		{
-			name: "describe",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		func() {
-			config.BuildStatementCache = tt.buildStatementCache
-			conn := mustConnect(t, config)
-			defer closeConn(t, conn)
-
-			var n int
-			err := conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 1, n, tt.name)
-
-			err = conn.QueryRow(context.Background(), "select 2").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 2, n, tt.name)
-
-			err = conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 1, n, tt.name)
-
-			ensureConnValid(t, conn)
-		}()
-	}
-}
-
 // https://github.com/jackc/pgx/issues/895
-func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
+func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 	t.Parallel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
