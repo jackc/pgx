@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -137,31 +136,42 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 
 	config, err := pgx.ParseConfig("statement_cache_capacity=0")
 	require.NoError(t, err)
-	require.Nil(t, config.BuildStatementCache)
+	require.EqualValues(t, 0, config.StatementCacheCapacity)
 
 	config, err = pgx.ParseConfig("statement_cache_capacity=42")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildStatementCache)
-	c := config.BuildStatementCache(nil)
-	require.NotNil(t, c)
-	require.Equal(t, 42, c.Cap())
-	require.Equal(t, stmtcache.ModePrepare, c.Mode())
+	require.EqualValues(t, 42, config.StatementCacheCapacity)
 
-	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=prepare")
+	config, err = pgx.ParseConfig("description_cache_capacity=0")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildStatementCache)
-	c = config.BuildStatementCache(nil)
-	require.NotNil(t, c)
-	require.Equal(t, 42, c.Cap())
-	require.Equal(t, stmtcache.ModePrepare, c.Mode())
+	require.EqualValues(t, 0, config.DescriptionCacheCapacity)
 
-	config, err = pgx.ParseConfig("statement_cache_capacity=42 statement_cache_mode=describe")
+	config, err = pgx.ParseConfig("description_cache_capacity=42")
 	require.NoError(t, err)
-	require.NotNil(t, config.BuildStatementCache)
-	c = config.BuildStatementCache(nil)
-	require.NotNil(t, c)
-	require.Equal(t, 42, c.Cap())
-	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
+	require.EqualValues(t, 42, config.DescriptionCacheCapacity)
+
+	//	default_query_exec_mode
+	//		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
+
+	config, err = pgx.ParseConfig("default_query_exec_mode=cache_statement")
+	require.NoError(t, err)
+	require.Equal(t, pgx.QueryExecModeCacheStatement, config.DefaultQueryExecMode)
+
+	config, err = pgx.ParseConfig("default_query_exec_mode=cache_describe")
+	require.NoError(t, err)
+	require.Equal(t, pgx.QueryExecModeCacheDescribe, config.DefaultQueryExecMode)
+
+	config, err = pgx.ParseConfig("default_query_exec_mode=describe_exec")
+	require.NoError(t, err)
+	require.Equal(t, pgx.QueryExecModeDescribeExec, config.DefaultQueryExecMode)
+
+	config, err = pgx.ParseConfig("default_query_exec_mode=exec")
+	require.NoError(t, err)
+	require.Equal(t, pgx.QueryExecModeExec, config.DefaultQueryExecMode)
+
+	config, err = pgx.ParseConfig("default_query_exec_mode=simple_protocol")
+	require.NoError(t, err)
+	require.Equal(t, pgx.QueryExecModeSimpleProtocol, config.DefaultQueryExecMode)
 }
 
 func TestParseConfigExtractsDefaultQueryExecMode(t *testing.T) {
@@ -314,56 +324,6 @@ func TestExecFailureCloseBefore(t *testing.T) {
 	_, err := conn.Exec(context.Background(), "select 1")
 	require.Error(t, err)
 	assert.True(t, pgconn.SafeToRetry(err))
-}
-
-func TestExecStatementCacheModes(t *testing.T) {
-	t.Parallel()
-
-	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-
-	tests := []struct {
-		name                string
-		buildStatementCache pgx.BuildStatementCacheFunc
-	}{
-		{
-			name:                "disabled",
-			buildStatementCache: nil,
-		},
-		{
-			name: "prepare",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-			},
-		},
-		{
-			name: "describe",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		func() {
-			config.BuildStatementCache = tt.buildStatementCache
-			conn := mustConnect(t, config)
-			defer closeConn(t, conn)
-
-			commandTag, err := conn.Exec(context.Background(), "select 1")
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 1", commandTag.String(), tt.name)
-
-			commandTag, err = conn.Exec(context.Background(), "select 1 union all select 1")
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 2", commandTag.String(), tt.name)
-
-			commandTag, err = conn.Exec(context.Background(), "select 1")
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, "SELECT 1", commandTag.String(), tt.name)
-
-			ensureConnValid(t, conn)
-		}()
-	}
 }
 
 func TestExecPerQuerySimpleProtocol(t *testing.T) {

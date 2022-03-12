@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -249,7 +248,9 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
@@ -653,7 +654,9 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 
 func TestConnSendBatchNoStatementCache(t *testing.T) {
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
@@ -663,9 +666,8 @@ func TestConnSendBatchNoStatementCache(t *testing.T) {
 
 func TestConnSendBatchPrepareStatementCache(t *testing.T) {
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	config.StatementCacheCapacity = 32
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
@@ -675,9 +677,8 @@ func TestConnSendBatchPrepareStatementCache(t *testing.T) {
 
 func TestConnSendBatchDescribeStatementCache(t *testing.T) {
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
+	config.DescriptionCacheCapacity = 32
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)

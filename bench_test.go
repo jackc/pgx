@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -21,7 +20,9 @@ import (
 
 func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -43,9 +44,9 @@ func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
 
 func BenchmarkMinimalUnpreparedSelectWithStatementCacheModeDescribe(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 32
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -67,9 +68,9 @@ func BenchmarkMinimalUnpreparedSelectWithStatementCacheModeDescribe(b *testing.B
 
 func BenchmarkMinimalUnpreparedSelectWithStatementCacheModePrepare(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	config.StatementCacheCapacity = 32
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -723,7 +724,9 @@ func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
 
 func BenchmarkMultipleQueriesNonBatchNoStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -733,9 +736,9 @@ func BenchmarkMultipleQueriesNonBatchNoStatementCache(b *testing.B) {
 
 func BenchmarkMultipleQueriesNonBatchPrepareStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	config.StatementCacheCapacity = 32
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -745,9 +748,9 @@ func BenchmarkMultipleQueriesNonBatchPrepareStatementCache(b *testing.B) {
 
 func BenchmarkMultipleQueriesNonBatchDescribeStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 32
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -783,7 +786,9 @@ func benchmarkMultipleQueriesNonBatch(b *testing.B, conn *pgx.Conn, queryCount i
 
 func BenchmarkMultipleQueriesBatchNoStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -793,9 +798,9 @@ func BenchmarkMultipleQueriesBatchNoStatementCache(b *testing.B) {
 
 func BenchmarkMultipleQueriesBatchPrepareStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	config.StatementCacheCapacity = 32
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)
@@ -805,9 +810,9 @@ func BenchmarkMultipleQueriesBatchPrepareStatementCache(b *testing.B) {
 
 func BenchmarkMultipleQueriesBatchDescribeStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = func(conn *pgconn.PgConn) stmtcache.Cache {
-		return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-	}
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheDescribe
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 32
 
 	conn := mustConnect(b, config)
 	defer closeConn(b, conn)

@@ -161,8 +161,8 @@ func (rows *connRows) Close() {
 			if rows.logger.shouldLog(LogLevelError) {
 				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
 			}
-			if rows.err != nil && rows.conn.stmtcache != nil {
-				rows.conn.stmtcache.StatementErrored(rows.sql, rows.err)
+			if rows.err != nil && rows.conn.statementCache != nil {
+				rows.conn.statementCache.StatementErrored(rows.sql, rows.err)
 			}
 		}
 	}
