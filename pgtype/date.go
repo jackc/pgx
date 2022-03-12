@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
@@ -182,18 +183,32 @@ func (encodePlanDateCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 		return nil, nil
 	}
 
-	var s string
-
 	switch date.InfinityModifier {
 	case Finite:
-		s = date.Time.Format("2006-01-02")
+		// Year 0000 is 1 BC
+		bc := false
+		year := date.Time.Year()
+		if year <= 0 {
+			year = -year + 1
+			bc = true
+		}
+
+		buf = strconv.AppendInt(buf, int64(year), 10)
+		buf = append(buf, '-')
+		buf = strconv.AppendInt(buf, int64(date.Time.Month()), 10)
+		buf = append(buf, '-')
+		buf = strconv.AppendInt(buf, int64(date.Time.Day()), 10)
+
+		if bc {
+			buf = append(buf, " BC"...)
+		}
 	case Infinity:
-		s = "infinity"
+		buf = append(buf, "infinity"...)
 	case NegativeInfinity:
-		s = "-infinity"
+		buf = append(buf, "-infinity"...)
 	}
 
-	return append(buf, s...), nil
+	return buf, nil
 }
 
 func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
@@ -256,12 +271,29 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst interface{}) error {
 	case "-infinity":
 		return scanner.ScanDate(Date{InfinityModifier: -Infinity, Valid: true})
 	default:
-		t, err := time.ParseInLocation("2006-01-02", sbuf, time.UTC)
-		if err != nil {
-			return err
-		}
+		if len(sbuf) >= 10 {
+			year, err := strconv.ParseInt(sbuf[0:4], 10, 32)
+			if err != nil {
+				return fmt.Errorf("cannot parse year: %v", err)
+			}
+			month, err := strconv.ParseInt(sbuf[5:7], 10, 32)
+			if err != nil {
+				return fmt.Errorf("cannot parse month: %v", err)
+			}
+			day, err := strconv.ParseInt(sbuf[8:10], 10, 32)
+			if err != nil {
+				return fmt.Errorf("cannot parse day: %v", err)
+			}
 
-		return scanner.ScanDate(Date{Time: t, Valid: true})
+			if len(sbuf) == 13 && sbuf[11:] == "BC" {
+				year = -year + 1
+			}
+
+			t := time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
+			return scanner.ScanDate(Date{Time: t, Valid: true})
+		} else {
+			return fmt.Errorf("date too short")
+		}
 	}
 }
 
