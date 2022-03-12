@@ -891,6 +891,19 @@ func TestEncodeTypeRename(t *testing.T) {
 		inString := _string("foo")
 		var outString _string
 
+		// pgx.QueryExecModeExec requires all types to be registered.
+		conn.TypeMap().RegisterDefaultPgType(inInt, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inInt8, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inInt16, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inInt32, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inInt64, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inUint, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inUint8, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inUint16, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inUint32, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inUint64, "int8")
+		conn.TypeMap().RegisterDefaultPgType(inString, "text")
+
 		err := conn.QueryRow(context.Background(), "select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text",
 			inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString,
 		).Scan(&outInt, &outInt8, &outInt16, &outInt32, &outInt64, &outUint, &outUint8, &outUint16, &outUint32, &outUint64, &outString)
