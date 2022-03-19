@@ -132,6 +132,7 @@ const (
 	BinaryFormatCode = 1
 )
 
+// A Codec converts between Go and PostgreSQL values.
 type Codec interface {
 	// FormatSupported returns true if the format is supported.
 	FormatSupported(int16) bool
@@ -139,7 +140,7 @@ type Codec interface {
 	// PreferredFormat returns the preferred format.
 	PreferredFormat() int16
 
-	// PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
+	// PlanEncode returns an EncodePlan for encoding value into PostgreSQL format for oid and format. If no plan can be
 	// found then nil is returned.
 	PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan
 

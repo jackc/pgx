@@ -3,6 +3,8 @@
 
 # pgx - PostgreSQL Driver and Toolkit
 
+*This is the v5 development branch. It is still in active development and testing.*
+
 pgx is a pure Go driver and toolkit for PostgreSQL.
 
 pgx aims to be low-level, fast, and performant, while also enabling PostgreSQL-specific features that the standard `database/sql` package does not allow for.
@@ -12,8 +14,6 @@ The driver component of pgx can be used alongside the standard `database/sql` pa
 The toolkit component is a related set of packages that implement PostgreSQL functionality such as parsing the wire protocol
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
 proxies, load balancers, logical replication clients, etc.
-
-The current release of `pgx v4` requires Go modules. To use the previous version, checkout and vendor the `v3` branch.
 
 ## Example Usage
 
@@ -74,7 +74,7 @@ pgx supports many features beyond what is available through `database/sql`:
 * Full TLS connection control
 * Binary format support for custom types (allows for much quicker encoding/decoding)
 * COPY protocol support for faster bulk data loads
-* Extendable logging support including built-in support for `log15adapter`, [`logrus`](https://github.com/sirupsen/logrus), [`zap`](https://github.com/uber-go/zap), and [`zerolog`](https://github.com/rs/zerolog)
+* Extendable logging support
 * Connection pool with after-connect hook for arbitrary connection setup
 * Listen / notify
 * Conversion of PostgreSQL arrays to Go slice mappings for integers, floats, and strings
@@ -129,36 +129,13 @@ In addition, there are tests specific for PgBouncer that will be executed if `PG
 
 ## Supported Go and PostgreSQL Versions
 
-pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.16 and higher and PostgreSQL 10 and higher. pgx also is tested against the latest version of [CockroachDB](https://www.cockroachlabs.com/product/).
+pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.17 and higher and PostgreSQL 10 and higher. pgx also is tested against the latest version of [CockroachDB](https://www.cockroachlabs.com/product/).
 
 ## Version Policy
 
 pgx follows semantic versioning for the documented public API on stable releases. `v4` is the latest stable major version.
 
 ## PGX Family Libraries
-
-pgx is the head of a family of PostgreSQL libraries. Many of these can be used independently. Many can also be accessed
-from pgx for lower-level control.
-
-### [github.com/jackc/v4/pgconn](https://github.com/jackc/pgx/tree/master/pgconn)
-
-`pgconn` is a lower-level PostgreSQL database driver that operates at nearly the same level as the C library `libpq`.
-
-### [github.com/jackc/pgx/v5/pgxpool](https://github.com/jackc/pgx/tree/master/pgxpool)
-
-`pgxpool` is a connection pool for pgx. pgx is entirely decoupled from its default pool implementation. This means that pgx can be used with a different pool or without any pool at all.
-
-### [github.com/jackc/pgx/v5/stdlib](https://github.com/jackc/pgx/tree/master/stdlib)
-
-This is a `database/sql` compatibility layer for pgx. pgx can be used as a normal `database/sql` driver, but at any time, the native interface can be acquired for more performance or PostgreSQL specific functionality.
-
-### [github.com/jackc/pgx/v5/pgtype](https://github.com/jackc/pgx/tree/master/pgtype)
-
-Over 70 PostgreSQL types are supported including `uuid`, `hstore`, `json`, `bytea`, `numeric`, `interval`, `inet`, and arrays.
-
-### [github.com/jackc/pgproto3](https://github.com/jackc/pgproto3)
-
-pgproto3 provides standalone encoding and decoding of the PostgreSQL v3 wire protocol. This is useful for implementing very low level PostgreSQL tooling.
 
 ### [github.com/jackc/pglogrepl](https://github.com/jackc/pglogrepl)
 
