@@ -1,16 +1,13 @@
-package pgx_test
+package pgtype_test
 
 import (
 	"context"
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
-
-var pointRegexp *regexp.Regexp = regexp.MustCompile(`^\((.*),(.*)\)$`)
 
 // Point represents a point that may be null.
 type Point struct {

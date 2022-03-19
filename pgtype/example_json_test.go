@@ -1,4 +1,4 @@
-package pgx_test
+package pgtype_test
 
 import (
 	"context"
