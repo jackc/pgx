@@ -72,7 +72,7 @@ Previously, most `Scan` implementations would convert `[]byte` to `string` autom
 
 ## Reduced Memory Usage by Reusing Read Buffers
 
-Previously, the connection read buffer would allocate large chunks of memory and never reuse them. This allowed transferring ownership to anything such as scanned values without incurring an additional allocation and memory copy. However, this came at the cost of overall increased memory allocation size. But worse it was also possible to pin large chunks of memory be retaining a reference to a small value that originally came directly from the read buffer. Now ownership remains with the read buffer and anything needing to retain a value must make a copy.
+Previously, the connection read buffer would allocate large chunks of memory and never reuse them. This allowed transferring ownership to anything such as scanned values without incurring an additional allocation and memory copy. However, this came at the cost of overall increased memory allocation size. But worse it was also possible to pin large chunks of memory by retaining a reference to a small value that originally came directly from the read buffer. Now ownership remains with the read buffer and anything needing to retain a value must make a copy.
 
 ## Query Execution Modes
 
