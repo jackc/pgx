@@ -1,7 +1,6 @@
 package pgtype_test
 
 import (
-	"bytes"
 	"database/sql"
 	"errors"
 	"net"
@@ -122,57 +121,6 @@ func TestTypeMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	err = m.Scan(unknownOID, pgx.TextFormatCode, srcBuf, &rb)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("foo"), []byte(rb))
-}
-
-type pgCustomType struct {
-	a string
-	b string
-}
-
-func (ct *pgCustomType) DecodeText(m *pgtype.Map, buf []byte) error {
-	// This is not a complete parser for the text format of composite types. This is just for test purposes.
-	if buf == nil {
-		return errors.New("cannot parse null")
-	}
-
-	if len(buf) < 2 {
-		return errors.New("invalid text format")
-	}
-
-	parts := bytes.Split(buf[1:len(buf)-1], []byte(","))
-	if len(parts) != 2 {
-		return errors.New("wrong number of parts")
-	}
-
-	ct.a = string(parts[0])
-	ct.b = string(parts[1])
-
-	return nil
-}
-
-func TestTypeMapScanUnregisteredOIDToCustomType(t *testing.T) {
-	t.Skip("TODO - unskip later in v5") // may no longer be relevent
-	unregisteredOID := uint32(999999)
-	m := pgtype.NewMap()
-
-	var ct pgCustomType
-	err := m.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &ct)
-	assert.NoError(t, err)
-	assert.Equal(t, "foo", ct.a)
-	assert.Equal(t, "bar", ct.b)
-
-	// Scan value into pointer to custom type
-	var pCt *pgCustomType
-	err = m.Scan(unregisteredOID, pgx.TextFormatCode, []byte("(foo,bar)"), &pCt)
-	assert.NoError(t, err)
-	require.NotNil(t, pCt)
-	assert.Equal(t, "foo", pCt.a)
-	assert.Equal(t, "bar", pCt.b)
-
-	// Scan null into pointer to custom type
-	err = m.Scan(unregisteredOID, pgx.TextFormatCode, nil, &pCt)
-	assert.NoError(t, err)
-	assert.Nil(t, pCt)
 }
 
 func TestTypeMapScanPointerToNilStructDoesNotCrash(t *testing.T) {
