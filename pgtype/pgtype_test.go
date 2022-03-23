@@ -175,6 +175,15 @@ func TestTypeMapScanUnregisteredOIDToCustomType(t *testing.T) {
 	assert.Nil(t, pCt)
 }
 
+func TestTypeMapScanPointerToNilStructDoesNotCrash(t *testing.T) {
+	m := pgtype.NewMap()
+
+	type myStruct struct{}
+	var p *myStruct
+	err := m.Scan(0, pgx.TextFormatCode, []byte("(foo,bar)"), &p)
+	require.NotNil(t, err)
+}
+
 func TestTypeMapScanUnknownOIDTextFormat(t *testing.T) {
 	m := pgtype.NewMap()
 

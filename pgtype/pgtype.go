@@ -952,7 +952,12 @@ func TryWrapStructScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, 
 		return nil, nil, false
 	}
 
-	targetElemValue := targetValue.Elem()
+	var targetElemValue reflect.Value
+	if targetValue.IsNil() {
+		targetElemValue = reflect.New(targetValue.Type().Elem())
+	} else {
+		targetElemValue = targetValue.Elem()
+	}
 	targetElemType := targetElemValue.Type()
 
 	if targetElemType.Kind() == reflect.Struct {
