@@ -263,7 +263,6 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 
 // https://github.com/jackc/pgx/issues/228
 func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -271,8 +270,8 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 
 	var s string
 
-	err := conn.QueryRow(context.Background(), "select 1").Scan(&s)
-	if err == nil || !(strings.Contains(err.Error(), "cannot decode binary value into string") || strings.Contains(err.Error(), "cannot assign")) {
+	err := conn.QueryRow(context.Background(), "select point(1,2)").Scan(&s)
+	if err == nil || !(strings.Contains(err.Error(), "cannot scan OID 600 in binary format into *string")) {
 		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
 	}
 
@@ -956,7 +955,6 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 }
 
 func TestQueryRowErrors(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -976,10 +974,10 @@ func TestQueryRowErrors(t *testing.T) {
 		scanArgs  []interface{}
 		err       string
 	}{
-		// {"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
-		// {"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "unable to assign"},
-		// {"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
+		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
+		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
+		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot scan OID 25 in text format into *int16"},
+		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "unable to encode 705 into OID 600"},
 	}
 
 	for i, tt := range tests {
