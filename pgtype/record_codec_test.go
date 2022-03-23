@@ -23,6 +23,8 @@ func TestRecordCodec(t *testing.T) {
 }
 
 func TestRecordCodecDecodeValue(t *testing.T) {
+	skipCockroachDB(t, "Server converts row int4 to int8")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
