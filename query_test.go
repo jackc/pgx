@@ -1904,7 +1904,7 @@ func TestConnQueryFuncScanError(t *testing.T) {
 			},
 		)
 		require.EqualError(t, err, "can't scan into dest[0]: cannot scan OID 25 in text format into *int")
-		require.Nil(t, ct)
+		require.Equal(t, pgconn.CommandTag{}, ct)
 	})
 }
 
