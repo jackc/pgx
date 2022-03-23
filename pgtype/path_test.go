@@ -27,6 +27,8 @@ func isExpectedEqPath(a interface{}) func(interface{}) bool {
 }
 
 func TestPathTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type path")
+
 	testutil.RunTranscodeTests(t, "path", []testutil.TranscodeTestCase{
 		{
 			pgtype.Path{

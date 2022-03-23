@@ -9,6 +9,8 @@ import (
 )
 
 func TestLineTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type line")
+
 	conn := testutil.MustConnectPgx(t)
 	defer conn.Close(context.Background())
 	if _, ok := conn.TypeMap().TypeForName("line"); !ok {

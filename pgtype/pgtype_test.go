@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgtype/testutil"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,15 @@ func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 	}
 
 	return addr
+}
+
+func skipCockroachDB(t testing.TB, msg string) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip(msg)
+	}
 }
 
 func TestTypeMapScanNilIsNoOp(t *testing.T) {

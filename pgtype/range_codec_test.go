@@ -10,6 +10,8 @@ import (
 )
 
 func TestRangeCodecTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
+
 	testutil.RunTranscodeTests(t, "int4range", []testutil.TranscodeTestCase{
 		{
 			pgtype.Int4range{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Valid: true},
@@ -37,6 +39,8 @@ func TestRangeCodecTranscode(t *testing.T) {
 }
 
 func TestRangeCodecTranscodeCompatibleRangeElementTypes(t *testing.T) {
+	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
+
 	testutil.RunTranscodeTests(t, "numrange", []testutil.TranscodeTestCase{
 		{
 			pgtype.Float8range{LowerType: pgtype.Empty, UpperType: pgtype.Empty, Valid: true},
@@ -64,6 +68,8 @@ func TestRangeCodecTranscodeCompatibleRangeElementTypes(t *testing.T) {
 }
 
 func TestRangeCodecScanRangeTwiceWithUnbounded(t *testing.T) {
+	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -116,6 +122,8 @@ func TestRangeCodecScanRangeTwiceWithUnbounded(t *testing.T) {
 }
 
 func TestRangeCodecDecodeValue(t *testing.T) {
+	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 

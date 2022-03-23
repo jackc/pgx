@@ -11,6 +11,8 @@ import (
 )
 
 func TestTimestamptzCodec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support infinite timestamps (see https://github.com/cockroachdb/cockroach/issues/41564)")
+
 	testutil.RunTranscodeTests(t, "timestamptz", []testutil.TranscodeTestCase{
 		{time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1900, 1, 1, 0, 0, 0, 0, time.Local))},
 		{time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), new(time.Time), isExpectedEqTime(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local))},

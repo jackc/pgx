@@ -10,6 +10,8 @@ import (
 )
 
 func TestPointCodec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type point")
+
 	testutil.RunTranscodeTests(t, "point", []testutil.TranscodeTestCase{
 		{
 			pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},

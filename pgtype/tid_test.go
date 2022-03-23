@@ -8,6 +8,8 @@ import (
 )
 
 func TestTIDCodec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type tid")
+
 	testutil.RunTranscodeTests(t, "tid", []testutil.TranscodeTestCase{
 		{
 			pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},

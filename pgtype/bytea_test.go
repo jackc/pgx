@@ -119,7 +119,7 @@ func TestUndecodedBytes(t *testing.T) {
 	ctx := context.Background()
 
 	var buf []byte
-	err := conn.QueryRow(ctx, `select 1`).Scan((*pgtype.UndecodedBytes)(&buf))
+	err := conn.QueryRow(ctx, `select 1::int4`).Scan((*pgtype.UndecodedBytes)(&buf))
 	require.NoError(t, err)
 
 	require.Len(t, buf, 4)

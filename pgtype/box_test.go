@@ -8,6 +8,8 @@ import (
 )
 
 func TestBoxCodec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support box type")
+
 	testutil.RunTranscodeTests(t, "box", []testutil.TranscodeTestCase{
 		{
 			pgtype.Box{
