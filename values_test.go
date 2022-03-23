@@ -1036,7 +1036,6 @@ order by a nulls first
 }
 
 func TestScanIntoByteSlice(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -1070,7 +1069,7 @@ func TestScanIntoByteSlice(t *testing.T) {
 		sql  string
 		err  string
 	}{
-		{"int binary", "select 42", "can't scan into dest[0]: cannot assign 42 into *[]uint8"},
+		{"int binary", "select 42", "can't scan into dest[0]: cannot scan OID 23 in binary format into *[]uint8"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf []byte
