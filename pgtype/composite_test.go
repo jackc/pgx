@@ -12,6 +12,8 @@ import (
 )
 
 func TestCompositeCodecTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support composite types (see https://github.com/cockroachdb/cockroach/issues/27792)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -90,6 +92,8 @@ func (p *point3d) ScanIndex(i int) interface{} {
 }
 
 func TestCompositeCodecTranscodeStruct(t *testing.T) {
+	skipCockroachDB(t, "Server does not support composite types (see https://github.com/cockroachdb/cockroach/issues/27792)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -125,6 +129,8 @@ create type point3d as (
 }
 
 func TestCompositeCodecTranscodeStructWrapper(t *testing.T) {
+	skipCockroachDB(t, "Server does not support composite types (see https://github.com/cockroachdb/cockroach/issues/27792)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -164,6 +170,8 @@ create type point3d as (
 }
 
 func TestCompositeCodecDecodeValue(t *testing.T) {
+	skipCockroachDB(t, "Server does not support composite types (see https://github.com/cockroachdb/cockroach/issues/27792)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 

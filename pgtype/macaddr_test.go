@@ -26,6 +26,8 @@ func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
 }
 
 func TestMacaddrCodec(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type macaddr")
+
 	testutil.RunTranscodeTests(t, "macaddr", []testutil.TranscodeTestCase{
 		{
 			mustParseMacaddr(t, "01:23:45:67:89:ab"),

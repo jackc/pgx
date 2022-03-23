@@ -110,6 +110,8 @@ func TestArrayCodecDecodeValue(t *testing.T) {
 }
 
 func TestArrayCodecScanMultipleDimensions(t *testing.T) {
+	skipCockroachDB(t, "Server does not support nested arrays (https://github.com/cockroachdb/cockroach/issues/36815)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -127,6 +129,8 @@ func TestArrayCodecScanMultipleDimensions(t *testing.T) {
 }
 
 func TestArrayCodecScanMultipleDimensionsEmpty(t *testing.T) {
+	skipCockroachDB(t, "Server does not support nested arrays (https://github.com/cockroachdb/cockroach/issues/36815)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -144,6 +148,8 @@ func TestArrayCodecScanMultipleDimensionsEmpty(t *testing.T) {
 }
 
 func TestArrayCodecScanWrongMultipleDimensions(t *testing.T) {
+	skipCockroachDB(t, "Server does not support nested arrays (https://github.com/cockroachdb/cockroach/issues/36815)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -158,6 +164,8 @@ func TestArrayCodecScanWrongMultipleDimensions(t *testing.T) {
 }
 
 func TestArrayCodecEncodeMultipleDimensions(t *testing.T) {
+	skipCockroachDB(t, "Server does not support nested arrays (https://github.com/cockroachdb/cockroach/issues/36815)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
@@ -175,6 +183,8 @@ func TestArrayCodecEncodeMultipleDimensions(t *testing.T) {
 }
 
 func TestArrayCodecEncodeMultipleDimensionsRagged(t *testing.T) {
+	skipCockroachDB(t, "Server does not support nested arrays (https://github.com/cockroachdb/cockroach/issues/36815)")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 

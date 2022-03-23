@@ -27,6 +27,8 @@ func isExpectedEqPolygon(a interface{}) func(interface{}) bool {
 }
 
 func TestPolygonTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type polygon")
+
 	testutil.RunTranscodeTests(t, "polygon", []testutil.TranscodeTestCase{
 		{
 			pgtype.Polygon{

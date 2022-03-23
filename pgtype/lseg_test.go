@@ -8,6 +8,8 @@ import (
 )
 
 func TestLsegTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type lseg")
+
 	testutil.RunTranscodeTests(t, "lseg", []testutil.TranscodeTestCase{
 		{
 			pgtype.Lseg{

@@ -8,6 +8,8 @@ import (
 )
 
 func TestQcharTranscode(t *testing.T) {
+	skipCockroachDB(t, "Server does not support qchar")
+
 	var tests []testutil.TranscodeTestCase
 	for i := 0; i <= math.MaxUint8; i++ {
 		tests = append(tests, testutil.TranscodeTestCase{rune(i), new(rune), isExpectedEq(rune(i))})

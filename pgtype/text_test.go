@@ -65,6 +65,8 @@ func TestTextCodecName(t *testing.T) {
 
 // Test fixed length char types like char(3)
 func TestTextCodecBPChar(t *testing.T) {
+	skipCockroachDB(t, "Server does not properly handle bpchar with multi-byte character")
+
 	testutil.RunTranscodeTests(t, "char(3)", []testutil.TranscodeTestCase{
 		{
 			pgtype.Text{String: "a  ", Valid: true},
@@ -92,6 +94,8 @@ func TestTextCodecBPChar(t *testing.T) {
 //
 // It only supports the text format.
 func TestTextCodecACLItem(t *testing.T) {
+	skipCockroachDB(t, "Server does not support type aclitem")
+
 	conn := testutil.MustConnectPgx(t)
 	defer testutil.MustCloseContext(t, conn)
 
