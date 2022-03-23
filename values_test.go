@@ -242,33 +242,6 @@ func mustParseCIDR(t *testing.T, s string) *net.IPNet {
 	return ipnet
 }
 
-func TestStringToNotTextTypeTranscode(t *testing.T) {
-	t.Skip("TODO - unskip later in v5") // Should this even be a thing... i.e. anything is scanable to a string to a string
-
-	t.Parallel()
-
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
-		input := "01086ee0-4963-4e35-9116-30c173a8d0bd"
-
-		var output string
-		err := conn.QueryRow(context.Background(), "select $1::uuid", input).Scan(&output)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if input != output {
-			t.Errorf("uuid: Did not transcode string successfully: %s is not %s", input, output)
-		}
-
-		err = conn.QueryRow(context.Background(), "select $1::uuid", &input).Scan(&output)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if input != output {
-			t.Errorf("uuid: Did not transcode pointer to string successfully: %s is not %s", input, output)
-		}
-	})
-}
-
 func TestInetCIDRTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
