@@ -268,6 +268,8 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	skipCockroachDB(t, conn, "Server does not support point type")
+
 	var s string
 
 	err := conn.QueryRow(context.Background(), "select point(1,2)").Scan(&s)
@@ -373,7 +375,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Read a single value incorrectly
-	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
+	rows, err := conn.Query(context.Background(), "select n::int4 from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -959,6 +961,10 @@ func TestQueryRowErrors(t *testing.T) {
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Skipping due to known server missing point type")
+	}
 
 	type allTypes struct {
 		i16 int16

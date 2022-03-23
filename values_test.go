@@ -1042,7 +1042,7 @@ func TestScanIntoByteSlice(t *testing.T) {
 		sql  string
 		err  string
 	}{
-		{"int binary", "select 42", "can't scan into dest[0]: cannot scan OID 23 in binary format into *[]uint8"},
+		{"int binary", "select 42::int4", "can't scan into dest[0]: cannot scan OID 23 in binary format into *[]uint8"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf []byte
