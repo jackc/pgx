@@ -58,6 +58,7 @@ func TestRecordCodecDecodeValue(t *testing.T) {
 		t.Run(tt.sql, func(t *testing.T) {
 			rows, err := conn.Query(context.Background(), tt.sql)
 			require.NoError(t, err)
+			defer rows.Close()
 
 			for rows.Next() {
 				values, err := rows.Values()
