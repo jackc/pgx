@@ -1889,7 +1889,6 @@ func TestConnQueryFunc(t *testing.T) {
 }
 
 func TestConnQueryFuncScanError(t *testing.T) {
-	t.Skip("TODO - unskip later in v5")
 	t.Parallel()
 
 	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
@@ -1906,7 +1905,7 @@ func TestConnQueryFuncScanError(t *testing.T) {
 				return nil
 			},
 		)
-		require.EqualError(t, err, "can't scan into dest[0]: unable to assign to *int")
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan OID 25 in text format into *int")
 		require.Nil(t, ct)
 	})
 }
