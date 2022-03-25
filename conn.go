@@ -460,13 +460,19 @@ optionLoop:
 		return c.execPrepared(ctx, sd, arguments)
 	}
 
-	return c.execUnprepared(ctx, sql, arguments)
+	if c.config.PreferExecParams {
+		sd := &pgconn.StatementDescription{
+			SQL: sql,
+			ParamOIDs: c.paramOIDsFromArguments(arguments),
+		}
+		return c.execParams(ctx, sd, arguments)
+	}
 
-	//sd, err := c.Prepare(ctx, "", sql)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return c.execPrepared(ctx, sd, arguments)
+	sd, err := c.Prepare(ctx, "", sql)
+	if err != nil {
+		return nil, err
+	}
+	return c.execPrepared(ctx, sd, arguments)
 }
 
 func (c *Conn) paramOIDsFromArguments(arguments []interface{}) []uint32 {
@@ -519,21 +525,6 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, argu
 	}
 
 	return nil
-}
-
-func (c *Conn) execUnprepared(ctx context.Context, sql string, arguments []interface{}) (pgconn.CommandTag, error) {
-	sd := &pgconn.StatementDescription{
-		SQL: sql,
-		ParamOIDs: c.paramOIDsFromArguments(arguments),
-	}
-	err := c.execParamsAndPreparedPrefix(sd, arguments)
-	if err != nil {
-		return nil, err
-	}
-
-	result := c.pgConn.ExecParams(ctx, sd.SQL, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats).Read()
-	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
-	return result.CommandTag, result.Err
 }
 
 func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
@@ -647,17 +638,17 @@ optionLoop:
 				rows.fatal(err)
 				return rows, rows.err
 			}
-		} else {
+		} else if c.config.PreferExecParams {
 			sd = &pgconn.StatementDescription{
 				SQL: sql,
 				ParamOIDs: c.paramOIDsFromArguments(args),
 			}
-
-			//sd, err = c.pgConn.Prepare(ctx, "", sql, nil)
-			//if err != nil {
-			//	rows.fatal(err)
-			//	return rows, rows.err
-			//}
+		} else {
+			sd, err = c.pgConn.Prepare(ctx, "", sql, nil)
+			if err != nil {
+				rows.fatal(err)
+				return rows, rows.err
+			}
 		}
 	}
 	if len(sd.ParamOIDs) != len(args) {
@@ -701,24 +692,6 @@ optionLoop:
 	} else {
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
 	}
-
-	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
-
-	return rows, rows.err
-}
-
-func (c *Conn) queryUnprepared(ctx context.Context, rows *connRows, sql string, args ...interface{}) (Rows, error) {
-	sd := &pgconn.StatementDescription{
-		SQL: sql,
-		ParamOIDs: c.paramOIDsFromArguments(args),
-	}
-	err := c.execParamsAndPreparedPrefix(sd, args)
-	if err != nil {
-		return nil, err
-	}
-
-	rows.sql = sql
-	rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, c.eqb.resultFormats)
 
 	c.eqb.Reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 
