@@ -687,7 +687,7 @@ optionLoop:
 		resultFormats = c.eqb.resultFormats
 	}
 
-	if c.stmtcache == nil || (c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe) {
+	if (c.stmtcache == nil && c.config.PreferExecParams) || (c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe) {
 		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 	} else {
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
