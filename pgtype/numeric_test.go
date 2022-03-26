@@ -98,16 +98,10 @@ func TestNumericCodec(t *testing.T) {
 		{pgtype.Numeric{Int: mustParseBigInt(t, "13423409823409243892349028349023482934092340892390101"), Exp: -92, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{Int: mustParseBigInt(t, "13423409823409243892349028349023482934092340892390101"), Exp: -92, Valid: true})},
 		{pgtype.Numeric{Int: mustParseBigInt(t, "13423409823409243892349028349023482934092340892390101"), Exp: -93, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{Int: mustParseBigInt(t, "13423409823409243892349028349023482934092340892390101"), Exp: -93, Valid: true})},
 		{pgtype.Numeric{NaN: true, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{NaN: true, Valid: true})},
-		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true})},
-		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
 		{longestNumeric, new(pgtype.Numeric), isExpectedEqNumeric(longestNumeric)},
 		{mustParseNumeric(t, "1"), new(int64), isExpectedEq(int64(1))},
 		{math.NaN(), new(float64), func(a interface{}) bool { return math.IsNaN(a.(float64)) }},
 		{float32(math.NaN()), new(float32), func(a interface{}) bool { return math.IsNaN(float64(a.(float32))) }},
-		{math.Inf(1), new(float64), isExpectedEq(math.Inf(1))},
-		{float32(math.Inf(1)), new(float32), isExpectedEq(float32(math.Inf(1)))},
-		{math.Inf(-1), new(float64), isExpectedEq(math.Inf(-1))},
-		{float32(math.Inf(-1)), new(float32), isExpectedEq(float32(math.Inf(-1)))},
 		{int64(-1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "-1"))},
 		{int64(0), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "0"))},
 		{int64(1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "1"))},
@@ -117,6 +111,20 @@ func TestNumericCodec(t *testing.T) {
 		{int64(math.MaxInt64 - 1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, strconv.FormatInt(math.MaxInt64-1, 10)))},
 		{pgtype.Numeric{}, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 		{nil, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
+	})
+}
+
+func TestNumericCodecInfinity(t *testing.T) {
+	skipCockroachDB(t, "server formats numeric text format differently")
+	skipPostgreSQLVersionLessThan(t, 14)
+
+	testutil.RunTranscodeTests(t, "numeric", []testutil.TranscodeTestCase{
+		{math.Inf(1), new(float64), isExpectedEq(math.Inf(1))},
+		{float32(math.Inf(1)), new(float32), isExpectedEq(float32(math.Inf(1)))},
+		{math.Inf(-1), new(float64), isExpectedEq(math.Inf(-1))},
+		{float32(math.Inf(-1)), new(float32), isExpectedEq(float32(math.Inf(-1)))},
+		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true})},
+		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
 	})
 }
 
