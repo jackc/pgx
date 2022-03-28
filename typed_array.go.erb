@@ -4,6 +4,8 @@
   # defaults when not explicitly set on command line
 
   binary_format ||= "true"
+  text_format ||= "true"
+
   text_null ||= "NULL"
 %>
 
@@ -286,6 +288,7 @@ func (src *<%= pgtype_array_type %>) assignToRecursive(value reflect.Value, inde
 	return index, nil
 }
 
+<% if text_format == "true" %>
 func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = <%= pgtype_array_type %>{Status: Null}
@@ -321,6 +324,7 @@ func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error 
 
 	return nil
 }
+<% end %>
 
 <% if binary_format == "true" %>
 func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
@@ -366,6 +370,7 @@ func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) erro
 }
 <% end %>
 
+<% if text_format == "true" %>
 func (src <%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte, error) {
 	switch src.Status {
 	case Null:
@@ -422,6 +427,7 @@ func (src <%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte
 
 	return buf, nil
 }
+<% end %>
 
 <% if binary_format == "true" %>
 	func (src <%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
@@ -469,6 +475,7 @@ func (src <%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte
 	}
 <% end %>
 
+<% if text_format == "true" %>
 // Scan implements the database/sql Scanner interface.
 func (dst *<%= pgtype_array_type %>) Scan(src interface{}) error {
 	if src == nil {
@@ -499,3 +506,4 @@ func (src <%= pgtype_array_type %>) Value() (driver.Value, error) {
 
 	return string(buf), nil
 }
+<% end %>
