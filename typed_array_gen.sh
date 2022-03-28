@@ -25,4 +25,6 @@ erb pgtype_array_type=JSONBArray pgtype_element_type=JSONB go_array_types=[]stri
 # While the binary format is theoretically possible it is only practical to use the text format.
 erb pgtype_array_type=EnumArray pgtype_element_type=GenericText go_array_types=[]string,[]*string binary_format=false typed_array.go.erb > enum_array.go
 
+erb pgtype_array_type=RecordArray pgtype_element_type=Record go_array_types=[][]Value element_type_name=record text_null=NULL encode_binary=false text_format=false typed_array.go.erb > record_array.go
+
 goimports -w *_array.go
