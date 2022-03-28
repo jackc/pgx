@@ -7,6 +7,9 @@
   text_format ||= "true"
 
   text_null ||= "NULL"
+
+  encode_binary ||= binary_format
+  decode_binary ||= binary_format
 %>
 
 package pgtype
@@ -326,7 +329,7 @@ func (dst *<%= pgtype_array_type %>) DecodeText(ci *ConnInfo, src []byte) error 
 }
 <% end %>
 
-<% if binary_format == "true" %>
+<% if decode_binary == "true" %>
 func (dst *<%= pgtype_array_type %>) DecodeBinary(ci *ConnInfo, src []byte) error {
 	if src == nil {
 		*dst = <%= pgtype_array_type %>{Status: Null}
@@ -429,7 +432,7 @@ func (src <%= pgtype_array_type %>) EncodeText(ci *ConnInfo, buf []byte) ([]byte
 }
 <% end %>
 
-<% if binary_format == "true" %>
+<% if encode_binary == "true" %>
 	func (src <%= pgtype_array_type %>) EncodeBinary(ci *ConnInfo, buf []byte) ([]byte, error) {
 		switch src.Status {
 		case Null:
