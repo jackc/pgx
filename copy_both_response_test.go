@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgproto3/v2"
-	"gotest.tools/v3/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecode(t *testing.T) {
@@ -16,7 +16,7 @@ func TestEncodeDecode(t *testing.T) {
 	dstBytes = src.Encode(dstBytes)
 	dst := pgproto3.CopyBothResponse{}
 	err := dst.Decode(dstBytes[5:])
-	assert.NilError(t, err, "No errors on decode")
+	assert.NoError(t, err, "No errors on decode")
 	assert.Equal(t, dst.OverallFormat, src.OverallFormat, "OverallFormat is decoded successfully")
-	assert.DeepEqual(t, dst.ColumnFormatCodes, src.ColumnFormatCodes)
+	assert.EqualValues(t, dst.ColumnFormatCodes, src.ColumnFormatCodes)
 }
