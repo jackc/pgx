@@ -6,4 +6,5 @@ require (
 	github.com/jackc/chunkreader/v2 v2.0.0
 	github.com/jackc/pgio v1.0.0
 	github.com/stretchr/testify v1.4.0
+	gotest.tools/v3 v3.1.0
 )
