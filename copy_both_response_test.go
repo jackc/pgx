@@ -8,15 +8,11 @@ import (
 )
 
 func TestEncodeDecode(t *testing.T) {
-	src := pgproto3.CopyBothResponse{
-		OverallFormat:     byte(1), // Just to differ from defaults
-		ColumnFormatCodes: []uint16{0, 1},
-	}
-	dstBytes := []byte{}
-	dstBytes = src.Encode(dstBytes)
-	dst := pgproto3.CopyBothResponse{}
-	err := dst.Decode(dstBytes[5:])
+	srcBytes := []byte{'W', 0x00, 0x00, 0x00, 0x0b, 0x01, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01}
+	dstResp := pgproto3.CopyBothResponse{}
+	err := dstResp.Decode(srcBytes[5:])
 	assert.NoError(t, err, "No errors on decode")
-	assert.Equal(t, dst.OverallFormat, src.OverallFormat, "OverallFormat is decoded successfully")
-	assert.EqualValues(t, dst.ColumnFormatCodes, src.ColumnFormatCodes)
+	dstBytes := []byte{}
+	dstBytes = dstResp.Encode(dstBytes)
+	assert.EqualValues(t, srcBytes, dstBytes, "Expecting src & dest bytes to match")
 }
