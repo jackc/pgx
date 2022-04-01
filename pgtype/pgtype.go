@@ -1737,7 +1737,14 @@ func (m *Map) Encode(oid uint32, formatCode int16, value interface{}, buf []byte
 			return m.Encode(oid, formatCode, v, buf)
 		}
 
-		return nil, fmt.Errorf("unable to encode %#v into OID %d", value, oid)
+		return nil, fmt.Errorf("unable to encode %#v into format code %d for OID %d", value, formatCode, oid)
 	}
-	return plan.Encode(value, buf)
+
+	newBuf, err = plan.Encode(value, buf)
+	if err != nil {
+		err = fmt.Errorf("unable to encode %#v into format code %d for OID %d: %v", value, formatCode, oid, err)
+		return nil, err
+	}
+
+	return newBuf, nil
 }

@@ -983,7 +983,7 @@ func TestQueryRowErrors(t *testing.T) {
 		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
 		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot scan OID 25 in text format into *int16"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "unable to encode 705 into OID 600"},
+		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "unable to encode 705 into format code 1 for OID 600"},
 	}
 
 	for i, tt := range tests {
