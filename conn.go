@@ -488,6 +488,7 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, args
 	for i := range args {
 		err := c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 		if err != nil {
+			err = fmt.Errorf("failed to encode args[%d]: %v", i, err)
 			return err
 		}
 	}
@@ -739,6 +740,7 @@ optionLoop:
 		for i := range args {
 			err = c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], args[i])
 			if err != nil {
+				err = fmt.Errorf("failed to encode args[%d]: %v", i, err)
 				rows.fatal(err)
 				return rows, rows.err
 			}
@@ -895,6 +897,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 				for i := range bi.arguments {
 					err := c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], bi.arguments[i])
 					if err != nil {
+						err = fmt.Errorf("failed to encode args[%d]: %v", i, err)
 						return &batchResults{ctx: ctx, conn: c, err: err}
 					}
 				}
@@ -962,6 +965,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			for i := range bi.arguments {
 				err := c.eqb.AppendParam(c.typeMap, sd.ParamOIDs[i], bi.arguments[i])
 				if err != nil {
+					err = fmt.Errorf("failed to encode args[%d]: %v", i, err)
 					return &batchResults{ctx: ctx, conn: c, err: err}
 				}
 			}
