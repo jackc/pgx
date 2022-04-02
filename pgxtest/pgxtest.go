@@ -86,3 +86,10 @@ func RunWithQueryExecModes(ctx context.Context, t *testing.T, ctr ConnTestRunner
 		)
 	}
 }
+
+// SkipCockroachDB calls Skip on t with msg if the connection is to a CockroachDB server.
+func SkipCockroachDB(t testing.TB, conn *pgx.Conn, msg string) {
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip(msg)
+	}
+}

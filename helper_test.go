@@ -137,9 +137,3 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 		}
 	}
 }
-
-func skipCockroachDB(t testing.TB, conn *pgx.Conn, msg string) {
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip(msg)
-	}
-}
