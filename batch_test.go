@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +16,7 @@ import (
 func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server serial type is incompatible with test")
 
 		sql := `create temporary table ledger(
@@ -149,7 +150,7 @@ func TestConnSendBatch(t *testing.T) {
 func TestConnSendBatchMany(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		sql := `create temporary table ledger(
 	  id serial primary key,
 	  description varchar not null,
@@ -194,7 +195,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 		pgx.QueryExecModeExec,
 		// Don't test simple mode with prepared statements.
 	}
-	testWithQueryExecModes(t, modes, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 		_, err := conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 		if err != nil {
@@ -300,7 +301,7 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		batch := &pgx.Batch{}
 		batch.Queue("select n from generate_series(0,5) n")
@@ -359,7 +360,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 func TestConnSendBatchQueryError(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		batch := &pgx.Batch{}
 		batch.Queue("select n from generate_series(0,5) n where 100/(5-n) > 0")
@@ -397,7 +398,7 @@ func TestConnSendBatchQueryError(t *testing.T) {
 func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		batch := &pgx.Batch{}
 		batch.Queue("select 1 1")
@@ -421,7 +422,7 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		sql := `create temporary table ledger(
 	  id serial primary key,
@@ -458,7 +459,7 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		sql := `create temporary table ledger(
 	  id serial primary key,
@@ -495,7 +496,7 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 func TestTxSendBatch(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		sql := `create temporary table ledger1(
 	  id serial primary key,
@@ -562,7 +563,7 @@ func TestTxSendBatch(t *testing.T) {
 func TestTxSendBatchRollback(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		sql := `create temporary table ledger1(
 	  id serial primary key,
@@ -597,7 +598,7 @@ func TestTxSendBatchRollback(t *testing.T) {
 func TestConnBeginBatchDeferredError(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
 		skipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,7 +19,7 @@ import (
 func TestDateTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		dates := []time.Time{
 			time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC),
 			time.Date(1000, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -57,7 +58,7 @@ func TestDateTranscode(t *testing.T) {
 func TestTimestampTzTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		inputTime := time.Date(2013, 1, 2, 3, 4, 5, 6000, time.Local)
 
 		var outputTime time.Time
@@ -77,7 +78,7 @@ func TestTimestampTzTranscode(t *testing.T) {
 func TestJSONAndJSONBTranscode(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		for _, typename := range []string{"json", "jsonb"} {
 			if _, ok := conn.TypeMap().TypeForName(typename); !ok {
 				continue // No JSON/JSONB type -- must be running against old PostgreSQL
@@ -109,7 +110,7 @@ func TestJSONAndJSONBTranscodeExtendedOnly(t *testing.T) {
 
 }
 
-func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONString(t testing.TB, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -125,7 +126,7 @@ func testJSONString(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func testJSONStringPointer(t *testing.T, conn *pgx.Conn, typename string) {
+func testJSONStringPointer(t testing.TB, conn *pgx.Conn, typename string) {
 	input := `{"key": "value"}`
 	expectedOutput := map[string]string{"key": "value"}
 	var output map[string]string
@@ -233,7 +234,7 @@ func testJSONStruct(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 }
 
-func mustParseCIDR(t *testing.T, s string) *net.IPNet {
+func mustParseCIDR(t testing.TB, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +246,7 @@ func mustParseCIDR(t *testing.T, s string) *net.IPNet {
 func TestInetCIDRTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value *net.IPNet
@@ -296,7 +297,7 @@ func TestInetCIDRTranscodeIPNet(t *testing.T) {
 func TestInetCIDRTranscodeIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value net.IP
@@ -360,7 +361,7 @@ func TestInetCIDRTranscodeIP(t *testing.T) {
 func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value []*net.IPNet
@@ -423,7 +424,7 @@ func TestInetCIDRArrayTranscodeIPNet(t *testing.T) {
 func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value []net.IP
@@ -509,7 +510,7 @@ func TestInetCIDRArrayTranscodeIP(t *testing.T) {
 func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql   string
 			value string
@@ -555,16 +556,16 @@ func TestInetCIDRTranscodeWithJustIP(t *testing.T) {
 func TestArrayDecoding(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql    string
 			query  interface{}
 			scan   interface{}
-			assert func(*testing.T, interface{}, interface{})
+			assert func(testing.TB, interface{}, interface{})
 		}{
 			{
 				"select $1::bool[]", []bool{true, false, true}, &[]bool{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]bool))) {
 						t.Errorf("failed to encode bool[]")
 					}
@@ -572,7 +573,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int16))) {
 						t.Errorf("failed to encode smallint[]")
 					}
@@ -580,7 +581,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint16))) {
 						t.Errorf("failed to encode smallint[]")
 					}
@@ -588,7 +589,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int32))) {
 						t.Errorf("failed to encode int[]")
 					}
@@ -596,7 +597,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint32))) {
 						t.Errorf("failed to encode int[]")
 					}
@@ -604,7 +605,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int64))) {
 						t.Errorf("failed to encode bigint[]")
 					}
@@ -612,7 +613,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint64))) {
 						t.Errorf("failed to encode bigint[]")
 					}
@@ -620,7 +621,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					if !reflect.DeepEqual(query, *(scan.(*[]string))) {
 						t.Errorf("failed to encode text[]")
 					}
@@ -628,7 +629,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					queryTimeSlice := query.([]time.Time)
 					scanTimeSlice := *(scan.(*[]time.Time))
 					require.Equal(t, len(queryTimeSlice), len(scanTimeSlice))
@@ -639,7 +640,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bytea[]", [][]byte{{0, 1, 2, 3}, {4, 5, 6, 7}}, &[][]byte{},
-				func(t *testing.T, query, scan interface{}) {
+				func(t testing.TB, query, scan interface{}) {
 					queryBytesSliceSlice := query.([][]byte)
 					scanBytesSliceSlice := *(scan.(*[][]byte))
 					if len(queryBytesSliceSlice) != len(scanBytesSliceSlice) {
@@ -671,7 +672,7 @@ func TestArrayDecoding(t *testing.T) {
 func TestEmptyArrayDecoding(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var val []string
 
 		err := conn.QueryRow(context.Background(), "select array[]::text[]").Scan(&val)
@@ -716,7 +717,7 @@ func TestEmptyArrayDecoding(t *testing.T) {
 func TestPointerPointer(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server auto converts ints to bigint and test relies on exact types")
 
 		type allTypes struct {
@@ -802,7 +803,7 @@ func TestPointerPointer(t *testing.T) {
 func TestPointerPointerNonZero(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		f := "foo"
 		dest := &f
 
@@ -819,7 +820,7 @@ func TestPointerPointerNonZero(t *testing.T) {
 func TestEncodeTypeRename(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		type _int int
 		inInt := _int(1)
 		var outInt _int
@@ -979,7 +980,7 @@ func TestEncodeTypeRename(t *testing.T) {
 func TestRowsScanNilThenScanValue(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		sql := `select null as a, null as b
 union
 select 1, 2
