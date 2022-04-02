@@ -351,15 +351,6 @@ func (w *stringWrapper) ScanInt64(v Int8) error {
 	return nil
 }
 
-func (w stringWrapper) Int64Value() (Int8, error) {
-	num, err := strconv.ParseInt(string(w), 10, 64)
-	if err != nil {
-		return Int8{}, err
-	}
-
-	return Int8{Int64: int64(num), Valid: true}, nil
-}
-
 type timeWrapper time.Time
 
 func (w *timeWrapper) ScanDate(v Date) error {
