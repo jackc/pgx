@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1866,7 +1867,7 @@ func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 func TestConnQueryFunc(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var actualResults []interface{}
 
 		var a, b int
@@ -1895,7 +1896,7 @@ func TestConnQueryFunc(t *testing.T) {
 func TestConnQueryFuncScanError(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var actualResults []interface{}
 
 		var a, b int
@@ -1917,7 +1918,7 @@ func TestConnQueryFuncScanError(t *testing.T) {
 func TestConnQueryFuncAbort(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var a, b int
 		ct, err := conn.QueryFunc(
 			context.Background(),

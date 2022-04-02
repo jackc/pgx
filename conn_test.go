@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -198,7 +199,7 @@ func TestParseConfigExtractsDefaultQueryExecMode(t *testing.T) {
 func TestExec(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		if results := mustExec(t, conn, "create temporary table foo(id integer primary key);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
@@ -232,7 +233,7 @@ func TestExec(t *testing.T) {
 func TestExecFailure(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		if _, err := conn.Exec(context.Background(), "selct;"); err == nil {
 			t.Fatal("Expected SQL syntax error")
 		}
@@ -248,7 +249,7 @@ func TestExecFailure(t *testing.T) {
 func TestExecFailureWithArguments(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(context.Background(), "selct $1;", 1)
 		if err == nil {
 			t.Fatal("Expected SQL syntax error")
@@ -263,7 +264,7 @@ func TestExecFailureWithArguments(t *testing.T) {
 func TestExecContextWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
 
@@ -281,7 +282,7 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
 
@@ -303,7 +304,7 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		ctx, cancelFunc := context.WithCancel(context.Background())
 		defer cancelFunc()
 
@@ -680,7 +681,7 @@ func TestFatalTxError(t *testing.T) {
 func TestInsertBoolArray(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		if results := mustExec(t, conn, "create temporary table foo(spice bool[]);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
@@ -695,7 +696,7 @@ func TestInsertBoolArray(t *testing.T) {
 func TestInsertTimestampArray(t *testing.T) {
 	t.Parallel()
 
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		if results := mustExec(t, conn, "create temporary table foo(spice timestamp[]);"); results.String() != "CREATE TABLE" {
 			t.Error("Unexpected results from Exec")
 		}
@@ -819,7 +820,7 @@ func TestConnInitTypeMap(t *testing.T) {
 }
 
 func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
 
 		var n uint64
@@ -835,7 +836,7 @@ func TestUnregisteredTypeUsableAsStringArgumentAndBaseResult(t *testing.T) {
 }
 
 func TestDomainType(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		skipCockroachDB(t, conn, "Server does support domain types (https://github.com/cockroachdb/cockroach/issues/27796)")
 
 		// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
@@ -1006,7 +1007,7 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 }
 
 func TestInsertDurationInterval(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(context.Background(), "create temporary table t(duration INTERVAL(0) NOT NULL)")
 		require.NoError(t, err)
 

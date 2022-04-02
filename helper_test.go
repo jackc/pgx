@@ -9,40 +9,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
-func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
-	modes := []pgx.QueryExecMode{
-		pgx.QueryExecModeCacheStatement,
-		pgx.QueryExecModeCacheDescribe,
-		pgx.QueryExecModeDescribeExec,
-		pgx.QueryExecModeExec,
-		pgx.QueryExecModeSimpleProtocol,
-	}
-	testWithQueryExecModes(t, modes, f)
-}
+var defaultConnTestRunner pgxtest.ConnTestRunner
 
-func testWithQueryExecModes(t *testing.T, modes []pgx.QueryExecMode, f func(t *testing.T, conn *pgx.Conn)) {
-	for _, mode := range modes {
-		t.Run(mode.String(),
-			func(t *testing.T) {
-				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-				require.NoError(t, err)
-
-				config.DefaultQueryExecMode = mode
-				conn, err := pgx.ConnectConfig(context.Background(), config)
-				require.NoError(t, err)
-				defer func() {
-					err := conn.Close(context.Background())
-					require.NoError(t, err)
-				}()
-
-				f(t, conn)
-
-				ensureConnValid(t, conn)
-			},
-		)
+func init() {
+	defaultConnTestRunner = pgxtest.DefaultConnTestRunner()
+	defaultConnTestRunner.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		return config
 	}
 }
 
@@ -84,7 +62,7 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}
 }
 
 // Do a simple query to ensure the connection is still usable
-func ensureConnValid(t *testing.T, conn *pgx.Conn) {
+func ensureConnValid(t testing.TB, conn *pgx.Conn) {
 	var sum, rowCount int32
 
 	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
