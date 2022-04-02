@@ -10,7 +10,7 @@ import (
 <% [2, 4, 8].each do |pg_byte_size| %>
 <% pg_bit_size = pg_byte_size * 8 %>
 func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int<%= pg_byte_size %>", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int<%= pg_byte_size %>", []pgxtest.ValueRoundTripTest{
 		{int8(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{int16(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{int32(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},

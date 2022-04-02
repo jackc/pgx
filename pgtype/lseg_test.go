@@ -1,16 +1,17 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestLsegTranscode(t *testing.T) {
 	skipCockroachDB(t, "Server does not support type lseg")
 
-	testutil.RunTranscodeTests(t, "lseg", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "lseg", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Lseg{
 				P:     [2]pgtype.Vec2{{3.14, 1.678}, {7.1, 5.2345678901}},

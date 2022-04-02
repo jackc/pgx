@@ -18,23 +18,22 @@ import (
 <% rows_columns.each do |rows, columns| %>
 <% [["Text", "pgx.TextFormatCode"], ["Binary", "pgx.BinaryFormatCode"]].each do |format_name, format_code| %>
 func BenchmarkQuery<%= format_name %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go_type.gsub(/\W/, "_") %>_<%= rows %>_rows_<%= columns %>_columns(b *testing.B) {
-	conn := testutil.MustConnectPgx(b)
-	defer testutil.MustCloseContext(b, conn)
-
-	b.ResetTimer()
-	var v [<%= columns %>]<%= go_type %>
-	for i := 0; i < b.N; i++ {
-		_, err := conn.QueryFunc(
-			context.Background(),
-			`select <% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>n::<%= pg_type %> + <%= col_idx%><% end %> from generate_series(1, <%= rows %>) n`,
-      []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
-			[]interface{}{<% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>&v[<%= col_idx%>]<% end %>},
-			func(pgx.QueryFuncRow) error { return nil },
-		)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+  defaultConnTestRunner.RunTest(context.Background(), b, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
+    b.ResetTimer()
+    var v [<%= columns %>]<%= go_type %>
+    for i := 0; i < b.N; i++ {
+      _, err := conn.QueryFunc(
+        ctx,
+        `select <% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>n::<%= pg_type %> + <%= col_idx%><% end %> from generate_series(1, <%= rows %>) n`,
+        []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
+        []interface{}{<% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>&v[<%= col_idx%>]<% end %>},
+        func(pgx.QueryFuncRow) error { return nil },
+      )
+      if err != nil {
+        b.Fatal(err)
+      }
+    }
+  })
 }
 <% end %>
 <% end %>
@@ -44,23 +43,22 @@ func BenchmarkQuery<%= format_name %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go
 <% [10, 100, 1000].each do |array_size| %>
 <% [["Text", "pgx.TextFormatCode"], ["Binary", "pgx.BinaryFormatCode"]].each do |format_name, format_code| %>
 func BenchmarkQuery<%= format_name %>FormatDecode_PG_Int4Array_With_Go_Int4Array_<%= array_size %>(b *testing.B) {
-	conn := testutil.MustConnectPgx(b)
-	defer testutil.MustCloseContext(b, conn)
-
-	b.ResetTimer()
-	var v []int32
-	for i := 0; i < b.N; i++ {
-		_, err := conn.QueryFunc(
-			context.Background(),
-			`select array_agg(n) from generate_series(1, <%= array_size %>) n`,
-      []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
-			[]interface{}{&v},
-			func(pgx.QueryFuncRow) error { return nil },
-		)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+  defaultConnTestRunner.RunTest(context.Background(), b, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
+    b.ResetTimer()
+    var v []int32
+    for i := 0; i < b.N; i++ {
+      _, err := conn.QueryFunc(
+        ctx,
+        `select array_agg(n) from generate_series(1, <%= array_size %>) n`,
+        []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
+        []interface{}{&v},
+        func(pgx.QueryFuncRow) error { return nil },
+      )
+      if err != nil {
+        b.Fatal(err)
+      }
+    }
+  })
 }
 <% end %>
 <% end %>

@@ -3,10 +3,27 @@ package pgxtest
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 )
+
+var AllQueryExecModes = []pgx.QueryExecMode{
+	pgx.QueryExecModeCacheStatement,
+	pgx.QueryExecModeCacheDescribe,
+	pgx.QueryExecModeDescribeExec,
+	pgx.QueryExecModeExec,
+	pgx.QueryExecModeSimpleProtocol,
+}
+
+// KnownOIDQueryExecModes is a slice of all query exec modes where the param and result OIDs are known before sending the query.
+var KnownOIDQueryExecModes = []pgx.QueryExecMode{
+	pgx.QueryExecModeCacheStatement,
+	pgx.QueryExecModeCacheDescribe,
+	pgx.QueryExecModeDescribeExec,
+}
 
 // ConnTestRunner controls how a *pgx.Conn is created and closed by tests. All fields are required. Use DefaultConnTestRunner to get a
 // ConnTestRunner with reasonable default values.
@@ -46,6 +63,8 @@ func DefaultConnTestRunner() ConnTestRunner {
 }
 
 func (ctr *ConnTestRunner) RunTest(ctx context.Context, t testing.TB, f func(ctx context.Context, t testing.TB, conn *pgx.Conn)) {
+	t.Helper()
+
 	config := ctr.CreateConfig(ctx, t)
 	conn, err := pgx.ConnectConfig(ctx, config)
 	if err != nil {
@@ -62,13 +81,7 @@ func (ctr *ConnTestRunner) RunTest(ctx context.Context, t testing.TB, f func(ctx
 // If modes is nil all pgx.QueryExecModes are tested.
 func RunWithQueryExecModes(ctx context.Context, t *testing.T, ctr ConnTestRunner, modes []pgx.QueryExecMode, f func(ctx context.Context, t testing.TB, conn *pgx.Conn)) {
 	if modes == nil {
-		modes = []pgx.QueryExecMode{
-			pgx.QueryExecModeCacheStatement,
-			pgx.QueryExecModeCacheDescribe,
-			pgx.QueryExecModeDescribeExec,
-			pgx.QueryExecModeExec,
-			pgx.QueryExecModeSimpleProtocol,
-		}
+		modes = AllQueryExecModes
 	}
 
 	for _, mode := range modes {
@@ -85,6 +98,51 @@ func RunWithQueryExecModes(ctx context.Context, t *testing.T, ctr ConnTestRunner
 			},
 		)
 	}
+}
+
+type ValueRoundTripTest struct {
+	Param  interface{}
+	Result interface{}
+	Test   func(interface{}) bool
+}
+
+func RunValueRoundTripTests(
+	ctx context.Context,
+	t testing.TB,
+	ctr ConnTestRunner,
+	modes []pgx.QueryExecMode,
+	pgTypeName string,
+	tests []ValueRoundTripTest,
+) {
+	t.Helper()
+
+	if modes == nil {
+		modes = AllQueryExecModes
+	}
+
+	ctr.RunTest(ctx, t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		t.Helper()
+
+		sql := fmt.Sprintf("select $1::%s", pgTypeName)
+
+		for i, tt := range tests {
+			for _, mode := range modes {
+				err := conn.QueryRow(ctx, sql, mode, tt.Param).Scan(tt.Result)
+				if err != nil {
+					t.Errorf("%d. %v: %v", i, mode, err)
+				}
+
+				result := reflect.ValueOf(tt.Result)
+				if result.Kind() == reflect.Ptr {
+					result = result.Elem()
+				}
+
+				if !tt.Test(result.Interface()) {
+					t.Errorf("%d. %v: unexpected result for %v: %v", i, mode, tt.Param, result.Interface())
+				}
+			}
+		}
+	})
 }
 
 // SkipCockroachDB calls Skip on t with msg if the connection is to a CockroachDB server.

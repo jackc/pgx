@@ -1,18 +1,19 @@
 package pgtype_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPointCodec(t *testing.T) {
 	skipCockroachDB(t, "Server does not support type point")
 
-	testutil.RunTranscodeTests(t, "point", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "point", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Point{P: pgtype.Vec2{1.234, 5.6789012345}, Valid: true},
 			new(pgtype.Point),

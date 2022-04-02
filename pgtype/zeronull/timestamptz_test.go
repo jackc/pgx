@@ -1,11 +1,12 @@
 package zeronull_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEqTimestamptz(a interface{}) func(interface{}) bool {
@@ -18,7 +19,7 @@ func isExpectedEqTimestamptz(a interface{}) func(interface{}) bool {
 }
 
 func TestTimestamptzTranscode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "timestamptz", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "timestamptz", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Timestamptz)(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
 			new(zeronull.Timestamptz),

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
@@ -184,11 +185,30 @@ func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (new
 		return nil, err
 	}
 
+	if !ts.Valid {
+		return nil, nil
+	}
+
 	var s string
 
 	switch ts.InfinityModifier {
 	case Finite:
-		s = ts.Time.UTC().Truncate(time.Microsecond).Format(pgTimestamptzSecondFormat)
+
+		t := ts.Time.UTC().Truncate(time.Microsecond)
+
+		// Year 0000 is 1 BC
+		bc := false
+		if year := t.Year(); year <= 0 {
+			year = -year + 1
+			t = time.Date(year, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+			bc = true
+		}
+
+		s = t.Format(pgTimestamptzSecondFormat)
+
+		if bc {
+			s = s + " BC"
+		}
 	case Infinity:
 		s = "infinity"
 	case NegativeInfinity:
@@ -267,6 +287,12 @@ func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst interfac
 	case "-infinity":
 		tstz = Timestamptz{Valid: true, InfinityModifier: -Infinity}
 	default:
+		bc := false
+		if strings.HasSuffix(sbuf, " BC") {
+			sbuf = sbuf[:len(sbuf)-3]
+			bc = true
+		}
+
 		var format string
 		if len(sbuf) >= 9 && (sbuf[len(sbuf)-9] == '-' || sbuf[len(sbuf)-9] == '+') {
 			format = pgTimestamptzSecondFormat
@@ -279,6 +305,11 @@ func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst interfac
 		tim, err := time.Parse(format, sbuf)
 		if err != nil {
 			return err
+		}
+
+		if bc {
+			year := -tim.Year() + 1
+			tim = time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), tim.Location())
 		}
 
 		tstz = Timestamptz{Time: tim, Valid: true}

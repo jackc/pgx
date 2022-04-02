@@ -1,15 +1,16 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestTimeCodec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "time", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "time", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Time{Microseconds: 0, Valid: true},
 			new(pgtype.Time),

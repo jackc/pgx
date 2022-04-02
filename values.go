@@ -17,7 +17,7 @@ func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) 
 		return nil, nil
 	}
 
-	buf, err := m.Encode(0, TextFormatCode, arg, nil)
+	buf, err := m.Encode(0, TextFormatCode, arg, []byte{})
 	if err != nil {
 		return nil, err
 	}

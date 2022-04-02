@@ -1,10 +1,11 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEqPath(a interface{}) func(interface{}) bool {
@@ -29,7 +30,7 @@ func isExpectedEqPath(a interface{}) func(interface{}) bool {
 func TestPathTranscode(t *testing.T) {
 	skipCockroachDB(t, "Server does not support type path")
 
-	testutil.RunTranscodeTests(t, "path", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "path", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Path{
 				P:      []pgtype.Vec2{{3.14, 1.678901234}, {7.1, 5.234}},

@@ -1,15 +1,16 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestIntervalCodec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "interval", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "interval", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Interval{Microseconds: 1, Valid: true},
 			new(pgtype.Interval),

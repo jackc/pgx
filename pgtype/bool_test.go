@@ -1,14 +1,15 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestBoolCodec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "bool", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "bool", []pgxtest.ValueRoundTripTest{
 		{true, new(bool), isExpectedEq(true)},
 		{false, new(bool), isExpectedEq(false)},
 		{true, new(pgtype.Bool), isExpectedEq(pgtype.Bool{Bool: true, Valid: true})},

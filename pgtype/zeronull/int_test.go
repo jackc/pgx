@@ -2,14 +2,15 @@
 package zeronull_test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestInt2Transcode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int2", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int2", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Int2)(1),
 			new(zeronull.Int2),
@@ -29,7 +30,7 @@ func TestInt2Transcode(t *testing.T) {
 }
 
 func TestInt4Transcode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int4", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int4", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Int4)(1),
 			new(zeronull.Int4),
@@ -49,7 +50,7 @@ func TestInt4Transcode(t *testing.T) {
 }
 
 func TestInt8Transcode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int8", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int8", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Int8)(1),
 			new(zeronull.Int8),

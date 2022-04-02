@@ -2,10 +2,11 @@ package pgtype_test
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEqBits(a interface{}) func(interface{}) bool {
@@ -17,7 +18,7 @@ func isExpectedEqBits(a interface{}) func(interface{}) bool {
 }
 
 func TestBitsCodecBit(t *testing.T) {
-	testutil.RunTranscodeTests(t, "bit(40)", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "bit(40)", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Bits{Bytes: []byte{0, 0, 0, 0, 0}, Len: 40, Valid: true},
 			new(pgtype.Bits),
@@ -34,7 +35,7 @@ func TestBitsCodecBit(t *testing.T) {
 }
 
 func TestBitsCodecVarbit(t *testing.T) {
-	testutil.RunTranscodeTests(t, "varbit", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "varbit", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Bits{Bytes: []byte{}, Len: 0, Valid: true},
 			new(pgtype.Bits),

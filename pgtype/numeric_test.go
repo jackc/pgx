@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"testing"
 
+	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -77,7 +78,7 @@ func TestNumericCodec(t *testing.T) {
 	max.Add(max, big.NewInt(1))
 	longestNumeric := pgtype.Numeric{Int: max, Exp: -16383, Valid: true}
 
-	testutil.RunTranscodeTests(t, "numeric", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "numeric", []pgxtest.ValueRoundTripTest{
 		{mustParseNumeric(t, "1"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "1"))},
 		{mustParseNumeric(t, "3.14159"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "3.14159"))},
 		{mustParseNumeric(t, "100010001"), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "100010001"))},
@@ -118,7 +119,7 @@ func TestNumericCodecInfinity(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 	skipPostgreSQLVersionLessThan(t, 14)
 
-	testutil.RunTranscodeTests(t, "numeric", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "numeric", []pgxtest.ValueRoundTripTest{
 		{math.Inf(1), new(float64), isExpectedEq(math.Inf(1))},
 		{float32(math.Inf(1)), new(float32), isExpectedEq(float32(math.Inf(1)))},
 		{math.Inf(-1), new(float64), isExpectedEq(math.Inf(-1))},
@@ -159,54 +160,54 @@ func TestNumericCodecFuzz(t *testing.T) {
 	max := &big.Int{}
 	max.SetString("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999", 10)
 
-	tests := make([]testutil.TranscodeTestCase, 0, 2000)
+	tests := make([]pgxtest.ValueRoundTripTest, 0, 2000)
 	for i := 0; i < 10; i++ {
 		for j := -50; j < 50; j++ {
 			num := (&big.Int{}).Rand(r, max)
 
 			n := pgtype.Numeric{Int: num, Exp: int32(j), Valid: true}
-			tests = append(tests, testutil.TranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
+			tests = append(tests, pgxtest.ValueRoundTripTest{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
 
 			negNum := &big.Int{}
 			negNum.Neg(num)
 			n = pgtype.Numeric{Int: negNum, Exp: int32(j), Valid: true}
-			tests = append(tests, testutil.TranscodeTestCase{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
+			tests = append(tests, pgxtest.ValueRoundTripTest{n, new(pgtype.Numeric), isExpectedEqNumeric(n)})
 		}
 	}
 
-	testutil.RunTranscodeTests(t, "numeric", tests)
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "numeric", tests)
 }
 
 func TestNumericMarshalJSON(t *testing.T) {
 	skipCockroachDB(t, "server formats numeric text format differently")
 
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
-	for i, tt := range []struct {
-		decString string
-	}{
-		{"NaN"},
-		{"0"},
-		{"1"},
-		{"-1"},
-		{"1000000000000000000"},
-		{"1234.56789"},
-		{"1.56789"},
-		{"0.00000000000056789"},
-		{"0.00123000"},
-		{"123e-3"},
-		{"243723409723490243842378942378901237502734019231380123e23790"},
-		{"3409823409243892349028349023482934092340892390101e-14021"},
-	} {
-		var num pgtype.Numeric
-		var pgJSON string
-		err := conn.QueryRow(context.Background(), `select $1::numeric, to_json($1::numeric)`, tt.decString).Scan(&num, &pgJSON)
-		require.NoErrorf(t, err, "%d", i)
+		for i, tt := range []struct {
+			decString string
+		}{
+			{"NaN"},
+			{"0"},
+			{"1"},
+			{"-1"},
+			{"1000000000000000000"},
+			{"1234.56789"},
+			{"1.56789"},
+			{"0.00000000000056789"},
+			{"0.00123000"},
+			{"123e-3"},
+			{"243723409723490243842378942378901237502734019231380123e23790"},
+			{"3409823409243892349028349023482934092340892390101e-14021"},
+		} {
+			var num pgtype.Numeric
+			var pgJSON string
+			err := conn.QueryRow(ctx, `select $1::numeric, to_json($1::numeric)`, tt.decString).Scan(&num, &pgJSON)
+			require.NoErrorf(t, err, "%d", i)
 
-		goJSON, err := json.Marshal(num)
-		require.NoErrorf(t, err, "%d", i)
+			goJSON, err := json.Marshal(num)
+			require.NoErrorf(t, err, "%d", i)
 
-		require.Equal(t, pgJSON, string(goJSON))
-	}
+			require.Equal(t, pgJSON, string(goJSON))
+		}
+	})
 }

@@ -1,20 +1,33 @@
 package pgtype_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"net"
+	"os"
 	"regexp"
 	"strconv"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var defaultConnTestRunner pgxtest.ConnTestRunner
+
+func init() {
+	defaultConnTestRunner = pgxtest.DefaultConnTestRunner()
+	defaultConnTestRunner.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		return config
+	}
+}
 
 // Test for renamed types
 type _string string
@@ -70,8 +83,11 @@ func mustParseMacaddr(t testing.TB, s string) net.HardwareAddr {
 }
 
 func skipCockroachDB(t testing.TB, msg string) {
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(context.Background())
 
 	if conn.PgConn().ParameterStatus("crdb_version") != "" {
 		t.Skip(msg)
@@ -79,8 +95,11 @@ func skipCockroachDB(t testing.TB, msg string) {
 }
 
 func skipPostgreSQLVersionLessThan(t testing.TB, minVersion int64) {
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(context.Background())
 
 	serverVersionStr := conn.PgConn().ParameterStatus("server_version")
 	serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)

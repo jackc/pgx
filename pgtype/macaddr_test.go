@@ -2,10 +2,11 @@ package pgtype_test
 
 import (
 	"bytes"
+	"context"
 	"net"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
@@ -28,7 +29,8 @@ func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
 func TestMacaddrCodec(t *testing.T) {
 	skipCockroachDB(t, "Server does not support type macaddr")
 
-	testutil.RunTranscodeTests(t, "macaddr", []testutil.TranscodeTestCase{
+	// Only testing known OID query exec modes as net.HardwareAddr could map to macaddr or macaddr8.
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "macaddr", []pgxtest.ValueRoundTripTest{
 		{
 			mustParseMacaddr(t, "01:23:45:67:89:ab"),
 			new(net.HardwareAddr),
