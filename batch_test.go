@@ -17,7 +17,7 @@ func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		skipCockroachDB(t, conn, "Server serial type is incompatible with test")
+		pgxtest.SkipCockroachDB(t, conn, "Server serial type is incompatible with test")
 
 		sql := `create temporary table ledger(
 	  id serial primary key,
@@ -196,7 +196,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 		// Don't test simple mode with prepared statements.
 	}
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		skipCockroachDB(t, conn, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+		pgxtest.SkipCockroachDB(t, conn, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 		_, err := conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 		if err != nil {
 			t.Fatal(err)
@@ -253,7 +253,7 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
+	pgxtest.SkipCockroachDB(t, conn, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 
 	_, err = conn.Prepare(context.Background(), "ps1", "select n from generate_series(0,$1::int) n")
 	if err != nil {
@@ -600,7 +600,7 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 
-		skipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 		mustExec(t, conn, `create temporary table t (
 		id text primary key,

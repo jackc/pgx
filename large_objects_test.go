@@ -9,6 +9,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestLargeObjects(t *testing.T) {
@@ -22,7 +23,7 @@ func TestLargeObjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skipCockroachDB(t, conn, "Server does support large objects")
+	pgxtest.SkipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -50,7 +51,7 @@ func TestLargeObjectsSimpleProtocol(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skipCockroachDB(t, conn, "Server does support large objects")
+	pgxtest.SkipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
@@ -169,7 +170,7 @@ func TestLargeObjectsMultipleTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	skipCockroachDB(t, conn, "Server does support large objects")
+	pgxtest.SkipCockroachDB(t, conn, "Server does support large objects")
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {

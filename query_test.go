@@ -269,7 +269,7 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support point type")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support point type")
 
 	var s string
 
@@ -477,7 +477,7 @@ func TestConnQueryDeferredError(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 	mustExec(t, conn, `create temporary table t (
 	id text primary key,
@@ -519,7 +519,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server uses numeric instead of int")
+	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
 	for i := 0; i < 100; i++ {
 		func() {
@@ -1267,7 +1267,7 @@ func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server uses numeric instead of int")
+	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -1789,7 +1789,7 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support changing client_encoding (https://www.cockroachlabs.com/docs/stable/set-vars.html)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support changing client_encoding (https://www.cockroachlabs.com/docs/stable/set-vars.html)")
 
 	mustExec(t, conn, "set client_encoding to 'SQL_ASCII'")
 
@@ -1813,7 +1813,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
 
 	mustExec(t, conn, "set standard_conforming_strings to off")
 

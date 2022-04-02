@@ -10,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -134,7 +135,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Skipping due to known server issue: (https://github.com/cockroachdb/cockroach/issues/52722)")
+	pgxtest.SkipCockroachDB(t, conn, "Skipping due to known server issue: (https://github.com/cockroachdb/cockroach/issues/52722)")
 
 	mustExec(t, conn, `create temporary table foo(
 		a int2,
@@ -416,7 +417,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server copy error does not fail fast")
+	pgxtest.SkipCockroachDB(t, conn, "Server copy error does not fail fast")
 
 	mustExec(t, conn, `create temporary table foo(
 		a bytea not null
