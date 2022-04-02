@@ -21,8 +21,8 @@ func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
 		{uint64(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{int(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{uint(1), new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
-		{pgtype.Int<%= pg_byte_size %>{Int: 1, Valid: true}, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
-		{int32(-1), new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{Int: -1, Valid: true})},
+		{pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 1, Valid: true}, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
+		{int32(-1), new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: -1, Valid: true})},
 		{1, new(int8), isExpectedEq(int8(1))},
 		{1, new(int16), isExpectedEq(int16(1))},
 		{1, new(int32), isExpectedEq(int32(1))},
@@ -43,7 +43,7 @@ func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
 		{0, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(0))},
 		{1, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{math.MaxInt<%= pg_bit_size %>, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(math.MaxInt<%= pg_bit_size %>))},
-		{1, new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{Int: 1, Valid: true})},
+		{1, new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 1, Valid: true})},
 		{pgtype.Int<%= pg_byte_size %>{}, new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{})},
 		{nil, new(*int<%= pg_bit_size %>), isExpectedEq((*int<%= pg_bit_size %>)(nil))},
 	})
@@ -54,8 +54,8 @@ func TestInt<%= pg_byte_size %>MarshalJSON(t *testing.T) {
 		source pgtype.Int<%= pg_byte_size %>
 		result string
 	}{
-		{source: pgtype.Int<%= pg_byte_size %>{Int: 0}, result: "null"},
-		{source: pgtype.Int<%= pg_byte_size %>{Int: 1, Valid: true}, result: "1"},
+		{source: pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 0}, result: "null"},
+		{source: pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 1, Valid: true}, result: "1"},
 	}
 	for i, tt := range successfulTests {
 		r, err := tt.source.MarshalJSON()
@@ -74,8 +74,8 @@ func TestInt<%= pg_byte_size %>UnmarshalJSON(t *testing.T) {
 		source string
 		result pgtype.Int<%= pg_byte_size %>
 	}{
-		{source: "null", result: pgtype.Int<%= pg_byte_size %>{Int: 0}},
-		{source: "1", result: pgtype.Int<%= pg_byte_size %>{Int: 1, Valid: true}},
+		{source: "null", result: pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 0}},
+		{source: "1", result: pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 1, Valid: true}},
 	}
 	for i, tt := range successfulTests {
 		var r pgtype.Int<%= pg_byte_size %>
