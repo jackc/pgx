@@ -6,7 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEqMapStringString(a interface{}) func(interface{}) bool {
@@ -52,30 +52,22 @@ func isExpectedEqMapStringPointerString(a interface{}) func(interface{}) bool {
 }
 
 func TestHstoreCodec(t *testing.T) {
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
+	ctr := defaultConnTestRunner
+	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var hstoreOID uint32
+		err := conn.QueryRow(context.Background(), `select oid from pg_type where typname = 'hstore'`).Scan(&hstoreOID)
+		if err != nil {
+			t.Skipf("Skipping: cannot find hstore OID")
+		}
 
-	var hstoreOID uint32
-	err := conn.QueryRow(context.Background(), `select oid from pg_type where typname = 'hstore'`).Scan(&hstoreOID)
-	if err != nil {
-		t.Skipf("Skipping: cannot find hstore OID")
-	}
-
-	conn.TypeMap().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
-
-	formats := []struct {
-		name string
-		code int16
-	}{
-		{name: "TextFormat", code: pgx.TextFormatCode},
-		{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		conn.TypeMap().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
 	}
 
 	fs := func(s string) *string {
 		return &s
 	}
 
-	tests := []testutil.TranscodeTestCase{
+	tests := []pgxtest.ValueRoundTripTest{
 		{
 			map[string]string{},
 			new(map[string]string),
@@ -134,25 +126,25 @@ func TestHstoreCodec(t *testing.T) {
 		// Special key values
 
 		// at beginning
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{s + "foo": "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{s + "foo": "bar"}),
 		})
 		// in middle
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo" + s + "bar": "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo" + s + "bar": "bar"}),
 		})
 		// at end
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo" + s: "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo" + s: "bar"}),
 		})
 		// is key
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{s: "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{s: "bar"}),
@@ -161,32 +153,30 @@ func TestHstoreCodec(t *testing.T) {
 		// Special value values
 
 		// at beginning
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo": s + "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": s + "bar"}),
 		})
 		// in middle
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo": "foo" + s + "bar"},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s + "bar"}),
 		})
 		// at end
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo": "foo" + s},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": "foo" + s}),
 		})
 		// is key
-		tests = append(tests, testutil.TranscodeTestCase{
+		tests = append(tests, pgxtest.ValueRoundTripTest{
 			map[string]string{"foo": s},
 			new(map[string]string),
 			isExpectedEqMapStringString(map[string]string{"foo": s}),
 		})
 	}
 
-	for _, format := range formats {
-		testutil.RunTranscodeTestsFormat(t, "hstore", tests, conn, format.name, format.code)
-	}
+	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, pgxtest.KnownOIDQueryExecModes, "hstore", tests)
 }

@@ -2,15 +2,16 @@
 package pgtype_test
 
 import (
+	"context"
 	"math"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestInt2Codec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int2", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int2", []pgxtest.ValueRoundTripTest{
 		{int8(1), new(int16), isExpectedEq(int16(1))},
 		{int16(1), new(int16), isExpectedEq(int16(1))},
 		{int32(1), new(int16), isExpectedEq(int16(1))},
@@ -91,7 +92,7 @@ func TestInt2UnmarshalJSON(t *testing.T) {
 }
 
 func TestInt4Codec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int4", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int4", []pgxtest.ValueRoundTripTest{
 		{int8(1), new(int32), isExpectedEq(int32(1))},
 		{int16(1), new(int32), isExpectedEq(int32(1))},
 		{int32(1), new(int32), isExpectedEq(int32(1))},
@@ -172,7 +173,7 @@ func TestInt4UnmarshalJSON(t *testing.T) {
 }
 
 func TestInt8Codec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "int8", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int8", []pgxtest.ValueRoundTripTest{
 		{int8(1), new(int64), isExpectedEq(int64(1))},
 		{int16(1), new(int64), isExpectedEq(int64(1))},
 		{int32(1), new(int64), isExpectedEq(int64(1))},

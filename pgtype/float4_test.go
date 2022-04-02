@@ -1,14 +1,15 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestFloat4Codec(t *testing.T) {
-	testutil.RunTranscodeTests(t, "float4", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float4", []pgxtest.ValueRoundTripTest{
 		{pgtype.Float4{Float32: -1, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: -1, Valid: true})},
 		{pgtype.Float4{Float32: 0, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: 0, Valid: true})},
 		{pgtype.Float4{Float32: 1, Valid: true}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{Float32: 1, Valid: true})},

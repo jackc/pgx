@@ -1,16 +1,17 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestTIDCodec(t *testing.T) {
 	skipCockroachDB(t, "Server does not support type tid")
 
-	testutil.RunTranscodeTests(t, "tid", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "tid", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.TID{BlockNumber: 42, OffsetNumber: 43, Valid: true},
 			new(pgtype.TID),

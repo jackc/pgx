@@ -558,18 +558,41 @@ func (c *Conn) execSQLParams(ctx context.Context, sql string, args []interface{}
 // Given that the whole point of QueryExecModeExec is to operate without having to know the PostgreSQL types there is
 // no way to safely use binary or to specify the parameter OIDs.
 func (c *Conn) appendParamsForQueryExecModeExec(args []interface{}) error {
-	for i := range args {
-		if args[i] == nil {
-			err := c.eqb.AppendParamFormat(c.typeMap, 0, TextFormatCode, args[i])
+	for _, arg := range args {
+		if arg == nil {
+			err := c.eqb.AppendParamFormat(c.typeMap, 0, TextFormatCode, arg)
 			if err != nil {
 				return err
 			}
 		} else {
-			dt, ok := c.TypeMap().TypeForValue(args[i])
+			dt, ok := c.TypeMap().TypeForValue(arg)
 			if !ok {
-				return &unknownArgumentTypeQueryExecModeExecError{arg: args[i]}
+				var tv pgtype.TextValuer
+				if tv, ok = arg.(pgtype.TextValuer); ok {
+					t, err := tv.TextValue()
+					if err != nil {
+						return err
+					}
+
+					dt, ok = c.TypeMap().TypeForOID(pgtype.TextOID)
+					if ok {
+						arg = t
+					}
+				}
 			}
-			err := c.eqb.AppendParamFormat(c.typeMap, dt.OID, TextFormatCode, args[i])
+			if !ok {
+				var str fmt.Stringer
+				if str, ok = arg.(fmt.Stringer); ok {
+					dt, ok = c.TypeMap().TypeForOID(pgtype.TextOID)
+					if ok {
+						arg = str.String()
+					}
+				}
+			}
+			if !ok {
+				return &unknownArgumentTypeQueryExecModeExecError{arg: arg}
+			}
+			err := c.eqb.AppendParamFormat(c.typeMap, dt.OID, TextFormatCode, arg)
 			if err != nil {
 				return err
 			}

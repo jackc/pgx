@@ -1,14 +1,15 @@
 package zeronull_test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestTextTranscode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "text", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "text", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Text)("foo"),
 			new(zeronull.Text),

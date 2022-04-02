@@ -1,16 +1,17 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestCircleTranscode(t *testing.T) {
 	skipCockroachDB(t, "Server does not support box type")
 
-	testutil.RunTranscodeTests(t, "circle", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "circle", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Circle{P: pgtype.Vec2{1.234, 5.67890123}, R: 3.5, Valid: true},
 			new(pgtype.Circle),

@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
+	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +18,7 @@ func (someFmtStringer) String() string {
 
 func TestTextCodec(t *testing.T) {
 	for _, pgTypeName := range []string{"text", "varchar"} {
-		testutil.RunTranscodeTests(t, pgTypeName, []testutil.TranscodeTestCase{
+		pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, pgTypeName, []pgxtest.ValueRoundTripTest{
 			{
 				pgtype.Text{String: "", Valid: true},
 				new(pgtype.Text),
@@ -31,6 +32,10 @@ func TestTextCodec(t *testing.T) {
 			{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
 			{"foo", new(string), isExpectedEq("foo")},
 			{someFmtStringer{}, new(string), isExpectedEq("some fmt.Stringer")},
+		})
+
+		// rune requires known OID because otherwise it is considered an int32.
+		pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, pgTypeName, []pgxtest.ValueRoundTripTest{
 			{rune('R'), new(rune), isExpectedEq(rune('R'))},
 		})
 	}
@@ -47,7 +52,7 @@ func TestTextCodec(t *testing.T) {
 //
 // So this is simply a smoke test of the name type.
 func TestTextCodecName(t *testing.T) {
-	testutil.RunTranscodeTests(t, "name", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "name", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Text{String: "", Valid: true},
 			new(pgtype.Text),
@@ -67,7 +72,7 @@ func TestTextCodecName(t *testing.T) {
 func TestTextCodecBPChar(t *testing.T) {
 	skipCockroachDB(t, "Server does not properly handle bpchar with multi-byte character")
 
-	testutil.RunTranscodeTests(t, "char(3)", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "char(3)", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Text{String: "a  ", Valid: true},
 			new(pgtype.Text),
@@ -94,12 +99,12 @@ func TestTextCodecBPChar(t *testing.T) {
 //
 // It only supports the text format.
 func TestTextCodecACLItem(t *testing.T) {
-	skipCockroachDB(t, "Server does not support type aclitem")
+	ctr := defaultConnTestRunner
+	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support type aclitem")
+	}
 
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
-
-	testutil.RunTranscodeTestsFormat(t, "aclitem", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, nil, "aclitem", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true},
 			new(pgtype.Text),
@@ -107,33 +112,33 @@ func TestTextCodecACLItem(t *testing.T) {
 		},
 		{pgtype.Text{}, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
 		{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
-	}, conn, "Text", pgtype.TextFormatCode)
+	})
 }
 
 func TestTextCodecACLItemRoleWithSpecialCharacters(t *testing.T) {
-	conn := testutil.MustConnectPgx(t)
-	defer testutil.MustCloseContext(t, conn)
+	ctr := defaultConnTestRunner
+	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does not support type aclitem")
 
-	ctx := context.Background()
+		// The tricky test user, below, has to actually exist so that it can be used in a test
+		// of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
+		roleWithSpecialCharacters := ` tricky, ' } " \ test user `
 
-	// The tricky test user, below, has to actually exist so that it can be used in a test
-	// of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
-	roleWithSpecialCharacters := ` tricky, ' } " \ test user `
+		commandTag, err := conn.Exec(ctx, `select * from pg_roles where rolname = $1`, roleWithSpecialCharacters)
+		require.NoError(t, err)
 
-	commandTag, err := conn.Exec(ctx, `select * from pg_roles where rolname = $1`, roleWithSpecialCharacters)
-	require.NoError(t, err)
-
-	if commandTag.RowsAffected() == 0 {
-		t.Skipf("Role with special characters does not exist.")
+		if commandTag.RowsAffected() == 0 {
+			t.Skipf("Role with special characters does not exist.")
+		}
 	}
 
-	testutil.RunTranscodeTestsFormat(t, "aclitem", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, nil, "aclitem", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Text{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true},
 			new(pgtype.Text),
 			isExpectedEq(pgtype.Text{String: `postgres=arwdDxt/" tricky, ' } "" \ test user "`, Valid: true}),
 		},
-	}, conn, "Text", pgtype.TextFormatCode)
+	})
 }
 
 func TestTextMarshalJSON(t *testing.T) {

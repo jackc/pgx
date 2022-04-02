@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
@@ -127,12 +128,29 @@ func (encodePlanTimestampCodecText) Encode(value interface{}, buf []byte) (newBu
 		return nil, err
 	}
 
+	if !ts.Valid {
+		return nil, nil
+	}
+
 	var s string
 
 	switch ts.InfinityModifier {
 	case Finite:
 		t := discardTimeZone(ts.Time)
+
+		// Year 0000 is 1 BC
+		bc := false
+		if year := t.Year(); year <= 0 {
+			year = -year + 1
+			t = time.Date(year, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
+			bc = true
+		}
+
 		s = t.Truncate(time.Microsecond).Format(pgTimestampFormat)
+
+		if bc {
+			s = s + " BC"
+		}
 	case Infinity:
 		s = "infinity"
 	case NegativeInfinity:
@@ -219,9 +237,19 @@ func (scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst interface{})
 	case "-infinity":
 		ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
 	default:
+		bc := false
+		if strings.HasSuffix(sbuf, " BC") {
+			sbuf = sbuf[:len(sbuf)-3]
+			bc = true
+		}
 		tim, err := time.Parse(pgTimestampFormat, sbuf)
 		if err != nil {
 			return err
+		}
+
+		if bc {
+			year := -tim.Year() + 1
+			tim = time.Date(year, tim.Month(), tim.Day(), tim.Hour(), tim.Minute(), tim.Second(), tim.Nanosecond(), tim.Location())
 		}
 
 		ts = Timestamp{Time: tim, Valid: true}

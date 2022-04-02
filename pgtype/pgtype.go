@@ -374,7 +374,7 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants("daterange", "_daterange", Daterange{})
 	registerDefaultPgTypeVariants("float4", "_float4", Float4{})
 	registerDefaultPgTypeVariants("float8", "_float8", Float8{})
-	registerDefaultPgTypeVariants("float8range", "_float8range", Float8range{})
+	registerDefaultPgTypeVariants("numrange", "_numrange", Float8range{}) // There is no PostgreSQL builtin float8range so map it to numrange.
 	registerDefaultPgTypeVariants("inet", "_inet", Inet{})
 	registerDefaultPgTypeVariants("int2", "_int2", Int2{})
 	registerDefaultPgTypeVariants("int4", "_int4", Int4{})

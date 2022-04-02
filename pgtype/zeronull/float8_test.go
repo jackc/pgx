@@ -1,10 +1,11 @@
 package zeronull_test
 
 import (
+	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgtype/testutil"
 	"github.com/jackc/pgx/v5/pgtype/zeronull"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func isExpectedEq(a interface{}) func(interface{}) bool {
@@ -14,7 +15,7 @@ func isExpectedEq(a interface{}) func(interface{}) bool {
 }
 
 func TestFloat8Transcode(t *testing.T) {
-	testutil.RunTranscodeTests(t, "float8", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float8", []pgxtest.ValueRoundTripTest{
 		{
 			(zeronull.Float8)(1),
 			new(zeronull.Float8),

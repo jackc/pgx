@@ -1,16 +1,17 @@
 package pgtype_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgxtest"
 )
 
 func TestBoxCodec(t *testing.T) {
 	skipCockroachDB(t, "Server does not support box type")
 
-	testutil.RunTranscodeTests(t, "box", []testutil.TranscodeTestCase{
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "box", []pgxtest.ValueRoundTripTest{
 		{
 			pgtype.Box{
 				P:     [2]pgtype.Vec2{{7.1, 5.2345678}, {3.14, 1.678}},
