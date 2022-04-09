@@ -234,6 +234,8 @@ func (Int<%= pg_byte_size %>Codec) PlanScan(m *Map, oid uint32, format int16, ta
 			return scanPlanBinaryInt<%= pg_byte_size %>ToUint{}
 		case Int64Scanner:
 			return scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner{}
+		case TextScanner:
+			return scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -442,6 +444,29 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst i
 	n := int64(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
 
   return s.ScanInt64(Int8{Int64: n, Valid: true})
+}
+
+<%# PostgreSQL binary format integer to Go TextScanner %>
+type scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner struct{}
+
+func (scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner) Scan(src []byte, dst interface{}) error {
+	s, ok := (dst).(TextScanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+    return s.ScanText(Text{})
+	}
+
+	if len(src) != <%= pg_byte_size %> {
+		return fmt.Errorf("invalid length for int<%= pg_byte_size %>: %v", len(src))
+	}
+
+
+	n := int64(int<%= pg_bit_size %>(binary.BigEndian.Uint<%= pg_bit_size %>(src)))
+
+  return s.ScanText(Text{String: strconv.FormatInt(n, 10), Valid: true})
 }
 <% end %>
 

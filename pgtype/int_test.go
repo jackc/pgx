@@ -45,6 +45,7 @@ func TestInt2Codec(t *testing.T) {
 		{1, new(int16), isExpectedEq(int16(1))},
 		{math.MaxInt16, new(int16), isExpectedEq(int16(math.MaxInt16))},
 		{1, new(pgtype.Int2), isExpectedEq(pgtype.Int2{Int16: 1, Valid: true})},
+		{"1", new(string), isExpectedEq("1")},
 		{pgtype.Int2{}, new(pgtype.Int2), isExpectedEq(pgtype.Int2{})},
 		{nil, new(*int16), isExpectedEq((*int16)(nil))},
 	})
@@ -126,6 +127,7 @@ func TestInt4Codec(t *testing.T) {
 		{1, new(int32), isExpectedEq(int32(1))},
 		{math.MaxInt32, new(int32), isExpectedEq(int32(math.MaxInt32))},
 		{1, new(pgtype.Int4), isExpectedEq(pgtype.Int4{Int32: 1, Valid: true})},
+		{"1", new(string), isExpectedEq("1")},
 		{pgtype.Int4{}, new(pgtype.Int4), isExpectedEq(pgtype.Int4{})},
 		{nil, new(*int32), isExpectedEq((*int32)(nil))},
 	})
@@ -207,6 +209,7 @@ func TestInt8Codec(t *testing.T) {
 		{1, new(int64), isExpectedEq(int64(1))},
 		{math.MaxInt64, new(int64), isExpectedEq(int64(math.MaxInt64))},
 		{1, new(pgtype.Int8), isExpectedEq(pgtype.Int8{Int64: 1, Valid: true})},
+		{"1", new(string), isExpectedEq("1")},
 		{pgtype.Int8{}, new(pgtype.Int8), isExpectedEq(pgtype.Int8{})},
 		{nil, new(*int64), isExpectedEq((*int64)(nil))},
 	})

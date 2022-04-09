@@ -156,6 +156,8 @@ func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}
 			return scanPlanBinaryFloat4ToFloat64Scanner{}
 		case Int64Scanner:
 			return scanPlanBinaryFloat4ToInt64Scanner{}
+		case TextScanner:
+			return scanPlanBinaryFloat4ToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -227,6 +229,25 @@ func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst interface{}) erro
 	}
 
 	return s.ScanInt64(Int8{Int64: i64, Valid: true})
+}
+
+type scanPlanBinaryFloat4ToTextScanner struct{}
+
+func (scanPlanBinaryFloat4ToTextScanner) Scan(src []byte, dst interface{}) error {
+	s := (dst).(TextScanner)
+
+	if src == nil {
+		return s.ScanText(Text{})
+	}
+
+	if len(src) != 4 {
+		return fmt.Errorf("invalid length for float4: %v", len(src))
+	}
+
+	ui32 := int32(binary.BigEndian.Uint32(src))
+	f32 := math.Float32frombits(uint32(ui32))
+
+	return s.ScanText(Text{String: strconv.FormatFloat(float64(f32), 'f', -1, 32), Valid: true})
 }
 
 type scanPlanTextAnyToFloat32 struct{}

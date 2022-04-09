@@ -237,6 +237,11 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 		return []byte(`"NaN"`), nil
 	}
 
+	return n.numberTextBytes(), nil
+}
+
+// numberString returns a string of the number. undefined if NaN, infinite, or NULL
+func (n Numeric) numberTextBytes() []byte {
 	intStr := n.Int.String()
 	buf := &bytes.Buffer{}
 	exp := int(n.Exp)
@@ -263,7 +268,7 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 		buf.WriteString(intStr)
 	}
 
-	return buf.Bytes(), nil
+	return buf.Bytes()
 }
 
 type NumericCodec struct{}
@@ -520,19 +525,7 @@ func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
 		return buf, nil
 	}
 
-	digits := n.Int.String()
-	if n.Exp >= 0 {
-		buf = append(buf, digits...)
-		if n.Exp > 0 {
-			for i := int32(0); i < n.Exp; i++ {
-				buf = append(buf, '0')
-			}
-		}
-	} else {
-		buf = append(buf, digits...)
-		buf = append(buf, 'e')
-		buf = append(buf, strconv.FormatInt(int64(n.Exp), 10)...)
-	}
+	buf = append(buf, n.numberTextBytes()...)
 
 	return buf, nil
 }
@@ -548,6 +541,8 @@ func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target interface{
 			return scanPlanBinaryNumericToFloat64Scanner{}
 		case Int64Scanner:
 			return scanPlanBinaryNumericToInt64Scanner{}
+		case TextScanner:
+			return scanPlanBinaryNumericToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -719,6 +714,30 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst interface{}) err
 	}
 
 	return scanner.ScanInt64(Int8{Int64: bigInt.Int64(), Valid: true})
+}
+
+type scanPlanBinaryNumericToTextScanner struct{}
+
+func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst interface{}) error {
+	scanner := (dst).(TextScanner)
+
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
+	var n Numeric
+
+	err := scanPlanBinaryNumericToNumericScanner{}.Scan(src, &n)
+	if err != nil {
+		return err
+	}
+
+	sbuf, err := encodeNumericText(n, nil)
+	if err != nil {
+		return err
+	}
+
+	return scanner.ScanText(Text{String: string(sbuf), Valid: true})
 }
 
 type scanPlanTextAnyToNumericScanner struct{}
