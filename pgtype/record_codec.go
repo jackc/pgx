@@ -21,11 +21,11 @@ func (RecordCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (RecordCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (RecordCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	return nil
 }
 
-func (RecordCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (RecordCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	if format == BinaryFormatCode {
 		switch target.(type) {
 		case CompositeIndexScanner:
@@ -40,7 +40,7 @@ type scanPlanBinaryRecordToCompositeIndexScanner struct {
 	m *Map
 }
 
-func (plan *scanPlanBinaryRecordToCompositeIndexScanner) Scan(src []byte, target interface{}) error {
+func (plan *scanPlanBinaryRecordToCompositeIndexScanner) Scan(src []byte, target any) error {
 	targetScanner := (target).(CompositeIndexScanner)
 
 	if src == nil {
@@ -87,7 +87,7 @@ func (RecordCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	}
 }
 
-func (RecordCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (RecordCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -97,9 +97,9 @@ func (RecordCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 		return string(src), nil
 	case BinaryFormatCode:
 		scanner := NewCompositeBinaryScanner(m, src)
-		values := make([]interface{}, scanner.FieldCount())
+		values := make([]any, scanner.FieldCount())
 		for i := 0; scanner.Next(); i++ {
-			var v interface{}
+			var v any
 			fieldPlan := m.PlanScan(scanner.OID(), BinaryFormatCode, &v)
 			if fieldPlan == nil {
 				return nil, fmt.Errorf("unable to scan OID %d in binary format into %v", scanner.OID(), v)

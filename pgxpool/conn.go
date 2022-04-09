@@ -46,19 +46,19 @@ func (c *Conn) Release() {
 	}()
 }
 
-func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	return c.Conn().Exec(ctx, sql, arguments...)
 }
 
-func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+func (c *Conn) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	return c.Conn().Query(ctx, sql, args...)
 }
 
-func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return c.Conn().QueryRow(ctx, sql, args...)
 }
 
-func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+func (c *Conn) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
 	return c.Conn().QueryFunc(ctx, sql, args, scans, f)
 }
 

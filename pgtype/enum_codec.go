@@ -20,7 +20,7 @@ func (EnumCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch value.(type) {
@@ -38,7 +38,7 @@ func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 	return nil
 }
 
-func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {
@@ -60,7 +60,7 @@ func (c *EnumCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	return c.DecodeValue(m, oid, format, src)
 }
 
-func (c *EnumCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *EnumCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -87,7 +87,7 @@ type scanPlanTextAnyToEnumString struct {
 	codec *EnumCodec
 }
 
-func (plan *scanPlanTextAnyToEnumString) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanTextAnyToEnumString) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -102,7 +102,7 @@ type scanPlanTextAnyToEnumTextScanner struct {
 	codec *EnumCodec
 }
 
-func (plan *scanPlanTextAnyToEnumTextScanner) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanTextAnyToEnumTextScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {

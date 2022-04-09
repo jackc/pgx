@@ -107,57 +107,57 @@ func TestNewQuery(t *testing.T) {
 func TestQuerySanitize(t *testing.T) {
 	successfulTests := []struct {
 		query    sanitize.Query
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 42"}},
-			args:     []interface{}{},
+			args:     []any{},
 			expected: `select 42`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{int64(42)},
+			args:     []any{int64(42)},
 			expected: `select 42`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{float64(1.23)},
+			args:     []any{float64(1.23)},
 			expected: `select 1.23`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{true},
+			args:     []any{true},
 			expected: `select true`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{[]byte{0, 1, 2, 3, 255}},
+			args:     []any{[]byte{0, 1, 2, 3, 255}},
 			expected: `select '\x00010203ff'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{nil},
+			args:     []any{nil},
 			expected: `select null`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{"foobar"},
+			args:     []any{"foobar"},
 			expected: `select 'foobar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{"foo'bar"},
+			args:     []any{"foo'bar"},
 			expected: `select 'foo''bar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{`foo\'bar`},
+			args:     []any{`foo\'bar`},
 			expected: `select 'foo\''bar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
-			args:     []interface{}{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
+			args:     []any{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
 			expected: `insert '2020-03-01 23:59:59.999999Z'`,
 		},
 	}
@@ -176,22 +176,22 @@ func TestQuerySanitize(t *testing.T) {
 
 	errorTests := []struct {
 		query    sanitize.Query
-		args     []interface{}
+		args     []any
 		expected string
 	}{
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1, ", ", 2}},
-			args:     []interface{}{int64(42)},
+			args:     []any{int64(42)},
 			expected: `insufficient arguments`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 'foo'"}},
-			args:     []interface{}{int64(42)},
+			args:     []any{int64(42)},
 			expected: `unused argument: 0`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
-			args:     []interface{}{42},
+			args:     []any{42},
 			expected: `invalid arg type: int`,
 		},
 	}

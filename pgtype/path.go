@@ -35,7 +35,7 @@ func (path Path) PathValue() (Path, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (path *Path) Scan(src interface{}) error {
+func (path *Path) Scan(src any) error {
 	if src == nil {
 		*path = Path{}
 		return nil
@@ -73,7 +73,7 @@ func (PathCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (PathCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (PathCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(PathValuer); !ok {
 		return nil
 	}
@@ -90,7 +90,7 @@ func (PathCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanPathCodecBinary struct{}
 
-func (encodePlanPathCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPathCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	path, err := value.(PathValuer).PathValue()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (encodePlanPathCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanPathCodecText struct{}
 
-func (encodePlanPathCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPathCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	path, err := value.(PathValuer).PathValue()
 	if err != nil {
 		return nil, err
@@ -153,7 +153,7 @@ func (encodePlanPathCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -173,7 +173,7 @@ func (PathCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanBinaryPathToPathScanner struct{}
 
-func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PathScanner)
 
 	if src == nil {
@@ -211,7 +211,7 @@ func (scanPlanBinaryPathToPathScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToPathScanner struct{}
 
-func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPathScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PathScanner)
 
 	if src == nil {
@@ -258,7 +258,7 @@ func (c PathCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c PathCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c PathCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

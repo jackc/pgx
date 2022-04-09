@@ -27,27 +27,27 @@ func TestRecordCodecDecodeValue(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
 		for _, tt := range []struct {
 			sql      string
-			expected interface{}
+			expected any
 		}{
 			{
 				sql:      `select row()`,
-				expected: []interface{}{},
+				expected: []any{},
 			},
 			{
 				sql:      `select row('foo'::text, 42::int4)`,
-				expected: []interface{}{"foo", int32(42)},
+				expected: []any{"foo", int32(42)},
 			},
 			{
 				sql:      `select row(100.0::float4, 1.09::float4)`,
-				expected: []interface{}{float32(100), float32(1.09)},
+				expected: []any{float32(100), float32(1.09)},
 			},
 			{
 				sql:      `select row('foo'::text, array[1, 2, null, 4]::int4[], 42::int4)`,
-				expected: []interface{}{"foo", []interface{}{int32(1), int32(2), nil, int32(4)}, int32(42)},
+				expected: []any{"foo", []any{int32(1), int32(2), nil, int32(4)}, int32(42)},
 			},
 			{
 				sql:      `select row(null)`,
-				expected: []interface{}{nil},
+				expected: []any{nil},
 			},
 			{
 				sql:      `select null::record`,

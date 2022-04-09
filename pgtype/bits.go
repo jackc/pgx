@@ -33,7 +33,7 @@ func (b Bits) BitsValue() (Bits, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Bits) Scan(src interface{}) error {
+func (dst *Bits) Scan(src any) error {
 	if src == nil {
 		*dst = Bits{}
 		return nil
@@ -70,7 +70,7 @@ func (BitsCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BitsCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (BitsCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(BitsValuer); !ok {
 		return nil
 	}
@@ -87,7 +87,7 @@ func (BitsCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanBitsCodecBinary struct{}
 
-func (encodePlanBitsCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBitsCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	bits, err := value.(BitsValuer).BitsValue()
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func (encodePlanBitsCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanBitsCodecText struct{}
 
-func (encodePlanBitsCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBitsCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	bits, err := value.(BitsValuer).BitsValue()
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (encodePlanBitsCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (BitsCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (BitsCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -148,7 +148,7 @@ func (c BitsCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c BitsCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c BitsCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -163,7 +163,7 @@ func (c BitsCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryBitsToBitsScanner struct{}
 
-func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BitsScanner)
 
 	if src == nil {
@@ -182,7 +182,7 @@ func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToBitsScanner struct{}
 
-func (scanPlanTextAnyToBitsScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBitsScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BitsScanner)
 
 	if src == nil {

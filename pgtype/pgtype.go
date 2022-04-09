@@ -142,21 +142,21 @@ type Codec interface {
 
 	// PlanEncode returns an EncodePlan for encoding value into PostgreSQL format for oid and format. If no plan can be
 	// found then nil is returned.
-	PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan
+	PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan
 
 	// PlanScan returns a ScanPlan for scanning a PostgreSQL value into a destination with the same type as target. If
 	// no plan can be found then nil is returned.
-	PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan
+	PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 
 	// DecodeDatabaseSQLValue returns src decoded into a value compatible with the sql.Scanner interface.
 	DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error)
 
 	// DecodeValue returns src decoded into its default format.
-	DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error)
+	DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error)
 }
 
 type nullAssignmentError struct {
-	dst interface{}
+	dst any
 }
 
 func (e *nullAssignmentError) Error() string {
@@ -316,7 +316,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[VarcharOID]}})
 	m.RegisterType(&Type{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[XIDOID]}})
 
-	registerDefaultPgTypeVariants := func(name, arrayName string, value interface{}) {
+	registerDefaultPgTypeVariants := func(name, arrayName string, value any) {
 		// T
 		m.RegisterDefaultPgType(value, name)
 
@@ -416,7 +416,7 @@ func (m *Map) RegisterType(t *Type) {
 // RegisterDefaultPgType registers a mapping of a Go type to a PostgreSQL type name. Typically the data type to be
 // encoded or decoded is determined by the PostgreSQL OID. But if the OID of a value to be encoded or decoded is
 // unknown, this additional mapping will be used by TypeForValue to determine a suitable data type.
-func (m *Map) RegisterDefaultPgType(value interface{}, name string) {
+func (m *Map) RegisterDefaultPgType(value any, name string) {
 	m.reflectTypeToName[reflect.TypeOf(value)] = name
 
 	// Invalidated by type registration
@@ -448,7 +448,7 @@ func (m *Map) buildReflectTypeToType() {
 
 // TypeForValue finds a data type suitable for v. Use RegisterType to register types that can encode and decode
 // themselves. Use RegisterDefaultPgType to register that can be handled by a registered data type.
-func (m *Map) TypeForValue(v interface{}) (*Type, bool) {
+func (m *Map) TypeForValue(v any) (*Type, bool) {
 	if m.reflectTypeToType == nil {
 		m.buildReflectTypeToType()
 	}
@@ -472,13 +472,13 @@ type EncodePlan interface {
 	// Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
 	// (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
 	// written.
-	Encode(value interface{}, buf []byte) (newBuf []byte, err error)
+	Encode(value any, buf []byte) (newBuf []byte, err error)
 }
 
 // ScanPlan is a precompiled plan to scan into a type of destination.
 type ScanPlan interface {
 	// Scan scans src into target.
-	Scan(src []byte, target interface{}) error
+	Scan(src []byte, target any) error
 }
 
 type scanPlanCodecSQLScanner struct {
@@ -488,7 +488,7 @@ type scanPlanCodecSQLScanner struct {
 	formatCode int16
 }
 
-func (plan *scanPlanCodecSQLScanner) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanCodecSQLScanner) Scan(src []byte, dst any) error {
 	value, err := plan.c.DecodeDatabaseSQLValue(plan.m, plan.oid, plan.formatCode, src)
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ type scanPlanSQLScanner struct {
 	formatCode int16
 }
 
-func (plan *scanPlanSQLScanner) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanSQLScanner) Scan(src []byte, dst any) error {
 	scanner := dst.(sql.Scanner)
 	if src == nil {
 		// This is necessary because interface value []byte:nil does not equal nil:nil for the binary format path and the
@@ -517,7 +517,7 @@ func (plan *scanPlanSQLScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanString struct{}
 
-func (scanPlanString) Scan(src []byte, dst interface{}) error {
+func (scanPlanString) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -529,7 +529,7 @@ func (scanPlanString) Scan(src []byte, dst interface{}) error {
 
 type scanPlanAnyTextToBytes struct{}
 
-func (scanPlanAnyTextToBytes) Scan(src []byte, dst interface{}) error {
+func (scanPlanAnyTextToBytes) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -546,7 +546,7 @@ type scanPlanFail struct {
 	formatCode int16
 }
 
-func (plan *scanPlanFail) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanFail) Scan(src []byte, dst any) error {
 	var format string
 	switch plan.formatCode {
 	case TextFormatCode:
@@ -564,7 +564,7 @@ func (plan *scanPlanFail) Scan(src []byte, dst interface{}) error {
 // that will convert the target passed to Scan and then call the next plan. nextTarget is target as it will be converted
 // by plan. It must be used to find another suitable ScanPlan. When it is found SetNext must be called on plan for it
 // to be usabled. ok indicates if a suitable wrapper was found.
-type TryWrapScanPlanFunc func(target interface{}) (plan WrappedScanPlanNextSetter, nextTarget interface{}, ok bool)
+type TryWrapScanPlanFunc func(target any) (plan WrappedScanPlanNextSetter, nextTarget any, ok bool)
 
 type pointerPointerScanPlan struct {
 	dstType reflect.Type
@@ -573,7 +573,7 @@ type pointerPointerScanPlan struct {
 
 func (plan *pointerPointerScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *pointerPointerScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *pointerPointerScanPlan) Scan(src []byte, dst any) error {
 	el := reflect.ValueOf(dst).Elem()
 	if src == nil {
 		el.Set(reflect.Zero(el.Type()))
@@ -586,7 +586,7 @@ func (plan *pointerPointerScanPlan) Scan(src []byte, dst interface{}) error {
 
 // TryPointerPointerScanPlan handles a pointer to a pointer by setting the target to nil for SQL NULL and allocating and
 // scanning for non-NULL.
-func TryPointerPointerScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextTarget interface{}, ok bool) {
+func TryPointerPointerScanPlan(target any) (plan WrappedScanPlanNextSetter, nextTarget any, ok bool) {
 	if dstValue := reflect.ValueOf(target); dstValue.Kind() == reflect.Ptr {
 		elemValue := dstValue.Elem()
 		if elemValue.Kind() == reflect.Ptr {
@@ -627,13 +627,13 @@ type underlyingTypeScanPlan struct {
 
 func (plan *underlyingTypeScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *underlyingTypeScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *underlyingTypeScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, reflect.ValueOf(dst).Convert(plan.nextDstType).Interface())
 }
 
 // TryFindUnderlyingTypeScanPlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
 // MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
-func TryFindUnderlyingTypeScanPlan(dst interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
+func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nextDst any, ok bool) {
 	if _, ok := dst.(SkipUnderlyingTypePlanner); ok {
 		return nil, nil, false
 	}
@@ -667,7 +667,7 @@ type WrappedScanPlanNextSetter interface {
 // TryWrapBuiltinTypeScanPlan tries to wrap a builtin type with a wrapper that provides additional methods. e.g. If
 // value was of type int32 then a wrapper plan would be returned that converts target to a value that implements
 // Int64Scanner.
-func TryWrapBuiltinTypeScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextDst interface{}, ok bool) {
+func TryWrapBuiltinTypeScanPlan(target any) (plan WrappedScanPlanNextSetter, nextDst any, ok bool) {
 	switch target := target.(type) {
 	case *int8:
 		return &wrapInt8ScanPlan{}, (*int8Wrapper)(target), true
@@ -722,7 +722,7 @@ type wrapInt8ScanPlan struct {
 
 func (plan *wrapInt8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt8ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapInt8ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*int8Wrapper)(dst.(*int8)))
 }
 
@@ -732,7 +732,7 @@ type wrapInt16ScanPlan struct {
 
 func (plan *wrapInt16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt16ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapInt16ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*int16Wrapper)(dst.(*int16)))
 }
 
@@ -742,7 +742,7 @@ type wrapInt32ScanPlan struct {
 
 func (plan *wrapInt32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt32ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapInt32ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*int32Wrapper)(dst.(*int32)))
 }
 
@@ -752,7 +752,7 @@ type wrapInt64ScanPlan struct {
 
 func (plan *wrapInt64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapInt64ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapInt64ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*int64Wrapper)(dst.(*int64)))
 }
 
@@ -762,7 +762,7 @@ type wrapIntScanPlan struct {
 
 func (plan *wrapIntScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapIntScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapIntScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*intWrapper)(dst.(*int)))
 }
 
@@ -772,7 +772,7 @@ type wrapUint8ScanPlan struct {
 
 func (plan *wrapUint8ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint8ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapUint8ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*uint8Wrapper)(dst.(*uint8)))
 }
 
@@ -782,7 +782,7 @@ type wrapUint16ScanPlan struct {
 
 func (plan *wrapUint16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint16ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapUint16ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*uint16Wrapper)(dst.(*uint16)))
 }
 
@@ -792,7 +792,7 @@ type wrapUint32ScanPlan struct {
 
 func (plan *wrapUint32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint32ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapUint32ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*uint32Wrapper)(dst.(*uint32)))
 }
 
@@ -802,7 +802,7 @@ type wrapUint64ScanPlan struct {
 
 func (plan *wrapUint64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUint64ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapUint64ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*uint64Wrapper)(dst.(*uint64)))
 }
 
@@ -812,7 +812,7 @@ type wrapUintScanPlan struct {
 
 func (plan *wrapUintScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapUintScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapUintScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*uintWrapper)(dst.(*uint)))
 }
 
@@ -822,7 +822,7 @@ type wrapFloat32ScanPlan struct {
 
 func (plan *wrapFloat32ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapFloat32ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapFloat32ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*float32Wrapper)(dst.(*float32)))
 }
 
@@ -832,7 +832,7 @@ type wrapFloat64ScanPlan struct {
 
 func (plan *wrapFloat64ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapFloat64ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapFloat64ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*float64Wrapper)(dst.(*float64)))
 }
 
@@ -842,7 +842,7 @@ type wrapStringScanPlan struct {
 
 func (plan *wrapStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapStringScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapStringScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*stringWrapper)(dst.(*string)))
 }
 
@@ -852,7 +852,7 @@ type wrapTimeScanPlan struct {
 
 func (plan *wrapTimeScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapTimeScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapTimeScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*timeWrapper)(dst.(*time.Time)))
 }
 
@@ -862,7 +862,7 @@ type wrapDurationScanPlan struct {
 
 func (plan *wrapDurationScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapDurationScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapDurationScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*durationWrapper)(dst.(*time.Duration)))
 }
 
@@ -872,7 +872,7 @@ type wrapNetIPNetScanPlan struct {
 
 func (plan *wrapNetIPNetScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapNetIPNetScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapNetIPNetScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*netIPNetWrapper)(dst.(*net.IPNet)))
 }
 
@@ -882,7 +882,7 @@ type wrapNetIPScanPlan struct {
 
 func (plan *wrapNetIPScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapNetIPScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapNetIPScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*netIPWrapper)(dst.(*net.IP)))
 }
 
@@ -892,7 +892,7 @@ type wrapMapStringToPointerStringScanPlan struct {
 
 func (plan *wrapMapStringToPointerStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapMapStringToPointerStringScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapMapStringToPointerStringScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*mapStringToPointerStringWrapper)(dst.(*map[string]*string)))
 }
 
@@ -902,7 +902,7 @@ type wrapMapStringToStringScanPlan struct {
 
 func (plan *wrapMapStringToStringScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapMapStringToStringScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapMapStringToStringScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*mapStringToStringWrapper)(dst.(*map[string]string)))
 }
 
@@ -912,7 +912,7 @@ type wrapByte16ScanPlan struct {
 
 func (plan *wrapByte16ScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapByte16ScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapByte16ScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*byte16Wrapper)(dst.(*[16]byte)))
 }
 
@@ -922,7 +922,7 @@ type wrapByteSliceScanPlan struct {
 
 func (plan *wrapByteSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapByteSliceScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *wrapByteSliceScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*byteSliceWrapper)(dst.(*[]byte)))
 }
 
@@ -933,20 +933,20 @@ type pointerEmptyInterfaceScanPlan struct {
 	formatCode int16
 }
 
-func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst interface{}) error {
+func (plan *pointerEmptyInterfaceScanPlan) Scan(src []byte, dst any) error {
 	value, err := plan.codec.DecodeValue(plan.m, plan.oid, plan.formatCode, src)
 	if err != nil {
 		return err
 	}
 
-	ptrAny := dst.(*interface{})
+	ptrAny := dst.(*any)
 	*ptrAny = value
 
 	return nil
 }
 
 // TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
-func TryWrapStructScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapStructScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Kind() != reflect.Ptr {
 		return nil, nil, false
@@ -982,7 +982,7 @@ type wrapAnyPtrStructScanPlan struct {
 
 func (plan *wrapAnyPtrStructScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target interface{}) error {
+func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target any) error {
 	w := ptrStructWrapper{
 		s:              target,
 		exportedFields: getExportedFieldValues(reflect.ValueOf(target).Elem()),
@@ -992,7 +992,7 @@ func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target interface{}) error
 }
 
 // TryWrapPtrSliceScanPlan tries to wrap a pointer to a single dimension slice.
-func TryWrapPtrSliceScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Kind() != reflect.Ptr {
 		return nil, nil, false
@@ -1012,12 +1012,12 @@ type wrapPtrSliceScanPlan struct {
 
 func (plan *wrapPtrSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapPtrSliceScanPlan) Scan(src []byte, target interface{}) error {
+func (plan *wrapPtrSliceScanPlan) Scan(src []byte, target any) error {
 	return plan.next.Scan(src, &anySliceArray{slice: reflect.ValueOf(target).Elem()})
 }
 
 // TryWrapPtrMultiDimSliceScanPlan tries to wrap a pointer to a multi-dimension slice.
-func TryWrapPtrMultiDimSliceScanPlan(target interface{}) (plan WrappedScanPlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapPtrMultiDimSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Kind() != reflect.Ptr {
 		return nil, nil, false
@@ -1043,12 +1043,12 @@ type wrapPtrMultiDimSliceScanPlan struct {
 
 func (plan *wrapPtrMultiDimSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target interface{}) error {
+func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target any) error {
 	return plan.next.Scan(src, &anyMultiDimSliceArray{slice: reflect.ValueOf(target).Elem()})
 }
 
 // PlanScan prepares a plan to scan a value into target.
-func (m *Map) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
+func (m *Map) PlanScan(oid uint32, formatCode int16, target any) ScanPlan {
 	oidMemo := m.memoizedScanPlans[oid]
 	if oidMemo == nil {
 		oidMemo = make(map[reflect.Type][2]ScanPlan)
@@ -1066,7 +1066,7 @@ func (m *Map) PlanScan(oid uint32, formatCode int16, target interface{}) ScanPla
 	return plan
 }
 
-func (m *Map) planScan(oid uint32, formatCode int16, target interface{}) ScanPlan {
+func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 	if _, ok := target.(*UndecodedBytes); ok {
 		return scanPlanAnyToUndecodedBytes{}
 	}
@@ -1120,7 +1120,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target interface{}) ScanPla
 	}
 
 	if dt != nil {
-		if _, ok := target.(*interface{}); ok {
+		if _, ok := target.(*any); ok {
 			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, m: m, oid: oid, formatCode: formatCode}
 		}
 
@@ -1136,7 +1136,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target interface{}) ScanPla
 	return &scanPlanFail{oid: oid, formatCode: formatCode}
 }
 
-func (m *Map) Scan(oid uint32, formatCode int16, src []byte, dst interface{}) error {
+func (m *Map) Scan(oid uint32, formatCode int16, src []byte, dst any) error {
 	if dst == nil {
 		return nil
 	}
@@ -1145,7 +1145,7 @@ func (m *Map) Scan(oid uint32, formatCode int16, src []byte, dst interface{}) er
 	return plan.Scan(src, dst)
 }
 
-func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{}) error {
+func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest any) error {
 	switch dest := dest.(type) {
 	case *string:
 		if formatCode == BinaryFormatCode {
@@ -1166,7 +1166,7 @@ func scanUnknownType(oid uint32, formatCode int16, buf []byte, dest interface{})
 
 var ErrScanTargetTypeChanged = errors.New("scan target type changed")
 
-func codecScan(codec Codec, m *Map, oid uint32, format int16, src []byte, dst interface{}) error {
+func codecScan(codec Codec, m *Map, oid uint32, format int16, src []byte, dst any) error {
 	scanPlan := codec.PlanScan(m, oid, format, dst)
 	if scanPlan == nil {
 		return fmt.Errorf("PlanScan did not find a plan")
@@ -1196,7 +1196,7 @@ func codecDecodeToTextFormat(codec Codec, m *Map, oid uint32, format int16, src 
 
 // PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
 // found then nil is returned.
-func (m *Map) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan {
+func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
 	if format == TextFormatCode {
 		switch value.(type) {
 		case string:
@@ -1239,14 +1239,14 @@ func (m *Map) PlanEncode(oid uint32, format int16, value interface{}) EncodePlan
 
 type encodePlanStringToAnyTextFormat struct{}
 
-func (encodePlanStringToAnyTextFormat) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanStringToAnyTextFormat) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	s := value.(string)
 	return append(buf, s...), nil
 }
 
 type encodePlanTextValuerToAnyTextFormat struct{}
 
-func (encodePlanTextValuerToAnyTextFormat) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextValuerToAnyTextFormat) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	t, err := value.(TextValuer).TextValue()
 	if err != nil {
 		return nil, err
@@ -1262,7 +1262,7 @@ func (encodePlanTextValuerToAnyTextFormat) Encode(value interface{}, buf []byte)
 // that will convert the value passed to Encode and then call the next plan. nextValue is value as it will be converted
 // by plan. It must be used to find another suitable EncodePlan. When it is found SetNext must be called on plan for it
 // to be usabled. ok indicates if a suitable wrapper was found.
-type TryWrapEncodePlanFunc func(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool)
+type TryWrapEncodePlanFunc func(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool)
 
 type derefPointerEncodePlan struct {
 	next EncodePlan
@@ -1270,7 +1270,7 @@ type derefPointerEncodePlan struct {
 
 func (plan *derefPointerEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *derefPointerEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *derefPointerEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	ptr := reflect.ValueOf(value)
 
 	if ptr.IsNil() {
@@ -1282,7 +1282,7 @@ func (plan *derefPointerEncodePlan) Encode(value interface{}, buf []byte) (newBu
 
 // TryWrapDerefPointerEncodePlan tries to dereference a pointer. e.g. If value was of type *string then a wrapper plan
 // would be returned that derefences the value.
-func TryWrapDerefPointerEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapDerefPointerEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	if valueType := reflect.TypeOf(value); valueType.Kind() == reflect.Ptr {
 		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
 	}
@@ -1313,13 +1313,13 @@ type underlyingTypeEncodePlan struct {
 
 func (plan *underlyingTypeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *underlyingTypeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *underlyingTypeEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(reflect.ValueOf(value).Convert(plan.nextValueType).Interface(), buf)
 }
 
 // TryWrapFindUnderlyingTypeEncodePlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
 // MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
-func TryWrapFindUnderlyingTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	if _, ok := value.(SkipUnderlyingTypePlanner); ok {
 		return nil, nil, false
 	}
@@ -1342,7 +1342,7 @@ type WrappedEncodePlanNextSetter interface {
 // TryWrapBuiltinTypeEncodePlan tries to wrap a builtin type with a wrapper that provides additional methods. e.g. If
 // value was of type int32 then a wrapper plan would be returned that converts value to a type that implements
 // Int64Valuer.
-func TryWrapBuiltinTypeEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapBuiltinTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	switch value := value.(type) {
 	case int8:
 		return &wrapInt8EncodePlan{}, int8Wrapper(value), true
@@ -1399,7 +1399,7 @@ type wrapInt8EncodePlan struct {
 
 func (plan *wrapInt8EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapInt8EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapInt8EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(int8Wrapper(value.(int8)), buf)
 }
 
@@ -1409,7 +1409,7 @@ type wrapInt16EncodePlan struct {
 
 func (plan *wrapInt16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapInt16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapInt16EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(int16Wrapper(value.(int16)), buf)
 }
 
@@ -1419,7 +1419,7 @@ type wrapInt32EncodePlan struct {
 
 func (plan *wrapInt32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapInt32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapInt32EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(int32Wrapper(value.(int32)), buf)
 }
 
@@ -1429,7 +1429,7 @@ type wrapInt64EncodePlan struct {
 
 func (plan *wrapInt64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapInt64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapInt64EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(int64Wrapper(value.(int64)), buf)
 }
 
@@ -1439,7 +1439,7 @@ type wrapIntEncodePlan struct {
 
 func (plan *wrapIntEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapIntEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapIntEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(intWrapper(value.(int)), buf)
 }
 
@@ -1449,7 +1449,7 @@ type wrapUint8EncodePlan struct {
 
 func (plan *wrapUint8EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapUint8EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapUint8EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(uint8Wrapper(value.(uint8)), buf)
 }
 
@@ -1459,7 +1459,7 @@ type wrapUint16EncodePlan struct {
 
 func (plan *wrapUint16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapUint16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapUint16EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(uint16Wrapper(value.(uint16)), buf)
 }
 
@@ -1469,7 +1469,7 @@ type wrapUint32EncodePlan struct {
 
 func (plan *wrapUint32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapUint32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapUint32EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(uint32Wrapper(value.(uint32)), buf)
 }
 
@@ -1479,7 +1479,7 @@ type wrapUint64EncodePlan struct {
 
 func (plan *wrapUint64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapUint64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapUint64EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(uint64Wrapper(value.(uint64)), buf)
 }
 
@@ -1489,7 +1489,7 @@ type wrapUintEncodePlan struct {
 
 func (plan *wrapUintEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapUintEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapUintEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(uintWrapper(value.(uint)), buf)
 }
 
@@ -1499,7 +1499,7 @@ type wrapFloat32EncodePlan struct {
 
 func (plan *wrapFloat32EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapFloat32EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapFloat32EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(float32Wrapper(value.(float32)), buf)
 }
 
@@ -1509,7 +1509,7 @@ type wrapFloat64EncodePlan struct {
 
 func (plan *wrapFloat64EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapFloat64EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapFloat64EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(float64Wrapper(value.(float64)), buf)
 }
 
@@ -1519,7 +1519,7 @@ type wrapStringEncodePlan struct {
 
 func (plan *wrapStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapStringEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(stringWrapper(value.(string)), buf)
 }
 
@@ -1529,7 +1529,7 @@ type wrapTimeEncodePlan struct {
 
 func (plan *wrapTimeEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapTimeEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapTimeEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(timeWrapper(value.(time.Time)), buf)
 }
 
@@ -1539,7 +1539,7 @@ type wrapDurationEncodePlan struct {
 
 func (plan *wrapDurationEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapDurationEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapDurationEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(durationWrapper(value.(time.Duration)), buf)
 }
 
@@ -1549,7 +1549,7 @@ type wrapNetIPNetEncodePlan struct {
 
 func (plan *wrapNetIPNetEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapNetIPNetEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapNetIPNetEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(netIPNetWrapper(value.(net.IPNet)), buf)
 }
 
@@ -1559,7 +1559,7 @@ type wrapNetIPEncodePlan struct {
 
 func (plan *wrapNetIPEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapNetIPEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapNetIPEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(netIPWrapper(value.(net.IP)), buf)
 }
 
@@ -1569,7 +1569,7 @@ type wrapMapStringToPointerStringEncodePlan struct {
 
 func (plan *wrapMapStringToPointerStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapMapStringToPointerStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapMapStringToPointerStringEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(mapStringToPointerStringWrapper(value.(map[string]*string)), buf)
 }
 
@@ -1579,7 +1579,7 @@ type wrapMapStringToStringEncodePlan struct {
 
 func (plan *wrapMapStringToStringEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapMapStringToStringEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapMapStringToStringEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(mapStringToStringWrapper(value.(map[string]string)), buf)
 }
 
@@ -1589,7 +1589,7 @@ type wrapByte16EncodePlan struct {
 
 func (plan *wrapByte16EncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapByte16EncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapByte16EncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(byte16Wrapper(value.([16]byte)), buf)
 }
 
@@ -1599,7 +1599,7 @@ type wrapByteSliceEncodePlan struct {
 
 func (plan *wrapByteSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapByteSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapByteSliceEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(byteSliceWrapper(value.([]byte)), buf)
 }
 
@@ -1609,12 +1609,12 @@ type wrapFmtStringerEncodePlan struct {
 
 func (plan *wrapFmtStringerEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapFmtStringerEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapFmtStringerEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(fmtStringerWrapper{value.(fmt.Stringer)}, buf)
 }
 
 // TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
-func TryWrapStructEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapStructEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	if reflect.TypeOf(value).Kind() == reflect.Struct {
 		exportedFields := getExportedFieldValues(reflect.ValueOf(value))
 		if len(exportedFields) == 0 {
@@ -1637,7 +1637,7 @@ type wrapAnyStructEncodePlan struct {
 
 func (plan *wrapAnyStructEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapAnyStructEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapAnyStructEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	w := structWrapper{
 		s:              value,
 		exportedFields: getExportedFieldValues(reflect.ValueOf(value)),
@@ -1659,7 +1659,7 @@ func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 	return exportedFields
 }
 
-func TryWrapSliceEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	if reflect.TypeOf(value).Kind() == reflect.Slice {
 		w := anySliceArray{
 			slice: reflect.ValueOf(value),
@@ -1676,7 +1676,7 @@ type wrapSliceEncodePlan struct {
 
 func (plan *wrapSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapSliceEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	w := anySliceArray{
 		slice: reflect.ValueOf(value),
 	}
@@ -1684,7 +1684,7 @@ func (plan *wrapSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf [
 	return plan.next.Encode(w, buf)
 }
 
-func TryWrapMultiDimSliceEncodePlan(value interface{}) (plan WrappedEncodePlanNextSetter, nextValue interface{}, ok bool) {
+func TryWrapMultiDimSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
 	sliceValue := reflect.ValueOf(value)
 	if sliceValue.Kind() == reflect.Slice {
 		valueElemType := sliceValue.Type().Elem()
@@ -1708,7 +1708,7 @@ type wrapMultiDimSliceEncodePlan struct {
 
 func (plan *wrapMultiDimSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapMultiDimSliceEncodePlan) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *wrapMultiDimSliceEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	w := anyMultiDimSliceArray{
 		slice: reflect.ValueOf(value),
 	}
@@ -1719,7 +1719,7 @@ func (plan *wrapMultiDimSliceEncodePlan) Encode(value interface{}, buf []byte) (
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
 // (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
 // written.
-func (m *Map) Encode(oid uint32, formatCode int16, value interface{}, buf []byte) (newBuf []byte, err error) {
+func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBuf []byte, err error) {
 	if value == nil {
 		return nil, nil
 	}

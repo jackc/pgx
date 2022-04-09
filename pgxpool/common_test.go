@@ -21,7 +21,7 @@ func waitForReleaseToComplete() {
 }
 
 type execer interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
 func testExec(t *testing.T, db execer) {
@@ -31,7 +31,7 @@ func testExec(t *testing.T, db execer) {
 }
 
 type queryer interface {
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 func testQuery(t *testing.T, db queryer) {
@@ -53,7 +53,7 @@ func testQuery(t *testing.T, db queryer) {
 }
 
 type queryRower interface {
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 func testQueryRow(t *testing.T, db queryRower) {
@@ -103,7 +103,7 @@ func testCopyFrom(t *testing.T, db interface {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
@@ -115,7 +115,7 @@ func testCopyFrom(t *testing.T, db interface {
 	rows, err := db.Query(context.Background(), "select * from foo")
 	assert.NoError(t, err)
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {

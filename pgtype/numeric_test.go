@@ -24,8 +24,8 @@ func mustParseBigInt(t *testing.T, src string) *big.Int {
 	return i
 }
 
-func isExpectedEqNumeric(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqNumeric(a any) func(any) bool {
+	return func(v any) bool {
 		aa := a.(pgtype.Numeric)
 		vv := v.(pgtype.Numeric)
 
@@ -101,8 +101,8 @@ func TestNumericCodec(t *testing.T) {
 		{pgtype.Numeric{NaN: true, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{NaN: true, Valid: true})},
 		{longestNumeric, new(pgtype.Numeric), isExpectedEqNumeric(longestNumeric)},
 		{mustParseNumeric(t, "1"), new(int64), isExpectedEq(int64(1))},
-		{math.NaN(), new(float64), func(a interface{}) bool { return math.IsNaN(a.(float64)) }},
-		{float32(math.NaN()), new(float32), func(a interface{}) bool { return math.IsNaN(float64(a.(float32))) }},
+		{math.NaN(), new(float64), func(a any) bool { return math.IsNaN(a.(float64)) }},
+		{float32(math.NaN()), new(float32), func(a any) bool { return math.IsNaN(float64(a.(float32))) }},
 		{int64(-1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "-1"))},
 		{int64(0), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "0"))},
 		{int64(1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, "1"))},

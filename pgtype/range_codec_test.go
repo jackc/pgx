@@ -132,7 +132,7 @@ func TestRangeCodecDecodeValue(t *testing.T) {
 
 		for _, tt := range []struct {
 			sql      string
-			expected interface{}
+			expected any
 		}{
 			{
 				sql: `select '[1,5)'::int4range`,

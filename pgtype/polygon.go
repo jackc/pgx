@@ -34,7 +34,7 @@ func (p Polygon) PolygonValue() (Polygon, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (p *Polygon) Scan(src interface{}) error {
+func (p *Polygon) Scan(src any) error {
 	if src == nil {
 		*p = Polygon{}
 		return nil
@@ -72,7 +72,7 @@ func (PolygonCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (PolygonCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (PolygonCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(PolygonValuer); !ok {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (PolygonCodec) PlanEncode(m *Map, oid uint32, format int16, value interface
 
 type encodePlanPolygonCodecBinary struct{}
 
-func (encodePlanPolygonCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPolygonCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	polygon, err := value.(PolygonValuer).PolygonValue()
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (encodePlanPolygonCodecBinary) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanPolygonCodecText struct{}
 
-func (encodePlanPolygonCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPolygonCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	polygon, err := value.(PolygonValuer).PolygonValue()
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (encodePlanPolygonCodecText) Encode(value interface{}, buf []byte) (newBuf 
 	return buf, nil
 }
 
-func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -158,7 +158,7 @@ func (PolygonCodec) PlanScan(m *Map, oid uint32, format int16, target interface{
 
 type scanPlanBinaryPolygonToPolygonScanner struct{}
 
-func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PolygonScanner)
 
 	if src == nil {
@@ -193,7 +193,7 @@ func (scanPlanBinaryPolygonToPolygonScanner) Scan(src []byte, dst interface{}) e
 
 type scanPlanTextAnyToPolygonScanner struct{}
 
-func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPolygonScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PolygonScanner)
 
 	if src == nil {
@@ -239,7 +239,7 @@ func (c PolygonCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, s
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c PolygonCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c PolygonCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

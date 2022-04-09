@@ -11,11 +11,11 @@ func (a int16Array) Dimensions() []ArrayDimension {
 	return []ArrayDimension{{Length: int32(len(a)), LowerBound: 1}}
 }
 
-func (a int16Array) Index(i int) interface{} {
+func (a int16Array) Index(i int) any {
 	return a[i]
 }
 
-func (a int16Array) IndexType() interface{} {
+func (a int16Array) IndexType() any {
 	var el int16
 	return el
 }
@@ -31,11 +31,11 @@ func (a *int16Array) SetDimensions(dimensions []ArrayDimension) error {
 	return nil
 }
 
-func (a int16Array) ScanIndex(i int) interface{} {
+func (a int16Array) ScanIndex(i int) any {
 	return &a[i]
 }
 
-func (a int16Array) ScanIndexType() interface{} {
+func (a int16Array) ScanIndexType() any {
 	return new(int16)
 }
 
@@ -49,11 +49,11 @@ func (a uint16Array) Dimensions() []ArrayDimension {
 	return []ArrayDimension{{Length: int32(len(a)), LowerBound: 1}}
 }
 
-func (a uint16Array) Index(i int) interface{} {
+func (a uint16Array) Index(i int) any {
 	return a[i]
 }
 
-func (a uint16Array) IndexType() interface{} {
+func (a uint16Array) IndexType() any {
 	var el uint16
 	return el
 }
@@ -69,10 +69,10 @@ func (a *uint16Array) SetDimensions(dimensions []ArrayDimension) error {
 	return nil
 }
 
-func (a uint16Array) ScanIndex(i int) interface{} {
+func (a uint16Array) ScanIndex(i int) any {
 	return &a[i]
 }
 
-func (a uint16Array) ScanIndexType() interface{} {
+func (a uint16Array) ScanIndexType() any {
 	return new(uint16)
 }

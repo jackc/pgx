@@ -40,7 +40,7 @@ func (ts Timestamp) TimestampValue() (pgtype.Timestamp, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (ts *Timestamp) Scan(src interface{}) error {
+func (ts *Timestamp) Scan(src any) error {
 	if src == nil {
 		*ts = Timestamp{}
 		return nil

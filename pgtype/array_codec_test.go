@@ -12,7 +12,7 @@ import (
 func TestArrayCodec(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		for i, tt := range []struct {
-			expected interface{}
+			expected any
 		}{
 			{[]int16(nil)},
 			{[]int16{}},
@@ -31,7 +31,7 @@ func TestArrayCodec(t *testing.T) {
 		newInt16 := func(n int16) *int16 { return &n }
 
 		for i, tt := range []struct {
-			expected interface{}
+			expected any
 		}{
 			{[]*int16{newInt16(1), nil, newInt16(3), nil, newInt16(5)}},
 		} {
@@ -52,7 +52,7 @@ func TestArrayCodecAnySlice(t *testing.T) {
 		type _int16Slice []int16
 
 		for i, tt := range []struct {
-			expected interface{}
+			expected any
 		}{
 			{_int16Slice(nil)},
 			{_int16Slice{}},
@@ -74,19 +74,19 @@ func TestArrayCodecDecodeValue(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
 		for _, tt := range []struct {
 			sql      string
-			expected interface{}
+			expected any
 		}{
 			{
 				sql:      `select '{}'::int4[]`,
-				expected: []interface{}{},
+				expected: []any{},
 			},
 			{
 				sql:      `select '{1,2}'::int8[]`,
-				expected: []interface{}{int64(1), int64(2)},
+				expected: []any{int64(1), int64(2)},
 			},
 			{
 				sql:      `select '{foo,bar}'::text[]`,
-				expected: []interface{}{"foo", "bar"},
+				expected: []any{"foo", "bar"},
 			},
 		} {
 			t.Run(tt.sql, func(t *testing.T) {

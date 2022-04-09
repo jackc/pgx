@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func isExpectedEqBytes(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqBytes(a any) func(any) bool {
+	return func(v any) bool {
 		ab := a.([]byte)
 		vb := v.([]byte)
 

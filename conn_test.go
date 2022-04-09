@@ -711,14 +711,14 @@ func TestInsertTimestampArray(t *testing.T) {
 type testLog struct {
 	lvl  pgx.LogLevel
 	msg  string
-	data map[string]interface{}
+	data map[string]any
 }
 
 type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *testLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]any) {
 	data["ctxdata"] = ctx.Value("ctxdata")
 	l.logs = append(l.logs, testLog{lvl: level, msg: msg, data: data})
 }

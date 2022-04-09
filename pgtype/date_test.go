@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqTime(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqTime(a any) func(any) bool {
+	return func(v any) bool {
 		at := a.(time.Time)
 		vt := v.(time.Time)
 

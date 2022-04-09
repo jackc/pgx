@@ -88,8 +88,8 @@ QueryFunc can be used to execute a callback function for every row. This is ofte
 	_, err = conn.QueryFunc(
 		context.Background(),
 		"select generate_series(1,$1)",
-		[]interface{}{10},
-		[]interface{}{&n},
+		[]any{10},
+		[]any{&n},
 		func(pgx.QueryFuncRow) error {
             sum += n
 			return nil
@@ -273,10 +273,10 @@ for information on how to customize or disable the statement cache.
 Copy Protocol
 
 Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL copy protocol. CopyFrom accepts a
-CopyFromSource interface. If the data is already in a [][]interface{} use CopyFromRows to wrap it in a CopyFromSource
+CopyFromSource interface. If the data is already in a [][]any use CopyFromRows to wrap it in a CopyFromSource
 interface. Or implement CopyFromSource to avoid buffering the entire data set in memory.
 
-    rows := [][]interface{}{
+    rows := [][]any{
         {"John", "Smith", int32(36)},
         {"Jane", "Doe", int32(29)},
     }
@@ -299,8 +299,8 @@ When you already have a typed array using CopyFromSlice can be more convenient.
         context.Background(),
         pgx.Identifier{"people"},
         []string{"first_name", "last_name", "age"},
-        pgx.CopyFromSlice(len(rows), func(i int) ([]interface{}, error) {
-            return []interface{}{rows[i].FirstName, rows[i].LastName, rows[i].Age}, nil
+        pgx.CopyFromSlice(len(rows), func(i int) ([]any, error) {
+            return []any{rows[i].FirstName, rows[i].LastName, rows[i].Age}, nil
         }),
     )
 

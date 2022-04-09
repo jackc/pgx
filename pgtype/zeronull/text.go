@@ -23,7 +23,7 @@ func (dst *Text) ScanText(v pgtype.Text) error {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Text) Scan(src interface{}) error {
+func (dst *Text) Scan(src any) error {
 	if src == nil {
 		*dst = ""
 		return nil

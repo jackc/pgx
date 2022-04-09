@@ -30,7 +30,7 @@ func (b Bool) BoolValue() (Bool, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Bool) Scan(src interface{}) error {
+func (dst *Bool) Scan(src any) error {
 	if src == nil {
 		*dst = Bool{}
 		return nil
@@ -106,7 +106,7 @@ func (BoolCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoolCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (BoolCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -129,7 +129,7 @@ func (BoolCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanBoolCodecBinaryBool struct{}
 
-func (encodePlanBoolCodecBinaryBool) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecBinaryBool) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(bool)
 
 	if v {
@@ -143,7 +143,7 @@ func (encodePlanBoolCodecBinaryBool) Encode(value interface{}, buf []byte) (newB
 
 type encodePlanBoolCodecTextBoolValuer struct{}
 
-func (encodePlanBoolCodecTextBoolValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecTextBoolValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BoolValuer).BoolValue()
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func (encodePlanBoolCodecTextBoolValuer) Encode(value interface{}, buf []byte) (
 
 type encodePlanBoolCodecBinaryBoolValuer struct{}
 
-func (encodePlanBoolCodecBinaryBoolValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecBinaryBoolValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BoolValuer).BoolValue()
 	if err != nil {
 		return nil, err
@@ -185,7 +185,7 @@ func (encodePlanBoolCodecBinaryBoolValuer) Encode(value interface{}, buf []byte)
 
 type encodePlanBoolCodecTextBool struct{}
 
-func (encodePlanBoolCodecTextBool) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoolCodecTextBool) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(bool)
 
 	if v {
@@ -197,7 +197,7 @@ func (encodePlanBoolCodecTextBool) Encode(value interface{}, buf []byte) (newBuf
 	return buf, nil
 }
 
-func (BoolCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (BoolCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -223,7 +223,7 @@ func (c BoolCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return c.DecodeValue(m, oid, format, src)
 }
 
-func (c BoolCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c BoolCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -238,7 +238,7 @@ func (c BoolCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryBoolToBool struct{}
 
-func (scanPlanBinaryBoolToBool) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBoolToBool) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -259,7 +259,7 @@ func (scanPlanBinaryBoolToBool) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToBool struct{}
 
-func (scanPlanTextAnyToBool) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBool) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -280,7 +280,7 @@ func (scanPlanTextAnyToBool) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryBoolToBoolScanner struct{}
 
-func (scanPlanBinaryBoolToBoolScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBoolToBoolScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(BoolScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -299,7 +299,7 @@ func (scanPlanBinaryBoolToBoolScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToBoolScanner struct{}
 
-func (scanPlanTextAnyToBoolScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBoolScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(BoolScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

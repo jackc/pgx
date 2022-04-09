@@ -32,7 +32,7 @@ func (dst *Int2) ScanInt64(n int64, valid bool) error {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int2) Scan(src interface{}) error {
+func (dst *Int2) Scan(src any) error {
 	if src == nil {
 		*dst = 0
 		return nil
@@ -80,7 +80,7 @@ func (dst *Int4) ScanInt64(n int64, valid bool) error {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int4) Scan(src interface{}) error {
+func (dst *Int4) Scan(src any) error {
 	if src == nil {
 		*dst = 0
 		return nil
@@ -128,7 +128,7 @@ func (dst *Int8) ScanInt64(n int64, valid bool) error {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int8) Scan(src interface{}) error {
+func (dst *Int8) Scan(src any) error {
 	if src == nil {
 		*dst = 0
 		return nil

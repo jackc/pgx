@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqPolygon(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqPolygon(a any) func(any) bool {
+	return func(v any) bool {
 		ap := a.(pgtype.Polygon)
 		vp := v.(pgtype.Polygon)
 

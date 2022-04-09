@@ -35,7 +35,7 @@ func (h Hstore) HstoreValue() (Hstore, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (h *Hstore) Scan(src interface{}) error {
+func (h *Hstore) Scan(src any) error {
 	if src == nil {
 		*h = nil
 		return nil
@@ -72,7 +72,7 @@ func (HstoreCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (HstoreCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (HstoreCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(HstoreValuer); !ok {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (HstoreCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{
 
 type encodePlanHstoreCodecBinary struct{}
 
-func (encodePlanHstoreCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanHstoreCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	hstore, err := value.(HstoreValuer).HstoreValue()
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (encodePlanHstoreCodecBinary) Encode(value interface{}, buf []byte) (newBuf
 
 type encodePlanHstoreCodecText struct{}
 
-func (encodePlanHstoreCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	hstore, err := value.(HstoreValuer).HstoreValue()
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func (encodePlanHstoreCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	return buf, nil
 }
 
-func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -170,7 +170,7 @@ func (HstoreCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}
 
 type scanPlanBinaryHstoreToHstoreScanner struct{}
 
-func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
@@ -230,7 +230,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst interface{}) err
 
 type scanPlanTextAnyToHstoreScanner struct{}
 
-func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
@@ -258,7 +258,7 @@ func (c HstoreCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

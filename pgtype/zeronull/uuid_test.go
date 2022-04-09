@@ -22,7 +22,7 @@ func TestUUIDTranscode(t *testing.T) {
 		},
 		{
 			(zeronull.UUID)([16]byte{}),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

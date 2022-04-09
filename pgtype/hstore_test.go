@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqMapStringString(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqMapStringString(a any) func(any) bool {
+	return func(v any) bool {
 		am := a.(map[string]string)
 		vm := v.(map[string]string)
 
@@ -28,8 +28,8 @@ func isExpectedEqMapStringString(a interface{}) func(interface{}) bool {
 	}
 }
 
-func isExpectedEqMapStringPointerString(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqMapStringPointerString(a any) func(any) bool {
+	return func(v any) bool {
 		am := a.(map[string]*string)
 		vm := v.(map[string]*string)
 

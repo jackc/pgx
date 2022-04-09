@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqHardwareAddr(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqHardwareAddr(a any) func(any) bool {
+	return func(v any) bool {
 		aa := a.(net.HardwareAddr)
 		vv := v.(net.HardwareAddr)
 

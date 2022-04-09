@@ -32,7 +32,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
@@ -50,7 +50,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -88,13 +88,13 @@ func TestConnCopyFromSliceSmall(t *testing.T) {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
 
 	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"},
-		pgx.CopyFromSlice(len(inputRows), func(i int) ([]interface{}, error) {
+		pgx.CopyFromSlice(len(inputRows), func(i int) ([]any, error) {
 			return inputRows[i], nil
 		}))
 	if err != nil {
@@ -109,7 +109,7 @@ func TestConnCopyFromSliceSmall(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -150,10 +150,10 @@ func TestConnCopyFromLarge(t *testing.T) {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{}
+	inputRows := [][]any{}
 
 	for i := 0; i < 10000; i++ {
-		inputRows = append(inputRows, []interface{}{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime, []byte{111, 111, 111, 111}})
+		inputRows = append(inputRows, []any{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime, []byte{111, 111, 111, 111}})
 	}
 
 	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g", "h"}, pgx.CopyFromRows(inputRows))
@@ -169,7 +169,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -230,7 +230,7 @@ func TestConnCopyFromEnum(t *testing.T) {
 	)`)
 	require.NoError(t, err)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{"abc", "blue", "grape", "orange", "orange", "def"},
 		{nil, nil, nil, nil, nil, nil},
 	}
@@ -242,7 +242,7 @@ func TestConnCopyFromEnum(t *testing.T) {
 	rows, err := conn.Query(ctx, "select * from foo")
 	require.NoError(t, err)
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		require.NoError(t, err)
@@ -275,8 +275,8 @@ func TestConnCopyFromJSON(t *testing.T) {
 		b jsonb
 	)`)
 
-	inputRows := [][]interface{}{
-		{map[string]interface{}{"foo": "bar"}, map[string]interface{}{"bar": "quz"}},
+	inputRows := [][]any{
+		{map[string]any{"foo": "bar"}, map[string]any{"bar": "quz"}},
 		{nil, nil},
 	}
 
@@ -293,7 +293,7 @@ func TestConnCopyFromJSON(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -323,12 +323,12 @@ func (cfs *clientFailSource) Next() bool {
 	return cfs.count < 100
 }
 
-func (cfs *clientFailSource) Values() ([]interface{}, error) {
+func (cfs *clientFailSource) Values() ([]any, error) {
 	if cfs.count == 3 {
 		cfs.err = fmt.Errorf("client error")
 		return nil, cfs.err
 	}
-	return []interface{}{make([]byte, 100000)}, nil
+	return []any{make([]byte, 100000)}, nil
 }
 
 func (cfs *clientFailSource) Err() error {
@@ -346,7 +346,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		b varchar not null
 	)`)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int32(1), "abc"},
 		{int32(2), nil}, // this row should trigger a failure
 		{int32(3), "def"},
@@ -368,7 +368,7 @@ func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -400,11 +400,11 @@ func (fs *failSource) Next() bool {
 	return fs.count < 100
 }
 
-func (fs *failSource) Values() ([]interface{}, error) {
+func (fs *failSource) Values() ([]any, error) {
 	if fs.count == 3 {
-		return []interface{}{nil}, nil
+		return []any{nil}, nil
 	}
-	return []interface{}{make([]byte, 100000)}, nil
+	return []any{make([]byte, 100000)}, nil
 }
 
 func (fs *failSource) Err() error {
@@ -447,7 +447,7 @@ func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -477,11 +477,11 @@ func (fs *slowFailRaceSource) Next() bool {
 	return fs.count < 1000
 }
 
-func (fs *slowFailRaceSource) Values() ([]interface{}, error) {
+func (fs *slowFailRaceSource) Values() ([]any, error) {
 	if fs.count == 500 {
-		return []interface{}{nil, nil}, nil
+		return []any{nil, nil}, nil
 	}
-	return []interface{}{1, make([]byte, 1000)}, nil
+	return []any{1, make([]byte, 1000)}, nil
 }
 
 func (fs *slowFailRaceSource) Err() error {
@@ -536,7 +536,7 @@ func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -565,8 +565,8 @@ func (cfs *clientFinalErrSource) Next() bool {
 	return cfs.count < 5
 }
 
-func (cfs *clientFinalErrSource) Values() ([]interface{}, error) {
-	return []interface{}{make([]byte, 100000)}, nil
+func (cfs *clientFinalErrSource) Values() ([]any, error) {
+	return []any{make([]byte, 100000)}, nil
 }
 
 func (cfs *clientFinalErrSource) Err() error {
@@ -596,7 +596,7 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 		t.Errorf("Unexpected error for Query: %v", err)
 	}
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {

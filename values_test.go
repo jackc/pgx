@@ -158,12 +158,12 @@ func testJSONSingleLevelStringMap(t *testing.T, conn *pgx.Conn, typename string)
 }
 
 func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
-	input := map[string]interface{}{
+	input := map[string]any{
 		"name":      "Uncanny",
-		"stats":     map[string]interface{}{"hp": float64(107), "maxhp": float64(150)},
-		"inventory": []interface{}{"phone", "key"},
+		"stats":     map[string]any{"hp": float64(107), "maxhp": float64(150)},
+		"inventory": []any{"phone", "key"},
 	}
-	var output map[string]interface{}
+	var output map[string]any
 	err := conn.QueryRow(context.Background(), "select $1::"+typename, input).Scan(&output)
 	if err != nil {
 		t.Errorf("%s: QueryRow Scan failed: %v", typename, err)
@@ -171,7 +171,7 @@ func testJSONNestedMap(t *testing.T, conn *pgx.Conn, typename string) {
 	}
 
 	if !reflect.DeepEqual(input, output) {
-		t.Errorf("%s: Did not transcode map[string]interface{} successfully: %v is not %v", typename, input, output)
+		t.Errorf("%s: Did not transcode map[string]any successfully: %v is not %v", typename, input, output)
 		return
 	}
 }
@@ -559,13 +559,13 @@ func TestArrayDecoding(t *testing.T) {
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		tests := []struct {
 			sql    string
-			query  interface{}
-			scan   interface{}
-			assert func(testing.TB, interface{}, interface{})
+			query  any
+			scan   any
+			assert func(testing.TB, any, any)
 		}{
 			{
 				"select $1::bool[]", []bool{true, false, true}, &[]bool{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]bool))) {
 						t.Errorf("failed to encode bool[]")
 					}
@@ -573,7 +573,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::smallint[]", []int16{2, 4, 484, 32767}, &[]int16{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int16))) {
 						t.Errorf("failed to encode smallint[]")
 					}
@@ -581,7 +581,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::smallint[]", []uint16{2, 4, 484, 32767}, &[]uint16{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint16))) {
 						t.Errorf("failed to encode smallint[]")
 					}
@@ -589,7 +589,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::int[]", []int32{2, 4, 484}, &[]int32{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int32))) {
 						t.Errorf("failed to encode int[]")
 					}
@@ -597,7 +597,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::int[]", []uint32{2, 4, 484, 2147483647}, &[]uint32{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint32))) {
 						t.Errorf("failed to encode int[]")
 					}
@@ -605,7 +605,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bigint[]", []int64{2, 4, 484, 9223372036854775807}, &[]int64{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]int64))) {
 						t.Errorf("failed to encode bigint[]")
 					}
@@ -613,7 +613,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bigint[]", []uint64{2, 4, 484, 9223372036854775807}, &[]uint64{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]uint64))) {
 						t.Errorf("failed to encode bigint[]")
 					}
@@ -621,7 +621,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::text[]", []string{"it's", "over", "9000!"}, &[]string{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					if !reflect.DeepEqual(query, *(scan.(*[]string))) {
 						t.Errorf("failed to encode text[]")
 					}
@@ -629,7 +629,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::timestamptz[]", []time.Time{time.Unix(323232, 0), time.Unix(3239949334, 00)}, &[]time.Time{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					queryTimeSlice := query.([]time.Time)
 					scanTimeSlice := *(scan.(*[]time.Time))
 					require.Equal(t, len(queryTimeSlice), len(scanTimeSlice))
@@ -640,7 +640,7 @@ func TestArrayDecoding(t *testing.T) {
 			},
 			{
 				"select $1::bytea[]", [][]byte{{0, 1, 2, 3}, {4, 5, 6, 7}}, &[][]byte{},
-				func(t testing.TB, query, scan interface{}) {
+				func(t testing.TB, query, scan any) {
 					queryBytesSliceSlice := query.([][]byte)
 					scanBytesSliceSlice := *(scan.(*[][]byte))
 					if len(queryBytesSliceSlice) != len(scanBytesSliceSlice) {
@@ -754,26 +754,26 @@ func TestPointerPointer(t *testing.T) {
 
 		tests := []struct {
 			sql       string
-			queryArgs []interface{}
-			scanArgs  []interface{}
+			queryArgs []any
+			scanArgs  []any
 			expected  allTypes
 		}{
-			{"select $1::text", []interface{}{expected.s}, []interface{}{&actual.s}, allTypes{s: expected.s}},
-			{"select $1::text", []interface{}{zero.s}, []interface{}{&actual.s}, allTypes{}},
-			{"select $1::int2", []interface{}{expected.i16}, []interface{}{&actual.i16}, allTypes{i16: expected.i16}},
-			{"select $1::int2", []interface{}{zero.i16}, []interface{}{&actual.i16}, allTypes{}},
-			{"select $1::int4", []interface{}{expected.i32}, []interface{}{&actual.i32}, allTypes{i32: expected.i32}},
-			{"select $1::int4", []interface{}{zero.i32}, []interface{}{&actual.i32}, allTypes{}},
-			{"select $1::int8", []interface{}{expected.i64}, []interface{}{&actual.i64}, allTypes{i64: expected.i64}},
-			{"select $1::int8", []interface{}{zero.i64}, []interface{}{&actual.i64}, allTypes{}},
-			{"select $1::float4", []interface{}{expected.f32}, []interface{}{&actual.f32}, allTypes{f32: expected.f32}},
-			{"select $1::float4", []interface{}{zero.f32}, []interface{}{&actual.f32}, allTypes{}},
-			{"select $1::float8", []interface{}{expected.f64}, []interface{}{&actual.f64}, allTypes{f64: expected.f64}},
-			{"select $1::float8", []interface{}{zero.f64}, []interface{}{&actual.f64}, allTypes{}},
-			{"select $1::bool", []interface{}{expected.b}, []interface{}{&actual.b}, allTypes{b: expected.b}},
-			{"select $1::bool", []interface{}{zero.b}, []interface{}{&actual.b}, allTypes{}},
-			{"select $1::timestamptz", []interface{}{expected.t}, []interface{}{&actual.t}, allTypes{t: expected.t}},
-			{"select $1::timestamptz", []interface{}{zero.t}, []interface{}{&actual.t}, allTypes{}},
+			{"select $1::text", []any{expected.s}, []any{&actual.s}, allTypes{s: expected.s}},
+			{"select $1::text", []any{zero.s}, []any{&actual.s}, allTypes{}},
+			{"select $1::int2", []any{expected.i16}, []any{&actual.i16}, allTypes{i16: expected.i16}},
+			{"select $1::int2", []any{zero.i16}, []any{&actual.i16}, allTypes{}},
+			{"select $1::int4", []any{expected.i32}, []any{&actual.i32}, allTypes{i32: expected.i32}},
+			{"select $1::int4", []any{zero.i32}, []any{&actual.i32}, allTypes{}},
+			{"select $1::int8", []any{expected.i64}, []any{&actual.i64}, allTypes{i64: expected.i64}},
+			{"select $1::int8", []any{zero.i64}, []any{&actual.i64}, allTypes{}},
+			{"select $1::float4", []any{expected.f32}, []any{&actual.f32}, allTypes{f32: expected.f32}},
+			{"select $1::float4", []any{zero.f32}, []any{&actual.f32}, allTypes{}},
+			{"select $1::float8", []any{expected.f64}, []any{&actual.f64}, allTypes{f64: expected.f64}},
+			{"select $1::float8", []any{zero.f64}, []any{&actual.f64}, allTypes{}},
+			{"select $1::bool", []any{expected.b}, []any{&actual.b}, allTypes{b: expected.b}},
+			{"select $1::bool", []any{zero.b}, []any{&actual.b}, allTypes{}},
+			{"select $1::timestamptz", []any{expected.t}, []any{&actual.t}, allTypes{t: expected.t}},
+			{"select $1::timestamptz", []any{zero.t}, []any{&actual.t}, allTypes{}},
 		}
 
 		for i, tt := range tests {
@@ -939,11 +939,11 @@ func TestEncodeTypeRename(t *testing.T) {
 
 // 	tests := []struct {
 // 		sql      string
-// 		expected []interface{}
+// 		expected []any
 // 	}{
 // 		{
 // 			"select row(1, 'cat', '2015-01-01 08:12:42-00'::timestamptz)",
-// 			[]interface{}{
+// 			[]any{
 // 				int32(1),
 // 				"cat",
 // 				time.Date(2015, 1, 1, 8, 12, 42, 0, time.UTC).Local(),
@@ -951,7 +951,7 @@ func TestEncodeTypeRename(t *testing.T) {
 // 		},
 // 		{
 // 			"select row(100.0::float, 1.09::float)",
-// 			[]interface{}{
+// 			[]any{
 // 				float64(100),
 // 				float64(1.09),
 // 			},
@@ -959,7 +959,7 @@ func TestEncodeTypeRename(t *testing.T) {
 // 	}
 
 // 	for i, tt := range tests {
-// 		var actual []interface{}
+// 		var actual []any
 
 // 		err := conn.QueryRow(context.Background(), tt.sql).Scan(&actual)
 // 		if err != nil {

@@ -12,12 +12,12 @@ type extendedQueryBuilder struct {
 	resultFormats   []int16
 }
 
-func (eqb *extendedQueryBuilder) AppendParam(m *pgtype.Map, oid uint32, arg interface{}) error {
+func (eqb *extendedQueryBuilder) AppendParam(m *pgtype.Map, oid uint32, arg any) error {
 	f := eqb.chooseParameterFormatCode(m, oid, arg)
 	return eqb.AppendParamFormat(m, oid, f, arg)
 }
 
-func (eqb *extendedQueryBuilder) AppendParamFormat(m *pgtype.Map, oid uint32, format int16, arg interface{}) error {
+func (eqb *extendedQueryBuilder) AppendParamFormat(m *pgtype.Map, oid uint32, format int16, arg any) error {
 	eqb.paramFormats = append(eqb.paramFormats, format)
 
 	v, err := eqb.encodeExtendedParamValue(m, oid, format, arg)
@@ -56,7 +56,7 @@ func (eqb *extendedQueryBuilder) Reset() {
 	}
 }
 
-func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uint32, formatCode int16, arg interface{}) ([]byte, error) {
+func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uint32, formatCode int16, arg any) ([]byte, error) {
 	if anynil.Is(arg) {
 		return nil, nil
 	}
@@ -81,7 +81,7 @@ func (eqb *extendedQueryBuilder) encodeExtendedParamValue(m *pgtype.Map, oid uin
 // chooseParameterFormatCode determines the correct format code for an
 // argument to a prepared statement. It defaults to TextFormatCode if no
 // determination can be made.
-func (eqb *extendedQueryBuilder) chooseParameterFormatCode(m *pgtype.Map, oid uint32, arg interface{}) int16 {
+func (eqb *extendedQueryBuilder) chooseParameterFormatCode(m *pgtype.Map, oid uint32, arg any) int16 {
 	switch arg.(type) {
 	case string, *string:
 		return TextFormatCode

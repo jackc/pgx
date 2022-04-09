@@ -43,7 +43,7 @@ func (interval Interval) IntervalValue() (Interval, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (interval *Interval) Scan(src interface{}) error {
+func (interval *Interval) Scan(src any) error {
 	if src == nil {
 		*interval = Interval{}
 		return nil
@@ -80,7 +80,7 @@ func (IntervalCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (IntervalCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (IntervalCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(IntervalValuer); !ok {
 		return nil
 	}
@@ -97,7 +97,7 @@ func (IntervalCodec) PlanEncode(m *Map, oid uint32, format int16, value interfac
 
 type encodePlanIntervalCodecBinary struct{}
 
-func (encodePlanIntervalCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanIntervalCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	interval, err := value.(IntervalValuer).IntervalValue()
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (encodePlanIntervalCodecBinary) Encode(value interface{}, buf []byte) (newB
 
 type encodePlanIntervalCodecText struct{}
 
-func (encodePlanIntervalCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	interval, err := value.(IntervalValuer).IntervalValue()
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (encodePlanIntervalCodecText) Encode(value interface{}, buf []byte) (newBuf
 	return buf, nil
 }
 
-func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -171,7 +171,7 @@ func (IntervalCodec) PlanScan(m *Map, oid uint32, format int16, target interface
 
 type scanPlanBinaryIntervalToIntervalScanner struct{}
 
-func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(IntervalScanner)
 
 	if src == nil {
@@ -191,7 +191,7 @@ func (scanPlanBinaryIntervalToIntervalScanner) Scan(src []byte, dst interface{})
 
 type scanPlanTextAnyToIntervalScanner struct{}
 
-func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(IntervalScanner)
 
 	if src == nil {
@@ -278,7 +278,7 @@ func (c IntervalCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c IntervalCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c IntervalCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

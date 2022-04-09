@@ -125,7 +125,7 @@ func TestTypeMapScanNilIsNoOp(t *testing.T) {
 
 func TestTypeMapScanTextFormatInterfacePtr(t *testing.T) {
 	m := pgtype.NewMap()
-	var got interface{}
+	var got any
 	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), &got)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", got)
@@ -141,7 +141,7 @@ func TestTypeMapScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
 
 func TestTypeMapScanBinaryFormatInterfacePtr(t *testing.T) {
 	m := pgtype.NewMap()
-	var got interface{}
+	var got any
 	err := m.Scan(pgtype.TextOID, pgx.BinaryFormatCode, []byte("foo"), &got)
 	require.NoError(t, err)
 	assert.Equal(t, "foo", got)
@@ -273,8 +273,8 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 	}
 }
 
-func isExpectedEq(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEq(a any) func(any) bool {
+	return func(v any) bool {
 		return a == v
 	}
 }

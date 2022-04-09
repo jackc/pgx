@@ -35,7 +35,7 @@ func (c Circle) CircleValue() (Circle, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Circle) Scan(src interface{}) error {
+func (dst *Circle) Scan(src any) error {
 	if src == nil {
 		*dst = Circle{}
 		return nil
@@ -72,7 +72,7 @@ func (CircleCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (CircleCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (CircleCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(CircleValuer); !ok {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (CircleCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{
 
 type encodePlanCircleCodecBinary struct{}
 
-func (encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanCircleCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	circle, err := value.(CircleValuer).CircleValue()
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (encodePlanCircleCodecBinary) Encode(value interface{}, buf []byte) (newBuf
 
 type encodePlanCircleCodecText struct{}
 
-func (encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanCircleCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	circle, err := value.(CircleValuer).CircleValue()
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func (encodePlanCircleCodecText) Encode(value interface{}, buf []byte) (newBuf [
 	return buf, nil
 }
 
-func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (CircleCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -146,7 +146,7 @@ func (c CircleCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c CircleCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c CircleCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -161,7 +161,7 @@ func (c CircleCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 
 type scanPlanBinaryCircleToCircleScanner struct{}
 
-func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(CircleScanner)
 
 	if src == nil {
@@ -185,7 +185,7 @@ func (scanPlanBinaryCircleToCircleScanner) Scan(src []byte, dst interface{}) err
 
 type scanPlanTextAnyToCircleScanner struct{}
 
-func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToCircleScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(CircleScanner)
 
 	if src == nil {

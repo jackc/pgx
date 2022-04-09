@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEq(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEq(a any) func(any) bool {
+	return func(v any) bool {
 		return a == v
 	}
 }
@@ -28,7 +28,7 @@ func TestFloat8Transcode(t *testing.T) {
 		},
 		{
 			(zeronull.Float8)(0),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

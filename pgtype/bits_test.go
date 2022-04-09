@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqBits(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqBits(a any) func(any) bool {
+	return func(v any) bool {
 		ab := a.(pgtype.Bits)
 		vb := v.(pgtype.Bits)
 		return bytes.Compare(ab.Bytes, vb.Bytes) == 0 && ab.Len == vb.Len && ab.Valid == vb.Valid

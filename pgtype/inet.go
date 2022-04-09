@@ -38,7 +38,7 @@ func (inet Inet) InetValue() (Inet, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Inet) Scan(src interface{}) error {
+func (dst *Inet) Scan(src any) error {
 	if src == nil {
 		*dst = Inet{}
 		return nil
@@ -75,7 +75,7 @@ func (InetCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (InetCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (InetCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(InetValuer); !ok {
 		return nil
 	}
@@ -92,7 +92,7 @@ func (InetCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanInetCodecBinary struct{}
 
-func (encodePlanInetCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInetCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	inet, err := value.(InetValuer).InetValue()
 	if err != nil {
 		return nil, err
@@ -127,7 +127,7 @@ func (encodePlanInetCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanInetCodecText struct{}
 
-func (encodePlanInetCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInetCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	inet, err := value.(InetValuer).InetValue()
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (encodePlanInetCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return append(buf, inet.IPNet.String()...), nil
 }
 
-func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -162,7 +162,7 @@ func (c InetCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -182,7 +182,7 @@ func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryInetToInetScanner struct{}
 
-func (scanPlanBinaryInetToInetScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInetToInetScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(InetScanner)
 
 	if src == nil {
@@ -211,7 +211,7 @@ func (scanPlanBinaryInetToInetScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInetScanner struct{}
 
-func (scanPlanTextAnyToInetScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInetScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(InetScanner)
 
 	if src == nil {

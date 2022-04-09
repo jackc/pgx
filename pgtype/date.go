@@ -40,7 +40,7 @@ const (
 )
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Date) Scan(src interface{}) error {
+func (dst *Date) Scan(src any) error {
 	if src == nil {
 		*dst = Date{}
 		return nil
@@ -127,7 +127,7 @@ func (DateCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (DateCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (DateCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(DateValuer); !ok {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (DateCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanDateCodecBinary struct{}
 
-func (encodePlanDateCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanDateCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	date, err := value.(DateValuer).DateValue()
 	if err != nil {
 		return nil, err
@@ -173,7 +173,7 @@ func (encodePlanDateCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanDateCodecText struct{}
 
-func (encodePlanDateCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	date, err := value.(DateValuer).DateValue()
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func (encodePlanDateCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -231,7 +231,7 @@ func (DateCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanBinaryDateToDateScanner struct{}
 
-func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(DateScanner)
 
 	if src == nil {
@@ -257,7 +257,7 @@ func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToDateScanner struct{}
 
-func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(DateScanner)
 
 	if src == nil {
@@ -301,7 +301,7 @@ func (c DateCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

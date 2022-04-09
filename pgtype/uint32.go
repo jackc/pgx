@@ -34,7 +34,7 @@ func (n Uint32) Uint32Value() (Uint32, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Uint32) Scan(src interface{}) error {
+func (dst *Uint32) Scan(src any) error {
 	if src == nil {
 		*dst = Uint32{}
 		return nil
@@ -85,7 +85,7 @@ func (Uint32Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Uint32Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Uint32Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -110,14 +110,14 @@ func (Uint32Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{
 
 type encodePlanUint32CodecBinaryUint32 struct{}
 
-func (encodePlanUint32CodecBinaryUint32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecBinaryUint32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(uint32)
 	return pgio.AppendUint32(buf, v), nil
 }
 
 type encodePlanUint32CodecBinaryUint32Valuer struct{}
 
-func (encodePlanUint32CodecBinaryUint32Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecBinaryUint32Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v, err := value.(Uint32Valuer).Uint32Value()
 	if err != nil {
 		return nil, err
@@ -132,7 +132,7 @@ func (encodePlanUint32CodecBinaryUint32Valuer) Encode(value interface{}, buf []b
 
 type encodePlanUint32CodecBinaryInt64Valuer struct{}
 
-func (encodePlanUint32CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -154,14 +154,14 @@ func (encodePlanUint32CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 
 type encodePlanUint32CodecTextUint32 struct{}
 
-func (encodePlanUint32CodecTextUint32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecTextUint32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v := value.(uint32)
 	return append(buf, strconv.FormatUint(uint64(v), 10)...), nil
 }
 
 type encodePlanUint32CodecTextUint32Valuer struct{}
 
-func (encodePlanUint32CodecTextUint32Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecTextUint32Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v, err := value.(Uint32Valuer).Uint32Value()
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func (encodePlanUint32CodecTextUint32Valuer) Encode(value interface{}, buf []byt
 
 type encodePlanUint32CodecTextInt64Valuer struct{}
 
-func (encodePlanUint32CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUint32CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	v, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -196,7 +196,7 @@ func (encodePlanUint32CodecTextInt64Valuer) Encode(value interface{}, buf []byte
 	return append(buf, strconv.FormatInt(v.Int64, 10)...), nil
 }
 
-func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Uint32Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -231,7 +231,7 @@ func (c Uint32Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	return int64(n), nil
 }
 
-func (c Uint32Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Uint32Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -246,7 +246,7 @@ func (c Uint32Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 
 type scanPlanBinaryUint32ToUint32 struct{}
 
-func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -263,7 +263,7 @@ func (scanPlanBinaryUint32ToUint32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryUint32ToUint32Scanner struct{}
 
-func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -284,7 +284,7 @@ func (scanPlanBinaryUint32ToUint32Scanner) Scan(src []byte, dst interface{}) err
 
 type scanPlanTextAnyToUint32Scanner struct{}
 
-func (scanPlanTextAnyToUint32Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint32Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Uint32Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

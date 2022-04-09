@@ -13,12 +13,12 @@ import (
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
 // making it usable by *Conn.CopyFrom.
-func CopyFromRows(rows [][]interface{}) CopyFromSource {
+func CopyFromRows(rows [][]any) CopyFromSource {
 	return &copyFromRows{rows: rows, idx: -1}
 }
 
 type copyFromRows struct {
-	rows [][]interface{}
+	rows [][]any
 	idx  int
 }
 
@@ -27,7 +27,7 @@ func (ctr *copyFromRows) Next() bool {
 	return ctr.idx < len(ctr.rows)
 }
 
-func (ctr *copyFromRows) Values() ([]interface{}, error) {
+func (ctr *copyFromRows) Values() ([]any, error) {
 	return ctr.rows[ctr.idx], nil
 }
 
@@ -37,12 +37,12 @@ func (ctr *copyFromRows) Err() error {
 
 // CopyFromSlice returns a CopyFromSource interface over a dynamic func
 // making it usable by *Conn.CopyFrom.
-func CopyFromSlice(length int, next func(int) ([]interface{}, error)) CopyFromSource {
+func CopyFromSlice(length int, next func(int) ([]any, error)) CopyFromSource {
 	return &copyFromSlice{next: next, idx: -1, len: length}
 }
 
 type copyFromSlice struct {
-	next func(int) ([]interface{}, error)
+	next func(int) ([]any, error)
 	idx  int
 	len  int
 	err  error
@@ -53,7 +53,7 @@ func (cts *copyFromSlice) Next() bool {
 	return cts.idx < cts.len
 }
 
-func (cts *copyFromSlice) Values() ([]interface{}, error) {
+func (cts *copyFromSlice) Values() ([]any, error) {
 	values, err := cts.next(cts.idx)
 	if err != nil {
 		cts.err = err
@@ -73,7 +73,7 @@ type CopyFromSource interface {
 	Next() bool
 
 	// Values returns the values for the current row.
-	Values() ([]interface{}, error)
+	Values() ([]any, error)
 
 	// Err returns any error that has been encountered by the CopyFromSource. If
 	// this is not nil *Conn.CopyFrom will abort the copy.
@@ -156,10 +156,10 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	if err == nil {
 		if ct.conn.shouldLog(LogLevelInfo) {
 			endTime := time.Now()
-			ct.conn.log(ctx, LogLevelInfo, "CopyFrom", map[string]interface{}{"tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime), "rowCount": rowsAffected})
+			ct.conn.log(ctx, LogLevelInfo, "CopyFrom", map[string]any{"tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime), "rowCount": rowsAffected})
 		}
 	} else if ct.conn.shouldLog(LogLevelError) {
-		ct.conn.log(ctx, LogLevelError, "CopyFrom", map[string]interface{}{"err": err, "tableName": ct.tableName, "columnNames": ct.columnNames})
+		ct.conn.log(ctx, LogLevelError, "CopyFrom", map[string]any{"err": err, "tableName": ct.tableName, "columnNames": ct.columnNames})
 	}
 
 	return rowsAffected, err

@@ -16,7 +16,7 @@ type CompositeIndexGetter interface {
 	IsNull() bool
 
 	// Index returns the element at i.
-	Index(i int) interface{}
+	Index(i int) any
 }
 
 // CompositeIndexScanner is a type accessed by index that can be scanned from a PostgreSQL composite.
@@ -25,7 +25,7 @@ type CompositeIndexScanner interface {
 	ScanNull() error
 
 	// ScanIndex returns a value usable as a scan target for i.
-	ScanIndex(i int) interface{}
+	ScanIndex(i int) any
 }
 
 type CompositeCodecField struct {
@@ -54,7 +54,7 @@ func (c *CompositeCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c *CompositeCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (c *CompositeCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(CompositeIndexGetter); !ok {
 		return nil
 	}
@@ -74,7 +74,7 @@ type encodePlanCompositeCodecCompositeIndexGetterToBinary struct {
 	m  *Map
 }
 
-func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanCompositeCodecCompositeIndexGetterToBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(CompositeIndexGetter)
 
 	if getter.IsNull() {
@@ -94,7 +94,7 @@ type encodePlanCompositeCodecCompositeIndexGetterToText struct {
 	m  *Map
 }
 
-func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(CompositeIndexGetter)
 
 	if getter.IsNull() {
@@ -109,7 +109,7 @@ func (plan *encodePlanCompositeCodecCompositeIndexGetterToText) Encode(value int
 	return b.Finish()
 }
 
-func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (c *CompositeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -131,7 +131,7 @@ type scanPlanBinaryCompositeToCompositeIndexScanner struct {
 	m  *Map
 }
 
-func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, target interface{}) error {
+func (plan *scanPlanBinaryCompositeToCompositeIndexScanner) Scan(src []byte, target any) error {
 	targetScanner := (target).(CompositeIndexScanner)
 
 	if src == nil {
@@ -170,7 +170,7 @@ type scanPlanTextCompositeToCompositeIndexScanner struct {
 	m  *Map
 }
 
-func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, target interface{}) error {
+func (plan *scanPlanTextCompositeToCompositeIndexScanner) Scan(src []byte, target any) error {
 	targetScanner := (target).(CompositeIndexScanner)
 
 	if src == nil {
@@ -221,7 +221,7 @@ func (c *CompositeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16
 	}
 }
 
-func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -229,9 +229,9 @@ func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byt
 	switch format {
 	case TextFormatCode:
 		scanner := NewCompositeTextScanner(m, src)
-		values := make(map[string]interface{}, len(c.Fields))
+		values := make(map[string]any, len(c.Fields))
 		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
-			var v interface{}
+			var v any
 			fieldPlan := m.PlanScan(c.Fields[i].Type.OID, TextFormatCode, &v)
 			if fieldPlan == nil {
 				return nil, fmt.Errorf("unable to scan OID %d in text format into %v", c.Fields[i].Type.OID, v)
@@ -252,9 +252,9 @@ func (c *CompositeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byt
 		return values, nil
 	case BinaryFormatCode:
 		scanner := NewCompositeBinaryScanner(m, src)
-		values := make(map[string]interface{}, len(c.Fields))
+		values := make(map[string]any, len(c.Fields))
 		for i := 0; scanner.Next() && i < len(c.Fields); i++ {
-			var v interface{}
+			var v any
 			fieldPlan := m.PlanScan(scanner.OID(), BinaryFormatCode, &v)
 			if fieldPlan == nil {
 				return nil, fmt.Errorf("unable to scan OID %d in binary format into %v", scanner.OID(), v)
@@ -472,7 +472,7 @@ func NewCompositeBinaryBuilder(m *Map, buf []byte) *CompositeBinaryBuilder {
 	return &CompositeBinaryBuilder{m: m, buf: buf, startIdx: startIdx}
 }
 
-func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field interface{}) {
+func (b *CompositeBinaryBuilder) AppendValue(oid uint32, field any) {
 	if b.err != nil {
 		return
 	}
@@ -529,7 +529,7 @@ func NewCompositeTextBuilder(m *Map, buf []byte) *CompositeTextBuilder {
 	return &CompositeTextBuilder{m: m, buf: buf}
 }
 
-func (b *CompositeTextBuilder) AppendValue(oid uint32, field interface{}) {
+func (b *CompositeTextBuilder) AppendValue(oid uint32, field any) {
 	if b.err != nil {
 		return
 	}
@@ -581,7 +581,7 @@ func quoteCompositeFieldIfNeeded(src string) string {
 
 // CompositeFields represents the values of a composite value. It can be used as an encoding source or as a scan target.
 // It cannot scan a NULL, but the composite fields can be NULL.
-type CompositeFields []interface{}
+type CompositeFields []any
 
 func (cf CompositeFields) SkipUnderlyingTypePlan() {}
 
@@ -589,7 +589,7 @@ func (cf CompositeFields) IsNull() bool {
 	return cf == nil
 }
 
-func (cf CompositeFields) Index(i int) interface{} {
+func (cf CompositeFields) Index(i int) any {
 	return cf[i]
 }
 
@@ -597,6 +597,6 @@ func (cf CompositeFields) ScanNull() error {
 	return fmt.Errorf("cannot scan NULL into CompositeFields")
 }
 
-func (cf CompositeFields) ScanIndex(i int) interface{} {
+func (cf CompositeFields) ScanIndex(i int) any {
 	return cf[i]
 }
