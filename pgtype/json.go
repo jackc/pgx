@@ -16,7 +16,7 @@ func (JSONCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch value.(type) {
 	case string:
 		return encodePlanJSONCodecEitherFormatString{}
@@ -43,7 +43,7 @@ func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{
 
 type encodePlanJSONCodecEitherFormatString struct{}
 
-func (encodePlanJSONCodecEitherFormatString) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanJSONCodecEitherFormatString) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	jsonString := value.(string)
 	buf = append(buf, jsonString...)
 	return buf, nil
@@ -51,7 +51,7 @@ func (encodePlanJSONCodecEitherFormatString) Encode(value interface{}, buf []byt
 
 type encodePlanJSONCodecEitherFormatByteSlice struct{}
 
-func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	jsonBytes := value.([]byte)
 	if jsonBytes == nil {
 		return nil, nil
@@ -63,7 +63,7 @@ func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value interface{}, buf []
 
 type encodePlanJSONCodecEitherFormatMarshal struct{}
 
-func (encodePlanJSONCodecEitherFormatMarshal) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanJSONCodecEitherFormatMarshal) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	jsonBytes, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (encodePlanJSONCodecEitherFormatMarshal) Encode(value interface{}, buf []by
 	return buf, nil
 }
 
-func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch target.(type) {
 	case *string:
 		return scanPlanAnyToString{}
@@ -89,7 +89,7 @@ func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanAnyToString struct{}
 
-func (scanPlanAnyToString) Scan(src []byte, dst interface{}) error {
+func (scanPlanAnyToString) Scan(src []byte, dst any) error {
 	p := dst.(*string)
 	*p = string(src)
 	return nil
@@ -97,7 +97,7 @@ func (scanPlanAnyToString) Scan(src []byte, dst interface{}) error {
 
 type scanPlanJSONToByteSlice struct{}
 
-func (scanPlanJSONToByteSlice) Scan(src []byte, dst interface{}) error {
+func (scanPlanJSONToByteSlice) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -111,14 +111,14 @@ func (scanPlanJSONToByteSlice) Scan(src []byte, dst interface{}) error {
 
 type scanPlanJSONToBytesScanner struct{}
 
-func (scanPlanJSONToBytesScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanJSONToBytesScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BytesScanner)
 	return scanner.ScanBytes(src)
 }
 
 type scanPlanJSONToJSONUnmarshal struct{}
 
-func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst interface{}) error {
+func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 	if src == nil {
 		dstValue := reflect.ValueOf(dst)
 		if dstValue.Kind() == reflect.Ptr {
@@ -144,12 +144,12 @@ func (c JSONCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return dstBuf, nil
 }
 
-func (c JSONCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c JSONCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
 
-	var dst interface{}
+	var dst any
 	err := json.Unmarshal(src, &dst)
 	return dst, err
 }

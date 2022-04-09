@@ -53,7 +53,7 @@ func closeConn(t testing.TB, conn *pgx.Conn) {
 	}
 }
 
-func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
+func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...any) (commandTag pgconn.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
 		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)

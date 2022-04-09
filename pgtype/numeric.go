@@ -201,7 +201,7 @@ func nbaseDigitsToInt64(src []byte) (accum int64, bytesRead, digitsRead int) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (n *Numeric) Scan(src interface{}) error {
+func (n *Numeric) Scan(src any) error {
 	if src == nil {
 		*n = Numeric{}
 		return nil
@@ -281,7 +281,7 @@ func (NumericCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (NumericCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (NumericCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -308,7 +308,7 @@ func (NumericCodec) PlanEncode(m *Map, oid uint32, format int16, value interface
 
 type encodePlanNumericCodecBinaryNumericValuer struct{}
 
-func (encodePlanNumericCodecBinaryNumericValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecBinaryNumericValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(NumericValuer).NumericValue()
 	if err != nil {
 		return nil, err
@@ -319,7 +319,7 @@ func (encodePlanNumericCodecBinaryNumericValuer) Encode(value interface{}, buf [
 
 type encodePlanNumericCodecBinaryFloat64Valuer struct{}
 
-func (encodePlanNumericCodecBinaryFloat64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecBinaryFloat64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Float64Valuer).Float64Value()
 	if err != nil {
 		return nil, err
@@ -346,7 +346,7 @@ func (encodePlanNumericCodecBinaryFloat64Valuer) Encode(value interface{}, buf [
 
 type encodePlanNumericCodecBinaryInt64Valuer struct{}
 
-func (encodePlanNumericCodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -460,7 +460,7 @@ func encodeNumericBinary(n Numeric, buf []byte) (newBuf []byte, err error) {
 
 type encodePlanNumericCodecTextNumericValuer struct{}
 
-func (encodePlanNumericCodecTextNumericValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecTextNumericValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(NumericValuer).NumericValue()
 	if err != nil {
 		return nil, err
@@ -471,7 +471,7 @@ func (encodePlanNumericCodecTextNumericValuer) Encode(value interface{}, buf []b
 
 type encodePlanNumericCodecTextFloat64Valuer struct{}
 
-func (encodePlanNumericCodecTextFloat64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecTextFloat64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Float64Valuer).Float64Value()
 	if err != nil {
 		return nil, err
@@ -495,7 +495,7 @@ func (encodePlanNumericCodecTextFloat64Valuer) Encode(value interface{}, buf []b
 
 type encodePlanNumericCodecTextInt64Valuer struct{}
 
-func (encodePlanNumericCodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanNumericCodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -530,7 +530,7 @@ func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
 	return buf, nil
 }
 
-func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -560,7 +560,7 @@ func (NumericCodec) PlanScan(m *Map, oid uint32, format int16, target interface{
 
 type scanPlanBinaryNumericToNumericScanner struct{}
 
-func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(NumericScanner)
 
 	if src == nil {
@@ -666,7 +666,7 @@ func (scanPlanBinaryNumericToNumericScanner) Scan(src []byte, dst interface{}) e
 
 type scanPlanBinaryNumericToFloat64Scanner struct{}
 
-func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(Float64Scanner)
 
 	if src == nil {
@@ -690,7 +690,7 @@ func (scanPlanBinaryNumericToFloat64Scanner) Scan(src []byte, dst interface{}) e
 
 type scanPlanBinaryNumericToInt64Scanner struct{}
 
-func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(Int64Scanner)
 
 	if src == nil {
@@ -718,7 +718,7 @@ func (scanPlanBinaryNumericToInt64Scanner) Scan(src []byte, dst interface{}) err
 
 type scanPlanBinaryNumericToTextScanner struct{}
 
-func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {
@@ -742,7 +742,7 @@ func (scanPlanBinaryNumericToTextScanner) Scan(src []byte, dst interface{}) erro
 
 type scanPlanTextAnyToNumericScanner struct{}
 
-func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(NumericScanner)
 
 	if src == nil {
@@ -787,7 +787,7 @@ func (c NumericCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, s
 	return string(buf), nil
 }
 
-func (c NumericCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c NumericCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

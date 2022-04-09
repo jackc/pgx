@@ -30,7 +30,7 @@ func (f Float8) Float64Value() (pgtype.Float8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (f *Float8) Scan(src interface{}) error {
+func (f *Float8) Scan(src any) error {
 	if src == nil {
 		*f = 0
 		return nil

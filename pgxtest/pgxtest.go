@@ -101,9 +101,9 @@ func RunWithQueryExecModes(ctx context.Context, t *testing.T, ctr ConnTestRunner
 }
 
 type ValueRoundTripTest struct {
-	Param  interface{}
-	Result interface{}
-	Test   func(interface{}) bool
+	Param  any
+	Result any
+	Test   func(any) bool
 }
 
 func RunValueRoundTripTests(

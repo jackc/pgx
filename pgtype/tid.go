@@ -45,7 +45,7 @@ func (b TID) TIDValue() (TID, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *TID) Scan(src interface{}) error {
+func (dst *TID) Scan(src any) error {
 	if src == nil {
 		*dst = TID{}
 		return nil
@@ -82,7 +82,7 @@ func (TIDCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (TIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (TIDCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(TIDValuer); !ok {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (TIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) 
 
 type encodePlanTIDCodecBinary struct{}
 
-func (encodePlanTIDCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTIDCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	tid, err := value.(TIDValuer).TIDValue()
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func (encodePlanTIDCodecBinary) Encode(value interface{}, buf []byte) (newBuf []
 
 type encodePlanTIDCodecText struct{}
 
-func (encodePlanTIDCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTIDCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	tid, err := value.(TIDValuer).TIDValue()
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func (encodePlanTIDCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -152,7 +152,7 @@ func (TIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) S
 
 type scanPlanBinaryTIDToTIDScanner struct{}
 
-func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TIDScanner)
 
 	if src == nil {
@@ -172,7 +172,7 @@ func (scanPlanBinaryTIDToTIDScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryTIDToTextScanner struct{}
 
-func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {
@@ -194,7 +194,7 @@ func (scanPlanBinaryTIDToTextScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToTIDScanner struct{}
 
-func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TIDScanner)
 
 	if src == nil {
@@ -227,7 +227,7 @@ func (c TIDCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src [
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c TIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c TIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

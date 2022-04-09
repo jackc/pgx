@@ -22,7 +22,7 @@ func TestTextTranscode(t *testing.T) {
 		},
 		{
 			(zeronull.Text)(""),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

@@ -30,7 +30,7 @@ func (t Text) TextValue() (Text, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Text) Scan(src interface{}) error {
+func (dst *Text) Scan(src any) error {
 	if src == nil {
 		*dst = Text{}
 		return nil
@@ -90,7 +90,7 @@ func (TextCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (TextCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (TextCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch value.(type) {
@@ -110,7 +110,7 @@ func (TextCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanTextCodecString struct{}
 
-func (encodePlanTextCodecString) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextCodecString) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	s := value.(string)
 	buf = append(buf, s...)
 	return buf, nil
@@ -118,7 +118,7 @@ func (encodePlanTextCodecString) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanTextCodecByteSlice struct{}
 
-func (encodePlanTextCodecByteSlice) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextCodecByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	s := value.([]byte)
 	buf = append(buf, s...)
 	return buf, nil
@@ -126,7 +126,7 @@ func (encodePlanTextCodecByteSlice) Encode(value interface{}, buf []byte) (newBu
 
 type encodePlanTextCodecRune struct{}
 
-func (encodePlanTextCodecRune) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextCodecRune) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	r := value.(rune)
 	buf = append(buf, string(r)...)
 	return buf, nil
@@ -134,7 +134,7 @@ func (encodePlanTextCodecRune) Encode(value interface{}, buf []byte) (newBuf []b
 
 type encodePlanTextCodecStringer struct{}
 
-func (encodePlanTextCodecStringer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextCodecStringer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	s := value.(fmt.Stringer)
 	buf = append(buf, s.String()...)
 	return buf, nil
@@ -142,7 +142,7 @@ func (encodePlanTextCodecStringer) Encode(value interface{}, buf []byte) (newBuf
 
 type encodePlanTextCodecTextValuer struct{}
 
-func (encodePlanTextCodecTextValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextCodecTextValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	text, err := value.(TextValuer).TextValue()
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func (encodePlanTextCodecTextValuer) Encode(value interface{}, buf []byte) (newB
 	return buf, nil
 }
 
-func (TextCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (TextCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
@@ -181,7 +181,7 @@ func (c TextCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return c.DecodeValue(m, oid, format, src)
 }
 
-func (c TextCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c TextCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -191,7 +191,7 @@ func (c TextCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanTextAnyToString struct{}
 
-func (scanPlanTextAnyToString) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToString) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -204,7 +204,7 @@ func (scanPlanTextAnyToString) Scan(src []byte, dst interface{}) error {
 
 type scanPlanAnyToNewByteSlice struct{}
 
-func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst interface{}) error {
+func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst any) error {
 	p := (dst).(*[]byte)
 	if src == nil {
 		*p = nil
@@ -218,14 +218,14 @@ func (scanPlanAnyToNewByteSlice) Scan(src []byte, dst interface{}) error {
 
 type scanPlanAnyToByteScanner struct{}
 
-func (scanPlanAnyToByteScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanAnyToByteScanner) Scan(src []byte, dst any) error {
 	p := (dst).(BytesScanner)
 	return p.ScanBytes(src)
 }
 
 type scanPlanTextAnyToRune struct{}
 
-func (scanPlanTextAnyToRune) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToRune) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -243,7 +243,7 @@ func (scanPlanTextAnyToRune) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToTextScanner struct{}
 
-func (scanPlanTextAnyToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToTextScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TextScanner)
 
 	if src == nil {

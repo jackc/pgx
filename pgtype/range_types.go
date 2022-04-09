@@ -17,7 +17,7 @@ func (r Int4range) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Int4range) Bounds() (lower, upper interface{}) {
+func (r Int4range) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -26,7 +26,7 @@ func (r *Int4range) ScanNull() error {
 	return nil
 }
 
-func (r *Int4range) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Int4range) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -59,7 +59,7 @@ func (r Int8range) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Int8range) Bounds() (lower, upper interface{}) {
+func (r Int8range) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -68,7 +68,7 @@ func (r *Int8range) ScanNull() error {
 	return nil
 }
 
-func (r *Int8range) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Int8range) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -101,7 +101,7 @@ func (r Numrange) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Numrange) Bounds() (lower, upper interface{}) {
+func (r Numrange) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -110,7 +110,7 @@ func (r *Numrange) ScanNull() error {
 	return nil
 }
 
-func (r *Numrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Numrange) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -143,7 +143,7 @@ func (r Tsrange) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Tsrange) Bounds() (lower, upper interface{}) {
+func (r Tsrange) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -152,7 +152,7 @@ func (r *Tsrange) ScanNull() error {
 	return nil
 }
 
-func (r *Tsrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Tsrange) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -185,7 +185,7 @@ func (r Tstzrange) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Tstzrange) Bounds() (lower, upper interface{}) {
+func (r Tstzrange) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -194,7 +194,7 @@ func (r *Tstzrange) ScanNull() error {
 	return nil
 }
 
-func (r *Tstzrange) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Tstzrange) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -227,7 +227,7 @@ func (r Daterange) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Daterange) Bounds() (lower, upper interface{}) {
+func (r Daterange) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -236,7 +236,7 @@ func (r *Daterange) ScanNull() error {
 	return nil
 }
 
-func (r *Daterange) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Daterange) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -269,7 +269,7 @@ func (r Float8range) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r Float8range) Bounds() (lower, upper interface{}) {
+func (r Float8range) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -278,7 +278,7 @@ func (r *Float8range) ScanNull() error {
 	return nil
 }
 
-func (r *Float8range) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *Float8range) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 

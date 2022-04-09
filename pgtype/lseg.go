@@ -34,7 +34,7 @@ func (lseg Lseg) LsegValue() (Lseg, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (lseg *Lseg) Scan(src interface{}) error {
+func (lseg *Lseg) Scan(src any) error {
 	if src == nil {
 		*lseg = Lseg{}
 		return nil
@@ -71,7 +71,7 @@ func (LsegCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (LsegCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (LsegCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(LsegValuer); !ok {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (LsegCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanLsegCodecBinary struct{}
 
-func (encodePlanLsegCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanLsegCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	lseg, err := value.(LsegValuer).LsegValue()
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (encodePlanLsegCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanLsegCodecText struct{}
 
-func (encodePlanLsegCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanLsegCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	lseg, err := value.(LsegValuer).LsegValue()
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (encodePlanLsegCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -146,7 +146,7 @@ func (LsegCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanBinaryLsegToLsegScanner struct{}
 
-func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(LsegScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryLsegToLsegScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToLsegScanner struct{}
 
-func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToLsegScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(LsegScanner)
 
 	if src == nil {
@@ -224,7 +224,7 @@ func (c LsegCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c LsegCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c LsegCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

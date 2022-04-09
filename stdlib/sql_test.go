@@ -36,7 +36,7 @@ func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	err = conn.Raw(func(driverConn interface{}) error {
+	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		if conn.PgConn().ParameterStatus("crdb_version") != "" {
 			t.Skip(msg)
@@ -51,7 +51,7 @@ func skipPostgreSQLVersionLessThan(t testing.TB, db *sql.DB, minVersion int64) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	err = conn.Raw(func(driverConn interface{}) error {
+	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
 		serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
@@ -639,7 +639,7 @@ func TestConnRaw(t *testing.T) {
 		require.NoError(t, err)
 
 		var n int
-		err = conn.Raw(func(driverConn interface{}) error {
+		err = conn.Raw(func(driverConn any) error {
 			conn := driverConn.(*stdlib.Conn).Conn()
 			return conn.QueryRow(context.Background(), "select 42").Scan(&n)
 		})
@@ -1036,14 +1036,14 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 type testLog struct {
 	lvl  pgx.LogLevel
 	msg  string
-	data map[string]interface{}
+	data map[string]any
 }
 
 type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(ctx context.Context, lvl pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *testLogger) Log(ctx context.Context, lvl pgx.LogLevel, msg string, data map[string]any) {
 	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
 }
 

@@ -15,8 +15,8 @@ func TestJSONBTranscode(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "jsonb", []pgxtest.ValueRoundTripTest{
 		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
-		{map[string]interface{}(nil), new(*string), isExpectedEq((*string)(nil))},
-		{map[string]interface{}(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
+		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
+		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
 	})
@@ -27,7 +27,7 @@ func TestJSONBTranscode(t *testing.T) {
 		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},
 		{[]byte(`"hello"`), new([]byte), isExpectedEqBytes([]byte(`"hello"`))},
 		{[]byte(`"hello"`), new(string), isExpectedEq(`"hello"`)},
-		{map[string]interface{}{"foo": "bar"}, new(map[string]interface{}), isExpectedEqMap(map[string]interface{}{"foo": "bar"})},
+		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
 		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 	})
 }

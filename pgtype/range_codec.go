@@ -16,7 +16,7 @@ type RangeValuer interface {
 	BoundTypes() (lower, upper BoundType)
 
 	// Bounds returns the lower and upper range values.
-	Bounds() (lower, upper interface{})
+	Bounds() (lower, upper any)
 }
 
 // RangeScanner is a type can be scanned from a PostgreSQL range.
@@ -26,7 +26,7 @@ type RangeScanner interface {
 
 	// ScanBounds returns values usable as a scan target. The returned values may not be scanned if the range is empty or
 	// the bound type is unbounded.
-	ScanBounds() (lowerTarget, upperTarget interface{})
+	ScanBounds() (lowerTarget, upperTarget any)
 
 	// SetBoundTypes sets the lower and upper bound types. ScanBounds will be called and the returned values scanned
 	// (if appropriate) before SetBoundTypes is called. If the bound types are unbounded or empty this method must
@@ -35,8 +35,8 @@ type RangeScanner interface {
 }
 
 type GenericRange struct {
-	Lower     interface{}
-	Upper     interface{}
+	Lower     any
+	Upper     any
 	LowerType BoundType
 	UpperType BoundType
 	Valid     bool
@@ -50,7 +50,7 @@ func (r GenericRange) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r GenericRange) Bounds() (lower, upper interface{}) {
+func (r GenericRange) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -59,7 +59,7 @@ func (r *GenericRange) ScanNull() error {
 	return nil
 }
 
-func (r *GenericRange) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *GenericRange) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -86,7 +86,7 @@ func (c *RangeCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (c *RangeCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (c *RangeCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(RangeValuer); !ok {
 		return nil
 	}
@@ -106,7 +106,7 @@ type encodePlanRangeCodecRangeValuerToBinary struct {
 	m  *Map
 }
 
-func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(RangeValuer)
 
 	if getter.IsNull() {
@@ -197,7 +197,7 @@ type encodePlanRangeCodecRangeValuerToText struct {
 	m  *Map
 }
 
-func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(RangeValuer)
 
 	if getter.IsNull() {
@@ -270,7 +270,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value interface{}, buf
 	return buf, nil
 }
 
-func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -292,7 +292,7 @@ type scanPlanBinaryRangeToRangeScanner struct {
 	m  *Map
 }
 
-func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target interface{}) error {
+func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) error {
 	rangeScanner := (target).(RangeScanner)
 
 	if src == nil {
@@ -342,7 +342,7 @@ type scanPlanTextRangeToRangeScanner struct {
 	m  *Map
 }
 
-func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target interface{}) error {
+func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error {
 	rangeScanner := (target).(RangeScanner)
 
 	if src == nil {
@@ -404,7 +404,7 @@ func (c *RangeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	}
 }
 
-func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

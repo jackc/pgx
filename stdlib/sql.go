@@ -37,7 +37,7 @@
 //		// handle error from acquiring connection from DB pool
 //	}
 //
-//	err = conn.Raw(func(driverConn interface{}) error {
+//	err = conn.Raw(func(driverConn any) error {
 //		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
 //		// Do pgx specific stuff with conn
 //		conn.CopyFrom(...)
@@ -413,7 +413,7 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 		return nil, driver.ErrBadConn
 	}
 
-	args := []interface{}{databaseSQLResultFormats}
+	args := []any{databaseSQLResultFormats}
 	args = append(args, namedValueToInterface(argsV)...)
 
 	rows, err := c.conn.Query(ctx, query, args...)
@@ -746,11 +746,11 @@ func (r *Rows) Next(dest []driver.Value) error {
 	return nil
 }
 
-func valueToInterface(argsV []driver.Value) []interface{} {
-	args := make([]interface{}, 0, len(argsV))
+func valueToInterface(argsV []driver.Value) []any {
+	args := make([]any, 0, len(argsV))
 	for _, v := range argsV {
 		if v != nil {
-			args = append(args, v.(interface{}))
+			args = append(args, v.(any))
 		} else {
 			args = append(args, nil)
 		}
@@ -758,11 +758,11 @@ func valueToInterface(argsV []driver.Value) []interface{} {
 	return args
 }
 
-func namedValueToInterface(argsV []driver.NamedValue) []interface{} {
-	args := make([]interface{}, 0, len(argsV))
+func namedValueToInterface(argsV []driver.NamedValue) []any {
+	args := make([]any, 0, len(argsV))
 	for _, v := range argsV {
 		if v.Value != nil {
-			args = append(args, v.Value.(interface{}))
+			args = append(args, v.Value.(any))
 		} else {
 			args = append(args, nil)
 		}

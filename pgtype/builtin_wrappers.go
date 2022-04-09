@@ -603,7 +603,7 @@ func (w byteSliceWrapper) UUIDValue() (UUID, error) {
 
 // structWrapper implements CompositeIndexGetter for a struct.
 type structWrapper struct {
-	s              interface{}
+	s              any
 	exportedFields []reflect.Value
 }
 
@@ -611,7 +611,7 @@ func (w structWrapper) IsNull() bool {
 	return w.s == nil
 }
 
-func (w structWrapper) Index(i int) interface{} {
+func (w structWrapper) Index(i int) any {
 	if i >= len(w.exportedFields) {
 		return fmt.Errorf("%#v only has %d public fields - %d is out of bounds", w.s, len(w.exportedFields), i)
 	}
@@ -621,7 +621,7 @@ func (w structWrapper) Index(i int) interface{} {
 
 // ptrStructWrapper implements CompositeIndexScanner for a pointer to a struct.
 type ptrStructWrapper struct {
-	s              interface{}
+	s              any
 	exportedFields []reflect.Value
 }
 
@@ -629,7 +629,7 @@ func (w *ptrStructWrapper) ScanNull() error {
 	return fmt.Errorf("cannot scan NULL into %#v", w.s)
 }
 
-func (w *ptrStructWrapper) ScanIndex(i int) interface{} {
+func (w *ptrStructWrapper) ScanIndex(i int) any {
 	if i >= len(w.exportedFields) {
 		return fmt.Errorf("%#v only has %d public fields - %d is out of bounds", w.s, len(w.exportedFields), i)
 	}
@@ -649,11 +649,11 @@ func (a anySliceArray) Dimensions() []ArrayDimension {
 	return []ArrayDimension{{Length: int32(a.slice.Len()), LowerBound: 1}}
 }
 
-func (a anySliceArray) Index(i int) interface{} {
+func (a anySliceArray) Index(i int) any {
 	return a.slice.Index(i).Interface()
 }
 
-func (a anySliceArray) IndexType() interface{} {
+func (a anySliceArray) IndexType() any {
 	return reflect.New(a.slice.Type().Elem()).Elem().Interface()
 }
 
@@ -671,11 +671,11 @@ func (a *anySliceArray) SetDimensions(dimensions []ArrayDimension) error {
 	return nil
 }
 
-func (a *anySliceArray) ScanIndex(i int) interface{} {
+func (a *anySliceArray) ScanIndex(i int) any {
 	return a.slice.Index(i).Addr().Interface()
 }
 
-func (a *anySliceArray) ScanIndexType() interface{} {
+func (a *anySliceArray) ScanIndexType() any {
 	return reflect.New(a.slice.Type().Elem()).Interface()
 }
 
@@ -706,7 +706,7 @@ func (a *anyMultiDimSliceArray) Dimensions() []ArrayDimension {
 	return a.dims
 }
 
-func (a *anyMultiDimSliceArray) Index(i int) interface{} {
+func (a *anyMultiDimSliceArray) Index(i int) any {
 	if len(a.dims) == 1 {
 		return a.slice.Index(i).Interface()
 	}
@@ -726,7 +726,7 @@ func (a *anyMultiDimSliceArray) Index(i int) interface{} {
 	return v.Interface()
 }
 
-func (a *anyMultiDimSliceArray) IndexType() interface{} {
+func (a *anyMultiDimSliceArray) IndexType() any {
 	lowestSliceType := a.slice.Type()
 	for ; lowestSliceType.Elem().Kind() == reflect.Slice; lowestSliceType = lowestSliceType.Elem() {
 	}
@@ -794,11 +794,11 @@ func (a *anyMultiDimSliceArray) makeMultidimensionalSlice(sliceType reflect.Type
 	return slice
 }
 
-func (a *anyMultiDimSliceArray) ScanIndex(i int) interface{} {
+func (a *anyMultiDimSliceArray) ScanIndex(i int) any {
 	return a.slice.Index(i).Addr().Interface()
 }
 
-func (a *anyMultiDimSliceArray) ScanIndexType() interface{} {
+func (a *anyMultiDimSliceArray) ScanIndexType() any {
 	lowestSliceType := a.slice.Type()
 	for ; lowestSliceType.Elem().Kind() == reflect.Slice; lowestSliceType = lowestSliceType.Elem() {
 	}

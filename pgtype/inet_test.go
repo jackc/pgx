@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqIPNet(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqIPNet(a any) func(any) bool {
+	return func(v any) bool {
 		ap := a.(*net.IPNet)
 		vp := v.(net.IPNet)
 

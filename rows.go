@@ -44,12 +44,12 @@ type Rows interface {
 	// dest can include pointers to core types, values implementing the Scanner
 	// interface, and nil. nil will skip the value entirely. It is an error to
 	// call Scan without first calling Next() and checking that it returned true.
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 
 	// Values returns the decoded row values. As with Scan(), it is an error to
 	// call Values without first calling Next() and checking that it returned
 	// true.
-	Values() ([]interface{}, error)
+	Values() ([]any, error)
 
 	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid until the next Next
 	// call or the Rows is closed. However, the underlying byte data is safe to retain a reference to and mutate.
@@ -66,13 +66,13 @@ type Row interface {
 	// Scan works the same as Rows. with the following exceptions. If no
 	// rows were found it returns ErrNoRows. If multiple rows are returned it
 	// ignores all but the first.
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // connRow implements the Row interface for Conn.QueryRow.
 type connRow connRows
 
-func (r *connRow) Scan(dest ...interface{}) (err error) {
+func (r *connRow) Scan(dest ...any) (err error) {
 	rows := (*connRows)(r)
 
 	if rows.Err() != nil {
@@ -100,7 +100,7 @@ func (r *connRow) Scan(dest ...interface{}) (err error) {
 
 type rowLog interface {
 	shouldLog(lvl LogLevel) bool
-	log(ctx context.Context, lvl LogLevel, msg string, data map[string]interface{})
+	log(ctx context.Context, lvl LogLevel, msg string, data map[string]any)
 }
 
 // connRows implements the Rows interface for Conn.Query.
@@ -114,7 +114,7 @@ type connRows struct {
 	commandTag pgconn.CommandTag
 	startTime  time.Time
 	sql        string
-	args       []interface{}
+	args       []any
 	closed     bool
 	conn       *Conn
 
@@ -155,11 +155,11 @@ func (rows *connRows) Close() {
 		if rows.err == nil {
 			if rows.logger.shouldLog(LogLevelInfo) {
 				endTime := time.Now()
-				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]interface{}{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
+				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]any{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 			}
 		} else {
 			if rows.logger.shouldLog(LogLevelError) {
-				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]interface{}{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]any{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
 			}
 			if rows.err != nil && rows.conn.statementCache != nil {
 				rows.conn.statementCache.StatementErrored(rows.sql, rows.err)
@@ -202,7 +202,7 @@ func (rows *connRows) Next() bool {
 	}
 }
 
-func (rows *connRows) Scan(dest ...interface{}) error {
+func (rows *connRows) Scan(dest ...any) error {
 	m := rows.typeMap
 	fieldDescriptions := rows.FieldDescriptions()
 	values := rows.values
@@ -248,12 +248,12 @@ func (rows *connRows) Scan(dest ...interface{}) error {
 	return nil
 }
 
-func (rows *connRows) Values() ([]interface{}, error) {
+func (rows *connRows) Values() ([]any, error) {
 	if rows.closed {
 		return nil, errors.New("rows is closed")
 	}
 
-	values := make([]interface{}, 0, len(rows.FieldDescriptions()))
+	values := make([]any, 0, len(rows.FieldDescriptions()))
 
 	for i := range rows.FieldDescriptions() {
 		buf := rows.values[i]
@@ -314,7 +314,7 @@ func (e ScanArgError) Unwrap() error {
 // fieldDescriptions - OID and format of values
 // values - the raw data as returned from the PostgreSQL server
 // dest - the destination that values will be decoded into
-func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...interface{}) error {
+func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...any) error {
 	if len(fieldDescriptions) != len(values) {
 		return fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 	}

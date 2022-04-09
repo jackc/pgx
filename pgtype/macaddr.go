@@ -15,7 +15,7 @@ func (MacaddrCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (MacaddrCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (MacaddrCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -39,7 +39,7 @@ func (MacaddrCodec) PlanEncode(m *Map, oid uint32, format int16, value interface
 
 type encodePlanMacaddrCodecBinaryHardwareAddr struct{}
 
-func (encodePlanMacaddrCodecBinaryHardwareAddr) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanMacaddrCodecBinaryHardwareAddr) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	addr := value.(net.HardwareAddr)
 	if addr == nil {
 		return nil, nil
@@ -50,7 +50,7 @@ func (encodePlanMacaddrCodecBinaryHardwareAddr) Encode(value interface{}, buf []
 
 type encodePlanMacAddrCodecTextValuer struct{}
 
-func (encodePlanMacAddrCodecTextValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanMacAddrCodecTextValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	t, err := value.(TextValuer).TextValue()
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (encodePlanMacAddrCodecTextValuer) Encode(value interface{}, buf []byte) (n
 
 type encodePlanMacaddrCodecTextHardwareAddr struct{}
 
-func (encodePlanMacaddrCodecTextHardwareAddr) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanMacaddrCodecTextHardwareAddr) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	addr := value.(net.HardwareAddr)
 	if addr == nil {
 		return nil, nil
@@ -78,7 +78,7 @@ func (encodePlanMacaddrCodecTextHardwareAddr) Encode(value interface{}, buf []by
 	return append(buf, addr.String()...), nil
 }
 
-func (MacaddrCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (MacaddrCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -101,7 +101,7 @@ func (MacaddrCodec) PlanScan(m *Map, oid uint32, format int16, target interface{
 
 type scanPlanBinaryMacaddrToHardwareAddr struct{}
 
-func (scanPlanBinaryMacaddrToHardwareAddr) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryMacaddrToHardwareAddr) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*net.HardwareAddr)
 	if src == nil {
 		*dstBuf = nil
@@ -115,7 +115,7 @@ func (scanPlanBinaryMacaddrToHardwareAddr) Scan(src []byte, dst interface{}) err
 
 type scanPlanBinaryMacaddrToTextScanner struct{}
 
-func (scanPlanBinaryMacaddrToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryMacaddrToTextScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TextScanner)
 	if src == nil {
 		return scanner.ScanText(Text{})
@@ -126,7 +126,7 @@ func (scanPlanBinaryMacaddrToTextScanner) Scan(src []byte, dst interface{}) erro
 
 type scanPlanTextMacaddrToHardwareAddr struct{}
 
-func (scanPlanTextMacaddrToHardwareAddr) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextMacaddrToHardwareAddr) Scan(src []byte, dst any) error {
 	p := dst.(*net.HardwareAddr)
 
 	if src == nil {
@@ -148,7 +148,7 @@ func (c MacaddrCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, s
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c MacaddrCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c MacaddrCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

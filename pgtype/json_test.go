@@ -7,10 +7,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqMap(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
-		aa := a.(map[string]interface{})
-		bb := v.(map[string]interface{})
+func isExpectedEqMap(a any) func(any) bool {
+	return func(v any) bool {
+		aa := a.(map[string]any)
+		bb := v.(map[string]any)
 
 		if (aa == nil) != (bb == nil) {
 			return false
@@ -42,8 +42,8 @@ func TestJSONCodec(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "json", []pgxtest.ValueRoundTripTest{
 		{nil, new(*jsonStruct), isExpectedEq((*jsonStruct)(nil))},
-		{map[string]interface{}(nil), new(*string), isExpectedEq((*string)(nil))},
-		{map[string]interface{}(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
+		{map[string]any(nil), new(*string), isExpectedEq((*string)(nil))},
+		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
 	})
@@ -54,7 +54,7 @@ func TestJSONCodec(t *testing.T) {
 		{[]byte("42"), new([]byte), isExpectedEqBytes([]byte("42"))},
 		{[]byte(`"hello"`), new([]byte), isExpectedEqBytes([]byte(`"hello"`))},
 		{[]byte(`"hello"`), new(string), isExpectedEq(`"hello"`)},
-		{map[string]interface{}{"foo": "bar"}, new(map[string]interface{}), isExpectedEqMap(map[string]interface{}{"foo": "bar"})},
+		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
 		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 	})
 }

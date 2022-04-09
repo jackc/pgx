@@ -15,10 +15,10 @@ type ArrayGetter interface {
 	Dimensions() []ArrayDimension
 
 	// Index returns the element at i.
-	Index(i int) interface{}
+	Index(i int) any
 
 	// IndexType returns a non-nil scan target of the type Index will return. This is used by ArrayCodec.PlanEncode.
-	IndexType() interface{}
+	IndexType() any
 }
 
 // ArraySetter is a type can be set from a PostgreSQL array.
@@ -29,11 +29,11 @@ type ArraySetter interface {
 	SetDimensions(dimensions []ArrayDimension) error
 
 	// ScanIndex returns a value usable as a scan target for i. SetDimensions must be called before ScanIndex.
-	ScanIndex(i int) interface{}
+	ScanIndex(i int) any
 
 	// ScanIndexType returns a non-nil scan target of the type ScanIndex will return. This is used by
 	// ArrayCodec.PlanScan.
-	ScanIndexType() interface{}
+	ScanIndexType() any
 }
 
 // ArrayCodec is a codec for any array type.
@@ -49,7 +49,7 @@ func (c *ArrayCodec) PreferredFormat() int16 {
 	return c.ElementType.Codec.PreferredFormat()
 }
 
-func (c *ArrayCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (c *ArrayCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	arrayValuer, ok := value.(ArrayGetter)
 	if !ok {
 		return nil
@@ -78,7 +78,7 @@ type encodePlanArrayCodecText struct {
 	oid uint32
 }
 
-func (p *encodePlanArrayCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	array := value.(ArrayGetter)
 
 	dimensions := array.Dimensions()
@@ -157,7 +157,7 @@ type encodePlanArrayCodecBinary struct {
 	oid uint32
 }
 
-func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	array := value.(ArrayGetter)
 
 	dimensions := array.Dimensions()
@@ -210,7 +210,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value interface{}, buf []byte) (newB
 	return buf, nil
 }
 
-func (c *ArrayCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (c *ArrayCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	arrayScanner, ok := target.(ArraySetter)
 	if !ok {
 		return nil
@@ -315,7 +315,7 @@ type scanPlanArrayCodec struct {
 	elementScanPlan ScanPlan
 }
 
-func (spac *scanPlanArrayCodec) Scan(src []byte, dst interface{}) error {
+func (spac *scanPlanArrayCodec) Scan(src []byte, dst any) error {
 	c := spac.arrayCodec
 	m := spac.m
 	oid := spac.oid
@@ -354,12 +354,12 @@ func (c *ArrayCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	}
 }
 
-func (c *ArrayCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c *ArrayCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
 
-	var slice []interface{}
+	var slice []any
 	err := m.PlanScan(oid, format, &slice).Scan(src, &slice)
 	return slice, err
 }

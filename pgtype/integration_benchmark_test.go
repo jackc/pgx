@@ -17,8 +17,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int16_1_rows_1_columns(b *test
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -36,8 +36,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int16_1_rows_1_columns(b *te
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -55,8 +55,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int16_1_rows_10_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -74,8 +74,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int16_1_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -93,8 +93,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int16_10_rows_1_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -112,8 +112,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int16_10_rows_1_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -131,8 +131,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int16_100_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -150,8 +150,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int16_100_rows_10_columns(b 
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -169,8 +169,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int32_1_rows_1_columns(b *test
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -188,8 +188,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int32_1_rows_1_columns(b *te
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -207,8 +207,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int32_1_rows_10_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -226,8 +226,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int32_1_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -245,8 +245,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int32_10_rows_1_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -264,8 +264,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int32_10_rows_1_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -283,8 +283,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int32_100_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -302,8 +302,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int32_100_rows_10_columns(b 
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -321,8 +321,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int64_1_rows_1_columns(b *test
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -340,8 +340,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int64_1_rows_1_columns(b *te
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -359,8 +359,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int64_1_rows_10_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -378,8 +378,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int64_1_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -397,8 +397,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int64_10_rows_1_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -416,8 +416,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int64_10_rows_1_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -435,8 +435,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_int64_100_rows_10_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -454,8 +454,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_int64_100_rows_10_columns(b 
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -473,8 +473,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_uint64_1_rows_1_columns(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -492,8 +492,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_uint64_1_rows_1_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -511,8 +511,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_uint64_1_rows_10_columns(b *te
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -530,8 +530,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_uint64_1_rows_10_columns(b *
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -549,8 +549,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_uint64_10_rows_1_columns(b *te
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -568,8 +568,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_uint64_10_rows_1_columns(b *
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -587,8 +587,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_uint64_100_rows_10_columns(b *
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -606,8 +606,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_uint64_100_rows_10_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -625,8 +625,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_pgtype_Int4_1_rows_1_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -644,8 +644,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_pgtype_Int4_1_rows_1_columns
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -663,8 +663,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_pgtype_Int4_1_rows_10_columns(
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -682,8 +682,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_pgtype_Int4_1_rows_10_column
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -701,8 +701,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_pgtype_Int4_10_rows_1_columns(
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -720,8 +720,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_pgtype_Int4_10_rows_1_column
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -739,8 +739,8 @@ func BenchmarkQueryTextFormatDecode_PG_int4_to_Go_pgtype_Int4_100_rows_10_column
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -758,8 +758,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_int4_to_Go_pgtype_Int4_100_rows_10_colu
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::int4 + 0, n::int4 + 1, n::int4 + 2, n::int4 + 3, n::int4 + 4, n::int4 + 5, n::int4 + 6, n::int4 + 7, n::int4 + 8, n::int4 + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -777,8 +777,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_int64_1_rows_1_columns(b *t
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -796,8 +796,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_int64_1_rows_1_columns(b 
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -815,8 +815,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_int64_1_rows_10_columns(b *
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -834,8 +834,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_int64_1_rows_10_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -853,8 +853,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_int64_10_rows_1_columns(b *
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -872,8 +872,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_int64_10_rows_1_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -891,8 +891,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_int64_100_rows_10_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -910,8 +910,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_int64_100_rows_10_columns
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -929,8 +929,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_float64_1_rows_1_columns(b 
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -948,8 +948,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_float64_1_rows_1_columns(
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -967,8 +967,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_float64_1_rows_10_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -986,8 +986,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_float64_1_rows_10_columns
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1005,8 +1005,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_float64_10_rows_1_columns(b
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1024,8 +1024,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_float64_10_rows_1_columns
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1043,8 +1043,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_float64_100_rows_10_columns
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1062,8 +1062,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_float64_100_rows_10_colum
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1081,8 +1081,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_pgtype_Numeric_1_rows_1_col
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1100,8 +1100,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_pgtype_Numeric_1_rows_1_c
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1119,8 +1119,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_pgtype_Numeric_1_rows_10_co
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1138,8 +1138,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_pgtype_Numeric_1_rows_10_
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 1) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1157,8 +1157,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_pgtype_Numeric_10_rows_1_co
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1176,8 +1176,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_pgtype_Numeric_10_rows_1_
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0 from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1195,8 +1195,8 @@ func BenchmarkQueryTextFormatDecode_PG_numeric_to_Go_pgtype_Numeric_100_rows_10_
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1214,8 +1214,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_numeric_to_Go_pgtype_Numeric_100_rows_1
 			_, err := conn.QueryFunc(
 				ctx,
 				`select n::numeric + 0, n::numeric + 1, n::numeric + 2, n::numeric + 3, n::numeric + 4, n::numeric + 5, n::numeric + 6, n::numeric + 7, n::numeric + 8, n::numeric + 9 from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8], &v[9]},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1233,8 +1233,8 @@ func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_10(b *testing
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1252,8 +1252,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_10(b *testi
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 10) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1271,8 +1271,8 @@ func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_100(b *testin
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1290,8 +1290,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_100(b *test
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 100) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1309,8 +1309,8 @@ func BenchmarkQueryTextFormatDecode_PG_Int4Array_With_Go_Int4Array_1000(b *testi
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 1000) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.TextFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.TextFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {
@@ -1328,8 +1328,8 @@ func BenchmarkQueryBinaryFormatDecode_PG_Int4Array_With_Go_Int4Array_1000(b *tes
 			_, err := conn.QueryFunc(
 				ctx,
 				`select array_agg(n) from generate_series(1, 1000) n`,
-				[]interface{}{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
-				[]interface{}{&v},
+				[]any{pgx.QueryResultFormats{pgx.BinaryFormatCode}},
+				[]any{&v},
 				func(pgx.QueryFuncRow) error { return nil },
 			)
 			if err != nil {

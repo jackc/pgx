@@ -278,7 +278,7 @@ func BenchmarkSelectWithoutLogging(b *testing.B) {
 
 type discardLogger struct{}
 
-func (dl discardLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+func (dl discardLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]any) {
 }
 
 func BenchmarkSelectWithLoggingTraceDiscard(b *testing.B) {
@@ -438,7 +438,7 @@ const benchmarkWriteTableInsertSQL = `insert into t(
 type benchmarkWriteTableCopyFromSrc struct {
 	count int
 	idx   int
-	row   []interface{}
+	row   []any
 }
 
 func (s *benchmarkWriteTableCopyFromSrc) Next() bool {
@@ -446,7 +446,7 @@ func (s *benchmarkWriteTableCopyFromSrc) Next() bool {
 	return s.idx < s.count
 }
 
-func (s *benchmarkWriteTableCopyFromSrc) Values() ([]interface{}, error) {
+func (s *benchmarkWriteTableCopyFromSrc) Values() ([]any, error) {
 	return s.row, nil
 }
 
@@ -457,7 +457,7 @@ func (s *benchmarkWriteTableCopyFromSrc) Err() error {
 func newBenchmarkWriteTableCopyFromSrc(count int) pgx.CopyFromSource {
 	return &benchmarkWriteTableCopyFromSrc{
 		count: count,
-		row: []interface{}{
+		row: []any{
 			"varchar_1",
 			"varchar_2",
 			&pgtype.Text{},
@@ -509,9 +509,9 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	}
 }
 
-type queryArgs []interface{}
+type queryArgs []any
 
-func (qa *queryArgs) Append(v interface{}) string {
+func (qa *queryArgs) Append(v any) string {
 	*qa = append(*qa, v)
 	return "$" + strconv.Itoa(len(*qa))
 }

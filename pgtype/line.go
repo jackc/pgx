@@ -33,12 +33,12 @@ func (line Line) LineValue() (Line, error) {
 	return line, nil
 }
 
-func (line *Line) Set(src interface{}) error {
+func (line *Line) Set(src any) error {
 	return fmt.Errorf("cannot convert %v to Line", src)
 }
 
 // Scan implements the database/sql Scanner interface.
-func (line *Line) Scan(src interface{}) error {
+func (line *Line) Scan(src any) error {
 	if src == nil {
 		*line = Line{}
 		return nil
@@ -75,7 +75,7 @@ func (LineCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (LineCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (LineCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(LineValuer); !ok {
 		return nil
 	}
@@ -92,7 +92,7 @@ func (LineCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanLineCodecBinary struct{}
 
-func (encodePlanLineCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanLineCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	line, err := value.(LineValuer).LineValue()
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (encodePlanLineCodecBinary) Encode(value interface{}, buf []byte) (newBuf [
 
 type encodePlanLineCodecText struct{}
 
-func (encodePlanLineCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanLineCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	line, err := value.(LineValuer).LineValue()
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func (encodePlanLineCodecText) Encode(value interface{}, buf []byte) (newBuf []b
 	return buf, nil
 }
 
-func (LineCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (LineCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -148,7 +148,7 @@ func (LineCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanBinaryLineToLineScanner struct{}
 
-func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(LineScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryLineToLineScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToLineScanner struct{}
 
-func (scanPlanTextAnyToLineScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToLineScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(LineScanner)
 
 	if src == nil {
@@ -211,7 +211,7 @@ func (c LineCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c LineCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c LineCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

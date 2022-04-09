@@ -15,7 +15,7 @@ const (
 )
 
 // underlyingNumberType gets the underlying type that can be converted to Int2, Int4, Int8, Float4, or Float8
-func underlyingNumberType(val interface{}) (interface{}, bool) {
+func underlyingNumberType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -70,7 +70,7 @@ func underlyingNumberType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingBoolType gets the underlying type that can be converted to Bool
-func underlyingBoolType(val interface{}) (interface{}, bool) {
+func underlyingBoolType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -89,7 +89,7 @@ func underlyingBoolType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingBytesType gets the underlying type that can be converted to []byte
-func underlyingBytesType(val interface{}) (interface{}, bool) {
+func underlyingBytesType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -110,7 +110,7 @@ func underlyingBytesType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingStringType gets the underlying type that can be converted to String
-func underlyingStringType(val interface{}) (interface{}, bool) {
+func underlyingStringType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -129,7 +129,7 @@ func underlyingStringType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingPtrType dereferences a pointer
-func underlyingPtrType(val interface{}) (interface{}, bool) {
+func underlyingPtrType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -145,7 +145,7 @@ func underlyingPtrType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingTimeType gets the underlying type that can be converted to time.Time
-func underlyingTimeType(val interface{}) (interface{}, bool) {
+func underlyingTimeType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -166,7 +166,7 @@ func underlyingTimeType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingUUIDType gets the underlying type that can be converted to [16]byte
-func underlyingUUIDType(val interface{}) (interface{}, bool) {
+func underlyingUUIDType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -187,7 +187,7 @@ func underlyingUUIDType(val interface{}) (interface{}, bool) {
 }
 
 // underlyingSliceType gets the underlying slice type
-func underlyingSliceType(val interface{}) (interface{}, bool) {
+func underlyingSliceType(val any) (any, bool) {
 	refVal := reflect.ValueOf(val)
 
 	switch refVal.Kind() {
@@ -208,7 +208,7 @@ func underlyingSliceType(val interface{}) (interface{}, bool) {
 	return nil, false
 }
 
-func int64AssignTo(srcVal int64, srcValid bool, dst interface{}) error {
+func int64AssignTo(srcVal int64, srcValid bool, dst any) error {
 	if srcValid {
 		switch v := dst.(type) {
 		case *int:
@@ -326,7 +326,7 @@ func int64AssignTo(srcVal int64, srcValid bool, dst interface{}) error {
 	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcValid, dst)
 }
 
-func float64AssignTo(srcVal float64, srcValid bool, dst interface{}) error {
+func float64AssignTo(srcVal float64, srcValid bool, dst any) error {
 	if srcValid {
 		switch v := dst.(type) {
 		case *float32:
@@ -368,7 +368,7 @@ func float64AssignTo(srcVal float64, srcValid bool, dst interface{}) error {
 	return fmt.Errorf("cannot assign %v %v into %T", srcVal, srcValid, dst)
 }
 
-func NullAssignTo(dst interface{}) error {
+func NullAssignTo(dst any) error {
 	dstPtr := reflect.ValueOf(dst)
 
 	// AssignTo dst must always be a pointer
@@ -389,7 +389,7 @@ func NullAssignTo(dst interface{}) error {
 
 var kindTypes map[reflect.Kind]reflect.Type
 
-func toInterface(dst reflect.Value, t reflect.Type) (interface{}, bool) {
+func toInterface(dst reflect.Value, t reflect.Type) (any, bool) {
 	nextDst := dst.Convert(t)
 	return nextDst.Interface(), dst.Type() != nextDst.Type()
 }
@@ -401,7 +401,7 @@ func toInterface(dst reflect.Value, t reflect.Type) (interface{}, bool) {
 //
 // GetAssignToDstType returns the converted dst and a bool representing if any
 // change was made.
-func GetAssignToDstType(dst interface{}) (interface{}, bool) {
+func GetAssignToDstType(dst any) (any, bool) {
 	dstPtr := reflect.ValueOf(dst)
 
 	// AssignTo dst must always be a pointer

@@ -22,7 +22,7 @@ func (QCharCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (QCharCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (QCharCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch value.(type) {
@@ -38,7 +38,7 @@ func (QCharCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}
 
 type encodePlanQcharCodecByte struct{}
 
-func (encodePlanQcharCodecByte) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanQcharCodecByte) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b := value.(byte)
 	buf = append(buf, b)
 	return buf, nil
@@ -46,7 +46,7 @@ func (encodePlanQcharCodecByte) Encode(value interface{}, buf []byte) (newBuf []
 
 type encodePlanQcharCodecRune struct{}
 
-func (encodePlanQcharCodecRune) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanQcharCodecRune) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	r := value.(rune)
 	if r > math.MaxUint8 {
 		return nil, fmt.Errorf(`%v cannot be encoded to "char"`, r)
@@ -56,7 +56,7 @@ func (encodePlanQcharCodecRune) Encode(value interface{}, buf []byte) (newBuf []
 	return buf, nil
 }
 
-func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case TextFormatCode, BinaryFormatCode:
 		switch target.(type) {
@@ -72,7 +72,7 @@ func (QCharCodec) PlanScan(m *Map, oid uint32, format int16, target interface{})
 
 type scanPlanQcharCodecByte struct{}
 
-func (scanPlanQcharCodecByte) Scan(src []byte, dst interface{}) error {
+func (scanPlanQcharCodecByte) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -94,7 +94,7 @@ func (scanPlanQcharCodecByte) Scan(src []byte, dst interface{}) error {
 
 type scanPlanQcharCodecRune struct{}
 
-func (scanPlanQcharCodecRune) Scan(src []byte, dst interface{}) error {
+func (scanPlanQcharCodecRune) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -127,7 +127,7 @@ func (c QCharCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	return string(r), nil
 }
 
-func (c QCharCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c QCharCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

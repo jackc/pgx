@@ -46,7 +46,7 @@ func (tstz Timestamptz) TimestamptzValue() (Timestamptz, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (tstz *Timestamptz) Scan(src interface{}) error {
+func (tstz *Timestamptz) Scan(src any) error {
 	if src == nil {
 		*tstz = Timestamptz{}
 		return nil
@@ -134,7 +134,7 @@ func (TimestamptzCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (TimestamptzCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (TimestamptzCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(TimestamptzValuer); !ok {
 		return nil
 	}
@@ -151,7 +151,7 @@ func (TimestamptzCodec) PlanEncode(m *Map, oid uint32, format int16, value inter
 
 type encodePlanTimestamptzCodecBinary struct{}
 
-func (encodePlanTimestamptzCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTimestamptzCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	ts, err := value.(TimestamptzValuer).TimestamptzValue()
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func (encodePlanTimestamptzCodecBinary) Encode(value interface{}, buf []byte) (n
 
 type encodePlanTimestamptzCodecText struct{}
 
-func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTimestamptzCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	ts, err := value.(TimestamptzValuer).TimestamptzValue()
 	if err != nil {
 		return nil, err
@@ -220,7 +220,7 @@ func (encodePlanTimestamptzCodecText) Encode(value interface{}, buf []byte) (new
 	return buf, nil
 }
 
-func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -240,7 +240,7 @@ func (TimestamptzCodec) PlanScan(m *Map, oid uint32, format int16, target interf
 
 type scanPlanBinaryTimestamptzToTimestamptzScanner struct{}
 
-func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TimestamptzScanner)
 
 	if src == nil {
@@ -272,7 +272,7 @@ func (scanPlanBinaryTimestamptzToTimestamptzScanner) Scan(src []byte, dst interf
 
 type scanPlanTextTimestamptzToTimestamptzScanner struct{}
 
-func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextTimestamptzToTimestamptzScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TimestamptzScanner)
 
 	if src == nil {
@@ -336,7 +336,7 @@ func (c TimestamptzCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int1
 	return tstz.Time, nil
 }
 
-func (c TimestamptzCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c TimestamptzCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

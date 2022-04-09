@@ -108,7 +108,7 @@ func TestConnSendBatch(t *testing.T) {
 		}
 
 		rowCount = 0
-		_, err = br.QueryFunc([]interface{}{&id, &description, &amount}, func(pgx.QueryFuncRow) error {
+		_, err = br.QueryFunc([]any{&id, &description, &amount}, func(pgx.QueryFuncRow) error {
 			if id != selectFromLedgerExpectedRows[rowCount].id {
 				t.Errorf("id => %v, want %v", id, selectFromLedgerExpectedRows[rowCount].id)
 			}

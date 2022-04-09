@@ -23,7 +23,7 @@ func TestInt<%= pg_byte_size %>Transcode(t *testing.T) {
 		},
 		{
 			(zeronull.Int<%= pg_byte_size %>)(0),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

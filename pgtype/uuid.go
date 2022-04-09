@@ -56,7 +56,7 @@ func encodeUUID(src [16]byte) string {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *UUID) Scan(src interface{}) error {
+func (dst *UUID) Scan(src any) error {
 	if src == nil {
 		*dst = UUID{}
 		return nil
@@ -122,7 +122,7 @@ func (UUIDCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (UUIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (UUIDCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(UUIDValuer); !ok {
 		return nil
 	}
@@ -139,7 +139,7 @@ func (UUIDCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanUUIDCodecBinaryUUIDValuer struct{}
 
-func (encodePlanUUIDCodecBinaryUUIDValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUUIDCodecBinaryUUIDValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	uuid, err := value.(UUIDValuer).UUIDValue()
 	if err != nil {
 		return nil, err
@@ -154,7 +154,7 @@ func (encodePlanUUIDCodecBinaryUUIDValuer) Encode(value interface{}, buf []byte)
 
 type encodePlanUUIDCodecTextUUIDValuer struct{}
 
-func (encodePlanUUIDCodecTextUUIDValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanUUIDCodecTextUUIDValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	uuid, err := value.(UUIDValuer).UUIDValue()
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ func (encodePlanUUIDCodecTextUUIDValuer) Encode(value interface{}, buf []byte) (
 	return append(buf, encodeUUID(uuid.Bytes)...), nil
 }
 
-func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
@@ -186,7 +186,7 @@ func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) 
 
 type scanPlanBinaryUUIDToUUIDScanner struct{}
 
-func (scanPlanBinaryUUIDToUUIDScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryUUIDToUUIDScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(UUIDScanner)
 
 	if src == nil {
@@ -205,7 +205,7 @@ func (scanPlanBinaryUUIDToUUIDScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUUIDScanner struct{}
 
-func (scanPlanTextAnyToUUIDScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUUIDScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(UUIDScanner)
 
 	if src == nil {
@@ -234,7 +234,7 @@ func (c UUIDCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return encodeUUID(uuid.Bytes), nil
 }
 
-func (c UUIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c UUIDCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

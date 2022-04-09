@@ -23,11 +23,11 @@ import (
     return []ArrayDimension{{Length: int32(len(a)), LowerBound: 1}}
   }
 
-  func (a <%= array_type %>) Index(i int) interface{} {
+  func (a <%= array_type %>) Index(i int) any {
     return a[i]
   }
 
-  func (a <%= array_type %>) IndexType() interface{} {
+  func (a <%= array_type %>) IndexType() any {
     var el <%= element_type %>
     return el
   }
@@ -43,11 +43,11 @@ import (
     return nil
   }
 
-  func (a <%= array_type %>) ScanIndex(i int) interface{} {
+  func (a <%= array_type %>) ScanIndex(i int) any {
     return &a[i]
   }
 
-  func (a <%= array_type %>) ScanIndexType() interface{} {
+  func (a <%= array_type %>) ScanIndexType() any {
     return new(<%= element_type %>)
   }
 <% end %>

@@ -60,7 +60,7 @@ func (p point3d) IsNull() bool {
 	return false
 }
 
-func (p point3d) Index(i int) interface{} {
+func (p point3d) Index(i int) any {
 	switch i {
 	case 0:
 		return p.X
@@ -77,7 +77,7 @@ func (p *point3d) ScanNull() error {
 	return fmt.Errorf("cannot scan NULL into point3d")
 }
 
-func (p *point3d) ScanIndex(i int) interface{} {
+func (p *point3d) ScanIndex(i int) any {
 	switch i {
 	case 0:
 		return &p.X
@@ -202,7 +202,7 @@ create type point3d as (
 			values, err := rows.Values()
 			require.NoErrorf(t, err, "%v", format.name)
 			require.Lenf(t, values, 1, "%v", format.name)
-			require.Equalf(t, map[string]interface{}{"x": 1.0, "y": 2.0, "z": 3.0}, values[0], "%v", format.name)
+			require.Equalf(t, map[string]any{"x": 1.0, "y": 2.0, "z": 3.0}, values[0], "%v", format.name)
 			require.False(t, rows.Next())
 			require.NoErrorf(t, rows.Err(), "%v", format.name)
 		}

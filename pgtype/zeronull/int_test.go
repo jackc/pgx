@@ -23,7 +23,7 @@ func TestInt2Transcode(t *testing.T) {
 		},
 		{
 			(zeronull.Int2)(0),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})
@@ -43,7 +43,7 @@ func TestInt4Transcode(t *testing.T) {
 		},
 		{
 			(zeronull.Int4)(0),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})
@@ -63,7 +63,7 @@ func TestInt8Transcode(t *testing.T) {
 		},
 		{
 			(zeronull.Int8)(0),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

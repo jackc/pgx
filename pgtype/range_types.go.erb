@@ -27,7 +27,7 @@ func (r <%= range_type %>) BoundTypes() (lower, upper BoundType) {
 	return r.LowerType, r.UpperType
 }
 
-func (r <%= range_type %>) Bounds() (lower, upper interface{}) {
+func (r <%= range_type %>) Bounds() (lower, upper any) {
 	return &r.Lower, &r.Upper
 }
 
@@ -36,7 +36,7 @@ func (r *<%= range_type %>) ScanNull() error {
 	return nil
 }
 
-func (r *<%= range_type %>) ScanBounds() (lowerTarget, upperTarget interface{}) {
+func (r *<%= range_type %>) ScanBounds() (lowerTarget, upperTarget any) {
 	return &r.Lower, &r.Upper
 }
 

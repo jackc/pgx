@@ -49,7 +49,7 @@ func (n Int<%= pg_byte_size %>) Int64Value() (Int8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int<%= pg_byte_size %>) Scan(src interface{}) error {
+func (dst *Int<%= pg_byte_size %>) Scan(src any) error {
 	if src == nil {
 		*dst = Int<%= pg_byte_size %>{}
 		return nil
@@ -128,7 +128,7 @@ func (Int<%= pg_byte_size %>Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int<%= pg_byte_size %>Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Int<%= pg_byte_size %>Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -151,21 +151,21 @@ func (Int<%= pg_byte_size %>Codec) PlanEncode(m *Map, oid uint32, format int16, 
 
 type encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %> struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %>) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt<%= pg_bit_size %>) Encode(value any, buf []byte) (newBuf []byte, err error) {
   n := value.(int<%= pg_bit_size %>)
   return pgio.AppendInt<%= pg_bit_size %>(buf, int<%= pg_bit_size %>(n)), nil
 }
 
 type encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %> struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %>) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecTextInt<%= pg_bit_size %>) Encode(value any, buf []byte) (newBuf []byte, err error) {
   n := value.(int<%= pg_bit_size %>)
   return append(buf, strconv.FormatInt(int64(n), 10)...), nil
 }
 
 type encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
   n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -187,7 +187,7 @@ func (encodePlanInt<%= pg_byte_size %>CodecBinaryInt64Valuer) Encode(value inter
 
 type encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer struct{}
 
-func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
   n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func (encodePlanInt<%= pg_byte_size %>CodecTextInt64Valuer) Encode(value interfa
   return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
-func (Int<%= pg_byte_size %>Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Int<%= pg_byte_size %>Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -280,7 +280,7 @@ func (c Int<%= pg_byte_size %>Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, 
 	return n, nil
 }
 
-func (c Int<%= pg_byte_size %>Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Int<%= pg_byte_size %>Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -297,7 +297,7 @@ func (c Int<%= pg_byte_size %>Codec) DecodeValue(m *Map, oid uint32, format int1
 <% [8, 16, 32, 64].each do |dst_bit_size| %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %> struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -331,7 +331,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(src []b
 
 type scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %> struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -363,7 +363,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(src []
 <%# PostgreSQL binary format integer to Go machine integers %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -395,7 +395,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(src []byte, dst interface{
 
 type scanPlanBinaryInt<%= pg_byte_size %>ToUint struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -426,7 +426,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(src []byte, dst interface
 <%# PostgreSQL binary format integer to Go Int64Scanner %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -449,7 +449,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToInt64Scanner) Scan(src []byte, dst i
 <%# PostgreSQL binary format integer to Go TextScanner %>
 type scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner struct{}
 
-func (scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -480,7 +480,7 @@ func (scanPlanBinaryInt<%= pg_byte_size %>ToTextScanner) Scan(src []byte, dst in
 ].each do |type_suffix, bit_size| %>
 type scanPlanTextAnyToInt<%= type_suffix %> struct{}
 
-func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -501,7 +501,7 @@ func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(src []byte, dst interface{}) 
 
 type scanPlanTextAnyToUint<%= type_suffix %> struct{}
 
-func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -523,7 +523,7 @@ func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(src []byte, dst interface{})
 
 type scanPlanTextAnyToInt64Scanner struct{}
 
-func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

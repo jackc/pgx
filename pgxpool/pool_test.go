@@ -514,7 +514,7 @@ func TestPoolCopyFrom(t *testing.T) {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
@@ -526,7 +526,7 @@ func TestPoolCopyFrom(t *testing.T) {
 	rows, err := pool.Query(ctx, "select * from poolcopyfromtest")
 	assert.NoError(t, err)
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {

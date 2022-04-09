@@ -44,7 +44,7 @@ func (ll LogLevel) String() string {
 // Logger is the interface used to get logging from pgx internals.
 type Logger interface {
 	// Log a message at the given level with data key/value pairs. data may be nil.
-	Log(ctx context.Context, level LogLevel, msg string, data map[string]interface{})
+	Log(ctx context.Context, level LogLevel, msg string, data map[string]any)
 }
 
 // LogLevelFromString converts log level string to constant
@@ -75,8 +75,8 @@ func LogLevelFromString(s string) (LogLevel, error) {
 	}
 }
 
-func logQueryArgs(args []interface{}) []interface{} {
-	logArgs := make([]interface{}, 0, len(args))
+func logQueryArgs(args []any) []any {
+	logArgs := make([]any, 0, len(args))
 
 	for _, a := range args {
 		switch v := a.(type) {

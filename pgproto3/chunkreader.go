@@ -20,7 +20,7 @@ func init() {
 	for i := range bigBufPools {
 		byteSize := bigBufSizes[i]
 		bigBufPools[i] = &bigBufPool{
-			pool:     sync.Pool{New: func() interface{} { return make([]byte, byteSize) }},
+			pool:     sync.Pool{New: func() any { return make([]byte, byteSize) }},
 			byteSize: byteSize,
 		}
 	}

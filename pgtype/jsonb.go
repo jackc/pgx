@@ -16,7 +16,7 @@ func (JSONBCodec) PreferredFormat() int16 {
 	return TextFormatCode
 }
 
-func (JSONBCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (JSONBCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		plan := JSONCodec{}.PlanEncode(m, oid, TextFormatCode, value)
@@ -34,12 +34,12 @@ type encodePlanJSONBCodecBinaryWrapper struct {
 	textPlan EncodePlan
 }
 
-func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	buf = append(buf, 1)
 	return plan.textPlan.Encode(value, buf)
 }
 
-func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		plan := JSONCodec{}.PlanScan(m, oid, TextFormatCode, target)
@@ -57,7 +57,7 @@ type scanPlanJSONBCodecBinaryUnwrapper struct {
 	textPlan ScanPlan
 }
 
-func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(src []byte, dst interface{}) error {
+func (plan *scanPlanJSONBCodecBinaryUnwrapper) Scan(src []byte, dst any) error {
 	if src == nil {
 		return plan.textPlan.Scan(src, dst)
 	}
@@ -100,7 +100,7 @@ func (c JSONBCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	}
 }
 
-func (c JSONBCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c JSONBCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -121,7 +121,7 @@ func (c JSONBCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (i
 		return nil, fmt.Errorf("unknown format code: %v", format)
 	}
 
-	var dst interface{}
+	var dst any
 	err := json.Unmarshal(src, &dst)
 	return dst, err
 }

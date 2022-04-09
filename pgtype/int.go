@@ -48,7 +48,7 @@ func (n Int2) Int64Value() (Int8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int2) Scan(src interface{}) error {
+func (dst *Int2) Scan(src any) error {
 	if src == nil {
 		*dst = Int2{}
 		return nil
@@ -127,7 +127,7 @@ func (Int2Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int2Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Int2Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -150,21 +150,21 @@ func (Int2Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanInt2CodecBinaryInt16 struct{}
 
-func (encodePlanInt2CodecBinaryInt16) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecBinaryInt16) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int16)
 	return pgio.AppendInt16(buf, int16(n)), nil
 }
 
 type encodePlanInt2CodecTextInt16 struct{}
 
-func (encodePlanInt2CodecTextInt16) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecTextInt16) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int16)
 	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
 }
 
 type encodePlanInt2CodecBinaryInt64Valuer struct{}
 
-func (encodePlanInt2CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -186,7 +186,7 @@ func (encodePlanInt2CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 
 type encodePlanInt2CodecTextInt64Valuer struct{}
 
-func (encodePlanInt2CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt2CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -206,7 +206,7 @@ func (encodePlanInt2CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
-func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Int2Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -279,7 +279,7 @@ func (c Int2Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return n, nil
 }
 
-func (c Int2Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Int2Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -294,7 +294,7 @@ func (c Int2Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryInt2ToInt8 struct{}
 
-func (scanPlanBinaryInt2ToInt8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -322,7 +322,7 @@ func (scanPlanBinaryInt2ToInt8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToUint8 struct{}
 
-func (scanPlanBinaryInt2ToUint8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -352,7 +352,7 @@ func (scanPlanBinaryInt2ToUint8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToInt16 struct{}
 
-func (scanPlanBinaryInt2ToInt16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -373,7 +373,7 @@ func (scanPlanBinaryInt2ToInt16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToUint16 struct{}
 
-func (scanPlanBinaryInt2ToUint16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -399,7 +399,7 @@ func (scanPlanBinaryInt2ToUint16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToInt32 struct{}
 
-func (scanPlanBinaryInt2ToInt32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -420,7 +420,7 @@ func (scanPlanBinaryInt2ToInt32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToUint32 struct{}
 
-func (scanPlanBinaryInt2ToUint32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -446,7 +446,7 @@ func (scanPlanBinaryInt2ToUint32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToInt64 struct{}
 
-func (scanPlanBinaryInt2ToInt64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -467,7 +467,7 @@ func (scanPlanBinaryInt2ToInt64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToUint64 struct{}
 
-func (scanPlanBinaryInt2ToUint64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -493,7 +493,7 @@ func (scanPlanBinaryInt2ToUint64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToInt struct{}
 
-func (scanPlanBinaryInt2ToInt) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -514,7 +514,7 @@ func (scanPlanBinaryInt2ToInt) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToUint struct{}
 
-func (scanPlanBinaryInt2ToUint) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -540,7 +540,7 @@ func (scanPlanBinaryInt2ToUint) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt2ToInt64Scanner struct{}
 
-func (scanPlanBinaryInt2ToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -561,7 +561,7 @@ func (scanPlanBinaryInt2ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 type scanPlanBinaryInt2ToTextScanner struct{}
 
-func (scanPlanBinaryInt2ToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt2ToTextScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -608,7 +608,7 @@ func (n Int4) Int64Value() (Int8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int4) Scan(src interface{}) error {
+func (dst *Int4) Scan(src any) error {
 	if src == nil {
 		*dst = Int4{}
 		return nil
@@ -687,7 +687,7 @@ func (Int4Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int4Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Int4Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -710,21 +710,21 @@ func (Int4Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanInt4CodecBinaryInt32 struct{}
 
-func (encodePlanInt4CodecBinaryInt32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecBinaryInt32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int32)
 	return pgio.AppendInt32(buf, int32(n)), nil
 }
 
 type encodePlanInt4CodecTextInt32 struct{}
 
-func (encodePlanInt4CodecTextInt32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecTextInt32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int32)
 	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
 }
 
 type encodePlanInt4CodecBinaryInt64Valuer struct{}
 
-func (encodePlanInt4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -746,7 +746,7 @@ func (encodePlanInt4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 
 type encodePlanInt4CodecTextInt64Valuer struct{}
 
-func (encodePlanInt4CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt4CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -766,7 +766,7 @@ func (encodePlanInt4CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
-func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Int4Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -839,7 +839,7 @@ func (c Int4Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return n, nil
 }
 
-func (c Int4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Int4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -854,7 +854,7 @@ func (c Int4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryInt4ToInt8 struct{}
 
-func (scanPlanBinaryInt4ToInt8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -882,7 +882,7 @@ func (scanPlanBinaryInt4ToInt8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToUint8 struct{}
 
-func (scanPlanBinaryInt4ToUint8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -912,7 +912,7 @@ func (scanPlanBinaryInt4ToUint8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToInt16 struct{}
 
-func (scanPlanBinaryInt4ToInt16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -940,7 +940,7 @@ func (scanPlanBinaryInt4ToInt16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToUint16 struct{}
 
-func (scanPlanBinaryInt4ToUint16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -970,7 +970,7 @@ func (scanPlanBinaryInt4ToUint16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToInt32 struct{}
 
-func (scanPlanBinaryInt4ToInt32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -991,7 +991,7 @@ func (scanPlanBinaryInt4ToInt32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToUint32 struct{}
 
-func (scanPlanBinaryInt4ToUint32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1017,7 +1017,7 @@ func (scanPlanBinaryInt4ToUint32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToInt64 struct{}
 
-func (scanPlanBinaryInt4ToInt64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1038,7 +1038,7 @@ func (scanPlanBinaryInt4ToInt64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToUint64 struct{}
 
-func (scanPlanBinaryInt4ToUint64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1064,7 +1064,7 @@ func (scanPlanBinaryInt4ToUint64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToInt struct{}
 
-func (scanPlanBinaryInt4ToInt) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1085,7 +1085,7 @@ func (scanPlanBinaryInt4ToInt) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToUint struct{}
 
-func (scanPlanBinaryInt4ToUint) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1111,7 +1111,7 @@ func (scanPlanBinaryInt4ToUint) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt4ToInt64Scanner struct{}
 
-func (scanPlanBinaryInt4ToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -1132,7 +1132,7 @@ func (scanPlanBinaryInt4ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 type scanPlanBinaryInt4ToTextScanner struct{}
 
-func (scanPlanBinaryInt4ToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt4ToTextScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -1179,7 +1179,7 @@ func (n Int8) Int64Value() (Int8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Int8) Scan(src interface{}) error {
+func (dst *Int8) Scan(src any) error {
 	if src == nil {
 		*dst = Int8{}
 		return nil
@@ -1258,7 +1258,7 @@ func (Int8Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Int8Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Int8Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -1281,21 +1281,21 @@ func (Int8Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{})
 
 type encodePlanInt8CodecBinaryInt64 struct{}
 
-func (encodePlanInt8CodecBinaryInt64) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecBinaryInt64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int64)
 	return pgio.AppendInt64(buf, int64(n)), nil
 }
 
 type encodePlanInt8CodecTextInt64 struct{}
 
-func (encodePlanInt8CodecTextInt64) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecTextInt64) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(int64)
 	return append(buf, strconv.FormatInt(int64(n), 10)...), nil
 }
 
 type encodePlanInt8CodecBinaryInt64Valuer struct{}
 
-func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -1317,7 +1317,7 @@ func (encodePlanInt8CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte
 
 type encodePlanInt8CodecTextInt64Valuer struct{}
 
-func (encodePlanInt8CodecTextInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanInt8CodecTextInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -1337,7 +1337,7 @@ func (encodePlanInt8CodecTextInt64Valuer) Encode(value interface{}, buf []byte) 
 	return append(buf, strconv.FormatInt(n.Int64, 10)...), nil
 }
 
-func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Int8Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -1410,7 +1410,7 @@ func (c Int8Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src 
 	return n, nil
 }
 
-func (c Int8Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Int8Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -1425,7 +1425,7 @@ func (c Int8Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (in
 
 type scanPlanBinaryInt8ToInt8 struct{}
 
-func (scanPlanBinaryInt8ToInt8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1453,7 +1453,7 @@ func (scanPlanBinaryInt8ToInt8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToUint8 struct{}
 
-func (scanPlanBinaryInt8ToUint8) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1483,7 +1483,7 @@ func (scanPlanBinaryInt8ToUint8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToInt16 struct{}
 
-func (scanPlanBinaryInt8ToInt16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1511,7 +1511,7 @@ func (scanPlanBinaryInt8ToInt16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToUint16 struct{}
 
-func (scanPlanBinaryInt8ToUint16) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1541,7 +1541,7 @@ func (scanPlanBinaryInt8ToUint16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToInt32 struct{}
 
-func (scanPlanBinaryInt8ToInt32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1569,7 +1569,7 @@ func (scanPlanBinaryInt8ToInt32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToUint32 struct{}
 
-func (scanPlanBinaryInt8ToUint32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1599,7 +1599,7 @@ func (scanPlanBinaryInt8ToUint32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToInt64 struct{}
 
-func (scanPlanBinaryInt8ToInt64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1620,7 +1620,7 @@ func (scanPlanBinaryInt8ToInt64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToUint64 struct{}
 
-func (scanPlanBinaryInt8ToUint64) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1646,7 +1646,7 @@ func (scanPlanBinaryInt8ToUint64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToInt struct{}
 
-func (scanPlanBinaryInt8ToInt) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1674,7 +1674,7 @@ func (scanPlanBinaryInt8ToInt) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToUint struct{}
 
-func (scanPlanBinaryInt8ToUint) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1704,7 +1704,7 @@ func (scanPlanBinaryInt8ToUint) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryInt8ToInt64Scanner struct{}
 
-func (scanPlanBinaryInt8ToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -1725,7 +1725,7 @@ func (scanPlanBinaryInt8ToInt64Scanner) Scan(src []byte, dst interface{}) error 
 
 type scanPlanBinaryInt8ToTextScanner struct{}
 
-func (scanPlanBinaryInt8ToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryInt8ToTextScanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(TextScanner)
 	if !ok {
 		return ErrScanTargetTypeChanged
@@ -1746,7 +1746,7 @@ func (scanPlanBinaryInt8ToTextScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt8 struct{}
 
-func (scanPlanTextAnyToInt8) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1767,7 +1767,7 @@ func (scanPlanTextAnyToInt8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUint8 struct{}
 
-func (scanPlanTextAnyToUint8) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1788,7 +1788,7 @@ func (scanPlanTextAnyToUint8) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt16 struct{}
 
-func (scanPlanTextAnyToInt16) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1809,7 +1809,7 @@ func (scanPlanTextAnyToInt16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUint16 struct{}
 
-func (scanPlanTextAnyToUint16) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1830,7 +1830,7 @@ func (scanPlanTextAnyToUint16) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt32 struct{}
 
-func (scanPlanTextAnyToInt32) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1851,7 +1851,7 @@ func (scanPlanTextAnyToInt32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUint32 struct{}
 
-func (scanPlanTextAnyToUint32) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1872,7 +1872,7 @@ func (scanPlanTextAnyToUint32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt64 struct{}
 
-func (scanPlanTextAnyToInt64) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1893,7 +1893,7 @@ func (scanPlanTextAnyToInt64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUint64 struct{}
 
-func (scanPlanTextAnyToUint64) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1914,7 +1914,7 @@ func (scanPlanTextAnyToUint64) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt struct{}
 
-func (scanPlanTextAnyToInt) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1935,7 +1935,7 @@ func (scanPlanTextAnyToInt) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToUint struct{}
 
-func (scanPlanTextAnyToUint) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToUint) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -1956,7 +1956,7 @@ func (scanPlanTextAnyToUint) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToInt64Scanner struct{}
 
-func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToInt64Scanner) Scan(src []byte, dst any) error {
 	s, ok := (dst).(Int64Scanner)
 	if !ok {
 		return ErrScanTargetTypeChanged

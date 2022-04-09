@@ -9,8 +9,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func isExpectedEqTimestamptz(a interface{}) func(interface{}) bool {
-	return func(v interface{}) bool {
+func isExpectedEqTimestamptz(a any) func(any) bool {
+	return func(v any) bool {
 		at := time.Time(a.(zeronull.Timestamptz))
 		vt := time.Time(v.(zeronull.Timestamptz))
 
@@ -32,7 +32,7 @@ func TestTimestamptzTranscode(t *testing.T) {
 		},
 		{
 			(zeronull.Timestamptz)(time.Time{}),
-			new(interface{}),
+			new(any),
 			isExpectedEq(nil),
 		},
 	})

@@ -216,17 +216,17 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		config.Config.OnNotification = c.bufferNotifications
 	} else {
 		if c.shouldLog(LogLevelDebug) {
-			c.log(ctx, LogLevelDebug, "pgx notification handler disabled by application supplied OnNotification", map[string]interface{}{"host": config.Config.Host})
+			c.log(ctx, LogLevelDebug, "pgx notification handler disabled by application supplied OnNotification", map[string]any{"host": config.Config.Host})
 		}
 	}
 
 	if c.shouldLog(LogLevelInfo) {
-		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
+		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]any{"host": config.Config.Host})
 	}
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(ctx, LogLevelError, "connect failed", map[string]interface{}{"err": err})
+			c.log(ctx, LogLevelError, "connect failed", map[string]any{"err": err})
 		}
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	if c.shouldLog(LogLevelError) {
 		defer func() {
 			if err != nil {
-				c.log(ctx, LogLevelError, "Prepare failed", map[string]interface{}{"err": err, "name": name, "sql": sql})
+				c.log(ctx, LogLevelError, "Prepare failed", map[string]any{"err": err, "name": name, "sql": sql})
 			}
 		}()
 	}
@@ -345,9 +345,9 @@ func (c *Conn) shouldLog(lvl LogLevel) bool {
 	return c.logger != nil && c.logLevel >= lvl
 }
 
-func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[string]interface{}) {
+func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[string]any) {
 	if data == nil {
-		data = map[string]interface{}{}
+		data = map[string]any{}
 	}
 	if c.pgConn != nil && c.pgConn.PID() != 0 {
 		data["pid"] = c.pgConn.PID()
@@ -382,26 +382,26 @@ func (c *Conn) Config() *ConnConfig { return c.config.Copy() }
 
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
-func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	startTime := time.Now()
 
 	commandTag, err := c.exec(ctx, sql, arguments...)
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(ctx, LogLevelError, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "err": err})
+			c.log(ctx, LogLevelError, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "err": err})
 		}
 		return commandTag, err
 	}
 
 	if c.shouldLog(LogLevelInfo) {
 		endTime := time.Now()
-		c.log(ctx, LogLevelInfo, "Exec", map[string]interface{}{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
+		c.log(ctx, LogLevelInfo, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
 	}
 
 	return commandTag, err
 }
 
-func (c *Conn) exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+func (c *Conn) exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
 	mode := c.config.DefaultQueryExecMode
 
 optionLoop:
@@ -460,7 +460,7 @@ optionLoop:
 	}
 }
 
-func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []interface{}) (commandTag pgconn.CommandTag, err error) {
+func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []any) (commandTag pgconn.CommandTag, err error) {
 	if len(arguments) > 0 {
 		sql, err = c.sanitizeForSimpleQuery(sql, arguments...)
 		if err != nil {
@@ -476,7 +476,7 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []i
 	return commandTag, err
 }
 
-func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, args []interface{}) error {
+func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, args []any) error {
 	if len(sd.ParamOIDs) != len(args) {
 		return fmt.Errorf("expected %d arguments, got %d", len(sd.ParamOIDs), len(args))
 	}
@@ -500,7 +500,7 @@ func (c *Conn) execParamsAndPreparedPrefix(sd *pgconn.StatementDescription, args
 	return nil
 }
 
-func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
+func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, arguments []any) (pgconn.CommandTag, error) {
 	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
 		return pgconn.CommandTag{}, err
@@ -511,7 +511,7 @@ func (c *Conn) execParams(ctx context.Context, sd *pgconn.StatementDescription, 
 	return result.CommandTag, result.Err
 }
 
-func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription, arguments []interface{}) (pgconn.CommandTag, error) {
+func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription, arguments []any) (pgconn.CommandTag, error) {
 	err := c.execParamsAndPreparedPrefix(sd, arguments)
 	if err != nil {
 		return pgconn.CommandTag{}, err
@@ -523,14 +523,14 @@ func (c *Conn) execPrepared(ctx context.Context, sd *pgconn.StatementDescription
 }
 
 type unknownArgumentTypeQueryExecModeExecError struct {
-	arg interface{}
+	arg any
 }
 
 func (e *unknownArgumentTypeQueryExecModeExecError) Error() string {
 	return fmt.Sprintf("cannot use unregistered type %T as query argument in QueryExecModeExec", e.arg)
 }
 
-func (c *Conn) execSQLParams(ctx context.Context, sql string, args []interface{}) (pgconn.CommandTag, error) {
+func (c *Conn) execSQLParams(ctx context.Context, sql string, args []any) (pgconn.CommandTag, error) {
 	c.eqb.Reset()
 
 	anynil.NormalizeSlice(args)
@@ -557,7 +557,7 @@ func (c *Conn) execSQLParams(ctx context.Context, sql string, args []interface{}
 //
 // Given that the whole point of QueryExecModeExec is to operate without having to know the PostgreSQL types there is
 // no way to safely use binary or to specify the parameter OIDs.
-func (c *Conn) appendParamsForQueryExecModeExec(args []interface{}) error {
+func (c *Conn) appendParamsForQueryExecModeExec(args []any) error {
 	for _, arg := range args {
 		if arg == nil {
 			err := c.eqb.AppendParamFormat(c.typeMap, 0, TextFormatCode, arg)
@@ -602,7 +602,7 @@ func (c *Conn) appendParamsForQueryExecModeExec(args []interface{}) error {
 	return nil
 }
 
-func (c *Conn) getRows(ctx context.Context, sql string, args []interface{}) *connRows {
+func (c *Conn) getRows(ctx context.Context, sql string, args []any) *connRows {
 	r := &connRows{}
 
 	r.ctx = ctx
@@ -691,7 +691,7 @@ type QueryResultFormatsByOID map[uint32]int16
 // For extra control over how the query is executed, the types QueryExecMode, QueryResultFormats, and
 // QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
 // needed. See the documentation for those types for details.
-func (c *Conn) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
 	var resultFormats QueryResultFormats
 	var resultFormatsByOID QueryResultFormatsByOID
 	mode := c.config.DefaultQueryExecMode
@@ -829,7 +829,7 @@ optionLoop:
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
 // querying is deferred until calling Scan on the returned Row. That Row will
 // error with ErrNoRows if no rows are returned.
-func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := c.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
 }
@@ -850,7 +850,7 @@ type QueryFuncRow interface {
 // QueryFunc executes sql with args. For each row returned by the query the values will scanned into the elements of
 // scans and f will be called. If any row fails to scan or f returns an error the query will be aborted and the error
 // will be returned.
-func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+func (c *Conn) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	rows, err := c.Query(ctx, sql, args...)
 	if err != nil {
 		return pgconn.CommandTag{}, err
@@ -1018,7 +1018,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 	}
 }
 
-func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, error) {
+func (c *Conn) sanitizeForSimpleQuery(sql string, args ...any) (string, error) {
 	if c.pgConn.ParameterStatus("standard_conforming_strings") != "on" {
 		return "", errors.New("simple protocol queries must be run with standard_conforming_strings=on")
 	}
@@ -1028,7 +1028,7 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, 
 	}
 
 	var err error
-	valueArgs := make([]interface{}, len(args))
+	valueArgs := make([]any, len(args))
 	for i, a := range args {
 		valueArgs[i], err = convertSimpleArgument(c.typeMap, a)
 		if err != nil {
@@ -1108,8 +1108,8 @@ func (c *Conn) getCompositeFields(ctx context.Context, oid uint32) ([]pgtype.Com
 from pg_attribute
 where attrelid=$1
 order by attnum`,
-		[]interface{}{typrelid},
-		[]interface{}{&fieldName, &fieldOID},
+		[]any{typrelid},
+		[]any{&fieldName, &fieldOID},
 		func(qfr QueryFuncRow) error {
 			dt, ok := c.TypeMap().TypeForOID(fieldOID)
 			if !ok {

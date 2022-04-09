@@ -12,7 +12,7 @@ const (
 	BinaryFormatCode = 1
 )
 
-func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) {
+func convertSimpleArgument(m *pgtype.Map, arg any) (any, error) {
 	if anynil.Is(arg) {
 		return nil, nil
 	}
@@ -27,7 +27,7 @@ func convertSimpleArgument(m *pgtype.Map, arg interface{}) (interface{}, error) 
 	return string(buf), nil
 }
 
-func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg interface{}) ([]byte, error) {
+func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, error) {
 	if anynil.Is(arg) {
 		return pgio.AppendInt32(buf, -1), nil
 	}

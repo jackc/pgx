@@ -30,7 +30,7 @@ func (u UUID) UUIDValue() (pgtype.UUID, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (u *UUID) Scan(src interface{}) error {
+func (u *UUID) Scan(src any) error {
 	if src == nil {
 		*u = UUID{}
 		return nil

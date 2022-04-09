@@ -35,7 +35,7 @@ func (f Float4) Int64Value() (Int8, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (f *Float4) Scan(src interface{}) error {
+func (f *Float4) Scan(src any) error {
 	if src == nil {
 		*f = Float4{}
 		return nil
@@ -75,7 +75,7 @@ func (Float4Codec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (Float4Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (Float4Codec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -102,21 +102,21 @@ func (Float4Codec) PlanEncode(m *Map, oid uint32, format int16, value interface{
 
 type encodePlanFloat4CodecBinaryFloat32 struct{}
 
-func (encodePlanFloat4CodecBinaryFloat32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanFloat4CodecBinaryFloat32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(float32)
 	return pgio.AppendUint32(buf, math.Float32bits(n)), nil
 }
 
 type encodePlanTextFloat32 struct{}
 
-func (encodePlanTextFloat32) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanTextFloat32) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n := value.(float32)
 	return append(buf, strconv.FormatFloat(float64(n), 'f', -1, 32)...), nil
 }
 
 type encodePlanFloat4CodecBinaryFloat64Valuer struct{}
 
-func (encodePlanFloat4CodecBinaryFloat64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanFloat4CodecBinaryFloat64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Float64Valuer).Float64Value()
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func (encodePlanFloat4CodecBinaryFloat64Valuer) Encode(value interface{}, buf []
 
 type encodePlanFloat4CodecBinaryInt64Valuer struct{}
 
-func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	n, err := value.(Int64Valuer).Int64Value()
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (encodePlanFloat4CodecBinaryInt64Valuer) Encode(value interface{}, buf []by
 	return pgio.AppendUint32(buf, math.Float32bits(f)), nil
 }
 
-func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -175,7 +175,7 @@ func (Float4Codec) PlanScan(m *Map, oid uint32, format int16, target interface{}
 
 type scanPlanBinaryFloat4ToFloat32 struct{}
 
-func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -193,7 +193,7 @@ func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryFloat4ToFloat64Scanner struct{}
 
-func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst any) error {
 	s := (dst).(Float64Scanner)
 
 	if src == nil {
@@ -210,7 +210,7 @@ func (scanPlanBinaryFloat4ToFloat64Scanner) Scan(src []byte, dst interface{}) er
 
 type scanPlanBinaryFloat4ToInt64Scanner struct{}
 
-func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst any) error {
 	s := (dst).(Int64Scanner)
 
 	if src == nil {
@@ -233,7 +233,7 @@ func (scanPlanBinaryFloat4ToInt64Scanner) Scan(src []byte, dst interface{}) erro
 
 type scanPlanBinaryFloat4ToTextScanner struct{}
 
-func (scanPlanBinaryFloat4ToTextScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryFloat4ToTextScanner) Scan(src []byte, dst any) error {
 	s := (dst).(TextScanner)
 
 	if src == nil {
@@ -252,7 +252,7 @@ func (scanPlanBinaryFloat4ToTextScanner) Scan(src []byte, dst interface{}) error
 
 type scanPlanTextAnyToFloat32 struct{}
 
-func (scanPlanTextAnyToFloat32) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToFloat32) Scan(src []byte, dst any) error {
 	if src == nil {
 		return fmt.Errorf("cannot scan null into %T", dst)
 	}
@@ -281,7 +281,7 @@ func (c Float4Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 	return n, nil
 }
 
-func (c Float4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c Float4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

@@ -69,7 +69,7 @@ func parsePoint(src []byte) (*Point, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Point) Scan(src interface{}) error {
+func (dst *Point) Scan(src any) error {
 	if src == nil {
 		*dst = Point{}
 		return nil
@@ -127,7 +127,7 @@ func (PointCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (PointCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (PointCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(PointValuer); !ok {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (PointCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}
 
 type encodePlanPointCodecBinary struct{}
 
-func (encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPointCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	point, err := value.(PointValuer).PointValue()
 	if err != nil {
 		return nil, err
@@ -161,7 +161,7 @@ func (encodePlanPointCodecBinary) Encode(value interface{}, buf []byte) (newBuf 
 
 type encodePlanPointCodecText struct{}
 
-func (encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanPointCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	point, err := value.(PointValuer).PointValue()
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func (encodePlanPointCodecText) Encode(value interface{}, buf []byte) (newBuf []
 	)...), nil
 }
 
-func (PointCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (PointCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -199,7 +199,7 @@ func (c PointCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c PointCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c PointCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -214,7 +214,7 @@ func (c PointCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (i
 
 type scanPlanBinaryPointToPointScanner struct{}
 
-func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PointScanner)
 
 	if src == nil {
@@ -236,7 +236,7 @@ func (scanPlanBinaryPointToPointScanner) Scan(src []byte, dst interface{}) error
 
 type scanPlanTextAnyToPointScanner struct{}
 
-func (scanPlanTextAnyToPointScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToPointScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(PointScanner)
 
 	if src == nil {

@@ -34,7 +34,7 @@ func (b Box) BoxValue() (Box, error) {
 }
 
 // Scan implements the database/sql Scanner interface.
-func (dst *Box) Scan(src interface{}) error {
+func (dst *Box) Scan(src any) error {
 	if src == nil {
 		*dst = Box{}
 		return nil
@@ -71,7 +71,7 @@ func (BoxCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (BoxCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (BoxCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(BoxValuer); !ok {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (BoxCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) 
 
 type encodePlanBoxCodecBinary struct{}
 
-func (encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoxCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	box, err := value.(BoxValuer).BoxValue()
 	if err != nil {
 		return nil, err
@@ -107,7 +107,7 @@ func (encodePlanBoxCodecBinary) Encode(value interface{}, buf []byte) (newBuf []
 
 type encodePlanBoxCodecText struct{}
 
-func (encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBoxCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	box, err := value.(BoxValuer).BoxValue()
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (encodePlanBoxCodecText) Encode(value interface{}, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -146,7 +146,7 @@ func (BoxCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) S
 
 type scanPlanBinaryBoxToBoxScanner struct{}
 
-func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BoxScanner)
 
 	if src == nil {
@@ -173,7 +173,7 @@ func (scanPlanBinaryBoxToBoxScanner) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextAnyToBoxScanner struct{}
 
-func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextAnyToBoxScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BoxScanner)
 
 	if src == nil {
@@ -224,7 +224,7 @@ func (c BoxCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src [
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c BoxCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c BoxCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

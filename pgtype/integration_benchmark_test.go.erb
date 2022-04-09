@@ -25,8 +25,8 @@ func BenchmarkQuery<%= format_name %>FormatDecode_PG_<%= pg_type %>_to_Go_<%= go
       _, err := conn.QueryFunc(
         ctx,
         `select <% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>n::<%= pg_type %> + <%= col_idx%><% end %> from generate_series(1, <%= rows %>) n`,
-        []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
-        []interface{}{<% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>&v[<%= col_idx%>]<% end %>},
+        []any{pgx.QueryResultFormats{<%= format_code %>}},
+        []any{<% columns.times do |col_idx| %><% if col_idx != 0 %>, <% end %>&v[<%= col_idx%>]<% end %>},
         func(pgx.QueryFuncRow) error { return nil },
       )
       if err != nil {
@@ -50,8 +50,8 @@ func BenchmarkQuery<%= format_name %>FormatDecode_PG_Int4Array_With_Go_Int4Array
       _, err := conn.QueryFunc(
         ctx,
         `select array_agg(n) from generate_series(1, <%= array_size %>) n`,
-        []interface{}{pgx.QueryResultFormats{<%= format_code %>}},
-        []interface{}{&v},
+        []any{pgx.QueryResultFormats{<%= format_code %>}},
+        []any{&v},
         func(pgx.QueryFuncRow) error { return nil },
       )
       if err != nil {

@@ -50,7 +50,7 @@ type UndecodedBytes []byte
 
 type scanPlanAnyToUndecodedBytes struct{}
 
-func (scanPlanAnyToUndecodedBytes) Scan(src []byte, dst interface{}) error {
+func (scanPlanAnyToUndecodedBytes) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*UndecodedBytes)
 	if src == nil {
 		*dstBuf = nil
@@ -72,7 +72,7 @@ func (ByteaCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (ByteaCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}) EncodePlan {
+func (ByteaCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	switch format {
 	case BinaryFormatCode:
 		switch value.(type) {
@@ -95,7 +95,7 @@ func (ByteaCodec) PlanEncode(m *Map, oid uint32, format int16, value interface{}
 
 type encodePlanBytesCodecBinaryBytes struct{}
 
-func (encodePlanBytesCodecBinaryBytes) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBytesCodecBinaryBytes) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b := value.([]byte)
 	if b == nil {
 		return nil, nil
@@ -106,7 +106,7 @@ func (encodePlanBytesCodecBinaryBytes) Encode(value interface{}, buf []byte) (ne
 
 type encodePlanBytesCodecBinaryBytesValuer struct{}
 
-func (encodePlanBytesCodecBinaryBytesValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBytesCodecBinaryBytesValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BytesValuer).BytesValue()
 	if err != nil {
 		return nil, err
@@ -120,7 +120,7 @@ func (encodePlanBytesCodecBinaryBytesValuer) Encode(value interface{}, buf []byt
 
 type encodePlanBytesCodecTextBytes struct{}
 
-func (encodePlanBytesCodecTextBytes) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBytesCodecTextBytes) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b := value.([]byte)
 	if b == nil {
 		return nil, nil
@@ -133,7 +133,7 @@ func (encodePlanBytesCodecTextBytes) Encode(value interface{}, buf []byte) (newB
 
 type encodePlanBytesCodecTextBytesValuer struct{}
 
-func (encodePlanBytesCodecTextBytesValuer) Encode(value interface{}, buf []byte) (newBuf []byte, err error) {
+func (encodePlanBytesCodecTextBytesValuer) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	b, err := value.(BytesValuer).BytesValue()
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (encodePlanBytesCodecTextBytesValuer) Encode(value interface{}, buf []byte)
 	return buf, nil
 }
 
-func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target interface{}) ScanPlan {
+func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
@@ -171,7 +171,7 @@ func (ByteaCodec) PlanScan(m *Map, oid uint32, format int16, target interface{})
 
 type scanPlanBinaryBytesToBytes struct{}
 
-func (scanPlanBinaryBytesToBytes) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBytesToBytes) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -185,14 +185,14 @@ func (scanPlanBinaryBytesToBytes) Scan(src []byte, dst interface{}) error {
 
 type scanPlanBinaryBytesToBytesScanner struct{}
 
-func (scanPlanBinaryBytesToBytesScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanBinaryBytesToBytesScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BytesScanner)
 	return scanner.ScanBytes(src)
 }
 
 type scanPlanTextByteaToBytes struct{}
 
-func (scanPlanTextByteaToBytes) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextByteaToBytes) Scan(src []byte, dst any) error {
 	dstBuf := dst.(*[]byte)
 	if src == nil {
 		*dstBuf = nil
@@ -210,7 +210,7 @@ func (scanPlanTextByteaToBytes) Scan(src []byte, dst interface{}) error {
 
 type scanPlanTextByteaToBytesScanner struct{}
 
-func (scanPlanTextByteaToBytesScanner) Scan(src []byte, dst interface{}) error {
+func (scanPlanTextByteaToBytesScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(BytesScanner)
 	buf, err := decodeHexBytea(src)
 	if err != nil {
@@ -241,7 +241,7 @@ func (c ByteaCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src
 	return codecDecodeToTextFormat(c, m, oid, format, src)
 }
 
-func (c ByteaCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (interface{}, error) {
+func (c ByteaCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}

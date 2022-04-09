@@ -160,10 +160,10 @@ type Tx interface {
 
 	Prepare(ctx context.Context, name, sql string) (*pgconn.StatementDescription, error)
 
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error)
-	Query(ctx context.Context, sql string, args ...interface{}) (Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
-	QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
+	Query(ctx context.Context, sql string, args ...any) (Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) Row
+	QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error)
 
 	// Conn returns the underlying *Conn that on which this transaction is executing.
 	Conn() *Conn
@@ -263,7 +263,7 @@ func (tx *dbTx) Rollback(ctx context.Context) error {
 }
 
 // Exec delegates to the underlying *Conn
-func (tx *dbTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+func (tx *dbTx) Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
 	return tx.conn.Exec(ctx, sql, arguments...)
 }
 
@@ -277,7 +277,7 @@ func (tx *dbTx) Prepare(ctx context.Context, name, sql string) (*pgconn.Statemen
 }
 
 // Query delegates to the underlying *Conn
-func (tx *dbTx) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+func (tx *dbTx) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
 	if tx.closed {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
@@ -288,13 +288,13 @@ func (tx *dbTx) Query(ctx context.Context, sql string, args ...interface{}) (Row
 }
 
 // QueryRow delegates to the underlying *Conn
-func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := tx.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
 }
 
 // QueryFunc delegates to the underlying *Conn.
-func (tx *dbTx) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+func (tx *dbTx) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	if tx.closed {
 		return pgconn.CommandTag{}, ErrTxClosed
 	}
@@ -378,7 +378,7 @@ func (sp *dbSavepoint) Rollback(ctx context.Context) error {
 }
 
 // Exec delegates to the underlying Tx
-func (sp *dbSavepoint) Exec(ctx context.Context, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag, err error) {
+func (sp *dbSavepoint) Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error) {
 	if sp.closed {
 		return pgconn.CommandTag{}, ErrTxClosed
 	}
@@ -396,7 +396,7 @@ func (sp *dbSavepoint) Prepare(ctx context.Context, name, sql string) (*pgconn.S
 }
 
 // Query delegates to the underlying Tx
-func (sp *dbSavepoint) Query(ctx context.Context, sql string, args ...interface{}) (Rows, error) {
+func (sp *dbSavepoint) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
 	if sp.closed {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
@@ -407,13 +407,13 @@ func (sp *dbSavepoint) Query(ctx context.Context, sql string, args ...interface{
 }
 
 // QueryRow delegates to the underlying Tx
-func (sp *dbSavepoint) QueryRow(ctx context.Context, sql string, args ...interface{}) Row {
+func (sp *dbSavepoint) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := sp.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*connRows))
 }
 
 // QueryFunc delegates to the underlying Tx.
-func (sp *dbSavepoint) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
+func (sp *dbSavepoint) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
 	if sp.closed {
 		return pgconn.CommandTag{}, ErrTxClosed
 	}

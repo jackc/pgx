@@ -177,7 +177,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	}
 
 	p.p = puddle.NewPool(
-		func(ctx context.Context) (interface{}, error) {
+		func(ctx context.Context) (any, error) {
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {
@@ -209,7 +209,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 			return cr, nil
 		},
-		func(value interface{}) {
+		func(value any) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			conn := value.(*connResource).conn
 			conn.Close(ctx)
@@ -467,7 +467,7 @@ func (p *Pool) Stat() *Stat {
 // SQL can be either a prepared statement name or an SQL string.
 // Arguments should be referenced positionally from the SQL string as $1, $2, etc.
 // The acquired connection is returned to the pool when the Exec function returns.
-func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (p *Pool) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return pgconn.CommandTag{}, err
@@ -487,7 +487,7 @@ func (p *Pool) Exec(ctx context.Context, sql string, arguments ...interface{}) (
 // For extra control over how the query is executed, the types QuerySimpleProtocol, QueryResultFormats, and
 // QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
 // needed. See the documentation for those types for details.
-func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+func (p *Pool) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return errRows{err: err}, err
@@ -514,7 +514,7 @@ func (p *Pool) Query(ctx context.Context, sql string, args ...interface{}) (pgx.
 // For extra control over how the query is executed, the types QuerySimpleProtocol, QueryResultFormats, and
 // QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
 // needed. See the documentation for those types for details.
-func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return errRow{err: err}
@@ -524,7 +524,7 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...interface{}) pg
 	return c.getPoolRow(row)
 }
 
-func (p *Pool) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
+func (p *Pool) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {
 		return pgconn.CommandTag{}, err

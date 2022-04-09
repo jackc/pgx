@@ -109,7 +109,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	defer rows.Close()
 
 	for rows.Next() {
-		destPtrs := make([]interface{}, columnCount)
+		destPtrs := make([]any, columnCount)
 		for i := range destPtrs {
 			destPtrs[i] = &dest[i]
 		}
@@ -597,18 +597,18 @@ func TestQueryRowCoreTypes(t *testing.T) {
 
 	tests := []struct {
 		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
+		queryArgs []any
+		scanArgs  []any
 		expected  allTypes
 	}{
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.s}, allTypes{s: "Jack"}},
-		{"select $1::float4", []interface{}{float32(1.23)}, []interface{}{&actual.f32}, allTypes{f32: 1.23}},
-		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
-		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
-		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
-		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
-		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{"select $1::oid", []interface{}{uint32(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::text", []any{"Jack"}, []any{&actual.s}, allTypes{s: "Jack"}},
+		{"select $1::float4", []any{float32(1.23)}, []any{&actual.f32}, allTypes{f32: 1.23}},
+		{"select $1::float8", []any{float64(1.23)}, []any{&actual.f64}, allTypes{f64: 1.23}},
+		{"select $1::bool", []any{true}, []any{&actual.b}, allTypes{b: true}},
+		{"select $1::timestamptz", []any{time.Unix(123, 5000)}, []any{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
+		{"select $1::timestamp", []any{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []any{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
+		{"select $1::date", []any{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []any{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
+		{"select $1::oid", []any{uint32(42)}, []any{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {
@@ -658,8 +658,8 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 
 	successfulEncodeTests := []struct {
 		sql      string
-		queryArg interface{}
-		scanArg  interface{}
+		queryArg any
+		scanArg  any
 		expected allTypes
 	}{
 		// Check any integer type where value is within int2 range can be encoded
@@ -717,7 +717,7 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 
 	failedEncodeTests := []struct {
 		sql      string
-		queryArg interface{}
+		queryArg any
 	}{
 		// Check any integer type where value is outside pg:int2 range cannot be encoded
 		{"select $1::int2", int(32769)},
@@ -773,7 +773,7 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 
 	successfulDecodeTests := []struct {
 		sql      string
-		scanArg  interface{}
+		scanArg  any
 		expected allTypes
 	}{
 		// Check any integer type where value is within Go:int range can be decoded
@@ -860,7 +860,7 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 
 	failedDecodeTests := []struct {
 		sql     string
-		scanArg interface{}
+		scanArg any
 	}{
 		// Check any integer type where value is outside Go:int8 range cannot be decoded
 		{"select 128::int2", &actual.i8},
@@ -932,7 +932,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 
 	tests := []struct {
 		sql      string
-		queryArg interface{}
+		queryArg any
 		expected []byte
 	}{
 		{"select $1::text", "Jack", []byte("Jack")},
@@ -977,14 +977,14 @@ func TestQueryRowErrors(t *testing.T) {
 
 	tests := []struct {
 		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
+		queryArgs []any
+		scanArgs  []any
 		err       string
 	}{
-		{"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
-		{"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "cannot scan OID 25 in text format into *int16"},
-		{"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "unable to encode 705 into format code 1 for OID 600"},
+		{"select $1::badtype", []any{"Jack"}, []any{&actual.i16}, `type "badtype" does not exist`},
+		{"SYNTAX ERROR", []any{}, []any{&actual.i16}, "SQLSTATE 42601"},
+		{"select $1::text", []any{"Jack"}, []any{&actual.i16}, "cannot scan OID 25 in text format into *int16"},
+		{"select $1::point", []any{int(705)}, []any{&actual.s}, "unable to encode 705 into format code 1 for OID 600"},
 	}
 
 	for i, tt := range tests {
@@ -1868,25 +1868,25 @@ func TestConnQueryFunc(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		var actualResults []interface{}
+		var actualResults []any
 
 		var a, b int
 		ct, err := conn.QueryFunc(
 			context.Background(),
 			"select n, n * 2 from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
+			[]any{3},
+			[]any{&a, &b},
 			func(pgx.QueryFuncRow) error {
-				actualResults = append(actualResults, []interface{}{a, b})
+				actualResults = append(actualResults, []any{a, b})
 				return nil
 			},
 		)
 		require.NoError(t, err)
 
-		expectedResults := []interface{}{
-			[]interface{}{1, 2},
-			[]interface{}{2, 4},
-			[]interface{}{3, 6},
+		expectedResults := []any{
+			[]any{1, 2},
+			[]any{2, 4},
+			[]any{3, 6},
 		}
 		require.Equal(t, expectedResults, actualResults)
 		require.EqualValues(t, 3, ct.RowsAffected())
@@ -1897,16 +1897,16 @@ func TestConnQueryFuncScanError(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		var actualResults []interface{}
+		var actualResults []any
 
 		var a, b int
 		ct, err := conn.QueryFunc(
 			context.Background(),
 			"select 'foo', 'bar' from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
+			[]any{3},
+			[]any{&a, &b},
 			func(pgx.QueryFuncRow) error {
-				actualResults = append(actualResults, []interface{}{a, b})
+				actualResults = append(actualResults, []any{a, b})
 				return nil
 			},
 		)
@@ -1923,8 +1923,8 @@ func TestConnQueryFuncAbort(t *testing.T) {
 		ct, err := conn.QueryFunc(
 			context.Background(),
 			"select n, n * 2 from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
+			[]any{3},
+			[]any{&a, &b},
 			func(pgx.QueryFuncRow) error {
 				return errors.New("abort")
 			},
@@ -1945,8 +1945,8 @@ func ExampleConn_QueryFunc() {
 	_, err = conn.QueryFunc(
 		context.Background(),
 		"select n, n * 2 from generate_series(1, $1) n",
-		[]interface{}{3},
-		[]interface{}{&a, &b},
+		[]any{3},
+		[]any{&a, &b},
 		func(pgx.QueryFuncRow) error {
 			fmt.Printf("%v, %v\n", a, b)
 			return nil
