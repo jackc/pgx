@@ -276,6 +276,7 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 
 }
 
+// Range is a generic range type.
 type Range[T any] struct {
 	Lower     T
 	Upper     T
