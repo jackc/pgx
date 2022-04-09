@@ -11,7 +11,6 @@ generated_code_files = [
   "pgtype/int.go",
   "pgtype/int_test.go",
   "pgtype/integration_benchmark_test.go",
-  "pgtype/range_types.go",
   "pgtype/zeronull/int.go",
   "pgtype/zeronull/int_test.go"
 ]

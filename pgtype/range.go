@@ -275,3 +275,47 @@ func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
 	return ubr, nil
 
 }
+
+type Range[T any] struct {
+	Lower     T
+	Upper     T
+	LowerType BoundType
+	UpperType BoundType
+	Valid     bool
+}
+
+func (r Range[T]) IsNull() bool {
+	return !r.Valid
+}
+
+func (r Range[T]) BoundTypes() (lower, upper BoundType) {
+	return r.LowerType, r.UpperType
+}
+
+func (r Range[T]) Bounds() (lower, upper any) {
+	return &r.Lower, &r.Upper
+}
+
+func (r *Range[T]) ScanNull() error {
+	*r = Range[T]{}
+	return nil
+}
+
+func (r *Range[T]) ScanBounds() (lowerTarget, upperTarget any) {
+	return &r.Lower, &r.Upper
+}
+
+func (r *Range[T]) SetBoundTypes(lower, upper BoundType) error {
+	if lower == Unbounded || lower == Empty {
+		var zero T
+		r.Lower = zero
+	}
+	if upper == Unbounded || upper == Empty {
+		var zero T
+		r.Upper = zero
+	}
+	r.LowerType = lower
+	r.UpperType = upper
+	r.Valid = true
+	return nil
+}
