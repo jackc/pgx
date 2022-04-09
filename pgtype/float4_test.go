@@ -17,6 +17,7 @@ func TestFloat4Codec(t *testing.T) {
 		{float32(9999.99), new(float32), isExpectedEq(float32(9999.99))},
 		{pgtype.Float4{}, new(pgtype.Float4), isExpectedEq(pgtype.Float4{})},
 		{int64(1), new(int64), isExpectedEq(int64(1))},
+		{"1.23", new(string), isExpectedEq("1.23")},
 		{nil, new(*float32), isExpectedEq((*float32)(nil))},
 	})
 }

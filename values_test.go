@@ -1022,6 +1022,7 @@ func TestScanIntoByteSlice(t *testing.T) {
 		output           []byte
 	}{
 		{"int - text", "select 42", pgx.TextFormatCode, []byte("42")},
+		{"int - binary", "select 42", pgx.BinaryFormatCode, []byte("42")},
 		{"text - text", "select 'hi'", pgx.TextFormatCode, []byte("hi")},
 		{"text - binary", "select 'hi'", pgx.BinaryFormatCode, []byte("hi")},
 		{"json - text", "select '{}'::json", pgx.TextFormatCode, []byte("{}")},
@@ -1034,21 +1035,6 @@ func TestScanIntoByteSlice(t *testing.T) {
 			err := conn.QueryRow(context.Background(), tt.sql, pgx.QueryResultFormats{tt.resultFormatCode}).Scan(&buf)
 			require.NoError(t, err)
 			require.Equal(t, tt.output, buf)
-		})
-	}
-
-	// Failure cases
-	for _, tt := range []struct {
-		name string
-		sql  string
-		err  string
-	}{
-		{"int binary", "select 42::int4", "can't scan into dest[0]: cannot scan OID 23 in binary format into *[]uint8"},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf []byte
-			err := conn.QueryRow(context.Background(), tt.sql, pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&buf)
-			require.EqualError(t, err, tt.err)
 		})
 	}
 }

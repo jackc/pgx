@@ -841,7 +841,9 @@ func TestDomainType(t *testing.T) {
 
 		// Domain type uint64 is a PostgreSQL domain of underlying type numeric.
 
-		// Unregistered type can be used as string.
+		// In the extended protocol preparing "select $1::uint64" appears to create a statement that expects a param OID of
+		// uint64 but a result OID of the underlying numeric.
+
 		var s string
 		err := conn.QueryRow(context.Background(), "select $1::uint64", "24").Scan(&s)
 		require.NoError(t, err)

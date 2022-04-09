@@ -5,7 +5,6 @@ import (
 	"math"
 	"net"
 	"reflect"
-	"strconv"
 	"time"
 )
 
@@ -339,16 +338,6 @@ func (w *stringWrapper) ScanText(v Text) error {
 
 func (w stringWrapper) TextValue() (Text, error) {
 	return Text{String: string(w), Valid: true}, nil
-}
-
-func (w *stringWrapper) ScanInt64(v Int8) error {
-	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into *string")
-	}
-
-	*w = stringWrapper(strconv.FormatInt(v.Int64, 10))
-
-	return nil
 }
 
 type timeWrapper time.Time

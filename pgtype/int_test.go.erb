@@ -44,6 +44,7 @@ func TestInt<%= pg_byte_size %>Codec(t *testing.T) {
 		{1, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(1))},
 		{math.MaxInt<%= pg_bit_size %>, new(int<%= pg_bit_size %>), isExpectedEq(int<%= pg_bit_size %>(math.MaxInt<%= pg_bit_size %>))},
 		{1, new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{Int<%= pg_bit_size %>: 1, Valid: true})},
+		{"1", new(string), isExpectedEq("1")},
 		{pgtype.Int<%= pg_byte_size %>{}, new(pgtype.Int<%= pg_byte_size %>), isExpectedEq(pgtype.Int<%= pg_byte_size %>{})},
 		{nil, new(*int<%= pg_bit_size %>), isExpectedEq((*int<%= pg_bit_size %>)(nil))},
 	})
