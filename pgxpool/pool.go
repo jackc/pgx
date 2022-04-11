@@ -112,7 +112,7 @@ type Config struct {
 	// MaxConnIdleTime is the duration after which an idle connection will be automatically closed by the health check.
 	MaxConnIdleTime time.Duration
 
-	// MaxConns is the maximum size of the pool.
+	// MaxConns is the maximum size of the pool. The default is the greater of 4 or runtime.NumCPU().
 	MaxConns int32
 
 	// MinConns is the minimum size of the pool. The health check will increase the number of connections to this
