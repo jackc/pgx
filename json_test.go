@@ -37,6 +37,32 @@ func TestJSONUnmarshalAuthenticationSASL(t *testing.T) {
 	}
 }
 
+func TestJSONUnmarshalAuthenticationGSS(t *testing.T) {
+	data := []byte(`{"Type":"AuthenticationGSS"}`)
+	want := AuthenticationGSS{}
+
+	var got AuthenticationGSS
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Errorf("cannot JSON unmarshal %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Error("unmarshaled AuthenticationGSS struct doesn't match expected value")
+	}
+}
+
+func TestJSONUnmarshalAuthenticationGSSContinue(t *testing.T) {
+	data := []byte(`{"Type":"AuthenticationGSSContinue","Data":[1,2,3,4]}`)
+	want := AuthenticationGSSContinue{Data: []byte{1, 2, 3, 4}}
+
+	var got AuthenticationGSSContinue
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Errorf("cannot JSON unmarshal %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Error("unmarshaled AuthenticationGSSContinue struct doesn't match expected value")
+	}
+}
+
 func TestJSONUnmarshalAuthenticationSASLContinue(t *testing.T) {
 	data := []byte(`{"Type":"AuthenticationSASLContinue", "Data":"1"}`)
 	want := AuthenticationSASLContinue{
@@ -548,6 +574,19 @@ func TestAuthenticationMD5Password(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Error("unmarshaled AuthenticationMD5Password struct doesn't match expected value")
+	}
+}
+
+func TestJSONUnmarshalGSSResponse(t *testing.T) {
+	data := []byte(`{"Type":"GSSResponse","Data":[10,20,30,40]}`)
+	want := GSSResponse{Data: []byte{10, 20, 30, 40}}
+
+	var got GSSResponse
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Errorf("cannot JSON unmarshal %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Error("unmarshaled GSSResponse struct doesn't match expected value")
 	}
 }
 

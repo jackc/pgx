@@ -30,11 +30,10 @@ type Backend struct {
 	sync           Sync
 	terminate      Terminate
 
-	bodyLen      int
-	msgType      byte
-	partialMsg   bool
-	authType     uint32
-	
+	bodyLen    int
+	msgType    byte
+	partialMsg bool
+	authType   uint32
 }
 
 const (
@@ -147,6 +146,8 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 			msg = &SASLResponse{}
 		case AuthTypeSASLFinal:
 			msg = &SASLResponse{}
+		case AuthTypeGSS, AuthTypeGSSCont:
+			msg = &GSSResponse{}
 		case AuthTypeCleartextPassword, AuthTypeMD5Password:
 			fallthrough
 		default:

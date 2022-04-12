@@ -16,6 +16,8 @@ type Frontend struct {
 	authenticationOk                AuthenticationOk
 	authenticationCleartextPassword AuthenticationCleartextPassword
 	authenticationMD5Password       AuthenticationMD5Password
+	authenticationGSS               AuthenticationGSS
+	authenticationGSSContinue       AuthenticationGSSContinue
 	authenticationSASL              AuthenticationSASL
 	authenticationSASLContinue      AuthenticationSASLContinue
 	authenticationSASLFinal         AuthenticationSASLFinal
@@ -178,9 +180,9 @@ func (f *Frontend) findAuthenticationMessageType(src []byte) (BackendMessage, er
 	case AuthTypeSCMCreds:
 		return nil, errors.New("AuthTypeSCMCreds is unimplemented")
 	case AuthTypeGSS:
-		return nil, errors.New("AuthTypeGSS is unimplemented")
+		return &f.authenticationGSS, nil
 	case AuthTypeGSSCont:
-		return nil, errors.New("AuthTypeGSSCont is unimplemented")
+		return &f.authenticationGSSContinue, nil
 	case AuthTypeSSPI:
 		return nil, errors.New("AuthTypeSSPI is unimplemented")
 	case AuthTypeSASL:
