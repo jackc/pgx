@@ -320,7 +320,12 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				pgConn.conn.Close()
 				return nil, &connectError{config: config, msg: "failed SASL auth", err: err}
 			}
-
+		case *pgproto3.AuthenticationGSS:
+			err = pgConn.gssAuth()
+			if err != nil {
+				pgConn.conn.Close()
+				return nil, &connectError{config: config, msg: "failed GSS auth", err: err}
+			}
 		case *pgproto3.ReadyForQuery:
 			pgConn.status = connStatusIdle
 			if config.ValidateConnect != nil {
