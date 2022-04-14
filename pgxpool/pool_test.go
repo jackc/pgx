@@ -115,6 +115,32 @@ func TestPoolAcquireAndConnRelease(t *testing.T) {
 	c.Release()
 }
 
+func TestPoolAcquireAndConnHijack(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	pool, err := pgxpool.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(ctx)
+	require.NoError(t, err)
+
+	connsBeforeHijack := pool.Stat().TotalConns()
+
+	conn := c.Hijack()
+	defer conn.Close(ctx)
+
+	connsAfterHijack := pool.Stat().TotalConns()
+	require.Equal(t, connsBeforeHijack-1, connsAfterHijack)
+
+	var n int32
+	err = conn.QueryRow(ctx, `select 1`).Scan(&n)
+	require.NoError(t, err)
+	require.Equal(t, int32(1), n)
+}
+
 func TestPoolAcquireFunc(t *testing.T) {
 	t.Parallel()
 
