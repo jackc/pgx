@@ -46,6 +46,22 @@ func (c *Conn) Release() {
 	}()
 }
 
+// Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
+// will panic if called on an already released or hijacked connection.
+func (c *Conn) Hijack() *pgx.Conn {
+	if c.res == nil {
+		panic("cannot hijack already released or hijacked connection")
+	}
+
+	conn := c.Conn()
+	res := c.res
+	c.res = nil
+
+	res.Hijack()
+
+	return conn
+}
+
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
 	return c.Conn().Exec(ctx, sql, arguments...)
 }
