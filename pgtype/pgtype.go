@@ -1808,3 +1808,41 @@ func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBu
 
 	return newBuf, nil
 }
+
+// SQLScanner returns a database/sql.Scanner for v. This is necessary for types like Array[T] and Range[T] where the
+// type needs assistance from Map to implement the sql.Scanner interface. It is not necessary for types like Box that
+// implement sql.Scanner directly.
+//
+// This uses the type of v to look up the PostgreSQL OID that v presumably came from. This means v must be registered
+// with m by calling RegisterDefaultPgType.
+func (m *Map) SQLScanner(v any) sql.Scanner {
+	if s, ok := v.(sql.Scanner); ok {
+		return s
+	}
+
+	return &sqlScannerWrapper{m: m, v: v}
+}
+
+type sqlScannerWrapper struct {
+	m *Map
+	v any
+}
+
+func (w *sqlScannerWrapper) Scan(src any) error {
+	t, ok := w.m.TypeForValue(w.v)
+	if !ok {
+		return fmt.Errorf("cannot convert to sql.Scanner: cannot find registered type for %T", w.v)
+	}
+
+	var bufSrc []byte
+	switch src := src.(type) {
+	case string:
+		bufSrc = []byte(src)
+	case []byte:
+		bufSrc = src
+	default:
+		bufSrc = []byte(fmt.Sprint(bufSrc))
+	}
+
+	return w.m.Scan(t.OID, TextFormatCode, bufSrc, w.v)
+}

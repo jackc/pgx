@@ -2,50 +2,58 @@
 //
 // A database/sql connection can be established through sql.Open.
 //
-//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
-//	if err != nil {
-//		return err
-//	}
+//  db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
+//  if err != nil {
+//    return err
+//  }
 //
 // Or from a DSN string.
 //
-//	db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
-//	if err != nil {
-//		return err
-//	}
+//  db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
+//  if err != nil {
+//    return err
+//  }
 //
 // Or a pgx.ConnConfig can be used to set configuration not accessible via connection string. In this case the
 // pgx.ConnConfig must first be registered with the driver. This registration returns a connection string which is used
 // with sql.Open.
 //
-//	connConfig, _ := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
-//	connConfig.Logger = myLogger
-//	connStr := stdlib.RegisterConnConfig(connConfig)
-//	db, _ := sql.Open("pgx", connStr)
+//  connConfig, _ := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
+//  connConfig.Logger = myLogger
+//  connStr := stdlib.RegisterConnConfig(connConfig)
+//  db, _ := sql.Open("pgx", connStr)
 //
-// pgx uses standard PostgreSQL positional parameters in queries. e.g. $1, $2.
-// It does not support named parameters.
+// pgx uses standard PostgreSQL positional parameters in queries. e.g. $1, $2. It does not support named parameters.
 //
-//	db.QueryRow("select * from users where id=$1", userID)
+//  db.QueryRow("select * from users where id=$1", userID)
 //
-// In Go 1.13 and above (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard
-// database/sql.DB connection pool. This allows operations that use pgx specific functionality.
+// In Go 1.13 and above (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard database/sql.DB connection
+// pool. This allows operations that use pgx specific functionality.
 //
-//	// Given db is a *sql.DB
-//	conn, err := db.Conn(context.Background())
-//	if err != nil {
-//		// handle error from acquiring connection from DB pool
-//	}
+//  // Given db is a *sql.DB
+//  conn, err := db.Conn(context.Background())
+//  if err != nil {
+//    // handle error from acquiring connection from DB pool
+//  }
 //
-//	err = conn.Raw(func(driverConn any) error {
-//		conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
-//		// Do pgx specific stuff with conn
-//		conn.CopyFrom(...)
-//		return nil
-//	})
-//	if err != nil {
-//		// handle error that occurred while using *pgx.Conn
-//	}
+//  err = conn.Raw(func(driverConn any) error {
+//    conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
+//    // Do pgx specific stuff with conn
+//    conn.CopyFrom(...)
+//    return nil
+//  })
+//  if err != nil {
+//    // handle error that occurred while using *pgx.Conn
+//  }
+//
+// PostgreSQL Specific Data Types
+//
+// The pgtype package provides support for PostgreSQL specific types. *pgtype.Map.SQLScanner is an adapter that makes
+// these types usable as a sql.Scanner.
+//
+//  m := pgtype.NewMap()
+//  var a []int64
+//  err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
 package stdlib
 
 import (
