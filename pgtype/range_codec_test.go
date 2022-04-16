@@ -136,9 +136,9 @@ func TestRangeCodecDecodeValue(t *testing.T) {
 		}{
 			{
 				sql: `select '[1,5)'::int4range`,
-				expected: pgtype.Range[pgtype.Int4]{
-					Lower:     pgtype.Int4{Int32: 1, Valid: true},
-					Upper:     pgtype.Int4{Int32: 5, Valid: true},
+				expected: pgtype.Range[any]{
+					Lower:     int32(1),
+					Upper:     int32(5),
 					LowerType: pgtype.Inclusive,
 					UpperType: pgtype.Exclusive,
 					Valid:     true,
