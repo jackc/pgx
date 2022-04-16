@@ -33,7 +33,7 @@ generally defined by implementing an interface that a particular `Codec` underst
 
 All array types are now handled by `ArrayCodec` instead of using code generation for each new array type. This
 significantly reduced the amount of code and the compiled binary size. This also means that less common array types such
-as `point[]` are now supported.
+as `point[]` are now supported. `Array[T]` supports PostgreSQL multi-dimensional arrays.
 
 ### Composite Types
 
@@ -42,8 +42,8 @@ values, but any type may now implement `CompositeIndexGetter` and `CompositeInde
 
 ### Range Types
 
-Range types are now handled with generic types `RangeCodec[T]` and `Range[T]`. This allows additional user defined range
-types to easily be handled.
+Range types are now handled with types `RangeCodec` and `Range[T]`. This allows additional user defined range types to
+easily be handled.
 
 ### pgxtype
 
@@ -70,6 +70,9 @@ only `string` is handled. This is to allow the possibility of future binary supp
 considering `[]byte` to be binary format and `string` text format. This change should have no effect for any use with
 `pgx`. The previous behavior was only necessary for `lib/pq` compatibility.
 
+Added `*Map.SQLScanner` to create a `sql.Scanner` for types such as `[]int32` and `Range[T]` that do not implement
+`sql.Scanner` directly.
+
 ### Number Type Fields Include Bit size
 
 `Int2`, `Int4`, `Int8`, `Float4`, `Float8`, and `Uint32` fields now include bit size. e.g. `Int` is renamed to `Int64`.
@@ -94,6 +97,10 @@ This matches the convention set by `database/sql`. In addition, for comparable t
 * Renamed `pgtype.DataType` to `pgtype.Type`.
 * Renamed `pgtype.None` to `pgtype.Finite`.
 * `RegisterType` now accepts a `*Type` instead of `Type`.
+
+## stdlib
+
+* Removed `AcquireConn` and `ReleaseConn` as that functionality has been built in since Go 1.13.
 
 ## Reduced Memory Usage by Reusing Read Buffers
 
