@@ -640,42 +640,6 @@ func TestBeginTxContextCancel(t *testing.T) {
 	})
 }
 
-func TestAcquireConn(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		var conns []*pgx.Conn
-
-		for i := 1; i < 6; i++ {
-			conn, err := stdlib.AcquireConn(db)
-			if err != nil {
-				t.Errorf("%d. AcquireConn failed: %v", i, err)
-				continue
-			}
-
-			var n int32
-			err = conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			if err != nil {
-				t.Errorf("%d. QueryRow failed: %v", i, err)
-			}
-			if n != 1 {
-				t.Errorf("%d. n => %d, want %d", i, n, 1)
-			}
-
-			stats := db.Stats()
-			if stats.OpenConnections != i {
-				t.Errorf("%d. stats.OpenConnections => %d, want %d", i, stats.OpenConnections, i)
-			}
-
-			conns = append(conns, conn)
-		}
-
-		for i, conn := range conns {
-			if err := stdlib.ReleaseConn(db, conn); err != nil {
-				t.Errorf("%d. stdlib.ReleaseConn failed: %v", i, err)
-			}
-		}
-	})
-}
-
 func TestConnRaw(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		conn, err := db.Conn(context.Background())
@@ -688,38 +652,6 @@ func TestConnRaw(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.EqualValues(t, 42, n)
-	})
-}
-
-// https://github.com/jackc/pgx/issues/673
-func TestReleaseConnWithTxInProgress(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		skipCockroachDB(t, db, "Server does not support backend PID")
-
-		c1, err := stdlib.AcquireConn(db)
-		require.NoError(t, err)
-
-		_, err = c1.Exec(context.Background(), "begin")
-		require.NoError(t, err)
-
-		c1PID := c1.PgConn().PID()
-
-		err = stdlib.ReleaseConn(db, c1)
-		require.NoError(t, err)
-
-		c2, err := stdlib.AcquireConn(db)
-		require.NoError(t, err)
-
-		c2PID := c2.PgConn().PID()
-
-		err = stdlib.ReleaseConn(db, c2)
-		require.NoError(t, err)
-
-		require.NotEqual(t, c1PID, c2PID)
-
-		// Releasing a conn with a tx in progress should close the connection
-		stats := db.Stats()
-		require.Equal(t, 1, stats.OpenConnections)
 	})
 }
 
@@ -746,23 +678,6 @@ func TestConnExecContextSuccess(t *testing.T) {
 	})
 }
 
-func TestConnExecContextFailureRetry(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		// We get a connection, immediately close it, and then get it back;
-		// DB.Conn along with Conn.ResetSession does the retry for us.
-		{
-			conn, err := stdlib.AcquireConn(db)
-			require.NoError(t, err)
-			conn.Close(context.Background())
-			stdlib.ReleaseConn(db, conn)
-		}
-		conn, err := db.Conn(context.Background())
-		require.NoError(t, err)
-		_, err = conn.ExecContext(context.Background(), "select 1")
-		require.NoError(t, err)
-	})
-}
-
 func TestConnQueryContextSuccess(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		rows, err := db.QueryContext(context.Background(), "select * from generate_series(1,10) n")
@@ -774,24 +689,6 @@ func TestConnQueryContextSuccess(t *testing.T) {
 			require.NoError(t, err)
 		}
 		require.NoError(t, rows.Err())
-	})
-}
-
-func TestConnQueryContextFailureRetry(t *testing.T) {
-	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
-		// We get a connection, immediately close it, and then get it back;
-		// DB.Conn along with Conn.ResetSession does the retry for us.
-		{
-			conn, err := stdlib.AcquireConn(db)
-			require.NoError(t, err)
-			conn.Close(context.Background())
-			stdlib.ReleaseConn(db, conn)
-		}
-		conn, err := db.Conn(context.Background())
-		require.NoError(t, err)
-
-		_, err = conn.QueryContext(context.Background(), "select 1")
-		require.NoError(t, err)
 	})
 }
 

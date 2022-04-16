@@ -81,17 +81,10 @@ var databaseSQLResultFormats pgx.QueryResultFormatsByOID
 
 var pgxDriver *Driver
 
-type ctxKey int
-
-var ctxKeyFakeTx ctxKey = 0
-
-var ErrNotPgx = errors.New("not pgx *sql.DB")
-
 func init() {
 	pgxDriver = &Driver{
 		configs: make(map[string]*pgx.ConnConfig),
 	}
-	fakeTxConns = make(map[*pgx.Conn]*sql.Tx)
 	sql.Register("pgx", pgxDriver)
 
 	databaseSQLResultFormats = pgx.QueryResultFormatsByOID{
@@ -110,11 +103,6 @@ func init() {
 		pgtype.XIDOID:         1,
 	}
 }
-
-var (
-	fakeTxMutex sync.Mutex
-	fakeTxConns map[*pgx.Conn]*sql.Tx
-)
 
 // OptionOpenDB options for configuring the driver when opening a new db pool.
 type OptionOpenDB func(*connector)
@@ -365,11 +353,6 @@ func (c *Conn) Begin() (driver.Tx, error) {
 func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
 	if c.conn.IsClosed() {
 		return nil, driver.ErrBadConn
-	}
-
-	if pconn, ok := ctx.Value(ctxKeyFakeTx).(**pgx.Conn); ok {
-		*pconn = c.conn
-		return fakeTx{}, nil
 	}
 
 	var pgxOpts pgx.TxOptions
@@ -786,55 +769,3 @@ type wrapTx struct {
 func (wtx wrapTx) Commit() error { return wtx.tx.Commit(wtx.ctx) }
 
 func (wtx wrapTx) Rollback() error { return wtx.tx.Rollback(wtx.ctx) }
-
-type fakeTx struct{}
-
-func (fakeTx) Commit() error { return nil }
-
-func (fakeTx) Rollback() error { return nil }
-
-// AcquireConn acquires a *pgx.Conn from database/sql connection pool. It must be released with ReleaseConn.
-//
-// In Go 1.13 this functionality has been incorporated into the standard library in the db.Conn.Raw() method.
-func AcquireConn(db *sql.DB) (*pgx.Conn, error) {
-	var conn *pgx.Conn
-	ctx := context.WithValue(context.Background(), ctxKeyFakeTx, &conn)
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	if conn == nil {
-		tx.Rollback()
-		return nil, ErrNotPgx
-	}
-
-	fakeTxMutex.Lock()
-	fakeTxConns[conn] = tx
-	fakeTxMutex.Unlock()
-
-	return conn, nil
-}
-
-// ReleaseConn releases a *pgx.Conn acquired with AcquireConn.
-func ReleaseConn(db *sql.DB, conn *pgx.Conn) error {
-	var tx *sql.Tx
-	var ok bool
-
-	if conn.PgConn().IsBusy() || conn.PgConn().TxStatus() != 'I' {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		conn.Close(ctx)
-	}
-
-	fakeTxMutex.Lock()
-	tx, ok = fakeTxConns[conn]
-	if ok {
-		delete(fakeTxConns, conn)
-		fakeTxMutex.Unlock()
-	} else {
-		fakeTxMutex.Unlock()
-		return fmt.Errorf("can't release conn that is not acquired")
-	}
-
-	return tx.Rollback()
-}
