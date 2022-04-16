@@ -35,42 +35,42 @@ type RangeScanner interface {
 }
 
 // RangeCodec is a codec for any range type.
-type RangeCodec[T any] struct {
+type RangeCodec struct {
 	ElementType *Type
 }
 
-func (c *RangeCodec[T]) FormatSupported(format int16) bool {
+func (c *RangeCodec) FormatSupported(format int16) bool {
 	return c.ElementType.Codec.FormatSupported(format)
 }
 
-func (c *RangeCodec[T]) PreferredFormat() int16 {
+func (c *RangeCodec) PreferredFormat() int16 {
 	if c.FormatSupported(BinaryFormatCode) {
 		return BinaryFormatCode
 	}
 	return TextFormatCode
 }
 
-func (c *RangeCodec[T]) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
+func (c *RangeCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(RangeValuer); !ok {
 		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		return &encodePlanRangeCodecRangeValuerToBinary[T]{rc: c, m: m}
+		return &encodePlanRangeCodecRangeValuerToBinary{rc: c, m: m}
 	case TextFormatCode:
-		return &encodePlanRangeCodecRangeValuerToText[T]{rc: c, m: m}
+		return &encodePlanRangeCodecRangeValuerToText{rc: c, m: m}
 	}
 
 	return nil
 }
 
-type encodePlanRangeCodecRangeValuerToBinary[T any] struct {
-	rc *RangeCodec[T]
+type encodePlanRangeCodecRangeValuerToBinary struct {
+	rc *RangeCodec
 	m  *Map
 }
 
-func (plan *encodePlanRangeCodecRangeValuerToBinary[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(RangeValuer)
 
 	if getter.IsNull() {
@@ -156,12 +156,12 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary[T]) Encode(value any, buf []
 	return buf, nil
 }
 
-type encodePlanRangeCodecRangeValuerToText[T any] struct {
-	rc *RangeCodec[T]
+type encodePlanRangeCodecRangeValuerToText struct {
+	rc *RangeCodec
 	m  *Map
 }
 
-func (plan *encodePlanRangeCodecRangeValuerToText[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
+func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	getter := value.(RangeValuer)
 
 	if getter.IsNull() {
@@ -234,29 +234,29 @@ func (plan *encodePlanRangeCodecRangeValuerToText[T]) Encode(value any, buf []by
 	return buf, nil
 }
 
-func (c *RangeCodec[T]) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
+func (c *RangeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
 		case RangeScanner:
-			return &scanPlanBinaryRangeToRangeScanner[T]{rc: c, m: m}
+			return &scanPlanBinaryRangeToRangeScanner{rc: c, m: m}
 		}
 	case TextFormatCode:
 		switch target.(type) {
 		case RangeScanner:
-			return &scanPlanTextRangeToRangeScanner[T]{rc: c, m: m}
+			return &scanPlanTextRangeToRangeScanner{rc: c, m: m}
 		}
 	}
 
 	return nil
 }
 
-type scanPlanBinaryRangeToRangeScanner[T any] struct {
-	rc *RangeCodec[T]
+type scanPlanBinaryRangeToRangeScanner struct {
+	rc *RangeCodec
 	m  *Map
 }
 
-func (plan *scanPlanBinaryRangeToRangeScanner[T]) Scan(src []byte, target any) error {
+func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) error {
 	rangeScanner := (target).(RangeScanner)
 
 	if src == nil {
@@ -301,12 +301,12 @@ func (plan *scanPlanBinaryRangeToRangeScanner[T]) Scan(src []byte, target any) e
 	return rangeScanner.SetBoundTypes(ubr.LowerType, ubr.UpperType)
 }
 
-type scanPlanTextRangeToRangeScanner[T any] struct {
-	rc *RangeCodec[T]
+type scanPlanTextRangeToRangeScanner struct {
+	rc *RangeCodec
 	m  *Map
 }
 
-func (plan *scanPlanTextRangeToRangeScanner[T]) Scan(src []byte, target any) error {
+func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error {
 	rangeScanner := (target).(RangeScanner)
 
 	if src == nil {
@@ -351,7 +351,7 @@ func (plan *scanPlanTextRangeToRangeScanner[T]) Scan(src []byte, target any) err
 	return rangeScanner.SetBoundTypes(utr.LowerType, utr.UpperType)
 }
 
-func (c *RangeCodec[T]) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
+func (c *RangeCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
 	if src == nil {
 		return nil, nil
 	}
@@ -368,12 +368,12 @@ func (c *RangeCodec[T]) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16,
 	}
 }
 
-func (c *RangeCodec[T]) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
+func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
 	if src == nil {
 		return nil, nil
 	}
 
-	var r Range[T]
+	var r Range[any]
 	err := c.PlanScan(m, oid, format, &r).Scan(src, &r)
 	return r, err
 }
