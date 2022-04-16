@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/jackc/pgpassfile v1.0.0
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b
-	github.com/jackc/puddle v1.2.1
+	github.com/jackc/puddle v1.2.2-0.20220404125616-4e959849469a
 	github.com/stretchr/testify v1.7.0
 	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
 	golang.org/x/text v0.3.7

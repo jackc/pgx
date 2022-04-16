@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/puddle"
+	puddle "github.com/jackc/puddle/puddleg"
 )
 
 var defaultMaxConns = int32(4)
@@ -26,7 +26,7 @@ type connResource struct {
 	poolRowss []poolRows
 }
 
-func (cr *connResource) getConn(p *Pool, res *puddle.Resource) *Conn {
+func (cr *connResource) getConn(p *Pool, res *puddle.Resource[*connResource]) *Conn {
 	if len(cr.conns) == 0 {
 		cr.conns = make([]Conn, 128)
 	}
@@ -70,7 +70,7 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 
 // Pool allows for connection reuse.
 type Pool struct {
-	p                 *puddle.Pool
+	p                 *puddle.Pool[*connResource]
 	config            *Config
 	beforeConnect     func(context.Context, *pgx.ConnConfig) error
 	afterConnect      func(context.Context, *pgx.Conn) error
@@ -177,7 +177,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	}
 
 	p.p = puddle.NewPool(
-		func(ctx context.Context) (any, error) {
+		func(ctx context.Context) (*connResource, error) {
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {
@@ -209,9 +209,9 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 			return cr, nil
 		},
-		func(value any) {
+		func(value *connResource) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			conn := value.(*connResource).conn
+			conn := value.conn
 			conn.Close(ctx)
 			select {
 			case <-conn.PgConn().CleanupDone():
@@ -416,7 +416,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 			return nil, err
 		}
 
-		cr := res.Value().(*connResource)
+		cr := res.Value()
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
 			return cr.getConn(p, res), nil
 		}
@@ -444,7 +444,7 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	resources := p.p.AcquireAllIdle()
 	conns := make([]*Conn, 0, len(resources))
 	for _, res := range resources {
-		cr := res.Value().(*connResource)
+		cr := res.Value()
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
 			conns = append(conns, cr.getConn(p, res))
 		} else {

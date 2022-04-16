@@ -6,12 +6,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/puddle"
+	puddle "github.com/jackc/puddle/puddleg"
 )
 
 // Conn is an acquired *pgx.Conn from a Pool.
 type Conn struct {
-	res *puddle.Resource
+	res *puddle.Resource[*connResource]
 	p   *Pool
 }
 
@@ -113,7 +113,7 @@ func (c *Conn) Conn() *pgx.Conn {
 }
 
 func (c *Conn) connResource() *connResource {
-	return c.res.Value().(*connResource)
+	return c.res.Value()
 }
 
 func (c *Conn) getPoolRow(r pgx.Row) *poolRow {
