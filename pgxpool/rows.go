@@ -25,6 +25,8 @@ type errRow struct {
 
 func (e errRow) Scan(dest ...any) error { return e.err }
 
+func (e errRow) AsRows() pgx.Rows { return errRows{err: e.err} }
+
 type poolRows struct {
 	r   pgx.Rows
 	c   *Conn

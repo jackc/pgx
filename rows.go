@@ -67,6 +67,9 @@ type Row interface {
 	// rows were found it returns ErrNoRows. If multiple rows are returned it
 	// ignores all but the first.
 	Scan(dest ...any) error
+
+	// AsRows unwraps Row into Rows to give access to the full Rows-level functionality.
+	AsRows() Rows
 }
 
 // connRow implements the Row interface for Conn.QueryRow.
@@ -96,6 +99,10 @@ func (r *connRow) Scan(dest ...any) (err error) {
 	rows.Scan(dest...)
 	rows.Close()
 	return rows.Err()
+}
+
+func (r *connRow) AsRows() Rows {
+	return (*connRows)(r)
 }
 
 type rowLog interface {

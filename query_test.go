@@ -1034,6 +1034,36 @@ func TestQueryRowEmptyQuery(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestQueryRowRowAsRows(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	t.Cleanup(func() {
+		closeConn(t, conn)
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	row := conn.QueryRow(ctx, "select $1::text", "hello")
+
+	rows := row.AsRows()
+	rows.Close()
+
+	var rowCount int
+	for rows.Next() {
+		rowCount++
+
+		var val string
+		err := rows.Scan(&val)
+		require.NoError(t, err)
+		assert.Equal(t, "hello", val)
+	}
+
+	require.Equal(t, 1, rowCount)
+	require.NoError(t, rows.Err())
+}
+
 func TestReadingValueAfterEmptyArray(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
