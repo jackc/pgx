@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +40,53 @@ func TestArrayCodec(t *testing.T) {
 			err := conn.QueryRow(
 				ctx,
 				"select $1::smallint[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	})
+}
+
+func TestArrayCodecFlatArray(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for i, tt := range []struct {
+			expected any
+		}{
+			{pgtype.FlatArray[int32](nil)},
+			{pgtype.FlatArray[int32]{}},
+			{pgtype.FlatArray[int32]{1, 2, 3}},
+		} {
+			var actual pgtype.FlatArray[int32]
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	})
+}
+
+func TestArrayCodecArray(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for i, tt := range []struct {
+			expected any
+		}{
+			{pgtype.Array[int32]{
+				Elements: []int32{1, 2, 3, 4},
+				Dims: []pgtype.ArrayDimension{
+					{Length: 2, LowerBound: 2},
+					{Length: 2, LowerBound: 2},
+				},
+				Valid: true,
+			}},
+		} {
+			var actual pgtype.Array[int32]
+			err := conn.QueryRow(
+				ctx,
+				"select $1::int[]",
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)

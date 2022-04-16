@@ -993,6 +993,24 @@ func (plan *wrapAnyPtrStructScanPlan) Scan(src []byte, target any) error {
 
 // TryWrapPtrSliceScanPlan tries to wrap a pointer to a single dimension slice.
 func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
+	// Avoid using reflect path for common types.
+	switch target := target.(type) {
+	case *[]int16:
+		return &wrapPtrSliceScanPlan[int16]{}, (*FlatArray[int16])(target), true
+	case *[]int32:
+		return &wrapPtrSliceScanPlan[int32]{}, (*FlatArray[int32])(target), true
+	case *[]int64:
+		return &wrapPtrSliceScanPlan[int64]{}, (*FlatArray[int64])(target), true
+	case *[]float32:
+		return &wrapPtrSliceScanPlan[float32]{}, (*FlatArray[float32])(target), true
+	case *[]float64:
+		return &wrapPtrSliceScanPlan[float64]{}, (*FlatArray[float64])(target), true
+	case *[]string:
+		return &wrapPtrSliceScanPlan[string]{}, (*FlatArray[string])(target), true
+	case *[]time.Time:
+		return &wrapPtrSliceScanPlan[time.Time]{}, (*FlatArray[time.Time])(target), true
+	}
+
 	targetValue := reflect.ValueOf(target)
 	if targetValue.Kind() != reflect.Ptr {
 		return nil, nil, false
@@ -1001,19 +1019,29 @@ func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextVa
 	targetElemValue := targetValue.Elem()
 
 	if targetElemValue.Kind() == reflect.Slice {
-		return &wrapPtrSliceScanPlan{}, &anySliceArray{slice: targetElemValue}, true
+		return &wrapPtrSliceReflectScanPlan{}, &anySliceArrayReflect{slice: targetElemValue}, true
 	}
 	return nil, nil, false
 }
 
-type wrapPtrSliceScanPlan struct {
+type wrapPtrSliceScanPlan[T any] struct {
 	next ScanPlan
 }
 
-func (plan *wrapPtrSliceScanPlan) SetNext(next ScanPlan) { plan.next = next }
+func (plan *wrapPtrSliceScanPlan[T]) SetNext(next ScanPlan) { plan.next = next }
 
-func (plan *wrapPtrSliceScanPlan) Scan(src []byte, target any) error {
-	return plan.next.Scan(src, &anySliceArray{slice: reflect.ValueOf(target).Elem()})
+func (plan *wrapPtrSliceScanPlan[T]) Scan(src []byte, target any) error {
+	return plan.next.Scan(src, (*FlatArray[T])(target.(*[]T)))
+}
+
+type wrapPtrSliceReflectScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapPtrSliceReflectScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapPtrSliceReflectScanPlan) Scan(src []byte, target any) error {
+	return plan.next.Scan(src, &anySliceArrayReflect{slice: reflect.ValueOf(target).Elem()})
 }
 
 // TryWrapPtrMultiDimSliceScanPlan tries to wrap a pointer to a multi-dimension slice.
@@ -1660,24 +1688,56 @@ func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 }
 
 func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	// Avoid using reflect path for common types.
+	switch value := value.(type) {
+	case []int16:
+		return &wrapSliceEncodePlan[int16]{}, (FlatArray[int16])(value), true
+	case []int32:
+		return &wrapSliceEncodePlan[int32]{}, (FlatArray[int32])(value), true
+	case []int64:
+		return &wrapSliceEncodePlan[int64]{}, (FlatArray[int64])(value), true
+	case []float32:
+		return &wrapSliceEncodePlan[float32]{}, (FlatArray[float32])(value), true
+	case []float64:
+		return &wrapSliceEncodePlan[float64]{}, (FlatArray[float64])(value), true
+	case []string:
+		return &wrapSliceEncodePlan[string]{}, (FlatArray[string])(value), true
+	case []time.Time:
+		return &wrapSliceEncodePlan[time.Time]{}, (FlatArray[time.Time])(value), true
+	}
+
 	if reflect.TypeOf(value).Kind() == reflect.Slice {
-		w := anySliceArray{
+		w := anySliceArrayReflect{
 			slice: reflect.ValueOf(value),
 		}
-		return &wrapSliceEncodePlan{}, w, true
+		return &wrapSliceEncodeReflectPlan{}, w, true
 	}
 
 	return nil, nil, false
 }
 
-type wrapSliceEncodePlan struct {
+type wrapSliceEncodePlan[T any] struct {
 	next EncodePlan
 }
 
-func (plan *wrapSliceEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+func (plan *wrapSliceEncodePlan[T]) SetNext(next EncodePlan) { plan.next = next }
 
-func (plan *wrapSliceEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	w := anySliceArray{
+func (plan *wrapSliceEncodePlan[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	w := anySliceArrayReflect{
+		slice: reflect.ValueOf(value),
+	}
+
+	return plan.next.Encode(w, buf)
+}
+
+type wrapSliceEncodeReflectPlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapSliceEncodeReflectPlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapSliceEncodeReflectPlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	w := anySliceArrayReflect{
 		slice: reflect.ValueOf(value),
 	}
 
