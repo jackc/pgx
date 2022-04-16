@@ -157,9 +157,11 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 			const ERRCODE_INVALID_PASSWORD = "28P01"                    // wrong password
 			const ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION = "28000" // wrong password or bad pg_hba.conf settings
 			const ERRCODE_INVALID_CATALOG_NAME = "3D000"                // db does not exist
+			const ERRCODE_INSUFFICIENT_PRIVILEGE = "42501"              // missing connect privilege
 			if pgerr.Code == ERRCODE_INVALID_PASSWORD ||
 				pgerr.Code == ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION ||
-				pgerr.Code == ERRCODE_INVALID_CATALOG_NAME {
+				pgerr.Code == ERRCODE_INVALID_CATALOG_NAME ||
+				pgerr.Code == ERRCODE_INSUFFICIENT_PRIVILEGE {
 				break
 			}
 		}
