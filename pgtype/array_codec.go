@@ -91,7 +91,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 		return append(buf, '{', '}'), nil
 	}
 
-	buf = EncodeTextArrayDimensions(buf, dimensions)
+	buf = encodeTextArrayDimensions(buf, dimensions)
 
 	// dimElemCounts is the multiples of elements that each array lies on. For
 	// example, a single dimension array of length 4 would have a dimElemCounts of
@@ -138,7 +138,7 @@ func (p *encodePlanArrayCodecText) Encode(value any, buf []byte) (newBuf []byte,
 		if elemBuf == nil {
 			buf = append(buf, `NULL`...)
 		} else {
-			buf = append(buf, QuoteArrayElementIfNeeded(string(elemBuf))...)
+			buf = append(buf, quoteArrayElementIfNeeded(string(elemBuf))...)
 		}
 
 		for _, dec := range dimElemCounts {
@@ -165,7 +165,7 @@ func (p *encodePlanArrayCodecBinary) Encode(value any, buf []byte) (newBuf []byt
 		return nil, nil
 	}
 
-	arrayHeader := ArrayHeader{
+	arrayHeader := arrayHeader{
 		Dimensions: dimensions,
 		ElementOID: p.ac.ElementType.OID,
 	}
@@ -232,7 +232,7 @@ func (c *ArrayCodec) PlanScan(m *Map, oid uint32, format int16, target any) Scan
 }
 
 func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array ArraySetter) error {
-	var arrayHeader ArrayHeader
+	var arrayHeader arrayHeader
 	rp, err := arrayHeader.DecodeBinary(m, src)
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func (c *ArrayCodec) decodeBinary(m *Map, arrayOID uint32, src []byte, array Arr
 }
 
 func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array ArraySetter) error {
-	uta, err := ParseUntypedTextArray(string(src))
+	uta, err := parseUntypedTextArray(string(src))
 	if err != nil {
 		return err
 	}

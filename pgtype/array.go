@@ -17,7 +17,7 @@ import (
 // src/include/utils/array.h and src/backend/utils/adt/arrayfuncs.c. Of
 // particular interest is the array_send function.
 
-type ArrayHeader struct {
+type arrayHeader struct {
 	ContainsNull bool
 	ElementOID   uint32
 	Dimensions   []ArrayDimension
@@ -42,7 +42,7 @@ func cardinality(dimensions []ArrayDimension) int {
 	return elementCount
 }
 
-func (dst *ArrayHeader) DecodeBinary(m *Map, src []byte) (int, error) {
+func (dst *arrayHeader) DecodeBinary(m *Map, src []byte) (int, error) {
 	if len(src) < 12 {
 		return 0, fmt.Errorf("array header too short: %d", len(src))
 	}
@@ -73,7 +73,7 @@ func (dst *ArrayHeader) DecodeBinary(m *Map, src []byte) (int, error) {
 	return rp, nil
 }
 
-func (src ArrayHeader) EncodeBinary(buf []byte) []byte {
+func (src arrayHeader) EncodeBinary(buf []byte) []byte {
 	buf = pgio.AppendInt32(buf, int32(len(src.Dimensions)))
 
 	var containsNull int32
@@ -92,14 +92,14 @@ func (src ArrayHeader) EncodeBinary(buf []byte) []byte {
 	return buf
 }
 
-type UntypedTextArray struct {
+type untypedTextArray struct {
 	Elements   []string
 	Quoted     []bool
 	Dimensions []ArrayDimension
 }
 
-func ParseUntypedTextArray(src string) (*UntypedTextArray, error) {
-	dst := &UntypedTextArray{
+func parseUntypedTextArray(src string) (*untypedTextArray, error) {
+	dst := &untypedTextArray{
 		Elements:   []string{},
 		Quoted:     []bool{},
 		Dimensions: []ArrayDimension{},
@@ -333,7 +333,7 @@ func arrayParseInteger(buf *bytes.Buffer) (int32, error) {
 	}
 }
 
-func EncodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
+func encodeTextArrayDimensions(buf []byte, dimensions []ArrayDimension) []byte {
 	var customDimensions bool
 	for _, dim := range dimensions {
 		if dim.LowerBound != 1 {
@@ -367,7 +367,7 @@ func isSpace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\f'
 }
 
-func QuoteArrayElementIfNeeded(src string) string {
+func quoteArrayElementIfNeeded(src string) string {
 	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || isSpace(src[0]) || isSpace(src[len(src)-1]) || strings.ContainsAny(src, `{},"\`) {
 		return quoteArrayElement(src)
 	}

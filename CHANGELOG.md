@@ -97,6 +97,7 @@ This matches the convention set by `database/sql`. In addition, for comparable t
 * Renamed `pgtype.DataType` to `pgtype.Type`.
 * Renamed `pgtype.None` to `pgtype.Finite`.
 * `RegisterType` now accepts a `*Type` instead of `Type`.
+* Assorted array helper methods and types made private.
 
 ## stdlib
 
