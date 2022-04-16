@@ -13,7 +13,7 @@ pgtype automatically marshals and unmarshals data from json and jsonb PostgreSQL
 Array Support
 
 ArrayCodec implements support for arrays. If pgtype supports type T then it can easily support []T by registering an
-ArrayCodec for the appropriate PostgreSQL OID.
+ArrayCodec for the appropriate PostgreSQL OID. In addition, Array[T] type can support multi-dimensional arrays.
 
 Composite Support
 
