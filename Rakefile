@@ -7,7 +7,6 @@ rule '.go' => '.go.erb' do |task|
 end
 
 generated_code_files = [
-  "pgtype/array_getter_setter.go",
   "pgtype/int.go",
   "pgtype/int_test.go",
   "pgtype/integration_benchmark_test.go",

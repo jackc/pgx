@@ -23,9 +23,9 @@ type ArrayGetter interface {
 
 // ArraySetter is a type can be set from a PostgreSQL array.
 type ArraySetter interface {
-	// SetDimensions prepares the value such that ScanIndex can be called for each element. dimensions may be nil to
-	// indicate a NULL array. If unable to exactly preserve dimensions SetDimensions may return an error or silently
-	// flatten the array dimensions.
+	// SetDimensions prepares the value such that ScanIndex can be called for each element. This will remove any existing
+	// elements. dimensions may be nil to indicate a NULL array. If unable to exactly preserve dimensions SetDimensions
+	// may return an error or silently flatten the array dimensions.
 	SetDimensions(dimensions []ArrayDimension) error
 
 	// ScanIndex returns a value usable as a scan target for i. SetDimensions must be called before ScanIndex.

@@ -637,11 +637,11 @@ func (w *ptrStructWrapper) ScanIndex(i int) any {
 	return w.exportedFields[i].Addr().Interface()
 }
 
-type anySliceArray struct {
+type anySliceArrayReflect struct {
 	slice reflect.Value
 }
 
-func (a anySliceArray) Dimensions() []ArrayDimension {
+func (a anySliceArrayReflect) Dimensions() []ArrayDimension {
 	if a.slice.IsNil() {
 		return nil
 	}
@@ -649,15 +649,15 @@ func (a anySliceArray) Dimensions() []ArrayDimension {
 	return []ArrayDimension{{Length: int32(a.slice.Len()), LowerBound: 1}}
 }
 
-func (a anySliceArray) Index(i int) any {
+func (a anySliceArrayReflect) Index(i int) any {
 	return a.slice.Index(i).Interface()
 }
 
-func (a anySliceArray) IndexType() any {
+func (a anySliceArrayReflect) IndexType() any {
 	return reflect.New(a.slice.Type().Elem()).Elem().Interface()
 }
 
-func (a *anySliceArray) SetDimensions(dimensions []ArrayDimension) error {
+func (a *anySliceArrayReflect) SetDimensions(dimensions []ArrayDimension) error {
 	sliceType := a.slice.Type()
 
 	if dimensions == nil {
@@ -671,11 +671,11 @@ func (a *anySliceArray) SetDimensions(dimensions []ArrayDimension) error {
 	return nil
 }
 
-func (a *anySliceArray) ScanIndex(i int) any {
+func (a *anySliceArrayReflect) ScanIndex(i int) any {
 	return a.slice.Index(i).Addr().Interface()
 }
 
-func (a *anySliceArray) ScanIndexType() any {
+func (a *anySliceArrayReflect) ScanIndexType() any {
 	return reflect.New(a.slice.Type().Elem()).Interface()
 }
 

@@ -394,3 +394,88 @@ func findDimensionsFromValue(value reflect.Value, dimensions []ArrayDimension, e
 	}
 	return dimensions, elementsLength, true
 }
+
+// Array represents a PostgreSQL array for T. It implements the ArrayGetter and ArraySetter interfaces. It preserves
+// PostgreSQL dimensions and custom lower bounds. Use FlatArray if these are not needed.
+type Array[T any] struct {
+	Elements []T
+	Dims     []ArrayDimension
+	Valid    bool
+}
+
+func (a Array[T]) Dimensions() []ArrayDimension {
+	return a.Dims
+}
+
+func (a Array[T]) Index(i int) any {
+	return a.Elements[i]
+}
+
+func (a Array[T]) IndexType() any {
+	var el T
+	return el
+}
+
+func (a *Array[T]) SetDimensions(dimensions []ArrayDimension) error {
+	if dimensions == nil {
+		*a = Array[T]{}
+		return nil
+	}
+
+	elementCount := cardinality(dimensions)
+	*a = Array[T]{
+		Elements: make([]T, elementCount),
+		Dims:     dimensions,
+		Valid:    true,
+	}
+
+	return nil
+}
+
+func (a Array[T]) ScanIndex(i int) any {
+	return &a.Elements[i]
+}
+
+func (a Array[T]) ScanIndexType() any {
+	return new(T)
+}
+
+// FlatArray implements the ArrayGetter and ArraySetter interfaces for any slice of T. It ignores PostgreSQL dimensions
+// and custom lower bounds. Use Array to preserve these.
+type FlatArray[T any] []T
+
+func (a FlatArray[T]) Dimensions() []ArrayDimension {
+	if a == nil {
+		return nil
+	}
+
+	return []ArrayDimension{{Length: int32(len(a)), LowerBound: 1}}
+}
+
+func (a FlatArray[T]) Index(i int) any {
+	return a[i]
+}
+
+func (a FlatArray[T]) IndexType() any {
+	var el T
+	return el
+}
+
+func (a *FlatArray[T]) SetDimensions(dimensions []ArrayDimension) error {
+	if dimensions == nil {
+		a = nil
+		return nil
+	}
+
+	elementCount := cardinality(dimensions)
+	*a = make(FlatArray[T], elementCount)
+	return nil
+}
+
+func (a FlatArray[T]) ScanIndex(i int) any {
+	return &a[i]
+}
+
+func (a FlatArray[T]) ScanIndexType() any {
+	return new(T)
+}
