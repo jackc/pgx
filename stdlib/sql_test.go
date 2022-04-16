@@ -374,7 +374,7 @@ func TestConnSimpleSlicePassThrough(t *testing.T) {
 	})
 }
 
-func TestConnQueryScanArray(t *testing.T) {
+func TestConnQueryScanGoArray(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		m := pgtype.NewMap()
 
@@ -382,6 +382,17 @@ func TestConnQueryScanArray(t *testing.T) {
 		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
 		require.NoError(t, err)
 		assert.Equal(t, []int64{1, 2, 3}, a)
+	})
+}
+
+func TestConnQueryScanArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		m := pgtype.NewMap()
+
+		var a pgtype.Array[int64]
+		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: []int64{1, 2, 3}, Dims: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}}, Valid: true}, a)
 	})
 }
 
