@@ -1,3 +1,11 @@
+# 1.11.0 (April 21, 2022)
+
+* Add multirange for numeric, int4, and int8 (Vu)
+* JSONBArray now supports json.RawMessage (Jens Emil Schulz Østergaard)
+* Add RecordArray (WGH)
+* Add UnmarshalJSON to pgtype.Int2
+* Hstore.Set accepts map[string]Text
+
 # 1.10.0 (February 7, 2022)
 
 * Normalize UTC timestamps to comply with stdlib (Torkel Rogstad)
