@@ -1,3 +1,9 @@
+# 1.12.0 (April 21, 2022)
+
+* Add pluggable GSSAPI support (Oliver Tan)
+* Fix: Consider any "0A000" error a possible cached plan changed error due to locale
+* Better match psql fallback behavior with multiple hosts
+
 # 1.11.0 (February 7, 2022)
 
 * Support port in ip from LookupFunc to override config (James Hartig)
