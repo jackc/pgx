@@ -172,3 +172,7 @@ pgerrcode contains constants for the PostgreSQL error codes.
 ### [github.com/georgysavva/scany](https://github.com/georgysavva/scany)
 
 Library for scanning data from a database into Go structs and more.
+
+### [https://github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
+
+Adds GSSAPI / Kerberos authentication support.

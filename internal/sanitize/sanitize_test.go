@@ -77,12 +77,16 @@ func TestNewQuery(t *testing.T) {
 			expected: sanitize.Query{Parts: []sanitize.Part{"select -- a baby's toy\n'barbie', ", 1}},
 		},
 		{
-			sql:      "select 42 -- is a Thinker's favorite number",
-			expected: sanitize.Query{Parts: []sanitize.Part{"select 42 -- is a Thinker's favorite number"}},
+			sql:      "select 42 -- is a Deep Thought's favorite number",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 42 -- is a Deep Thought's favorite number"}},
 		},
 		{
-			sql:      "select 42, -- \\nis a Thinker's favorite number\n$1",
-			expected: sanitize.Query{Parts: []sanitize.Part{"select 42, -- \\nis a Thinker's favorite number\n", 1}},
+			sql:      "select 42, -- \\nis a Deep Thought's favorite number\n$1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 42, -- \\nis a Deep Thought's favorite number\n", 1}},
+		},
+		{
+			sql:      "select 42, -- \\nis a Deep Thought's favorite number\r$1",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 42, -- \\nis a Deep Thought's favorite number\r", 1}},
 		},
 	}
 
