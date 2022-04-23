@@ -263,7 +263,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) erro
 		return rangeScanner.ScanNull()
 	}
 
-	ubr, err := ParseUntypedBinaryRange(src)
+	ubr, err := parseUntypedBinaryRange(src)
 	if err != nil {
 		return err
 	}
@@ -313,7 +313,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error 
 		return rangeScanner.ScanNull()
 	}
 
-	utr, err := ParseUntypedTextRange(string(src))
+	utr, err := parseUntypedTextRange(string(src))
 	if err != nil {
 		return err
 	}
