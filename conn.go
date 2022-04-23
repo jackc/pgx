@@ -388,7 +388,8 @@ func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.C
 	commandTag, err := c.exec(ctx, sql, arguments...)
 	if err != nil {
 		if c.shouldLog(LogLevelError) {
-			c.log(ctx, LogLevelError, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "err": err})
+			endTime := time.Now()
+			c.log(ctx, LogLevelError, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "err": err, "time": endTime.Sub(startTime)})
 		}
 		return commandTag, err
 	}
