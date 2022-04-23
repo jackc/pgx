@@ -230,6 +230,25 @@ func TestExec(t *testing.T) {
 	})
 }
 
+type testQueryRewriter struct {
+	sql  string
+	args []any
+}
+
+func (qr *testQueryRewriter) RewriteQuery(ctx context.Context, conn *pgx.Conn, sql string, args ...any) (newSQL string, newArgs []any) {
+	return qr.sql, qr.args
+}
+
+func TestExecWithQueryRewriter(t *testing.T) {
+	t.Parallel()
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		qr := testQueryRewriter{sql: "select $1::int", args: []any{42}}
+		_, err := conn.Exec(ctx, "should be replaced", &qr)
+		require.NoError(t, err)
+	})
+}
+
 func TestExecFailure(t *testing.T) {
 	t.Parallel()
 

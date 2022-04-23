@@ -14,7 +14,7 @@ type batchItem struct {
 }
 
 // Batch queries are a way of bundling multiple queries together to avoid
-// unnecessary network round trips.
+// unnecessary network round trips. A Batch must only be sent once.
 type Batch struct {
 	items []*batchItem
 }
