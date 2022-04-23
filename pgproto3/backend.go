@@ -147,6 +147,8 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 			msg = &SASLResponse{}
 		case AuthTypeSASLFinal:
 			msg = &SASLResponse{}
+		case AuthTypeGSS, AuthTypeGSSCont:
+			msg = &GSSResponse{}
 		case AuthTypeCleartextPassword, AuthTypeMD5Password:
 			fallthrough
 		default:
