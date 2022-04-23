@@ -398,6 +398,8 @@ func TestConnQueryScanArray(t *testing.T) {
 
 func TestConnQueryScanRange(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support int4range")
+
 		m := pgtype.NewMap()
 
 		var r pgtype.Range[pgtype.Int4]
