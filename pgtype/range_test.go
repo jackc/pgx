@@ -8,68 +8,68 @@ import (
 func TestParseUntypedTextRange(t *testing.T) {
 	tests := []struct {
 		src    string
-		result UntypedTextRange
+		result untypedTextRange
 		err    error
 	}{
 		{
 			src:    `[1,2)`,
-			result: UntypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `[1,2]`,
-			result: UntypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Inclusive},
+			result: untypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Inclusive},
 			err:    nil,
 		},
 		{
 			src:    `(1,3)`,
-			result: UntypedTextRange{Lower: "1", Upper: "3", LowerType: Exclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: "1", Upper: "3", LowerType: Exclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    ` [1,2) `,
-			result: UntypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: "1", Upper: "2", LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `[ foo , bar )`,
-			result: UntypedTextRange{Lower: " foo ", Upper: " bar ", LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: " foo ", Upper: " bar ", LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `["foo","bar")`,
-			result: UntypedTextRange{Lower: "foo", Upper: "bar", LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: "foo", Upper: "bar", LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `["f""oo","b""ar")`,
-			result: UntypedTextRange{Lower: `f"oo`, Upper: `b"ar`, LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: `f"oo`, Upper: `b"ar`, LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `["f""oo","b""ar")`,
-			result: UntypedTextRange{Lower: `f"oo`, Upper: `b"ar`, LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: `f"oo`, Upper: `b"ar`, LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `["","bar")`,
-			result: UntypedTextRange{Lower: ``, Upper: `bar`, LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: ``, Upper: `bar`, LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `[f\"oo\,,b\\ar\))`,
-			result: UntypedTextRange{Lower: `f"oo,`, Upper: `b\ar)`, LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedTextRange{Lower: `f"oo,`, Upper: `b\ar)`, LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    `empty`,
-			result: UntypedTextRange{Lower: "", Upper: "", LowerType: Empty, UpperType: Empty},
+			result: untypedTextRange{Lower: "", Upper: "", LowerType: Empty, UpperType: Empty},
 			err:    nil,
 		},
 	}
 
 	for i, tt := range tests {
-		r, err := ParseUntypedTextRange(tt.src)
+		r, err := parseUntypedTextRange(tt.src)
 		if err != tt.err {
 			t.Errorf("%d. `%v`: expected err %v, got %v", i, tt.src, tt.err, err)
 			continue
@@ -96,63 +96,63 @@ func TestParseUntypedTextRange(t *testing.T) {
 func TestParseUntypedBinaryRange(t *testing.T) {
 	tests := []struct {
 		src    []byte
-		result UntypedBinaryRange
+		result untypedBinaryRange
 		err    error
 	}{
 		{
 			src:    []byte{0, 0, 0, 0, 2, 0, 4, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Exclusive, UpperType: Exclusive},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Exclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{1},
-			result: UntypedBinaryRange{Lower: nil, Upper: nil, LowerType: Empty, UpperType: Empty},
+			result: untypedBinaryRange{Lower: nil, Upper: nil, LowerType: Empty, UpperType: Empty},
 			err:    nil,
 		},
 		{
 			src:    []byte{2, 0, 0, 0, 2, 0, 4, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Inclusive, UpperType: Exclusive},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Inclusive, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{4, 0, 0, 0, 2, 0, 4, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Exclusive, UpperType: Inclusive},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Exclusive, UpperType: Inclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{6, 0, 0, 0, 2, 0, 4, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Inclusive, UpperType: Inclusive},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: []byte{0, 5}, LowerType: Inclusive, UpperType: Inclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{8, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: nil, Upper: []byte{0, 5}, LowerType: Unbounded, UpperType: Exclusive},
+			result: untypedBinaryRange{Lower: nil, Upper: []byte{0, 5}, LowerType: Unbounded, UpperType: Exclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{12, 0, 0, 0, 2, 0, 5},
-			result: UntypedBinaryRange{Lower: nil, Upper: []byte{0, 5}, LowerType: Unbounded, UpperType: Inclusive},
+			result: untypedBinaryRange{Lower: nil, Upper: []byte{0, 5}, LowerType: Unbounded, UpperType: Inclusive},
 			err:    nil,
 		},
 		{
 			src:    []byte{16, 0, 0, 0, 2, 0, 4},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: nil, LowerType: Exclusive, UpperType: Unbounded},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: nil, LowerType: Exclusive, UpperType: Unbounded},
 			err:    nil,
 		},
 		{
 			src:    []byte{18, 0, 0, 0, 2, 0, 4},
-			result: UntypedBinaryRange{Lower: []byte{0, 4}, Upper: nil, LowerType: Inclusive, UpperType: Unbounded},
+			result: untypedBinaryRange{Lower: []byte{0, 4}, Upper: nil, LowerType: Inclusive, UpperType: Unbounded},
 			err:    nil,
 		},
 		{
 			src:    []byte{24},
-			result: UntypedBinaryRange{Lower: nil, Upper: nil, LowerType: Unbounded, UpperType: Unbounded},
+			result: untypedBinaryRange{Lower: nil, Upper: nil, LowerType: Unbounded, UpperType: Unbounded},
 			err:    nil,
 		},
 	}
 
 	for i, tt := range tests {
-		r, err := ParseUntypedBinaryRange(tt.src)
+		r, err := parseUntypedBinaryRange(tt.src)
 		if err != tt.err {
 			t.Errorf("%d. `%v`: expected err %v, got %v", i, tt.src, tt.err, err)
 			continue

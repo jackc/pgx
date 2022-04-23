@@ -19,15 +19,15 @@ func (bt BoundType) String() string {
 	return string(bt)
 }
 
-type UntypedTextRange struct {
+type untypedTextRange struct {
 	Lower     string
 	Upper     string
 	LowerType BoundType
 	UpperType BoundType
 }
 
-func ParseUntypedTextRange(src string) (*UntypedTextRange, error) {
-	utr := &UntypedTextRange{}
+func parseUntypedTextRange(src string) (*untypedTextRange, error) {
+	utr := &untypedTextRange{}
 	if src == "empty" {
 		utr.LowerType = Empty
 		utr.UpperType = Empty
@@ -173,7 +173,7 @@ func rangeParseQuotedValue(buf *bytes.Buffer) (string, error) {
 	}
 }
 
-type UntypedBinaryRange struct {
+type untypedBinaryRange struct {
 	Lower     []byte
 	Upper     []byte
 	LowerType BoundType
@@ -197,8 +197,8 @@ const upperInclusiveMask = 4
 const lowerUnboundedMask = 8
 const upperUnboundedMask = 16
 
-func ParseUntypedBinaryRange(src []byte) (*UntypedBinaryRange, error) {
-	ubr := &UntypedBinaryRange{}
+func parseUntypedBinaryRange(src []byte) (*untypedBinaryRange, error) {
+	ubr := &untypedBinaryRange{}
 
 	if len(src) == 0 {
 		return nil, fmt.Errorf("range too short: %v", len(src))
