@@ -12,6 +12,7 @@ import (
 )
 
 func TestMultirangeCodecTranscode(t *testing.T) {
+	skipPostgreSQLVersionLessThan(t, 14)
 	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int4multirange", []pgxtest.ValueRoundTripTest{
@@ -66,6 +67,7 @@ func TestMultirangeCodecTranscode(t *testing.T) {
 }
 
 func TestMultirangeCodecDecodeValue(t *testing.T) {
+	skipPostgreSQLVersionLessThan(t, 14)
 	skipCockroachDB(t, "Server does not support range types (see https://github.com/cockroachdb/cockroach/issues/27791)")
 
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, _ testing.TB, conn *pgx.Conn) {
