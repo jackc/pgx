@@ -1864,6 +1864,26 @@ func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestQueryWithQueryRewriter(t *testing.T) {
+	t.Parallel()
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		qr := testQueryRewriter{sql: "select $1::int", args: []any{42}}
+		rows, err := conn.Query(ctx, "should be replaced", &qr)
+		require.NoError(t, err)
+
+		var n int32
+		var rowCount int
+		for rows.Next() {
+			rowCount++
+			err = rows.Scan(&n)
+			require.NoError(t, err)
+		}
+
+		require.NoError(t, rows.Err())
+	})
+}
+
 func TestConnQueryFunc(t *testing.T) {
 	t.Parallel()
 
