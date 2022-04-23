@@ -175,8 +175,6 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // Other known differences with libpq:
 //
-// If a host name resolves into multiple addresses, libpq will try all addresses. pgconn will only try the first.
-//
 // When multiple hosts are specified, libpq allows them to have different passwords set via the .pgpass file. pgconn
 // does not.
 //
@@ -253,6 +251,8 @@ func ParseConfig(connString string) (*Config, error) {
 		"sslkey":               {},
 		"sslcert":              {},
 		"sslrootcert":          {},
+		"krbspn":               {},
+		"krbsrvname":           {},
 		"target_session_attrs": {},
 		"service":              {},
 		"servicefile":          {},
