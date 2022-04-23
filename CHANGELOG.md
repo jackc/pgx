@@ -43,7 +43,7 @@ values, but any type may now implement `CompositeIndexGetter` and `CompositeInde
 ### Range Types
 
 Range types are now handled with types `RangeCodec` and `Range[T]`. This allows additional user defined range types to
-easily be handled.
+easily be handled. Multirange types are handled similarly with `MultirangeCodec` and `Multirange[T]`.
 
 ### pgxtype
 
@@ -116,6 +116,10 @@ ownership remains with the read buffer and anything needing to retain a value mu
 Control over automatic prepared statement caching and simple protocol use are now combined into query execution mode.
 See documentation for `QueryExecMode`.
 
+## QueryRewriter Interface and NamedArgs
+
+pgx now supports named arguments with the NamedArgs type. This is implemented via the new QueryRewriter interface which
+allows arbitrary rewriting of query SQL and arguments.
 ## 3rd Party Logger Integration
 
 All integrations with 3rd party loggers have been extracted to separate repositories. This trims the pgx dependency
