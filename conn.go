@@ -692,7 +692,7 @@ type QueryResultFormatsByOID map[uint32]int16
 
 // QueryRewriter rewrites a query when used as the first arguments to a query method.
 type QueryRewriter interface {
-	RewriteQuery(ctx context.Context, conn *Conn, sql string, args ...any) (newSQL string, newArgs []any)
+	RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any)
 }
 
 // Query executes sql with args. It is safe to attempt to read from the returned Rows even if an error is returned. The
