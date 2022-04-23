@@ -157,6 +157,7 @@ pgerrcode contains constants for the PostgreSQL error codes.
 
 * [github.com/jackc/pgx-gofrs-uuid](https://github.com/jackc/pgx-gofrs-uuid)
 * [github.com/jackc/pgx-shopspring-decimal](https://github.com/jackc/pgx-shopspring-decimal)
+* [github.com/vgarvardt/pgx-google-uuid](https://github.com/vgarvardt/pgx-google-uuid)
 
 ## Adapters for 3rd Party Loggers
 
