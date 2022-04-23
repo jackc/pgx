@@ -185,3 +185,7 @@ Library for scanning data from a database into Go structs and more.
 ### [https://github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
 
 Adds GSSAPI / Kerberos authentication support.
+
+### [https://github.com/vgarvardt/pgx-google-uuid](https://github.com/vgarvardt/pgx-google-uuid)
+
+Adds support for [`github.com/google/uuid`](https://github.com/google/uuid).
