@@ -12,97 +12,109 @@ import (
 
 // PostgreSQL oids for common types
 const (
-	BoolOID             = 16
-	ByteaOID            = 17
-	QCharOID            = 18
-	NameOID             = 19
-	Int8OID             = 20
-	Int2OID             = 21
-	Int4OID             = 23
-	TextOID             = 25
-	OIDOID              = 26
-	TIDOID              = 27
-	XIDOID              = 28
-	CIDOID              = 29
-	JSONOID             = 114
-	JSONArrayOID        = 199
-	PointOID            = 600
-	LsegOID             = 601
-	PathOID             = 602
-	BoxOID              = 603
-	PolygonOID          = 604
-	LineOID             = 628
-	LineArrayOID        = 629
-	CIDROID             = 650
-	CIDRArrayOID        = 651
-	Float4OID           = 700
-	Float8OID           = 701
-	CircleOID           = 718
-	CircleArrayOID      = 719
-	UnknownOID          = 705
-	MacaddrOID          = 829
-	InetOID             = 869
-	BoolArrayOID        = 1000
-	QCharArrayOID       = 1003
-	NameArrayOID        = 1003
-	Int2ArrayOID        = 1005
-	Int4ArrayOID        = 1007
-	TextArrayOID        = 1009
-	TIDArrayOID         = 1010
-	ByteaArrayOID       = 1001
-	XIDArrayOID         = 1011
-	CIDArrayOID         = 1012
-	BPCharArrayOID      = 1014
-	VarcharArrayOID     = 1015
-	Int8ArrayOID        = 1016
-	PointArrayOID       = 1017
-	LsegArrayOID        = 1018
-	PathArrayOID        = 1019
-	BoxArrayOID         = 1020
-	Float4ArrayOID      = 1021
-	Float8ArrayOID      = 1022
-	PolygonArrayOID     = 1027
-	OIDArrayOID         = 1028
-	ACLItemOID          = 1033
-	ACLItemArrayOID     = 1034
-	MacaddrArrayOID     = 1040
-	InetArrayOID        = 1041
-	BPCharOID           = 1042
-	VarcharOID          = 1043
-	DateOID             = 1082
-	TimeOID             = 1083
-	TimestampOID        = 1114
-	TimestampArrayOID   = 1115
-	DateArrayOID        = 1182
-	TimeArrayOID        = 1183
-	TimestamptzOID      = 1184
-	TimestamptzArrayOID = 1185
-	IntervalOID         = 1186
-	IntervalArrayOID    = 1187
-	NumericArrayOID     = 1231
-	BitOID              = 1560
-	BitArrayOID         = 1561
-	VarbitOID           = 1562
-	VarbitArrayOID      = 1563
-	NumericOID          = 1700
-	RecordOID           = 2249
-	RecordArrayOID      = 2287
-	UUIDOID             = 2950
-	UUIDArrayOID        = 2951
-	JSONBOID            = 3802
-	JSONBArrayOID       = 3807
-	DaterangeOID        = 3912
-	DaterangeArrayOID   = 3913
-	Int4rangeOID        = 3904
-	Int4rangeArrayOID   = 3905
-	NumrangeOID         = 3906
-	NumrangeArrayOID    = 3907
-	TsrangeOID          = 3908
-	TsrangeArrayOID     = 3909
-	TstzrangeOID        = 3910
-	TstzrangeArrayOID   = 3911
-	Int8rangeOID        = 3926
-	Int8rangeArrayOID   = 3927
+	BoolOID                = 16
+	ByteaOID               = 17
+	QCharOID               = 18
+	NameOID                = 19
+	Int8OID                = 20
+	Int2OID                = 21
+	Int4OID                = 23
+	TextOID                = 25
+	OIDOID                 = 26
+	TIDOID                 = 27
+	XIDOID                 = 28
+	CIDOID                 = 29
+	JSONOID                = 114
+	JSONArrayOID           = 199
+	PointOID               = 600
+	LsegOID                = 601
+	PathOID                = 602
+	BoxOID                 = 603
+	PolygonOID             = 604
+	LineOID                = 628
+	LineArrayOID           = 629
+	CIDROID                = 650
+	CIDRArrayOID           = 651
+	Float4OID              = 700
+	Float8OID              = 701
+	CircleOID              = 718
+	CircleArrayOID         = 719
+	UnknownOID             = 705
+	MacaddrOID             = 829
+	InetOID                = 869
+	BoolArrayOID           = 1000
+	QCharArrayOID          = 1003
+	NameArrayOID           = 1003
+	Int2ArrayOID           = 1005
+	Int4ArrayOID           = 1007
+	TextArrayOID           = 1009
+	TIDArrayOID            = 1010
+	ByteaArrayOID          = 1001
+	XIDArrayOID            = 1011
+	CIDArrayOID            = 1012
+	BPCharArrayOID         = 1014
+	VarcharArrayOID        = 1015
+	Int8ArrayOID           = 1016
+	PointArrayOID          = 1017
+	LsegArrayOID           = 1018
+	PathArrayOID           = 1019
+	BoxArrayOID            = 1020
+	Float4ArrayOID         = 1021
+	Float8ArrayOID         = 1022
+	PolygonArrayOID        = 1027
+	OIDArrayOID            = 1028
+	ACLItemOID             = 1033
+	ACLItemArrayOID        = 1034
+	MacaddrArrayOID        = 1040
+	InetArrayOID           = 1041
+	BPCharOID              = 1042
+	VarcharOID             = 1043
+	DateOID                = 1082
+	TimeOID                = 1083
+	TimestampOID           = 1114
+	TimestampArrayOID      = 1115
+	DateArrayOID           = 1182
+	TimeArrayOID           = 1183
+	TimestamptzOID         = 1184
+	TimestamptzArrayOID    = 1185
+	IntervalOID            = 1186
+	IntervalArrayOID       = 1187
+	NumericArrayOID        = 1231
+	BitOID                 = 1560
+	BitArrayOID            = 1561
+	VarbitOID              = 1562
+	VarbitArrayOID         = 1563
+	NumericOID             = 1700
+	RecordOID              = 2249
+	RecordArrayOID         = 2287
+	UUIDOID                = 2950
+	UUIDArrayOID           = 2951
+	JSONBOID               = 3802
+	JSONBArrayOID          = 3807
+	DaterangeOID           = 3912
+	DaterangeArrayOID      = 3913
+	Int4rangeOID           = 3904
+	Int4rangeArrayOID      = 3905
+	NumrangeOID            = 3906
+	NumrangeArrayOID       = 3907
+	TsrangeOID             = 3908
+	TsrangeArrayOID        = 3909
+	TstzrangeOID           = 3910
+	TstzrangeArrayOID      = 3911
+	Int8rangeOID           = 3926
+	Int8rangeArrayOID      = 3927
+	Int4multirangeOID      = 4451
+	NummultirangeOID       = 4532
+	TsmultirangeOID        = 4533
+	TstzmultirangeOID      = 4534
+	DatemultirangeOID      = 4535
+	Int8multirangeOID      = 4536
+	Int4multirangeArrayOID = 6150
+	NummultirangeArrayOID  = 6151
+	TsmultirangeArrayOID   = 6152
+	TstzmultirangeArrayOID = 6153
+	DatemultirangeArrayOID = 6155
+	Int8multirangeArrayOID = 6157
 )
 
 type InfinityModifier int8
@@ -222,6 +234,7 @@ func NewMap() *Map {
 		},
 	}
 
+	// Base types
 	m.RegisterType(&Type{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	m.RegisterType(&Type{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
 	m.RegisterType(&Type{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
@@ -263,6 +276,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
 	m.RegisterType(&Type{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
 
+	// Range types
 	m.RegisterType(&Type{Name: "daterange", OID: DaterangeOID, Codec: &RangeCodec{ElementType: m.oidToType[DateOID]}})
 	m.RegisterType(&Type{Name: "int4range", OID: Int4rangeOID, Codec: &RangeCodec{ElementType: m.oidToType[Int4OID]}})
 	m.RegisterType(&Type{Name: "int8range", OID: Int8rangeOID, Codec: &RangeCodec{ElementType: m.oidToType[Int8OID]}})
@@ -270,6 +284,15 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "tsrange", OID: TsrangeOID, Codec: &RangeCodec{ElementType: m.oidToType[TimestampOID]}})
 	m.RegisterType(&Type{Name: "tstzrange", OID: TstzrangeOID, Codec: &RangeCodec{ElementType: m.oidToType[TimestamptzOID]}})
 
+	// Multirange types
+	m.RegisterType(&Type{Name: "datemultirange", OID: DatemultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[DaterangeOID]}})
+	m.RegisterType(&Type{Name: "int4multirange", OID: Int4multirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[Int4rangeOID]}})
+	m.RegisterType(&Type{Name: "int8multirange", OID: Int8multirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[Int8rangeOID]}})
+	m.RegisterType(&Type{Name: "nummultirange", OID: NummultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[NumrangeOID]}})
+	m.RegisterType(&Type{Name: "tsmultirange", OID: TsmultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[TsrangeOID]}})
+	m.RegisterType(&Type{Name: "tstzmultirange", OID: TstzmultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[TstzrangeOID]}})
+
+	// Array types
 	m.RegisterType(&Type{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[ACLItemOID]}})
 	m.RegisterType(&Type{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BitOID]}})
 	m.RegisterType(&Type{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BoolOID]}})
@@ -349,20 +372,25 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants[Circle](m, "circle")
 	registerDefaultPgTypeVariants[Date](m, "date")
 	registerDefaultPgTypeVariants[Range[Date]](m, "daterange")
+	registerDefaultPgTypeVariants[Multirange[Range[Date]]](m, "datemultirange")
 	registerDefaultPgTypeVariants[Float4](m, "float4")
 	registerDefaultPgTypeVariants[Float8](m, "float8")
-	registerDefaultPgTypeVariants[Range[Float8]](m, "numrange") // There is no PostgreSQL builtin float8range so map it to numrange.
+	registerDefaultPgTypeVariants[Range[Float8]](m, "numrange")                  // There is no PostgreSQL builtin float8range so map it to numrange.
+	registerDefaultPgTypeVariants[Multirange[Range[Float8]]](m, "nummultirange") // There is no PostgreSQL builtin float8multirange so map it to nummultirange.
 	registerDefaultPgTypeVariants[Inet](m, "inet")
 	registerDefaultPgTypeVariants[Int2](m, "int2")
 	registerDefaultPgTypeVariants[Int4](m, "int4")
 	registerDefaultPgTypeVariants[Range[Int4]](m, "int4range")
+	registerDefaultPgTypeVariants[Multirange[Range[Int4]]](m, "int4multirange")
 	registerDefaultPgTypeVariants[Int8](m, "int8")
 	registerDefaultPgTypeVariants[Range[Int8]](m, "int8range")
+	registerDefaultPgTypeVariants[Multirange[Range[Int8]]](m, "int8multirange")
 	registerDefaultPgTypeVariants[Interval](m, "interval")
 	registerDefaultPgTypeVariants[Line](m, "line")
 	registerDefaultPgTypeVariants[Lseg](m, "lseg")
 	registerDefaultPgTypeVariants[Numeric](m, "numeric")
 	registerDefaultPgTypeVariants[Range[Numeric]](m, "numrange")
+	registerDefaultPgTypeVariants[Multirange[Range[Numeric]]](m, "nummultirange")
 	registerDefaultPgTypeVariants[Path](m, "path")
 	registerDefaultPgTypeVariants[Point](m, "point")
 	registerDefaultPgTypeVariants[Polygon](m, "polygon")
@@ -372,7 +400,9 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants[Timestamp](m, "timestamp")
 	registerDefaultPgTypeVariants[Timestamptz](m, "timestamptz")
 	registerDefaultPgTypeVariants[Range[Timestamp]](m, "tsrange")
+	registerDefaultPgTypeVariants[Multirange[Range[Timestamp]]](m, "tsmultirange")
 	registerDefaultPgTypeVariants[Range[Timestamptz]](m, "tstzrange")
+	registerDefaultPgTypeVariants[Multirange[Range[Timestamptz]]](m, "tstzmultirange")
 	registerDefaultPgTypeVariants[UUID](m, "uuid")
 
 	return m
