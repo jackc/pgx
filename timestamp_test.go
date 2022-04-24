@@ -123,6 +123,7 @@ func TestTimestampSet(t *testing.T) {
 		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)), result: pgtype.Timestamp{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), Status: pgtype.Present}},
 		{source: pgtype.Infinity, result: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
 		{source: pgtype.NegativeInfinity, result: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+		{source: "2001-04-05 06:07:08", result: pgtype.Timestamp{Time: time.Date(2001, 4, 5, 6, 7, 8, 0, time.UTC), Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {

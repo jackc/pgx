@@ -48,6 +48,14 @@ func (dst *Timestamptz) Set(src interface{}) error {
 		} else {
 			return dst.Set(*value)
 		}
+	case string:
+		return dst.DecodeText(nil, []byte(value))
+	case *string:
+		if value == nil {
+			*dst = Timestamptz{Status: Null}
+		} else {
+			return dst.Set(*value)
+		}
 	case InfinityModifier:
 		*dst = Timestamptz{InfinityModifier: value, Status: Present}
 	default:
