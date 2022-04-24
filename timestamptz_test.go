@@ -120,6 +120,7 @@ func TestTimestamptzSet(t *testing.T) {
 		{source: _time(time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)), result: pgtype.Timestamptz{Time: time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local), Status: pgtype.Present}},
 		{source: pgtype.Infinity, result: pgtype.Timestamptz{InfinityModifier: pgtype.Infinity, Status: pgtype.Present}},
 		{source: pgtype.NegativeInfinity, result: pgtype.Timestamptz{InfinityModifier: pgtype.NegativeInfinity, Status: pgtype.Present}},
+		{source: "2020-04-05 06:07:08Z", result: pgtype.Timestamptz{Time: time.Date(2020, 4, 5, 6, 7, 8, 0, time.UTC), Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {

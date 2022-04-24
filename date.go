@@ -37,14 +37,14 @@ func (dst *Date) Set(src interface{}) error {
 	switch value := src.(type) {
 	case time.Time:
 		*dst = Date{Time: value, Status: Present}
-	case string:
-		return dst.DecodeText(nil, []byte(value))
 	case *time.Time:
 		if value == nil {
 			*dst = Date{Status: Null}
 		} else {
 			return dst.Set(*value)
 		}
+	case string:
+		return dst.DecodeText(nil, []byte(value))
 	case *string:
 		if value == nil {
 			*dst = Date{Status: Null}
