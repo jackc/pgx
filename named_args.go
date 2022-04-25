@@ -128,7 +128,7 @@ func namedArgState(l *sqlLexer) stateFn {
 				l.start = l.pos
 			}
 			return nil
-		} else if !(isLetter(r) || (r >= '0' && r <= '9')) {
+		} else if !(isLetter(r) || (r >= '0' && r <= '9') || r == '_') {
 			l.pos -= width
 			na := namedArg(l.src[l.start:l.pos])
 			if _, found := l.nameToOrdinal[na]; !found {

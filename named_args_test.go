@@ -37,6 +37,12 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			expectedArgs: []any{int32(42), "foo"},
 		},
 		{
+			sql:          "select @Abc::int, @b_4::text",
+			namedArgs:    pgx.NamedArgs{"Abc": int32(42), "b_4": "foo"},
+			expectedSQL:  "select $1::int, $2::text",
+			expectedArgs: []any{int32(42), "foo"},
+		},
+		{
 			sql:          "at end @",
 			namedArgs:    pgx.NamedArgs{"a": int32(42), "b": "foo"},
 			expectedSQL:  "at end @",
