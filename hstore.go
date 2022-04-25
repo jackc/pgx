@@ -90,7 +90,8 @@ func (src *Hstore) AssignTo(dst interface{}) error {
 				case Null:
 					(*v)[k] = nil
 				case Present:
-					(*v)[k] = &val.String
+					str := val.String
+					(*v)[k] = &str
 				default:
 					return fmt.Errorf("cannot decode %#v into %T", src, dst)
 				}

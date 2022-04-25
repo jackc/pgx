@@ -181,13 +181,14 @@ func TestHstoreAssignTo(t *testing.T) {
 
 func TestHstoreAssignToNullable(t *testing.T) {
 	var m map[string]*string
+	strPtr := func(str string) *string { return &str }
 
 	simpleTests := []struct {
 		src      pgtype.Hstore
 		dst      *map[string]*string
 		expected map[string]*string
 	}{
-		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {Status: pgtype.Null}}, Status: pgtype.Present}, dst: &m, expected: map[string]*string{"foo": nil}},
+		{src: pgtype.Hstore{Map: map[string]pgtype.Text{"foo": {Status: pgtype.Null}, "bar": {String: "1", Status: pgtype.Present}, "baz": {String: "2", Status: pgtype.Present}}, Status: pgtype.Present}, dst: &m, expected: map[string]*string{"foo": nil, "bar": strPtr("1"), "baz": strPtr("2")}},
 		{src: pgtype.Hstore{Status: pgtype.Null}, dst: &m, expected: ((map[string]*string)(nil))},
 	}
 
