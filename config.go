@@ -41,7 +41,9 @@ type Config struct {
 	BuildFrontend  BuildFrontendFunc
 	RuntimeParams  map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
-	Fallbacks []*FallbackConfig
+	KerberosSrvName string
+	KerberosSpn     string
+	Fallbacks       []*FallbackConfig
 
 	// ValidateConnect is called during a connection attempt after a successful authentication with the PostgreSQL server.
 	// It can be used to validate that the server is acceptable. If this returns an error the connection is closed and the next
@@ -263,6 +265,14 @@ func ParseConfig(connString string) (*Config, error) {
 		"min_read_buffer_size": {},
 		"service":              {},
 		"servicefile":          {},
+	}
+
+	// Adding kerberos configuration
+	if _, present := settings["krbsrvname"]; present {
+		config.KerberosSrvName = settings["krbsrvname"]
+	}
+	if _, present := settings["krbspn"]; present {
+		config.KerberosSpn = settings["krbspn"]
 	}
 
 	for k, v := range settings {
