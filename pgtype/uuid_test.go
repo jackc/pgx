@@ -27,6 +27,11 @@ func TestUUIDCodec(t *testing.T) {
 			new(pgtype.UUID),
 			isExpectedEq(pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true}),
 		},
+		{
+			pgtype.UUID{Bytes: [16]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}, Valid: true},
+			new(string),
+			isExpectedEq("00010203-0405-0607-0809-0a0b0c0d0e0f"),
+		},
 		{pgtype.UUID{}, new([]byte), isExpectedEqBytes([]byte(nil))},
 		{pgtype.UUID{}, new(pgtype.UUID), isExpectedEq(pgtype.UUID{})},
 		{nil, new(pgtype.UUID), isExpectedEq(pgtype.UUID{})},
