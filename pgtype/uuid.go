@@ -173,6 +173,8 @@ func (UUIDCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 		switch target.(type) {
 		case UUIDScanner:
 			return scanPlanBinaryUUIDToUUIDScanner{}
+		case TextScanner:
+			return scanPlanBinaryUUIDToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -201,6 +203,25 @@ func (scanPlanBinaryUUIDToUUIDScanner) Scan(src []byte, dst any) error {
 	copy(uuid.Bytes[:], src)
 
 	return scanner.ScanUUID(uuid)
+}
+
+type scanPlanBinaryUUIDToTextScanner struct{}
+
+func (scanPlanBinaryUUIDToTextScanner) Scan(src []byte, dst any) error {
+	scanner := (dst).(TextScanner)
+
+	if src == nil {
+		return scanner.ScanText(Text{})
+	}
+
+	if len(src) != 16 {
+		return fmt.Errorf("invalid length for UUID: %v", len(src))
+	}
+
+	var buf [16]byte
+	copy(buf[:], src)
+
+	return scanner.ScanText(Text{String: encodeUUID(buf), Valid: true})
 }
 
 type scanPlanTextAnyToUUIDScanner struct{}
