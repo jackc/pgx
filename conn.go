@@ -37,6 +37,12 @@ type ConnConfig struct {
 	// QueryExOptions.SimpleProtocol.
 	PreferSimpleProtocol bool
 
+	// PreferExecParams disables the describe statement round trip when there is no statement cache in use. Instead, pgx
+	// will execute the statement directly in extended mode by sending the messages Parse-Bind-Execute directly. This
+	// setting only has effect if statement caching has been disabled, either by setting BuildStatementCache to nil or
+	// by setting 'statement_cache_capacity=0' in the connection string.
+	PreferExecParams bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -127,6 +133,9 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 //
 //	prefer_simple_protocol
 //		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
+//
+//	prefer_exec_params
+//		Possible values: "true" and "false". Skip DescribeStatement when statement cache is disabled. Default: true
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
@@ -173,12 +182,23 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		}
 	}
 
+	preferExecParams := true
+	if s, ok := config.RuntimeParams["prefer_exec_params"]; ok {
+		delete(config.RuntimeParams, "prefer_exec_params")
+		if b, err := strconv.ParseBool(s); err == nil {
+			preferExecParams = b
+		} else {
+			return nil, fmt.Errorf("invalid prefer_exec_params: %v", err)
+		}
+	}
+
 	connConfig := &ConnConfig{
 		Config:               *config,
 		createdByParseConfig: true,
 		LogLevel:             LogLevelInfo,
 		BuildStatementCache:  buildStatementCache,
 		PreferSimpleProtocol: preferSimpleProtocol,
+		PreferExecParams:     preferExecParams,
 		connString:           connString,
 	}
 
@@ -441,11 +461,29 @@ optionLoop:
 		return c.execPrepared(ctx, sd, arguments)
 	}
 
+	if c.config.PreferExecParams {
+		sd := &pgconn.StatementDescription{
+			SQL: sql,
+			ParamOIDs: c.paramOIDsFromArguments(arguments),
+		}
+		return c.execParams(ctx, sd, arguments)
+	}
+
 	sd, err := c.Prepare(ctx, "", sql)
 	if err != nil {
 		return nil, err
 	}
 	return c.execPrepared(ctx, sd, arguments)
+}
+
+func (c *Conn) paramOIDsFromArguments(arguments []interface{}) []uint32 {
+	paramOIDs := make([]uint32, len(arguments))
+	for i, arg := range arguments {
+		if dt, ok := c.ConnInfo().DataTypeForValue(arg); ok {
+			paramOIDs[i] = dt.OID
+		}
+	}
+	return paramOIDs
 }
 
 func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []interface{}) (commandTag pgconn.CommandTag, err error) {
@@ -601,6 +639,11 @@ optionLoop:
 				rows.fatal(err)
 				return rows, rows.err
 			}
+		} else if c.config.PreferExecParams {
+			sd = &pgconn.StatementDescription{
+				SQL: sql,
+				ParamOIDs: c.paramOIDsFromArguments(args),
+			}
 		} else {
 			sd, err = c.pgConn.Prepare(ctx, "", sql, nil)
 			if err != nil {
@@ -645,7 +688,7 @@ optionLoop:
 		resultFormats = c.eqb.resultFormats
 	}
 
-	if c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe {
+	if (c.stmtcache == nil && c.config.PreferExecParams) || (c.stmtcache != nil && c.stmtcache.Mode() == stmtcache.ModeDescribe) {
 		rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 	} else {
 		rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)

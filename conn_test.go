@@ -328,10 +328,17 @@ func TestExecStatementCacheModes(t *testing.T) {
 	tests := []struct {
 		name                string
 		buildStatementCache pgx.BuildStatementCacheFunc
+		preferExecParams    bool
 	}{
 		{
-			name:                "disabled",
+			name:                "disabled - execPrepared",
 			buildStatementCache: nil,
+			preferExecParams:    false,
+		},
+		{
+			name:                "disabled - execParams",
+			buildStatementCache: nil,
+			preferExecParams:    true,
 		},
 		{
 			name: "prepare",
@@ -344,12 +351,14 @@ func TestExecStatementCacheModes(t *testing.T) {
 			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
 				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
 			},
+			preferExecParams: false,
 		},
 	}
 
 	for _, tt := range tests {
 		func() {
 			config.BuildStatementCache = tt.buildStatementCache
+			config.PreferExecParams = tt.preferExecParams
 			conn := mustConnect(t, config)
 			defer closeConn(t, conn)
 
