@@ -1094,6 +1094,21 @@ func TestReadingNullByteArrays(t *testing.T) {
 	}
 }
 
+func TestQueryNullSliceIsSet(t *testing.T) {
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	a := []int32{1, 2, 3}
+	err := conn.QueryRow(context.Background(), "select null::int[]").Scan(&a)
+	if err != nil {
+		t.Fatalf("conn.QueryRow failed: %v", err)
+	}
+
+	if a != nil {
+		t.Errorf("Expected 'a' to be nil, but it was: %v", a)
+	}
+}
+
 func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 	t.Parallel()
 

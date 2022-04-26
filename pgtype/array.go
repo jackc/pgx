@@ -463,7 +463,7 @@ func (a FlatArray[T]) IndexType() any {
 
 func (a *FlatArray[T]) SetDimensions(dimensions []ArrayDimension) error {
 	if dimensions == nil {
-		a = nil
+		*a = nil
 		return nil
 	}
 
