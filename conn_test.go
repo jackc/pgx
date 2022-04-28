@@ -472,6 +472,20 @@ func TestPrepareIdempotency(t *testing.T) {
 	}
 }
 
+func TestPrepareStatementCacheModes(t *testing.T) {
+	t.Parallel()
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Prepare(context.Background(), "test", "select $1::text")
+		require.NoError(t, err)
+
+		var s string
+		err = conn.QueryRow(context.Background(), "test", "hello").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "hello", s)
+	})
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 

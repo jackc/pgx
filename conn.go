@@ -740,7 +740,7 @@ optionLoop:
 	rows := c.getRows(ctx, sql, args)
 
 	var err error
-	sd := c.preparedStatements[sql]
+	sd, explicitPreparedStatement := c.preparedStatements[sql]
 	if sd != nil || mode == QueryExecModeCacheStatement || mode == QueryExecModeCacheDescribe || mode == QueryExecModeDescribeExec {
 		if sd == nil {
 			switch mode {
@@ -806,7 +806,7 @@ optionLoop:
 			resultFormats = c.eqb.resultFormats
 		}
 
-		if mode == QueryExecModeCacheDescribe {
+		if !explicitPreparedStatement && mode == QueryExecModeCacheDescribe {
 			rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.paramValues, sd.ParamOIDs, c.eqb.paramFormats, resultFormats)
 		} else {
 			rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.paramValues, c.eqb.paramFormats, resultFormats)
