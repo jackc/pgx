@@ -496,6 +496,50 @@ func TestPrepareIdempotency(t *testing.T) {
 	}
 }
 
+func TestPrepareStatementCacheModes(t *testing.T) {
+	t.Parallel()
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+
+	tests := []struct {
+		name                string
+		buildStatementCache pgx.BuildStatementCacheFunc
+	}{
+		{
+			name:                "disabled",
+			buildStatementCache: nil,
+		},
+		{
+			name: "prepare",
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
+			},
+		},
+		{
+			name: "describe",
+			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
+				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config.BuildStatementCache = tt.buildStatementCache
+			conn := mustConnect(t, config)
+			defer closeConn(t, conn)
+
+			_, err := conn.Prepare(context.Background(), "test", "select $1::text")
+			require.NoError(t, err)
+
+			var s string
+			err = conn.QueryRow(context.Background(), "test", "hello").Scan(&s)
+			require.NoError(t, err)
+			require.Equal(t, "hello", s)
+		})
+	}
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
