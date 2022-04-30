@@ -864,8 +864,8 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 type QueryFuncRow interface {
 	FieldDescriptions() []pgproto3.FieldDescription
 
-	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid during the current
-	// function call. However, the underlying byte data is safe to retain a reference to and mutate.
+	// RawValues returns the unparsed bytes of the row values. The returned data is only valid during the current
+	// function call.
 	RawValues() [][]byte
 }
 
