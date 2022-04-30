@@ -51,8 +51,8 @@ type Rows interface {
 	// true.
 	Values() ([]any, error)
 
-	// RawValues returns the unparsed bytes of the row values. The returned [][]byte is only valid until the next Next
-	// call or the Rows is closed. However, the underlying byte data is safe to retain a reference to and mutate.
+	// RawValues returns the unparsed bytes of the row values. The returned data is only valid until the next Next
+	// call or the Rows is closed.
 	RawValues() [][]byte
 }
 

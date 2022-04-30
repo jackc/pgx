@@ -1,6 +1,7 @@
 package pgx_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"strings"
@@ -1051,5 +1052,36 @@ func TestInsertDurationInterval(t *testing.T) {
 
 		n := result.RowsAffected()
 		require.EqualValues(t, 1, n)
+	})
+}
+
+func TestRawValuesUnderlyingMemoryReused(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var buf []byte
+
+		rows, err := conn.Query(ctx, `select 1::int`)
+		require.NoError(t, err)
+
+		for rows.Next() {
+			buf = rows.RawValues()[0]
+		}
+
+		require.NoError(t, rows.Err())
+
+		original := make([]byte, len(buf))
+		copy(original, buf)
+
+		for i := 0; i < 1_000_000; i++ {
+			rows, err := conn.Query(ctx, `select $1::int`, i)
+			require.NoError(t, err)
+			rows.Close()
+			require.NoError(t, rows.Err())
+
+			if bytes.Compare(original, buf) != 0 {
+				return
+			}
+		}
+
+		t.Fatal("expected buffer from RawValues to be overwritten by subsequent queries but it was not")
 	})
 }
