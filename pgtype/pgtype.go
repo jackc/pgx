@@ -516,7 +516,8 @@ type EncodePlan interface {
 
 // ScanPlan is a precompiled plan to scan into a type of destination.
 type ScanPlan interface {
-	// Scan scans src into target.
+	// Scan scans src into target. src is only valid during the call to Scan. The ScanPlan must not retain a reference to
+	// src.
 	Scan(src []byte, target any) error
 }
 
