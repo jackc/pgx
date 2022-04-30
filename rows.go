@@ -69,6 +69,12 @@ type Row interface {
 	Scan(dest ...any) error
 }
 
+// RowScanner scans an entire row at a time into the RowScanner.
+type RowScanner interface {
+	// ScanRows scans the row.
+	ScanRow(rows Rows) error
+}
+
 // connRow implements the Row interface for Conn.QueryRow.
 type connRow connRows
 
@@ -212,6 +218,13 @@ func (rows *connRows) Scan(dest ...any) error {
 		rows.fatal(err)
 		return err
 	}
+
+	if len(dest) == 1 {
+		if rc, ok := dest[0].(RowScanner); ok {
+			return rc.ScanRow(rows)
+		}
+	}
+
 	if len(fieldDescriptions) != len(dest) {
 		err := fmt.Errorf("number of field descriptions must equal number of destinations, got %d and %d", len(fieldDescriptions), len(dest))
 		rows.fatal(err)
