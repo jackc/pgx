@@ -100,10 +100,29 @@ type FallbackConfig struct {
 	TLSConfig *tls.Config // nil disables TLS
 }
 
+// isAbsolutePath checks if the provided value is an absolute path either
+// beginning with a forward slash (as on Linux-based systems) or with a capital
+// letter A-Z followed by a colon and a backslash, e.g., "C:\", (as on Windows).
+func isAbsolutePath(path string) bool {
+	isWindowsPath := func(p string) bool {
+		if len(p) < 3 {
+			return false
+		}
+		drive := p[0]
+		colon := p[1]
+		backslash := p[2]
+		if drive >= 'A' && drive <= 'Z' && colon == ':' && backslash == '\\' {
+			return true
+		}
+		return false
+	}
+	return strings.HasPrefix(path, "/") || isWindowsPath(path)
+}
+
 // NetworkAddress converts a PostgreSQL host and port into network and address suitable for use with
 // net.Dial.
 func NetworkAddress(host string, port uint16) (network, address string) {
-	if strings.HasPrefix(host, "/") {
+	if isAbsolutePath(host) {
 		network = "unix"
 		address = filepath.Join(host, ".s.PGSQL.") + strconv.FormatInt(int64(port), 10)
 	} else {
