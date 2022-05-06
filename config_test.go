@@ -232,6 +232,18 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
+			name:       "database url unix domain socket host on windows",
+			connString: "postgres:///foo?host=C:\\tmp",
+			config: &pgconn.Config{
+				User:          osUserName,
+				Host:          "C:\\tmp",
+				Port:          5432,
+				Database:      "foo",
+				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
 			name:       "database url dbname",
 			connString: "postgres://localhost/?dbname=foo&sslmode=disable",
 			config: &pgconn.Config{
@@ -701,6 +713,55 @@ func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
 		_, err = pgconn.ConnectConfig(context.Background(), copied)
 	})
 	assert.NoError(t, err)
+}
+
+func TestNetworkAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		host    string
+		wantNet string
+	}{
+		{
+			name:    "Default Unix socket address",
+			host:    "/var/run/postgresql",
+			wantNet: "unix",
+		},
+		{
+			name:    "Windows Unix socket address (standard drive name)",
+			host:    "C:\\tmp",
+			wantNet: "unix",
+		},
+		{
+			name:    "Windows Unix socket address (first drive name)",
+			host:    "A:\\tmp",
+			wantNet: "unix",
+		},
+		{
+			name:    "Windows Unix socket address (last drive name)",
+			host:    "Z:\\tmp",
+			wantNet: "unix",
+		},
+		{
+			name:    "Assume TCP for unknown formats",
+			host:    "a/tmp",
+			wantNet: "tcp",
+		},
+		{
+			name:    "loopback interface",
+			host:    "localhost",
+			wantNet: "tcp",
+		},
+		{
+			name:    "IP address",
+			host:    "127.0.0.1",
+			wantNet: "tcp",
+		},
+	}
+	for i, tt := range tests {
+		gotNet, _ := pgconn.NetworkAddress(tt.host, 5432)
+
+		assert.Equalf(t, tt.wantNet, gotNet, "Test %d (%s)", i, tt.name)
+	}
 }
 
 func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName string) {

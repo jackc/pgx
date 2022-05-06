@@ -187,7 +187,7 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 
 	for _, fb := range fallbacks {
 		// skip resolve for unix sockets
-		if strings.HasPrefix(fb.Host, "/") {
+		if isAbsolutePath(fb.Host) {
 			configs = append(configs, &FallbackConfig{
 				Host:      fb.Host,
 				Port:      fb.Port,
