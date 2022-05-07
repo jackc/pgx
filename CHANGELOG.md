@@ -1,3 +1,8 @@
+# 4.16.1 (May 7, 2022)
+
+* Upgrade pgconn to v1.12.1
+* Fix explicitly prepared statements with describe statement cache mode
+
 # 4.16.0 (April 21, 2022)
 
 * Upgrade pgconn to v1.12.0
