@@ -1,3 +1,9 @@
+# 1.12.1 (May 7, 2022)
+
+* Fix: setting krbspn and krbsrvname in connection string (sireax)
+* Add support for Unix sockets on Windows (Eno Compton)
+* Stop ignoring ErrorResponse during SCRAM auth (Rafi Shamim)
+
 # 1.12.0 (April 21, 2022)
 
 * Add pluggable GSSAPI support (Oliver Tan)
