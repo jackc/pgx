@@ -7,7 +7,7 @@ require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/go-kit/log v0.1.0
 	github.com/gofrs/uuid v4.0.0+incompatible
-	github.com/jackc/pgconn v1.12.0
+	github.com/jackc/pgconn v1.12.1
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.3.0
 	github.com/jackc/pgtype v1.11.0
