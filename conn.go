@@ -710,6 +710,8 @@ func (c *Conn) QueryFunc(ctx context.Context, sql string, args []interface{}, sc
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
 func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
+	startTime := time.Now()
+
 	simpleProtocol := c.config.PreferSimpleProtocol
 	var sb strings.Builder
 	if simpleProtocol {
@@ -768,23 +770,23 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 			var err error
 			sd, err = stmtCache.Get(ctx, bi.query)
 			if err != nil {
-				return &batchResults{ctx: ctx, conn: c, err: err}
+				return c.logBatchResults(ctx, startTime, &batchResults{ctx: ctx, conn: c, err: err})
 			}
 		}
 
 		if len(sd.ParamOIDs) != len(bi.arguments) {
-			return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("mismatched param and argument count")}
+			return c.logBatchResults(ctx, startTime, &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("mismatched param and argument count")})
 		}
 
 		args, err := convertDriverValuers(bi.arguments)
 		if err != nil {
-			return &batchResults{ctx: ctx, conn: c, err: err}
+			return c.logBatchResults(ctx, startTime, &batchResults{ctx: ctx, conn: c, err: err})
 		}
 
 		for i := range args {
 			err = c.eqb.AppendParam(c.connInfo, sd.ParamOIDs[i], args[i])
 			if err != nil {
-				return &batchResults{ctx: ctx, conn: c, err: err}
+				return c.logBatchResults(ctx, startTime, &batchResults{ctx: ctx, conn: c, err: err})
 			}
 		}
 
@@ -803,13 +805,29 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
 
 	mrr := c.pgConn.ExecBatch(ctx, batch)
 
-	return &batchResults{
+	return c.logBatchResults(ctx, startTime, &batchResults{
 		ctx:  ctx,
 		conn: c,
 		mrr:  mrr,
 		b:    b,
 		ix:   0,
+	})
+}
+
+func (c *Conn) logBatchResults(ctx context.Context, startTime time.Time, results *batchResults) BatchResults {
+	if results.err != nil {
+		if c.shouldLog(LogLevelError) {
+			endTime := time.Now()
+			c.log(ctx, LogLevelError, "SendBatch", map[string]interface{}{"err": results.err, "time": endTime.Sub(startTime)})
+		}
 	}
+
+	if c.shouldLog(LogLevelInfo) {
+		endTime := time.Now()
+		c.log(ctx, LogLevelInfo, "SendBatch", map[string]interface{}{"batchLen": results.b.Len(), "time": endTime.Sub(startTime)})
+	}
+
+	return results
 }
 
 func (c *Conn) sanitizeForSimpleQuery(sql string, args ...interface{}) (string, error) {
