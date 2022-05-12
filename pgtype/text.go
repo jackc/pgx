@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"unicode/utf8"
 )
 
 type TextScanner interface {
@@ -98,8 +97,6 @@ func (TextCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodeP
 			return encodePlanTextCodecString{}
 		case []byte:
 			return encodePlanTextCodecByteSlice{}
-		case rune:
-			return encodePlanTextCodecRune{}
 		case TextValuer:
 			return encodePlanTextCodecTextValuer{}
 		}
@@ -121,14 +118,6 @@ type encodePlanTextCodecByteSlice struct{}
 func (encodePlanTextCodecByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	s := value.([]byte)
 	buf = append(buf, s...)
-	return buf, nil
-}
-
-type encodePlanTextCodecRune struct{}
-
-func (encodePlanTextCodecRune) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	r := value.(rune)
-	buf = append(buf, string(r)...)
 	return buf, nil
 }
 
@@ -169,8 +158,6 @@ func (TextCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 			return scanPlanAnyToByteScanner{}
 		case TextScanner:
 			return scanPlanTextAnyToTextScanner{}
-		case *rune:
-			return scanPlanTextAnyToRune{}
 		}
 	}
 
@@ -221,24 +208,6 @@ type scanPlanAnyToByteScanner struct{}
 func (scanPlanAnyToByteScanner) Scan(src []byte, dst any) error {
 	p := (dst).(BytesScanner)
 	return p.ScanBytes(src)
-}
-
-type scanPlanTextAnyToRune struct{}
-
-func (scanPlanTextAnyToRune) Scan(src []byte, dst any) error {
-	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
-	}
-
-	r, size := utf8.DecodeRune(src)
-	if size != len(src) {
-		return fmt.Errorf("cannot scan %v into %T: more than one rune received", src, dst)
-	}
-
-	p := (dst).(*rune)
-	*p = r
-
-	return nil
 }
 
 type scanPlanTextAnyToTextScanner struct{}

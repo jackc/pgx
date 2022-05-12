@@ -33,11 +33,6 @@ func TestTextCodec(t *testing.T) {
 			{"foo", new(string), isExpectedEq("foo")},
 			{someFmtStringer{}, new(string), isExpectedEq("some fmt.Stringer")},
 		})
-
-		// rune requires known OID because otherwise it is considered an int32.
-		pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, pgTypeName, []pgxtest.ValueRoundTripTest{
-			{rune('R'), new(rune), isExpectedEq(rune('R'))},
-		})
 	}
 }
 

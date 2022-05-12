@@ -28,8 +28,6 @@ func (EnumCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodeP
 			return encodePlanTextCodecString{}
 		case []byte:
 			return encodePlanTextCodecByteSlice{}
-		case rune:
-			return encodePlanTextCodecRune{}
 		case TextValuer:
 			return encodePlanTextCodecTextValuer{}
 		}
@@ -48,8 +46,6 @@ func (c *EnumCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanP
 			return scanPlanAnyToNewByteSlice{}
 		case TextScanner:
 			return &scanPlanTextAnyToEnumTextScanner{codec: c}
-		case *rune:
-			return scanPlanTextAnyToRune{}
 		}
 	}
 
