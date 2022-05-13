@@ -737,23 +737,27 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 		t.Fatalf("Unexpected error dropping table: %v", err)
 	}
 
-	if len(l1.logs) != 2 {
+	if len(l1.logs) != 3 {
 		t.Fatalf("Expected two log entries but got %d", len(l1.logs))
 	}
 
-	if l1.logs[0].msg != "BatchResult.Exec" {
-		t.Errorf("Expected first log message to be 'BatchResult.Exec' but was '%s", l1.logs[0].msg)
-	}
-
-	if l1.logs[0].data["sql"] != "create table foo (id bigint)" {
-		t.Errorf("Expected the first query to be 'create table foo (id bigint)' but was '%s'", l1.logs[0].data["sql"])
+	if l1.logs[0].msg != "SendBatch" {
+		t.Errorf("Expected first log message to be 'SendBatch' but was '%s'", l1.logs[0].msg)
 	}
 
 	if l1.logs[1].msg != "BatchResult.Exec" {
+		t.Errorf("Expected first log message to be 'BatchResult.Exec' but was '%s'", l1.logs[0].msg)
+	}
+
+	if l1.logs[1].data["sql"] != "create table foo (id bigint)" {
+		t.Errorf("Expected the first query to be 'create table foo (id bigint)' but was '%s'", l1.logs[0].data["sql"])
+	}
+
+	if l1.logs[2].msg != "BatchResult.Exec" {
 		t.Errorf("Expected second log message to be 'BatchResult.Exec' but was '%s", l1.logs[1].msg)
 	}
 
-	if l1.logs[1].data["sql"] != "drop table foo" {
+	if l1.logs[2].data["sql"] != "drop table foo" {
 		t.Errorf("Expected the second query to be 'drop table foo' but was '%s'", l1.logs[1].data["sql"])
 	}
 }
@@ -778,23 +782,27 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 		t.Fatalf("Unexpected batch error: %v", err)
 	}
 
-	if len(l1.logs) != 2 {
+	if len(l1.logs) != 3 {
 		t.Fatalf("Expected 2 log statements but found %d", len(l1.logs))
 	}
 
-	if l1.logs[0].msg != "BatchResult.Close" {
-		t.Errorf("Expected first log statement to be 'BatchResult.Close' but was %s", l1.logs[0].msg)
-	}
-
-	if l1.logs[0].data["sql"] != "select generate_series(1,$1)" {
-		t.Errorf("Expected first query to be 'select generate_series(1,$1)' but was '%s'", l1.logs[0].data["sql"])
+	if l1.logs[0].msg != "SendBatch" {
+		t.Errorf("Expected first log message to be 'SendBatch' but was '%s'", l1.logs[0].msg)
 	}
 
 	if l1.logs[1].msg != "BatchResult.Close" {
+		t.Errorf("Expected first log statement to be 'BatchResult.Close' but was '%s'", l1.logs[0].msg)
+	}
+
+	if l1.logs[1].data["sql"] != "select generate_series(1,$1)" {
+		t.Errorf("Expected first query to be 'select generate_series(1,$1)' but was '%s'", l1.logs[0].data["sql"])
+	}
+
+	if l1.logs[2].msg != "BatchResult.Close" {
 		t.Errorf("Expected second log statement to be 'BatchResult.Close' but was %s", l1.logs[1].msg)
 	}
 
-	if l1.logs[1].data["sql"] != "select 1 = 1;" {
+	if l1.logs[2].data["sql"] != "select 1 = 1;" {
 		t.Errorf("Expected second query to be 'select 1 = 1;' but was '%s'", l1.logs[1].data["sql"])
 	}
 }
