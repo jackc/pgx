@@ -12,6 +12,11 @@ type Frontend struct {
 	cr *chunkReader
 	w  io.Writer
 
+	// MessageTracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
+	// before it is actually transmitted (i.e. before Flush). It is safe to change this variable when the Frontend is
+	// idle. Setting and unsetting MessageTracer provides equivalent functionality to PQtrace and PQuntrace in libpq.
+	MessageTracer MessageTracer
+
 	wbuf []byte
 
 	// Backend message flyweights
@@ -61,7 +66,11 @@ func NewFrontend(r io.Reader, w io.Writer) *Frontend {
 // Send sends a message to the backend (i.e. the server). The message is not guaranteed to be written until Flush is
 // called.
 func (f *Frontend) Send(msg FrontendMessage) {
+	prevLen := len(f.wbuf)
 	f.wbuf = msg.Encode(f.wbuf)
+	if f.MessageTracer != nil {
+		f.MessageTracer.TraceMessage('F', int32(len(f.wbuf)-prevLen), msg)
+	}
 }
 
 // Flush writes any pending messages to the backend (i.e. the server).
@@ -166,7 +175,15 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 	}
 
 	err = msg.Decode(msgBody)
-	return msg, err
+	if err != nil {
+		return nil, err
+	}
+
+	if f.MessageTracer != nil {
+		f.MessageTracer.TraceMessage('B', int32(5+len(msgBody)), msg)
+	}
+
+	return msg, nil
 }
 
 // Authentication message type constants.
