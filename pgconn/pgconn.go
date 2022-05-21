@@ -765,9 +765,9 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
-	pgConn.frontend.Send(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
-	pgConn.frontend.Send(&pgproto3.Describe{ObjectType: 'S', Name: name})
-	pgConn.frontend.Send(&pgproto3.Sync{})
+	pgConn.frontend.SendParse(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
+	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'S', Name: name})
+	pgConn.frontend.SendSync(&pgproto3.Sync{})
 	err := pgConn.frontend.Flush()
 	if err != nil {
 		pgConn.asyncClose()
@@ -937,7 +937,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		pgConn.contextWatcher.Watch(ctx)
 	}
 
-	pgConn.frontend.Send(&pgproto3.Query{String: sql})
+	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 	err := pgConn.frontend.Flush()
 	if err != nil {
 		pgConn.asyncClose()
@@ -1009,8 +1009,8 @@ func (pgConn *PgConn) ExecParams(ctx context.Context, sql string, paramValues []
 		return result
 	}
 
-	pgConn.frontend.Send(&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs})
-	pgConn.frontend.Send(&pgproto3.Bind{ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+	pgConn.frontend.SendParse(&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs})
+	pgConn.frontend.SendBind(&pgproto3.Bind{ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
 
 	pgConn.execExtendedSuffix(result)
 
@@ -1035,7 +1035,7 @@ func (pgConn *PgConn) ExecPrepared(ctx context.Context, stmtName string, paramVa
 		return result
 	}
 
-	pgConn.frontend.Send(&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
+	pgConn.frontend.SendBind(&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats})
 
 	pgConn.execExtendedSuffix(result)
 
@@ -1078,9 +1078,9 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 }
 
 func (pgConn *PgConn) execExtendedSuffix(result *ResultReader) {
-	pgConn.frontend.Send(&pgproto3.Describe{ObjectType: 'P'})
-	pgConn.frontend.Send(&pgproto3.Execute{})
-	pgConn.frontend.Send(&pgproto3.Sync{})
+	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
+	pgConn.frontend.SendExecute(&pgproto3.Execute{})
+	pgConn.frontend.SendSync(&pgproto3.Sync{})
 
 	err := pgConn.frontend.Flush()
 	if err != nil {
@@ -1113,7 +1113,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	}
 
 	// Send copy to command
-	pgConn.frontend.Send(&pgproto3.Query{String: sql})
+	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 
 	err := pgConn.frontend.Flush()
 	if err != nil {
@@ -1172,7 +1172,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 
 	// Send copy to command
-	pgConn.frontend.Send(&pgproto3.Query{String: sql})
+	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 
 	err := pgConn.frontend.Flush()
 	if err != nil {
@@ -1196,7 +1196,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 				buf = buf[0 : n+5]
 				pgio.SetInt32(buf[sp:], int32(n+4))
 
-				_, writeErr := pgConn.conn.Write(buf)
+				writeErr := pgConn.frontend.SendUnbufferedEncodedCopyData(buf)
 				if writeErr != nil {
 					// Write errors are always fatal, but we can't use asyncClose because we are in a different goroutine.
 					pgConn.conn.Close()

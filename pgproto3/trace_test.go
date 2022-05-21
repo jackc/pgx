@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestLibpqMessageTracer(t *testing.T) {
+func TestTrace(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -26,11 +26,10 @@ func TestLibpqMessageTracer(t *testing.T) {
 
 	config.BuildFrontend = func(r io.Reader, w io.Writer) *pgproto3.Frontend {
 		f := pgproto3.NewFrontend(r, w)
-		f.MessageTracer = &pgproto3.LibpqMessageTracer{
-			Writer:             traceOutput,
+		f.Trace(traceOutput, pgproto3.TracerOptions{
 			SuppressTimestamps: true,
 			RegressMode:        true,
-		}
+		})
 		return f
 	}
 
