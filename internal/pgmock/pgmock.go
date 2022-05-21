@@ -97,7 +97,8 @@ type sendMessageStep struct {
 }
 
 func (e *sendMessageStep) Step(backend *pgproto3.Backend) error {
-	return backend.Send(e.msg)
+	backend.Send(e.msg)
+	return backend.Flush()
 }
 
 func SendMessage(msg pgproto3.BackendMessage) Step {

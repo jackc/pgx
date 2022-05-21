@@ -17,11 +17,13 @@ type Message interface {
 	Encode(dst []byte) []byte
 }
 
+// FrontendMessage is a message sent by the frontend (i.e. the client).
 type FrontendMessage interface {
 	Message
 	Frontend() // no-op method to distinguish frontend from backend methods
 }
 
+// BackendMessage is a message sent by the backend (i.e. the server).
 type BackendMessage interface {
 	Message
 	Backend() // no-op method to distinguish frontend from backend methods
@@ -48,6 +50,23 @@ type invalidMessageFormatErr struct {
 
 func (e *invalidMessageFormatErr) Error() string {
 	return fmt.Sprintf("%s body is invalid", e.messageType)
+}
+
+type writeError struct {
+	err         error
+	safeToRetry bool
+}
+
+func (e *writeError) Error() string {
+	return fmt.Sprintf("write failed: %s", e.err.Error())
+}
+
+func (e *writeError) SafeToRetry() bool {
+	return e.safeToRetry
+}
+
+func (e *writeError) Unwrap() error {
+	return e.err
 }
 
 // getValueFromJSON gets the value from a protocol message representation in JSON.

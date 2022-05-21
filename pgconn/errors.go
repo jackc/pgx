@@ -178,23 +178,6 @@ func newContextAlreadyDoneError(ctx context.Context) (err error) {
 	return &errTimeout{&contextAlreadyDoneError{err: ctx.Err()}}
 }
 
-type writeError struct {
-	err         error
-	safeToRetry bool
-}
-
-func (e *writeError) Error() string {
-	return fmt.Sprintf("write failed: %s", e.err.Error())
-}
-
-func (e *writeError) SafeToRetry() bool {
-	return e.safeToRetry
-}
-
-func (e *writeError) Unwrap() error {
-	return e.err
-}
-
 func redactPW(connString string) string {
 	if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
 		if u, err := url.Parse(connString); err == nil {

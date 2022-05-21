@@ -12,6 +12,8 @@ type Frontend struct {
 	cr *chunkReader
 	w  io.Writer
 
+	wbuf []byte
+
 	// Backend message flyweights
 	authenticationOk                AuthenticationOk
 	authenticationCleartextPassword AuthenticationCleartextPassword
@@ -56,10 +58,28 @@ func NewFrontend(r io.Reader, w io.Writer) *Frontend {
 	return &Frontend{cr: cr, w: w}
 }
 
-// Send sends a message to the backend.
-func (f *Frontend) Send(msg FrontendMessage) error {
-	_, err := f.w.Write(msg.Encode(nil))
-	return err
+// Send sends a message to the backend (i.e. the server). The message is not guaranteed to be written until Flush is
+// called.
+func (f *Frontend) Send(msg FrontendMessage) {
+	f.wbuf = msg.Encode(f.wbuf)
+}
+
+// Flush writes any pending messages to the backend (i.e. the server).
+func (f *Frontend) Flush() error {
+	n, err := f.w.Write(f.wbuf)
+
+	const maxLen = 1024
+	if len(f.wbuf) > maxLen {
+		f.wbuf = make([]byte, 0, maxLen)
+	} else {
+		f.wbuf = f.wbuf[:0]
+	}
+
+	if err != nil {
+		return &writeError{err: err, safeToRetry: n == 0}
+	}
+
+	return nil
 }
 
 func translateEOFtoErrUnexpectedEOF(err error) error {

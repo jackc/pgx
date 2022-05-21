@@ -1915,49 +1915,6 @@ func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
 	}
 }
 
-func TestConnSendBytesAndReceiveMessage(t *testing.T) {
-	t.Parallel()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
-	require.NoError(t, err)
-	config.RuntimeParams["client_min_messages"] = "notice" // Ensure we only get the messages we expect.
-
-	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
-	require.NoError(t, err)
-	defer closeConn(t, pgConn)
-
-	queryMsg := pgproto3.Query{String: "select 42"}
-	buf := queryMsg.Encode(nil)
-
-	err = pgConn.SendBytes(ctx, buf)
-	require.NoError(t, err)
-
-	msg, err := pgConn.ReceiveMessage(ctx)
-	require.NoError(t, err)
-	_, ok := msg.(*pgproto3.RowDescription)
-	require.True(t, ok)
-
-	msg, err = pgConn.ReceiveMessage(ctx)
-	require.NoError(t, err)
-	_, ok = msg.(*pgproto3.DataRow)
-	require.True(t, ok)
-
-	msg, err = pgConn.ReceiveMessage(ctx)
-	require.NoError(t, err)
-	_, ok = msg.(*pgproto3.CommandComplete)
-	require.True(t, ok)
-
-	msg, err = pgConn.ReceiveMessage(ctx)
-	require.NoError(t, err)
-	_, ok = msg.(*pgproto3.ReadyForQuery)
-	require.True(t, ok)
-
-	ensureConnValid(t, pgConn)
-}
-
 func TestHijackAndConstruct(t *testing.T) {
 	t.Parallel()
 
