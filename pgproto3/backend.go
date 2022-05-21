@@ -1,6 +1,7 @@
 package pgproto3
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -11,9 +12,9 @@ type Backend struct {
 	cr *chunkReader
 	w  io.Writer
 
-	// MessageTracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
+	// tracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
 	// before it is actually transmitted (i.e. before Flush).
-	MessageTracer MessageTracer
+	tracer *tracer
 
 	wbuf []byte
 
@@ -58,8 +59,8 @@ func NewBackend(r io.Reader, w io.Writer) *Backend {
 func (b *Backend) Send(msg BackendMessage) {
 	prevLen := len(b.wbuf)
 	b.wbuf = msg.Encode(b.wbuf)
-	if b.MessageTracer != nil {
-		b.MessageTracer.TraceMessage('B', int32(len(b.wbuf)-prevLen), msg)
+	if b.tracer != nil {
+		b.tracer.traceMessage('B', int32(len(b.wbuf)-prevLen), msg)
 	}
 }
 
@@ -79,6 +80,21 @@ func (b *Backend) Flush() error {
 	}
 
 	return nil
+}
+
+// Trace starts tracing the message traffic to w. It writes in a similar format to that produced by the libpq function
+// PQtrace.
+func (b *Backend) Trace(w io.Writer, options TracerOptions) {
+	b.tracer = &tracer{
+		w:             w,
+		buf:           &bytes.Buffer{},
+		TracerOptions: options,
+	}
+}
+
+// Untrace stops tracing.
+func (b *Backend) Untrace() {
+	b.tracer = nil
 }
 
 // ReceiveStartupMessage receives the initial connection message. This method is used of the normal Receive method
@@ -205,8 +221,8 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		return nil, err
 	}
 
-	if b.MessageTracer != nil {
-		b.MessageTracer.TraceMessage('F', int32(5+len(msgBody)), msg)
+	if b.tracer != nil {
+		b.tracer.traceMessage('F', int32(5+len(msgBody)), msg)
 	}
 
 	return msg, nil

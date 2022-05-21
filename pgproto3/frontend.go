@@ -1,6 +1,7 @@
 package pgproto3
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -12,10 +13,10 @@ type Frontend struct {
 	cr *chunkReader
 	w  io.Writer
 
-	// MessageTracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
+	// tracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
 	// before it is actually transmitted (i.e. before Flush). It is safe to change this variable when the Frontend is
-	// idle. Setting and unsetting MessageTracer provides equivalent functionality to PQtrace and PQuntrace in libpq.
-	MessageTracer MessageTracer
+	// idle. Setting and unsetting tracer provides equivalent functionality to PQtrace and PQuntrace in libpq.
+	tracer *tracer
 
 	wbuf []byte
 
@@ -65,16 +66,25 @@ func NewFrontend(r io.Reader, w io.Writer) *Frontend {
 
 // Send sends a message to the backend (i.e. the server). The message is not guaranteed to be written until Flush is
 // called.
+//
+// Send can work with any FrontendMessage. Some commonly used message types such as Bind have specialized send methods
+// such as SendBind. These methods should be preferred when the type of message is known up front (e.g. when building an
+// extended query protocol query) as they may be faster due to knowing the type of msg rather than it being hidden
+// behind an interface.
 func (f *Frontend) Send(msg FrontendMessage) {
 	prevLen := len(f.wbuf)
 	f.wbuf = msg.Encode(f.wbuf)
-	if f.MessageTracer != nil {
-		f.MessageTracer.TraceMessage('F', int32(len(f.wbuf)-prevLen), msg)
+	if f.tracer != nil {
+		f.tracer.traceMessage('F', int32(len(f.wbuf)-prevLen), msg)
 	}
 }
 
 // Flush writes any pending messages to the backend (i.e. the server).
 func (f *Frontend) Flush() error {
+	if len(f.wbuf) == 0 {
+		return nil
+	}
+
 	n, err := f.w.Write(f.wbuf)
 
 	const maxLen = 1024
@@ -86,6 +96,102 @@ func (f *Frontend) Flush() error {
 
 	if err != nil {
 		return &writeError{err: err, safeToRetry: n == 0}
+	}
+
+	return nil
+}
+
+// Trace starts tracing the message traffic to w. It writes in a similar format to that produced by the libpq function
+// PQtrace.
+func (f *Frontend) Trace(w io.Writer, options TracerOptions) {
+	f.tracer = &tracer{
+		w:             w,
+		buf:           &bytes.Buffer{},
+		TracerOptions: options,
+	}
+}
+
+// Untrace stops tracing.
+func (f *Frontend) Untrace() {
+	f.tracer = nil
+}
+
+// SendBind sends a Bind message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendBind(msg *Bind) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceBind('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendParse sends a Parse message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendParse(msg *Parse) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceParse('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendDescribe sends a Describe message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendDescribe(msg *Describe) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceDescribe('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendExecute sends a Execute message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendExecute(msg *Execute) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceExecute('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendSync sends a Sync message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendSync(msg *Sync) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceSync('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendQuery sends a Query message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendQuery(msg *Query) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceQuery('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
+// SendUnbufferedEncodedCopyData immediately sends an encoded CopyData message to the backend (i.e. the server). This method
+// is more efficient than sending a CopyData message with Send as the message data is not copied to the internal buffer
+// before being written out. The internal buffer is flushed before the message is sent.
+func (f *Frontend) SendUnbufferedEncodedCopyData(msg []byte) error {
+	err := f.Flush()
+	if err != nil {
+		return err
+	}
+
+	n, err := f.w.Write(msg)
+	if err != nil {
+		return &writeError{err: err, safeToRetry: n == 0}
+	}
+
+	if f.tracer != nil {
+		f.tracer.traceCopyData('F', int32(len(msg)-1), &CopyData{})
 	}
 
 	return nil
@@ -179,8 +285,8 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 		return nil, err
 	}
 
-	if f.MessageTracer != nil {
-		f.MessageTracer.TraceMessage('B', int32(5+len(msgBody)), msg)
+	if f.tracer != nil {
+		f.tracer.traceMessage('B', int32(5+len(msgBody)), msg)
 	}
 
 	return msg, nil
