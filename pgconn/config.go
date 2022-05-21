@@ -222,7 +222,7 @@ func ParseConfig(connString string) (*Config, error) {
 		User:                 settings["user"],
 		Password:             settings["password"],
 		RuntimeParams:        make(map[string]string),
-		BuildFrontend: func(r io.Reader, w io.Writer) Frontend {
+		BuildFrontend: func(r io.Reader, w io.Writer) *pgproto3.Frontend {
 			return pgproto3.NewFrontend(r, w)
 		},
 	}

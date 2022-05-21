@@ -11,6 +11,8 @@ type Backend struct {
 	cr *chunkReader
 	w  io.Writer
 
+	wbuf []byte
+
 	// Frontend message flyweights
 	bind           Bind
 	cancelRequest  CancelRequest
@@ -47,10 +49,28 @@ func NewBackend(r io.Reader, w io.Writer) *Backend {
 	return &Backend{cr: cr, w: w}
 }
 
-// Send sends a message to the frontend.
-func (b *Backend) Send(msg BackendMessage) error {
-	_, err := b.w.Write(msg.Encode(nil))
-	return err
+// Send sends a message to the frontend (i.e. the client). The message is not guaranteed to be written until Flush is
+// called.
+func (b *Backend) Send(msg BackendMessage) {
+	b.wbuf = msg.Encode(b.wbuf)
+}
+
+// Flush writes any pending messages to the frontend (i.e. the client).
+func (b *Backend) Flush() error {
+	n, err := b.w.Write(b.wbuf)
+
+	const maxLen = 1024
+	if len(b.wbuf) > maxLen {
+		b.wbuf = make([]byte, 0, maxLen)
+	} else {
+		b.wbuf = b.wbuf[:0]
+	}
+
+	if err != nil {
+		return &writeError{err: err, safeToRetry: n == 0}
+	}
+
+	return nil
 }
 
 // ReceiveStartupMessage receives the initial connection message. This method is used of the normal Receive method
