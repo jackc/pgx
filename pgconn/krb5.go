@@ -61,7 +61,8 @@ func (c *PgConn) gssAuth() error {
 		gssResponse := &pgproto3.GSSResponse{
 			Data: nextData,
 		}
-		_, err = c.conn.Write(gssResponse.Encode(nil))
+		c.frontend.Send(gssResponse)
+		err = c.frontend.Flush()
 		if err != nil {
 			return err
 		}

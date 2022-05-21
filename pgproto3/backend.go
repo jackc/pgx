@@ -11,6 +11,10 @@ type Backend struct {
 	cr *chunkReader
 	w  io.Writer
 
+	// MessageTracer is used to trace messages when Send or Receive is called. This means an outbound message is traced
+	// before it is actually transmitted (i.e. before Flush).
+	MessageTracer MessageTracer
+
 	wbuf []byte
 
 	// Frontend message flyweights
@@ -52,7 +56,11 @@ func NewBackend(r io.Reader, w io.Writer) *Backend {
 // Send sends a message to the frontend (i.e. the client). The message is not guaranteed to be written until Flush is
 // called.
 func (b *Backend) Send(msg BackendMessage) {
+	prevLen := len(b.wbuf)
 	b.wbuf = msg.Encode(b.wbuf)
+	if b.MessageTracer != nil {
+		b.MessageTracer.TraceMessage('B', int32(len(b.wbuf)-prevLen), msg)
+	}
 }
 
 // Flush writes any pending messages to the frontend (i.e. the client).
@@ -193,7 +201,15 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 	b.partialMsg = false
 
 	err = msg.Decode(msgBody)
-	return msg, err
+	if err != nil {
+		return nil, err
+	}
+
+	if b.MessageTracer != nil {
+		b.MessageTracer.TraceMessage('F', int32(5+len(msgBody)), msg)
+	}
+
+	return msg, nil
 }
 
 // SetAuthType sets the authentication type in the backend.

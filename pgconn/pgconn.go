@@ -515,7 +515,7 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	return msg, nil
 }
 
-// Conn returns the underlying net.Conn.
+// Conn returns the underlying net.Conn. This rarely necessary.
 func (pgConn *PgConn) Conn() net.Conn {
 	return pgConn.conn
 }
@@ -540,6 +540,11 @@ func (pgConn *PgConn) TxStatus() byte {
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
 func (pgConn *PgConn) SecretKey() uint32 {
 	return pgConn.secretKey
+}
+
+// Frontend returns the underlying *pgproto3.Frontend. This rarely necessary.
+func (pgConn *PgConn) Frontend() *pgproto3.Frontend {
+	return pgConn.frontend
 }
 
 // Close closes a connection. It is safe to call Close on a already closed connection. Close attempts a clean close by
@@ -571,7 +576,8 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	// ignores errors.
 	//
 	// See https://github.com/jackc/pgx/issues/637
-	pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
+	pgConn.frontend.Send(&pgproto3.Terminate{})
+	pgConn.frontend.Flush()
 
 	return pgConn.conn.Close()
 }
@@ -597,7 +603,8 @@ func (pgConn *PgConn) asyncClose() {
 
 		pgConn.conn.SetDeadline(deadline)
 
-		pgConn.conn.Write([]byte{'X', 0, 0, 0, 4})
+		pgConn.frontend.Send(&pgproto3.Terminate{})
+		pgConn.frontend.Flush()
 	}()
 }
 

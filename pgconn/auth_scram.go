@@ -41,7 +41,8 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		AuthMechanism: "SCRAM-SHA-256",
 		Data:          sc.clientFirstMessage(),
 	}
-	_, err = c.conn.Write(saslInitialResponse.Encode(nil))
+	c.frontend.Send(saslInitialResponse)
+	err = c.frontend.Flush()
 	if err != nil {
 		return err
 	}
@@ -60,7 +61,8 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	saslResponse := &pgproto3.SASLResponse{
 		Data: []byte(sc.clientFinalMessage()),
 	}
-	_, err = c.conn.Write(saslResponse.Encode(nil))
+	c.frontend.Send(saslResponse)
+	err = c.frontend.Flush()
 	if err != nil {
 		return err
 	}
