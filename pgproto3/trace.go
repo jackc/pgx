@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -399,6 +400,8 @@ func (t *tracer) beginTrace(sender byte, encodedLen int32, msgType string) {
 	t.buf.WriteByte(sender)
 	t.buf.WriteByte('\t')
 	t.buf.WriteString(msgType)
+	t.buf.WriteByte('\t')
+	t.buf.WriteString(strconv.FormatInt(int64(encodedLen), 10))
 }
 
 func (t *tracer) finishTrace() {
