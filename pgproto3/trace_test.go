@@ -22,6 +22,10 @@ func TestTrace(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 
+	if conn.ParameterStatus("crdb_version") != "" {
+		t.Skip("Skipping message trace on CockroachDB as it varies slightly from PostgreSQL")
+	}
+
 	traceOutput := &bytes.Buffer{}
 	conn.Frontend().Trace(traceOutput, pgproto3.TracerOptions{
 		SuppressTimestamps: true,
