@@ -3,7 +3,6 @@ package pgproto3_test
 import (
 	"bytes"
 	"context"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -19,45 +18,20 @@ func TestTrace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_CONN_STRING"))
-	require.NoError(t, err)
-
-	traceOutput := &bytes.Buffer{}
-
-	config.BuildFrontend = func(r io.Reader, w io.Writer) *pgproto3.Frontend {
-		f := pgproto3.NewFrontend(r, w)
-		f.Trace(traceOutput, pgproto3.TracerOptions{
-			SuppressTimestamps: true,
-			RegressMode:        true,
-		})
-		return f
-	}
-
-	conn, err := pgconn.ConnectConfig(ctx, config)
+	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
 	require.NoError(t, err)
 	defer conn.Close(ctx)
+
+	traceOutput := &bytes.Buffer{}
+	conn.Frontend().Trace(traceOutput, pgproto3.TracerOptions{
+		SuppressTimestamps: true,
+		RegressMode:        true,
+	})
 
 	result := conn.ExecParams(ctx, "select n from generate_series(1,5) n", nil, nil, nil, nil).Read()
 	require.NoError(t, result.Err)
 
-	expected := `F	StartupMessage	37
-B	AuthenticationOk	9
-B	ParameterStatus	23	 "application_name" ""
-B	ParameterStatus	26	 "client_encoding" "UTF8"
-B	ParameterStatus	24	 "DateStyle" "ISO, MDY"
-B	ParameterStatus	39	 "default_transaction_read_only" "off"
-B	ParameterStatus	24	 "in_hot_standby" "off"
-B	ParameterStatus	26	 "integer_datetimes" "on"
-B	ParameterStatus	28	 "IntervalStyle" "postgres"
-B	ParameterStatus	21	 "is_superuser" "on"
-B	ParameterStatus	26	 "server_encoding" "UTF8"
-B	ParameterStatus	25	 "server_version" "14.3"
-B	ParameterStatus	32	 "session_authorization" "jack"
-B	ParameterStatus	36	 "standard_conforming_strings" "on"
-B	ParameterStatus	30	 "TimeZone" "America/Chicago"
-B	BackendKeyData	13	 NNNN NNNN
-B	ReadyForQuery	6	 I
-F	Parse	45	 "" "select n from generate_series(1,5) n" 0
+	expected := `F	Parse	45	 "" "select n from generate_series(1,5) n" 0
 F	Bind	13	 "" "" 0 0 0
 F	Describe	7	 P ""
 F	Execute	10	 "" 0
