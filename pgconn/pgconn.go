@@ -1184,8 +1184,11 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	abortCopyChan := make(chan struct{})
 	copyErrChan := make(chan error, 1)
 	signalMessageChan := pgConn.signalMessage()
+	senderDoneChan := make(chan struct{})
 
 	go func() {
+		defer close(senderDoneChan)
+
 		buf := make([]byte, 0, 65536)
 		buf = append(buf, 'd')
 		sp := len(buf)
@@ -1239,6 +1242,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		}
 	}
 	close(abortCopyChan)
+	<-senderDoneChan
 
 	if copyErr == io.EOF || pgErr != nil {
 		pgConn.frontend.Send(&pgproto3.CopyDone{})
