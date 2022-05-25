@@ -310,3 +310,44 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 		}
 	}
 }
+
+type pgCustomInt int64
+
+func (ci *pgCustomInt) Scan(src interface{}) error {
+	*ci = pgCustomInt(src.(int64))
+	return nil
+}
+
+func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 42}
+	var v pgCustomInt
+
+	plan := ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &v)
+	err := plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, src, &v)
+	require.NoError(t, err)
+	require.EqualValues(t, 42, v)
+
+	ptr := new(pgCustomInt)
+	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	err = plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, src, &ptr)
+	require.NoError(t, err)
+	require.EqualValues(t, 42, *ptr)
+
+	ptr = new(pgCustomInt)
+	err = plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, nil, &ptr)
+	require.NoError(t, err)
+	assert.Nil(t, ptr)
+
+	ptr = nil
+	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	err = plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, src, &ptr)
+	require.NoError(t, err)
+	require.EqualValues(t, 42, *ptr)
+
+	ptr = nil
+	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	err = plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, nil, &ptr)
+	require.NoError(t, err)
+	assert.Nil(t, ptr)
+}
