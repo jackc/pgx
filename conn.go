@@ -216,8 +216,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 		}
 	}
 
-	if c.shouldLog(LogLevelInfo) {
-		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
+	if c.shouldLog(LogLevelTrace) {
+		c.log(ctx, LogLevelTrace, "Dialing PostgreSQL server", map[string]interface{}{"host": config.Config.Host})
 	}
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
@@ -253,8 +253,8 @@ func (c *Conn) Close(ctx context.Context) error {
 	}
 
 	err := c.pgConn.Close(ctx)
-	if c.shouldLog(LogLevelInfo) {
-		c.log(ctx, LogLevelInfo, "closed connection", nil)
+	if c.shouldLog(LogLevelTrace) {
+		c.log(ctx, LogLevelTrace, "Closed connection", nil)
 	}
 	return err
 }
