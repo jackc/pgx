@@ -8,7 +8,10 @@ import (
 
 // Stat is a snapshot of Pool statistics.
 type Stat struct {
-	s *puddle.Stat
+	s                    *puddle.Stat
+	newConnsCount        int64
+	lifetimeDestroyCount int64
+	idleDestroyCount     int64
 }
 
 // AcquireCount returns the cumulative count of successful acquires from the pool.
@@ -61,4 +64,21 @@ func (s *Stat) MaxConns() int32 {
 // IdleConns.
 func (s *Stat) TotalConns() int32 {
 	return s.s.TotalResources()
+}
+
+// NewConnsCount returns the cumulative count of new connections opened.
+func (s *Stat) NewConnsCount() int64 {
+	return s.newConnsCount
+}
+
+// MaxLifetimeDestroyCount returns the cumulative count of connections destroyed
+// because they exceeded MaxConnLifetime.
+func (s *Stat) MaxLifetimeDestroyCount() int64 {
+	return s.lifetimeDestroyCount
+}
+
+// MaxIdleDestroyCount returns the cumulative count of connections destroyed because
+// they exceeded MaxConnIdleTime.
+func (s *Stat) MaxIdleDestroyCount() int64 {
+	return s.idleDestroyCount
 }
