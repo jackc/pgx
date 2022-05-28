@@ -18,6 +18,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func BenchmarkConnectClose(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		err = conn.Close(context.Background())
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func BenchmarkMinimalUnpreparedSelectWithoutStatementCache(b *testing.B) {
 	config := mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE"))
 	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
