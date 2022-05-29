@@ -14,26 +14,16 @@ func init() {
 	}
 }
 
-// Get gets a []byte with len >= size and len <= size*2.
+// Get gets a []byte of len size with cap <= size*2.
 func Get(size int) []byte {
-	i := poolIdx(size)
+	i := getPoolIdx(size)
 	if i >= len(pools) {
 		return make([]byte, size)
 	}
-	return pools[i].Get().([]byte)
+	return pools[i].Get().([]byte)[:size]
 }
 
-// Put returns buf to the pool.
-func Put(buf []byte) {
-	i := poolIdx(len(buf))
-	if i >= len(pools) {
-		return
-	}
-
-	pools[i].Put(buf)
-}
-
-func poolIdx(size int) int {
+func getPoolIdx(size int) int {
 	size--
 	size >>= minPoolExpOf2
 	i := 0
@@ -43,4 +33,27 @@ func poolIdx(size int) int {
 	}
 
 	return i
+}
+
+// Put returns buf to the pool.
+func Put(buf []byte) {
+	buf = buf[:cap(buf)]
+
+	i := putPoolIdx(len(buf))
+	if i < 0 {
+		return
+	}
+
+	pools[i].Put(buf)
+}
+
+func putPoolIdx(size int) int {
+	minPoolSize := 1 << minPoolExpOf2
+	for i := range pools {
+		if size == minPoolSize<<i {
+			return i
+		}
+	}
+
+	return -1
 }

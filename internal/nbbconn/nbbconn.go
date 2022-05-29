@@ -83,7 +83,6 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 	}
 
 	buf := iobufpool.Get(len(b))
-	buf = buf[:len(b)]
 	copy(buf, b)
 	c.writeQueue.pushBack(buf)
 	return len(b), nil
