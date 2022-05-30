@@ -19,12 +19,14 @@ const fakeNonblockingWaitDuration = 100 * time.Millisecond
 
 // Conn is a non-blocking, buffered net.Conn wrapper. It implements net.Conn.
 //
-// It is designed to solve two problems.
+// It is designed to solve three problems.
 //
 // The first is resolving the deadlock that can occur when both sides of a connection are blocked writing because all
 // buffers between are full. See https://github.com/jackc/pgconn/issues/27 for discussion.
 //
 // The second is the inability to use a write deadline with a TLS.Conn without killing the connection.
+//
+// The third is to efficiently check if a connection has been closed via a non-blocking read.
 type Conn struct {
 	netConn net.Conn
 
@@ -77,6 +79,8 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	return c.netConn.Read(b)
 }
 
+// Write implements io.Writer. It never blocks due to buffering all writes. It will only return an error if the Conn is
+// closed. Call Flush to actually write to the underlying connection.
 func (c *Conn) Write(b []byte) (n int, err error) {
 	if c.isClosed() {
 		return 0, errClosed
