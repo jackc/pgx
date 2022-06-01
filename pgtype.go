@@ -799,7 +799,7 @@ func isScanner(dst interface{}) bool {
 	if _, ok := dst.(sql.Scanner); ok {
 		return true
 	}
-	if t := reflect.TypeOf(dst); t.Kind() == reflect.Ptr && t.Elem().Implements(scannerType) {
+	if t := reflect.TypeOf(dst); t != nil && t.Kind() == reflect.Ptr && t.Elem().Implements(scannerType) {
 		return true
 	}
 	return false

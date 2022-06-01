@@ -351,3 +351,13 @@ func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, ptr)
 }
+
+// Test for https://github.com/jackc/pgtype/issues/164
+func TestScanPlanInterface(t *testing.T) {
+	ci := pgtype.NewConnInfo()
+	src := []byte{0, 42}
+	var v interface{}
+	plan := ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, v)
+	err := plan.Scan(ci, pgtype.Int2OID, pgtype.BinaryFormatCode, src, v)
+	assert.Error(t, err)
+}
