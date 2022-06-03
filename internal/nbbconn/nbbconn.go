@@ -13,9 +13,11 @@ import (
 )
 
 var errClosed = errors.New("closed")
-var errWouldBlock = errors.New("would block")
+var ErrWouldBlock = errors.New("would block")
 
 const fakeNonblockingWaitDuration = 100 * time.Millisecond
+
+var NonBlockingDeadline = time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // Conn is a non-blocking, buffered net.Conn wrapper. It implements net.Conn.
 //
@@ -37,6 +39,7 @@ type Conn struct {
 
 	readDeadlineLock sync.Mutex
 	readDeadline     time.Time
+	readNonblocking  bool
 
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
@@ -74,9 +77,19 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 			releaseBuf(buf)
 		}
 		return n, nil
+		// TODO - must return error if n != len(b)
 	}
 
-	return c.netConn.Read(b)
+	var readNonblocking bool
+	c.readDeadlineLock.Lock()
+	readNonblocking = c.readNonblocking
+	c.readDeadlineLock.Unlock()
+
+	if readNonblocking {
+		return c.nonblockingRead(b)
+	} else {
+		return c.netConn.Read(b)
+	}
 }
 
 // Write implements io.Writer. It never blocks due to buffering all writes. It will only return an error if the Conn is
@@ -123,22 +136,16 @@ func (c *Conn) RemoteAddr() net.Addr {
 	return c.netConn.RemoteAddr()
 }
 
+// SetDeadline is the equivalent of calling SetReadDealine(t) and SetWriteDeadline(t).
 func (c *Conn) SetDeadline(t time.Time) error {
-	if c.isClosed() {
-		return errClosed
+	err := c.SetReadDeadline(t)
+	if err != nil {
+		return err
 	}
-
-	c.readDeadlineLock.Lock()
-	defer c.readDeadlineLock.Unlock()
-	c.readDeadline = t
-
-	c.writeDeadlineLock.Lock()
-	defer c.writeDeadlineLock.Unlock()
-	c.writeDeadline = t
-
-	return c.netConn.SetDeadline(t)
+	return c.SetWriteDeadline(t)
 }
 
+// SetReadDeadline sets the read deadline as t. If t == NonBlockingDeadline then future reads will be non-blocking.
 func (c *Conn) SetReadDeadline(t time.Time) error {
 	if c.isClosed() {
 		return errClosed
@@ -146,6 +153,14 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 
 	c.readDeadlineLock.Lock()
 	defer c.readDeadlineLock.Unlock()
+
+	if t == NonBlockingDeadline {
+		c.readNonblocking = true
+		t = time.Time{}
+	} else {
+		c.readNonblocking = false
+	}
+
 	c.readDeadline = t
 
 	return c.netConn.SetReadDeadline(t)
@@ -193,7 +208,7 @@ func (c *Conn) flush() error {
 			n, err := c.nonblockingWrite(remainingBuf)
 			remainingBuf = remainingBuf[n:]
 			if err != nil {
-				if !errors.Is(err, errWouldBlock) {
+				if !errors.Is(err, ErrWouldBlock) {
 					buf = buf[:len(remainingBuf)]
 					copy(buf, remainingBuf)
 					c.writeQueue.pushFront(buf)
@@ -234,7 +249,7 @@ func (c *Conn) bufferNonblockingRead() (stopChan chan struct{}, errChan chan err
 			}
 
 			if err != nil {
-				if !errors.Is(err, errWouldBlock) {
+				if !errors.Is(err, ErrWouldBlock) {
 					errChan <- err
 					return
 				}
@@ -276,7 +291,7 @@ func (c *Conn) fakeNonblockingWrite(b []byte) (n int, err error) {
 
 			if err != nil {
 				if errors.Is(err, os.ErrDeadlineExceeded) {
-					err = errWouldBlock
+					err = ErrWouldBlock
 				}
 			}
 		}()
@@ -305,7 +320,7 @@ func (c *Conn) fakeNonblockingRead(b []byte) (n int, err error) {
 
 			if err != nil {
 				if errors.Is(err, os.ErrDeadlineExceeded) {
-					err = errWouldBlock
+					err = ErrWouldBlock
 				}
 			}
 		}()
