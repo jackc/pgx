@@ -68,8 +68,8 @@ func TestInetSet(t *testing.T) {
 
 		assert.Equalf(t, tt.result.Status, r.Status, "%d: Status", i)
 		if tt.result.Status == pgtype.Present {
-			assert.Equalf(t, tt.result.IPNet.Mask, r.IPNet.Mask, "%d: IP", i)
-			assert.Truef(t, tt.result.IPNet.IP.Equal(r.IPNet.IP), "%d: Mask", i)
+			assert.Equalf(t, tt.result.IPNet.Mask, r.IPNet.Mask, "%d: Mask", i)
+			assert.Truef(t, tt.result.IPNet.IP.Equal(r.IPNet.IP), "%d: IP", i)
 		}
 	}
 }
