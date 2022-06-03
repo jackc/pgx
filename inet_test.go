@@ -52,10 +52,12 @@ func TestInetSet(t *testing.T) {
 		{source: mustParseCIDR(t, "127.0.0.1/32"), result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: mustParseCIDR(t, "127.0.0.1/32").IP, result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
 		{source: "127.0.0.1/32", result: pgtype.Inet{IPNet: mustParseCIDR(t, "127.0.0.1/32"), Status: pgtype.Present}},
-		{source: "1.2.3.4/24", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("1.2.3.4"), Mask: net.CIDRMask(24, 32)}, Status: pgtype.Present}},
+		{source: "1.2.3.4/24", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("1.2.3.4").To4(), Mask: net.CIDRMask(24, 32)}, Status: pgtype.Present}},
 		{source: "10.0.0.1", result: pgtype.Inet{IPNet: mustParseInet(t, "10.0.0.1"), Status: pgtype.Present}},
 		{source: "2607:f8b0:4009:80b::200e", result: pgtype.Inet{IPNet: mustParseInet(t, "2607:f8b0:4009:80b::200e"), Status: pgtype.Present}},
 		{source: net.ParseIP(""), result: pgtype.Inet{Status: pgtype.Null}},
+		{source: "0.0.0.0/8", result: pgtype.Inet{IPNet: mustParseInet(t, "0.0.0.0/8"), Status: pgtype.Present}},
+		{source: "::ffff:0.0.0.0/104", result: pgtype.Inet{IPNet: &net.IPNet{IP: net.ParseIP("0.0.0.0").To4(), Mask: net.CIDRMask(8, 32)}, Status: pgtype.Present}},
 	}
 
 	for i, tt := range successfulTests {
@@ -70,6 +72,7 @@ func TestInetSet(t *testing.T) {
 		if tt.result.Status == pgtype.Present {
 			assert.Equalf(t, tt.result.IPNet.Mask, r.IPNet.Mask, "%d: Mask", i)
 			assert.Truef(t, tt.result.IPNet.IP.Equal(r.IPNet.IP), "%d: IP", i)
+			assert.Equalf(t, len(tt.result.IPNet.IP), len(r.IPNet.IP), "%d: IP length", i)
 		}
 	}
 }

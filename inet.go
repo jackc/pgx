@@ -47,17 +47,26 @@ func (dst *Inet) Set(src interface{}) error {
 	case string:
 		ip, ipnet, err := net.ParseCIDR(value)
 		if err != nil {
-			ip = net.ParseIP(value)
+			ip := net.ParseIP(value)
 			if ip == nil {
 				return fmt.Errorf("unable to parse inet address: %s", value)
 			}
-			ipnet = &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
+
 			if ipv4 := ip.To4(); ipv4 != nil {
-				ip = ipv4
-				ipnet.Mask = net.CIDRMask(32, 32)
+				ipnet = &net.IPNet{IP: ipv4, Mask: net.CIDRMask(32, 32)}
+			} else {
+				ipnet = &net.IPNet{IP: ip, Mask: net.CIDRMask(128, 128)}
+			}
+		} else {
+			ipnet.IP = ip
+			if ipv4 := ipnet.IP.To4(); ipv4 != nil {
+				ipnet.IP = ipv4
+				if len(ipnet.Mask) == 16 {
+					ipnet.Mask = ipnet.Mask[12:] // Needed if input is IPv4-mapped IPv6.
+				}
 			}
 		}
-		ipnet.IP = ip
+
 		*dst = Inet{IPNet: ipnet, Status: Present}
 	case *net.IPNet:
 		if value == nil {
