@@ -1,5 +1,5 @@
-// Package nbbconn implements a non-blocking, buffered net.Conn wrapper.
-package nbbconn
+// Package nbconn implements a non-blocking net.Conn wrapper.
+package nbconn
 
 import (
 	"errors"
@@ -19,7 +19,7 @@ const fakeNonblockingWaitDuration = 100 * time.Millisecond
 
 var NonBlockingDeadline = time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
 
-// Conn is a non-blocking, buffered net.Conn wrapper. It implements net.Conn.
+// Conn is a non-blocking net.Conn wrapper. It implements net.Conn.
 //
 // It is designed to solve three problems.
 //

@@ -1,11 +1,11 @@
-package nbbconn_test
+package nbconn_test
 
 import (
 	"net"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/internal/nbbconn"
+	"github.com/jackc/pgx/v5/internal/nbconn"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,7 @@ func TestWriteIsBuffered(t *testing.T) {
 		remote.Close()
 	}()
 
-	conn := nbbconn.New(local)
+	conn := nbconn.New(local)
 
 	// net.Pipe is synchronous so the Write would block if not buffered.
 	writeBuf := []byte("test")
@@ -44,7 +44,7 @@ func TestReadFlushesWriteBuffer(t *testing.T) {
 		remote.Close()
 	}()
 
-	conn := nbbconn.New(local)
+	conn := nbconn.New(local)
 
 	writeBuf := []byte("test")
 	n, err := conn.Write(writeBuf)
@@ -77,7 +77,7 @@ func TestCloseFlushesWriteBuffer(t *testing.T) {
 		remote.Close()
 	}()
 
-	conn := nbbconn.New(local)
+	conn := nbconn.New(local)
 
 	writeBuf := []byte("test")
 	n, err := conn.Write(writeBuf)
@@ -104,14 +104,14 @@ func TestNonBlockingRead(t *testing.T) {
 		remote.Close()
 	}()
 
-	conn := nbbconn.New(local)
+	conn := nbconn.New(local)
 
-	err := conn.SetReadDeadline(nbbconn.NonBlockingDeadline)
+	err := conn.SetReadDeadline(nbconn.NonBlockingDeadline)
 	require.NoError(t, err)
 
 	buf := make([]byte, 4)
 	n, err := conn.Read(buf)
-	require.ErrorIs(t, err, nbbconn.ErrWouldBlock)
+	require.ErrorIs(t, err, nbconn.ErrWouldBlock)
 	require.EqualValues(t, 0, n)
 
 	errChan := make(chan error, 1)

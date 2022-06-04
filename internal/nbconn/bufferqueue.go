@@ -1,4 +1,4 @@
-package nbbconn
+package nbconn
 
 import (
 	"sync"

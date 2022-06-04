@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
-	"github.com/jackc/pgx/v5/internal/nbbconn"
+	"github.com/jackc/pgx/v5/internal/nbconn"
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
@@ -248,8 +248,8 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		pgConn.contextWatcher.Watch(ctx)
 	}
 
-	pgConn.conn = nbbconn.New(pgConn.conn)
-	pgConn.contextWatcher.Unwatch() // context watcher should watch nbbconn
+	pgConn.conn = nbconn.New(pgConn.conn)
+	pgConn.contextWatcher.Unwatch() // context watcher should watch nbconn
 	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
 	pgConn.contextWatcher.Watch(ctx)
 
@@ -428,7 +428,7 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 	msg, err := pgConn.frontend.Receive()
 
 	if err != nil {
-		if errors.Is(err, nbbconn.ErrWouldBlock) {
+		if errors.Is(err, nbconn.ErrWouldBlock) {
 			return nil, err
 		}
 
@@ -1143,7 +1143,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		return CommandTag{}, err
 	}
 
-	err = pgConn.conn.SetReadDeadline(nbbconn.NonBlockingDeadline)
+	err = pgConn.conn.SetReadDeadline(nbconn.NonBlockingDeadline)
 	if err != nil {
 		pgConn.asyncClose()
 		return CommandTag{}, err
@@ -1185,7 +1185,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		for pgErr == nil {
 			msg, err := pgConn.receiveMessage()
 			if err != nil {
-				if errors.Is(err, nbbconn.ErrWouldBlock) {
+				if errors.Is(err, nbconn.ErrWouldBlock) {
 					break
 				}
 				pgConn.asyncClose()
