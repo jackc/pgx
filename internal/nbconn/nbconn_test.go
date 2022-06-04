@@ -127,3 +127,192 @@ func TestNonBlockingRead(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 4, n)
 }
+
+func TestReadPreviouslyBuffered(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() {
+		local.Close()
+		remote.Close()
+	}()
+
+	errChan := make(chan error, 1)
+	go func() {
+		err := func() error {
+			_, err := remote.Write([]byte("alpha"))
+			if err != nil {
+				return err
+			}
+
+			readBuf := make([]byte, 4)
+			_, err = remote.Read(readBuf)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		errChan <- err
+	}()
+
+	conn := nbconn.New(local)
+
+	_, err := conn.Write([]byte("test"))
+	require.NoError(t, err)
+
+	// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+	err = conn.Flush()
+	require.NoError(t, err)
+
+	readBuf := make([]byte, 5)
+	n, err := conn.Read(readBuf)
+	require.NoError(t, err)
+	require.EqualValues(t, 5, n)
+	require.Equal(t, []byte("alpha"), readBuf)
+}
+
+func TestReadPreviouslyBufferedPartialRead(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() {
+		local.Close()
+		remote.Close()
+	}()
+
+	errChan := make(chan error, 1)
+	go func() {
+		err := func() error {
+			_, err := remote.Write([]byte("alpha"))
+			if err != nil {
+				return err
+			}
+
+			readBuf := make([]byte, 4)
+			_, err = remote.Read(readBuf)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		errChan <- err
+	}()
+
+	conn := nbconn.New(local)
+
+	_, err := conn.Write([]byte("test"))
+	require.NoError(t, err)
+
+	// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+	err = conn.Flush()
+	require.NoError(t, err)
+
+	readBuf := make([]byte, 2)
+	n, err := conn.Read(readBuf)
+	require.NoError(t, err)
+	require.EqualValues(t, 2, n)
+	require.Equal(t, []byte("al"), readBuf)
+
+	readBuf = make([]byte, 3)
+	n, err = conn.Read(readBuf)
+	require.NoError(t, err)
+	require.EqualValues(t, 3, n)
+	require.Equal(t, []byte("pha"), readBuf)
+}
+
+func TestReadMultiplePreviouslyBuffered(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() {
+		local.Close()
+		remote.Close()
+	}()
+
+	errChan := make(chan error, 1)
+	go func() {
+		err := func() error {
+			_, err := remote.Write([]byte("alpha"))
+			if err != nil {
+				return err
+			}
+
+			_, err = remote.Write([]byte("beta"))
+			if err != nil {
+				return err
+			}
+
+			readBuf := make([]byte, 4)
+			_, err = remote.Read(readBuf)
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		errChan <- err
+	}()
+
+	conn := nbconn.New(local)
+
+	_, err := conn.Write([]byte("test"))
+	require.NoError(t, err)
+
+	// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+	err = conn.Flush()
+	require.NoError(t, err)
+
+	readBuf := make([]byte, 9)
+	n, err := conn.Read(readBuf)
+	require.NoError(t, err)
+	require.EqualValues(t, 9, n)
+	require.Equal(t, []byte("alphabeta"), readBuf)
+}
+
+func TestReadPreviouslyBufferedAndReadMore(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() {
+		local.Close()
+		remote.Close()
+	}()
+
+	flushCompleteChan := make(chan struct{})
+	errChan := make(chan error, 1)
+	go func() {
+		err := func() error {
+			_, err := remote.Write([]byte("alpha"))
+			if err != nil {
+				return err
+			}
+
+			readBuf := make([]byte, 4)
+			_, err = remote.Read(readBuf)
+			if err != nil {
+				return err
+			}
+
+			<-flushCompleteChan
+
+			_, err = remote.Write([]byte("beta"))
+			if err != nil {
+				return err
+			}
+
+			return nil
+		}()
+		errChan <- err
+	}()
+
+	conn := nbconn.New(local)
+
+	_, err := conn.Write([]byte("test"))
+	require.NoError(t, err)
+
+	// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+	err = conn.Flush()
+	require.NoError(t, err)
+
+	close(flushCompleteChan)
+
+	readBuf := make([]byte, 9)
+	n, err := conn.Read(readBuf)
+	require.NoError(t, err)
+	require.EqualValues(t, 9, n)
+	require.Equal(t, []byte("alphabeta"), readBuf)
+}

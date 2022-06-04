@@ -67,17 +67,23 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 		return 0, err
 	}
 
-	buf := c.readQueue.popFront()
-	if buf != nil {
-		n = copy(b, buf)
-		if n < len(buf) {
-			buf = buf[n:]
+	for n < len(b) {
+		buf := c.readQueue.popFront()
+		if buf == nil {
+			break
+		}
+		copiedN := copy(b[n:], buf)
+		if copiedN < len(buf) {
+			buf = buf[copiedN:]
 			c.readQueue.pushFront(buf)
 		} else {
 			releaseBuf(buf)
 		}
+		n += copiedN
+	}
+
+	if n == len(b) {
 		return n, nil
-		// TODO - must return error if n != len(b)
 	}
 
 	var readNonblocking bool
@@ -85,11 +91,14 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	readNonblocking = c.readNonblocking
 	c.readDeadlineLock.Unlock()
 
+	var readN int
 	if readNonblocking {
-		return c.nonblockingRead(b)
+		readN, err = c.nonblockingRead(b[n:])
 	} else {
-		return c.netConn.Read(b)
+		readN, err = c.netConn.Read(b[n:])
 	}
+	n += readN
+	return n, err
 }
 
 // Write implements io.Writer. It never blocks due to buffering all writes. It will only return an error if the Conn is
