@@ -1159,7 +1159,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	buf[0] = 'd'
 
 	var readErr, pgErr error
-	for {
+	for pgErr == nil {
 		// Read chunk from r.
 		var n int
 		n, readErr = r.Read(buf[5:cap(buf)])
@@ -1182,7 +1182,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		}
 
 		// Read messages until error or none available.
-		for {
+		for pgErr == nil {
 			msg, err := pgConn.receiveMessage()
 			if err != nil {
 				if errors.Is(err, nbbconn.ErrWouldBlock) {
