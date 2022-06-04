@@ -2,6 +2,7 @@
 package nbconn
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"os"
@@ -54,6 +55,12 @@ func New(conn net.Conn) *Conn {
 	}
 }
 
+// StartTLS starts using TLS. It must not be called concurrently with any other method and must only be called once.
+func (c *Conn) StartTLS(config *tls.Config) {
+	c.netConn = tls.Client(c.netConn, config)
+}
+
+// Read implements io.Reader.
 func (c *Conn) Read(b []byte) (n int, err error) {
 	if c.isClosed() {
 		return 0, errClosed

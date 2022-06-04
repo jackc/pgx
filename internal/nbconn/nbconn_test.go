@@ -2,6 +2,7 @@ package nbconn_test
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -68,24 +69,38 @@ func testVariants(t *testing.T, f func(t *testing.T, local *nbconn.Conn, remote 
 	for _, tt := range []struct {
 		name      string
 		makeConns func(t *testing.T) (local, remote net.Conn)
+		useTLS    bool
 	}{
 		{
 			name:      "Pipe",
 			makeConns: makePipeConns,
+			useTLS:    false,
 		},
 		{
 			name:      "TCP",
 			makeConns: makeTCPConns,
+			useTLS:    false,
 		},
 		{
 			name:      "TLS over TCP",
-			makeConns: makeTLSOverTCPConns,
+			makeConns: makeTCPConns,
+			useTLS:    true,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			local, remote := tt.makeConns(t)
-
 			conn := nbconn.New(local)
+
+			if tt.useTLS {
+				cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
+				require.NoError(t, err)
+
+				remote = tls.Server(remote, &tls.Config{
+					Certificates: []tls.Certificate{cert},
+				})
+				conn.StartTLS(&tls.Config{InsecureSkipVerify: true})
+			}
+
 			f(t, conn, remote)
 		})
 	}
@@ -129,42 +144,6 @@ func makeTCPConns(t *testing.T) (local, remote net.Conn) {
 	remote = acceptResult.conn
 
 	return local, remote
-}
-
-// makeTLSOverTCPConns returns a connected pair of net.Conns running over TCP on localhost with TLS encryption.
-func makeTLSOverTCPConns(t *testing.T) (local, remote net.Conn) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer ln.Close()
-
-	type acceptResultT struct {
-		conn net.Conn
-		err  error
-	}
-	acceptChan := make(chan acceptResultT)
-
-	go func() {
-		conn, err := ln.Accept()
-		acceptChan <- acceptResultT{conn: conn, err: err}
-	}()
-
-	localConn, err := net.Dial("tcp", ln.Addr().String())
-	require.NoError(t, err)
-
-	acceptResult := <-acceptChan
-	require.NoError(t, acceptResult.err)
-
-	remoteConn := acceptResult.conn
-
-	cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
-	require.NoError(t, err)
-
-	localTLS := tls.Client(localConn, &tls.Config{InsecureSkipVerify: true})
-	remoteTLS := tls.Server(remoteConn, &tls.Config{
-		Certificates: []tls.Certificate{cert},
-	})
-
-	return localTLS, remoteTLS
 }
 
 func TestWriteIsBuffered(t *testing.T) {
@@ -423,9 +402,13 @@ func TestReadPreviouslyBufferedAndReadMore(t *testing.T) {
 		close(flushCompleteChan)
 
 		readBuf := make([]byte, 9)
-		n, err := conn.Read(readBuf)
+
+		n, err := io.ReadFull(conn, readBuf)
 		require.NoError(t, err)
 		require.EqualValues(t, 9, n)
 		require.Equal(t, []byte("alphabeta"), readBuf)
+
+		err = <-errChan
+		require.NoError(t, err)
 	})
 }
