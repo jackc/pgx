@@ -251,6 +251,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn.conn = nbbconn.New(pgConn.conn)
 	pgConn.contextWatcher.Unwatch() // context watcher should watch nbbconn
 	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
+	pgConn.contextWatcher.Watch(ctx)
 
 	defer pgConn.contextWatcher.Unwatch()
 
