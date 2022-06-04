@@ -168,6 +168,18 @@ func TestWriteIsBuffered(t *testing.T) {
 	})
 }
 
+func TestSetWriteDeadlineDoesNotBlockWrite(t *testing.T) {
+	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+		err := conn.SetWriteDeadline(time.Now())
+		require.NoError(t, err)
+
+		writeBuf := []byte("test")
+		n, err := conn.Write(writeBuf)
+		require.NoError(t, err)
+		require.EqualValues(t, 4, n)
+	})
+}
+
 func TestReadFlushesWriteBuffer(t *testing.T) {
 	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
 		writeBuf := []byte("test")
