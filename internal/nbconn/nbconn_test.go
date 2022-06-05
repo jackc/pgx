@@ -123,7 +123,7 @@ func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote n
 }
 
 // makePipeConns returns a connected pair of net.Conns created with net.Pipe(). It is entirely synchronous so it is
-// useful for testing an exact sequence of reads and writes.
+// useful for testing an exact sequence of reads and writes with the underlying connection blocking.
 func makePipeConns(t *testing.T) (local, remote net.Conn) {
 	local, remote = net.Pipe()
 	t.Cleanup(func() {
@@ -294,7 +294,7 @@ func TestReadPreviouslyBuffered(t *testing.T) {
 		_, err := conn.Write([]byte("test"))
 		require.NoError(t, err)
 
-		// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+		// Because net.Pipe() is synchronous conn.Flush must buffer a read.
 		err = conn.Flush()
 		require.NoError(t, err)
 
@@ -303,6 +303,42 @@ func TestReadPreviouslyBuffered(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, 5, n)
 		require.Equal(t, []byte("alpha"), readBuf)
+	})
+}
+
+func TestReadMoreThanPreviouslyBufferedDoesNotBlock(t *testing.T) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
+		errChan := make(chan error, 1)
+		go func() {
+			err := func() error {
+				_, err := remote.Write([]byte("alpha"))
+				if err != nil {
+					return err
+				}
+
+				readBuf := make([]byte, 4)
+				_, err = remote.Read(readBuf)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			}()
+			errChan <- err
+		}()
+
+		_, err := conn.Write([]byte("test"))
+		require.NoError(t, err)
+
+		// Because net.Pipe() is synchronous conn.Flush must buffer a read.
+		err = conn.Flush()
+		require.NoError(t, err)
+
+		readBuf := make([]byte, 10)
+		n, err := conn.Read(readBuf)
+		require.NoError(t, err)
+		require.EqualValues(t, 5, n)
+		require.Equal(t, []byte("alpha"), readBuf[:n])
 	})
 }
 
@@ -331,7 +367,7 @@ func TestReadPreviouslyBufferedPartialRead(t *testing.T) {
 		_, err := conn.Write([]byte("test"))
 		require.NoError(t, err)
 
-		// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+		// Because net.Pipe() is synchronous conn.Flush must buffer a read.
 		err = conn.Flush()
 		require.NoError(t, err)
 
@@ -378,7 +414,7 @@ func TestReadMultiplePreviouslyBuffered(t *testing.T) {
 		_, err := conn.Write([]byte("test"))
 		require.NoError(t, err)
 
-		// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+		// Because net.Pipe() is synchronous conn.Flush must buffer a read.
 		err = conn.Flush()
 		require.NoError(t, err)
 
@@ -423,7 +459,7 @@ func TestReadPreviouslyBufferedAndReadMore(t *testing.T) {
 		_, err := conn.Write([]byte("test"))
 		require.NoError(t, err)
 
-		// Because net.Pipe() is synchronous conn.Flust must buffer a read.
+		// Because net.Pipe() is synchronous conn.Flush must buffer a read.
 		err = conn.Flush()
 		require.NoError(t, err)
 

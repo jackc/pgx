@@ -107,7 +107,9 @@ func (c *NetConn) Read(b []byte) (n int, err error) {
 		n += copiedN
 	}
 
-	if n == len(b) {
+	// If any bytes were already buffered return them without trying to do a Read. Otherwise, when the caller is trying to
+	// Read up to len(b) bytes but all available bytes have already been buffered the underlying Read would block.
+	if n > 0 {
 		return n, nil
 	}
 
