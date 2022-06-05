@@ -230,13 +230,14 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		}
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
+	netConn = nbconn.NewNetConn(netConn)
 
 	pgConn.conn = netConn
 	pgConn.contextWatcher = newContextWatcher(netConn)
 	pgConn.contextWatcher.Watch(ctx)
 
 	if fallbackConfig.TLSConfig != nil {
-		tlsConn, err := startTLS(netConn, fallbackConfig.TLSConfig)
+		tlsConn, err := startTLS(netConn.(*nbconn.NetConn), fallbackConfig.TLSConfig)
 		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
 		if err != nil {
 			netConn.Close()
@@ -247,11 +248,6 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		pgConn.contextWatcher = newContextWatcher(tlsConn)
 		pgConn.contextWatcher.Watch(ctx)
 	}
-
-	pgConn.conn = nbconn.New(pgConn.conn)
-	pgConn.contextWatcher.Unwatch() // context watcher should watch nbconn
-	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
-	pgConn.contextWatcher.Watch(ctx)
 
 	defer pgConn.contextWatcher.Unwatch()
 
@@ -357,7 +353,7 @@ func newContextWatcher(conn net.Conn) *ctxwatch.ContextWatcher {
 	)
 }
 
-func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
+func startTLS(conn *nbconn.NetConn, tlsConfig *tls.Config) (net.Conn, error) {
 	err := binary.Write(conn, binary.BigEndian, []int32{8, 80877103})
 	if err != nil {
 		return nil, err
@@ -372,7 +368,12 @@ func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 		return nil, errors.New("server refused TLS connection")
 	}
 
-	return tls.Client(conn, tlsConfig), nil
+	tlsConn, err := nbconn.TLSClient(conn, tlsConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	return tlsConn, nil
 }
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {

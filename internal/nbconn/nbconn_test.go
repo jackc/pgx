@@ -65,7 +65,7 @@ pz01y53wMSTJs0ocAxkYvUc5laF+vMsLpG2vp8f35w8uKuO7+vm5LAjUsPd099jG
 2qWm8jTPeDC3sq+67s2oojHf+Q==
 -----END TESTING KEY-----`, "TESTING KEY", "PRIVATE KEY"))
 
-func testVariants(t *testing.T, f func(t *testing.T, local *nbconn.Conn, remote net.Conn)) {
+func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote net.Conn)) {
 	for _, tt := range []struct {
 		name      string
 		makeConns func(t *testing.T) (local, remote net.Conn)
@@ -89,16 +89,32 @@ func testVariants(t *testing.T, f func(t *testing.T, local *nbconn.Conn, remote 
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			local, remote := tt.makeConns(t)
-			conn := nbconn.New(local)
+
+			var conn nbconn.Conn
+			netConn := nbconn.NewNetConn(local)
 
 			if tt.useTLS {
 				cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
 				require.NoError(t, err)
 
-				remote = tls.Server(remote, &tls.Config{
+				tlsServer := tls.Server(remote, &tls.Config{
 					Certificates: []tls.Certificate{cert},
 				})
-				conn.StartTLS(&tls.Config{InsecureSkipVerify: true})
+				serverTLSHandshakeChan := make(chan error)
+				go func() {
+					err := tlsServer.Handshake()
+					serverTLSHandshakeChan <- err
+				}()
+
+				tlsConn, err := nbconn.TLSClient(netConn, &tls.Config{InsecureSkipVerify: true})
+				require.NoError(t, err)
+				conn = tlsConn
+
+				err = <-serverTLSHandshakeChan
+				require.NoError(t, err)
+				remote = tlsServer
+			} else {
+				conn = netConn
 			}
 
 			f(t, conn, remote)
@@ -147,7 +163,7 @@ func makeTCPConns(t *testing.T) (local, remote net.Conn) {
 }
 
 func TestWriteIsBuffered(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		// net.Pipe is synchronous so the Write would block if not buffered.
 		writeBuf := []byte("test")
 		n, err := conn.Write(writeBuf)
@@ -169,7 +185,7 @@ func TestWriteIsBuffered(t *testing.T) {
 }
 
 func TestSetWriteDeadlineDoesNotBlockWrite(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		err := conn.SetWriteDeadline(time.Now())
 		require.NoError(t, err)
 
@@ -181,7 +197,7 @@ func TestSetWriteDeadlineDoesNotBlockWrite(t *testing.T) {
 }
 
 func TestReadFlushesWriteBuffer(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		writeBuf := []byte("test")
 		n, err := conn.Write(writeBuf)
 		require.NoError(t, err)
@@ -208,7 +224,7 @@ func TestReadFlushesWriteBuffer(t *testing.T) {
 }
 
 func TestCloseFlushesWriteBuffer(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		writeBuf := []byte("test")
 		n, err := conn.Write(writeBuf)
 		require.NoError(t, err)
@@ -229,7 +245,7 @@ func TestCloseFlushesWriteBuffer(t *testing.T) {
 }
 
 func TestNonBlockingRead(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		err := conn.SetReadDeadline(nbconn.NonBlockingDeadline)
 		require.NoError(t, err)
 
@@ -254,7 +270,7 @@ func TestNonBlockingRead(t *testing.T) {
 }
 
 func TestReadPreviouslyBuffered(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 
 		errChan := make(chan error, 1)
 		go func() {
@@ -291,7 +307,7 @@ func TestReadPreviouslyBuffered(t *testing.T) {
 }
 
 func TestReadPreviouslyBufferedPartialRead(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 
 		errChan := make(chan error, 1)
 		go func() {
@@ -334,7 +350,7 @@ func TestReadPreviouslyBufferedPartialRead(t *testing.T) {
 }
 
 func TestReadMultiplePreviouslyBuffered(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		errChan := make(chan error, 1)
 		go func() {
 			err := func() error {
@@ -367,7 +383,7 @@ func TestReadMultiplePreviouslyBuffered(t *testing.T) {
 		require.NoError(t, err)
 
 		readBuf := make([]byte, 9)
-		n, err := conn.Read(readBuf)
+		n, err := io.ReadFull(conn, readBuf)
 		require.NoError(t, err)
 		require.EqualValues(t, 9, n)
 		require.Equal(t, []byte("alphabeta"), readBuf)
@@ -375,7 +391,7 @@ func TestReadMultiplePreviouslyBuffered(t *testing.T) {
 }
 
 func TestReadPreviouslyBufferedAndReadMore(t *testing.T) {
-	testVariants(t, func(t *testing.T, conn *nbconn.Conn, remote net.Conn) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 
 		flushCompleteChan := make(chan struct{})
 		errChan := make(chan error, 1)
