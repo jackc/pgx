@@ -50,6 +50,8 @@ type Config struct {
 	// fallback config is tried. This allows implementing high availability behavior such as libpq does with target_session_attrs.
 	ValidateConnect ValidateConnectFunc
 
+	HasPreferStandbyTargetSessionAttr bool
+
 	// AfterConnect is called after ValidateConnect. It can be used to set up the connection (e.g. Set session variables
 	// or prepare statements). If this returns an error the connection attempt fails.
 	AfterConnect AfterConnectFunc
@@ -367,7 +369,10 @@ func ParseConfig(connString string) (*Config, error) {
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsPrimary
 	case "standby":
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsStandby
-	case "any", "prefer-standby":
+	case "prefer-standby":
+		config.ValidateConnect = ValidateConnectTargetSessionAttrsPrefferStandby
+		config.HasPreferStandbyTargetSessionAttr = true
+	case "any":
 		// do nothing
 	default:
 		return nil, &parseConfigError{connString: connString, msg: fmt.Sprintf("unknown target_session_attrs value: %v", tsa)}
@@ -806,6 +811,21 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 
 	if string(result.Rows[0][0]) == "t" {
 		return errors.New("server is in standby mode")
+	}
+
+	return nil
+}
+
+// ValidateConnectTargetSessionAttrsPrimary is an ValidateConnectFunc that implements libpq compatible
+// target_session_attrs=prefer-standby.
+func ValidateConnectTargetSessionAttrsPrefferStandby(ctx context.Context, pgConn *PgConn) error {
+	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
+	if result.Err != nil {
+		return result.Err
+	}
+
+	if string(result.Rows[0][0]) != "t" {
+		return &preferStanbyNotFoundError{err: errors.New("server is not in hot standby mode")}
 	}
 
 	return nil
