@@ -67,31 +67,53 @@ pz01y53wMSTJs0ocAxkYvUc5laF+vMsLpG2vp8f35w8uKuO7+vm5LAjUsPd099jG
 
 func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote net.Conn)) {
 	for _, tt := range []struct {
-		name      string
-		makeConns func(t *testing.T) (local, remote net.Conn)
-		useTLS    bool
+		name              string
+		makeConns         func(t *testing.T) (local, remote net.Conn)
+		useTLS            bool
+		fakeNonBlockingIO bool
 	}{
 		{
-			name:      "Pipe",
-			makeConns: makePipeConns,
-			useTLS:    false,
+			name:              "Pipe",
+			makeConns:         makePipeConns,
+			useTLS:            false,
+			fakeNonBlockingIO: true,
 		},
 		{
-			name:      "TCP",
-			makeConns: makeTCPConns,
-			useTLS:    false,
+			name:              "TCP with Fake Non-blocking IO",
+			makeConns:         makeTCPConns,
+			useTLS:            false,
+			fakeNonBlockingIO: true,
 		},
 		{
-			name:      "TLS over TCP",
-			makeConns: makeTCPConns,
-			useTLS:    true,
+			name:              "TLS over TCP with Fake Non-blocking IO",
+			makeConns:         makeTCPConns,
+			useTLS:            true,
+			fakeNonBlockingIO: true,
+		},
+		{
+			name:              "TCP with Real Non-blocking IO",
+			makeConns:         makeTCPConns,
+			useTLS:            false,
+			fakeNonBlockingIO: false,
+		},
+		{
+			name:              "TLS over TCP with Real Non-blocking IO",
+			makeConns:         makeTCPConns,
+			useTLS:            true,
+			fakeNonBlockingIO: false,
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			local, remote := tt.makeConns(t)
 
+			// Just to be sure both ends get closed. Also, it retains a reference so one side of the connection doesn't get
+			// garbage collected. This could happen when a test is testing against a non-responsive remote. Since it never
+			// uses remote it may be garbage collected leading to the connection being closed.
+			defer local.Close()
+			defer remote.Close()
+
 			var conn nbconn.Conn
-			netConn := nbconn.NewNetConn(local)
+			netConn := nbconn.NewNetConn(local, tt.fakeNonBlockingIO)
 
 			if tt.useTLS {
 				cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
@@ -241,6 +263,60 @@ func TestCloseFlushesWriteBuffer(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NoError(t, <-errChan)
+	})
+}
+
+// This test exercises the non-blocking write path. Because writes are buffered it is difficult trigger this with
+// certainty and visibility. So this test tries to trigger what would otherwise be a deadlock by both sides writing
+// large values.
+func TestInternalNonBlockingWrite(t *testing.T) {
+	const deadlockSize = 4 * 1024 * 1024
+
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
+		writeBuf := make([]byte, deadlockSize)
+		n, err := conn.Write(writeBuf)
+		require.NoError(t, err)
+		require.EqualValues(t, deadlockSize, n)
+
+		errChan := make(chan error, 1)
+		go func() {
+			remoteWriteBuf := make([]byte, deadlockSize)
+			_, err := remote.Write(remoteWriteBuf)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			readBuf := make([]byte, deadlockSize)
+			_, err = io.ReadFull(remote, readBuf)
+			errChan <- err
+		}()
+
+		readBuf := make([]byte, deadlockSize)
+		_, err = conn.Read(readBuf)
+		require.NoError(t, err)
+
+		err = conn.Close()
+		require.NoError(t, err)
+
+		require.NoError(t, <-errChan)
+	})
+}
+
+func TestInternalNonBlockingWriteWithDeadline(t *testing.T) {
+	const deadlockSize = 4 * 1024 * 1024
+
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
+		writeBuf := make([]byte, deadlockSize)
+		n, err := conn.Write(writeBuf)
+		require.NoError(t, err)
+		require.EqualValues(t, deadlockSize, n)
+
+		err = conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		require.NoError(t, err)
+
+		err = conn.Flush()
+		require.Error(t, err)
 	})
 }
 

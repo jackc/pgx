@@ -17,6 +17,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
@@ -54,7 +55,8 @@ type Conn interface {
 
 // NetConn is a non-blocking net.Conn wrapper. It implements net.Conn.
 type NetConn struct {
-	conn net.Conn
+	conn    net.Conn
+	rawConn syscall.RawConn
 
 	readQueue  bufferQueue
 	writeQueue bufferQueue
@@ -72,10 +74,20 @@ type NetConn struct {
 	closed int64 // 0 = not closed, 1 = closed
 }
 
-func NewNetConn(conn net.Conn) *NetConn {
-	return &NetConn{
+func NewNetConn(conn net.Conn, fakeNonBlockingIO bool) *NetConn {
+	nc := &NetConn{
 		conn: conn,
 	}
+
+	if !fakeNonBlockingIO {
+		if sc, ok := conn.(syscall.Conn); ok {
+			if rawConn, err := sc.SyscallConn(); err == nil {
+				nc.rawConn = rawConn
+			}
+		}
+	}
+
+	return nc
 }
 
 // Read implements io.Reader.
@@ -323,7 +335,11 @@ func (c *NetConn) isClosed() bool {
 }
 
 func (c *NetConn) nonblockingWrite(b []byte) (n int, err error) {
-	return c.fakeNonblockingWrite(b)
+	if c.rawConn == nil {
+		return c.fakeNonblockingWrite(b)
+	} else {
+		return c.realNonblockingWrite(b)
+	}
 }
 
 func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
@@ -351,8 +367,37 @@ func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
 	return c.conn.Write(b)
 }
 
+func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
+	var funcErr error
+	err = c.rawConn.Write(func(fd uintptr) (done bool) {
+		n, funcErr = syscall.Write(int(fd), b)
+		return true
+	})
+	if err == nil && funcErr != nil {
+		if errors.Is(funcErr, syscall.EWOULDBLOCK) {
+			err = ErrWouldBlock
+		} else {
+			err = funcErr
+		}
+	}
+	if err != nil {
+		// n may be -1 when an error occurs.
+		if n < 0 {
+			n = 0
+		}
+
+		return n, err
+	}
+
+	return n, nil
+}
+
 func (c *NetConn) nonblockingRead(b []byte) (n int, err error) {
-	return c.fakeNonblockingRead(b)
+	if c.rawConn == nil {
+		return c.fakeNonblockingRead(b)
+	} else {
+		return c.realNonblockingRead(b)
+	}
 }
 
 func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
@@ -378,6 +423,31 @@ func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 	}
 
 	return c.conn.Read(b)
+}
+
+func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
+	var funcErr error
+	err = c.rawConn.Read(func(fd uintptr) (done bool) {
+		n, funcErr = syscall.Read(int(fd), b)
+		return true
+	})
+	if err == nil && funcErr != nil {
+		if errors.Is(funcErr, syscall.EWOULDBLOCK) {
+			err = ErrWouldBlock
+		} else {
+			err = funcErr
+		}
+	}
+	if err != nil {
+		// n may be -1 when an error occurs.
+		if n < 0 {
+			n = 0
+		}
+
+		return n, err
+	}
+
+	return n, nil
 }
 
 // syscall.Conn is interface

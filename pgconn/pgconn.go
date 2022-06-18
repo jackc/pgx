@@ -230,7 +230,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		}
 		return nil, &connectError{config: config, msg: "dial error", err: err}
 	}
-	netConn = nbconn.NewNetConn(netConn)
+	netConn = nbconn.NewNetConn(netConn, false)
 
 	pgConn.conn = netConn
 	pgConn.contextWatcher = newContextWatcher(netConn)
