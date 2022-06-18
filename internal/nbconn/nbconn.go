@@ -114,7 +114,7 @@ func (c *NetConn) Read(b []byte) (n int, err error) {
 			buf = buf[copiedN:]
 			c.readQueue.pushFront(buf)
 		} else {
-			releaseBuf(buf)
+			iobufpool.Put(buf)
 		}
 		n += copiedN
 	}
@@ -292,7 +292,7 @@ func (c *NetConn) flush() error {
 
 			}
 		}
-		releaseBuf(buf)
+		iobufpool.Put(buf)
 	}
 
 	return nil

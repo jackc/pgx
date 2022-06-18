@@ -37,9 +37,7 @@ func getPoolIdx(size int) int {
 
 // Put returns buf to the pool.
 func Put(buf []byte) {
-	buf = buf[:cap(buf)]
-
-	i := putPoolIdx(len(buf))
+	i := putPoolIdx(cap(buf))
 	if i < 0 {
 		return
 	}

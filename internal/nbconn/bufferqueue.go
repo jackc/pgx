@@ -2,8 +2,6 @@ package nbconn
 
 import (
 	"sync"
-
-	"github.com/jackc/pgx/v5/internal/iobufpool"
 )
 
 const minBufferQueueLen = 8
@@ -69,8 +67,4 @@ func (bq *bufferQueue) growQueue() {
 	newQueue := make([][]byte, desiredLen)
 	copy(newQueue, bq.queue)
 	bq.queue = newQueue
-}
-
-func releaseBuf(buf []byte) {
-	iobufpool.Put(buf[:cap(buf)])
 }
