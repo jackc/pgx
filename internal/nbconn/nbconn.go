@@ -62,6 +62,11 @@ type NetConn struct {
 	writeQueue bufferQueue
 
 	readFlushLock sync.Mutex
+	// non-blocking writes with syscall.RawConn are done with a callback function. By using these fields instead of the
+	// callback functions closure  to pass the buf argument and receive the n and err results we avoid some allocations.
+	nonblockWriteBuf []byte
+	nonblockWriteErr error
+	nonblockWriteN   int
 
 	readDeadlineLock sync.Mutex
 	readDeadline     time.Time
@@ -367,17 +372,21 @@ func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
 	return c.conn.Write(b)
 }
 
+// realNonblockingWrite does a non-blocking write. readFlushLock must already be held.
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
-	var funcErr error
+	c.nonblockWriteBuf = b
+	c.nonblockWriteN = 0
+	c.nonblockWriteErr = nil
 	err = c.rawConn.Write(func(fd uintptr) (done bool) {
-		n, funcErr = syscall.Write(int(fd), b)
+		c.nonblockWriteN, c.nonblockWriteErr = syscall.Write(int(fd), c.nonblockWriteBuf)
 		return true
 	})
-	if err == nil && funcErr != nil {
-		if errors.Is(funcErr, syscall.EWOULDBLOCK) {
+	n = c.nonblockWriteN
+	if err == nil && c.nonblockWriteErr != nil {
+		if errors.Is(c.nonblockWriteErr, syscall.EWOULDBLOCK) {
 			err = ErrWouldBlock
 		} else {
-			err = funcErr
+			err = c.nonblockWriteErr
 		}
 	}
 	if err != nil {
