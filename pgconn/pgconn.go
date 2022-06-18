@@ -1157,6 +1157,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}()
 
 	buf := iobufpool.Get(65536)
+	defer iobufpool.Put(buf)
 	buf[0] = 'd'
 
 	var readErr, pgErr error
