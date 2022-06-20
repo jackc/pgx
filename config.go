@@ -370,7 +370,7 @@ func ParseConfig(connString string) (*Config, error) {
 	case "standby":
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsStandby
 	case "prefer-standby":
-		config.ValidateConnect = ValidateConnectTargetSessionAttrsPrefferStandby
+		config.ValidateConnect = ValidateConnectTargetSessionAttrsPreferStandby
 		config.HasPreferStandbyTargetSessionAttr = true
 	case "any":
 		// do nothing
@@ -816,16 +816,16 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 	return nil
 }
 
-// ValidateConnectTargetSessionAttrsPrimary is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsPreferStandby is an ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=prefer-standby.
-func ValidateConnectTargetSessionAttrsPrefferStandby(ctx context.Context, pgConn *PgConn) error {
+func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
 	if result.Err != nil {
 		return result.Err
 	}
 
 	if string(result.Rows[0][0]) != "t" {
-		return &preferStanbyNotFoundError{err: errors.New("server is not in hot standby mode")}
+		return &preferStandbyNotFoundError{err: errors.New("server is not in hot standby mode")}
 	}
 
 	return nil
