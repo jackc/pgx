@@ -619,7 +619,7 @@ func TestParseConfig(t *testing.T) {
 				Database:                          "mydb",
 				TLSConfig:                         nil,
 				RuntimeParams:                     map[string]string{},
-				ValidateConnect:                   pgconn.ValidateConnectTargetSessionAttrsPrefferStandby,
+				ValidateConnect:                   pgconn.ValidateConnectTargetSessionAttrsPreferStandby,
 				HasPreferStandbyTargetSessionAttr: true,
 			},
 		},
