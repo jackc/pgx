@@ -113,6 +113,10 @@ func TestNumericCodec(t *testing.T) {
 		{"1.23", new(string), isExpectedEq("1.23")},
 		{pgtype.Numeric{}, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 		{nil, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
+		{mustParseNumeric(t, "1"), new(string), isExpectedEq("1")},
+		{pgtype.Numeric{NaN: true, Valid: true}, new(string), isExpectedEq("NaN")},
+		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(string), isExpectedEq("Infinity")},
+		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(string), isExpectedEq("-Infinity")},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int8", []pgxtest.ValueRoundTripTest{
