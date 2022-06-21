@@ -1,6 +1,7 @@
 package pgconn_test
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -63,7 +64,59 @@ func TestConnectTLS(t *testing.T) {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
 	}
 
-	conn, err := pgconn.Connect(context.Background(), connString)
+	var conn *pgconn.PgConn
+	var err error
+
+	isSslPasswrodEmpty := strings.HasSuffix(connString, "sslpassword=")
+
+	if isSslPasswrodEmpty {
+		config, err := pgconn.ParseConfigWithSslPasswordCallback(connString, GetSslPassword)
+		require.Nil(t, err)
+
+		conn, err = pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+	} else {
+		conn, err = pgconn.Connect(context.Background(), connString)
+		require.NoError(t, err)
+	}
+
+	if _, ok := conn.Conn().(*tls.Conn); !ok {
+		t.Error("not a TLS connection")
+	}
+
+	closeConn(t, conn)
+}
+
+func GetSslPassword() string {
+	readFile, err := os.Open("data.txt")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if strings.HasPrefix(line, "sslpassword=") {
+			index := len("sslpassword=")
+			line := line[index:]
+			return line
+		}
+	}
+	return ""
+}
+
+func TestConnectTLSCallback(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
+	}
+
+	config, err := pgconn.ParseConfigWithSslPasswordCallback(connString, GetSslPassword)
+	require.Nil(t, err)
+
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
 	if _, ok := conn.Conn().(*tls.Conn); !ok {
