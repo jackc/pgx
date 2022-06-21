@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
@@ -375,6 +376,12 @@ func (src *Numeric) AssignTo(dst interface{}) error {
 				return err
 			}
 			v.Set(rat)
+		case *string:
+			buf, err := encodeNumericText(*src, nil)
+			if err != nil {
+				return err
+			}
+			*v = string(buf)
 		default:
 			if nextDst, retry := GetAssignToDstType(dst); retry {
 				return src.AssignTo(nextDst)
@@ -791,4 +798,56 @@ func (src Numeric) Value() (driver.Value, error) {
 	default:
 		return nil, errUndefined
 	}
+}
+
+func encodeNumericText(n Numeric, buf []byte) (newBuf []byte, err error) {
+	// if !n.Valid {
+	// 	return nil, nil
+	// }
+
+	if n.NaN {
+		buf = append(buf, "NaN"...)
+		return buf, nil
+	} else if n.InfinityModifier == Infinity {
+		buf = append(buf, "Infinity"...)
+		return buf, nil
+	} else if n.InfinityModifier == NegativeInfinity {
+		buf = append(buf, "-Infinity"...)
+		return buf, nil
+	}
+
+	buf = append(buf, n.numberTextBytes()...)
+
+	return buf, nil
+}
+
+// numberString returns a string of the number. undefined if NaN, infinite, or NULL
+func (n Numeric) numberTextBytes() []byte {
+	intStr := n.Int.String()
+	buf := &bytes.Buffer{}
+	exp := int(n.Exp)
+	if exp > 0 {
+		buf.WriteString(intStr)
+		for i := 0; i < exp; i++ {
+			buf.WriteByte('0')
+		}
+	} else if exp < 0 {
+		if len(intStr) <= -exp {
+			buf.WriteString("0.")
+			leadingZeros := -exp - len(intStr)
+			for i := 0; i < leadingZeros; i++ {
+				buf.WriteByte('0')
+			}
+			buf.WriteString(intStr)
+		} else if len(intStr) > -exp {
+			dpPos := len(intStr) + exp
+			buf.WriteString(intStr[:dpPos])
+			buf.WriteByte('.')
+			buf.WriteString(intStr[dpPos:])
+		}
+	} else {
+		buf.WriteString(intStr)
+	}
+
+	return buf.Bytes()
 }
