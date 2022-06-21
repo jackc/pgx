@@ -113,7 +113,14 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
-// ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
+// ParseConfig creates a ConnConfig from a connection string and no
+// sslpasswordcallback function provide
+func ParseConfig(connString string) (*ConnConfig, error) {
+   return ParseConfigWithSslPasswordCallback(connString, nil)
+}
+
+// ParseConfig creates a ConnConfig from a connection string and sslpasswordcallback function.
+// ParseConfig handles all options that pgconn.ParseConfig
 // does. In addition, it accepts the following options:
 //
 // 	statement_cache_capacity
@@ -127,8 +134,8 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 //
 //	prefer_simple_protocol
 //		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
-func ParseConfig(connString string) (*ConnConfig, error) {
-	config, err := pgconn.ParseConfig(connString)
+func ParseConfigWithSslPasswordCallback(connString string, sslPasswordCallback pgconn.SslPasswordCallbackHandler) (*ConnConfig, error) {
+	config, err := pgconn.ParseConfigWithSslPasswordCallback(connString, sslPasswordCallback)
 	if err != nil {
 		return nil, err
 	}

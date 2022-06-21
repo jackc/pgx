@@ -1,12 +1,16 @@
 package pgx_test
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+	"bufio"
+	"fmt"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
@@ -45,6 +49,172 @@ func TestConnect(t *testing.T) {
 
 	connString := os.Getenv("PGX_TEST_DATABASE")
 	config := mustParseConfig(t, connString)
+
+	conn, err := pgx.ConnectConfig(context.Background(), config)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	assertConfigsEqual(t, config, conn.Config(), "Conn.Config() returns original config")
+
+	var currentDB string
+	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != config.Config.Database {
+		t.Errorf("Did not connect to specified database (%v)", config.Config.Database)
+	}
+
+	var user string
+	err = conn.QueryRow(context.Background(), "select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != config.Config.User {
+		t.Errorf("Did not connect as specified user (%v)", config.Config.User)
+	}
+
+	err = conn.Close(context.Background())
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithSslPasswordCallback(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	config := mustParseConfigWithSslPasswordCallback(t, connString, GetSslPassword)
+
+	conn, err := pgx.ConnectConfig(context.Background(), config)
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	assertConfigsEqual(t, config, conn.Config(), "Conn.Config() returns original config")
+
+	var currentDB string
+	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != config.Config.Database {
+		t.Errorf("Did not connect to specified database (%v)", config.Config.Database)
+	}
+
+	var user string
+	err = conn.QueryRow(context.Background(), "select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != config.Config.User {
+		t.Errorf("Did not connect as specified user (%v)", config.Config.User)
+	}
+
+	err = conn.Close(context.Background())
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithSslPassword(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_DATABASE")
+
+	isSslPasswrod := strings.Contains(connString, "sslpassword")
+
+	if !isSslPasswrod {
+		t.Skip("Skipping due to missing sslpassword")
+	}
+
+	hasEmptySslPasswrod := strings.HasSuffix(connString, "sslpassword=")
+
+	if hasEmptySslPasswrod {
+		t.Skip("Skipping due to empty sslpassword")
+	}
+
+	conn, err := pgx.Connect(context.Background(), connString)
+
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	var currentDB string
+	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+
+	var user string
+	err = conn.QueryRow(context.Background(), "select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+
+	err = conn.Close(context.Background())
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithSslPasswordConfig(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_DATABASE")
+
+	isSslPasswrod := strings.Contains(connString, "sslpassword")
+
+	if !isSslPasswrod {
+		t.Skip("Skipping due to missing sslpassword")
+	}
+
+	hasEmptySslPasswrod := strings.HasSuffix(connString, "sslpassword=")
+
+	if hasEmptySslPasswrod {
+		t.Skip("Skipping due to empty sslpassword")
+	}
+
+	config := mustParseConfig(t, connString)
+
+	conn, err := pgx.ConnectConfig(context.Background(), config)
+
+	if err != nil {
+		t.Fatalf("Unable to establish connection: %v", err)
+	}
+
+	assertConfigsEqual(t, config, conn.Config(), "Conn.Config() returns original config")
+
+	var currentDB string
+	err = conn.QueryRow(context.Background(), "select current_database()").Scan(&currentDB)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if currentDB != config.Config.Database {
+		t.Errorf("Did not connect to specified database (%v)", config.Config.Database)
+	}
+
+	var user string
+	err = conn.QueryRow(context.Background(), "select current_user").Scan(&user)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if user != config.Config.User {
+		t.Errorf("Did not connect as specified user (%v)", config.Config.User)
+	}
+
+	err = conn.Close(context.Background())
+	if err != nil {
+		t.Fatal("Unable to close connection")
+	}
+}
+
+func TestConnectWithSslPasswordCallback(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	config := mustParseConfigWithSslPasswordCallback(t, connString, GetSslPassword)
 
 	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
@@ -1117,4 +1287,40 @@ func TestInsertDurationInterval(t *testing.T) {
 		n := result.RowsAffected()
 		require.EqualValues(t, 1, n)
 	})
+}
+
+func GetSslPassword() string {
+	readFile, err := os.Open("data.txt")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if strings.HasPrefix(line, "sslpassword=") {
+			index := len("sslpassword=")
+			line := line[index:]
+			return line
+		}
+	}
+	return ""
+}
+
+func GetSslPassword() string {
+	readFile, err := os.Open("data.txt")
+    if err != nil {
+        fmt.Println(err)
+    }
+    fileScanner := bufio.NewScanner(readFile)
+    fileScanner.Split(bufio.ScanLines)
+    for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if(strings.HasPrefix(line, "sslpassword=")){
+			index :=len("sslpassword=")
+			line := line[index:]
+		    return line
+		}
+	}
+    return ""
 }
