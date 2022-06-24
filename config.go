@@ -822,7 +822,7 @@ func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn 
 	}
 
 	if string(result.Rows[0][0]) != "t" {
-		return &NotStandbyError{err: errors.New("server is not in hot standby mode")}
+		return &NotPreferredError{err: errors.New("server is not in hot standby mode")}
 	}
 
 	return nil

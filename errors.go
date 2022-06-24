@@ -220,19 +220,19 @@ func redactURL(u *url.URL) string {
 	return u.String()
 }
 
-type NotStandbyError struct {
+type NotPreferredError struct {
 	err         error
 	safeToRetry bool
 }
 
-func (e *NotStandbyError) Error() string {
+func (e *NotPreferredError) Error() string {
 	return fmt.Sprintf("standby server not found: %s", e.err.Error())
 }
 
-func (e *NotStandbyError) SafeToRetry() bool {
+func (e *NotPreferredError) SafeToRetry() bool {
 	return e.safeToRetry
 }
 
-func (e *NotStandbyError) Unwrap() error {
+func (e *NotPreferredError) Unwrap() error {
 	return e.err
 }

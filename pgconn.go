@@ -168,7 +168,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 				break
 			}
 		} else if cerr, ok := err.(*connectError); ok {
-			if _, ok := cerr.err.(*NotStandbyError); ok {
+			if _, ok := cerr.err.(*NotPreferredError); ok {
 				fallbackConfig = fc
 			}
 		}
