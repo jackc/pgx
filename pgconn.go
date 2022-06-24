@@ -167,8 +167,8 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 				pgerr.Code == ERRCODE_INSUFFICIENT_PRIVILEGE {
 				break
 			}
-		} else if cerr, ok := err.(*connectError); ok && config.HasPreferStandbyTargetSessionAttr {
-			if _, ok := cerr.err.(*preferStandbyNotFoundError); ok {
+		} else if cerr, ok := err.(*connectError); ok {
+			if _, ok := cerr.err.(*NotStandbyError); ok {
 				fallbackConfig = fc
 			}
 		}
