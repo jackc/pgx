@@ -1,6 +1,7 @@
 package numeric_test
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"math/rand"
@@ -91,6 +92,15 @@ func TestNumericNormalize(t *testing.T) {
 
 		return a.Status == b.Status && a.Decimal.Equal(b.Decimal)
 	})
+}
+
+func TestNumericNaN(t *testing.T) {
+	conn := testutil.MustConnectPgx(t)
+	defer testutil.MustCloseContext(t, conn)
+
+	var n shopspring.Numeric
+	err := conn.QueryRow(context.Background(), `select 'NaN'::numeric`).Scan(&n)
+	require.EqualError(t, err, `can't scan into dest[0]: cannot decode 'NaN'`)
 }
 
 func TestNumericTranscode(t *testing.T) {
