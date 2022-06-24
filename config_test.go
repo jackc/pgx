@@ -612,15 +612,14 @@ func TestParseConfig(t *testing.T) {
 			name:       "target_session_attrs prefer-standby",
 			connString: "postgres://jack:secret@localhost:5432/mydb?sslmode=disable&target_session_attrs=prefer-standby",
 			config: &pgconn.Config{
-				User:                              "jack",
-				Password:                          "secret",
-				Host:                              "localhost",
-				Port:                              5432,
-				Database:                          "mydb",
-				TLSConfig:                         nil,
-				RuntimeParams:                     map[string]string{},
-				ValidateConnect:                   pgconn.ValidateConnectTargetSessionAttrsPreferStandby,
-				HasPreferStandbyTargetSessionAttr: true,
+				User:            "jack",
+				Password:        "secret",
+				Host:            "localhost",
+				Port:            5432,
+				Database:        "mydb",
+				TLSConfig:       nil,
+				RuntimeParams:   map[string]string{},
+				ValidateConnect: pgconn.ValidateConnectTargetSessionAttrsPreferStandby,
 			},
 		},
 		{
@@ -785,7 +784,6 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgconn.Config, testName 
 	// Can't test function equality, so just test that they are set or not.
 	assert.Equalf(t, expected.ValidateConnect == nil, actual.ValidateConnect == nil, "%s - ValidateConnect", testName)
 	assert.Equalf(t, expected.AfterConnect == nil, actual.AfterConnect == nil, "%s - AfterConnect", testName)
-	assert.Equalf(t, expected.HasPreferStandbyTargetSessionAttr, actual.HasPreferStandbyTargetSessionAttr, "%s - HasPreferStandbyTargetSessionAttr", testName)
 
 	if assert.Equalf(t, expected.TLSConfig == nil, actual.TLSConfig == nil, "%s - TLSConfig", testName) {
 		if expected.TLSConfig != nil {
