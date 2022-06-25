@@ -1849,13 +1849,14 @@ func TestConnCancelRequest(t *testing.T) {
 
 	multiResult := pgConn.Exec(context.Background(), "select 'Hello, world', pg_sleep(2)")
 
-	// This test flickers without the Sleep. It appears that since Exec only sends the query and returns without awaiting a
-	// response that the CancelRequest can race it and be received before the query is running and cancellable. So wait a
-	// few milliseconds.
-	time.Sleep(50 * time.Millisecond)
+	go func() {
+		// The query is actually sent when multiResult.NextResult() is called. So wait to ensure it is sent.
+		// Once Flush is available this could use that instead.
+		time.Sleep(500 * time.Millisecond)
 
-	err = pgConn.CancelRequest(context.Background())
-	require.NoError(t, err)
+		err = pgConn.CancelRequest(context.Background())
+		require.NoError(t, err)
+	}()
 
 	for multiResult.NextResult() {
 	}
@@ -2025,6 +2026,36 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 
 	_, err = rr.Close()
 	require.Error(t, err)
+}
+
+// https://github.com/jackc/pgconn/issues/27
+func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), "set client_min_messages = debug5").ReadAll()
+	require.NoError(t, err)
+
+	// The actual contents of this test aren't important. What's important is a large amount of data to be written and
+	// because of client_min_messages = debug5 the server will return a large amount of data.
+
+	paramCount := math.MaxUint16
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	result := pgConn.ExecParams(context.Background(), sql, args, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, paramCount)
+
+	ensureConnValid(t, pgConn)
 }
 
 func Example() {
