@@ -2062,7 +2062,14 @@ func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
 func TestConnCheckConn(t *testing.T) {
 	t.Parallel()
 
-	c1, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtlely different.)
+
+	connString := os.Getenv(os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
+	}
+
+	c1, err := pgconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 	defer c1.Close(context.Background())
 
@@ -2073,7 +2080,7 @@ func TestConnCheckConn(t *testing.T) {
 	err = c1.CheckConn()
 	require.NoError(t, err)
 
-	c2, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	c2, err := pgconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 	defer c2.Close(context.Background())
 
