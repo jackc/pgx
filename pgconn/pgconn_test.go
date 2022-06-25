@@ -2059,6 +2059,34 @@ func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnCheckConn(t *testing.T) {
+	t.Parallel()
+
+	c1, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer c1.Close(context.Background())
+
+	if c1.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+	}
+
+	err = c1.CheckConn()
+	require.NoError(t, err)
+
+	c2, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	require.NoError(t, err)
+	defer c2.Close(context.Background())
+
+	_, err = c2.Exec(context.Background(), fmt.Sprintf("select pg_terminate_backend(%d)", c1.PID())).ReadAll()
+	require.NoError(t, err)
+
+	// Give a little time for the signal to actually kill the backend.
+	time.Sleep(500 * time.Millisecond)
+
+	err = c1.CheckConn()
+	require.Error(t, err)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	if err != nil {

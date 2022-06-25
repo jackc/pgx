@@ -2,6 +2,7 @@ package nbconn_test
 
 import (
 	"crypto/tls"
+	"errors"
 	"io"
 	"net"
 	"strings"
@@ -342,6 +343,34 @@ func TestNonBlockingRead(t *testing.T) {
 		n, err = conn.Read(buf)
 		require.NoError(t, err)
 		require.EqualValues(t, 4, n)
+	})
+}
+
+func TestBufferNonBlockingRead(t *testing.T) {
+	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
+		err := conn.BufferReadUntilBlock()
+		require.NoError(t, err)
+
+		errChan := make(chan error, 1)
+		go func() {
+			_, err := remote.Write([]byte("okay"))
+			errChan <- err
+		}()
+
+		for i := 0; i < 1000; i++ {
+			err = conn.BufferReadUntilBlock()
+			if !errors.Is(err, nbconn.ErrWouldBlock) {
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
+		require.NoError(t, err)
+
+		buf := make([]byte, 4)
+		n, err := conn.Read(buf)
+		require.NoError(t, err)
+		require.EqualValues(t, 4, n)
+		require.Equal(t, []byte("okay"), buf)
 	})
 }
 
