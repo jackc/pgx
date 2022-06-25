@@ -115,8 +115,6 @@ func TestNumericCodec(t *testing.T) {
 		{nil, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 		{mustParseNumeric(t, "1"), new(string), isExpectedEq("1")},
 		{pgtype.Numeric{NaN: true, Valid: true}, new(string), isExpectedEq("NaN")},
-		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(string), isExpectedEq("Infinity")},
-		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(string), isExpectedEq("-Infinity")},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int8", []pgxtest.ValueRoundTripTest{
@@ -137,6 +135,8 @@ func TestNumericCodecInfinity(t *testing.T) {
 		{float32(math.Inf(-1)), new(float32), isExpectedEq(float32(math.Inf(-1)))},
 		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true})},
 		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(pgtype.Numeric), isExpectedEqNumeric(pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true})},
+		{pgtype.Numeric{InfinityModifier: pgtype.Infinity, Valid: true}, new(string), isExpectedEq("Infinity")},
+		{pgtype.Numeric{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, new(string), isExpectedEq("-Infinity")},
 	})
 }
 
