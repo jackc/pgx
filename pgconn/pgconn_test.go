@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -66,9 +65,11 @@ func TestConnectTLS(t *testing.T) {
 	conn, err := pgconn.Connect(context.Background(), connString)
 	require.NoError(t, err)
 
-	if _, ok := conn.Conn().(*tls.Conn); !ok {
-		t.Error("not a TLS connection")
-	}
+	result := conn.ExecParams(context.Background(), `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Len(t, result.Rows[0], 1)
+	require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
 
 	closeConn(t, conn)
 }
