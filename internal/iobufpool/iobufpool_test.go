@@ -5,7 +5,6 @@ import (
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestGetCap(t *testing.T) {
@@ -70,9 +69,17 @@ func TestPutHandlesWrongSizedBuffers(t *testing.T) {
 }
 
 func TestPutGetBufferReuse(t *testing.T) {
-	buf := iobufpool.Get(4)
-	buf[0] = 1
-	iobufpool.Put(buf)
-	buf = iobufpool.Get(4)
-	require.Equal(t, byte(1), buf[0])
+	// There is no way to guarantee a buffer will be reused. It should be, but a GC between the Put and the Get will cause
+	// it not to be. So try many times.
+	for i := 0; i < 100000; i++ {
+		buf := iobufpool.Get(4)
+		buf[0] = 1
+		iobufpool.Put(buf)
+		buf = iobufpool.Get(4)
+		if buf[0] == 1 {
+			return
+		}
+	}
+
+	t.Error("buffer was never reused")
 }
