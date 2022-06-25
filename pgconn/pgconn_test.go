@@ -2028,6 +2028,36 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 	require.Error(t, err)
 }
 
+// https://github.com/jackc/pgconn/issues/27
+func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), "set client_min_messages = debug5").ReadAll()
+	require.NoError(t, err)
+
+	// The actual contents of this test aren't important. What's important is a large amount of data to be written and
+	// because of client_min_messages = debug5 the server will return a large amount of data.
+
+	paramCount := math.MaxUint16
+	params := make([]string, 0, paramCount)
+	args := make([][]byte, 0, paramCount)
+	for i := 0; i < paramCount; i++ {
+		params = append(params, fmt.Sprintf("($%d::text)", i+1))
+		args = append(args, []byte(strconv.Itoa(i)))
+	}
+	sql := "values" + strings.Join(params, ", ")
+
+	result := pgConn.ExecParams(context.Background(), sql, args, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, paramCount)
+
+	ensureConnValid(t, pgConn)
+}
+
 func Example() {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
 	if err != nil {
