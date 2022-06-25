@@ -1154,3 +1154,67 @@ func TestResetSessionHookCalled(t *testing.T) {
 
 	require.True(t, mockCalled)
 }
+
+func TestCheckIdleConn(t *testing.T) {
+	controllerConn, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeDB(t, controllerConn)
+
+	skipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	db, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeDB(t, db)
+
+	var conns []*sql.Conn
+	for i := 0; i < 3; i++ {
+		c, err := db.Conn(context.Background())
+		require.NoError(t, err)
+		conns = append(conns, c)
+	}
+
+	require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	var pids []uint32
+	for _, c := range conns {
+		err := c.Raw(func(driverConn any) error {
+			pids = append(pids, driverConn.(*stdlib.Conn).Conn().PgConn().PID())
+			return nil
+		})
+		require.NoError(t, err)
+		err = c.Close()
+		require.NoError(t, err)
+	}
+
+	// The database/sql connection pool seems to automatically close idle connections to only keep 2 alive.
+	// require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	_, err = controllerConn.ExecContext(context.Background(), `select pg_terminate_backend(n) from unnest($1::int[]) n`, pids)
+	require.NoError(t, err)
+
+	// All conns are dead they don't know it and neither does the pool. But because of database/sql automatically closing
+	// idle connections we can't be sure how many we should have. require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	// Wait long enough so the pool will realize it needs to check the connections.
+	time.Sleep(time.Second)
+
+	// Pool should try all existing connections and find them dead, then create a new connection which should successfully ping.
+	err = db.PingContext(context.Background())
+	require.NoError(t, err)
+
+	// The original 3 conns should have been terminated and the a new conn established for the ping.
+	require.EqualValues(t, 1, db.Stats().OpenConnections)
+	c, err := db.Conn(context.Background())
+	require.NoError(t, err)
+
+	var cPID uint32
+	err = c.Raw(func(driverConn any) error {
+		cPID = driverConn.(*stdlib.Conn).Conn().PgConn().PID()
+		return nil
+	})
+	require.NoError(t, err)
+	err = c.Close()
+	require.NoError(t, err)
+
+	require.NotContains(t, pids, cPID)
+}

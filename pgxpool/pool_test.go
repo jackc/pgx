@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -139,6 +140,57 @@ func TestPoolAcquireAndConnHijack(t *testing.T) {
 	err = conn.QueryRow(ctx, `select 1`).Scan(&n)
 	require.NoError(t, err)
 	require.Equal(t, int32(1), n)
+}
+
+func TestPoolAcquireChecksIdleConns(t *testing.T) {
+	t.Parallel()
+
+	controllerConn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer controllerConn.Close(context.Background())
+	pgxtest.SkipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	var conns []*pgxpool.Conn
+	for i := 0; i < 3; i++ {
+		c, err := pool.Acquire(context.Background())
+		require.NoError(t, err)
+		conns = append(conns, c)
+	}
+
+	require.EqualValues(t, 3, pool.Stat().TotalConns())
+
+	var pids []uint32
+	for _, c := range conns {
+		pids = append(pids, c.Conn().PgConn().PID())
+		c.Release()
+	}
+
+	_, err = controllerConn.Exec(context.Background(), `select pg_terminate_backend(n) from unnest($1::int[]) n`, pids)
+	require.NoError(t, err)
+
+	// All conns are dead they don't know it and neither does the pool.
+	require.EqualValues(t, 3, pool.Stat().TotalConns())
+
+	// Wait long enough so the pool will realize it needs to check the connections.
+	time.Sleep(time.Second)
+
+	// Pool should try all existing connections and find them dead, then create a new connection which should successfully ping.
+	err = pool.Ping(context.Background())
+	require.NoError(t, err)
+
+	// The original 3 conns should have been terminated and the a new conn established for the ping.
+	require.EqualValues(t, 1, pool.Stat().TotalConns())
+	c, err := pool.Acquire(context.Background())
+	require.NoError(t, err)
+
+	cPID := c.Conn().PgConn().PID()
+	c.Release()
+
+	require.NotContains(t, pids, cPID)
 }
 
 func TestPoolAcquireFunc(t *testing.T) {
