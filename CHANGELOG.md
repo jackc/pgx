@@ -10,6 +10,12 @@ release work due to releasing multiple packages, and less clear changelogs.
 
 `CommandTag` is now an opaque type instead of directly exposing an underlying `[]byte`.
 
+`Trace()` method adds low level message tracing similar to the `PQtrace` function in `libpq`.
+
+pgconn now uses non-blocking IO. This is a significant internal restructuring, but it should not cause any visible changes on its own. However, it is important in implementing other new features.
+
+`CheckConn()` checks a connection's liveness by doing a non-blocking read. This can be used to detect database restarts or network interruptions without executing a query or a ping.
+
 ## pgtype
 
 The `pgtype` package has been significantly changed.
