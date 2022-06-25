@@ -30,7 +30,7 @@ func TestPoolIdx(t *testing.T) {
 		{size: 8388609, expected: 16},
 	}
 	for _, tt := range tests {
-		idx := poolIdx(tt.size)
+		idx := getPoolIdx(tt.size)
 		assert.Equalf(t, tt.expected, idx, "size: %d", tt.size)
 	}
 }
