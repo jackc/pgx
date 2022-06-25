@@ -308,11 +308,12 @@ func UnregisterConnConfig(connStr string) {
 }
 
 type Conn struct {
-	conn             *pgx.Conn
-	psCount          int64 // Counter used for creating unique prepared statement names
-	driver           *Driver
-	connConfig       pgx.ConnConfig
-	resetSessionFunc func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
+	conn                 *pgx.Conn
+	psCount              int64 // Counter used for creating unique prepared statement names
+	driver               *Driver
+	connConfig           pgx.ConnConfig
+	resetSessionFunc     func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
+	lastResetSessionTime time.Time
 }
 
 // Conn returns the underlying *pgx.Conn
@@ -449,6 +450,14 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 	if c.conn.IsClosed() {
 		return driver.ErrBadConn
 	}
+
+	now := time.Now()
+	if now.Sub(c.lastResetSessionTime) > time.Second {
+		if err := c.conn.PgConn().CheckConn(); err != nil {
+			return driver.ErrBadConn
+		}
+	}
+	c.lastResetSessionTime = now
 
 	return c.resetSessionFunc(ctx, c.conn)
 }

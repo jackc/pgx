@@ -417,6 +417,15 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 		}
 
 		cr := res.Value()
+
+		if res.IdleDuration() > time.Second {
+			err := cr.conn.PgConn().CheckConn()
+			if err != nil {
+				res.Destroy()
+				continue
+			}
+		}
+
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
 			return cr.getConn(p, res), nil
 		}
