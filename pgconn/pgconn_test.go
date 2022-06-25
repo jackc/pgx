@@ -1855,7 +1855,7 @@ func TestConnCancelRequest(t *testing.T) {
 		// Once Flush is available this could use that instead.
 		time.Sleep(500 * time.Millisecond)
 
-		err = pgConn.CancelRequest(context.Background())
+		err := pgConn.CancelRequest(context.Background())
 		require.NoError(t, err)
 	}()
 
