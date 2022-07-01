@@ -318,6 +318,7 @@ func TestInternalNonBlockingWriteWithDeadline(t *testing.T) {
 
 		err = conn.Flush()
 		require.Error(t, err)
+		require.Contains(t, err.Error(), "i/o timeout")
 	})
 }
 
