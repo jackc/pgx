@@ -151,7 +151,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	foundBestServer := false
 	var fallbackConfig *FallbackConfig
 	for _, fc := range fallbackConfigs {
-		pgConn, err = connect(ctx, config, fc)
+		pgConn, err = connect(ctx, config, fc, false)
 		if err == nil {
 			foundBestServer = true
 			break
@@ -175,12 +175,10 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	}
 
 	if !foundBestServer && fallbackConfig != nil {
-		config.ValidateConnect = nil
-		pgConn, err = connect(ctx, config, fallbackConfig)
+		pgConn, err = connect(ctx, config, fallbackConfig, true)
 		if pgerr, ok := err.(*PgError); ok {
 			err = &connectError{config: config, msg: "server error", err: pgerr}
 		}
-		config.ValidateConnect = ValidateConnectTargetSessionAttrsPreferStandby
 	}
 
 	if err != nil {
@@ -243,7 +241,8 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 	return configs, nil
 }
 
-func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig) (*PgConn, error) {
+func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig,
+	ignoreNotPreferredErr bool) (*PgConn, error) {
 	pgConn := new(PgConn)
 	pgConn.config = config
 	pgConn.wbuf = make([]byte, 0, wbufLen)
@@ -356,6 +355,9 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 				err := config.ValidateConnect(ctx, pgConn)
 				if err != nil {
+					if _, ok := err.(*NotPreferredError); ignoreNotPreferredErr && ok {
+						return pgConn, nil
+					}
 					pgConn.conn.Close()
 					return nil, &connectError{config: config, msg: "ValidateConnect failed", err: err}
 				}
