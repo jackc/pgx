@@ -18,6 +18,11 @@ Executing Multiple Queries in a Single Round Trip
 Exec and ExecBatch can execute multiple queries in a single round trip. They return readers that iterate over each query
 result. The ReadAll method reads all query results into memory.
 
+Pipeline Mode
+
+Pipeline mode allows sending queries without having read the results of previously sent queries. It allows
+control of exactly how many and when network round trips occur.
+
 Context Support
 
 All potentially blocking operations take a context.Context. If a context is canceled while the method is in progress the
