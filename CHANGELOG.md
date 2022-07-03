@@ -16,6 +16,8 @@ pgconn now uses non-blocking IO. This is a significant internal restructuring, b
 
 `CheckConn()` checks a connection's liveness by doing a non-blocking read. This can be used to detect database restarts or network interruptions without executing a query or a ping.
 
+pgconn now supports pipeline mode.
+
 ## pgtype
 
 The `pgtype` package has been significantly changed.

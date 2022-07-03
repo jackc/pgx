@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgmock"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgproto3"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -2092,6 +2093,417 @@ func TestConnCheckConn(t *testing.T) {
 
 	err = c1.CheckConn()
 	require.Error(t, err)
+}
+
+func TestPipelinePrepare(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendPrepare("selectInt", "select $1::int as a", nil)
+	pipeline.SendPrepare("selectText", "select $1::text as b", nil)
+	pipeline.SendPrepare("selectNoParams", "select 42 as c", nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok := results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, []uint32{pgtype.Int4OID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok = results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "b")
+	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok = results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "c")
+	require.Equal(t, []uint32{}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelinePrepareError(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendPrepare("selectInt", "select $1::int as a", nil)
+	pipeline.SendPrepare("selectError", "bad", nil)
+	pipeline.SendPrepare("selectText", "select $1::text as b", nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok := results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, []uint32{pgtype.Int4OID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Nil(t, results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelineQuery(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 3`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "1", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "2", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "3", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "4", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "5", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelinePrepareQuery(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendPrepare("ps", "select $1::text as msg", nil)
+	pipeline.SendQueryPrepared(`ps`, [][]byte{[]byte("hello")}, nil, nil)
+	pipeline.SendQueryPrepared(`ps`, [][]byte{[]byte("goodbye")}, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok := results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "msg")
+	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "hello", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "goodbye", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryParams(`select 3`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 1/(3-n) from generate_series(1,10) n`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 6`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "1", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "2", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "3", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, readResult.Err, &pgErr)
+	require.Equal(t, "22012", pgErr.Code)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "5", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok = results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult = rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "6", string(readResult.Rows[0][0]))
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelineCloseReadsUnreadResults(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 3`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "1", string(readResult.Rows[0][0]))
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendQueryParams(`select 1`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 2`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 3`, nil, nil, nil, nil)
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	pipeline.SendQueryParams(`select 4`, nil, nil, nil, nil)
+	pipeline.SendQueryParams(`select 5`, nil, nil, nil, nil)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	rr, ok := results.(*pgconn.ResultReader)
+	require.Truef(t, ok, "expected ResultReader, got: %#v", results)
+	readResult := rr.Read()
+	require.NoError(t, readResult.Err)
+	require.Len(t, readResult.Rows, 1)
+	require.Len(t, readResult.Rows[0], 1)
+	require.Equal(t, "1", string(readResult.Rows[0][0]))
+
+	err = pipeline.Close()
+	require.EqualError(t, err, "pipeline has unsynced requests")
 }
 
 func Example() {
