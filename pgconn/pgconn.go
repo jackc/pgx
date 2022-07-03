@@ -917,39 +917,6 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	return multiResult
 }
 
-// ReceiveResults reads the result that might be returned by Postgres after a SendBytes
-// (e.a. after sending a CopyDone in a copy-both situation).
-//
-// This is a very low level method that requires deep understanding of the PostgreSQL wire protocol to use correctly.
-// See https://www.postgresql.org/docs/current/protocol.html.
-func (pgConn *PgConn) ReceiveResults(ctx context.Context) *MultiResultReader {
-	if err := pgConn.lock(); err != nil {
-		return &MultiResultReader{
-			closed: true,
-			err:    err,
-		}
-	}
-
-	pgConn.multiResultReader = MultiResultReader{
-		pgConn: pgConn,
-		ctx:    ctx,
-	}
-	multiResult := &pgConn.multiResultReader
-	if ctx != context.Background() {
-		select {
-		case <-ctx.Done():
-			multiResult.closed = true
-			multiResult.err = newContextAlreadyDoneError(ctx)
-			pgConn.unlock()
-			return multiResult
-		default:
-		}
-		pgConn.contextWatcher.Watch(ctx)
-	}
-
-	return multiResult
-}
-
 // ExecParams executes a command via the PostgreSQL extended query protocol.
 //
 // sql is a SQL command string. It may only contain one query. Parameter substitution is positional using $1, $2, $3,
