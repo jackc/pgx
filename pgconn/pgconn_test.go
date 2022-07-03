@@ -2103,7 +2103,7 @@ func TestPipelinePrepare(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	pipeline := pgConn.StartPipeline(context.Background())
-	pipeline.SendPrepare("selectInt", "select $1::int as a", nil)
+	pipeline.SendPrepare("selectInt", "select $1::bigint as a", nil)
 	pipeline.SendPrepare("selectText", "select $1::text as b", nil)
 	pipeline.SendPrepare("selectNoParams", "select 42 as c", nil)
 	err = pipeline.Sync()
@@ -2115,7 +2115,7 @@ func TestPipelinePrepare(t *testing.T) {
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
 	require.Equal(t, string(sd.Fields[0].Name), "a")
-	require.Equal(t, []uint32{pgtype.Int4OID}, sd.ParamOIDs)
+	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
 	require.NoError(t, err)
@@ -2156,7 +2156,7 @@ func TestPipelinePrepareError(t *testing.T) {
 	defer closeConn(t, pgConn)
 
 	pipeline := pgConn.StartPipeline(context.Background())
-	pipeline.SendPrepare("selectInt", "select $1::int as a", nil)
+	pipeline.SendPrepare("selectInt", "select $1::bigint as a", nil)
 	pipeline.SendPrepare("selectError", "bad", nil)
 	pipeline.SendPrepare("selectText", "select $1::text as b", nil)
 	err = pipeline.Sync()
@@ -2168,7 +2168,7 @@ func TestPipelinePrepareError(t *testing.T) {
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
 	require.Equal(t, string(sd.Fields[0].Name), "a")
-	require.Equal(t, []uint32{pgtype.Int4OID}, sd.ParamOIDs)
+	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
 	var pgErr *pgconn.PgError
