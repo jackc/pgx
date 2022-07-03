@@ -18,6 +18,8 @@ pgconn now uses non-blocking IO. This is a significant internal restructuring, b
 
 pgconn now supports pipeline mode.
 
+`*PgConn.ReceiveResults` removed. Use pipeline mode instead.
+
 ## pgtype
 
 The `pgtype` package has been significantly changed.
