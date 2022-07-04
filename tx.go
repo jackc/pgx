@@ -281,7 +281,7 @@ func (tx *dbTx) Query(ctx context.Context, sql string, args ...any) (Rows, error
 	if tx.closed {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
-		return &connRows{closed: true, err: err}, err
+		return &baseRows{closed: true, err: err}, err
 	}
 
 	return tx.conn.Query(ctx, sql, args...)
@@ -290,7 +290,7 @@ func (tx *dbTx) Query(ctx context.Context, sql string, args ...any) (Rows, error
 // QueryRow delegates to the underlying *Conn
 func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := tx.Query(ctx, sql, args...)
-	return (*connRow)(rows.(*connRows))
+	return (*connRow)(rows.(*baseRows))
 }
 
 // QueryFunc delegates to the underlying *Conn.
@@ -400,7 +400,7 @@ func (sp *dbSimulatedNestedTx) Query(ctx context.Context, sql string, args ...an
 	if sp.closed {
 		// Because checking for errors can be deferred to the *Rows, build one with the error
 		err := ErrTxClosed
-		return &connRows{closed: true, err: err}, err
+		return &baseRows{closed: true, err: err}, err
 	}
 
 	return sp.tx.Query(ctx, sql, args...)
@@ -409,7 +409,7 @@ func (sp *dbSimulatedNestedTx) Query(ctx context.Context, sql string, args ...an
 // QueryRow delegates to the underlying Tx
 func (sp *dbSimulatedNestedTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := sp.Query(ctx, sql, args...)
-	return (*connRow)(rows.(*connRows))
+	return (*connRow)(rows.(*baseRows))
 }
 
 // QueryFunc delegates to the underlying Tx.

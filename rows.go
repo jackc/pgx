@@ -76,10 +76,10 @@ type RowScanner interface {
 }
 
 // connRow implements the Row interface for Conn.QueryRow.
-type connRow connRows
+type connRow baseRows
 
 func (r *connRow) Scan(dest ...any) (err error) {
-	rows := (*connRows)(r)
+	rows := (*baseRows)(r)
 
 	if rows.Err() != nil {
 		return rows.Err()
@@ -109,33 +109,36 @@ type rowLog interface {
 	log(ctx context.Context, lvl LogLevel, msg string, data map[string]any)
 }
 
-// connRows implements the Rows interface for Conn.Query.
-type connRows struct {
-	ctx        context.Context
-	logger     rowLog
-	typeMap    *pgtype.Map
-	values     [][]byte
-	rowCount   int
-	err        error
-	commandTag pgconn.CommandTag
-	startTime  time.Time
-	sql        string
-	args       []any
-	closed     bool
-	conn       *Conn
+// baseRows implements the Rows interface for Conn.Query.
+type baseRows struct {
+	typeMap      *pgtype.Map
+	resultReader *pgconn.ResultReader
 
-	resultReader      *pgconn.ResultReader
-	multiResultReader *pgconn.MultiResultReader
+	values [][]byte
+
+	commandTag pgconn.CommandTag
+	err        error
+	closed     bool
 
 	scanPlans []pgtype.ScanPlan
 	scanTypes []reflect.Type
+
+	conn              *Conn
+	multiResultReader *pgconn.MultiResultReader
+
+	logger    rowLog
+	ctx       context.Context
+	startTime time.Time
+	sql       string
+	args      []any
+	rowCount  int
 }
 
-func (rows *connRows) FieldDescriptions() []pgproto3.FieldDescription {
+func (rows *baseRows) FieldDescriptions() []pgproto3.FieldDescription {
 	return rows.resultReader.FieldDescriptions()
 }
 
-func (rows *connRows) Close() {
+func (rows *baseRows) Close() {
 	if rows.closed {
 		return
 	}
@@ -167,24 +170,25 @@ func (rows *connRows) Close() {
 			if rows.logger.shouldLog(LogLevelError) {
 				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]any{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
 			}
-			if rows.err != nil && rows.conn.statementCache != nil {
-				rows.conn.statementCache.StatementErrored(rows.sql, rows.err)
-			}
 		}
+	}
+
+	if rows.err != nil && rows.conn != nil && rows.conn.statementCache != nil {
+		rows.conn.statementCache.StatementErrored(rows.sql, rows.err)
 	}
 }
 
-func (rows *connRows) CommandTag() pgconn.CommandTag {
+func (rows *baseRows) CommandTag() pgconn.CommandTag {
 	return rows.commandTag
 }
 
-func (rows *connRows) Err() error {
+func (rows *baseRows) Err() error {
 	return rows.err
 }
 
 // fatal signals an error occurred after the query was sent to the server. It
 // closes the rows automatically.
-func (rows *connRows) fatal(err error) {
+func (rows *baseRows) fatal(err error) {
 	if rows.err != nil {
 		return
 	}
@@ -193,7 +197,7 @@ func (rows *connRows) fatal(err error) {
 	rows.Close()
 }
 
-func (rows *connRows) Next() bool {
+func (rows *baseRows) Next() bool {
 	if rows.closed {
 		return false
 	}
@@ -208,7 +212,7 @@ func (rows *connRows) Next() bool {
 	}
 }
 
-func (rows *connRows) Scan(dest ...any) error {
+func (rows *baseRows) Scan(dest ...any) error {
 	m := rows.typeMap
 	fieldDescriptions := rows.FieldDescriptions()
 	values := rows.values
@@ -261,7 +265,7 @@ func (rows *connRows) Scan(dest ...any) error {
 	return nil
 }
 
-func (rows *connRows) Values() ([]any, error) {
+func (rows *baseRows) Values() ([]any, error) {
 	if rows.closed {
 		return nil, errors.New("rows is closed")
 	}
@@ -304,7 +308,7 @@ func (rows *connRows) Values() ([]any, error) {
 	return values, rows.Err()
 }
 
-func (rows *connRows) RawValues() [][]byte {
+func (rows *baseRows) RawValues() [][]byte {
 	return rows.values
 }
 
@@ -347,4 +351,13 @@ func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgproto3.FieldDescription,
 	}
 
 	return nil
+}
+
+// RowsFromResultReader returns a Rows that will read from values resultReader and decode with typeMap. It can be used
+// to read from the lower level pgconn interface.
+func RowsFromResultReader(typeMap *pgtype.Map, resultReader *pgconn.ResultReader) Rows {
+	return &baseRows{
+		typeMap:      typeMap,
+		resultReader: resultReader,
+	}
 }
