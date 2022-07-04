@@ -116,12 +116,12 @@ func (br *batchResults) Query() (Rows, error) {
 	}
 
 	if br.err != nil {
-		return &connRows{err: br.err, closed: true}, br.err
+		return &baseRows{err: br.err, closed: true}, br.err
 	}
 
 	if br.closed {
 		alreadyClosedErr := fmt.Errorf("batch already closed")
-		return &connRows{err: alreadyClosedErr, closed: true}, alreadyClosedErr
+		return &baseRows{err: alreadyClosedErr, closed: true}, alreadyClosedErr
 	}
 
 	rows := br.conn.getRows(br.ctx, query, arguments)
@@ -182,7 +182,7 @@ func (br *batchResults) QueryFunc(scans []any, f func(QueryFuncRow) error) (pgco
 // QueryRow reads the results from the next query in the batch as if the query has been sent with QueryRow.
 func (br *batchResults) QueryRow() Row {
 	rows, _ := br.Query()
-	return (*connRow)(rows.(*connRows))
+	return (*connRow)(rows.(*baseRows))
 
 }
 
