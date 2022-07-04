@@ -1654,7 +1654,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 
 // Pipeline represents a connection in pipeline mode.
 //
-// SendPrepare, SendQueryParam, and SendQueryPrepared queue requests to the server. These requests are not written until
+// SendPrepare, SendQueryParams, and SendQueryPrepared queue requests to the server. These requests are not written until
 // pipeline is flushed by Flush or Sync. Sync must be called after the last request is queued. Requests between
 // synchronization points are implicitly transactional unless explicit transaction control statements have been issued.
 //
