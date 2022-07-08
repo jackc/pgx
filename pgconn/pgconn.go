@@ -1677,6 +1677,9 @@ type Pipeline struct {
 // PipelineSync is returned by GetResults when a ReadyForQuery message is received.
 type PipelineSync struct{}
 
+// CloseComplete is returned by GetResults when a CloseComplete message is received.
+type CloseComplete struct{}
+
 // StartPipeline switches the connection to pipeline mode and returns a *Pipeline. In pipeline mode requests can be sent
 // to the server without waiting for a response. Close must be called on the returned *Pipeline to return the connection
 // to normal mode. While in pipeline mode, no methods that communicate with the server may be called except
@@ -1721,6 +1724,16 @@ func (p *Pipeline) SendPrepare(name, sql string, paramOIDs []uint32) {
 
 	p.conn.frontend.SendParse(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
 	p.conn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'S', Name: name})
+}
+
+// SendDeallocate deallocates a prepared statement.
+func (p *Pipeline) SendDeallocate(name string) {
+	if p.closed {
+		return
+	}
+	p.pendingSync = true
+
+	p.conn.frontend.SendClose(&pgproto3.Close{ObjectType: 'S', Name: name})
 }
 
 // SendQueryParams is the pipeline version of *PgConn.QueryParams.
@@ -1825,6 +1838,8 @@ func (p *Pipeline) GetResults() (results any, err error) {
 			if _, ok := peekedMsg.(*pgproto3.ParameterDescription); ok {
 				return p.getResultsPrepare()
 			}
+		case *pgproto3.CloseComplete:
+			return &CloseComplete{}, nil
 		case *pgproto3.ReadyForQuery:
 			p.expectedReadyForQueryCount--
 			return &PipelineSync{}, nil
