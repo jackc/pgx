@@ -533,16 +533,6 @@ func (p *Pool) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return c.getPoolRow(row)
 }
 
-func (p *Pool) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return pgconn.CommandTag{}, err
-	}
-	defer c.Release()
-
-	return c.QueryFunc(ctx, sql, args, scans, f)
-}
-
 func (p *Pool) SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults {
 	c, err := p.Acquire(ctx)
 	if err != nil {

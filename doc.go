@@ -63,6 +63,18 @@ pgx implements Query and Scan in the familiar database/sql style.
 
     // No errors found - do something with sum
 
+ForEachScannedRow can be used to execute a callback function for every row. This is often easier than iterating over rows directly.
+
+    var sum, n int32
+    rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
+    _, err := pgx.ForEachScannedRow(rows, []any{&n}, func(pgx.QueryFuncRow) error {
+      sum += n
+      return nil
+    })
+    if err != nil {
+      return err
+    }
+
 pgx also implements QueryRow in the same style as database/sql.
 
     var name string
@@ -81,23 +93,6 @@ Use Exec to execute a query that does not return a result set.
     if commandTag.RowsAffected() != 1 {
         return errors.New("No row found to delete")
     }
-
-QueryFunc can be used to execute a callback function for every row. This is often easier to use than Query.
-
-    var sum, n int32
-	_, err = conn.QueryFunc(
-		context.Background(),
-		"select generate_series(1,$1)",
-		[]any{10},
-		[]any{&n},
-		func(pgx.QueryFuncRow) error {
-            sum += n
-			return nil
-		},
-	)
-	if err != nil {
-		return err
-	}
 
 Base Type Mapping
 

@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/internal/sanitize"
 	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -764,48 +763,6 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	return (*connRow)(rows.(*baseRows))
 }
 
-// QueryFuncRow is the argument to the QueryFunc callback function.
-//
-// QueryFuncRow is an interface instead of a struct to allow tests to mock QueryFunc. However, adding a method to an
-// interface is technically a breaking change. Because of this the QueryFuncRow interface is partially excluded from
-// semantic version requirements. Methods will not be removed or changed, but new methods may be added.
-type QueryFuncRow interface {
-	FieldDescriptions() []pgproto3.FieldDescription
-
-	// RawValues returns the unparsed bytes of the row values. The returned data is only valid during the current
-	// function call.
-	RawValues() [][]byte
-}
-
-// QueryFunc executes sql with args. For each row returned by the query the values will scanned into the elements of
-// scans and f will be called. If any row fails to scan or f returns an error the query will be aborted and the error
-// will be returned.
-func (c *Conn) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
-	rows, err := c.Query(ctx, sql, args...)
-	if err != nil {
-		return pgconn.CommandTag{}, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		err = rows.Scan(scans...)
-		if err != nil {
-			return pgconn.CommandTag{}, err
-		}
-
-		err = f(rows)
-		if err != nil {
-			return pgconn.CommandTag{}, err
-		}
-	}
-
-	if err := rows.Err(); err != nil {
-		return pgconn.CommandTag{}, err
-	}
-
-	return rows.CommandTag(), nil
-}
-
 // SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
@@ -1038,20 +995,20 @@ func (c *Conn) getCompositeFields(ctx context.Context, oid uint32) ([]pgtype.Com
 	var fields []pgtype.CompositeCodecField
 	var fieldName string
 	var fieldOID uint32
-	_, err = c.QueryFunc(ctx, `select attname, atttypid
+	rows, _ := c.Query(ctx, `select attname, atttypid
 from pg_attribute
 where attrelid=$1
 order by attnum`,
-		[]any{typrelid},
-		[]any{&fieldName, &fieldOID},
-		func(qfr QueryFuncRow) error {
-			dt, ok := c.TypeMap().TypeForOID(fieldOID)
-			if !ok {
-				return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
-			}
-			fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, Type: dt})
-			return nil
-		})
+		typrelid,
+	)
+	_, err = ForEachScannedRow(rows, []any{&fieldName, &fieldOID}, func() error {
+		dt, ok := c.TypeMap().TypeForOID(fieldOID)
+		if !ok {
+			return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
+		}
+		fields = append(fields, pgtype.CompositeCodecField{Name: fieldName, Type: dt})
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}

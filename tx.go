@@ -163,7 +163,6 @@ type Tx interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...any) (Rows, error)
 	QueryRow(ctx context.Context, sql string, args ...any) Row
-	QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error)
 
 	// Conn returns the underlying *Conn that on which this transaction is executing.
 	Conn() *Conn
@@ -293,15 +292,6 @@ func (tx *dbTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	return (*connRow)(rows.(*baseRows))
 }
 
-// QueryFunc delegates to the underlying *Conn.
-func (tx *dbTx) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
-	if tx.closed {
-		return pgconn.CommandTag{}, ErrTxClosed
-	}
-
-	return tx.conn.QueryFunc(ctx, sql, args, scans, f)
-}
-
 // CopyFrom delegates to the underlying *Conn
 func (tx *dbTx) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
 	if tx.closed {
@@ -410,15 +400,6 @@ func (sp *dbSimulatedNestedTx) Query(ctx context.Context, sql string, args ...an
 func (sp *dbSimulatedNestedTx) QueryRow(ctx context.Context, sql string, args ...any) Row {
 	rows, _ := sp.Query(ctx, sql, args...)
 	return (*connRow)(rows.(*baseRows))
-}
-
-// QueryFunc delegates to the underlying Tx.
-func (sp *dbSimulatedNestedTx) QueryFunc(ctx context.Context, sql string, args []any, scans []any, f func(QueryFuncRow) error) (pgconn.CommandTag, error) {
-	if sp.closed {
-		return pgconn.CommandTag{}, ErrTxClosed
-	}
-
-	return sp.tx.QueryFunc(ctx, sql, args, scans, f)
 }
 
 // CopyFrom delegates to the underlying *Conn

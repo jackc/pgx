@@ -17,8 +17,8 @@ type BytesValuer interface {
 }
 
 // DriverBytes is a byte slice that holds a reference to memory owned by the driver. It is only valid from the time it
-// is scanned until Rows.Next or Rows.Close is called. It is safe to use in a function passed to QueryFunc. It is never
-// safe to use DriverBytes with QueryRow as Row.Scan internally calls Rows.Close before returning.
+// is scanned until Rows.Next or Rows.Close is called. It is never safe to use DriverBytes with QueryRow as Row.Scan
+// internally calls Rows.Close before returning.
 type DriverBytes []byte
 
 func (b *DriverBytes) ScanBytes(v []byte) error {
