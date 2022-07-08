@@ -2190,6 +2190,47 @@ func TestPipelinePrepareError(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestPipelinePrepareAndDeallocate(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pipeline := pgConn.StartPipeline(context.Background())
+	pipeline.SendPrepare("selectInt", "select $1::bigint as a", nil)
+	pipeline.SendDeallocate("selectInt")
+	err = pipeline.Sync()
+	require.NoError(t, err)
+
+	results, err := pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok := results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 1)
+	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.CloseComplete)
+	require.Truef(t, ok, "expected CloseComplete, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	_, ok = results.(*pgconn.PipelineSync)
+	require.Truef(t, ok, "expected PipelineSync, got: %#v", results)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	require.Nil(t, results)
+
+	err = pipeline.Close()
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestPipelineQuery(t *testing.T) {
 	t.Parallel()
 

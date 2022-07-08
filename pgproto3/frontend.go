@@ -136,6 +136,16 @@ func (f *Frontend) SendParse(msg *Parse) {
 	}
 }
 
+// SendClose sends a Close message to the backend (i.e. the server). The message is not guaranteed to be written until
+// Flush is called.
+func (f *Frontend) SendClose(msg *Close) {
+	prevLen := len(f.wbuf)
+	f.wbuf = msg.Encode(f.wbuf)
+	if f.tracer != nil {
+		f.tracer.traceClose('F', int32(len(f.wbuf)-prevLen), msg)
+	}
+}
+
 // SendDescribe sends a Describe message to the backend (i.e. the server). The message is not guaranteed to be written until
 // Flush is called.
 func (f *Frontend) SendDescribe(msg *Describe) {
