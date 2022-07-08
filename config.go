@@ -26,6 +26,7 @@ import (
 
 type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
 type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
+type GetSSLPasswordFunc func(ctx context.Context) string
 
 // Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig. A
 // manually initialized Config will cause ConnectConfig to panic.
@@ -61,10 +62,12 @@ type Config struct {
 	// OnNotification is a callback function called when a notification from the LISTEN/NOTIFY system is received.
 	OnNotification NotificationHandler
 
-	// SslPasswordCallback is a callback function to handle Auth callback for SSL Password
-	SslPasswordCallback SslPasswordCallbackHandler
-
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
+}
+
+//Congig Options such as getsslpassword function
+type ParseConfigOptions struct {
+    GetSSLPassword GetSSLPasswordFunc
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -138,7 +141,8 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 
 // ParseConfig builds a *Config when sslpasswordcallback function is not provided
 func ParseConfig(connString string) (*Config, error) {
-	return ParseConfigWithSslPasswordCallback(connString, nil)
+	var parseConfigOptions ParseConfigOptions
+	return ParseConfigWithOptions(connString, parseConfigOptions)
 }
 
 // ParseConfig builds a *Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
@@ -204,7 +208,7 @@ func ParseConfig(connString string) (*Config, error) {
 // which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config is manually
 // changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
 // TLCConfig.
-// sslPasswordCallback function provide a callback function for sslpassword
+// ParseConfigOptions options for parse config
 //
 // Other known differences with libpq:
 //
@@ -218,7 +222,7 @@ func ParseConfig(connString string) (*Config, error) {
 // 	servicefile
 // 		libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
 // 		part of the connection string.
-func ParseConfigWithSslPasswordCallback(connString string, sslPasswordCallback SslPasswordCallbackHandler) (*Config, error) {
+func ParseConfigWithOptions(connString string, parseConfigOptions ParseConfigOptions) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
 
@@ -338,7 +342,7 @@ func ParseConfigWithSslPasswordCallback(connString string, sslPasswordCallback S
 			tlsConfigs = append(tlsConfigs, nil)
 		} else {
 			var err error
-			tlsConfigs, err = configTLS(settings, host, sslPasswordCallback)
+			tlsConfigs, err = configTLS(settings, host, parseConfigOptions)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
 			}
@@ -605,7 +609,7 @@ func parseServiceSettings(servicefilePath, serviceName string) (map[string]strin
 // configTLS uses libpq's TLS parameters to construct  []*tls.Config. It is
 // necessary to allow returning multiple TLS configs as sslmode "allow" and
 // "prefer" allow fallback.
-func configTLS(settings map[string]string, thisHost string, sslPasswordCallback SslPasswordCallbackHandler) ([]*tls.Config, error) {
+func configTLS(settings map[string]string, thisHost string, parseConfigOptions ParseConfigOptions) ([]*tls.Config, error) {
 	host := thisHost
 	sslmode := settings["sslmode"]
 	sslrootcert := settings["sslrootcert"]
@@ -708,10 +712,11 @@ func configTLS(settings map[string]string, thisHost string, sslPasswordCallback 
 		// If PEM is encrypted, attempt to decrypt using pass phrase
 		if x509.IsEncryptedPEMBlock(block) {
 			if sslpassword == "" {
-				if sslPasswordCallback == nil {
-					return nil, fmt.Errorf("unable to find sslpassword: %w", err)
+				if(parseConfigOptions.GetSSLPassword != nil){
+				    sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
+				}else{
+                    return nil, fmt.Errorf("unable to find sslpassword")
 				}
-				sslpassword = sslPasswordCallback()
 			}
 			// Attempt decryption with pass phrase
 			// NOTE: only supports RSA (PKCS#1)

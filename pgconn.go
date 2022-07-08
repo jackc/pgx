@@ -64,8 +64,6 @@ type NoticeHandler func(*PgConn, *Notice)
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
 
-type SslPasswordCallbackHandler func() (string)
-
 // Frontend used to receive messages from backend.
 type Frontend interface {
 	Receive() (pgproto3.BackendMessage, error)
