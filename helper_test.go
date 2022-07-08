@@ -65,8 +65,8 @@ func mustParseConfig(t testing.TB, connString string) *pgx.ConnConfig {
 	return config
 }
 
-func mustParseConfigWithSslPasswordCallback(t testing.TB, connString string, passwordCallback pgconn.SslPasswordCallbackHandler) *pgx.ConnConfig {
-    config, err := pgx.ParseConfigWithSslPasswordCallback(connString,passwordCallback)
+func mustParseConfigWithOptions(t testing.TB, connString string, parseConfigOptions pgconn.ParseConfigOptions) *pgx.ConnConfig {
+    config, err := pgx.ParseConfigWithOptions(connString,parseConfigOptions)
 	require.Nil(t, err)
 	return config
 }

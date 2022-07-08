@@ -1,9 +1,7 @@
 package pgx_test
 
 import (
-	"bufio"
 	"context"
-	"fmt"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgconn/stmtcache"
 	"github.com/jackc/pgtype"
@@ -78,7 +76,7 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestConnectWithSslPassword(t *testing.T) {
+func TestConnectWithSSLPassword(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("PGX_TEST_DATABASE")
@@ -119,7 +117,7 @@ func TestConnectWithSslPassword(t *testing.T) {
 	}
 }
 
-func TestConnectWithSslPasswordConfig(t *testing.T) {
+func TestConnectWithSSLPasswordConfig(t *testing.T) {
 	t.Parallel()
 
 	connString := os.Getenv("PGX_TEST_DATABASE")
@@ -170,11 +168,18 @@ func TestConnectWithSslPasswordConfig(t *testing.T) {
 	}
 }
 
-func TestConnectWithSslPasswordCallback(t *testing.T) {
+func TestConnectWithSSLPasswordOptions(t *testing.T) {
 	t.Parallel()
 
+    passString := os.Getenv("PGX_SSL_PASSWORD")
+    if passString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_SSL_PASSWORD")
+	}
 	connString := os.Getenv("PGX_TEST_DATABASE")
-	config := mustParseConfigWithSslPasswordCallback(t, connString, GetSslPassword)
+
+	var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	config := mustParseConfigWithOptions(t, connString, sslOptions)
 
 	conn, err := pgx.ConnectConfig(context.Background(), config)
 	if err != nil {
