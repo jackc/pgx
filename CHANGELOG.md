@@ -134,6 +134,11 @@ allows arbitrary rewriting of query SQL and arguments.
 ## RowScanner Interface
 
 The `RowScanner` interface allows a single argument to Rows.Scan to scan the entire row.
+
+## QueryFunc Replaced
+
+`QueryFunc` has been replaced by using `ForEachScannedRow`.
+
 ## 3rd Party Logger Integration
 
 All integrations with 3rd party loggers have been extracted to separate repositories. This trims the pgx dependency

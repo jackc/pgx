@@ -361,3 +361,28 @@ func RowsFromResultReader(typeMap *pgtype.Map, resultReader *pgconn.ResultReader
 		resultReader: resultReader,
 	}
 }
+
+// ForEachScannedRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row
+// fails to scan or fn returns an error the query will be aborted and the error will be returned. Rows will be closed
+// when ForEachScannedRow returns.
+func ForEachScannedRow(rows Rows, scans []any, fn func() error) (pgconn.CommandTag, error) {
+	defer rows.Close()
+
+	for rows.Next() {
+		err := rows.Scan(scans...)
+		if err != nil {
+			return pgconn.CommandTag{}, err
+		}
+
+		err = fn()
+		if err != nil {
+			return pgconn.CommandTag{}, err
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return pgconn.CommandTag{}, err
+	}
+
+	return rows.CommandTag(), nil
+}
