@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -127,4 +128,99 @@ func ExampleForEachScannedRow() {
 	// 1, 2
 	// 2, 4
 	// 3, 6
+}
+
+func TestCollectRows(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)
+		numbers, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		require.NoError(t, err)
+
+		assert.Len(t, numbers, 100)
+		for i := range numbers {
+			assert.Equal(t, int32(i), numbers[i])
+		}
+	})
+}
+
+func TestRowTo(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)
+		numbers, err := pgx.CollectRows(rows, pgx.RowTo[int32])
+		require.NoError(t, err)
+
+		assert.Len(t, numbers, 100)
+		for i := range numbers {
+			assert.Equal(t, int32(i), numbers[i])
+		}
+	})
+}
+
+func TestRowToAddrOf(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)
+		numbers, err := pgx.CollectRows(rows, pgx.RowToAddrOf[int32])
+		require.NoError(t, err)
+
+		assert.Len(t, numbers, 100)
+		for i := range numbers {
+			assert.Equal(t, int32(i), *numbers[i])
+		}
+	})
+}
+
+func TestRowToMap(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Joe' as name, n as age from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToMap)
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Joe", slice[i]["name"])
+			assert.EqualValues(t, i, slice[i]["age"])
+		}
+	})
+}
+
+func TestRowToStructPos(t *testing.T) {
+	type person struct {
+		Name string
+		Age  int32
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Joe' as name, n as age from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByPos[person])
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Joe", slice[i].Name)
+			assert.EqualValues(t, i, slice[i].Age)
+		}
+	})
+}
+
+func TestRowToAddrOfStructPos(t *testing.T) {
+	type person struct {
+		Name string
+		Age  int32
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Joe' as name, n as age from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByPos[person])
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Joe", slice[i].Name)
+			assert.EqualValues(t, i, slice[i].Age)
+		}
+	})
 }
