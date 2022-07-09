@@ -1179,6 +1179,10 @@ order by attnum`,
 }
 
 func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error {
+	if c.pgConn.TxStatus() != 'I' {
+		return nil
+	}
+
 	if c.descriptionCache != nil {
 		c.descriptionCache.HandleInvalidated()
 	}
