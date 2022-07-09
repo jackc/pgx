@@ -135,9 +135,10 @@ allows arbitrary rewriting of query SQL and arguments.
 
 The `RowScanner` interface allows a single argument to Rows.Scan to scan the entire row.
 
-## QueryFunc Replaced
+## Rows Result Helpers
 
-`QueryFunc` has been replaced by using `ForEachScannedRow`.
+* `CollectRows` and `RowTo*` functions simplify collecting results into a slice.
+* `QueryFunc` has been replaced by using `ForEachScannedRow`.
 
 ## SendBatch Uses Pipeline Mode When Appropriate
 
