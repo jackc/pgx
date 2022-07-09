@@ -806,15 +806,15 @@ func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 		db.Exec(context.Background(), "drop table pgxpooltx")
 	}()
 
-	err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 		_, err := db.Exec(context.Background(), "insert into pgxpooltx(id) values (1)")
 		require.NoError(t, err)
 
-		err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+		err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 			_, err := db.Exec(context.Background(), "insert into pgxpooltx(id) values (2)")
 			require.NoError(t, err)
 
-			err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+			err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 				_, err := db.Exec(context.Background(), "insert into pgxpooltx(id) values (3)")
 				require.NoError(t, err)
 				return nil
@@ -853,11 +853,11 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 		db.Exec(context.Background(), "drop table pgxpooltx")
 	}()
 
-	err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 		_, err := db.Exec(context.Background(), "insert into pgxpooltx(id) values (1)")
 		require.NoError(t, err)
 
-		err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+		err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 			_, err := db.Exec(context.Background(), "insert into pgxpooltx(id) values (2)")
 			require.NoError(t, err)
 			return errors.New("do a rollback")
