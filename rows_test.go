@@ -35,7 +35,7 @@ func TestRowScanner(t *testing.T) {
 	})
 }
 
-func TestForEachScannedRow(t *testing.T) {
+func TestForEachRow(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -47,7 +47,7 @@ func TestForEachScannedRow(t *testing.T) {
 			3,
 		)
 		var a, b int
-		ct, err := pgx.ForEachScannedRow(rows, []any{&a, &b}, func() error {
+		ct, err := pgx.ForEachRow(rows, []any{&a, &b}, func() error {
 			actualResults = append(actualResults, []any{a, b})
 			return nil
 		})
@@ -63,7 +63,7 @@ func TestForEachScannedRow(t *testing.T) {
 	})
 }
 
-func TestForEachScannedRowScanError(t *testing.T) {
+func TestForEachRowScanError(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -75,7 +75,7 @@ func TestForEachScannedRowScanError(t *testing.T) {
 			3,
 		)
 		var a, b int
-		ct, err := pgx.ForEachScannedRow(rows, []any{&a, &b}, func() error {
+		ct, err := pgx.ForEachRow(rows, []any{&a, &b}, func() error {
 			actualResults = append(actualResults, []any{a, b})
 			return nil
 		})
@@ -84,7 +84,7 @@ func TestForEachScannedRowScanError(t *testing.T) {
 	})
 }
 
-func TestForEachScannedRowAbort(t *testing.T) {
+func TestForEachRowAbort(t *testing.T) {
 	t.Parallel()
 
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -94,7 +94,7 @@ func TestForEachScannedRowAbort(t *testing.T) {
 			3,
 		)
 		var a, b int
-		ct, err := pgx.ForEachScannedRow(rows, []any{&a, &b}, func() error {
+		ct, err := pgx.ForEachRow(rows, []any{&a, &b}, func() error {
 			return errors.New("abort")
 		})
 		require.EqualError(t, err, "abort")
@@ -102,7 +102,7 @@ func TestForEachScannedRowAbort(t *testing.T) {
 	})
 }
 
-func ExampleForEachScannedRow() {
+func ExampleForEachRow() {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
@@ -115,12 +115,12 @@ func ExampleForEachScannedRow() {
 		3,
 	)
 	var a, b int
-	_, err = pgx.ForEachScannedRow(rows, []any{&a, &b}, func() error {
+	_, err = pgx.ForEachRow(rows, []any{&a, &b}, func() error {
 		fmt.Printf("%v, %v\n", a, b)
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("ForEachScannedRow error: %v", err)
+		fmt.Printf("ForEachRow error: %v", err)
 		return
 	}
 

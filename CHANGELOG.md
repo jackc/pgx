@@ -138,7 +138,7 @@ The `RowScanner` interface allows a single argument to Rows.Scan to scan the ent
 ## Rows Result Helpers
 
 * `CollectRows` and `RowTo*` functions simplify collecting results into a slice.
-* `QueryFunc` has been replaced by using `ForEachScannedRow`.
+* `ForEachRow` simplifies scanning each row and executing code using the scanned values. `ForEachRow` replaces `QueryFunc`.
 
 ## SendBatch Uses Pipeline Mode When Appropriate
 

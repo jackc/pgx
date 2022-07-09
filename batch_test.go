@@ -109,7 +109,7 @@ func TestConnSendBatch(t *testing.T) {
 
 		rowCount = 0
 		rows, _ = br.Query()
-		_, err = pgx.ForEachScannedRow(rows, []any{&id, &description, &amount}, func() error {
+		_, err = pgx.ForEachRow(rows, []any{&id, &description, &amount}, func() error {
 			if id != selectFromLedgerExpectedRows[rowCount].id {
 				t.Errorf("id => %v, want %v", id, selectFromLedgerExpectedRows[rowCount].id)
 			}

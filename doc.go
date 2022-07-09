@@ -63,11 +63,11 @@ pgx implements Query and Scan in the familiar database/sql style.
 
     // No errors found - do something with sum
 
-ForEachScannedRow can be used to execute a callback function for every row. This is often easier than iterating over rows directly.
+ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows directly.
 
     var sum, n int32
     rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-    _, err := pgx.ForEachScannedRow(rows, []any{&n}, func(pgx.QueryFuncRow) error {
+    _, err := pgx.ForEachRow(rows, []any{&n}, func(pgx.QueryFuncRow) error {
       sum += n
       return nil
     })

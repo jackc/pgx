@@ -1163,7 +1163,7 @@ where attrelid=$1
 order by attnum`,
 		typrelid,
 	)
-	_, err = ForEachScannedRow(rows, []any{&fieldName, &fieldOID}, func() error {
+	_, err = ForEachRow(rows, []any{&fieldName, &fieldOID}, func() error {
 		dt, ok := c.TypeMap().TypeForOID(fieldOID)
 		if !ok {
 			return fmt.Errorf("unknown composite type field OID: %v", fieldOID)
