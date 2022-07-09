@@ -2102,10 +2102,15 @@ func TestPipelinePrepare(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
+	result := pgConn.ExecParams(context.Background(), `create temporary table t (id text primary key)`, nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
 	pipeline := pgConn.StartPipeline(context.Background())
 	pipeline.SendPrepare("selectInt", "select $1::bigint as a", nil)
 	pipeline.SendPrepare("selectText", "select $1::text as b", nil)
 	pipeline.SendPrepare("selectNoParams", "select 42 as c", nil)
+	pipeline.SendPrepare("insertNoResults", "insert into t (id) values ($1)", nil)
+	pipeline.SendPrepare("insertNoParamsOrResults", "insert into t (id) values ('foo')", nil)
 	err = pipeline.Sync()
 	require.NoError(t, err)
 
@@ -2132,6 +2137,20 @@ func TestPipelinePrepare(t *testing.T) {
 	require.Len(t, sd.Fields, 1)
 	require.Equal(t, string(sd.Fields[0].Name), "c")
 	require.Equal(t, []uint32{}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok = results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 0)
+	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
+
+	results, err = pipeline.GetResults()
+	require.NoError(t, err)
+	sd, ok = results.(*pgconn.StatementDescription)
+	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
+	require.Len(t, sd.Fields, 0)
+	require.Len(t, sd.ParamOIDs, 0)
 
 	results, err = pipeline.GetResults()
 	require.NoError(t, err)

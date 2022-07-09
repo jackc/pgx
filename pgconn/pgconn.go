@@ -1871,6 +1871,11 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 			copy(psd.Fields, msg.Fields)
 			return psd, nil
 
+		// NoData is returned instead of RowDescription when there is no expected result. e.g. An INSERT without a RETURNING
+		// clause.
+		case *pgproto3.NoData:
+			return psd, nil
+
 		// These should never happen here. But don't take chances that could lead to a deadlock.
 		case *pgproto3.ErrorResponse:
 			pgErr := ErrorResponseToPgError(msg)
