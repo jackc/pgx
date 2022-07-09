@@ -371,10 +371,10 @@ func RowsFromResultReader(typeMap *pgtype.Map, resultReader *pgconn.ResultReader
 	}
 }
 
-// ForEachScannedRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row
+// ForEachRow iterates through rows. For each row it scans into the elements of scans and calls fn. If any row
 // fails to scan or fn returns an error the query will be aborted and the error will be returned. Rows will be closed
-// when ForEachScannedRow returns.
-func ForEachScannedRow(rows Rows, scans []any, fn func() error) (pgconn.CommandTag, error) {
+// when ForEachRow returns.
+func ForEachRow(rows Rows, scans []any, fn func() error) (pgconn.CommandTag, error) {
 	defer rows.Close()
 
 	for rows.Next() {
