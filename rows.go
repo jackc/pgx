@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -173,8 +174,16 @@ func (rows *baseRows) Close() {
 		}
 	}
 
-	if rows.err != nil && rows.conn != nil && rows.conn.statementCache != nil {
-		rows.conn.statementCache.StatementErrored(rows.sql, rows.err)
+	if rows.err != nil && rows.conn != nil && rows.sql != "" {
+		if stmtcache.IsStatementInvalid(rows.err) {
+			if sc := rows.conn.statementCache; sc != nil {
+				sc.Invalidate(rows.sql)
+			}
+
+			if sc := rows.conn.descriptionCache; sc != nil {
+				sc.Invalidate(rows.sql)
+			}
+		}
 	}
 }
 
