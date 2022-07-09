@@ -570,20 +570,6 @@ func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, er
 	return &Tx{t: t, c: c}, err
 }
 
-func (p *Pool) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
-	return p.BeginTxFunc(ctx, pgx.TxOptions{}, f)
-}
-
-func (p *Pool) BeginTxFunc(ctx context.Context, txOptions pgx.TxOptions, f func(pgx.Tx) error) error {
-	c, err := p.Acquire(ctx)
-	if err != nil {
-		return err
-	}
-	defer c.Release()
-
-	return c.BeginTxFunc(ctx, txOptions, f)
-}
-
 func (p *Pool) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
 	c, err := p.Acquire(ctx)
 	if err != nil {

@@ -18,10 +18,6 @@ func (tx *Tx) Begin(ctx context.Context) (pgx.Tx, error) {
 	return tx.t.Begin(ctx)
 }
 
-func (tx *Tx) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
-	return tx.t.BeginFunc(ctx, f)
-}
-
 // Commit commits the transaction and returns the associated connection back to the Pool. Commit will return ErrTxClosed
 // if the Tx is already closed, but is otherwise safe to call multiple times. If the commit fails with a rollback status
 // (e.g. the transaction was already in a broken state) then ErrTxCommitRollback will be returned.

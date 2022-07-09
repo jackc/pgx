@@ -141,6 +141,11 @@ The `RowScanner` interface allows a single argument to Rows.Scan to scan the ent
 * `CollectOneRow` collects one row using `RowTo*` functions.
 * `ForEachRow` simplifies scanning each row and executing code using the scanned values. `ForEachRow` replaces `QueryFunc`.
 
+## Tx Helpers
+
+Rather than every type that implemented `Begin` or `BeginTx` methods also needing to implement `BeginFunc` and
+`BeginTxFunc` these methods have been converted to functions that take a db that implements `Begin` or `BeginTx`.
+
 ## SendBatch Uses Pipeline Mode When Appropriate
 
 Previously, a batch with 10 unique parameterized statements executed 100 times would entail 11 network round trips. 1
