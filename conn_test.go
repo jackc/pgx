@@ -906,6 +906,46 @@ func TestDomainType(t *testing.T) {
 	})
 }
 
+func TestLoadTypeSameNameInDifferentSchemas(t *testing.T) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		_, err = tx.Exec(ctx, `create schema pgx_a;
+create type pgx_a.point as (a text, b text);
+create schema pgx_b;
+create type pgx_b.point as (c text);
+`)
+		require.NoError(t, err)
+
+		// Register types
+		for _, typename := range []string{"pgx_a.point", "pgx_b.point"} {
+			// Obviously using conn while a tx is in use and registering a type after the connection has been established are
+			// really bad practices, but for the sake of convenience we do it in the test here.
+			dt, err := conn.LoadType(ctx, typename)
+			require.NoError(t, err)
+			conn.TypeMap().RegisterType(dt)
+		}
+
+		type aPoint struct {
+			A string
+			B string
+		}
+
+		type bPoint struct {
+			C string
+		}
+
+		var a aPoint
+		var b bPoint
+		err = tx.QueryRow(ctx, `select '(foo,bar)'::pgx_a.point, '(baz)'::pgx_b.point`).Scan(&a, &b)
+		require.NoError(t, err)
+		require.Equal(t, aPoint{"foo", "bar"}, a)
+		require.Equal(t, bPoint{"baz"}, b)
+	})
+}
+
 func TestStmtCacheInvalidationConn(t *testing.T) {
 	ctx := context.Background()
 
