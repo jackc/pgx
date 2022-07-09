@@ -420,7 +420,7 @@ func TestConnSendBatchQueryError(t *testing.T) {
 
 		err = br.Close()
 		if pgErr, ok := err.(*pgconn.PgError); !(ok && pgErr.Code == "22012") {
-			t.Errorf("rows.Err() => %v, want error code %v", err, 22012)
+			t.Errorf("br.Close() => %v, want error code %v", err, 22012)
 		}
 
 	})

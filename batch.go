@@ -11,6 +11,7 @@ import (
 type batchItem struct {
 	query     string
 	arguments []any
+	sd        *pgconn.StatementDescription
 }
 
 // Batch queries are a way of bundling multiple queries together to avoid
@@ -183,6 +184,168 @@ func (br *batchResults) Close() error {
 }
 
 func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
+	if br.b != nil && br.ix < len(br.b.items) {
+		bi := br.b.items[br.ix]
+		query = bi.query
+		args = bi.arguments
+		ok = true
+		br.ix++
+	}
+	return
+}
+
+type pipelineBatchResults struct {
+	ctx      context.Context
+	conn     *Conn
+	pipeline *pgconn.Pipeline
+	lastRows *baseRows
+	err      error
+	b        *Batch
+	ix       int
+	closed   bool
+}
+
+// Exec reads the results from the next query in the batch as if the query has been sent with Exec.
+func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
+	if br.err != nil {
+		return pgconn.CommandTag{}, br.err
+	}
+	if br.closed {
+		return pgconn.CommandTag{}, fmt.Errorf("batch already closed")
+	}
+	if br.lastRows != nil && br.lastRows.err != nil {
+		return pgconn.CommandTag{}, br.err
+	}
+
+	query, arguments, _ := br.nextQueryAndArgs()
+
+	results, err := br.pipeline.GetResults()
+	if err != nil {
+		br.err = err
+		return pgconn.CommandTag{}, err
+	}
+	var commandTag pgconn.CommandTag
+	switch results := results.(type) {
+	case *pgconn.ResultReader:
+		commandTag, err = results.Close()
+	default:
+		return pgconn.CommandTag{}, fmt.Errorf("unexpected pipeline result: %T", results)
+	}
+
+	if err != nil {
+		br.err = err
+		if br.conn.shouldLog(LogLevelError) {
+			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]any{
+				"sql":  query,
+				"args": logQueryArgs(arguments),
+				"err":  err,
+			})
+		}
+	} else if br.conn.shouldLog(LogLevelInfo) {
+		br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Exec", map[string]any{
+			"sql":        query,
+			"args":       logQueryArgs(arguments),
+			"commandTag": commandTag,
+		})
+	}
+
+	return commandTag, err
+}
+
+// Query reads the results from the next query in the batch as if the query has been sent with Query.
+func (br *pipelineBatchResults) Query() (Rows, error) {
+	if br.err != nil {
+		return &baseRows{err: br.err, closed: true}, br.err
+	}
+
+	if br.closed {
+		alreadyClosedErr := fmt.Errorf("batch already closed")
+		return &baseRows{err: alreadyClosedErr, closed: true}, alreadyClosedErr
+	}
+
+	if br.lastRows != nil && br.lastRows.err != nil {
+		br.err = br.lastRows.err
+		return &baseRows{err: br.err, closed: true}, br.err
+	}
+
+	query, arguments, ok := br.nextQueryAndArgs()
+	if !ok {
+		query = "batch query"
+	}
+
+	rows := br.conn.getRows(br.ctx, query, arguments)
+	br.lastRows = rows
+
+	results, err := br.pipeline.GetResults()
+	if err != nil {
+		br.err = err
+		rows.err = err
+		rows.closed = true
+		if br.conn.shouldLog(LogLevelError) {
+			br.conn.log(br.ctx, LogLevelError, "BatchResult.Query", map[string]any{
+				"sql":  query,
+				"args": logQueryArgs(arguments),
+				"err":  rows.err,
+			})
+		}
+	} else {
+		switch results := results.(type) {
+		case *pgconn.ResultReader:
+			rows.resultReader = results
+		default:
+			err = fmt.Errorf("unexpected pipeline result: %T", results)
+			br.err = err
+			rows.err = err
+			rows.closed = true
+		}
+	}
+
+	return rows, rows.err
+}
+
+// QueryRow reads the results from the next query in the batch as if the query has been sent with QueryRow.
+func (br *pipelineBatchResults) QueryRow() Row {
+	rows, _ := br.Query()
+	return (*connRow)(rows.(*baseRows))
+
+}
+
+// Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
+// resyncronize the connection with the server. In this case the underlying connection will have been closed.
+func (br *pipelineBatchResults) Close() error {
+	if br.err != nil {
+		return br.err
+	}
+
+	if br.lastRows != nil && br.lastRows.err != nil {
+		br.err = br.lastRows.err
+		return br.err
+	}
+
+	if br.closed {
+		return nil
+	}
+	br.closed = true
+
+	// log any queries that haven't yet been logged by Exec or Query
+	for {
+		query, args, ok := br.nextQueryAndArgs()
+		if !ok {
+			break
+		}
+
+		if br.conn.shouldLog(LogLevelInfo) {
+			br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Close", map[string]any{
+				"sql":  query,
+				"args": logQueryArgs(args),
+			})
+		}
+	}
+
+	return br.pipeline.Close()
+}
+
+func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
 	if br.b != nil && br.ix < len(br.b.items) {
 		bi := br.b.items[br.ix]
 		query = bi.query

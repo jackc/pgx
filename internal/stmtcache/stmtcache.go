@@ -2,57 +2,56 @@
 package stmtcache
 
 import (
-	"context"
+	"strconv"
+	"sync/atomic"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const (
-	ModePrepare  = iota // Cache should prepare named statements.
-	ModeDescribe        // Cache should prepare the anonymous prepared statement to only fetch the description of the statement.
-)
+var stmtCounter int64
 
-// Cache prepares and caches prepared statement descriptions.
+// NextStatementName returns a statement name that will be unique for the lifetime of the program.
+func NextStatementName() string {
+	n := atomic.AddInt64(&stmtCounter, 1)
+	return "stmtcache_" + strconv.FormatInt(n, 10)
+}
+
+// Cache caches statement descriptions.
 type Cache interface {
-	// Get returns the prepared statement description for sql preparing or describing the sql on the server as needed.
-	Get(ctx context.Context, sql string) (*pgconn.StatementDescription, error)
+	// Get returns the statement description for sql. Returns nil if not found.
+	Get(sql string) *pgconn.StatementDescription
 
-	// Clear removes all entries in the cache. Any prepared statements will be deallocated from the PostgreSQL session.
-	Clear(ctx context.Context) error
+	// Put stores sd in the cache. Put panics if sd.SQL is "". Put does nothing if sd.SQL already exists in the cache.
+	Put(sd *pgconn.StatementDescription)
 
-	// StatementErrored informs the cache that the given statement resulted in an error when it
-	// was last used against the database. In some cases, this will cause the cache to maer that
-	// statement as bad. The bad statement will instead be flushed during the next call to Get
-	// that occurs outside of a failed transaction.
-	StatementErrored(sql string, err error)
+	// Invalidate invalidates statement description identified by sql. Does nothing if not found.
+	Invalidate(sql string)
+
+	// InvalidateAll invalidates all statement descriptions.
+	InvalidateAll()
+
+	// HandleInvalidated returns a slice of all statement descriptions invalidated since the last call to HandleInvalidated.
+	HandleInvalidated() []*pgconn.StatementDescription
 
 	// Len returns the number of cached prepared statement descriptions.
 	Len() int
 
 	// Cap returns the maximum number of cached prepared statement descriptions.
 	Cap() int
-
-	// Mode returns the mode of the cache (ModePrepare or ModeDescribe)
-	Mode() int
 }
 
-// New returns the preferred cache implementation for mode and cap. mode is either ModePrepare or ModeDescribe. cap is
-// the maximum size of the cache.
-func New(conn *pgconn.PgConn, mode int, cap int) Cache {
-	mustBeValidMode(mode)
-	mustBeValidCap(cap)
-
-	return NewLRU(conn, mode, cap)
-}
-
-func mustBeValidMode(mode int) {
-	if mode != ModePrepare && mode != ModeDescribe {
-		panic("mode must be ModePrepare or ModeDescribe")
+func IsStatementInvalid(err error) bool {
+	pgErr, ok := err.(*pgconn.PgError)
+	if !ok {
+		return false
 	}
-}
 
-func mustBeValidCap(cap int) {
-	if cap < 1 {
-		panic("cache must have cap of >= 1")
-	}
+	// https://github.com/jackc/pgx/issues/1162
+	//
+	// We used to look for the message "cached plan must not change result type". However, that message can be localized.
+	// Unfortunately, error code "0A000" - "FEATURE NOT SUPPORTED" is used for many different errors and the only way to
+	// tell the difference is by the message. But all that happens is we clear a statement that we otherwise wouldn't
+	// have so it should be safe.
+	possibleInvalidCachedPlanError := pgErr.Code == "0A000"
+	return possibleInvalidCachedPlanError
 }

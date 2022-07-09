@@ -931,6 +931,7 @@ func TestStmtCacheInvalidationConn(t *testing.T) {
 	rows, err := conn.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Close()
+	require.NoError(t, rows.Err())
 
 	// Now, change the schema of the table out from under the statement, making it invalid.
 	_, err = conn.Exec(ctx, "ALTER TABLE drop_cols DROP COLUMN f1")
@@ -948,10 +949,10 @@ func TestStmtCacheInvalidationConn(t *testing.T) {
 	rows.Close()
 	for _, err := range []error{nextErr, rows.Err()} {
 		if err == nil {
-			t.Fatal("expected InvalidCachedStatementPlanError: no error")
+			t.Fatal(`expected "cached plan must not change result type": no error`)
 		}
 		if !strings.Contains(err.Error(), "cached plan must not change result type") {
-			t.Fatalf("expected InvalidCachedStatementPlanError, got: %s", err.Error())
+			t.Fatalf(`expected "cached plan must not change result type", got: "%s"`, err.Error())
 		}
 	}
 
@@ -995,6 +996,7 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 	rows, err := tx.Query(ctx, getSQL, 1)
 	require.NoError(t, err)
 	rows.Close()
+	require.NoError(t, rows.Err())
 
 	// Now, change the schema of the table out from under the statement, making it invalid.
 	_, err = tx.Exec(ctx, "ALTER TABLE drop_cols DROP COLUMN f1")
@@ -1012,18 +1014,17 @@ func TestStmtCacheInvalidationTx(t *testing.T) {
 	rows.Close()
 	for _, err := range []error{nextErr, rows.Err()} {
 		if err == nil {
-			t.Fatal("expected InvalidCachedStatementPlanError: no error")
+			t.Fatal(`expected "cached plan must not change result type": no error`)
 		}
 		if !strings.Contains(err.Error(), "cached plan must not change result type") {
-			t.Fatalf("expected InvalidCachedStatementPlanError, got: %s", err.Error())
+			t.Fatalf(`expected "cached plan must not change result type", got: "%s"`, err.Error())
 		}
 	}
 
-	rows, err = tx.Query(ctx, getSQL, 1)
-	require.NoError(t, err) // error does not pop up immediately
-	rows.Next()
+	rows, _ = tx.Query(ctx, getSQL, 1)
+	rows.Close()
 	err = rows.Err()
-	// Retries within the same transaction are errors (really anything except a rollbakc
+	// Retries within the same transaction are errors (really anything except a rollback
 	// will be an error in this transaction).
 	require.Error(t, err)
 	rows.Close()

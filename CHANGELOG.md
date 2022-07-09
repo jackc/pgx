@@ -139,6 +139,12 @@ The `RowScanner` interface allows a single argument to Rows.Scan to scan the ent
 
 `QueryFunc` has been replaced by using `ForEachScannedRow`.
 
+## SendBatch Uses Pipeline Mode When Appropriate
+
+Previously, a batch with 10 unique parameterized statements executed 100 times would entail 11 network round trips. 1
+for each prepare / describe and 1 for executing them all. Now pipeline mode is used to prepare / describe all statements
+in a single network round trip. So it would only take 2 round trips.
+
 ## 3rd Party Logger Integration
 
 All integrations with 3rd party loggers have been extracted to separate repositories. This trims the pgx dependency

@@ -1909,10 +1909,10 @@ func (p *Pipeline) Close() error {
 	for p.expectedReadyForQueryCount > 0 {
 		_, err := p.GetResults()
 		if err != nil {
+			p.err = err
 			var pgErr *PgError
 			if !errors.As(err, &pgErr) {
 				p.conn.asyncClose()
-				p.err = err
 				break
 			}
 		}
