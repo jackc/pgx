@@ -428,6 +428,27 @@ func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 	return slice, nil
 }
 
+// CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
+// CollectOneRow is to CollectRows as QueryRow is to Query.
+func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
+	defer rows.Close()
+
+	var value T
+	var err error
+
+	if !rows.Next() {
+		return value, ErrNoRows
+	}
+
+	value, err = fn(rows)
+	if err != nil {
+		return value, err
+	}
+
+	rows.Close()
+	return value, rows.Err()
+}
+
 // RowTo returns a T scanned from row.
 func RowTo[T any](row CollectableRow) (T, error) {
 	var value T
