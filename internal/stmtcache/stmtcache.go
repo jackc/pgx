@@ -1,4 +1,4 @@
-// Package stmtcache is a cache that can be used to implement lazy prepared statements.
+// Package stmtcache is a cache for statement descriptions.
 package stmtcache
 
 import (
