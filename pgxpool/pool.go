@@ -122,11 +122,6 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
-	// If set to true, pool doesn't do any I/O operation on initialization.
-	// And connects to the server only when the pool starts to be used.
-	// The default is false.
-	LazyConnect bool
-
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -143,20 +138,18 @@ func (c *Config) Copy() *Config {
 // ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
-// Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
-// connection. See ParseConfig for information on connString format.
-func Connect(ctx context.Context, connString string) (*Pool, error) {
+// New creates a new Pool. See ParseConfig for information on connString format.
+func New(ctx context.Context, connString string) (*Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}
 
-	return ConnectConfig(ctx, config)
+	return NewConfig(ctx, config)
 }
 
-// ConnectConfig creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
-// connection. config must have been created by ParseConfig.
-func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
+// NewConfig creates a new Pool. config must have been created by ParseConfig.
+func NewConfig(ctx context.Context, config *Config) (*Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
@@ -222,23 +215,10 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 		config.MaxConns,
 	)
 
-	if !config.LazyConnect {
-		if err := p.createIdleResources(ctx, int(p.minConns)); err != nil {
-			// Couldn't create resources for minpool size. Close unhealthy pool.
-			p.Close()
-			return nil, err
-		}
-
-		// Initially establish one connection
-		res, err := p.p.Acquire(ctx)
-		if err != nil {
-			p.Close()
-			return nil, err
-		}
-		res.Release()
-	}
-
-	go p.backgroundHealthCheck()
+	go func() {
+		p.checkMinConns() // reach min conns as soon as possible
+		p.backgroundHealthCheck()
+	}()
 
 	return p, nil
 }

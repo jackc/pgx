@@ -11,7 +11,7 @@ import (
 )
 
 func BenchmarkAcquireAndRelease(b *testing.B) {
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(b, err)
 	defer pool.Close()
 
@@ -34,7 +34,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 		return err
 	}
 
-	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.NewConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	conn, err := db.Acquire(context.Background())
@@ -65,7 +65,7 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 		return err
 	}
 
-	db, err := pgxpool.ConnectConfig(context.Background(), config)
+	db, err := pgxpool.NewConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	var n int64

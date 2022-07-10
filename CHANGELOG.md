@@ -20,6 +20,10 @@ pgconn now supports pipeline mode.
 
 `*PgConn.ReceiveResults` removed. Use pipeline mode instead.
 
+## pgxpool
+
+`Connect` and `ConnectConfig` have been renamed to `New` and `NewConfig` respectively. The `LazyConnect` option has been removed. Pools always lazily connect.
+
 ## pgtype
 
 The `pgtype` package has been significantly changed.

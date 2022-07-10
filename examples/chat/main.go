@@ -13,7 +13,7 @@ var pool *pgxpool.Pool
 
 func main() {
 	var err error
-	pool, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	pool, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to connect to database:", err)
 		os.Exit(1)
