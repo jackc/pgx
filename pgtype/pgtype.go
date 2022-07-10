@@ -582,6 +582,7 @@ func (scanPlanAnyTextToBytes) Scan(src []byte, dst any) error {
 }
 
 type scanPlanFail struct {
+	m          *Map
 	oid        uint32
 	formatCode int16
 }
@@ -597,7 +598,14 @@ func (plan *scanPlanFail) Scan(src []byte, dst any) error {
 		format = fmt.Sprintf("unknown %d", plan.formatCode)
 	}
 
-	return fmt.Errorf("cannot scan OID %v in %v format into %T", plan.oid, format, dst)
+	var dataTypeName string
+	if t, ok := plan.m.oidToType[plan.oid]; ok {
+		dataTypeName = t.Name
+	} else {
+		dataTypeName = "unknown type"
+	}
+
+	return fmt.Errorf("cannot scan %s (OID %d) in %v format into %T", dataTypeName, plan.oid, format, dst)
 }
 
 // TryWrapScanPlanFunc is a function that tries to create a wrapper plan for target. If successful it returns a plan
@@ -1201,7 +1209,7 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 		return &scanPlanSQLScanner{formatCode: formatCode}
 	}
 
-	return &scanPlanFail{oid: oid, formatCode: formatCode}
+	return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
 }
 
 func (m *Map) Scan(oid uint32, formatCode int16, src []byte, dst any) error {

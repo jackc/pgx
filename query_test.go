@@ -274,8 +274,8 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	var s string
 
 	err := conn.QueryRow(context.Background(), "select point(1,2)").Scan(&s)
-	if err == nil || !(strings.Contains(err.Error(), "cannot scan OID 600 in binary format into *string")) {
-		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
+	if err == nil || !(strings.Contains(err.Error(), "cannot scan point (OID 600) in binary format into *string")) {
+		t.Fatalf("Expected Scan to fail to scan binary value into string but: %v", err)
 	}
 
 	ensureConnValid(t, conn)
@@ -397,7 +397,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: cannot scan OID 23 in binary format into *time.Time" {
+	if rows.Err().Error() != "can't scan into dest[0]: cannot scan int4 (OID 23) in binary format into *time.Time" {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -983,7 +983,7 @@ func TestQueryRowErrors(t *testing.T) {
 	}{
 		{"select $1::badtype", []any{"Jack"}, []any{&actual.i16}, `type "badtype" does not exist`},
 		{"SYNTAX ERROR", []any{}, []any{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []any{"Jack"}, []any{&actual.i16}, "cannot scan OID 25 in text format into *int16"},
+		{"select $1::text", []any{"Jack"}, []any{&actual.i16}, "cannot scan text (OID 25) in text format into *int16"},
 		{"select $1::point", []any{int(705)}, []any{&actual.s}, "unable to encode 705 into binary format for point (OID 600)"},
 	}
 

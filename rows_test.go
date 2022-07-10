@@ -79,7 +79,7 @@ func TestForEachRowScanError(t *testing.T) {
 			actualResults = append(actualResults, []any{a, b})
 			return nil
 		})
-		require.EqualError(t, err, "can't scan into dest[0]: cannot scan OID 25 in text format into *int")
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan text (OID 25) in text format into *int")
 		require.Equal(t, pgconn.CommandTag{}, ct)
 	})
 }
