@@ -1816,6 +1816,27 @@ func (plan *wrapMultiDimSliceEncodePlan) Encode(value any, buf []byte) (newBuf [
 	return plan.next.Encode(&w, buf)
 }
 
+func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) error {
+	var format string
+	switch formatCode {
+	case TextFormatCode:
+		format = "text"
+	case BinaryFormatCode:
+		format = "binary"
+	default:
+		format = fmt.Sprintf("unknown (%d)", formatCode)
+	}
+
+	var dataTypeName string
+	if t, ok := m.oidToType[oid]; ok {
+		dataTypeName = t.Name
+	} else {
+		dataTypeName = "unknown type"
+	}
+
+	return fmt.Errorf("unable to encode %#v into %s format for %s (OID %d): %s", value, format, dataTypeName, oid, err)
+}
+
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
 // (nil, nil). The caller of Encode is responsible for writing the correct NULL value or the length of the data
 // written.
@@ -1837,13 +1858,12 @@ func (m *Map) Encode(oid uint32, formatCode int16, value any, buf []byte) (newBu
 			return m.Encode(oid, formatCode, v, buf)
 		}
 
-		return nil, fmt.Errorf("unable to encode %#v into format code %d for OID %d", value, formatCode, oid)
+		return nil, newEncodeError(value, m, oid, formatCode, errors.New("cannot find encode plan"))
 	}
 
 	newBuf, err = plan.Encode(value, buf)
 	if err != nil {
-		err = fmt.Errorf("unable to encode %#v into format code %d for OID %d: %v", value, formatCode, oid, err)
-		return nil, err
+		return nil, newEncodeError(value, m, oid, formatCode, err)
 	}
 
 	return newBuf, nil
