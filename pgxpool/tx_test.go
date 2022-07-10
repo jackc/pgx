@@ -12,7 +12,7 @@ import (
 func TestTxExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -26,7 +26,7 @@ func TestTxExec(t *testing.T) {
 func TestTxQuery(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -40,7 +40,7 @@ func TestTxQuery(t *testing.T) {
 func TestTxQueryRow(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -54,7 +54,7 @@ func TestTxQueryRow(t *testing.T) {
 func TestTxSendBatch(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -68,7 +68,7 @@ func TestTxSendBatch(t *testing.T) {
 func TestTxCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 

@@ -75,7 +75,7 @@ func main() {
 		log.Fatalln("Unable to parse DATABASE_URL:", err)
 	}
 
-	db, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+	db, err = pgxpool.NewConfig(context.Background(), poolConfig)
 	if err != nil {
 		log.Fatalln("Unable to create connection pool:", err)
 	}
