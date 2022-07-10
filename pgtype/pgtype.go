@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"reflect"
 	"time"
 )
@@ -364,6 +365,8 @@ func NewMap() *Map {
 
 	registerDefaultPgTypeVariants[net.IP](m, "inet")
 	registerDefaultPgTypeVariants[net.IPNet](m, "cidr")
+	registerDefaultPgTypeVariants[netip.Addr](m, "inet")
+	registerDefaultPgTypeVariants[netip.Prefix](m, "cidr")
 
 	// pgtype provided structs
 	registerDefaultPgTypeVariants[Bits](m, "varbit")
@@ -377,7 +380,6 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants[Float8](m, "float8")
 	registerDefaultPgTypeVariants[Range[Float8]](m, "numrange")                  // There is no PostgreSQL builtin float8range so map it to numrange.
 	registerDefaultPgTypeVariants[Multirange[Range[Float8]]](m, "nummultirange") // There is no PostgreSQL builtin float8multirange so map it to nummultirange.
-	registerDefaultPgTypeVariants[Inet](m, "inet")
 	registerDefaultPgTypeVariants[Int2](m, "int2")
 	registerDefaultPgTypeVariants[Int4](m, "int4")
 	registerDefaultPgTypeVariants[Range[Int4]](m, "int4range")
@@ -751,6 +753,10 @@ func TryWrapBuiltinTypeScanPlan(target any) (plan WrappedScanPlanNextSetter, nex
 		return &wrapNetIPNetScanPlan{}, (*netIPNetWrapper)(target), true
 	case *net.IP:
 		return &wrapNetIPScanPlan{}, (*netIPWrapper)(target), true
+	case *netip.Prefix:
+		return &wrapNetipPrefixScanPlan{}, (*netipPrefixWrapper)(target), true
+	case *netip.Addr:
+		return &wrapNetipAddrScanPlan{}, (*netipAddrWrapper)(target), true
 	case *map[string]*string:
 		return &wrapMapStringToPointerStringScanPlan{}, (*mapStringToPointerStringWrapper)(target), true
 	case *map[string]string:
@@ -932,6 +938,26 @@ func (plan *wrapNetIPScanPlan) SetNext(next ScanPlan) { plan.next = next }
 
 func (plan *wrapNetIPScanPlan) Scan(src []byte, dst any) error {
 	return plan.next.Scan(src, (*netIPWrapper)(dst.(*net.IP)))
+}
+
+type wrapNetipPrefixScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapNetipPrefixScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapNetipPrefixScanPlan) Scan(src []byte, dst any) error {
+	return plan.next.Scan(src, (*netipPrefixWrapper)(dst.(*netip.Prefix)))
+}
+
+type wrapNetipAddrScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapNetipAddrScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapNetipAddrScanPlan) Scan(src []byte, dst any) error {
+	return plan.next.Scan(src, (*netipAddrWrapper)(dst.(*netip.Addr)))
 }
 
 type wrapMapStringToPointerStringScanPlan struct {
@@ -1454,6 +1480,10 @@ func TryWrapBuiltinTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, 
 		return &wrapNetIPNetEncodePlan{}, netIPNetWrapper(value), true
 	case net.IP:
 		return &wrapNetIPEncodePlan{}, netIPWrapper(value), true
+	case netip.Prefix:
+		return &wrapNetipPrefixEncodePlan{}, netipPrefixWrapper(value), true
+	case netip.Addr:
+		return &wrapNetipAddrEncodePlan{}, netipAddrWrapper(value), true
 	case map[string]*string:
 		return &wrapMapStringToPointerStringEncodePlan{}, mapStringToPointerStringWrapper(value), true
 	case map[string]string:
@@ -1637,6 +1667,26 @@ func (plan *wrapNetIPEncodePlan) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapNetIPEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	return plan.next.Encode(netIPWrapper(value.(net.IP)), buf)
+}
+
+type wrapNetipPrefixEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapNetipPrefixEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapNetipPrefixEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(netipPrefixWrapper(value.(netip.Prefix)), buf)
+}
+
+type wrapNetipAddrEncodePlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapNetipAddrEncodePlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapNetipAddrEncodePlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	return plan.next.Encode(netipAddrWrapper(value.(netip.Addr)), buf)
 }
 
 type wrapMapStringToPointerStringEncodePlan struct {

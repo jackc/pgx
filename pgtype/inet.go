@@ -1,9 +1,11 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
+	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 )
 
 // Network address family is dependent on server socket.h value for AF_INET.
@@ -14,57 +16,16 @@ const (
 	defaultAFInet6 = 3
 )
 
-type InetScanner interface {
-	ScanInet(v Inet) error
+type NetipPrefixScanner interface {
+	ScanNetipPrefix(v netip.Prefix) error
 }
 
-type InetValuer interface {
-	InetValue() (Inet, error)
+type NetipPrefixValuer interface {
+	NetipPrefixValue() (netip.Prefix, error)
 }
 
-// Inet represents both inet and cidr PostgreSQL types.
-type Inet struct {
-	IPNet *net.IPNet
-	Valid bool
-}
-
-func (inet *Inet) ScanInet(v Inet) error {
-	*inet = v
-	return nil
-}
-
-func (inet Inet) InetValue() (Inet, error) {
-	return inet, nil
-}
-
-// Scan implements the database/sql Scanner interface.
-func (dst *Inet) Scan(src any) error {
-	if src == nil {
-		*dst = Inet{}
-		return nil
-	}
-
-	switch src := src.(type) {
-	case string:
-		return scanPlanTextAnyToInetScanner{}.Scan([]byte(src), dst)
-	}
-
-	return fmt.Errorf("cannot scan %T", src)
-}
-
-// Value implements the database/sql/driver Valuer interface.
-func (src Inet) Value() (driver.Value, error) {
-	if !src.Valid {
-		return nil, nil
-	}
-
-	buf, err := InetCodec{}.PlanEncode(nil, 0, TextFormatCode, src).Encode(src, nil)
-	if err != nil {
-		return nil, err
-	}
-	return string(buf), err
-}
-
+// InetCodec handles both inet and cidr PostgreSQL types. The preferred Go types are netip.Prefix and netip.Addr. If
+// IsValid() is false then they are treated as SQL NULL.
 type InetCodec struct{}
 
 func (InetCodec) FormatSupported(format int16) bool {
@@ -76,7 +37,7 @@ func (InetCodec) PreferredFormat() int16 {
 }
 
 func (InetCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
-	if _, ok := value.(InetValuer); !ok {
+	if _, ok := value.(NetipPrefixValuer); !ok {
 		return nil
 	}
 
@@ -93,51 +54,56 @@ func (InetCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodeP
 type encodePlanInetCodecBinary struct{}
 
 func (encodePlanInetCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	inet, err := value.(InetValuer).InetValue()
+	prefix, err := value.(NetipPrefixValuer).NetipPrefixValue()
 	if err != nil {
 		return nil, err
 	}
 
-	if !inet.Valid {
+	if !prefix.IsValid() {
 		return nil, nil
 	}
 
 	var family byte
-	switch len(inet.IPNet.IP) {
-	case net.IPv4len:
+	if prefix.Addr().Is4() {
 		family = defaultAFInet
-	case net.IPv6len:
+	} else {
 		family = defaultAFInet6
-	default:
-		return nil, fmt.Errorf("Unexpected IP length: %v", len(inet.IPNet.IP))
 	}
 
 	buf = append(buf, family)
 
-	ones, _ := inet.IPNet.Mask.Size()
+	ones := prefix.Bits()
 	buf = append(buf, byte(ones))
 
 	// is_cidr is ignored on server
 	buf = append(buf, 0)
 
-	buf = append(buf, byte(len(inet.IPNet.IP)))
+	if family == defaultAFInet {
+		buf = append(buf, byte(4))
+		b := prefix.Addr().As4()
+		buf = append(buf, b[:]...)
+	} else {
+		buf = append(buf, byte(16))
+		b := prefix.Addr().As16()
+		buf = append(buf, b[:]...)
+	}
 
-	return append(buf, inet.IPNet.IP...), nil
+	return buf, nil
 }
 
 type encodePlanInetCodecText struct{}
 
 func (encodePlanInetCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	inet, err := value.(InetValuer).InetValue()
+	prefix, err := value.(NetipPrefixValuer).NetipPrefixValue()
 	if err != nil {
 		return nil, err
 	}
 
-	if !inet.Valid {
+	if !prefix.IsValid() {
 		return nil, nil
 	}
 
-	return append(buf, inet.IPNet.String()...), nil
+	return append(buf, prefix.String()...), nil
 }
 
 func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
@@ -145,13 +111,13 @@ func (InetCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
-		case InetScanner:
-			return scanPlanBinaryInetToInetScanner{}
+		case NetipPrefixScanner:
+			return scanPlanBinaryInetToNetipPrefixScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
-		case InetScanner:
-			return scanPlanTextAnyToInetScanner{}
+		case NetipPrefixScanner:
+			return scanPlanTextAnyToNetipPrefixScanner{}
 		}
 	}
 
@@ -167,26 +133,26 @@ func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 		return nil, nil
 	}
 
-	var inet Inet
-	err := codecScan(c, m, oid, format, src, &inet)
+	var prefix netip.Prefix
+	err := codecScan(c, m, oid, format, src, &prefix)
 	if err != nil {
 		return nil, err
 	}
 
-	if !inet.Valid {
+	if !prefix.IsValid() {
 		return nil, nil
 	}
 
-	return inet.IPNet, nil
+	return prefix, nil
 }
 
-type scanPlanBinaryInetToInetScanner struct{}
+type scanPlanBinaryInetToNetipPrefixScanner struct{}
 
-func (scanPlanBinaryInetToInetScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(InetScanner)
+func (scanPlanBinaryInetToNetipPrefixScanner) Scan(src []byte, dst any) error {
+	scanner := (dst).(NetipPrefixScanner)
 
 	if src == nil {
-		return scanner.ScanInet(Inet{})
+		return scanner.ScanNetipPrefix(netip.Prefix{})
 	}
 
 	if len(src) != 8 && len(src) != 20 {
@@ -196,49 +162,39 @@ func (scanPlanBinaryInetToInetScanner) Scan(src []byte, dst any) error {
 	// ignore family
 	bits := src[1]
 	// ignore is_cidr
-	addressLength := src[3]
+	// ignore addressLength - implicit in length of message
 
-	var ipnet net.IPNet
-	ipnet.IP = make(net.IP, int(addressLength))
-	copy(ipnet.IP, src[4:])
-	if ipv4 := ipnet.IP.To4(); ipv4 != nil {
-		ipnet.IP = ipv4
+	addr, ok := netip.AddrFromSlice(src[4:])
+	if !ok {
+		return errors.New("netip.AddrFromSlice failed")
 	}
-	ipnet.Mask = net.CIDRMask(int(bits), len(ipnet.IP)*8)
 
-	return scanner.ScanInet(Inet{IPNet: &ipnet, Valid: true})
+	return scanner.ScanNetipPrefix(netip.PrefixFrom(addr, int(bits)))
 }
 
-type scanPlanTextAnyToInetScanner struct{}
+type scanPlanTextAnyToNetipPrefixScanner struct{}
 
-func (scanPlanTextAnyToInetScanner) Scan(src []byte, dst any) error {
-	scanner := (dst).(InetScanner)
+func (scanPlanTextAnyToNetipPrefixScanner) Scan(src []byte, dst any) error {
+	scanner := (dst).(NetipPrefixScanner)
 
 	if src == nil {
-		return scanner.ScanInet(Inet{})
+		return scanner.ScanNetipPrefix(netip.Prefix{})
 	}
 
-	var ipnet *net.IPNet
-	var err error
-
-	if ip := net.ParseIP(string(src)); ip != nil {
-		if ipv4 := ip.To4(); ipv4 != nil {
-			ip = ipv4
-		}
-		bitCount := len(ip) * 8
-		mask := net.CIDRMask(bitCount, bitCount)
-		ipnet = &net.IPNet{Mask: mask, IP: ip}
-	} else {
-		ip, ipnet, err = net.ParseCIDR(string(src))
+	var prefix netip.Prefix
+	if bytes.IndexByte(src, '/') == -1 {
+		addr, err := netip.ParseAddr(string(src))
 		if err != nil {
 			return err
 		}
-		if ipv4 := ip.To4(); ipv4 != nil {
-			ip = ipv4
+		prefix = netip.PrefixFrom(addr, addr.BitLen())
+	} else {
+		var err error
+		prefix, err = netip.ParsePrefix(string(src))
+		if err != nil {
+			return err
 		}
-		ones, _ := ipnet.Mask.Size()
-		*ipnet = net.IPNet{IP: ip, Mask: net.CIDRMask(ones, len(ip)*8)}
 	}
 
-	return scanner.ScanInet(Inet{IPNet: ipnet, Valid: true})
+	return scanner.ScanNetipPrefix(prefix)
 }
