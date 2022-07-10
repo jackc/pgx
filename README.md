@@ -80,7 +80,7 @@ pgx supports many features beyond what is available through `database/sql`:
 * Conversion of PostgreSQL arrays to Go slice mappings for integers, floats, and strings
 * Hstore support
 * JSON and JSONB support
-* Maps `inet` and `cidr` PostgreSQL types to `net.IPNet` and `net.IP`
+* Maps `inet` and `cidr` PostgreSQL types to `netip.Addr` and `netip.Prefix`
 * Large object support
 * NULL mapping to Null* struct or pointer to pointer
 * Supports `database/sql.Scanner` and `database/sql/driver.Valuer` interfaces for custom types

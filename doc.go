@@ -152,8 +152,7 @@ pgx includes built-in support to marshal and unmarshal between Go types and the 
 
 Inet and CIDR Mapping
 
-pgx encodes from net.IPNet to and from inet and cidr PostgreSQL types. In addition, as a convenience pgx will encode
-from a net.IP; it will assume a /32 netmask for IPv4 and a /128 for IPv6.
+pgx converts netip.Prefix and netip.Addr to and from inet and cidr PostgreSQL types.
 
 Custom Type Support
 

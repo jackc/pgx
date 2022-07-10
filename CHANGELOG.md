@@ -102,6 +102,7 @@ This matches the convention set by `database/sql`. In addition, for comparable t
 * `Hstore` is now defined as `map[string]*string`.
 * `JSON` and `JSONB` types removed. Use `[]byte` or `string` directly.
 * `QChar` type removed. Use `rune` or `byte` directly.
+* `Inet` and `Cidr` types removed. Use `netip.Addr` and `netip.Prefix` directly. These types are more memory efficient than the previous `net.IPNet`.
 * `Macaddr` type removed. Use `net.HardwareAddr` directly.
 * Renamed `pgtype.ConnInfo` to `pgtype.Map`.
 * Renamed `pgtype.DataType` to `pgtype.Type`.

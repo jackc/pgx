@@ -1,9 +1,11 @@
 package pgtype
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"reflect"
 	"time"
 )
@@ -460,44 +462,95 @@ func (w durationWrapper) IntervalValue() (Interval, error) {
 
 type netIPNetWrapper net.IPNet
 
-func (w *netIPNetWrapper) ScanInet(v Inet) error {
-	if !v.Valid {
+func (w *netIPNetWrapper) ScanNetipPrefix(v netip.Prefix) error {
+	if !v.IsValid() {
 		return fmt.Errorf("cannot scan NULL into *net.IPNet")
 	}
 
-	*w = (netIPNetWrapper)(*v.IPNet)
+	*w = netIPNetWrapper{
+		IP:   v.Addr().AsSlice(),
+		Mask: net.CIDRMask(v.Bits(), v.Addr().BitLen()),
+	}
+
 	return nil
 }
+func (w netIPNetWrapper) NetipPrefixValue() (netip.Prefix, error) {
+	ip, ok := netip.AddrFromSlice(w.IP)
+	if !ok {
+		return netip.Prefix{}, errors.New("invalid net.IPNet")
+	}
 
-func (w netIPNetWrapper) InetValue() (Inet, error) {
-	return Inet{IPNet: (*net.IPNet)(&w), Valid: true}, nil
+	ones, _ := w.Mask.Size()
+
+	return netip.PrefixFrom(ip, ones), nil
 }
 
 type netIPWrapper net.IP
 
 func (w netIPWrapper) SkipUnderlyingTypePlan() {}
 
-func (w *netIPWrapper) ScanInet(v Inet) error {
-	if !v.Valid {
+func (w *netIPWrapper) ScanNetipPrefix(v netip.Prefix) error {
+	if !v.IsValid() {
 		*w = nil
 		return nil
 	}
 
-	if oneCount, bitCount := v.IPNet.Mask.Size(); oneCount != bitCount {
+	if v.Addr().BitLen() != v.Bits() {
 		return fmt.Errorf("cannot scan %v to *net.IP", v)
 	}
-	*w = netIPWrapper(v.IPNet.IP)
+
+	*w = netIPWrapper(v.Addr().AsSlice())
 	return nil
 }
 
-func (w netIPWrapper) InetValue() (Inet, error) {
+func (w netIPWrapper) NetipPrefixValue() (netip.Prefix, error) {
 	if w == nil {
-		return Inet{}, nil
+		return netip.Prefix{}, nil
 	}
 
-	bitCount := len(w) * 8
-	mask := net.CIDRMask(bitCount, bitCount)
-	return Inet{IPNet: &net.IPNet{Mask: mask, IP: net.IP(w)}, Valid: true}, nil
+	addr, ok := netip.AddrFromSlice([]byte(w))
+	if !ok {
+		return netip.Prefix{}, errors.New("invalid net.IP")
+	}
+
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
+}
+
+type netipPrefixWrapper netip.Prefix
+
+func (w *netipPrefixWrapper) ScanNetipPrefix(v netip.Prefix) error {
+	*w = netipPrefixWrapper(v)
+	return nil
+}
+
+func (w netipPrefixWrapper) NetipPrefixValue() (netip.Prefix, error) {
+	return netip.Prefix(w), nil
+}
+
+type netipAddrWrapper netip.Addr
+
+func (w *netipAddrWrapper) ScanNetipPrefix(v netip.Prefix) error {
+	if !v.IsValid() {
+		*w = netipAddrWrapper(netip.Addr{})
+		return nil
+	}
+
+	if v.Addr().BitLen() != v.Bits() {
+		return fmt.Errorf("cannot scan %v to netip.Addr", v)
+	}
+
+	*w = netipAddrWrapper(v.Addr())
+
+	return nil
+}
+
+func (w netipAddrWrapper) NetipPrefixValue() (netip.Prefix, error) {
+	addr := (netip.Addr)(w)
+	if !addr.IsValid() {
+		return netip.Prefix{}, nil
+	}
+
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }
 
 type mapStringToPointerStringWrapper map[string]*string

@@ -55,6 +55,8 @@ func mustParseInet(t testing.TB, s string) *net.IPNet {
 	if err == nil {
 		if ipv4 := ip.To4(); ipv4 != nil {
 			ipnet.IP = ipv4
+		} else {
+			ipnet.IP = ip
 		}
 		return ipnet
 	}
