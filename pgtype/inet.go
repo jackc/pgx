@@ -134,7 +134,7 @@ func (c InetCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 	}
 
 	var prefix netip.Prefix
-	err := codecScan(c, m, oid, format, src, &prefix)
+	err := codecScan(c, m, oid, format, src, (*netipPrefixWrapper)(&prefix))
 	if err != nil {
 		return nil, err
 	}
