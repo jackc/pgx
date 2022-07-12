@@ -1358,8 +1358,7 @@ func (rr *ResultReader) FieldDescriptions() []pgproto3.FieldDescription {
 }
 
 // Values returns the current row data. NextRow must have been previously been called. The returned [][]byte is only
-// valid until the next NextRow call or the ResultReader is closed. However, the underlying byte data is safe to
-// retain a reference to and mutate.
+// valid until the next NextRow call or the ResultReader is closed.
 func (rr *ResultReader) Values() [][]byte {
 	return rr.rowValues
 }
