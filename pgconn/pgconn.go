@@ -630,7 +630,7 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 
 // CommandTag is the result of an Exec function
 type CommandTag struct {
-	buf []byte
+	s string
 }
 
 // RowsAffected returns the number of rows affected. If the CommandTag was not
@@ -638,8 +638,8 @@ type CommandTag struct {
 func (ct CommandTag) RowsAffected() int64 {
 	// Find last non-digit
 	idx := -1
-	for i := len(ct.buf) - 1; i >= 0; i-- {
-		if ct.buf[i] >= '0' && ct.buf[i] <= '9' {
+	for i := len(ct.s) - 1; i >= 0; i-- {
+		if ct.s[i] >= '0' && ct.s[i] <= '9' {
 			idx = i
 		} else {
 			break
@@ -651,7 +651,7 @@ func (ct CommandTag) RowsAffected() int64 {
 	}
 
 	var n int64
-	for _, b := range ct.buf[idx:] {
+	for _, b := range ct.s[idx:] {
 		n = n*10 + int64(b-'0')
 	}
 
@@ -659,51 +659,27 @@ func (ct CommandTag) RowsAffected() int64 {
 }
 
 func (ct CommandTag) String() string {
-	return string(ct.buf)
+	return ct.s
 }
 
 // Insert is true if the command tag starts with "INSERT".
 func (ct CommandTag) Insert() bool {
-	return len(ct.buf) >= 6 &&
-		ct.buf[0] == 'I' &&
-		ct.buf[1] == 'N' &&
-		ct.buf[2] == 'S' &&
-		ct.buf[3] == 'E' &&
-		ct.buf[4] == 'R' &&
-		ct.buf[5] == 'T'
+	return strings.HasPrefix(ct.s, "INSERT")
 }
 
 // Update is true if the command tag starts with "UPDATE".
 func (ct CommandTag) Update() bool {
-	return len(ct.buf) >= 6 &&
-		ct.buf[0] == 'U' &&
-		ct.buf[1] == 'P' &&
-		ct.buf[2] == 'D' &&
-		ct.buf[3] == 'A' &&
-		ct.buf[4] == 'T' &&
-		ct.buf[5] == 'E'
+	return strings.HasPrefix(ct.s, "UPDATE")
 }
 
 // Delete is true if the command tag starts with "DELETE".
 func (ct CommandTag) Delete() bool {
-	return len(ct.buf) >= 6 &&
-		ct.buf[0] == 'D' &&
-		ct.buf[1] == 'E' &&
-		ct.buf[2] == 'L' &&
-		ct.buf[3] == 'E' &&
-		ct.buf[4] == 'T' &&
-		ct.buf[5] == 'E'
+	return strings.HasPrefix(ct.s, "DELETE")
 }
 
 // Select is true if the command tag starts with "SELECT".
 func (ct CommandTag) Select() bool {
-	return len(ct.buf) >= 6 &&
-		ct.buf[0] == 'S' &&
-		ct.buf[1] == 'E' &&
-		ct.buf[2] == 'L' &&
-		ct.buf[3] == 'E' &&
-		ct.buf[4] == 'C' &&
-		ct.buf[5] == 'T'
+	return strings.HasPrefix(ct.s, "SELECT")
 }
 
 type StatementDescription struct {
@@ -1585,9 +1561,7 @@ func (pgConn *PgConn) CheckConn() error {
 
 // makeCommandTag makes a CommandTag. It does not retain a reference to buf or buf's underlying memory.
 func (pgConn *PgConn) makeCommandTag(buf []byte) CommandTag {
-	ct := make([]byte, len(buf))
-	copy(ct, buf)
-	return CommandTag{buf: ct}
+	return CommandTag{s: string(buf)}
 }
 
 // HijackedConn is the result of hijacking a connection.
