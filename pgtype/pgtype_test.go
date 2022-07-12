@@ -211,17 +211,17 @@ func (ci *pgCustomInt) Scan(src interface{}) error {
 }
 
 func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
-	ci := pgtype.NewMap()
+	m := pgtype.NewMap()
 	src := []byte{0, 42}
 	var v pgCustomInt
 
-	plan := ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &v)
+	plan := m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &v)
 	err := plan.Scan(src, &v)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, v)
 
 	ptr := new(pgCustomInt)
-	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	plan = m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
 	err = plan.Scan(src, &ptr)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, *ptr)
@@ -232,13 +232,13 @@ func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
 	assert.Nil(t, ptr)
 
 	ptr = nil
-	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	plan = m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
 	err = plan.Scan(src, &ptr)
 	require.NoError(t, err)
 	require.EqualValues(t, 42, *ptr)
 
 	ptr = nil
-	plan = ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
+	plan = m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, &ptr)
 	err = plan.Scan(nil, &ptr)
 	require.NoError(t, err)
 	assert.Nil(t, ptr)
@@ -246,10 +246,10 @@ func TestScanPlanBinaryInt32ScanScanner(t *testing.T) {
 
 // Test for https://github.com/jackc/pgtype/issues/164
 func TestScanPlanInterface(t *testing.T) {
-	ci := pgtype.NewMap()
+	m := pgtype.NewMap()
 	src := []byte{0, 42}
 	var v interface{}
-	plan := ci.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, v)
+	plan := m.PlanScan(pgtype.Int2OID, pgtype.BinaryFormatCode, v)
 	err := plan.Scan(src, v)
 	assert.Error(t, err)
 }

@@ -162,14 +162,15 @@ func (rows *baseRows) Close() {
 	}
 
 	if rows.logger != nil {
+		endTime := time.Now()
+
 		if rows.err == nil {
 			if rows.logger.shouldLog(LogLevelInfo) {
-				endTime := time.Now()
 				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]any{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
 			}
 		} else {
 			if rows.logger.shouldLog(LogLevelError) {
-				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]any{"err": rows.err, "sql": rows.sql, "args": logQueryArgs(rows.args)})
+				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]any{"err": rows.err, "sql": rows.sql, "time": endTime.Sub(rows.startTime), "args": logQueryArgs(rows.args)})
 			}
 		}
 	}
