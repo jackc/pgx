@@ -17,17 +17,17 @@ func TestCommandTag(t *testing.T) {
 		isDelete     bool
 		isSelect     bool
 	}{
-		{commandTag: CommandTag{buf: []byte("INSERT 0 5")}, rowsAffected: 5, isInsert: true},
-		{commandTag: CommandTag{buf: []byte("UPDATE 0")}, rowsAffected: 0, isUpdate: true},
-		{commandTag: CommandTag{buf: []byte("UPDATE 1")}, rowsAffected: 1, isUpdate: true},
-		{commandTag: CommandTag{buf: []byte("DELETE 0")}, rowsAffected: 0, isDelete: true},
-		{commandTag: CommandTag{buf: []byte("DELETE 1")}, rowsAffected: 1, isDelete: true},
-		{commandTag: CommandTag{buf: []byte("DELETE 1234567890")}, rowsAffected: 1234567890, isDelete: true},
-		{commandTag: CommandTag{buf: []byte("SELECT 1")}, rowsAffected: 1, isSelect: true},
-		{commandTag: CommandTag{buf: []byte("SELECT 99999999999")}, rowsAffected: 99999999999, isSelect: true},
-		{commandTag: CommandTag{buf: []byte("CREATE TABLE")}, rowsAffected: 0},
-		{commandTag: CommandTag{buf: []byte("ALTER TABLE")}, rowsAffected: 0},
-		{commandTag: CommandTag{buf: []byte("DROP TABLE")}, rowsAffected: 0},
+		{commandTag: CommandTag{s: "INSERT 0 5"}, rowsAffected: 5, isInsert: true},
+		{commandTag: CommandTag{s: "UPDATE 0"}, rowsAffected: 0, isUpdate: true},
+		{commandTag: CommandTag{s: "UPDATE 1"}, rowsAffected: 1, isUpdate: true},
+		{commandTag: CommandTag{s: "DELETE 0"}, rowsAffected: 0, isDelete: true},
+		{commandTag: CommandTag{s: "DELETE 1"}, rowsAffected: 1, isDelete: true},
+		{commandTag: CommandTag{s: "DELETE 1234567890"}, rowsAffected: 1234567890, isDelete: true},
+		{commandTag: CommandTag{s: "SELECT 1"}, rowsAffected: 1, isSelect: true},
+		{commandTag: CommandTag{s: "SELECT 99999999999"}, rowsAffected: 99999999999, isSelect: true},
+		{commandTag: CommandTag{s: "CREATE TABLE"}, rowsAffected: 0},
+		{commandTag: CommandTag{s: "ALTER TABLE"}, rowsAffected: 0},
+		{commandTag: CommandTag{s: "DROP TABLE"}, rowsAffected: 0},
 	}
 
 	for i, tt := range tests {

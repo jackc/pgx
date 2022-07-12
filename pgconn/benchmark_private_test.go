@@ -17,7 +17,7 @@ func BenchmarkCommandTagRowsAffected(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		ct := CommandTag{buf: []byte(bm.commandTag)}
+		ct := CommandTag{s: bm.commandTag}
 		b.Run(bm.commandTag, func(b *testing.B) {
 			var n int64
 			for i := 0; i < b.N; i++ {
@@ -31,7 +31,7 @@ func BenchmarkCommandTagRowsAffected(b *testing.B) {
 }
 
 func BenchmarkCommandTagTypeFromString(b *testing.B) {
-	ct := CommandTag{buf: []byte("UPDATE 1")}
+	ct := CommandTag{s: "UPDATE 1"}
 
 	var update bool
 	for i := 0; i < b.N; i++ {
@@ -59,7 +59,7 @@ func BenchmarkCommandTagInsert(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
-		ct := CommandTag{buf: []byte(bm.commandTag)}
+		ct := CommandTag{s: bm.commandTag}
 		b.Run(bm.commandTag, func(b *testing.B) {
 			var is bool
 			for i := 0; i < b.N; i++ {
