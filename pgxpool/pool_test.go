@@ -389,6 +389,14 @@ func TestConnReleaseClosesBusyConn(t *testing.T) {
 	c.Release()
 	waitForReleaseToComplete()
 
+	// wait for the connection to actually be destroyed
+	for i := 0; i < 1000; i++ {
+		if db.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
 }
@@ -413,6 +421,8 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 1, stats.MaxLifetimeDestroyCount())
 }
 
 func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
@@ -443,6 +453,8 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 
 	stats := db.Stat()
 	assert.EqualValues(t, 0, stats.TotalConns())
+	assert.EqualValues(t, 1, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
 }
 
 func TestPoolBackgroundChecksMinConns(t *testing.T) {
@@ -460,6 +472,21 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 
 	stats := db.Stat()
 	assert.EqualValues(t, 2, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	assert.EqualValues(t, 2, stats.NewConnsCount())
+
+	c, err := db.Acquire(context.Background())
+	require.NoError(t, err)
+	err = c.Conn().Close(context.Background())
+	require.NoError(t, err)
+	c.Release()
+
+	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
+
+	stats = db.Stat()
+	assert.EqualValues(t, 2, stats.TotalConns())
+	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
+	assert.EqualValues(t, 3, stats.NewConnsCount())
 }
 
 func TestPoolExec(t *testing.T) {
@@ -696,6 +723,14 @@ func TestConnReleaseDestroysClosedConn(t *testing.T) {
 	c.Release()
 	waitForReleaseToComplete()
 
+	// wait for the connection to actually be destroyed
+	for i := 0; i < 1000; i++ {
+		if pool.Stat().TotalConns() == 0 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
 	assert.EqualValues(t, 0, pool.Stat().TotalConns())
 }
 
@@ -784,7 +819,7 @@ func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 				require.NoError(t, err)
 				return nil
 			})
-
+			require.NoError(t, err)
 			return nil
 		})
 		require.NoError(t, err)
@@ -834,6 +869,7 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 
 		return nil
 	})
+	require.NoError(t, err)
 
 	var n int64
 	err = db.QueryRow(context.Background(), "select count(*) from pgxpooltx").Scan(&n)

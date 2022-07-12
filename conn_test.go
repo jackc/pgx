@@ -3,6 +3,7 @@ package pgx_test
 import (
 	"bytes"
 	"context"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -781,6 +782,37 @@ func TestLogPassesContext(t *testing.T) {
 
 	if l1.logs[0].data["ctxdata"] != "foo" {
 		t.Fatal("Expected context data to be passed to logger, but it wasn't")
+	}
+}
+
+func TestLoggerFunc(t *testing.T) {
+	t.Parallel()
+
+	const testMsg = "foo"
+
+	buf := bytes.Buffer{}
+	logger := log.New(&buf, "", 0)
+
+	createAdapterFn := func(logger *log.Logger) pgx.LoggerFunc {
+		return func(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
+			logger.Printf("%s", testMsg)
+		}
+	}
+
+	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	config.Logger = createAdapterFn(logger)
+
+	conn := mustConnect(t, config)
+	defer closeConn(t, conn)
+
+	buf.Reset() // Clear logs written when establishing connection
+
+	if _, err := conn.Exec(context.TODO(), ";"); err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.TrimSpace(buf.String()) != testMsg {
+		t.Errorf("Expected logger function to return '%s', but it was '%s'", testMsg, buf.String())
 	}
 }
 
