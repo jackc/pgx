@@ -1040,7 +1040,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	// Put all statements into the cache. It's fine if it overflows because HandleInvalidated will clean them up later.
 	if sdCache != nil {
 		for _, sd := range distinctNewQueries {
-			c.statementCache.Put(sd)
+			sdCache.Put(sd)
 		}
 	}
 
