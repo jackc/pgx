@@ -628,7 +628,7 @@ func (pgConn *PgConn) ParameterStatus(key string) string {
 	return pgConn.parameterStatuses[key]
 }
 
-// CommandTag is the result of an Exec function
+// CommandTag is the status text returned by PostgreSQL for a query.
 type CommandTag struct {
 	s string
 }
