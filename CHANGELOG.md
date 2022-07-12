@@ -10,6 +10,8 @@ release work due to releasing multiple packages, and less clear changelogs.
 
 `CommandTag` is now an opaque type instead of directly exposing an underlying `[]byte`.
 
+The return value `ResultReader.Values()` is no longer safe to retain a reference to after a subsequent call to `NextRow()` or `Close()`.
+
 `Trace()` method adds low level message tracing similar to the `PQtrace` function in `libpq`.
 
 pgconn now uses non-blocking IO. This is a significant internal restructuring, but it should not cause any visible changes on its own. However, it is important in implementing other new features.
