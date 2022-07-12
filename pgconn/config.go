@@ -99,10 +99,29 @@ type FallbackConfig struct {
 	TLSConfig *tls.Config // nil disables TLS
 }
 
+// isAbsolutePath checks if the provided value is an absolute path either
+// beginning with a forward slash (as on Linux-based systems) or with a capital
+// letter A-Z followed by a colon and a backslash, e.g., "C:\", (as on Windows).
+func isAbsolutePath(path string) bool {
+	isWindowsPath := func(p string) bool {
+		if len(p) < 3 {
+			return false
+		}
+		drive := p[0]
+		colon := p[1]
+		backslash := p[2]
+		if drive >= 'A' && drive <= 'Z' && colon == ':' && backslash == '\\' {
+			return true
+		}
+		return false
+	}
+	return strings.HasPrefix(path, "/") || isWindowsPath(path)
+}
+
 // NetworkAddress converts a PostgreSQL host and port into network and address suitable for use with
 // net.Dial.
 func NetworkAddress(host string, port uint16) (network, address string) {
-	if strings.HasPrefix(host, "/") {
+	if isAbsolutePath(host) {
 		network = "unix"
 		address = filepath.Join(host, ".s.PGSQL.") + strconv.FormatInt(int64(port), 10)
 	} else {
@@ -341,7 +360,9 @@ func ParseConfig(connString string) (*Config, error) {
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsPrimary
 	case "standby":
 		config.ValidateConnect = ValidateConnectTargetSessionAttrsStandby
-	case "any", "prefer-standby":
+	case "prefer-standby":
+		config.ValidateConnect = ValidateConnectTargetSessionAttrsPreferStandby
+	case "any":
 		// do nothing
 	default:
 		return nil, &parseConfigError{connString: connString, msg: fmt.Sprintf("unknown target_session_attrs value: %v", tsa)}
@@ -768,6 +789,21 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 
 	if string(result.Rows[0][0]) == "t" {
 		return errors.New("server is in standby mode")
+	}
+
+	return nil
+}
+
+// ValidateConnectTargetSessionAttrsPreferStandby is an ValidateConnectFunc that implements libpq compatible
+// target_session_attrs=prefer-standby.
+func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn *PgConn) error {
+	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
+	if result.Err != nil {
+		return result.Err
+	}
+
+	if string(result.Rows[0][0]) != "t" {
+		return &NotPreferredError{err: errors.New("server is not in hot standby mode")}
 	}
 
 	return nil
