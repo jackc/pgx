@@ -105,11 +105,6 @@ func (r *connRow) Scan(dest ...any) (err error) {
 	return rows.Err()
 }
 
-type rowLog interface {
-	shouldLog(lvl LogLevel) bool
-	log(ctx context.Context, lvl LogLevel, msg string, data map[string]any)
-}
-
 // baseRows implements the Rows interface for Conn.Query.
 type baseRows struct {
 	typeMap      *pgtype.Map
@@ -127,12 +122,13 @@ type baseRows struct {
 	conn              *Conn
 	multiResultReader *pgconn.MultiResultReader
 
-	logger    rowLog
-	ctx       context.Context
-	startTime time.Time
-	sql       string
-	args      []any
-	rowCount  int
+	queryTracer QueryTracer
+	batchTracer BatchTracer
+	ctx         context.Context
+	startTime   time.Time
+	sql         string
+	args        []any
+	rowCount    int
 }
 
 func (rows *baseRows) FieldDescriptions() []pgproto3.FieldDescription {
@@ -161,20 +157,6 @@ func (rows *baseRows) Close() {
 		}
 	}
 
-	if rows.logger != nil {
-		endTime := time.Now()
-
-		if rows.err == nil {
-			if rows.logger.shouldLog(LogLevelInfo) {
-				rows.logger.log(rows.ctx, LogLevelInfo, "Query", map[string]any{"sql": rows.sql, "args": logQueryArgs(rows.args), "time": endTime.Sub(rows.startTime), "rowCount": rows.rowCount})
-			}
-		} else {
-			if rows.logger.shouldLog(LogLevelError) {
-				rows.logger.log(rows.ctx, LogLevelError, "Query", map[string]any{"err": rows.err, "sql": rows.sql, "time": endTime.Sub(rows.startTime), "args": logQueryArgs(rows.args)})
-			}
-		}
-	}
-
 	if rows.err != nil && rows.conn != nil && rows.sql != "" {
 		if stmtcache.IsStatementInvalid(rows.err) {
 			if sc := rows.conn.statementCache; sc != nil {
@@ -185,6 +167,12 @@ func (rows *baseRows) Close() {
 				sc.Invalidate(rows.sql)
 			}
 		}
+	}
+
+	if rows.batchTracer != nil {
+		rows.batchTracer.TraceBatchQuery(rows.ctx, rows.conn, TraceBatchQueryData{SQL: rows.sql, Args: rows.args, CommandTag: rows.commandTag, Err: rows.err})
+	} else if rows.queryTracer != nil {
+		rows.queryTracer.TraceQueryEnd(rows.ctx, rows.conn, TraceQueryEndData{rows.commandTag, rows.err})
 	}
 }
 

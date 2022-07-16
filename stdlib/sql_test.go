@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -976,7 +977,7 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 }
 
 type testLog struct {
-	lvl  pgx.LogLevel
+	lvl  tracelog.LogLevel
 	msg  string
 	data map[string]any
 }
@@ -985,7 +986,7 @@ type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(ctx context.Context, lvl pgx.LogLevel, msg string, data map[string]any) {
+func (l *testLogger) Log(ctx context.Context, lvl tracelog.LogLevel, msg string, data map[string]any) {
 	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
 }
 
@@ -994,7 +995,7 @@ func TestRegisterConnConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := &testLogger{}
-	connConfig.Logger = logger
+	connConfig.Tracer = &tracelog.TraceLog{Logger: logger, LogLevel: tracelog.LogLevelInfo}
 
 	// Issue 947: Register and unregister a ConnConfig and ensure that the
 	// returned connection string is not reused.

@@ -162,7 +162,7 @@ func (f *Frontend) SendExecute(msg *Execute) {
 	prevLen := len(f.wbuf)
 	f.wbuf = msg.Encode(f.wbuf)
 	if f.tracer != nil {
-		f.tracer.traceExecute('F', int32(len(f.wbuf)-prevLen), msg)
+		f.tracer.TraceQueryute('F', int32(len(f.wbuf)-prevLen), msg)
 	}
 }
 

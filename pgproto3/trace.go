@@ -79,7 +79,7 @@ func (t *tracer) traceMessage(sender byte, encodedLen int32, msg Message) {
 	case *ErrorResponse:
 		t.traceErrorResponse(sender, encodedLen, msg)
 	case *Execute:
-		t.traceExecute(sender, encodedLen, msg)
+		t.TraceQueryute(sender, encodedLen, msg)
 	case *Flush:
 		t.traceFlush(sender, encodedLen, msg)
 	case *FunctionCall:
@@ -277,7 +277,7 @@ func (t *tracer) traceErrorResponse(sender byte, encodedLen int32, msg *ErrorRes
 	t.finishTrace()
 }
 
-func (t *tracer) traceExecute(sender byte, encodedLen int32, msg *Execute) {
+func (t *tracer) TraceQueryute(sender byte, encodedLen int32, msg *Execute) {
 	t.beginTrace(sender, encodedLen, "Execute")
 	fmt.Fprintf(t.buf, "\t %s %d", traceDoubleQuotedString([]byte(msg.Portal)), msg.MaxRows)
 	t.finishTrace()

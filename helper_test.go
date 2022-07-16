@@ -98,8 +98,7 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 		return
 	}
 
-	assert.Equalf(t, expected.Logger, actual.Logger, "%s - Logger", testName)
-	assert.Equalf(t, expected.LogLevel, actual.LogLevel, "%s - LogLevel", testName)
+	assert.Equalf(t, expected.Tracer, actual.Tracer, "%s - Tracer", testName)
 	assert.Equalf(t, expected.ConnString(), actual.ConnString(), "%s - ConnString", testName)
 	assert.Equalf(t, expected.StatementCacheCapacity, actual.StatementCacheCapacity, "%s - StatementCacheCapacity", testName)
 	assert.Equalf(t, expected.DescriptionCacheCapacity, actual.DescriptionCacheCapacity, "%s - DescriptionCacheCapacity", testName)

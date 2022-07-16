@@ -12,15 +12,7 @@ The primary way of establishing a connection is with `pgx.Connect`.
 
 The database connection string can be in URL or DSN format. Both PostgreSQL settings and pgx settings can be specified
 here. In addition, a config struct can be created by `ParseConfig` and modified before establishing the connection with
-`ConnectConfig`.
-
-    config, err := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        // ...
-    }
-    config.Logger = log15adapter.NewLogger(log.New("module", "pgx"))
-
-    conn, err := pgx.ConnectConfig(context.Background(), config)
+`ConnectConfig` to configure settings such as tracing that cannot be configured with a connection string.
 
 Connection Pool
 
@@ -315,11 +307,11 @@ notification is received or the context is canceled.
     }
 
 
-Logging
+Tracing and Logging
 
-pgx defines a simple logger interface. Connections optionally accept a logger that satisfies this interface. Set
-LogLevel to control logging verbosity. Adapters for github.com/inconshreveable/log15, github.com/sirupsen/logrus,
-go.uber.org/zap, github.com/rs/zerolog, and the testing log are provided in the log directory.
+pgx supports tracing by setting ConnConfig.Tracer.
+
+In addition, the tracelog package provides the TraceLog type which lets a traditional logger act as a Tracer.
 
 Lower Level PostgreSQL Functionality
 

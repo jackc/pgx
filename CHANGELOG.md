@@ -159,7 +159,9 @@ Previously, a batch with 10 unique parameterized statements executed 100 times w
 for each prepare / describe and 1 for executing them all. Now pipeline mode is used to prepare / describe all statements
 in a single network round trip. So it would only take 2 round trips.
 
-## 3rd Party Logger Integration
+## Tracing and Logging
+
+Internal logging support has been replaced with tracing hooks. This allows custom tracing integration with tools like OpenTelemetry. Package tracelog provides an adapter for pgx v4 loggers to act as a tracer.
 
 All integrations with 3rd party loggers have been extracted to separate repositories. This trims the pgx dependency
 tree.

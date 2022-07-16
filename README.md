@@ -163,6 +163,8 @@ pgerrcode contains constants for the PostgreSQL error codes.
 
 ## Adapters for 3rd Party Loggers
 
+These adapters can be used with the tracelog package.
+
 * [github.com/jackc/pgx-go-kit-log](https://github.com/jackc/pgx-go-kit-log)
 * [github.com/jackc/pgx-log15](https://github.com/jackc/pgx-log15)
 * [github.com/jackc/pgx-logrus](https://github.com/jackc/pgx-logrus)

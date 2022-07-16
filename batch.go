@@ -50,13 +50,14 @@ type BatchResults interface {
 }
 
 type batchResults struct {
-	ctx    context.Context
-	conn   *Conn
-	mrr    *pgconn.MultiResultReader
-	err    error
-	b      *Batch
-	ix     int
-	closed bool
+	ctx       context.Context
+	conn      *Conn
+	mrr       *pgconn.MultiResultReader
+	err       error
+	b         *Batch
+	ix        int
+	closed    bool
+	endTraced bool
 }
 
 // Exec reads the results from the next query in the batch as if the query has been sent with Exec.
@@ -75,35 +76,29 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 		if err == nil {
 			err = errors.New("no result")
 		}
-		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(arguments),
-				"err":  err,
+		if br.conn.batchTracer != nil {
+			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+				SQL:  query,
+				Args: arguments,
+				Err:  err,
 			})
 		}
 		return pgconn.CommandTag{}, err
 	}
 
 	commandTag, err := br.mrr.ResultReader().Close()
+	br.err = err
 
-	if err != nil {
-		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(arguments),
-				"err":  err,
-			})
-		}
-	} else if br.conn.shouldLog(LogLevelInfo) {
-		br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Exec", map[string]any{
-			"sql":        query,
-			"args":       logQueryArgs(arguments),
-			"commandTag": commandTag,
+	if br.conn.batchTracer != nil {
+		br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+			SQL:        query,
+			Args:       arguments,
+			CommandTag: commandTag,
+			Err:        br.err,
 		})
 	}
 
-	return commandTag, err
+	return commandTag, br.err
 }
 
 // Query reads the results from the next query in the batch as if the query has been sent with Query.
@@ -123,6 +118,7 @@ func (br *batchResults) Query() (Rows, error) {
 	}
 
 	rows := br.conn.getRows(br.ctx, query, arguments)
+	rows.batchTracer = br.conn.batchTracer
 
 	if !br.mrr.NextResult() {
 		rows.err = br.mrr.Close()
@@ -131,11 +127,11 @@ func (br *batchResults) Query() (Rows, error) {
 		}
 		rows.closed = true
 
-		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Query", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(arguments),
-				"err":  rows.err,
+		if br.conn.batchTracer != nil {
+			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+				SQL:  query,
+				Args: arguments,
+				Err:  rows.err,
 			})
 		}
 
@@ -156,6 +152,15 @@ func (br *batchResults) QueryRow() Row {
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
 // resyncronize the connection with the server. In this case the underlying connection will have been closed.
 func (br *batchResults) Close() error {
+	defer func() {
+		if !br.endTraced {
+			if br.conn != nil && br.conn.batchTracer != nil {
+				br.conn.batchTracer.TraceBatchEnd(br.ctx, br.conn, TraceBatchEndData{Err: br.err})
+			}
+			br.endTraced = true
+		}
+	}()
+
 	if br.err != nil {
 		return br.err
 	}
@@ -163,24 +168,26 @@ func (br *batchResults) Close() error {
 	if br.closed {
 		return nil
 	}
-	br.closed = true
 
-	// log any queries that haven't yet been logged by Exec or Query
-	for {
-		query, args, ok := br.nextQueryAndArgs()
-		if !ok {
-			break
-		}
-
-		if br.conn.shouldLog(LogLevelInfo) {
-			br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Close", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(args),
-			})
+	// consume and log any queries that haven't yet been logged by Exec or Query
+	if br.conn.batchTracer != nil {
+		for br.err == nil && !br.closed && br.b != nil && br.ix < len(br.b.items) {
+			br.Exec()
 		}
 	}
 
-	return br.mrr.Close()
+	br.closed = true
+
+	err := br.mrr.Close()
+	if br.err == nil {
+		br.err = err
+	}
+
+	return br.err
+}
+
+func (br *batchResults) earlyError() error {
+	return br.err
 }
 
 func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
@@ -195,14 +202,15 @@ func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
 }
 
 type pipelineBatchResults struct {
-	ctx      context.Context
-	conn     *Conn
-	pipeline *pgconn.Pipeline
-	lastRows *baseRows
-	err      error
-	b        *Batch
-	ix       int
-	closed   bool
+	ctx       context.Context
+	conn      *Conn
+	pipeline  *pgconn.Pipeline
+	lastRows  *baseRows
+	err       error
+	b         *Batch
+	ix        int
+	closed    bool
+	endTraced bool
 }
 
 // Exec reads the results from the next query in the batch as if the query has been sent with Exec.
@@ -227,25 +235,17 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 	var commandTag pgconn.CommandTag
 	switch results := results.(type) {
 	case *pgconn.ResultReader:
-		commandTag, err = results.Close()
+		commandTag, br.err = results.Close()
 	default:
 		return pgconn.CommandTag{}, fmt.Errorf("unexpected pipeline result: %T", results)
 	}
 
-	if err != nil {
-		br.err = err
-		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(arguments),
-				"err":  err,
-			})
-		}
-	} else if br.conn.shouldLog(LogLevelInfo) {
-		br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Exec", map[string]any{
-			"sql":        query,
-			"args":       logQueryArgs(arguments),
-			"commandTag": commandTag,
+	if br.conn.batchTracer != nil {
+		br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+			SQL:        query,
+			Args:       arguments,
+			CommandTag: commandTag,
+			Err:        br.err,
 		})
 	}
 
@@ -274,6 +274,7 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 	}
 
 	rows := br.conn.getRows(br.ctx, query, arguments)
+	rows.batchTracer = br.conn.batchTracer
 	br.lastRows = rows
 
 	results, err := br.pipeline.GetResults()
@@ -281,11 +282,12 @@ func (br *pipelineBatchResults) Query() (Rows, error) {
 		br.err = err
 		rows.err = err
 		rows.closed = true
-		if br.conn.shouldLog(LogLevelError) {
-			br.conn.log(br.ctx, LogLevelError, "BatchResult.Query", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(arguments),
-				"err":  rows.err,
+
+		if br.conn.batchTracer != nil {
+			br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
+				SQL:  query,
+				Args: arguments,
+				Err:  err,
 			})
 		}
 	} else {
@@ -313,6 +315,15 @@ func (br *pipelineBatchResults) QueryRow() Row {
 // Close closes the batch operation. Any error that occurred during a batch operation may have made it impossible to
 // resyncronize the connection with the server. In this case the underlying connection will have been closed.
 func (br *pipelineBatchResults) Close() error {
+	defer func() {
+		if !br.endTraced {
+			if br.conn.batchTracer != nil {
+				br.conn.batchTracer.TraceBatchEnd(br.ctx, br.conn, TraceBatchEndData{Err: br.err})
+			}
+			br.endTraced = true
+		}
+	}()
+
 	if br.err != nil {
 		return br.err
 	}
@@ -325,24 +336,25 @@ func (br *pipelineBatchResults) Close() error {
 	if br.closed {
 		return nil
 	}
-	br.closed = true
 
-	// log any queries that haven't yet been logged by Exec or Query
-	for {
-		query, args, ok := br.nextQueryAndArgs()
-		if !ok {
-			break
-		}
-
-		if br.conn.shouldLog(LogLevelInfo) {
-			br.conn.log(br.ctx, LogLevelInfo, "BatchResult.Close", map[string]any{
-				"sql":  query,
-				"args": logQueryArgs(args),
-			})
+	// consume and log any queries that haven't yet been logged by Exec or Query
+	if br.conn.batchTracer != nil {
+		for br.err == nil && !br.closed && br.b != nil && br.ix < len(br.b.items) {
+			br.Exec()
 		}
 	}
+	br.closed = true
 
-	return br.pipeline.Close()
+	err := br.pipeline.Close()
+	if br.err == nil {
+		br.err = err
+	}
+
+	return br.err
+}
+
+func (br *pipelineBatchResults) earlyError() error {
+	return br.err
 }
 
 func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
