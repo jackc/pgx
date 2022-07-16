@@ -113,6 +113,10 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 // ConnectConfig establishes a connection with a PostgreSQL server with a configuration struct.
 // connConfig must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
+	// In general this improves safety. In particular avoid the config.Config.OnNotification mutation from affecting other
+	// connections with the same config. See https://github.com/jackc/pgx/issues/618.
+	connConfig = connConfig.Copy()
+
 	return connect(ctx, connConfig)
 }
 
@@ -188,23 +192,16 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	return connConfig, nil
 }
 
+// connect connects to a database. connect takes ownership of config. The caller must not use or access it again.
 func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
 	}
-	originalConfig := config
-
-	// This isn't really a deep copy. But it is enough to avoid the config.Config.OnNotification mutation from affecting
-	// other connections with the same config. See https://github.com/jackc/pgx/issues/618.
-	{
-		configCopy := *config
-		config = &configCopy
-	}
 
 	c = &Conn{
-		config:   originalConfig,
+		config:   config,
 		typeMap:  pgtype.NewMap(),
 		logLevel: config.LogLevel,
 		logger:   config.Logger,
