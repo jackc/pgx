@@ -18,6 +18,7 @@ func (errRows) Next() bool                                     { return false }
 func (e errRows) Scan(dest ...any) error                       { return e.err }
 func (e errRows) Values() ([]any, error)                       { return nil, e.err }
 func (e errRows) RawValues() [][]byte                          { return nil }
+func (e errRows) Conn() *pgx.Conn                              { return nil }
 
 type errRow struct {
 	err error
@@ -84,6 +85,10 @@ func (rows *poolRows) Values() ([]any, error) {
 
 func (rows *poolRows) RawValues() [][]byte {
 	return rows.r.RawValues()
+}
+
+func (rows *poolRows) Conn() *pgx.Conn {
+	return rows.r.Conn()
 }
 
 type poolRow struct {
