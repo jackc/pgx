@@ -55,6 +55,10 @@ type Rows interface {
 	// RawValues returns the unparsed bytes of the row values. The returned data is only valid until the next Next
 	// call or the Rows is closed.
 	RawValues() [][]byte
+
+	// Conn returns the underlying *Conn on which the query was executed. This may return nil if Rows did not come from a
+	// *Conn (e.g. if it was created by RowsFromResultReader)
+	Conn() *Conn
 }
 
 // Row is a convenience wrapper over Rows that is returned by QueryRow.
@@ -308,6 +312,10 @@ func (rows *baseRows) Values() ([]any, error) {
 
 func (rows *baseRows) RawValues() [][]byte {
 	return rows.values
+}
+
+func (rows *baseRows) Conn() *Conn {
+	return rows.conn
 }
 
 type ScanArgError struct {
