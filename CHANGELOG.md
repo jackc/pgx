@@ -153,6 +153,14 @@ The `RowScanner` interface allows a single argument to Rows.Scan to scan the ent
 Rather than every type that implemented `Begin` or `BeginTx` methods also needing to implement `BeginFunc` and
 `BeginTxFunc` these methods have been converted to functions that take a db that implements `Begin` or `BeginTx`.
 
+## Improved Batch Query Ergonomics
+
+Previously, the code for building a batch went in one place before the call to `SendBatch`, and the code for reading the
+results went in one place after the call to `SendBatch`. This could make it difficult to match up the query and the code
+to handle the results. Now `Queue` returns a `QueuedQuery` which has methods `Query`, `QueryRow`, and `Exec` which can
+be used to register a callback function that will handle the result. Callback functions are called automatically when
+`BatchResults.Close` is called.
+
 ## SendBatch Uses Pipeline Mode When Appropriate
 
 Previously, a batch with 10 unique parameterized statements executed 100 times would entail 11 network round trips. 1
