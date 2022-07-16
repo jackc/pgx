@@ -19,8 +19,8 @@ import (
 // then it can be modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type ConnConfig struct {
 	pgconn.Config
-	Logger   Logger
-	LogLevel LogLevel
+
+	Tracer QueryTracer
 
 	// Original connection string that was parsed into config.
 	connString string
@@ -63,8 +63,11 @@ type Conn struct {
 	preparedStatements map[string]*pgconn.StatementDescription
 	statementCache     stmtcache.Cache
 	descriptionCache   stmtcache.Cache
-	logger             Logger
-	logLevel           LogLevel
+
+	queryTracer    QueryTracer
+	batchTracer    BatchTracer
+	copyFromTracer CopyFromTracer
+	prepareTracer  PrepareTracer
 
 	notifications []*pgconn.Notification
 
@@ -93,9 +96,6 @@ func (ident Identifier) Sanitize() string {
 
 // ErrNoRows occurs when rows are expected but none are returned.
 var ErrNoRows = errors.New("no rows in result set")
-
-// ErrInvalidLogLevel occurs on attempt to set an invalid log level.
-var ErrInvalidLogLevel = errors.New("invalid log level")
 
 var errDisabledStatementCache = fmt.Errorf("cannot use QueryExecModeCacheStatement with disabled statement cache")
 var errDisabledDescriptionCache = fmt.Errorf("cannot use QueryExecModeCacheDescribe with disabled description cache")
@@ -182,7 +182,6 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	connConfig := &ConnConfig{
 		Config:                   *config,
 		createdByParseConfig:     true,
-		LogLevel:                 LogLevelInfo,
 		StatementCacheCapacity:   statementCacheCapacity,
 		DescriptionCacheCapacity: descriptionCacheCapacity,
 		DefaultQueryExecMode:     defaultQueryExecMode,
@@ -194,6 +193,13 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 
 // connect connects to a database. connect takes ownership of config. The caller must not use or access it again.
 func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
+	if connectTracer, ok := config.Tracer.(ConnectTracer); ok {
+		ctx = connectTracer.TraceConnectStart(ctx, TraceConnectStartData{ConnConfig: config})
+		defer func() {
+			connectTracer.TraceConnectEnd(ctx, TraceConnectEndData{Conn: c, Err: err})
+		}()
+	}
+
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
@@ -201,29 +207,28 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 
 	c = &Conn{
-		config:   config,
-		typeMap:  pgtype.NewMap(),
-		logLevel: config.LogLevel,
-		logger:   config.Logger,
+		config:      config,
+		typeMap:     pgtype.NewMap(),
+		queryTracer: config.Tracer,
+	}
+
+	if t, ok := c.queryTracer.(BatchTracer); ok {
+		c.batchTracer = t
+	}
+	if t, ok := c.queryTracer.(CopyFromTracer); ok {
+		c.copyFromTracer = t
+	}
+	if t, ok := c.queryTracer.(PrepareTracer); ok {
+		c.prepareTracer = t
 	}
 
 	// Only install pgx notification system if no other callback handler is present.
 	if config.Config.OnNotification == nil {
 		config.Config.OnNotification = c.bufferNotifications
-	} else {
-		if c.shouldLog(LogLevelDebug) {
-			c.log(ctx, LogLevelDebug, "pgx notification handler disabled by application supplied OnNotification", map[string]any{"host": config.Config.Host})
-		}
 	}
 
-	if c.shouldLog(LogLevelInfo) {
-		c.log(ctx, LogLevelInfo, "Dialing PostgreSQL server", map[string]any{"host": config.Config.Host})
-	}
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
-		if c.shouldLog(LogLevelError) {
-			c.log(ctx, LogLevelError, "connect failed", map[string]any{"err": err})
-		}
 		return nil, err
 	}
 
@@ -251,9 +256,6 @@ func (c *Conn) Close(ctx context.Context) error {
 	}
 
 	err := c.pgConn.Close(ctx)
-	if c.shouldLog(LogLevelInfo) {
-		c.log(ctx, LogLevelInfo, "closed connection", nil)
-	}
 	return err
 }
 
@@ -264,18 +266,23 @@ func (c *Conn) Close(ctx context.Context) error {
 // name and sql arguments. This allows a code path to Prepare and Query/Exec without
 // concern for if the statement has already been prepared.
 func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.StatementDescription, err error) {
+	if c.prepareTracer != nil {
+		ctx = c.prepareTracer.TracePrepareStart(ctx, c, TracePrepareStartData{Name: name, SQL: sql})
+	}
+
 	if name != "" {
 		var ok bool
 		if sd, ok = c.preparedStatements[name]; ok && sd.SQL == sql {
+			if c.prepareTracer != nil {
+				c.prepareTracer.TracePrepareEnd(ctx, c, TracePrepareEndData{AlreadyPrepared: true})
+			}
 			return sd, nil
 		}
 	}
 
-	if c.shouldLog(LogLevelError) {
+	if c.prepareTracer != nil {
 		defer func() {
-			if err != nil {
-				c.log(ctx, LogLevelError, "Prepare failed", map[string]any{"err": err, "name": name, "sql": sql})
-			}
+			c.prepareTracer.TracePrepareEnd(ctx, c, TracePrepareEndData{Err: err})
 		}()
 	}
 
@@ -337,21 +344,6 @@ func (c *Conn) die(err error) {
 	c.pgConn.Close(ctx)
 }
 
-func (c *Conn) shouldLog(lvl LogLevel) bool {
-	return c.logger != nil && c.logLevel >= lvl
-}
-
-func (c *Conn) log(ctx context.Context, lvl LogLevel, msg string, data map[string]any) {
-	if data == nil {
-		data = map[string]any{}
-	}
-	if c.pgConn != nil && c.pgConn.PID() != 0 {
-		data["pid"] = c.pgConn.PID()
-	}
-
-	c.logger.Log(ctx, lvl, msg, data)
-}
-
 func quoteIdentifier(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
@@ -379,24 +371,18 @@ func (c *Conn) Config() *ConnConfig { return c.config.Copy() }
 // Exec executes sql. sql can be either a prepared statement name or an SQL string. arguments should be referenced
 // positionally from the sql string as $1, $2, etc.
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
+	if c.queryTracer != nil {
+		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sql, Args: arguments})
+	}
+
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
 		return pgconn.CommandTag{}, err
 	}
 
-	startTime := time.Now()
-
 	commandTag, err := c.exec(ctx, sql, arguments...)
-	if err != nil {
-		if c.shouldLog(LogLevelError) {
-			endTime := time.Now()
-			c.log(ctx, LogLevelError, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "err": err, "time": endTime.Sub(startTime)})
-		}
-		return commandTag, err
-	}
 
-	if c.shouldLog(LogLevelInfo) {
-		endTime := time.Now()
-		c.log(ctx, LogLevelInfo, "Exec", map[string]any{"sql": sql, "args": logQueryArgs(arguments), "time": endTime.Sub(startTime), "commandTag": commandTag})
+	if c.queryTracer != nil {
+		c.queryTracer.TraceQueryEnd(ctx, c, TraceQueryEndData{CommandTag: commandTag, Err: err})
 	}
 
 	return commandTag, err
@@ -537,7 +523,7 @@ func (c *Conn) getRows(ctx context.Context, sql string, args []any) *baseRows {
 	r := &baseRows{}
 
 	r.ctx = ctx
-	r.logger = c
+	r.queryTracer = c.queryTracer
 	r.typeMap = c.typeMap
 	r.startTime = time.Now()
 	r.sql = sql
@@ -628,7 +614,14 @@ type QueryRewriter interface {
 // QueryResultFormatsByOID may be used as the first args to control exactly how the query is executed. This is rarely
 // needed. See the documentation for those types for details.
 func (c *Conn) Query(ctx context.Context, sql string, args ...any) (Rows, error) {
+	if c.queryTracer != nil {
+		ctx = c.queryTracer.TraceQueryStart(ctx, c, TraceQueryStartData{SQL: sql, Args: args})
+	}
+
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
+		if c.queryTracer != nil {
+			c.queryTracer.TraceQueryEnd(ctx, c, TraceQueryEndData{Err: err})
+		}
 		return &baseRows{err: err, closed: true}, err
 	}
 
@@ -791,7 +784,17 @@ func (c *Conn) QueryRow(ctx context.Context, sql string, args ...any) Row {
 // SendBatch sends all queued queries to the server at once. All queries are run in an implicit transaction unless
 // explicit transaction control statements are executed. The returned BatchResults must be closed before the connection
 // is used again.
-func (c *Conn) SendBatch(ctx context.Context, b *Batch) BatchResults {
+func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
+	if c.batchTracer != nil {
+		ctx = c.batchTracer.TraceBatchStart(ctx, c, TraceBatchStartData{Batch: b})
+		defer func() {
+			err := br.(interface{ earlyError() error }).earlyError()
+			if err != nil {
+				c.batchTracer.TraceBatchEnd(ctx, c, TraceBatchEndData{Err: err})
+			}
+		}()
+	}
+
 	if err := c.deallocateInvalidatedCachedStatements(ctx); err != nil {
 		return &batchResults{ctx: ctx, conn: c, err: err}
 	}

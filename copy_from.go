@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -89,6 +88,13 @@ type copyFrom struct {
 }
 
 func (ct *copyFrom) run(ctx context.Context) (int64, error) {
+	if ct.conn.copyFromTracer != nil {
+		ctx = ct.conn.copyFromTracer.TraceCopyFromStart(ctx, ct.conn, TraceCopyFromStartData{
+			TableName:   ct.tableName,
+			ColumnNames: ct.columnNames,
+		})
+	}
+
 	quotedTableName := ct.tableName.Sanitize()
 	cbuf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
@@ -145,24 +151,19 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		w.Close()
 	}()
 
-	startTime := time.Now()
-
 	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
 
 	r.Close()
 	<-doneChan
 
-	rowsAffected := commandTag.RowsAffected()
-	endTime := time.Now()
-	if err == nil {
-		if ct.conn.shouldLog(LogLevelInfo) {
-			ct.conn.log(ctx, LogLevelInfo, "CopyFrom", map[string]any{"tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime), "rowCount": rowsAffected})
-		}
-	} else if ct.conn.shouldLog(LogLevelError) {
-		ct.conn.log(ctx, LogLevelError, "CopyFrom", map[string]any{"err": err, "tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime)})
+	if ct.conn.copyFromTracer != nil {
+		ct.conn.copyFromTracer.TraceCopyFromEnd(ctx, ct.conn, TraceCopyFromEndData{
+			CommandTag: commandTag,
+			Err:        err,
+		})
 	}
 
-	return rowsAffected, err
+	return commandTag.RowsAffected(), err
 }
 
 func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (bool, []byte, error) {

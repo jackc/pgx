@@ -3,7 +3,6 @@ package pgx_test
 import (
 	"bytes"
 	"context"
-	"log"
 	"os"
 	"strings"
 	"sync"
@@ -741,79 +740,6 @@ func TestInsertTimestampArray(t *testing.T) {
 			t.Errorf("Unexpected results from Exec: %v", results)
 		}
 	})
-}
-
-type testLog struct {
-	lvl  pgx.LogLevel
-	msg  string
-	data map[string]any
-}
-
-type testLogger struct {
-	logs []testLog
-}
-
-func (l *testLogger) Log(ctx context.Context, level pgx.LogLevel, msg string, data map[string]any) {
-	data["ctxdata"] = ctx.Value("ctxdata")
-	l.logs = append(l.logs, testLog{lvl: level, msg: msg, data: data})
-}
-
-func TestLogPassesContext(t *testing.T) {
-	t.Parallel()
-
-	l1 := &testLogger{}
-	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.Logger = l1
-
-	conn := mustConnect(t, config)
-	defer closeConn(t, conn)
-
-	l1.logs = l1.logs[0:0] // Clear logs written when establishing connection
-
-	ctx := context.WithValue(context.Background(), "ctxdata", "foo")
-
-	if _, err := conn.Exec(ctx, ";"); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(l1.logs) != 1 {
-		t.Fatal("Expected logger to be called once, but it wasn't")
-	}
-
-	if l1.logs[0].data["ctxdata"] != "foo" {
-		t.Fatal("Expected context data to be passed to logger, but it wasn't")
-	}
-}
-
-func TestLoggerFunc(t *testing.T) {
-	t.Parallel()
-
-	const testMsg = "foo"
-
-	buf := bytes.Buffer{}
-	logger := log.New(&buf, "", 0)
-
-	createAdapterFn := func(logger *log.Logger) pgx.LoggerFunc {
-		return func(ctx context.Context, level pgx.LogLevel, msg string, data map[string]interface{}) {
-			logger.Printf("%s", testMsg)
-		}
-	}
-
-	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.Logger = createAdapterFn(logger)
-
-	conn := mustConnect(t, config)
-	defer closeConn(t, conn)
-
-	buf.Reset() // Clear logs written when establishing connection
-
-	if _, err := conn.Exec(context.TODO(), ";"); err != nil {
-		t.Fatal(err)
-	}
-
-	if strings.TrimSpace(buf.String()) != testMsg {
-		t.Errorf("Expected logger function to return '%s', but it was '%s'", testMsg, buf.String())
-	}
 }
 
 func TestIdentifierSanitize(t *testing.T) {
