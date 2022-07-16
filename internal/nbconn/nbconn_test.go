@@ -294,7 +294,7 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 		}()
 
 		readBuf := make([]byte, deadlockSize)
-		_, err = conn.Read(readBuf)
+		_, err = io.ReadFull(conn, readBuf)
 		require.NoError(t, err)
 
 		err = conn.Close()
