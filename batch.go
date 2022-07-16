@@ -8,44 +8,99 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type batchItem struct {
+// QueuedQuery is a query that has been queued for execution via a Batch.
+type QueuedQuery struct {
 	query     string
 	arguments []any
+	fn        batchItemFunc
 	sd        *pgconn.StatementDescription
+}
+
+type batchItemFunc func(br BatchResults) error
+
+// Query sets fn to be called when the response to qq is received.
+func (qq *QueuedQuery) Query(fn func(rows Rows) error) {
+	qq.fn = func(br BatchResults) error {
+		rows, err := br.Query()
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		err = fn(rows)
+		if err != nil {
+			return err
+		}
+		rows.Close()
+
+		return rows.Err()
+	}
+}
+
+// Query sets fn to be called when the response to qq is received.
+func (qq *QueuedQuery) QueryRow(fn func(row Row) error) {
+	qq.fn = func(br BatchResults) error {
+		row := br.QueryRow()
+		return fn(row)
+	}
+}
+
+// Exec sets fn to be called when the response to qq is received.
+func (qq *QueuedQuery) Exec(fn func(ct pgconn.CommandTag) error) {
+	qq.fn = func(br BatchResults) error {
+		ct, err := br.Exec()
+		if err != nil {
+			return err
+		}
+
+		return fn(ct)
+	}
 }
 
 // Batch queries are a way of bundling multiple queries together to avoid
 // unnecessary network round trips. A Batch must only be sent once.
 type Batch struct {
-	items []*batchItem
+	queuedQueries []*QueuedQuery
 }
 
 // Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement.
-func (b *Batch) Queue(query string, arguments ...any) {
-	b.items = append(b.items, &batchItem{
+func (b *Batch) Queue(query string, arguments ...any) *QueuedQuery {
+	qq := &QueuedQuery{
 		query:     query,
 		arguments: arguments,
-	})
+	}
+	b.queuedQueries = append(b.queuedQueries, qq)
+	return qq
 }
 
 // Len returns number of queries that have been queued so far.
 func (b *Batch) Len() int {
-	return len(b.items)
+	return len(b.queuedQueries)
 }
 
 type BatchResults interface {
-	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec.
+	// Exec reads the results from the next query in the batch as if the query has been sent with Conn.Exec. Prefer
+	// calling Exec on the QueuedQuery.
 	Exec() (pgconn.CommandTag, error)
 
-	// Query reads the results from the next query in the batch as if the query has been sent with Conn.Query.
+	// Query reads the results from the next query in the batch as if the query has been sent with Conn.Query. Prefer
+	// calling Query on the QueuedQuery.
 	Query() (Rows, error)
 
 	// QueryRow reads the results from the next query in the batch as if the query has been sent with Conn.QueryRow.
+	// Prefer calling QueryRow on the QueuedQuery.
 	QueryRow() Row
 
-	// Close closes the batch operation. This must be called before the underlying connection can be used again. Any error
-	// that occurred during a batch operation may have made it impossible to resyncronize the connection with the server.
-	// In this case the underlying connection will have been closed. Close is safe to call multiple times.
+	// Close closes the batch operation. All unread results are read and any callback functions registered with
+	// QueuedQuery.Query, QueuedQuery.QueryRow, or QueuedQuery.Exec will be called. If a callback function returns an
+	// error or the batch encounters an error subsequent callback functions will not be called.
+	//
+	// Close must be called before the underlying connection can be used again. Any error that occurred during a batch
+	// operation may have made it impossible to resyncronize the connection with the server. In this case the underlying
+	// connection will have been closed.
+	//
+	// Close is safe to call multiple times. If it returns an error subsequent calls will return the same error. Callback
+	// functions will not be rerun.
 	Close() error
 }
 
@@ -55,7 +110,7 @@ type batchResults struct {
 	mrr       *pgconn.MultiResultReader
 	err       error
 	b         *Batch
-	ix        int
+	qqIdx     int
 	closed    bool
 	endTraced bool
 }
@@ -169,9 +224,14 @@ func (br *batchResults) Close() error {
 		return nil
 	}
 
-	// consume and log any queries that haven't yet been logged by Exec or Query
-	if br.conn.batchTracer != nil {
-		for br.err == nil && !br.closed && br.b != nil && br.ix < len(br.b.items) {
+	// Read and run fn for all remaining items
+	for br.err == nil && !br.closed && br.b != nil && br.qqIdx < len(br.b.queuedQueries) {
+		if br.b.queuedQueries[br.qqIdx].fn != nil {
+			err := br.b.queuedQueries[br.qqIdx].fn(br)
+			if err != nil && br.err == nil {
+				br.err = err
+			}
+		} else {
 			br.Exec()
 		}
 	}
@@ -191,12 +251,12 @@ func (br *batchResults) earlyError() error {
 }
 
 func (br *batchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
-	if br.b != nil && br.ix < len(br.b.items) {
-		bi := br.b.items[br.ix]
+	if br.b != nil && br.qqIdx < len(br.b.queuedQueries) {
+		bi := br.b.queuedQueries[br.qqIdx]
 		query = bi.query
 		args = bi.arguments
 		ok = true
-		br.ix++
+		br.qqIdx++
 	}
 	return
 }
@@ -208,7 +268,7 @@ type pipelineBatchResults struct {
 	lastRows  *baseRows
 	err       error
 	b         *Batch
-	ix        int
+	qqIdx     int
 	closed    bool
 	endTraced bool
 }
@@ -337,12 +397,18 @@ func (br *pipelineBatchResults) Close() error {
 		return nil
 	}
 
-	// consume and log any queries that haven't yet been logged by Exec or Query
-	if br.conn.batchTracer != nil {
-		for br.err == nil && !br.closed && br.b != nil && br.ix < len(br.b.items) {
+	// Read and run fn for all remaining items
+	for br.err == nil && !br.closed && br.b != nil && br.qqIdx < len(br.b.queuedQueries) {
+		if br.b.queuedQueries[br.qqIdx].fn != nil {
+			err := br.b.queuedQueries[br.qqIdx].fn(br)
+			if err != nil && br.err == nil {
+				br.err = err
+			}
+		} else {
 			br.Exec()
 		}
 	}
+
 	br.closed = true
 
 	err := br.pipeline.Close()
@@ -358,12 +424,12 @@ func (br *pipelineBatchResults) earlyError() error {
 }
 
 func (br *pipelineBatchResults) nextQueryAndArgs() (query string, args []any, ok bool) {
-	if br.b != nil && br.ix < len(br.b.items) {
-		bi := br.b.items[br.ix]
+	if br.b != nil && br.qqIdx < len(br.b.queuedQueries) {
+		bi := br.b.queuedQueries[br.qqIdx]
 		query = bi.query
 		args = bi.arguments
 		ok = true
-		br.ix++
+		br.qqIdx++
 	}
 	return
 }

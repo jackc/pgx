@@ -801,7 +801,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 
 	mode := c.config.DefaultQueryExecMode
 
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		var queryRewriter QueryRewriter
 		sql := bi.query
 		arguments := bi.arguments
@@ -830,7 +830,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 	}
 
 	// All other modes use extended protocol and thus can use prepared statements.
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		if sd, ok := c.preparedStatements[bi.query]; ok {
 			bi.sd = sd
 		}
@@ -852,7 +852,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 
 func (c *Conn) sendBatchQueryExecModeSimpleProtocol(ctx context.Context, b *Batch) *batchResults {
 	var sb strings.Builder
-	for i, bi := range b.items {
+	for i, bi := range b.queuedQueries {
 		if i > 0 {
 			sb.WriteByte(';')
 		}
@@ -864,18 +864,18 @@ func (c *Conn) sendBatchQueryExecModeSimpleProtocol(ctx context.Context, b *Batc
 	}
 	mrr := c.pgConn.Exec(ctx, sb.String())
 	return &batchResults{
-		ctx:  ctx,
-		conn: c,
-		mrr:  mrr,
-		b:    b,
-		ix:   0,
+		ctx:   ctx,
+		conn:  c,
+		mrr:   mrr,
+		b:     b,
+		qqIdx: 0,
 	}
 }
 
 func (c *Conn) sendBatchQueryExecModeExec(ctx context.Context, b *Batch) *batchResults {
 	batch := &pgconn.Batch{}
 
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		sd := bi.sd
 		if sd != nil {
 			err := c.eqb.Build(c.typeMap, sd, bi.arguments)
@@ -898,11 +898,11 @@ func (c *Conn) sendBatchQueryExecModeExec(ctx context.Context, b *Batch) *batchR
 	mrr := c.pgConn.ExecBatch(ctx, batch)
 
 	return &batchResults{
-		ctx:  ctx,
-		conn: c,
-		mrr:  mrr,
-		b:    b,
-		ix:   0,
+		ctx:   ctx,
+		conn:  c,
+		mrr:   mrr,
+		b:     b,
+		qqIdx: 0,
 	}
 }
 
@@ -914,7 +914,7 @@ func (c *Conn) sendBatchQueryExecModeCacheStatement(ctx context.Context, b *Batc
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		if bi.sd == nil {
 			sd := c.statementCache.Get(bi.query)
 			if sd != nil {
@@ -946,7 +946,7 @@ func (c *Conn) sendBatchQueryExecModeCacheDescribe(ctx context.Context, b *Batch
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		if bi.sd == nil {
 			sd := c.descriptionCache.Get(bi.query)
 			if sd != nil {
@@ -973,7 +973,7 @@ func (c *Conn) sendBatchQueryExecModeDescribeExec(ctx context.Context, b *Batch)
 	distinctNewQueries := []*pgconn.StatementDescription{}
 	distinctNewQueriesIdxMap := make(map[string]int)
 
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		if bi.sd == nil {
 			if idx, present := distinctNewQueriesIdxMap[bi.query]; present {
 				bi.sd = distinctNewQueries[idx]
@@ -1045,7 +1045,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	}
 
 	// Queue the queries.
-	for _, bi := range b.items {
+	for _, bi := range b.queuedQueries {
 		err := c.eqb.Build(c.typeMap, bi.sd, bi.arguments)
 		if err != nil {
 			return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
