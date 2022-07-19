@@ -1,7 +1,6 @@
 package pgconn_test
 
 import (
-	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -54,6 +53,35 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectWithOption(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+	}{
+		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING"},
+		{"TCP", "PGX_TEST_TCP_CONN_STRING"},
+		{"Plain password", "PGX_TEST_PLAIN_PASSWORD_CONN_STRING"},
+		{"MD5 password", "PGX_TEST_MD5_PASSWORD_CONN_STRING"},
+		{"SCRAM password", "PGX_TEST_SCRAM_PASSWORD_CONN_STRING"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			connString := os.Getenv(tt.env)
+			if connString == "" {
+				t.Skipf("Skipping due to missing environment variable %v", tt.env)
+			}
+            var sslOptions pgconn.ParseConfigOptions
+	        sslOptions.GetSSLPassword = GetSSLPassword
+			conn, err := pgconn.ConnectWithOptions(context.Background(), connString, sslOptions)
+			require.NoError(t, err)
+
+			closeConn(t, conn)
+		})
+	}
+}
+
 // TestConnectTLS is separate from other connect tests because it has an additional test to ensure it really is a secure
 // connection.
 func TestConnectTLS(t *testing.T) {
@@ -67,58 +95,14 @@ func TestConnectTLS(t *testing.T) {
 	var conn *pgconn.PgConn
 	var err error
 
-	isSslPasswrodEmpty := strings.HasSuffix(connString, "sslpassword=")
-
-	if isSslPasswrodEmpty {
-		config, err := pgconn.ParseConfigWithSslPasswordCallback(connString, GetSslPassword)
-		require.Nil(t, err)
-
-		conn, err = pgconn.ConnectConfig(context.Background(), config)
-		require.NoError(t, err)
-	} else {
-		conn, err = pgconn.Connect(context.Background(), connString)
-		require.NoError(t, err)
-	}
-
-	if _, ok := conn.Conn().(*tls.Conn); !ok {
-		t.Error("not a TLS connection")
-	}
-
-	closeConn(t, conn)
-}
-
-func GetSslPassword() string {
-	readFile, err := os.Open("data.txt")
-	if err != nil {
-		fmt.Println(err)
-	}
-	fileScanner := bufio.NewScanner(readFile)
-	fileScanner.Split(bufio.ScanLines)
-	for fileScanner.Scan() {
-		line := fileScanner.Text()
-		if strings.HasPrefix(line, "sslpassword=") {
-			index := len("sslpassword=")
-			line := line[index:]
-			return line
-		}
-	}
-	return ""
-}
-
-func TestConnectTLSCallback(t *testing.T) {
-	t.Parallel()
-
-	connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
-	if connString == "" {
-		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
-	}
-
-	config, err := pgconn.ParseConfigWithSslPasswordCallback(connString, GetSslPassword)
+	var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+    config, err := pgconn.ParseConfigWithOptions(connString, sslOptions)
 	require.Nil(t, err)
 
-	conn, err := pgconn.ConnectConfig(context.Background(), config)
+    conn, err = pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-
+	
 	if _, ok := conn.Conn().(*tls.Conn); !ok {
 		t.Error("not a TLS connection")
 	}
@@ -2179,4 +2163,9 @@ func Example() {
 	// 2
 	// 3
 	// SELECT 3
+}
+
+func GetSSLPassword(ctx context.Context) string {
+	connString := os.Getenv("PGX_SSL_PASSWORD")
+    return connString
 }
