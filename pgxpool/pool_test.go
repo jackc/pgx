@@ -24,10 +24,34 @@ func TestConnect(t *testing.T) {
 	pool.Close()
 }
 
+func TestConnectWithOptions(t *testing.T) {
+	t.Parallel()
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	pool, err := pgxpool.ConnectWithOptions(context.Background(), connString, sslOptions)
+	require.NoError(t, err)
+	assert.Equal(t, connString, pool.Config().ConnString())
+	pool.Close()
+}
+
 func TestConnectConfig(t *testing.T) {
 	t.Parallel()
 	connString := os.Getenv("PGX_TEST_DATABASE")
 	config, err := pgxpool.ParseConfig(connString)
+	require.NoError(t, err)
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+	assertConfigsEqual(t, config, pool.Config(), "Pool.Config() returns original config")
+	pool.Close()
+}
+
+func TestConnectConfigWithOptions(t *testing.T) {
+	t.Parallel()
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	config, err := pgxpool.ParseConfig(connString, sslOptions)
 	require.NoError(t, err)
 	pool, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)

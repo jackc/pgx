@@ -168,6 +168,17 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 	return ConnectConfig(ctx, config)
 }
 
+// Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
+// connection. See ParseConfigWithOptions for information on connString format and pgconn.ParseConfigWithOptions 
+func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions pgconn.ParseConfigOptions) (*Pool, error) {
+	config, err := ParseConfigWithOptions(connString, parseConfigOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return ConnectConfig(ctx, config)
+}
+
 // ConnectConfig creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
 // connection. config must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
@@ -260,7 +271,14 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString. It parses connString with the same behavior as pgx.ParseConfig with the
+// ParseConfig builds a Config from connString without GetSSLPassword function
+func ParseConfig(connString string) (*Config, error) {
+     var parseConfigOptions pgconn.ParseConfigOptions
+     return ParseConfigWithOptions(connString, parseConfigOptions)
+}
+
+// ParseConfig builds a Config from connString and and pgconn.ParseConfigWithOptions.
+// It parses connString and and pgconn.ParseConfigWithOptions with the same behavior as pgx.ParseConfig with the
 // addition of the following variables:
 //
 // pool_max_conns: integer greater than 0
@@ -277,8 +295,8 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 //   # Example URL
 //   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
-func ParseConfig(connString string) (*Config, error) {
-	connConfig, err := pgx.ParseConfig(connString)
+func ParseConfigWithOptions(connString string, parseConfigOptions pgconn.ParseConfigOptions) (*Config, error) {
+	connConfig, err := pgx.ParseConfig(connString, parseConfigOptions)
 	if err != nil {
 		return nil, err
 	}

@@ -23,6 +23,21 @@ func TestConnExec(t *testing.T) {
 	testExec(t, c)
 }
 
+func TestConnExecWithOptions(t *testing.T) {
+	t.Parallel()
+    var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	pool, err := pgxpool.ConnectWithOptions(context.Background(), os.Getenv("PGX_TEST_DATABASE"),sslOptions)
+	require.NoError(t, err)
+	defer pool.Close()
+
+	c, err := pool.Acquire(context.Background())
+	require.NoError(t, err)
+	defer c.Release()
+
+	testExec(t, c)
+}
+
 func TestConnQuery(t *testing.T) {
 	t.Parallel()
 

@@ -114,7 +114,6 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 }
 
 // ParseConfig creates a ConnConfig from a connection string without GetSSLPassword function
-//ParseConfig handles all options that pgconn.ParseConfig
 func ParseConfig(connString string) (*ConnConfig, error) {
    var parseConfigOptions pgconn.ParseConfigOptions
    return ParseConfigWithOptions(connString, parseConfigOptions)
