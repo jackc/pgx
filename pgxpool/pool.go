@@ -296,7 +296,7 @@ func ParseConfig(connString string) (*Config, error) {
 //   # Example URL
 //   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfigWithOptions(connString string, parseConfigOptions pgconn.ParseConfigOptions) (*Config, error) {
-	connConfig, err := pgx.ParseConfig(connString, parseConfigOptions)
+	connConfig, err := pgx.ParseConfigWithOptions(connString, parseConfigOptions)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+    "github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -92,4 +93,9 @@ func TestConnCopyFrom(t *testing.T) {
 	defer c.Release()
 
 	testCopyFrom(t, c)
+}
+
+func GetSSLPassword(ctx context.Context) string {
+	connString := os.Getenv("PGX_SSL_PASSWORD")
+    return connString
 }

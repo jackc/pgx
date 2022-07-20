@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+    "github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -51,7 +52,7 @@ func TestConnectConfigWithOptions(t *testing.T) {
 	connString := os.Getenv("PGX_TEST_DATABASE")
 	var sslOptions pgconn.ParseConfigOptions
 	sslOptions.GetSSLPassword = GetSSLPassword
-	config, err := pgxpool.ParseConfig(connString, sslOptions)
+	config, err := pgxpool.ParseConfigWithOptions(connString, sslOptions)
 	require.NoError(t, err)
 	pool, err := pgxpool.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
