@@ -65,8 +65,10 @@ type Config struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
-//Congig Options such as getsslpassword function
+// ParseConfigOptions contains options that control how a config is built such as getsslpassword.
 type ParseConfigOptions struct {
+	// GetSSLPassword gets the password to decrypt a SSL client certificate. This is analogous to the the libpq function
+	// PQsetSSLKeyPassHook_OpenSSL.
 	GetSSLPassword GetSSLPasswordFunc
 }
 
@@ -139,16 +141,10 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 	return network, address
 }
 
-// ParseConfig builds a *Config when sslpasswordcallback function is not provided
-func ParseConfig(connString string) (*Config, error) {
-	var parseConfigOptions ParseConfigOptions
-	return ParseConfigWithOptions(connString, parseConfigOptions)
-}
-
-// ParseConfig builds a *Config with similar behavior to the PostgreSQL standard C library libpq. It uses the same
-// defaults as libpq (e.g. port=5432) and understands most PG* environment variables. ParseConfig closely matches
-// the parsing behavior of libpq. connString may either be in URL format or keyword = value format (DSN style). See
-// https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING for details. connString also may be
+// ParseConfig builds a *Config from connString with similar behavior to the PostgreSQL standard C library libpq. It
+// uses the same defaults as libpq (e.g. port=5432) and understands most PG* environment variables. ParseConfig closely
+// matches the parsing behavior of libpq. connString may either be in URL format or keyword = value format (DSN style).
+// See https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING for details. connString also may be
 // empty to only read from the environment. If a password is not supplied it will attempt to read the .pgpass file.
 //
 //   # Example DSN
@@ -172,22 +168,22 @@ func ParseConfig(connString string) (*Config, error) {
 // ParseConfig currently recognizes the following environment variable and their parameter key word equivalents passed
 // via database URL or DSN:
 //
-// 	 PGHOST
-// 	 PGPORT
-// 	 PGDATABASE
-// 	 PGUSER
-// 	 PGPASSWORD
-// 	 PGPASSFILE
-// 	 PGSERVICE
-// 	 PGSERVICEFILE
-// 	 PGSSLMODE
-// 	 PGSSLCERT
-// 	 PGSSLKEY
-// 	 PGSSLROOTCERT
+//   PGHOST
+//   PGPORT
+//   PGDATABASE
+//   PGUSER
+//   PGPASSWORD
+//   PGPASSFILE
+//   PGSERVICE
+//   PGSERVICEFILE
+//   PGSSLMODE
+//   PGSSLCERT
+//   PGSSLKEY
+//   PGSSLROOTCERT
 //   PGSSLPASSWORD
-// 	 PGAPPNAME
-// 	 PGCONNECT_TIMEOUT
-// 	 PGTARGETSESSIONATTRS
+//   PGAPPNAME
+//   PGCONNECT_TIMEOUT
+//   PGTARGETSESSIONATTRS
 //
 // See http://www.postgresql.org/docs/11/static/libpq-envars.html for details on the meaning of environment variables.
 //
@@ -207,8 +203,7 @@ func ParseConfig(connString string) (*Config, error) {
 // sslmode "prefer" this means it will first try the main Config settings which use TLS, then it will try the fallback
 // which does not use TLS. This can lead to an unexpected unencrypted connection if the main TLS config is manually
 // changed later but the unencrypted fallback is present. Ensure there are no stale fallbacks when manually setting
-// TLCConfig.
-// ParseConfigOptions options for parse config
+// TLSConfig.
 //
 // Other known differences with libpq:
 //
@@ -217,12 +212,20 @@ func ParseConfig(connString string) (*Config, error) {
 //
 // In addition, ParseConfig accepts the following options:
 //
-// 	min_read_buffer_size
-// 		The minimum size of the internal read buffer. Default 8192.
-// 	servicefile
-// 		libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
-// 		part of the connection string.
-func ParseConfigWithOptions(connString string, parseConfigOptions ParseConfigOptions) (*Config, error) {
+//  min_read_buffer_size
+//    The minimum size of the internal read buffer. Default 8192.
+//  servicefile
+//    libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
+//    part of the connection string.
+func ParseConfig(connString string) (*Config, error) {
+	var parseConfigOptions ParseConfigOptions
+	return ParseConfigWithOptions(connString, parseConfigOptions)
+}
+
+// ParseConfigWithOptions builds a *Config from connString and options with similar behavior to the PostgreSQL standard
+// C library libpq. options contains settings that cannot be specified in a connString such as providing a function to
+// get the SSL password.
+func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
 
@@ -342,7 +345,7 @@ func ParseConfigWithOptions(connString string, parseConfigOptions ParseConfigOpt
 			tlsConfigs = append(tlsConfigs, nil)
 		} else {
 			var err error
-			tlsConfigs, err = configTLS(settings, host, parseConfigOptions)
+			tlsConfigs, err = configTLS(settings, host, options)
 			if err != nil {
 				return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
 			}

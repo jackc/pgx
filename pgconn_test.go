@@ -53,7 +53,7 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestConnectWithOption(t *testing.T) {
+func TestConnectWithOptions(t *testing.T) {
 	tests := []struct {
 		name string
 		env  string
