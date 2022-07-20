@@ -67,7 +67,7 @@ type Config struct {
 
 //Congig Options such as getsslpassword function
 type ParseConfigOptions struct {
-    GetSSLPassword GetSSLPasswordFunc
+	GetSSLPassword GetSSLPasswordFunc
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
@@ -715,25 +715,25 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		if x509.IsEncryptedPEMBlock(block) {
 			// Attempt decryption with pass phrase
 			// NOTE: only supports RSA (PKCS#1)
-			if(sslpassword != ""){
-			   decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
+			if sslpassword != "" {
+				decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			}
 			//if sslpassword not provided or has decryption error when use it
 			//try to find sslpassword with callback function
-			if (sslpassword == "" || decryptedError!= nil) {
-				if(parseConfigOptions.GetSSLPassword != nil){
-				    sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
+			if sslpassword == "" || decryptedError != nil {
+				if parseConfigOptions.GetSSLPassword != nil {
+					sslpassword = parseConfigOptions.GetSSLPassword(context.Background())
 				}
-				if(sslpassword == ""){
-                    return nil, fmt.Errorf("unable to find sslpassword")
+				if sslpassword == "" {
+					return nil, fmt.Errorf("unable to find sslpassword")
 				}
 			}
 			decryptedKey, decryptedError = x509.DecryptPEMBlock(block, []byte(sslpassword))
 			// Should we also provide warning for PKCS#1 needed?
-			if decryptedError  != nil {
+			if decryptedError != nil {
 				return nil, fmt.Errorf("unable to decrypt key: %w", err)
 			}
-			
+
 			pemBytes := pem.Block{
 				Type:  "RSA PRIVATE KEY",
 				Bytes: decryptedKey,
