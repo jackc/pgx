@@ -109,8 +109,8 @@ func Connect(ctx context.Context, connString string) (*PgConn, error) {
 	return ConnectConfig(ctx, config)
 }
 
-// Connect establishes a connection to a PostgreSQL server using the environment 
-// and connString (in URL or DSN format) and ParseConfigOptions 
+// Connect establishes a connection to a PostgreSQL server using the environment
+// and connString (in URL or DSN format) and ParseConfigOptions
 // to provide configuration. See documentation for ParseConfig for details. ctx can be used to cancel a connect attempt.
 func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions ParseConfigOptions) (*PgConn, error) {
 	config, err := ParseConfigWithOptions(connString, parseConfigOptions)

@@ -72,8 +72,8 @@ func TestConnectWithOption(t *testing.T) {
 			if connString == "" {
 				t.Skipf("Skipping due to missing environment variable %v", tt.env)
 			}
-            var sslOptions pgconn.ParseConfigOptions
-	        sslOptions.GetSSLPassword = GetSSLPassword
+			var sslOptions pgconn.ParseConfigOptions
+			sslOptions.GetSSLPassword = GetSSLPassword
 			conn, err := pgconn.ConnectWithOptions(context.Background(), connString, sslOptions)
 			require.NoError(t, err)
 
@@ -97,12 +97,12 @@ func TestConnectTLS(t *testing.T) {
 
 	var sslOptions pgconn.ParseConfigOptions
 	sslOptions.GetSSLPassword = GetSSLPassword
-    config, err := pgconn.ParseConfigWithOptions(connString, sslOptions)
+	config, err := pgconn.ParseConfigWithOptions(connString, sslOptions)
 	require.Nil(t, err)
 
-    conn, err = pgconn.ConnectConfig(context.Background(), config)
+	conn, err = pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
-	
+
 	if _, ok := conn.Conn().(*tls.Conn); !ok {
 		t.Error("not a TLS connection")
 	}
@@ -2167,5 +2167,5 @@ func Example() {
 
 func GetSSLPassword(ctx context.Context) string {
 	connString := os.Getenv("PGX_SSL_PASSWORD")
-    return connString
+	return connString
 }
