@@ -17,8 +17,8 @@ here. In addition, a config struct can be created by `ParseConfig` and modified 
 
 Connection Pool
 
-`*pgx.Conn` represents a single connection to the database and is not concurrency safe. Use sub-package pgxpool for a
-concurrency safe connection pool.
+`*pgx.Conn` represents a single connection to the database and is not concurrency safe. Use package
+github.com/jackc/pgx/v5/pgxpool for a concurrency safe connection pool.
 
 Query Interface
 
@@ -174,10 +174,12 @@ pgx supports tracing by setting ConnConfig.Tracer.
 
 In addition, the tracelog package provides the TraceLog type which lets a traditional logger act as a Tracer.
 
+For debug tracing of the actual PostgreSQL wire protocol messages see github.com/jackc/pgx/v5/pgproto3.
+
 Lower Level PostgreSQL Functionality
 
-pgx is implemented on top of github.com/jackc/pgconn a lower level PostgreSQL driver. The Conn.PgConn() method can be
-used to access this lower layer.
+github.com/jackc/pgx/v5/pgconn contains a lower level PostgreSQL driver roughly at the level of libpq. pgx.Conn in
+implemented on top of pgconn. The Conn.PgConn() method can be used to access this lower layer.
 
 PgBouncer
 
