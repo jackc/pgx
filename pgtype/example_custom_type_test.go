@@ -39,7 +39,7 @@ func (src *Point) String() string {
 	return fmt.Sprintf("%.1f, %.1f", src.X, src.Y)
 }
 
-func Example_CustomType() {
+func Example_customType() {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)

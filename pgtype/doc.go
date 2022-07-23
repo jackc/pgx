@@ -112,6 +112,11 @@ Compatibility with database/sql
 pgtype also includes support for custom types implementing the database/sql.Scanner and database/sql/driver.Valuer
 interfaces.
 
+Child Records
+
+pgtype's support for arrays and composite records can be used to load records and their children in a single query.  See
+example_child_records_test.go for an example.
+
 Overview of Scanning Implementation
 
 The first step is to use the OID to lookup the correct Codec. If the OID is unavailable, Map will try to find the OID
