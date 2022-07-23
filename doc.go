@@ -150,7 +150,7 @@ pgx converts netip.Prefix and netip.Addr to and from inet and cidr PostgreSQL ty
 Custom Type Support
 
 pgx includes support for the common data types like integers, floats, strings, dates, and times that have direct
-mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgtype library to support more types. See
+mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgx/v5/pgtype library to support more types. See
 documention for that library for instructions on how to implement custom types.
 
 See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
