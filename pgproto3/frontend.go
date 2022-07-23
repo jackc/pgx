@@ -223,7 +223,13 @@ func (f *Frontend) Receive() (BackendMessage, error) {
 		}
 
 		f.msgType = header[0]
-		f.bodyLen = int(binary.BigEndian.Uint32(header[1:])) - 4
+
+		msgLength := int(binary.BigEndian.Uint32(header[1:]))
+		if msgLength < 4 {
+			return nil, fmt.Errorf("invalid message length: %d", msgLength)
+		}
+
+		f.bodyLen = msgLength - 4
 		f.partialMsg = true
 	}
 
