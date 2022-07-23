@@ -6,6 +6,53 @@ types already registered. Additional types can be registered with Map.RegisterTy
 
 Use Map.Scan and Map.Encode to decode PostgreSQL values to Go and encode Go values to PostgreSQL respectively.
 
+Base Type Mapping
+
+pgtype maps between all common base types directly between Go and PostgreSQL. In particular:
+
+    Go           PostgreSQL
+    -----------------------
+    string        varchar
+                  text
+
+    // Integers are automatically be converted to any other integer type if
+    // it can be done without overflow or underflow.
+    int8
+    int16         smallint
+    int32         int
+    int64         bigint
+    int
+    uint8
+    uint16
+    uint32
+    uint64
+    uint
+
+    // Floats are strict and do not automatically convert like integers.
+    float32       float4
+    float64       float8
+
+    time.Time     date
+                  timestamp
+                  timestamptz
+
+    netip.Addr    inet
+    netip.Prefix  cidr
+
+    []byte        bytea
+
+Null Values
+
+pgtype can map NULLs in two ways. The first is types that can directly represent NULL such as Int4. They work in a
+similar fashion to database/sql. The second is to use a pointer to a pointer.
+
+    var foo pgtype.Text
+    var bar *string
+    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&foo, &bar)
+    if err != nil {
+        return err
+    }
+
 JSON Support
 
 pgtype automatically marshals and unmarshals data from json and jsonb PostgreSQL types.
@@ -23,7 +70,8 @@ CompositeIndexGetter.
 
 Enum Support
 
-PostgreSQL enums can usually be treated as text. However, EnumCodec implements support for interning strings which can reduce memory usage.
+PostgreSQL enums can usually be treated as text. However, EnumCodec implements support for interning strings which can
+reduce memory usage.
 
 Array, Composite, and Enum Type Registration
 
@@ -34,6 +82,8 @@ Extending Existing Type Support
 Generally, all Codecs will support interfaces that can be implemented to enable scanning and encoding. For example,
 PointCodec can use any Go type that implements the PointScanner and PointValuer interfaces. So rather than use
 pgtype.Point and application can directly use its own point type with pgtype as long as it implements those interfaces.
+
+See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
 
 Sometimes pgx supports a PostgreSQL type such as numeric but the Go type is in an external package that does not have
 pgx support such as github.com/shopspring/decimal. These types can be registered with pgtype with custom conversion
@@ -50,6 +100,17 @@ Encoding Unknown Types
 
 pgtype works best when the OID of the PostgreSQL type is known. But in some cases such as using the simple protocol the
 OID is unknown. In this case Map.RegisterDefaultPgType can be used to register an assumed OID for a particular Go type.
+
+Renamed Types
+
+If pgtype does not recognize a type and that type is a renamed simple type simple (e.g. type MyInt32 int32) pgtype acts
+as if it is the underlying type. It currently cannot automatically detect the underlying type of renamed structs (eg.g.
+type MyTime time.Time).
+
+Compatibility with database/sql
+
+pgtype also includes support for custom types implementing the database/sql.Scanner and database/sql/driver.Valuer
+interfaces.
 
 Overview of Scanning Implementation
 
