@@ -18,8 +18,11 @@ func (*CommandComplete) Backend() {}
 // type identifier and 4 byte message length.
 func (dst *CommandComplete) Decode(src []byte) error {
 	idx := bytes.IndexByte(src, 0)
+	if idx == -1 {
+		return &invalidMessageFormatErr{messageType: "CommandComplete", details: "unterminated string"}
+	}
 	if idx != len(src)-1 {
-		return &invalidMessageFormatErr{messageType: "CommandComplete"}
+		return &invalidMessageFormatErr{messageType: "CommandComplete", details: "string terminated too early"}
 	}
 
 	dst.CommandTag = src[:idx]

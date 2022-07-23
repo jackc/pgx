@@ -22,6 +22,10 @@ func (*NotificationResponse) Backend() {}
 func (dst *NotificationResponse) Decode(src []byte) error {
 	buf := bytes.NewBuffer(src)
 
+	if buf.Len() < 4 {
+		return &invalidMessageFormatErr{messageType: "NotificationResponse", details: "too short"}
+	}
+
 	pid := binary.BigEndian.Uint32(buf.Next(4))
 
 	b, err := buf.ReadBytes(0)

@@ -43,19 +43,19 @@ func (dst *DataRow) Decode(src []byte) error {
 			return &invalidMessageFormatErr{messageType: "DataRow"}
 		}
 
-		msgSize := int(int32(binary.BigEndian.Uint32(src[rp:])))
+		valueLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 
 		// null
-		if msgSize == -1 {
+		if valueLen == -1 {
 			dst.Values[i] = nil
 		} else {
-			if len(src[rp:]) < msgSize {
+			if len(src[rp:]) < valueLen || valueLen < 0 {
 				return &invalidMessageFormatErr{messageType: "DataRow"}
 			}
 
-			dst.Values[i] = src[rp : rp+msgSize : rp+msgSize]
-			rp += msgSize
+			dst.Values[i] = src[rp : rp+valueLen : rp+valueLen]
+			rp += valueLen
 		}
 	}
 
