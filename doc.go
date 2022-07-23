@@ -21,39 +21,18 @@ concurrency safe connection pool.
 
 Query Interface
 
-pgx implements Query and Scan in the familiar database/sql style.
+pgx implements Query in the familiar database/sql style. However, pgx provides generic functions such as CollectRows and
+ForEachRow that are a simpler and safer way of processing rows than manually calling rows.Next(), rows.Scan, and
+rows.Err().
 
-    var sum int32
+CollectRows can be used collect all returned rows into a slice.
 
-    // Send the query to the server. The returned rows MUST be closed
-    // before conn can be used again.
-    rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
+    rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 5)
+    numbers, err := pgx.CollectRows(rows, pgx.RowTo[int32])
     if err != nil {
-        return err
+      return err
     }
-
-    // rows.Close is called by rows.Next when all rows are read
-    // or an error occurs in Next or Scan. So it may optionally be
-    // omitted if nothing in the rows.Next loop can panic. It is
-    // safe to close rows multiple times.
-    defer rows.Close()
-
-    // Iterate through the result set
-    for rows.Next() {
-        var n int32
-        err = rows.Scan(&n)
-        if err != nil {
-            return err
-        }
-        sum += n
-    }
-
-    // Any errors encountered by rows.Next or rows.Scan will be returned here
-    if rows.Err() != nil {
-        return rows.Err()
-    }
-
-    // No errors found - do something with sum
+		// numbers => [1 2 3 4 5]
 
 ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows
 directly.
