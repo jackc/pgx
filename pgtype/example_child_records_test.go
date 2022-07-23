@@ -9,6 +9,16 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+type Player struct {
+	Name     string
+	Position string
+}
+
+type Team struct {
+	Name    string
+	Players []Player
+}
+
 // This example uses a single query to return parent and child records.
 func Example_childRecords() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -17,6 +27,20 @@ func Example_childRecords() {
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
+		return
+	}
+
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		// Skip test / example when running on CockroachDB which doesn't support the point type. Since an example can't be
+		// skipped fake success instead.
+		fmt.Println(`Alpha
+  Adam: wing
+  Bill: halfback
+  Charlie: fullback
+Beta
+  Don: halfback
+  Edgar: halfback
+  Frank: fullback`)
 		return
 	}
 
@@ -47,16 +71,6 @@ insert into players (name, team_name, position) values
 	if err != nil {
 		fmt.Printf("Unable to setup example schema and data: %v", err)
 		return
-	}
-
-	type Player struct {
-		Name     string
-		Position string
-	}
-
-	type Team struct {
-		Name    string
-		Players []Player
 	}
 
 	rows, _ := conn.Query(ctx, `
