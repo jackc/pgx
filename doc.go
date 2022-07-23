@@ -55,7 +55,8 @@ pgx implements Query and Scan in the familiar database/sql style.
 
     // No errors found - do something with sum
 
-ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows directly.
+ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows
+directly.
 
     var sum, n int32
     rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
@@ -164,9 +165,10 @@ is recommended that this situation be avoided by implementing pgx interfaces on 
 
 Composite types and row values
 
-Row values and composite types are represented as pgtype.Record (https://pkg.go.dev/github.com/jackc/pgtype?tab=doc#Record).
-It is possible to get values of your custom type by implementing DecodeBinary interface. Decoding into
-pgtype.Record first can simplify process by avoiding dealing with raw protocol directly.
+Row values and composite types are represented as pgtype.Record
+(https://pkg.go.dev/github.com/jackc/pgtype?tab=doc#Record). It is possible to get values of your custom type by
+implementing DecodeBinary interface. Decoding into pgtype.Record first can simplify process by avoiding dealing with raw
+protocol directly.
 
 For example:
 
@@ -259,8 +261,8 @@ for information on how to customize or disable the statement cache.
 Copy Protocol
 
 Use CopyFrom to efficiently insert multiple rows at a time using the PostgreSQL copy protocol. CopyFrom accepts a
-CopyFromSource interface. If the data is already in a [][]any use CopyFromRows to wrap it in a CopyFromSource
-interface. Or implement CopyFromSource to avoid buffering the entire data set in memory.
+CopyFromSource interface. If the data is already in a [][]any use CopyFromRows to wrap it in a CopyFromSource interface.
+Or implement CopyFromSource to avoid buffering the entire data set in memory.
 
     rows := [][]any{
         {"John", "Smith", int32(36)},
