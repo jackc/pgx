@@ -1911,6 +1911,14 @@ func ExampleConn_Query() {
 		return
 	}
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		// Skip test / example when running on CockroachDB. Since an example can't be skipped fake success instead.
+		fmt.Println(`Cheeseburger: $10
+Fries: $5
+Soft Drink: $3`)
+		return
+	}
+
 	// Setup example schema and data.
 	_, err = conn.Exec(ctx, `
 create temporary table products (
