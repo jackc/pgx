@@ -1,8 +1,9 @@
 // Package pgx is a PostgreSQL database driver.
 /*
-pgx provides lower level access to PostgreSQL than the standard database/sql. It remains as similar to the database/sql
-interface as possible while providing better speed and access to PostgreSQL specific features. Import
-github.com/jackc/pgx/v4/stdlib to use pgx as a database/sql compatible driver.
+pgx provides a native PostgreSQL driver and can act as a database/sql driver. The native PostgreSQL interface is similar
+to the database/sql interface while providing better speed and access to PostgreSQL specific features. Use
+github.com/jackc/pgx/v5/stdlib to use pgx as a database/sql compatible driver. See that package's documentation for
+details.
 
 Establishing a Connection
 
@@ -32,7 +33,7 @@ CollectRows can be used collect all returned rows into a slice.
     if err != nil {
       return err
     }
-		// numbers => [1 2 3 4 5]
+    // numbers => [1 2 3 4 5]
 
 ForEachRow can be used to execute a callback function for every row. This is often easier than iterating over rows
 directly.
@@ -66,127 +67,10 @@ Use Exec to execute a query that does not return a result set.
         return errors.New("No row found to delete")
     }
 
-Base Type Mapping
+PostgreSQL Data Types
 
-pgx maps between all common base types directly between Go and PostgreSQL. In particular:
-
-    Go           PostgreSQL
-    -----------------------
-    string       varchar
-                 text
-
-    // Integers are automatically be converted to any other integer type if
-    // it can be done without overflow or underflow.
-    int8
-    int16        smallint
-    int32        int
-    int64        bigint
-    int
-    uint8
-    uint16
-    uint32
-    uint64
-    uint
-
-    // Floats are strict and do not automatically convert like integers.
-    float32      float4
-    float64      float8
-
-    time.Time   date
-                timestamp
-                timestamptz
-
-    []byte      bytea
-
-
-Null Mapping
-
-pgx can map nulls in two ways. The first is package pgtype provides types that have a data field and a status field.
-They work in a similar fashion to database/sql. The second is to use a pointer to a pointer.
-
-    var foo pgtype.Varchar
-    var bar *string
-    err := conn.QueryRow("select foo, bar from widgets where id=$1", 42).Scan(&foo, &bar)
-    if err != nil {
-        return err
-    }
-
-Array Mapping
-
-pgx maps between int16, int32, int64, float32, float64, and string Go slices and the equivalent PostgreSQL array type.
-Go slices of native types do not support nulls, so if a PostgreSQL array that contains a null is read into a native Go
-slice an error will occur. The pgtype package includes many more array types for PostgreSQL types that do not directly
-map to native Go types.
-
-JSON and JSONB Mapping
-
-pgx includes built-in support to marshal and unmarshal between Go types and the PostgreSQL JSON and JSONB.
-
-Inet and CIDR Mapping
-
-pgx converts netip.Prefix and netip.Addr to and from inet and cidr PostgreSQL types.
-
-Custom Type Support
-
-pgx includes support for the common data types like integers, floats, strings, dates, and times that have direct
-mappings between Go and SQL. In addition, pgx uses the github.com/jackc/pgx/v5/pgtype library to support more types. See
-documention for that library for instructions on how to implement custom types.
-
-See example_custom_type_test.go for an example of a custom type for the PostgreSQL point type.
-
-pgx also includes support for custom types implementing the database/sql.Scanner and database/sql/driver.Valuer
-interfaces.
-
-If pgx does cannot natively encode a type and that type is a renamed type (e.g. type MyTime time.Time) pgx will attempt
-to encode the underlying type. While this is usually desired behavior it can produce surprising behavior if one the
-underlying type and the renamed type each implement database/sql interfaces and the other implements pgx interfaces. It
-is recommended that this situation be avoided by implementing pgx interfaces on the renamed type.
-
-Composite types and row values
-
-Row values and composite types are represented as pgtype.Record
-(https://pkg.go.dev/github.com/jackc/pgtype?tab=doc#Record). It is possible to get values of your custom type by
-implementing DecodeBinary interface. Decoding into pgtype.Record first can simplify process by avoiding dealing with raw
-protocol directly.
-
-For example:
-
-    type MyType struct {
-        a int      // NULL will cause decoding error
-        b *string  // there can be NULL in this position in SQL
-    }
-
-    func (t *MyType) DecodeBinary(ci *pgtype.ConnInfo, src []byte) error {
-        r := pgtype.Record{
-            Fields: []pgtype.Value{&pgtype.Int4{}, &pgtype.Text{}},
-        }
-
-        if err := r.DecodeBinary(ci, src); err != nil {
-            return err
-        }
-
-        if r.Status != pgtype.Present {
-            return errors.New("BUG: decoding should not be called on NULL value")
-        }
-
-        a := r.Fields[0].(*pgtype.Int4)
-        b := r.Fields[1].(*pgtype.Text)
-
-        // type compatibility is checked by AssignTo
-        // only lossless assignments will succeed
-        if err := a.AssignTo(&t.a); err != nil {
-            return err
-        }
-
-        // AssignTo also deals with null value handling
-        if err := b.AssignTo(&t.b); err != nil {
-            return err
-        }
-        return nil
-    }
-
-    result := MyType{}
-    err := conn.QueryRow(context.Background(), "select row(1, 'foo'::text)", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&r)
+The package pgtype provides extensive and customizable support for converting Go values to and from PostgreSQL values
+including array and composite types. See that package's documentation for details.
 
 Transactions
 

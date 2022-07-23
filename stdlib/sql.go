@@ -27,8 +27,8 @@
 //
 //  db.QueryRow("select * from users where id=$1", userID)
 //
-// In Go 1.13 and above (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard database/sql.DB connection
-// pool. This allows operations that use pgx specific functionality.
+// (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard database/sql.DB connection pool. This allows
+// operations that use pgx specific functionality.
 //
 //  // Given db is a *sql.DB
 //  conn, err := db.Conn(context.Background())
