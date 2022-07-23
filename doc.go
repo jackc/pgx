@@ -209,10 +209,6 @@ For example:
     result := MyType{}
     err := conn.QueryRow(context.Background(), "select row(1, 'foo'::text)", pgx.QueryResultFormats{pgx.BinaryFormatCode}).Scan(&r)
 
-Raw Bytes Mapping
-
-[]byte passed as arguments to Query, QueryRow, and Exec are passed unmodified to PostgreSQL.
-
 Transactions
 
 Transactions are started by calling Begin.
