@@ -46,10 +46,11 @@ func (e *invalidMessageLenErr) Error() string {
 
 type invalidMessageFormatErr struct {
 	messageType string
+	details     string
 }
 
 func (e *invalidMessageFormatErr) Error() string {
-	return fmt.Sprintf("%s body is invalid", e.messageType)
+	return fmt.Sprintf("%s body is invalid %s", e.messageType, e.details)
 }
 
 type writeError struct {

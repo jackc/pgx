@@ -1,0 +1,4 @@
+go test fuzz v1
+byte('A')
+uint32(5)
+[]byte("0")
