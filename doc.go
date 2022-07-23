@@ -322,7 +322,7 @@ used to access this lower layer.
 
 PgBouncer
 
-pgx is compatible with PgBouncer in two modes. One is when the connection has a statement cache in "describe" mode. The
-other is when the connection is using the simple protocol. This can be set with the PreferSimpleProtocol config option.
+By default pgx automatically uses prepared statements. Prepared statements are incompaptible with PgBouncer. This can be
+disabled by setting a different QueryExecMode in ConnConfig.DefaultQueryExecMode.
 */
 package pgx
