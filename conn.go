@@ -611,6 +611,10 @@ type QueryRewriter interface {
 // returned Rows even if an error is returned. The error will be the available in rows.Err() after rows are closed. It
 // is allowed to ignore the error returned from Query and handle it in Rows.
 //
+// It is possible for a query to return one or more rows before encountering an error. In most cases the rows should be
+// collected before processing rather than processed while receiving each row. This avoids the possibility of the
+// application processing rows from a query that the server rejected. The CollectRows function is useful here.
+//
 // An implementor of QueryRewriter may be passed as the first element of args. It can rewrite the sql and change or
 // replace args. For example, NamedArgs is QueryRewriter that implements named arguments.
 //
