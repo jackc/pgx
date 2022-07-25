@@ -227,7 +227,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			return cr, nil
 		},
 		func(value interface{}) {
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), config.MaxConnLifetime)
 			conn := value.(*connResource).conn
 			conn.Close(ctx)
 			select {
