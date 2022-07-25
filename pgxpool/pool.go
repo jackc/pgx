@@ -70,6 +70,16 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 	return pr
 }
 
+// detachedCtx wraps a context and will never be canceled, regardless of if
+// the wrapped one is cancelled. The Err() method will never return any errors.
+type detachedCtx struct {
+	context.Context
+}
+
+func (detachedCtx) Done() <-chan struct{}       { return nil }
+func (detachedCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (detachedCtx) Err() error                  { return nil }
+
 // Pool allows for connection reuse.
 type Pool struct {
 	p                     *puddle.Pool
@@ -195,6 +205,14 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (interface{}, error) {
+			// we ignore cancellation on the original context because its either from
+			// the health check or its from a query and we don't want to cancel creating
+			// a connection just because the original query was cancelled since that
+			// could end up stampeding the server
+			// this will keep any Values in the original context and will just ignore
+			// cancellation
+			// see https://github.com/jackc/pgx/issues/1259
+			ctx = detachedCtx{ctx}
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {

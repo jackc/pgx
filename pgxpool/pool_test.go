@@ -73,6 +73,33 @@ func TestLazyConnect(t *testing.T) {
 	assert.Equal(t, context.Canceled, err)
 }
 
+func TestConstructorIgnoresContext(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	assert.NoError(t, err)
+	config.LazyConnect = true
+	var cancel func()
+	config.BeforeConnect = func(context.Context, *pgx.ConnConfig) error {
+		// cancel the query's context before we actually Dial to ensure the Dial's
+		// context isn't cancelled
+		cancel()
+		return nil
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	assert.EqualValues(t, 0, pool.Stat().TotalConns())
+
+	var ctx context.Context
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	_, err = pool.Exec(ctx, "SELECT 1")
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.EqualValues(t, 1, pool.Stat().TotalConns())
+}
+
 func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 	t.Parallel()
 
