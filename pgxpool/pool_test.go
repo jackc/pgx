@@ -30,7 +30,7 @@ func TestConnectConfig(t *testing.T) {
 	connString := os.Getenv("PGX_TEST_DATABASE")
 	config, err := pgxpool.ParseConfig(connString)
 	require.NoError(t, err)
-	pool, err := pgxpool.NewConfig(context.Background(), config)
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	assertConfigsEqual(t, config, pool.Config(), "Pool.Config() returns original config")
 	pool.Close()
@@ -52,7 +52,7 @@ func TestConnectConfigRequiresConnConfigFromParseConfig(t *testing.T) {
 
 	config := &pgxpool.Config{}
 
-	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgxpool.NewConfig(context.Background(), config) })
+	require.PanicsWithValue(t, "config must be created by ParseConfig", func() { pgxpool.NewWithConfig(context.Background(), config) })
 }
 
 func TestConfigCopyReturnsEqualConfig(t *testing.T) {
@@ -72,7 +72,7 @@ func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
 
 	copied := original.Copy()
 	assert.NotPanics(t, func() {
-		_, err = pgxpool.NewConfig(context.Background(), copied)
+		_, err = pgxpool.NewWithConfig(context.Background(), copied)
 	})
 	assert.NoError(t, err)
 }
@@ -205,7 +205,7 @@ func TestPoolBeforeConnect(t *testing.T) {
 		return nil
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -226,7 +226,7 @@ func TestPoolAfterConnect(t *testing.T) {
 		return err
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -249,7 +249,7 @@ func TestPoolBeforeAcquire(t *testing.T) {
 		return acquireAttempts%2 == 0
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -304,7 +304,7 @@ func TestPoolAfterRelease(t *testing.T) {
 		return afterReleaseCount%2 == 1
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -357,7 +357,7 @@ func TestConnReleaseChecksMaxConnLifetime(t *testing.T) {
 
 	config.MaxConnLifetime = 250 * time.Millisecond
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -410,7 +410,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	config.MaxConnLifetime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 100 * time.Millisecond
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -435,7 +435,7 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	config.MaxConnIdleTime = 100 * time.Millisecond
 	config.HealthCheckPeriod = 150 * time.Millisecond
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -464,7 +464,7 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	config.HealthCheckPeriod = 100 * time.Millisecond
 	config.MinConns = 2
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer db.Close()
 
@@ -909,7 +909,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 		return nil
 	}
 
-	pool, err := pgxpool.NewConfig(context.Background(), config)
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(t, err)
 	defer pool.Close()
 
