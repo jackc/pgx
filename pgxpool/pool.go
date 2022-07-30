@@ -534,6 +534,15 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	return conns
 }
 
+// Reset closes all connections, but leaves the pool open. It is intended for use when an error is detected that would
+// disrupt all connections (such as a network interruption or a server state change).
+//
+// It is safe to reset a pool while connections are checked out. Those connections will be closed when they are returned
+// to the pool.
+func (p *Pool) Reset() {
+	p.p.Reset()
+}
+
 // Config returns a copy of config that was used to initialize this pool.
 func (p *Pool) Config() *Config { return p.config.Copy() }
 
