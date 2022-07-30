@@ -254,6 +254,17 @@ func TestScanPlanInterface(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// https://github.com/jackc/pgx/issues/1263
+func TestMapScanPtrToPtrToSlice(t *testing.T) {
+	m := pgtype.NewMap()
+	src := []byte("{foo,bar}")
+	var v *[]string
+	plan := m.PlanScan(pgtype.TextArrayOID, pgtype.TextFormatCode, &v)
+	err := plan.Scan(src, &v)
+	require.NoError(t, err)
+	require.Equal(t, []string{"foo", "bar"}, *v)
+}
+
 func BenchmarkTypeMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
