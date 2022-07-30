@@ -34,7 +34,7 @@ func BenchmarkMinimalPreparedSelectBaseline(b *testing.B) {
 		return err
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	conn, err := db.Acquire(context.Background())
@@ -65,7 +65,7 @@ func BenchmarkMinimalPreparedSelect(b *testing.B) {
 		return err
 	}
 
-	db, err := pgxpool.NewConfig(context.Background(), config)
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
 	require.NoError(b, err)
 
 	var n int64

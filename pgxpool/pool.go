@@ -160,11 +160,11 @@ func New(ctx context.Context, connString string) (*Pool, error) {
 		return nil, err
 	}
 
-	return NewConfig(ctx, config)
+	return NewWithConfig(ctx, config)
 }
 
-// NewConfig creates a new Pool. config must have been created by ParseConfig.
-func NewConfig(ctx context.Context, config *Config) (*Pool, error) {
+// NewWithConfig creates a new Pool. config must have been created by ParseConfig.
+func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
