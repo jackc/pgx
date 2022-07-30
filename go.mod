@@ -7,7 +7,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b
 	github.com/jackc/puddle/v2 v2.0.0-beta.1
 	github.com/stretchr/testify v1.8.0
-	golang.org/x/crypto v0.0.0-20211209193657-4570a0811e8b
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/text v0.3.7
 )
 
