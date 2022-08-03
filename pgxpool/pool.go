@@ -680,7 +680,7 @@ func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, er
 		return nil, err
 	}
 
-	return &Tx{t: t, c: c}, err
+	return &Tx{t: t, c: c}, nil
 }
 
 func (p *Pool) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
