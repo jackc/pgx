@@ -214,6 +214,10 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			// see https://github.com/jackc/pgx/issues/1259
 			ctx = detachedCtx{ctx}
 
+			// But we do want to ensure that a connect won't hang forever.
+			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+			defer cancel()
+
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {
