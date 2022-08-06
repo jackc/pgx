@@ -1,3 +1,9 @@
+# 1.13.0 (August 6, 2022)
+
+* Add sslpassword support (Eric McCormack and yun.xu)
+* Add prefer-standby target_session_attrs support (sergey.bashilov)
+* Fix GSS ErrorResponse handling (Oliver Tan)
+
 # 1.12.1 (May 7, 2022)
 
 * Fix: setting krbspn and krbsrvname in connection string (sireax)
