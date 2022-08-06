@@ -135,7 +135,7 @@ See documentation for `QueryExecMode`.
 
 ## QueryRewriter Interface and NamedArgs
 
-pgx now supports named arguments with the NamedArgs type. This is implemented via the new QueryRewriter interface which
+pgx now supports named arguments with the `NamedArgs` type. This is implemented via the new `QueryRewriter` interface which
 allows arbitrary rewriting of query SQL and arguments.
 
 ## RowScanner Interface
