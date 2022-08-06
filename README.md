@@ -1,6 +1,11 @@
 [![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://pkg.go.dev/github.com/jackc/pgx/v4)
 [![Build Status](https://travis-ci.org/jackc/pgx.svg)](https://travis-ci.org/jackc/pgx)
 
+---
+
+This is the stable `v4` release. `v5` is now in beta testing with final release expected in September. See https://github.com/jackc/pgx/issues/1273 for more information. Please consider testing `v5`.
+
+---
 # pgx - PostgreSQL Driver and Toolkit
 
 pgx is a pure Go driver and toolkit for PostgreSQL.
