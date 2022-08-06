@@ -70,6 +70,16 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 	return pr
 }
 
+// detachedCtx wraps a context and will never be canceled, regardless of if
+// the wrapped one is cancelled. The Err() method will never return any errors.
+type detachedCtx struct {
+	context.Context
+}
+
+func (detachedCtx) Done() <-chan struct{}       { return nil }
+func (detachedCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (detachedCtx) Err() error                  { return nil }
+
 // Pool allows for connection reuse.
 type Pool struct {
 	p                     *puddle.Pool[*connResource]
@@ -189,6 +199,19 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	p.p = puddle.NewPool(
 		func(ctx context.Context) (*connResource, error) {
+			// we ignore cancellation on the original context because its either from
+			// the health check or its from a query and we don't want to cancel creating
+			// a connection just because the original query was cancelled since that
+			// could end up stampeding the server
+			// this will keep any Values in the original context and will just ignore
+			// cancellation
+			// see https://github.com/jackc/pgx/issues/1259
+			ctx = detachedCtx{ctx}
+
+			// But we do want to ensure that a connect won't hang forever.
+			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+			defer cancel()
+
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {
@@ -253,11 +276,11 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 // See Config for definitions of these arguments.
 //
-//   # Example DSN
-//   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//	# Example DSN
+//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
-//   # Example URL
-//   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
+//	# Example URL
+//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	connConfig, err := pgx.ParseConfig(connString)
 	if err != nil {
@@ -651,7 +674,7 @@ func (p *Pool) BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, er
 		return nil, err
 	}
 
-	return &Tx{t: t, c: c}, err
+	return &Tx{t: t, c: c}, nil
 }
 
 func (p *Pool) CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error) {
