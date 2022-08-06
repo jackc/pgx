@@ -3,7 +3,7 @@
 
 # pgx - PostgreSQL Driver and Toolkit
 
-*This is the v5 development branch. It is still in active development and testing.*
+*This is the v5 development branch. It is still in beta testing.*
 
 pgx is a pure Go driver and toolkit for PostgreSQL.
 
