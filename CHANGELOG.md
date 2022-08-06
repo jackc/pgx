@@ -1,3 +1,14 @@
+# 4.17.0 (August 6, 2022)
+
+* Upgrade pgconn to v1.13.0
+* Upgrade pgproto3 to v2.3.1
+* Upgrade pgtype to v1.12.0
+* Allow background pool connections to continue even if cause is canceled (James Hartig)
+* Add LoggerFunc (Gabor Szabad)
+* pgxpool: health check should avoid going below minConns (James Hartig)
+* Add pgxpool.Conn.Hijack()
+* Logging improvements (Stepan Rabotkin)
+
 # 4.16.1 (May 7, 2022)
 
 * Upgrade pgconn to v1.12.1
