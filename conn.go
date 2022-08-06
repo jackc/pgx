@@ -127,13 +127,13 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 //		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
 //		QueryExecMode constant documentation for the meaning of these values. Default: "cache_statement".
 //
-// 	statement_cache_capacity
-// 		The maximum size of the statement cache used when executing a query with "cache_statement" query exec mode.
-// 		Default: 512.
+//	statement_cache_capacity
+//		The maximum size of the statement cache used when executing a query with "cache_statement" query exec mode.
+//		Default: 512.
 //
-// 	description_cache_capacity
-// 		The maximum size of the description cache used when executing a query with "cache_describe" query exec mode.
-// 		Default: 512.
+//	description_cache_capacity
+//		The maximum size of the description cache used when executing a query with "cache_describe" query exec mode.
+//		Default: 512.
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
