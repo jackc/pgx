@@ -98,6 +98,18 @@ func Connect(ctx context.Context, connString string) (*PgConn, error) {
 	return ConnectConfig(ctx, config)
 }
 
+// Connect establishes a connection to a PostgreSQL server using the environment and connString (in URL or DSN format)
+// and ParseConfigOptions to provide additional configuration. See documentation for ParseConfig for details. ctx can be
+// used to cancel a connect attempt.
+func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions ParseConfigOptions) (*PgConn, error) {
+	config, err := ParseConfigWithOptions(connString, parseConfigOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return ConnectConfig(ctx, config)
+}
+
 // Connect establishes a connection to a PostgreSQL server using config. config must have been constructed with
 // ParseConfig. ctx can be used to cancel a connect attempt.
 //

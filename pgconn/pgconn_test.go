@@ -53,6 +53,35 @@ func TestConnect(t *testing.T) {
 	}
 }
 
+func TestConnectWithOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		env  string
+	}{
+		{"Unix socket", "PGX_TEST_UNIX_SOCKET_CONN_STRING"},
+		{"TCP", "PGX_TEST_TCP_CONN_STRING"},
+		{"Plain password", "PGX_TEST_PLAIN_PASSWORD_CONN_STRING"},
+		{"MD5 password", "PGX_TEST_MD5_PASSWORD_CONN_STRING"},
+		{"SCRAM password", "PGX_TEST_SCRAM_PASSWORD_CONN_STRING"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			connString := os.Getenv(tt.env)
+			if connString == "" {
+				t.Skipf("Skipping due to missing environment variable %v", tt.env)
+			}
+			var sslOptions pgconn.ParseConfigOptions
+			sslOptions.GetSSLPassword = GetSSLPassword
+			conn, err := pgconn.ConnectWithOptions(context.Background(), connString, sslOptions)
+			require.NoError(t, err)
+
+			closeConn(t, conn)
+		})
+	}
+}
+
 // TestConnectTLS is separate from other connect tests because it has an additional test to ensure it really is a secure
 // connection.
 func TestConnectTLS(t *testing.T) {
@@ -63,7 +92,15 @@ func TestConnectTLS(t *testing.T) {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
 	}
 
-	conn, err := pgconn.Connect(context.Background(), connString)
+	var conn *pgconn.PgConn
+	var err error
+
+	var sslOptions pgconn.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	config, err := pgconn.ParseConfigWithOptions(connString, sslOptions)
+	require.Nil(t, err)
+
+	conn, err = pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
 	result := conn.ExecParams(context.Background(), `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
@@ -2588,4 +2625,9 @@ func Example() {
 	// 2
 	// 3
 	// SELECT 3
+}
+
+func GetSSLPassword(ctx context.Context) string {
+	connString := os.Getenv("PGX_SSL_PASSWORD")
+	return connString
 }
