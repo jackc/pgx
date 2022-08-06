@@ -116,14 +116,14 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 // ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
 // does. In addition, it accepts the following options:
 //
-// 	statement_cache_capacity
-// 		The maximum size of the automatic statement cache. Set to 0 to disable automatic statement caching. Default: 512.
+//	statement_cache_capacity
+//		The maximum size of the automatic statement cache. Set to 0 to disable automatic statement caching. Default: 512.
 //
-// 	statement_cache_mode
-// 		Possible values: "prepare" and "describe". "prepare" will create prepared statements on the PostgreSQL server.
-// 		"describe" will use the anonymous prepared statement to describe a statement without creating a statement on the
-// 		server. "describe" is primarily useful when the environment does not allow prepared statements such as when
-// 		running a connection pooler like PgBouncer. Default: "prepare"
+//	statement_cache_mode
+//		Possible values: "prepare" and "describe". "prepare" will create prepared statements on the PostgreSQL server.
+//		"describe" will use the anonymous prepared statement to describe a statement without creating a statement on the
+//		server. "describe" is primarily useful when the environment does not allow prepared statements such as when
+//		running a connection pooler like PgBouncer. Default: "prepare"
 //
 //	prefer_simple_protocol
 //		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false

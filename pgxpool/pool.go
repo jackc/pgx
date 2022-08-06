@@ -213,6 +213,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 			// cancellation
 			// see https://github.com/jackc/pgx/issues/1259
 			ctx = detachedCtx{ctx}
+
 			connConfig := p.config.ConnConfig
 
 			if p.beforeConnect != nil {
@@ -290,11 +291,11 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 // See Config for definitions of these arguments.
 //
-//   # Example DSN
-//   user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
+//	# Example DSN
+//	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
-//   # Example URL
-//   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
+//	# Example URL
+//	postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
 func ParseConfig(connString string) (*Config, error) {
 	connConfig, err := pgx.ParseConfig(connString)
 	if err != nil {
