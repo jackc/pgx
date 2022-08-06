@@ -58,6 +58,7 @@ func (f LoggerFunc) Log(ctx context.Context, level LogLevel, msg string, data ma
 // LogLevelFromString converts log level string to constant
 //
 // Valid levels:
+//
 //	trace
 //	debug
 //	info
