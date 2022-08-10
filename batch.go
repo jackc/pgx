@@ -61,6 +61,9 @@ type batchResults struct {
 	closed bool
 }
 
+// ErrNoResult occurs on a batch operation when no result is available.
+var ErrNoResult = errors.New("no result")
+
 // Exec reads the results from the next query in the batch as if the query has been sent with Exec.
 func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 	if br.err != nil {
@@ -75,7 +78,7 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 	if !br.mrr.NextResult() {
 		err := br.mrr.Close()
 		if err == nil {
-			err = errors.New("no result")
+			err = ErrNoResult
 		}
 		if br.conn.shouldLog(LogLevelError) {
 			br.conn.log(br.ctx, LogLevelError, "BatchResult.Exec", map[string]interface{}{
@@ -129,7 +132,7 @@ func (br *batchResults) Query() (Rows, error) {
 	if !br.mrr.NextResult() {
 		rows.err = br.mrr.Close()
 		if rows.err == nil {
-			rows.err = errors.New("no result")
+			rows.err = ErrNoResult
 		}
 		rows.closed = true
 
