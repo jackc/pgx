@@ -5,7 +5,7 @@ package nbconn
 // Not using unix build tag for support on Go 1.18.
 
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
-	return fakeNonblockingWrite(b)
+	return c.fakeNonblockingWrite(b)
 }
 
 func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
