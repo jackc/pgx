@@ -128,19 +128,13 @@ func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptio
 // authentication error will terminate the chain of attempts (like libpq:
 // https://www.postgresql.org/docs/11/libpq-connect.html#LIBPQ-MULTIPLE-HOSTS) and be returned as the error. Otherwise,
 // if all attempts fail the last error is returned.
-func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err error) {
+func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
 	}
 
-	// ConnectTimeout restricts the whole connection process.
-	if config.ConnectTimeout != 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, config.ConnectTimeout)
-		defer cancel()
-	}
 	// Simplify usage by treating primary config and fallbacks the same.
 	fallbackConfigs := []*FallbackConfig{
 		{
@@ -150,7 +144,7 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 		},
 	}
 	fallbackConfigs = append(fallbackConfigs, config.Fallbacks...)
-
+	ctx := octx
 	fallbackConfigs, err = expandWithIPs(ctx, config.LookupFunc, fallbackConfigs)
 	if err != nil {
 		return nil, &connectError{config: config, msg: "hostname resolving error", err: err}
@@ -163,6 +157,14 @@ func ConnectConfig(ctx context.Context, config *Config) (pgConn *PgConn, err err
 	foundBestServer := false
 	var fallbackConfig *FallbackConfig
 	for _, fc := range fallbackConfigs {
+		// ConnectTimeout restricts the whole connection process.
+		if config.ConnectTimeout != 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(octx, config.ConnectTimeout)
+			defer cancel()
+		} else {
+			ctx = octx
+		}
 		pgConn, err = connect(ctx, config, fc, false)
 		if err == nil {
 			foundBestServer = true
