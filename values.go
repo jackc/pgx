@@ -1,6 +1,8 @@
 package pgx
 
 import (
+	"errors"
+
 	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -36,11 +38,31 @@ func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, er
 	buf = pgio.AppendInt32(buf, -1)
 	argBuf, err := m.Encode(oid, BinaryFormatCode, arg, buf)
 	if err != nil {
-		return nil, err
+		if argBuf2, err2 := tryScanStringCopyValueThenEncode(m, buf, oid, arg); err2 == nil {
+			argBuf = argBuf2
+		} else {
+			return nil, err
+		}
 	}
+
 	if argBuf != nil {
 		buf = argBuf
 		pgio.SetInt32(buf[sp:], int32(len(buf[sp:])-4))
 	}
 	return buf, nil
+}
+
+func tryScanStringCopyValueThenEncode(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, error) {
+	s, ok := arg.(string)
+	if !ok {
+		return nil, errors.New("not a string")
+	}
+
+	var v any
+	err := m.Scan(oid, TextFormatCode, []byte(s), &v)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.Encode(oid, BinaryFormatCode, v, buf)
 }

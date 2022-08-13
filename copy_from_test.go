@@ -615,3 +615,32 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 
 	ensureConnValid(t, conn)
 }
+
+func TestConnCopyFromAutomaticStringConversion(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	mustExec(t, conn, `create temporary table foo(
+		a int8
+	)`)
+
+	inputRows := [][]interface{}{
+		{"42"},
+		{"7"},
+		{8},
+	}
+
+	copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
+	require.NoError(t, err)
+	require.EqualValues(t, len(inputRows), copyCount)
+
+	rows, _ := conn.Query(context.Background(), "select * from foo")
+	nums, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	require.NoError(t, err)
+
+	require.Equal(t, []int64{42, 7, 8}, nums)
+
+	ensureConnValid(t, conn)
+}
