@@ -139,5 +139,13 @@ implementing NumericScanner and passes that to the Codec.
 Map.Scan and Map.Encode are convenience methods that wrap Map.PlanScan and Map.PlanEncode.  Determining how to scan or
 encode a particular type may be a time consuming operation. Hence the planning and execution steps of a conversion are
 internally separated.
+
+Reducing Compiled Binary Size
+
+pgx.QueryExecModeExec and pgx.QueryExecModeSimpleProtocol require the default PostgreSQL type to be registered for each
+Go type used as a query parameter. By default pgx does this for all supported types and their array variants. If an
+application does not use those query execution modes or manually registers the default PostgreSQL type for the types it
+uses as query parameters it can use the build tag nopgxregisterdefaulttypes. This omits the default type registration
+and reduces the compiled binary size by ~2MB.
 */
 package pgtype
