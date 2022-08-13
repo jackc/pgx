@@ -118,14 +118,14 @@ func skipPostgreSQLVersionLessThan(t testing.TB, minVersion int64) {
 	}
 }
 
-func TestTypeMapScanNilIsNoOp(t *testing.T) {
+func TestMapScanNilIsNoOp(t *testing.T) {
 	m := pgtype.NewMap()
 
 	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), nil)
 	assert.NoError(t, err)
 }
 
-func TestTypeMapScanTextFormatInterfacePtr(t *testing.T) {
+func TestMapScanTextFormatInterfacePtr(t *testing.T) {
 	m := pgtype.NewMap()
 	var got any
 	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, []byte("foo"), &got)
@@ -133,7 +133,7 @@ func TestTypeMapScanTextFormatInterfacePtr(t *testing.T) {
 	assert.Equal(t, "foo", got)
 }
 
-func TestTypeMapScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
+func TestMapScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
 	m := pgtype.NewMap()
 	var got []byte
 	err := m.Scan(pgtype.JSONBOID, pgx.TextFormatCode, []byte("{}"), &got)
@@ -141,7 +141,7 @@ func TestTypeMapScanTextFormatNonByteaIntoByteSlice(t *testing.T) {
 	assert.Equal(t, []byte("{}"), got)
 }
 
-func TestTypeMapScanBinaryFormatInterfacePtr(t *testing.T) {
+func TestMapScanBinaryFormatInterfacePtr(t *testing.T) {
 	m := pgtype.NewMap()
 	var got any
 	err := m.Scan(pgtype.TextOID, pgx.BinaryFormatCode, []byte("foo"), &got)
@@ -149,7 +149,7 @@ func TestTypeMapScanBinaryFormatInterfacePtr(t *testing.T) {
 	assert.Equal(t, "foo", got)
 }
 
-func TestTypeMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
+func TestMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	unknownOID := uint32(999999)
 	srcBuf := []byte("foo")
 	m := pgtype.NewMap()
@@ -175,7 +175,7 @@ func TestTypeMapScanUnknownOIDToStringsAndBytes(t *testing.T) {
 	assert.Equal(t, []byte("foo"), []byte(rb))
 }
 
-func TestTypeMapScanPointerToNilStructDoesNotCrash(t *testing.T) {
+func TestMapScanPointerToNilStructDoesNotCrash(t *testing.T) {
 	m := pgtype.NewMap()
 
 	type myStruct struct{}
@@ -184,7 +184,7 @@ func TestTypeMapScanPointerToNilStructDoesNotCrash(t *testing.T) {
 	require.NotNil(t, err)
 }
 
-func TestTypeMapScanUnknownOIDTextFormat(t *testing.T) {
+func TestMapScanUnknownOIDTextFormat(t *testing.T) {
 	m := pgtype.NewMap()
 
 	var n int32
@@ -193,7 +193,7 @@ func TestTypeMapScanUnknownOIDTextFormat(t *testing.T) {
 	assert.EqualValues(t, 123, n)
 }
 
-func TestTypeMapScanUnknownOIDIntoSQLScanner(t *testing.T) {
+func TestMapScanUnknownOIDIntoSQLScanner(t *testing.T) {
 	m := pgtype.NewMap()
 
 	var s sql.NullString
@@ -265,7 +265,7 @@ func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	require.Equal(t, []string{"foo", "bar"}, *v)
 }
 
-func BenchmarkTypeMapScanInt4IntoBinaryDecoder(b *testing.B) {
+func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v pgtype.Int4
@@ -282,7 +282,7 @@ func BenchmarkTypeMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	}
 }
 
-func BenchmarkTypeMapScanInt4IntoGoInt32(b *testing.B) {
+func BenchmarkMapScanInt4IntoGoInt32(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
 	var v int32
