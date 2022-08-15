@@ -1475,6 +1475,10 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	case *pgproto3.RowDescription:
 		rr.fieldDescriptions = make([]pgproto3.FieldDescription, len(msg.Fields))
 		copy(rr.fieldDescriptions, msg.Fields)
+		for i := range rr.fieldDescriptions {
+			rr.fieldDescriptions[i].Name = make([]byte, len(msg.Fields[i].Name))
+			copy(rr.fieldDescriptions[i].Name, msg.Fields[i].Name)
+		}
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(rr.pgConn.makeCommandTag(msg.CommandTag), nil)
 	case *pgproto3.EmptyQueryResponse:
