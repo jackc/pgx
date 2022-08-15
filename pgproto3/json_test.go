@@ -314,7 +314,7 @@ func TestJSONUnmarshalRowDescription(t *testing.T) {
 	want := RowDescription{
 		Fields: []FieldDescription{
 			{
-				Name:         []byte("generate_series"),
+				Name:         "generate_series",
 				DataTypeOID:  23,
 				DataTypeSize: 4,
 				TypeModifier: -1,

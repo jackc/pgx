@@ -48,7 +48,7 @@ func (p *PgFortuneBackend) Run() error {
 
 			buf := (&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
 				{
-					Name:                 []byte("fortune"),
+					Name:                 "fortune",
 					TableOID:             0,
 					TableAttributeNumber: 0,
 					DataTypeOID:          25,

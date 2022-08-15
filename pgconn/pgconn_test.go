@@ -641,13 +641,13 @@ func TestConnExecMultipleQueriesEagerFieldDescriptions(t *testing.T) {
 
 	require.True(t, mrr.NextResult())
 	require.Len(t, mrr.ResultReader().FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), mrr.ResultReader().FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", mrr.ResultReader().FieldDescriptions()[0].Name)
 	_, err = mrr.ResultReader().Close()
 	require.NoError(t, err)
 
 	require.True(t, mrr.NextResult())
 	require.Len(t, mrr.ResultReader().FieldDescriptions(), 1)
-	assert.Equal(t, []byte("num"), mrr.ResultReader().FieldDescriptions()[0].Name)
+	assert.Equal(t, "num", mrr.ResultReader().FieldDescriptions()[0].Name)
 	_, err = mrr.ResultReader().Close()
 	require.NoError(t, err)
 
@@ -771,7 +771,7 @@ func TestConnExecParams(t *testing.T) {
 
 	result := pgConn.ExecParams(context.Background(), "select $1::text as msg", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
 	require.Len(t, result.FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
 
 	rowCount := 0
 	for result.NextRow() {
@@ -936,7 +936,7 @@ func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
 
 	result := pgConn.ExecParams(context.Background(), "select $1::text as msg", [][]byte{[]byte("Hello, world")}, nil, nil, nil)
 	require.Len(t, result.FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
 
 	rowCount := 0
 	for result.NextRow() {
@@ -967,7 +967,7 @@ func TestConnExecPrepared(t *testing.T) {
 
 	result := pgConn.ExecPrepared(context.Background(), "ps1", [][]byte{[]byte("Hello, world")}, nil, nil)
 	require.Len(t, result.FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), result.FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", result.FieldDescriptions()[0].Name)
 
 	rowCount := 0
 	for result.NextRow() {
@@ -2013,7 +2013,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Execute{}))
 	steps = append(steps, pgmock.ExpectAnyMessage(&pgproto3.Sync{}))
 	steps = append(steps, pgmock.SendMessage(&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
-		{Name: []byte("mock")},
+		{Name: "mock"},
 	}}))
 	steps = append(steps, pgmock.SendMessage(&pgproto3.CommandComplete{CommandTag: []byte("SELECT 0")}))
 	steps = append(steps, pgmock.SendMessage(&pgproto3.ErrorResponse{Severity: "FATAL", Code: "57P01"}))
@@ -2156,7 +2156,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, sd.Fields[0].Name, "a")
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2164,7 +2164,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok = results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "b")
+	require.Equal(t, sd.Fields[0].Name, "b")
 	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2172,7 +2172,7 @@ func TestPipelinePrepare(t *testing.T) {
 	sd, ok = results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "c")
+	require.Equal(t, sd.Fields[0].Name, "c")
 	require.Equal(t, []uint32{}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2223,7 +2223,7 @@ func TestPipelinePrepareError(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, sd.Fields[0].Name, "a")
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2264,7 +2264,7 @@ func TestPipelinePrepareAndDeallocate(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "a")
+	require.Equal(t, sd.Fields[0].Name, "a")
 	require.Equal(t, []uint32{pgtype.Int8OID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
@@ -2395,7 +2395,7 @@ func TestPipelinePrepareQuery(t *testing.T) {
 	sd, ok := results.(*pgconn.StatementDescription)
 	require.Truef(t, ok, "expected StatementDescription, got: %#v", results)
 	require.Len(t, sd.Fields, 1)
-	require.Equal(t, string(sd.Fields[0].Name), "msg")
+	require.Equal(t, sd.Fields[0].Name, "msg")
 	require.Equal(t, []uint32{pgtype.TextOID}, sd.ParamOIDs)
 
 	results, err = pipeline.GetResults()
