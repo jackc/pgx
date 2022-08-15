@@ -297,6 +297,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"sslcert":              {},
 		"sslrootcert":          {},
 		"sslpassword":          {},
+		"sslsni":               {},
 		"krbspn":               {},
 		"krbsrvname":           {},
 		"target_session_attrs": {},
@@ -424,6 +425,7 @@ func parseEnvSettings() map[string]string {
 		"PGSSLMODE":            "sslmode",
 		"PGSSLKEY":             "sslkey",
 		"PGSSLCERT":            "sslcert",
+		"PGSSLSNI":             "sslsni",
 		"PGSSLROOTCERT":        "sslrootcert",
 		"PGSSLPASSWORD":        "sslpassword",
 		"PGTARGETSESSIONATTRS": "target_session_attrs",
@@ -619,10 +621,14 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	sslcert := settings["sslcert"]
 	sslkey := settings["sslkey"]
 	sslpassword := settings["sslpassword"]
+	sslsni := settings["sslsni"]
 
 	// Match libpq default behavior
 	if sslmode == "" {
 		sslmode = "prefer"
+	}
+	if sslsni == "" {
+		sslsni = "1"
 	}
 
 	tlsConfig := &tls.Config{}
@@ -754,6 +760,10 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			return nil, fmt.Errorf("unable to load cert: %w", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	if sslsni == "1" {
+		tlsConfig.ServerName = host
 	}
 
 	switch sslmode {
