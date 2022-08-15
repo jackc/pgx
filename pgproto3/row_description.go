@@ -34,7 +34,7 @@ func (fd FieldDescription) MarshalJSON() ([]byte, error) {
 		TypeModifier         int32
 		Format               int16
 	}{
-		Name:                 string(fd.Name),
+		Name:                 fd.Name,
 		TableOID:             fd.TableOID,
 		TableAttributeNumber: fd.TableAttributeNumber,
 		DataTypeOID:          fd.DataTypeOID,

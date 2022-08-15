@@ -510,7 +510,7 @@ func (r *Rows) Columns() []string {
 		fields := r.rows.FieldDescriptions()
 		r.columnNames = make([]string, len(fields))
 		for i, fd := range fields {
-			r.columnNames[i] = string(fd.Name)
+			r.columnNames[i] = fd.Name
 		}
 	}
 
