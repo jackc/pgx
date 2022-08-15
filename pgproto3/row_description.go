@@ -14,7 +14,7 @@ const (
 )
 
 type FieldDescription struct {
-	Name                 []byte
+	Name                 string
 	TableOID             uint32
 	TableAttributeNumber uint16
 	DataTypeOID          uint32
@@ -70,7 +70,7 @@ func (dst *RowDescription) Decode(src []byte) error {
 		if idx < 0 {
 			return &invalidMessageFormatErr{messageType: "RowDescription"}
 		}
-		fd.Name = src[rp : rp+idx]
+		fd.Name = string(src[rp : rp+idx])
 		rp += idx + 1
 
 		// Since buf.Next() doesn't return an error if we hit the end of the buffer
@@ -152,7 +152,7 @@ func (dst *RowDescription) UnmarshalJSON(data []byte) error {
 	dst.Fields = make([]FieldDescription, len(msg.Fields))
 	for n, field := range msg.Fields {
 		dst.Fields[n] = FieldDescription{
-			Name:                 []byte(field.Name),
+			Name:                 field.Name,
 			TableOID:             field.TableOID,
 			TableAttributeNumber: field.TableAttributeNumber,
 			DataTypeOID:          field.DataTypeOID,

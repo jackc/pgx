@@ -365,7 +365,7 @@ func (t *tracer) traceRowDescription(sender byte, encodedLen int32, msg *RowDesc
 	t.beginTrace(sender, encodedLen, "RowDescription")
 	fmt.Fprintf(t.buf, "\t %d", len(msg.Fields))
 	for _, fd := range msg.Fields {
-		fmt.Fprintf(t.buf, ` %s %d %d %d %d %d %d`, traceDoubleQuotedString(fd.Name), fd.TableOID, fd.TableAttributeNumber, fd.DataTypeOID, fd.DataTypeSize, fd.TypeModifier, fd.Format)
+		fmt.Fprintf(t.buf, ` %s %d %d %d %d %d %d`, traceDoubleQuotedString([]byte(fd.Name)), fd.TableOID, fd.TableAttributeNumber, fd.DataTypeOID, fd.DataTypeSize, fd.TypeModifier, fd.Format)
 	}
 	t.finishTrace()
 }
