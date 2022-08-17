@@ -53,6 +53,7 @@ func TestParseConfig(t *testing.T) {
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "localhost",
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
@@ -94,6 +95,7 @@ func TestParseConfig(t *testing.T) {
 						Port: 5432,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
+							ServerName:         "localhost",
 						},
 					},
 				},
@@ -111,6 +113,7 @@ func TestParseConfig(t *testing.T) {
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "localhost",
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
@@ -133,6 +136,7 @@ func TestParseConfig(t *testing.T) {
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "localhost",
 				},
 				RuntimeParams: map[string]string{},
 			},
@@ -148,6 +152,7 @@ func TestParseConfig(t *testing.T) {
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "localhost",
 				},
 				RuntimeParams: map[string]string{},
 			},
@@ -519,6 +524,7 @@ func TestParseConfig(t *testing.T) {
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "foo",
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
@@ -532,6 +538,7 @@ func TestParseConfig(t *testing.T) {
 						Port: 5432,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
+							ServerName:         "bar",
 						}},
 					&pgconn.FallbackConfig{
 						Host:      "bar",
@@ -543,6 +550,7 @@ func TestParseConfig(t *testing.T) {
 						Port: 5432,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
+							ServerName:         "baz",
 						}},
 					&pgconn.FallbackConfig{
 						Host:      "baz",
@@ -645,6 +653,82 @@ func TestParseConfig(t *testing.T) {
 				Port:          5432,
 				Database:      "mydb",
 				TLSConfig:     nil,
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is set by default",
+			connString: "postgres://jack:secret@sni.test:5432/mydb?sslmode=require",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "sni.test",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					ServerName:         "sni.test",
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is not set for IPv4",
+			connString: "postgres://jack:secret@1.1.1.1:5432/mydb?sslmode=require",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "1.1.1.1",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is not set for IPv6",
+			connString: "postgres://jack:secret@[::1]:5432/mydb?sslmode=require",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "::1",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is not set when disabled (URL-style)",
+			connString: "postgres://jack:secret@sni.test:5432/mydb?sslmode=require&sslsni=0",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "sni.test",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
+			},
+		},
+		{
+			name:       "SNI is not set when disabled (key/value style)",
+			connString: "user=jack password=secret host=sni.test dbname=mydb sslmode=require sslsni=0",
+			config: &pgconn.Config{
+				User:     "jack",
+				Password: "secret",
+				Host:     "sni.test",
+				Port:     5432,
+				Database: "mydb",
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
 				RuntimeParams: map[string]string{},
 			},
 		},
@@ -820,7 +904,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 		}
 	}
 
-	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT"}
+	pgEnvvars := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGAPPNAME", "PGSSLMODE", "PGCONNECT_TIMEOUT", "PGSSLSNI"}
 
 	savedEnv := make(map[string]string)
 	for _, n := range pgEnvvars {
@@ -882,6 +966,23 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 				ConnectTimeout: 10 * time.Second,
 				TLSConfig:      nil,
 				RuntimeParams:  map[string]string{"application_name": "pgxtest"},
+			},
+		},
+		{
+			name: "SNI can be disabled via environment variable",
+			envvars: map[string]string{
+				"PGHOST":    "test.foo",
+				"PGSSLMODE": "require",
+				"PGSSLSNI":  "0",
+			},
+			config: &pgconn.Config{
+				User: osUserName,
+				Host: "test.foo",
+				Port: 5432,
+				TLSConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+				RuntimeParams: map[string]string{},
 			},
 		},
 	}
@@ -974,6 +1075,7 @@ application_name = spaced string
 				Port:     9999,
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "abc.example.com",
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
@@ -995,6 +1097,7 @@ application_name = spaced string
 				User:     "defuser",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
+					ServerName:         "def.example.com",
 				},
 				RuntimeParams: map[string]string{"application_name": "spaced string"},
 				Fallbacks: []*pgconn.FallbackConfig{
