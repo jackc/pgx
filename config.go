@@ -762,7 +762,10 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	if sslsni == "1" {
+	// Set Server Name Indication (SNI), if enabled by connection parameters.
+	// Per RFC 6066, do not set it if the host is a literal IP address (IPv4
+	// or IPv6).
+	if sslsni == "1" && net.ParseIP(host) == nil {
 		tlsConfig.ServerName = host
 	}
 
