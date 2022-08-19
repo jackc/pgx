@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -2738,7 +2739,7 @@ func TestSNISupport(t *testing.T) {
 					return
 				}
 
-				backend := pgproto3.NewBackend(pgproto3.NewChunkReader(conn), conn)
+				backend := pgproto3.NewBackend(conn, conn)
 				startupMessage, err := backend.ReceiveStartupMessage()
 				if err != nil {
 					serverErrChan <- err
