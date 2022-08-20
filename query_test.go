@@ -66,7 +66,7 @@ func TestConnQueryRowsFieldDescriptionsBeforeNext(t *testing.T) {
 	defer rows.Close()
 
 	require.Len(t, rows.FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), rows.FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", rows.FieldDescriptions()[0].Name)
 }
 
 func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {

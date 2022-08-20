@@ -3,22 +3,21 @@ package pgxpool
 import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgproto3"
 )
 
 type errRows struct {
 	err error
 }
 
-func (errRows) Close()                                         {}
-func (e errRows) Err() error                                   { return e.err }
-func (errRows) CommandTag() pgconn.CommandTag                  { return pgconn.CommandTag{} }
-func (errRows) FieldDescriptions() []pgproto3.FieldDescription { return nil }
-func (errRows) Next() bool                                     { return false }
-func (e errRows) Scan(dest ...any) error                       { return e.err }
-func (e errRows) Values() ([]any, error)                       { return nil, e.err }
-func (e errRows) RawValues() [][]byte                          { return nil }
-func (e errRows) Conn() *pgx.Conn                              { return nil }
+func (errRows) Close()                                       {}
+func (e errRows) Err() error                                 { return e.err }
+func (errRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (errRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
+func (errRows) Next() bool                                   { return false }
+func (e errRows) Scan(dest ...any) error                     { return e.err }
+func (e errRows) Values() ([]any, error)                     { return nil, e.err }
+func (e errRows) RawValues() [][]byte                        { return nil }
+func (e errRows) Conn() *pgx.Conn                            { return nil }
 
 type errRow struct {
 	err error
@@ -51,7 +50,7 @@ func (rows *poolRows) CommandTag() pgconn.CommandTag {
 	return rows.r.CommandTag()
 }
 
-func (rows *poolRows) FieldDescriptions() []pgproto3.FieldDescription {
+func (rows *poolRows) FieldDescriptions() []pgconn.FieldDescription {
 	return rows.r.FieldDescriptions()
 }
 

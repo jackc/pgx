@@ -83,6 +83,7 @@ type PgConn struct {
 	multiResultReader MultiResultReader
 	pipeline          Pipeline
 	contextWatcher    *ctxwatch.ContextWatcher
+	fieldDescriptions [16]FieldDescription
 
 	cleanupDone chan struct{}
 }
@@ -526,9 +527,10 @@ func (pgConn *PgConn) PID() uint32 {
 // TxStatus returns the current TxStatus as reported by the server in the ReadyForQuery message.
 //
 // Possible return values:
-//   'I' - idle / not in transaction
-//   'T' - in a transaction
-//   'E' - in a failed transaction
+//
+//	'I' - idle / not in transaction
+//	'T' - in a transaction
+//	'E' - in a failed transaction
 //
 // See https://www.postgresql.org/docs/current/protocol-message-formats.html.
 func (pgConn *PgConn) TxStatus() byte {
@@ -714,11 +716,41 @@ func (ct CommandTag) Select() bool {
 	return strings.HasPrefix(ct.s, "SELECT")
 }
 
+type FieldDescription struct {
+	Name                 string
+	TableOID             uint32
+	TableAttributeNumber uint16
+	DataTypeOID          uint32
+	DataTypeSize         int16
+	TypeModifier         int32
+	Format               int16
+}
+
+func (pgConn *PgConn) convertRowDescription(dst []FieldDescription, rd *pgproto3.RowDescription) []FieldDescription {
+	if cap(dst) >= len(rd.Fields) {
+		dst = dst[:len(rd.Fields):len(rd.Fields)]
+	} else {
+		dst = make([]FieldDescription, len(rd.Fields))
+	}
+
+	for i := range rd.Fields {
+		dst[i].Name = string(rd.Fields[i].Name)
+		dst[i].TableOID = rd.Fields[i].TableOID
+		dst[i].TableAttributeNumber = rd.Fields[i].TableAttributeNumber
+		dst[i].DataTypeOID = rd.Fields[i].DataTypeOID
+		dst[i].DataTypeSize = rd.Fields[i].DataTypeSize
+		dst[i].TypeModifier = rd.Fields[i].TypeModifier
+		dst[i].Format = rd.Fields[i].Format
+	}
+
+	return dst
+}
+
 type StatementDescription struct {
 	Name      string
 	SQL       string
 	ParamOIDs []uint32
-	Fields    []pgproto3.FieldDescription
+	Fields    []FieldDescription
 }
 
 // Prepare creates a prepared statement. If the name is empty, the anonymous prepared statement will be used. This
@@ -765,8 +797,7 @@ readloop:
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
-			psd.Fields = make([]pgproto3.FieldDescription, len(msg.Fields))
-			copy(psd.Fields, msg.Fields)
+			psd.Fields = pgConn.convertRowDescription(nil, msg)
 		case *pgproto3.ErrorResponse:
 			parseErr = ErrorResponseToPgError(msg)
 		case *pgproto3.ReadyForQuery:
@@ -1281,8 +1312,9 @@ func (mrr *MultiResultReader) NextResult() bool {
 				pgConn:            mrr.pgConn,
 				multiResultReader: mrr,
 				ctx:               mrr.ctx,
-				fieldDescriptions: msg.Fields,
+				fieldDescriptions: mrr.pgConn.convertRowDescription(mrr.pgConn.fieldDescriptions[:], msg),
 			}
+
 			mrr.rr = &mrr.pgConn.resultReader
 			return true
 		case *pgproto3.CommandComplete:
@@ -1325,7 +1357,7 @@ type ResultReader struct {
 	pipeline          *Pipeline
 	ctx               context.Context
 
-	fieldDescriptions []pgproto3.FieldDescription
+	fieldDescriptions []FieldDescription
 	rowValues         [][]byte
 	commandTag        CommandTag
 	commandConcluded  bool
@@ -1335,7 +1367,7 @@ type ResultReader struct {
 
 // Result is the saved query response that is returned by calling Read on a ResultReader.
 type Result struct {
-	FieldDescriptions []pgproto3.FieldDescription
+	FieldDescriptions []FieldDescription
 	Rows              [][][]byte
 	CommandTag        CommandTag
 	Err               error
@@ -1347,7 +1379,7 @@ func (rr *ResultReader) Read() *Result {
 
 	for rr.NextRow() {
 		if br.FieldDescriptions == nil {
-			br.FieldDescriptions = make([]pgproto3.FieldDescription, len(rr.FieldDescriptions()))
+			br.FieldDescriptions = make([]FieldDescription, len(rr.FieldDescriptions()))
 			copy(br.FieldDescriptions, rr.FieldDescriptions())
 		}
 
@@ -1385,7 +1417,7 @@ func (rr *ResultReader) NextRow() bool {
 
 // FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until
 // the ResultReader is closed.
-func (rr *ResultReader) FieldDescriptions() []pgproto3.FieldDescription {
+func (rr *ResultReader) FieldDescriptions() []FieldDescription {
 	return rr.fieldDescriptions
 }
 
@@ -1473,7 +1505,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 
 	switch msg := msg.(type) {
 	case *pgproto3.RowDescription:
-		rr.fieldDescriptions = msg.Fields
+		rr.fieldDescriptions = rr.pgConn.convertRowDescription(rr.pgConn.fieldDescriptions[:], msg)
 	case *pgproto3.CommandComplete:
 		rr.concludeCommand(rr.pgConn.makeCommandTag(msg.CommandTag), nil)
 	case *pgproto3.EmptyQueryResponse:
@@ -1825,7 +1857,7 @@ func (p *Pipeline) GetResults() (results any, err error) {
 				pgConn:            p.conn,
 				pipeline:          p,
 				ctx:               p.ctx,
-				fieldDescriptions: msg.Fields,
+				fieldDescriptions: p.conn.convertRowDescription(p.conn.fieldDescriptions[:], msg),
 			}
 			return &p.conn.resultReader, nil
 		case *pgproto3.CommandComplete:
@@ -1872,8 +1904,7 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 			psd.ParamOIDs = make([]uint32, len(msg.ParameterOIDs))
 			copy(psd.ParamOIDs, msg.ParameterOIDs)
 		case *pgproto3.RowDescription:
-			psd.Fields = make([]pgproto3.FieldDescription, len(msg.Fields))
-			copy(psd.Fields, msg.Fields)
+			psd.Fields = p.conn.convertRowDescription(nil, msg)
 			return psd, nil
 
 		// NoData is returned instead of RowDescription when there is no expected result. e.g. An INSERT without a RETURNING
