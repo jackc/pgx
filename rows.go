@@ -9,7 +9,6 @@ import (
 
 	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -34,7 +33,7 @@ type Rows interface {
 	// CommandTag returns the command tag from this query. It is only available after Rows is closed.
 	CommandTag() pgconn.CommandTag
 
-	FieldDescriptions() []pgproto3.FieldDescription
+	FieldDescriptions() []pgconn.FieldDescription
 
 	// Next prepares the next row for reading. It returns true if there is another
 	// row and false if no more rows are available. It automatically closes rows
@@ -135,7 +134,7 @@ type baseRows struct {
 	rowCount    int
 }
 
-func (rows *baseRows) FieldDescriptions() []pgproto3.FieldDescription {
+func (rows *baseRows) FieldDescriptions() []pgconn.FieldDescription {
 	return rows.resultReader.FieldDescriptions()
 }
 
@@ -337,7 +336,7 @@ func (e ScanArgError) Unwrap() error {
 // fieldDescriptions - OID and format of values
 // values - the raw data as returned from the PostgreSQL server
 // dest - the destination that values will be decoded into
-func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgproto3.FieldDescription, values [][]byte, dest ...any) error {
+func ScanRow(typeMap *pgtype.Map, fieldDescriptions []pgconn.FieldDescription, values [][]byte, dest ...any) error {
 	if len(fieldDescriptions) != len(values) {
 		return fmt.Errorf("number of field descriptions must equal number of values, got %d and %d", len(fieldDescriptions), len(values))
 	}
@@ -395,7 +394,7 @@ func ForEachRow(rows Rows, scans []any, fn func() error) (pgconn.CommandTag, err
 
 // CollectableRow is the subset of Rows methods that a RowToFunc is allowed to call.
 type CollectableRow interface {
-	FieldDescriptions() []pgproto3.FieldDescription
+	FieldDescriptions() []pgconn.FieldDescription
 	Scan(dest ...any) error
 	Values() ([]any, error)
 	RawValues() [][]byte
