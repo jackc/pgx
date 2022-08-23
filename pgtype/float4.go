@@ -177,7 +177,7 @@ type scanPlanBinaryFloat4ToFloat32 struct{}
 
 func (scanPlanBinaryFloat4ToFloat32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -254,7 +254,7 @@ type scanPlanTextAnyToFloat32 struct{}
 
 func (scanPlanTextAnyToFloat32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	n, err := strconv.ParseFloat(string(src), 32)

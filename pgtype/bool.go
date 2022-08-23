@@ -240,7 +240,7 @@ type scanPlanBinaryBoolToBool struct{}
 
 func (scanPlanBinaryBoolToBool) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 1 {
@@ -261,7 +261,7 @@ type scanPlanTextAnyToBool struct{}
 
 func (scanPlanTextAnyToBool) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 1 {

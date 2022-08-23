@@ -86,10 +86,10 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		// A string cannot scan a NULL.
 		str := "foobar"
 		err = conn.QueryRow(ctx, "select null::json").Scan(&str)
-		require.EqualError(t, err, "can't scan into dest[0]: cannot scan null into *string")
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *string")
 
 		// A non-string cannot scan a NULL.
 		err = conn.QueryRow(ctx, "select null::json").Scan(&n)
-		require.EqualError(t, err, "can't scan into dest[0]: cannot scan null into *int")
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *int")
 	})
 }
