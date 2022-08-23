@@ -51,14 +51,33 @@ func (eqb *ExtendedQueryBuilder) Build(m *pgtype.Map, sd *pgconn.StatementDescri
 // must be an untyped nil.
 func (eqb *ExtendedQueryBuilder) appendParam(m *pgtype.Map, oid uint32, format int16, arg any) error {
 	if format == -1 {
-		format = eqb.chooseParameterFormatCode(m, oid, arg)
+		preferredFormat := eqb.chooseParameterFormatCode(m, oid, arg)
+		preferredErr := eqb.appendParam(m, oid, preferredFormat, arg)
+		if preferredErr == nil {
+			return nil
+		}
+
+		var otherFormat int16
+		if preferredFormat == TextFormatCode {
+			otherFormat = BinaryFormatCode
+		} else {
+			otherFormat = TextFormatCode
+		}
+
+		otherErr := eqb.appendParam(m, oid, otherFormat, arg)
+		if otherErr == nil {
+			return nil
+		}
+
+		return preferredErr // return the error from the preferred format
 	}
-	eqb.ParamFormats = append(eqb.ParamFormats, format)
 
 	v, err := eqb.encodeExtendedParamValue(m, oid, format, arg)
 	if err != nil {
 		return err
 	}
+
+	eqb.ParamFormats = append(eqb.ParamFormats, format)
 	eqb.ParamValues = append(eqb.ParamValues, v)
 
 	return nil
