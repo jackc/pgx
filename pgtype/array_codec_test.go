@@ -2,6 +2,8 @@ package pgtype_test
 
 import (
 	"context"
+	"encoding/hex"
+	"strings"
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
@@ -121,6 +123,37 @@ func TestArrayCodecAnySlice(t *testing.T) {
 			assert.NoErrorf(t, err, "%d", i)
 			assert.Equalf(t, tt.expected, actual, "%d", i)
 		}
+	})
+}
+
+// https://github.com/jackc/pgx/issues/1273#issuecomment-1218262703
+func TestArrayCodecSliceArgConversion(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		arg := []string{
+			"3ad95bfd-ecea-4032-83c3-0c823cafb372",
+			"951baf11-c0cc-4afc-a779-abff0611dbf1",
+			"8327f244-7e2f-45e7-a10b-fbdc9d6f3378",
+		}
+
+		var expected []pgtype.UUID
+
+		for _, s := range arg {
+			buf, err := hex.DecodeString(strings.ReplaceAll(s, "-", ""))
+			require.NoError(t, err)
+			var u pgtype.UUID
+			copy(u.Bytes[:], buf)
+			u.Valid = true
+			expected = append(expected, u)
+		}
+
+		var actual []pgtype.UUID
+		err := conn.QueryRow(
+			ctx,
+			"select $1::uuid[]",
+			arg,
+		).Scan(&actual)
+		require.NoError(t, err)
+		require.Equal(t, expected, actual)
 	})
 }
 
