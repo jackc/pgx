@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"reflect"
 )
 
@@ -129,6 +130,8 @@ func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 				return nil
 			}
 		}
+
+		return fmt.Errorf("cannot scan null into %T", dst)
 	}
 
 	return json.Unmarshal(src, dst)
