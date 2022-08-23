@@ -299,7 +299,7 @@ type scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %> struct{}
 
 func (scanPlanBinaryInt<%= pg_byte_size %>ToInt<%= dst_bit_size %>) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != <%= pg_byte_size %> {
@@ -333,7 +333,7 @@ type scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %> struct{}
 
 func (scanPlanBinaryInt<%= pg_byte_size %>ToUint<%= dst_bit_size %>) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != <%= pg_byte_size %> {
@@ -365,7 +365,7 @@ type scanPlanBinaryInt<%= pg_byte_size %>ToInt struct{}
 
 func (scanPlanBinaryInt<%= pg_byte_size %>ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != <%= pg_byte_size %> {
@@ -397,7 +397,7 @@ type scanPlanBinaryInt<%= pg_byte_size %>ToUint struct{}
 
 func (scanPlanBinaryInt<%= pg_byte_size %>ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != <%= pg_byte_size %> {
@@ -482,7 +482,7 @@ type scanPlanTextAnyToInt<%= type_suffix %> struct{}
 
 func (scanPlanTextAnyToInt<%= type_suffix %>) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int<%= type_suffix %>)
@@ -503,7 +503,7 @@ type scanPlanTextAnyToUint<%= type_suffix %> struct{}
 
 func (scanPlanTextAnyToUint<%= type_suffix %>) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint<%= type_suffix %>)

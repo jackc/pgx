@@ -180,7 +180,7 @@ type scanPlanTextAnyToString struct{}
 
 func (scanPlanTextAnyToString) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p := (dst).(*string)

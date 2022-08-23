@@ -296,7 +296,7 @@ type scanPlanBinaryInt2ToInt8 struct{}
 
 func (scanPlanBinaryInt2ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -324,7 +324,7 @@ type scanPlanBinaryInt2ToUint8 struct{}
 
 func (scanPlanBinaryInt2ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -354,7 +354,7 @@ type scanPlanBinaryInt2ToInt16 struct{}
 
 func (scanPlanBinaryInt2ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -375,7 +375,7 @@ type scanPlanBinaryInt2ToUint16 struct{}
 
 func (scanPlanBinaryInt2ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -401,7 +401,7 @@ type scanPlanBinaryInt2ToInt32 struct{}
 
 func (scanPlanBinaryInt2ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -422,7 +422,7 @@ type scanPlanBinaryInt2ToUint32 struct{}
 
 func (scanPlanBinaryInt2ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -448,7 +448,7 @@ type scanPlanBinaryInt2ToInt64 struct{}
 
 func (scanPlanBinaryInt2ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -469,7 +469,7 @@ type scanPlanBinaryInt2ToUint64 struct{}
 
 func (scanPlanBinaryInt2ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -495,7 +495,7 @@ type scanPlanBinaryInt2ToInt struct{}
 
 func (scanPlanBinaryInt2ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -516,7 +516,7 @@ type scanPlanBinaryInt2ToUint struct{}
 
 func (scanPlanBinaryInt2ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 2 {
@@ -856,7 +856,7 @@ type scanPlanBinaryInt4ToInt8 struct{}
 
 func (scanPlanBinaryInt4ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -884,7 +884,7 @@ type scanPlanBinaryInt4ToUint8 struct{}
 
 func (scanPlanBinaryInt4ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -914,7 +914,7 @@ type scanPlanBinaryInt4ToInt16 struct{}
 
 func (scanPlanBinaryInt4ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -942,7 +942,7 @@ type scanPlanBinaryInt4ToUint16 struct{}
 
 func (scanPlanBinaryInt4ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -972,7 +972,7 @@ type scanPlanBinaryInt4ToInt32 struct{}
 
 func (scanPlanBinaryInt4ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -993,7 +993,7 @@ type scanPlanBinaryInt4ToUint32 struct{}
 
 func (scanPlanBinaryInt4ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -1019,7 +1019,7 @@ type scanPlanBinaryInt4ToInt64 struct{}
 
 func (scanPlanBinaryInt4ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -1040,7 +1040,7 @@ type scanPlanBinaryInt4ToUint64 struct{}
 
 func (scanPlanBinaryInt4ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -1066,7 +1066,7 @@ type scanPlanBinaryInt4ToInt struct{}
 
 func (scanPlanBinaryInt4ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -1087,7 +1087,7 @@ type scanPlanBinaryInt4ToUint struct{}
 
 func (scanPlanBinaryInt4ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 4 {
@@ -1427,7 +1427,7 @@ type scanPlanBinaryInt8ToInt8 struct{}
 
 func (scanPlanBinaryInt8ToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1455,7 +1455,7 @@ type scanPlanBinaryInt8ToUint8 struct{}
 
 func (scanPlanBinaryInt8ToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1485,7 +1485,7 @@ type scanPlanBinaryInt8ToInt16 struct{}
 
 func (scanPlanBinaryInt8ToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1513,7 +1513,7 @@ type scanPlanBinaryInt8ToUint16 struct{}
 
 func (scanPlanBinaryInt8ToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1543,7 +1543,7 @@ type scanPlanBinaryInt8ToInt32 struct{}
 
 func (scanPlanBinaryInt8ToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1571,7 +1571,7 @@ type scanPlanBinaryInt8ToUint32 struct{}
 
 func (scanPlanBinaryInt8ToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1601,7 +1601,7 @@ type scanPlanBinaryInt8ToInt64 struct{}
 
 func (scanPlanBinaryInt8ToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1622,7 +1622,7 @@ type scanPlanBinaryInt8ToUint64 struct{}
 
 func (scanPlanBinaryInt8ToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1648,7 +1648,7 @@ type scanPlanBinaryInt8ToInt struct{}
 
 func (scanPlanBinaryInt8ToInt) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1676,7 +1676,7 @@ type scanPlanBinaryInt8ToUint struct{}
 
 func (scanPlanBinaryInt8ToUint) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	if len(src) != 8 {
@@ -1748,7 +1748,7 @@ type scanPlanTextAnyToInt8 struct{}
 
 func (scanPlanTextAnyToInt8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int8)
@@ -1769,7 +1769,7 @@ type scanPlanTextAnyToUint8 struct{}
 
 func (scanPlanTextAnyToUint8) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint8)
@@ -1790,7 +1790,7 @@ type scanPlanTextAnyToInt16 struct{}
 
 func (scanPlanTextAnyToInt16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int16)
@@ -1811,7 +1811,7 @@ type scanPlanTextAnyToUint16 struct{}
 
 func (scanPlanTextAnyToUint16) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint16)
@@ -1832,7 +1832,7 @@ type scanPlanTextAnyToInt32 struct{}
 
 func (scanPlanTextAnyToInt32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int32)
@@ -1853,7 +1853,7 @@ type scanPlanTextAnyToUint32 struct{}
 
 func (scanPlanTextAnyToUint32) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint32)
@@ -1874,7 +1874,7 @@ type scanPlanTextAnyToInt64 struct{}
 
 func (scanPlanTextAnyToInt64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int64)
@@ -1895,7 +1895,7 @@ type scanPlanTextAnyToUint64 struct{}
 
 func (scanPlanTextAnyToUint64) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint64)
@@ -1916,7 +1916,7 @@ type scanPlanTextAnyToInt struct{}
 
 func (scanPlanTextAnyToInt) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*int)
@@ -1937,7 +1937,7 @@ type scanPlanTextAnyToUint struct{}
 
 func (scanPlanTextAnyToUint) Scan(src []byte, dst any) error {
 	if src == nil {
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	p, ok := (dst).(*uint)

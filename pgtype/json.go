@@ -131,7 +131,7 @@ func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 			}
 		}
 
-		return fmt.Errorf("cannot scan null into %T", dst)
+		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
 	return json.Unmarshal(src, dst)
