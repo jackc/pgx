@@ -667,6 +667,11 @@ type CommandTag struct {
 	s string
 }
 
+// NewCommandTag makes a CommandTag from s.
+func NewCommandTag(s string) CommandTag {
+	return CommandTag{s: s}
+}
+
 // RowsAffected returns the number of rows affected. If the CommandTag was not
 // for a row affecting command (e.g. "CREATE TABLE") then it returns 0.
 func (ct CommandTag) RowsAffected() int64 {
