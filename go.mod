@@ -11,7 +11,7 @@ require (
 	github.com/jackc/pgio v1.0.0
 	github.com/jackc/pgproto3/v2 v2.3.1
 	github.com/jackc/pgtype v1.12.0
-	github.com/jackc/puddle v1.2.1
+	github.com/jackc/puddle v1.3.0
 	github.com/rs/zerolog v1.15.0
 	github.com/shopspring/decimal v1.2.0
 	github.com/sirupsen/logrus v1.4.2
