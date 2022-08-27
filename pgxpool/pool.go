@@ -72,6 +72,12 @@ func (cr *connResource) getPoolRows(c *Conn, r pgx.Rows) *poolRows {
 
 // Pool allows for connection reuse.
 type Pool struct {
+	// 64 bit fields accessed with atomics must be at beginning of struct to guarantee alignment for certain 32-bit
+	// architectures. See BUGS section of https://pkg.go.dev/sync/atomic and https://github.com/jackc/pgx/issues/1288.
+	newConnsCount        int64
+	lifetimeDestroyCount int64
+	idleDestroyCount     int64
+
 	p                     *puddle.Pool[*connResource]
 	config                *Config
 	beforeConnect         func(context.Context, *pgx.ConnConfig) error
@@ -86,10 +92,6 @@ type Pool struct {
 	healthCheckPeriod     time.Duration
 
 	healthCheckChan chan struct{}
-
-	newConnsCount        int64
-	lifetimeDestroyCount int64
-	idleDestroyCount     int64
 
 	closeOnce sync.Once
 	closeChan chan struct{}
