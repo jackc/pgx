@@ -820,6 +820,7 @@ func (c *Conn) logBatchResults(ctx context.Context, startTime time.Time, results
 			endTime := time.Now()
 			c.log(ctx, LogLevelError, "SendBatch", map[string]interface{}{"err": results.err, "time": endTime.Sub(startTime)})
 		}
+		return results
 	}
 
 	if c.shouldLog(LogLevelInfo) {
