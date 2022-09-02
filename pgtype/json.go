@@ -134,6 +134,9 @@ func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
+	elem := reflect.ValueOf(dst).Elem()
+	elem.Set(reflect.Zero(elem.Type()))
+
 	return json.Unmarshal(src, dst)
 }
 
