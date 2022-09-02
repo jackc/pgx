@@ -93,3 +93,16 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *int")
 	})
 }
+
+func TestJSONCodecClearExistingValueBeforeUnmarshal(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		m := map[string]any{}
+		err := conn.QueryRow(ctx, `select '{"foo": "bar"}'::json`).Scan(&m)
+		require.NoError(t, err)
+		require.Equal(t, map[string]any{"foo": "bar"}, m)
+
+		err = conn.QueryRow(ctx, `select '{"baz": "quz"}'::json`).Scan(&m)
+		require.NoError(t, err)
+		require.Equal(t, map[string]any{"baz": "quz"}, m)
+	})
+}
