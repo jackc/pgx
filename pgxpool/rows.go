@@ -23,6 +23,7 @@ type errRow struct {
 	err error
 }
 
+func (e errRow) Err() error                     { return e.err }
 func (e errRow) Scan(dest ...interface{}) error { return e.err }
 
 type poolRows struct {
@@ -90,6 +91,10 @@ type poolRow struct {
 	r   pgx.Row
 	c   *Conn
 	err error
+}
+
+func (row *poolRow) Err() error {
+	return row.err
 }
 
 func (row *poolRow) Scan(dest ...interface{}) error {

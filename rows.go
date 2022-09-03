@@ -66,6 +66,9 @@ type Row interface {
 	// rows were found it returns ErrNoRows. If multiple rows are returned it
 	// ignores all but the first.
 	Scan(dest ...interface{}) error
+
+	// Err returns any error that occurred while running the query.
+	Err() error
 }
 
 // connRow implements the Row interface for Conn.QueryRow.
@@ -87,6 +90,11 @@ func (r *connRow) Scan(dest ...interface{}) (err error) {
 
 	rows.Scan(dest...)
 	rows.Close()
+	return rows.Err()
+}
+
+func (r *connRow) Err() error {
+	rows := (*connRows)(r)
 	return rows.Err()
 }
 
