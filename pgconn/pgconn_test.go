@@ -1779,7 +1779,18 @@ func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 
 	srcBuf := &bytes.Buffer{}
 
-	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "cropy foo to stdout")
+	// Send data even though the COPY FROM command will be rejected with a syntax error. This ensures that this does not
+	// break the connection. See https://github.com/jackc/pgconn/pull/127 for context.
+	inputRows := [][][]byte{}
+	for i := 0; i < 1000; i++ {
+		a := strconv.Itoa(i)
+		b := "foo " + a + " bar"
+		inputRows = append(inputRows, [][]byte{[]byte(a), []byte(b)})
+		_, err = srcBuf.Write([]byte(fmt.Sprintf("%s,\"%s\"\n", a, b)))
+		require.NoError(t, err)
+	}
+
+	res, err := pgConn.CopyFrom(context.Background(), srcBuf, "cropy foo FROM STDIN WITH (FORMAT csv)")
 	require.Error(t, err)
 	assert.IsType(t, &pgconn.PgError{}, err)
 	assert.Equal(t, int64(0), res.RowsAffected())
