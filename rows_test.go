@@ -329,6 +329,50 @@ func TestRowToStructByPos(t *testing.T) {
 	})
 }
 
+func TestRowToStructByPosEmbeddedStruct(t *testing.T) {
+	type Name struct {
+		First string
+		Last  string
+	}
+
+	type person struct {
+		Name
+		Age int32
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age from generate_series(0, 9) n`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByPos[person])
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "John", slice[i].Name.First)
+			assert.Equal(t, "Smith", slice[i].Name.Last)
+			assert.EqualValues(t, i, slice[i].Age)
+		}
+	})
+}
+
+// Pointer to struct is not supported. But check that we don't panic.
+func TestRowToStructByPosEmbeddedPointerToStruct(t *testing.T) {
+	type Name struct {
+		First string
+		Last  string
+	}
+
+	type person struct {
+		*Name
+		Age int32
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'John' as first_name, 'Smith' as last_name, n as age from generate_series(0, 9) n`)
+		_, err := pgx.CollectRows(rows, pgx.RowToStructByPos[person])
+		require.EqualError(t, err, "got 3 values, but dst struct has only 2 fields")
+	})
+}
+
 func ExampleRowToStructByPos() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()

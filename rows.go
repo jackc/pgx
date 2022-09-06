@@ -511,25 +511,33 @@ func (rs *positionalStructRowScanner) ScanRow(rows Rows) error {
 	}
 
 	dstElemValue := dstValue.Elem()
-	dstElemType := dstElemValue.Type()
+	scanTargets := rs.appendScanTargets(dstElemValue, nil)
 
-	exportedFields := make([]int, 0, dstElemType.NumField())
-	for i := 0; i < dstElemType.NumField(); i++ {
-		sf := dstElemType.Field(i)
-		if sf.PkgPath == "" {
-			exportedFields = append(exportedFields, i)
-		}
-	}
-
-	rowFieldCount := len(rows.RawValues())
-	if rowFieldCount > len(exportedFields) {
-		return fmt.Errorf("got %d values, but dst struct has only %d fields", rowFieldCount, len(exportedFields))
-	}
-
-	scanTargets := make([]any, rowFieldCount)
-	for i := 0; i < rowFieldCount; i++ {
-		scanTargets[i] = dstElemValue.Field(exportedFields[i]).Addr().Interface()
+	if len(rows.RawValues()) > len(scanTargets) {
+		return fmt.Errorf("got %d values, but dst struct has only %d fields", len(rows.RawValues()), len(scanTargets))
 	}
 
 	return rows.Scan(scanTargets...)
+}
+
+func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Value, scanTargets []any) []any {
+	dstElemType := dstElemValue.Type()
+
+	if scanTargets == nil {
+		scanTargets = make([]any, 0, dstElemType.NumField())
+	}
+
+	for i := 0; i < dstElemType.NumField(); i++ {
+		sf := dstElemType.Field(i)
+		if sf.PkgPath == "" {
+			// Handle anoymous struct embedding, but do not try to handle embedded pointers.
+			if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
+				scanTargets = append(scanTargets, rs.appendScanTargets(dstElemValue.Field(i), scanTargets)...)
+			} else {
+				scanTargets = append(scanTargets, dstElemValue.Field(i).Addr().Interface())
+			}
+		}
+	}
+
+	return scanTargets
 }
