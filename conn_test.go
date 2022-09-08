@@ -171,6 +171,26 @@ func TestParseConfigExtractsStatementCacheOptions(t *testing.T) {
 	require.Equal(t, stmtcache.ModeDescribe, c.Mode())
 }
 
+func TestParseConfigExtractsDisableNestedTransactions(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		connString           string
+		disableNestedTransactions bool
+	}{
+		{"", false},
+		{"disable_nested_transactions=false", false},
+		{"disable_nested_transactions=0", false},
+		{"disable_nested_transactions=true", true},
+		{"disable_nested_transactions=1", true},
+	} {
+		config, err := pgx.ParseConfig(tt.connString)
+		require.NoError(t, err)
+		require.Equalf(t, tt.disableNestedTransactions, config.DisableNestedTransactions, "connString: `%s`", tt.connString)
+		require.Empty(t, config.RuntimeParams["disable_nested_transactions"])
+	}
+}
+
 func TestParseConfigExtractsPreferSimpleProtocol(t *testing.T) {
 	t.Parallel()
 

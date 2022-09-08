@@ -37,6 +37,13 @@ type ConnConfig struct {
 	// QueryExOptions.SimpleProtocol.
 	PreferSimpleProtocol bool
 
+	// DisableNestedTransactions will disable savepoint transactions. By default using Begin() while already inside a
+	// transaction will result in a savepoint being created. This disables that behaviour and Begin() while already
+	// inside a transaction behaves as a no-op. This was developed as result of realising that long-running nested
+	// transactions has noticable negative performance impact on postgres.
+	// https://about.gitlab.com/blog/2021/09/29/why-we-spent-the-last-month-eliminating-postgresql-subtransactions/
+	DisableNestedTransactions bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -127,6 +134,9 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 //
 //	prefer_simple_protocol
 //		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
+//
+//  disable_nested_transactions
+//      Possible values: "true" and "false". Disable savepoint nested txns when executing inside a txn. Default: false
 func ParseConfig(connString string) (*ConnConfig, error) {
 	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
@@ -173,13 +183,24 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 		}
 	}
 
+	disableNestedTrasactions := false
+	if s, ok := config.RuntimeParams["disable_nested_transactions"]; ok {
+		delete(config.RuntimeParams, "disable_nested_transactions")
+		if b, err := strconv.ParseBool(s); err == nil {
+			disableNestedTrasactions = b
+		} else {
+			return nil, fmt.Errorf("invalid disable_nested_transactions: %v", err)
+		}
+	}
+
 	connConfig := &ConnConfig{
-		Config:               *config,
-		createdByParseConfig: true,
-		LogLevel:             LogLevelInfo,
-		BuildStatementCache:  buildStatementCache,
-		PreferSimpleProtocol: preferSimpleProtocol,
-		connString:           connString,
+		Config:                    *config,
+		createdByParseConfig:      true,
+		LogLevel:                  LogLevelInfo,
+		BuildStatementCache:       buildStatementCache,
+		PreferSimpleProtocol:      preferSimpleProtocol,
+		DisableNestedTransactions: disableNestedTrasactions,
+		connString:                connString,
 	}
 
 	return connConfig, nil

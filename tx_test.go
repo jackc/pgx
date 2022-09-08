@@ -54,6 +54,77 @@ func TestTransactionSuccessfulCommit(t *testing.T) {
 	}
 }
 
+func TestTxCommitWithNestedDisabled(t *testing.T) {
+	t.Parallel()
+
+	conf := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+	conf.DisableNestedTransactions = true
+	conn := mustConnect(t, conf)
+	defer closeConn(t, conn)
+
+	conn2 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn2)
+
+	createSql := `
+    create temporary table foo(
+      id integer,
+      unique (id)
+    );
+  `
+
+	if _, err := conn.Exec(context.Background(), createSql); err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	tx, err := conn.Begin(context.Background())
+	if err != nil {
+		t.Fatalf("conn.Begin failed: %v", err)
+	}
+
+	// begin a nested transaction
+	tx2, err := tx.Begin(context.Background())
+	if err != nil {
+		t.Fatalf("conn.Begin failed: %v", err)
+	}
+
+	// perform an operation in the nested transaction
+	_, err = tx2.Exec(context.Background(), "insert into foo(id) values (1)")
+	if err != nil {
+		t.Fatalf("tx.Exec failed: %v", err)
+	}
+
+	// committing the nesting transaction should be a no-op due to DisableNestedTransactions
+	err = tx2.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("tx.Commit failed: %v", err)
+	}
+
+	// at this point, our changes and temp table are not visible from outside of the transaction
+	// this query should fail with relation does not exist.
+	var n int64
+	err = conn2.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
+	if err == nil {
+		t.Fatalf("QueryRow Scan did not fail: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
+	}
+
+	// committing the transaction should make our changes now visible
+	err = tx.Commit(context.Background())
+	if err != nil {
+		t.Fatalf("tx.Commit failed: %v", err)
+	}
+
+	err = conn2.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)
+	if err != nil {
+		t.Fatalf("QueryRow Scan failed: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("Did not receive correct number of rows: %v", n)
+	}
+}
+
 func TestTxCommitWhenTxBroken(t *testing.T) {
 	t.Parallel()
 

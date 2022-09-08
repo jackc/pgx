@@ -187,12 +187,15 @@ func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
 	}
 
 	tx.savepointNum++
-	_, err := tx.conn.Exec(ctx, "savepoint sp_"+strconv.FormatInt(tx.savepointNum, 10))
-	if err != nil {
-		return nil, err
+
+	if !tx.conn.config.DisableNestedTransactions {
+		_, err := tx.conn.Exec(ctx, "savepoint sp_"+strconv.FormatInt(tx.savepointNum, 10))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return &dbSimulatedNestedTx{tx: tx, savepointNum: tx.savepointNum}, nil
+	return &dbSimulatedNestedTx{tx: tx, savepointNum: tx.savepointNum, savepointDisabled: tx.conn.config.DisableNestedTransactions}, nil
 }
 
 func (tx *dbTx) BeginFunc(ctx context.Context, f func(Tx) error) (err error) {
@@ -331,9 +334,11 @@ func (tx *dbTx) Conn() *Conn {
 
 // dbSimulatedNestedTx represents a simulated nested transaction implemented by a savepoint.
 type dbSimulatedNestedTx struct {
-	tx           Tx
-	savepointNum int64
-	closed       bool
+	tx               Tx
+	savepointNum     int64
+	closed           bool
+
+	savepointDisabled bool
 }
 
 // Begin starts a pseudo nested transaction implemented with a savepoint.
@@ -359,6 +364,10 @@ func (sp *dbSimulatedNestedTx) Commit(ctx context.Context) error {
 		return ErrTxClosed
 	}
 
+	if sp.savepointDisabled {
+		sp.closed = true
+		return nil
+	}
 	_, err := sp.Exec(ctx, "release savepoint sp_"+strconv.FormatInt(sp.savepointNum, 10))
 	sp.closed = true
 	return err
@@ -370,6 +379,11 @@ func (sp *dbSimulatedNestedTx) Commit(ctx context.Context) error {
 func (sp *dbSimulatedNestedTx) Rollback(ctx context.Context) error {
 	if sp.closed {
 		return ErrTxClosed
+	}
+
+	if sp.savepointDisabled {
+		sp.closed = true
+		return nil
 	}
 
 	_, err := sp.Exec(ctx, "rollback to savepoint sp_"+strconv.FormatInt(sp.savepointNum, 10))
