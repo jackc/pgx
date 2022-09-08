@@ -44,6 +44,8 @@ type TxOptions struct {
 	IsoLevel       TxIsoLevel
 	AccessMode     TxAccessMode
 	DeferrableMode TxDeferrableMode
+
+	DisableNestedTransactions bool
 }
 
 var emptyTxOptions TxOptions
@@ -83,6 +85,7 @@ func (c *Conn) Begin(ctx context.Context) (Tx, error) {
 // BeginTx starts a transaction with txOptions determining the transaction mode. Unlike database/sql, the context only
 // affects the begin command. i.e. there is no auto-rollback on context cancellation.
 func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
+	savepointDisabled := c.config.DisableNestedTransactions || txOptions.DisableNestedTransactions
 	_, err := c.Exec(ctx, txOptions.beginSQL())
 	if err != nil {
 		// begin should never fail unless there is an underlying connection issue or
@@ -91,7 +94,7 @@ func (c *Conn) BeginTx(ctx context.Context, txOptions TxOptions) (Tx, error) {
 		return nil, err
 	}
 
-	return &dbTx{conn: c}, nil
+	return &dbTx{conn: c, savepointDisabled: savepointDisabled}, nil
 }
 
 // BeginFunc starts a transaction and calls f. If f does not return an error the transaction is committed. If f returns
@@ -174,10 +177,11 @@ type Tx interface {
 // All dbTx methods return ErrTxClosed if Commit or Rollback has already been
 // called on the dbTx.
 type dbTx struct {
-	conn         *Conn
-	err          error
-	savepointNum int64
-	closed       bool
+	conn              *Conn
+	err               error
+	savepointNum      int64
+	closed            bool
+	savepointDisabled bool
 }
 
 // Begin starts a pseudo nested transaction implemented with a savepoint.
@@ -188,14 +192,14 @@ func (tx *dbTx) Begin(ctx context.Context) (Tx, error) {
 
 	tx.savepointNum++
 
-	if !tx.conn.config.DisableNestedTransactions {
+	if !tx.savepointDisabled {
 		_, err := tx.conn.Exec(ctx, "savepoint sp_"+strconv.FormatInt(tx.savepointNum, 10))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &dbSimulatedNestedTx{tx: tx, savepointNum: tx.savepointNum, savepointDisabled: tx.conn.config.DisableNestedTransactions}, nil
+	return &dbSimulatedNestedTx{tx: tx, savepointNum: tx.savepointNum, savepointDisabled: tx.savepointDisabled}, nil
 }
 
 func (tx *dbTx) BeginFunc(ctx context.Context, f func(Tx) error) (err error) {
@@ -334,9 +338,9 @@ func (tx *dbTx) Conn() *Conn {
 
 // dbSimulatedNestedTx represents a simulated nested transaction implemented by a savepoint.
 type dbSimulatedNestedTx struct {
-	tx               Tx
-	savepointNum     int64
-	closed           bool
+	tx           Tx
+	savepointNum int64
+	closed       bool
 
 	savepointDisabled bool
 }
