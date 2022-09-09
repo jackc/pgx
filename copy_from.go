@@ -7,7 +7,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/jackc/pgconn"
 	"github.com/jackc/pgio"
 )
 
@@ -99,11 +98,6 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	}
 	quotedColumnNames := cbuf.String()
 
-	sd, err := ct.conn.Prepare(ctx, "", fmt.Sprintf("select %s from %s", quotedColumnNames, quotedTableName))
-	if err != nil {
-		return 0, err
-	}
-
 	r, w := io.Pipe()
 	doneChan := make(chan struct{})
 
@@ -120,7 +114,7 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		moreRows := true
 		for moreRows {
 			var err error
-			moreRows, buf, err = ct.buildCopyBuf(buf, sd)
+			moreRows, buf, err = ct.buildCopyBuf(buf)
 			if err != nil {
 				w.CloseWithError(err)
 				return
@@ -165,7 +159,7 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 	return rowsAffected, err
 }
 
-func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (bool, []byte, error) {
+func (ct *copyFrom) buildCopyBuf(buf []byte) (bool, []byte, error) {
 
 	for ct.rowSrc.Next() {
 		values, err := ct.rowSrc.Values()
@@ -177,8 +171,8 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 		}
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
-		for i, val := range values {
-			buf, err = encodePreparedStatementArgument(ct.conn.connInfo, buf, sd.Fields[i].DataTypeOID, val)
+		for _, val := range values {
+			buf, err = encodePreparedStatementArgument(ct.conn.connInfo, buf, val)
 			if err != nil {
 				return false, nil, err
 			}
