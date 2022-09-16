@@ -20,7 +20,7 @@ connection with `ConnectConfig`.
         // do something with every new connection
     }
 
-    pool, err := pgxpool.NewConfig(context.Background(), config)
+    pool, err := pgxpool.NewWithConfig(context.Background(), config)
 
 A pool returns without waiting for any connections to be established. Acquire a connection immediately after creating
 the pool to check if a connection can successfully be established.
