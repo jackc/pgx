@@ -24,7 +24,7 @@ pgconn now supports pipeline mode.
 
 ## pgxpool
 
-`Connect` and `ConnectConfig` have been renamed to `New` and `NewConfig` respectively. The `LazyConnect` option has been removed. Pools always lazily connect.
+`Connect` and `ConnectConfig` have been renamed to `New` and `NewWithConfig` respectively. The `LazyConnect` option has been removed. Pools always lazily connect.
 
 ## pgtype
 
