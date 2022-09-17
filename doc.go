@@ -97,7 +97,8 @@ Transactions are started by calling Begin.
 The Tx returned from Begin also implements the Begin method. This can be used to implement pseudo nested transactions.
 These are internally implemented with savepoints.
 
-Use BeginTx to control the transaction mode.
+Use BeginTx to control the transaction mode. BeginTx also can be used to ensure a new transaction is created instead of
+a pseudo nested transaction.
 
 BeginFunc and BeginTxFunc are functions that begin a transaction, execute a function, and commit or rollback the
 transaction depending on the return value of the function. These can be simpler and less error prone to use.
