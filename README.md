@@ -1,15 +1,12 @@
 [![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://pkg.go.dev/github.com/jackc/pgx/v5)
-[![Build Status](https://travis-ci.org/jackc/pgx.svg)](https://travis-ci.org/jackc/pgx)
+![Build Status](https://github.com/jackc/pgx/actions/workflows/ci.yml/badge.svg)
 
 # pgx - PostgreSQL Driver and Toolkit
 
-*This is the v5 development branch. It is still in beta testing.*
-
 pgx is a pure Go driver and toolkit for PostgreSQL.
 
-pgx aims to be low-level, fast, and performant, while also enabling PostgreSQL-specific features that the standard `database/sql` package does not allow for.
-
-The driver component of pgx can be used alongside the standard `database/sql` package.
+The pgx driver is a low-level, high performance interface that exposes PostgreSQL-specific features such as `LISTEN` /
+`NOTIFY` and `COPY`. It also includes an adapter for the standard `database/sql` interface.
 
 The toolkit component is a related set of packages that implement PostgreSQL functionality such as parsing the wire protocol
 and type mapping between PostgreSQL and Go. These underlying packages can be used to implement alternative drivers,
@@ -51,21 +48,7 @@ func main() {
 
 See the [getting started guide](https://github.com/jackc/pgx/wiki/Getting-started-with-pgx) for more information.
 
-## Choosing Between the pgx and database/sql Interfaces
-
-It is recommended to use the pgx interface if:
-1. The application only targets PostgreSQL.
-2. No other libraries that require `database/sql` are in use.
-
-The pgx interface is faster and exposes more features.
-
-The `database/sql` interface only allows the underlying driver to return or receive the following types: `int64`,
-`float64`, `bool`, `[]byte`, `string`, `time.Time`, or `nil`. Handling other types requires implementing the
-`database/sql.Scanner` and the `database/sql/driver/driver.Valuer` interfaces which require transmission of values in text format. The binary format can be substantially faster, which is what the pgx interface uses.
-
 ## Features
-
-pgx supports many features beyond what is available through `database/sql`:
 
 * Support for approximately 70 different PostgreSQL types
 * Automatic statement preparation and caching
@@ -73,30 +56,31 @@ pgx supports many features beyond what is available through `database/sql`:
 * Single-round trip query mode
 * Full TLS connection control
 * Binary format support for custom types (allows for much quicker encoding/decoding)
-* COPY protocol support for faster bulk data loads
-* Extendable logging support
+* `COPY` protocol support for faster bulk data loads
+* Tracing and logging support
 * Connection pool with after-connect hook for arbitrary connection setup
-* Listen / notify
+* `LISTEN` / `NOTIFY`
 * Conversion of PostgreSQL arrays to Go slice mappings for integers, floats, and strings
-* Hstore support
-* JSON and JSONB support
+* `hstore` support
+* `json` and `jsonb` support
 * Maps `inet` and `cidr` PostgreSQL types to `netip.Addr` and `netip.Prefix`
 * Large object support
-* NULL mapping to Null* struct or pointer to pointer
+* NULL mapping to pointer to pointer
 * Supports `database/sql.Scanner` and `database/sql/driver.Valuer` interfaces for custom types
 * Notice response handling
 * Simulated nested transactions with savepoints
 
-## Performance
+## Choosing Between the pgx and database/sql Interfaces
 
-There are three areas in particular where pgx can provide a significant performance advantage over the standard
-`database/sql` interface and other drivers:
+The pgx interface is faster. Many PostgreSQL specific features such as `LISTEN` / `NOTIFY` and `COPY` are not available
+through the `database/sql` interface.
 
-1. PostgreSQL specific types - Types such as arrays can be parsed much quicker because pgx uses the binary format.
-2. Automatic statement preparation and caching - pgx will prepare and cache statements by default. This can provide an
-   significant free improvement to code that does not explicitly use prepared statements. Under certain workloads, it can
-   perform nearly 3x the number of queries per second.
-3. Batched queries - Multiple queries can be batched together to minimize network round trips.
+The pgx interface is recommended when:
+
+1. The application only targets PostgreSQL.
+2. No other libraries that require `database/sql` are in use.
+
+It is also possible to use the `database/sql` interface and convert a connection to the lower-level pgx interface as needed.
 
 ## Testing
 
@@ -129,13 +113,11 @@ In addition, there are tests specific for PgBouncer that will be executed if `PG
 
 ## Supported Go and PostgreSQL Versions
 
-~~pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.17 and higher and PostgreSQL 10 and higher. pgx also is tested against the latest version of [CockroachDB](https://www.cockroachlabs.com/product/).~~
-
-`v5` is targeted at Go 1.18+. The general release of `v5` is not planned until second half of 2022 so it is expected that the policy of supporting the two most recent versions of Go will be maintained or restored soon after its release.
+pgx supports the same versions of Go and PostgreSQL that are supported by their respective teams. For [Go](https://golang.org/doc/devel/release.html#policy) that is the two most recent major releases and for [PostgreSQL](https://www.postgresql.org/support/versioning/) the major releases in the last 5 years. This means pgx supports Go 1.18 and higher and PostgreSQL 10 and higher. pgx also is tested against the latest version of [CockroachDB](https://www.cockroachlabs.com/product/).
 
 ## Version Policy
 
-pgx follows semantic versioning for the documented public API on stable releases. `v4` is the latest stable major version.
+pgx follows semantic versioning for the documented public API on stable releases. `v5` is the latest stable major version.
 
 ## PGX Family Libraries
 

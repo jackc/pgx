@@ -1,4 +1,4 @@
-# Unreleased v5
+# v5.0.0
 
 ## Merged Packages
 
@@ -33,7 +33,7 @@ The `pgtype` package has been significantly changed.
 ### NULL Representation
 
 Previously, types had a `Status` field that could be `Undefined`, `Null`, or `Present`. This has been changed to a
-`Valid` `bool` field to harmonize with how `database/sql` represents NULL and to make the zero value useable.
+`Valid` `bool` field to harmonize with how `database/sql` represents `NULL` and to make the zero value useable.
 
 ### Codec and Value Split
 
@@ -47,9 +47,9 @@ generally defined by implementing an interface that a particular `Codec` underst
 
 ### Array Types
 
-All array types are now handled by `ArrayCodec` instead of using code generation for each new array type. This
-significantly reduced the amount of code and the compiled binary size. This also means that less common array types such
-as `point[]` are now supported. `Array[T]` supports PostgreSQL multi-dimensional arrays.
+All array types are now handled by `ArrayCodec` instead of using code generation for each new array type. This also
+means that less common array types such as `point[]` are now supported. `Array[T]` supports PostgreSQL multi-dimensional
+arrays.
 
 ### Composite Types
 
@@ -63,7 +63,7 @@ easily be handled. Multirange types are handled similarly with `MultirangeCodec`
 
 ### pgxtype
 
-load data type moved to conn
+`LoadDataType` moved to `*Conn` as `LoadType`.
 
 ### Bytea
 
@@ -97,7 +97,7 @@ This matches the convention set by `database/sql`. In addition, for comparable t
 
 ### 3rd Party Type Integrations
 
-* Extracted integrations with github.com/shopspring/decimal and github.com/gofrs/uuid to
+* Extracted integrations with https://github.com/shopspring/decimal and https://github.com/gofrs/uuid to
   https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid respectively. This trims
   the pgx dependency tree.
 
