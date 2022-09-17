@@ -5,14 +5,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 )
 
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -26,7 +26,7 @@ func TestConnExec(t *testing.T) {
 func TestConnQuery(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -40,7 +40,7 @@ func TestConnQuery(t *testing.T) {
 func TestConnQueryRow(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -54,7 +54,7 @@ func TestConnQueryRow(t *testing.T) {
 func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
@@ -68,7 +68,7 @@ func TestConnSendBatch(t *testing.T) {
 func TestConnCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 

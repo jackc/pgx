@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var pool *pgxpool.Pool
 
 func main() {
 	var err error
-	pool, err = pgxpool.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	pool, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Unable to connect to database:", err)
 		os.Exit(1)

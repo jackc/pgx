@@ -12,13 +12,13 @@ import (
 
 // Part is either a string or an int. A string is raw SQL. An int is a
 // argument placeholder.
-type Part interface{}
+type Part any
 
 type Query struct {
 	Parts []Part
 }
 
-func (q *Query) Sanitize(args ...interface{}) (string, error) {
+func (q *Query) Sanitize(args ...any) (string, error) {
 	argUse := make([]bool, len(args))
 	buf := &bytes.Buffer{}
 
@@ -295,7 +295,7 @@ func multilineCommentState(l *sqlLexer) stateFn {
 // SanitizeSQL replaces placeholder values with args. It quotes and escapes args
 // as necessary. This function is only safe when standard_conforming_strings is
 // on.
-func SanitizeSQL(sql string, args ...interface{}) (string, error) {
+func SanitizeSQL(sql string, args ...any) (string, error) {
 	query, err := NewQuery(sql)
 	if err != nil {
 		return "", err

@@ -3,8 +3,8 @@ package pgxpool
 import (
 	"context"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Tx represents a database transaction acquired from a Pool.
@@ -16,10 +16,6 @@ type Tx struct {
 // Begin starts a pseudo nested transaction implemented with a savepoint.
 func (tx *Tx) Begin(ctx context.Context) (pgx.Tx, error) {
 	return tx.t.Begin(ctx)
-}
-
-func (tx *Tx) BeginFunc(ctx context.Context, f func(pgx.Tx) error) error {
-	return tx.t.BeginFunc(ctx, f)
 }
 
 // Commit commits the transaction and returns the associated connection back to the Pool. Commit will return ErrTxClosed
@@ -69,20 +65,16 @@ func (tx *Tx) Prepare(ctx context.Context, name, sql string) (*pgconn.StatementD
 	return tx.t.Prepare(ctx, name, sql)
 }
 
-func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
+func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error) {
 	return tx.t.Exec(ctx, sql, arguments...)
 }
 
-func (tx *Tx) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
+func (tx *Tx) Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error) {
 	return tx.t.Query(ctx, sql, args...)
 }
 
-func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
 	return tx.t.QueryRow(ctx, sql, args...)
-}
-
-func (tx *Tx) QueryFunc(ctx context.Context, sql string, args []interface{}, scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
-	return tx.t.QueryFunc(ctx, sql, args, scans, f)
 }
 
 func (tx *Tx) Conn() *pgx.Conn {

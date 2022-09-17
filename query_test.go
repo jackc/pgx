@@ -7,19 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/cockroachdb/apd"
-	"github.com/gofrs/uuid"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgconn/stmtcache"
-	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx/v4"
-	"github.com/shopspring/decimal"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,7 +45,7 @@ func TestConnQueryScan(t *testing.T) {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
 
-	assert.Equal(t, "SELECT 10", string(rows.CommandTag()))
+	assert.Equal(t, "SELECT 10", rows.CommandTag().String())
 
 	if rowCount != 10 {
 		t.Error("Select called onDataRow wrong number of times")
@@ -70,7 +66,7 @@ func TestConnQueryRowsFieldDescriptionsBeforeNext(t *testing.T) {
 	defer rows.Close()
 
 	require.Len(t, rows.FieldDescriptions(), 1)
-	assert.Equal(t, []byte("msg"), rows.FieldDescriptions()[0].Name)
+	assert.Equal(t, "msg", rows.FieldDescriptions()[0].Name)
 }
 
 func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {
@@ -83,7 +79,7 @@ func TestConnQueryWithoutResultSetCommandTag(t *testing.T) {
 	assert.NoError(t, err)
 	rows.Close()
 	assert.NoError(t, rows.Err())
-	assert.Equal(t, "CREATE TABLE", string(rows.CommandTag()))
+	assert.Equal(t, "CREATE TABLE", rows.CommandTag().String())
 }
 
 func TestConnQueryScanWithManyColumns(t *testing.T) {
@@ -113,7 +109,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	defer rows.Close()
 
 	for rows.Next() {
-		destPtrs := make([]interface{}, columnCount)
+		destPtrs := make([]any, columnCount)
 		for i := range destPtrs {
 			destPtrs[i] = &dest[i]
 		}
@@ -249,7 +245,7 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 
 			var a, b string
 			var c int32
-			var d pgtype.Unknown
+			var d pgtype.Text
 			var e int32
 
 			err = rows.Scan(&a, &b, &c, &d, &e)
@@ -257,75 +253,13 @@ func TestConnQueryReadRowMultipleTimes(t *testing.T) {
 			require.Equal(t, "foo", a)
 			require.Equal(t, "bar", b)
 			require.Equal(t, rowCount, c)
-			require.Equal(t, pgtype.Null, d.Status)
+			require.False(t, d.Valid)
 			require.Equal(t, rowCount, e)
 		}
 	}
 
 	require.NoError(t, rows.Err())
 	require.Equal(t, int32(10), rowCount)
-}
-
-// https://github.com/jackc/pgx/issues/386
-func TestConnQueryValuesWithMultipleComplexColumnsOfSameType(t *testing.T) {
-	t.Parallel()
-
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
-	expected0 := &pgtype.Int8Array{
-		Elements: []pgtype.Int8{
-			{Int: 1, Status: pgtype.Present},
-			{Int: 2, Status: pgtype.Present},
-			{Int: 3, Status: pgtype.Present},
-		},
-		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
-		Status:     pgtype.Present,
-	}
-
-	expected1 := &pgtype.Int8Array{
-		Elements: []pgtype.Int8{
-			{Int: 4, Status: pgtype.Present},
-			{Int: 5, Status: pgtype.Present},
-			{Int: 6, Status: pgtype.Present},
-		},
-		Dimensions: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}},
-		Status:     pgtype.Present,
-	}
-
-	var rowCount int32
-
-	rows, err := conn.Query(context.Background(), "select '{1,2,3}'::bigint[], '{4,5,6}'::bigint[] from generate_series(1,$1) n", 10)
-	if err != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		rowCount++
-
-		values, err := rows.Values()
-		if err != nil {
-			t.Fatalf("rows.Values failed: %v", err)
-		}
-		if len(values) != 2 {
-			t.Errorf("Expected rows.Values to return 2 values, but it returned %d", len(values))
-		}
-		if !reflect.DeepEqual(values[0], *expected0) {
-			t.Errorf(`Expected values[0] to be %v, but it was %v`, *expected0, values[0])
-		}
-		if !reflect.DeepEqual(values[1], *expected1) {
-			t.Errorf(`Expected values[1] to be %v, but it was %v`, *expected1, values[1])
-		}
-	}
-
-	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: %v", err)
-	}
-
-	if rowCount != 10 {
-		t.Error("Select called onDataRow wrong number of times")
-	}
 }
 
 // https://github.com/jackc/pgx/issues/228
@@ -335,11 +269,13 @@ func TestRowsScanDoesNotAllowScanningBinaryFormatValuesIntoString(t *testing.T) 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support point type")
+
 	var s string
 
-	err := conn.QueryRow(context.Background(), "select 1").Scan(&s)
-	if err == nil || !(strings.Contains(err.Error(), "cannot decode binary value into string") || strings.Contains(err.Error(), "cannot assign")) {
-		t.Fatalf("Expected Scan to fail to encode binary value into string but: %v", err)
+	err := conn.QueryRow(context.Background(), "select point(1,2)").Scan(&s)
+	if err == nil || !(strings.Contains(err.Error(), "cannot scan point (OID 600) in binary format into *string")) {
+		t.Fatalf("Expected Scan to fail to scan binary value into string but: %v", err)
 	}
 
 	ensureConnValid(t, conn)
@@ -356,7 +292,7 @@ func TestConnQueryRawValues(t *testing.T) {
 	rows, err := conn.Query(
 		context.Background(),
 		"select 'foo'::text, 'bar'::varchar, n, null, n from generate_series(1,$1) n",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		10,
 	)
 	require.NoError(t, err)
@@ -440,7 +376,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 	defer closeConn(t, conn)
 
 	// Read a single value incorrectly
-	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
+	rows, err := conn.Query(context.Background(), "select n::int4 from generate_series(1,$1) n", 10)
 	if err != nil {
 		t.Fatalf("conn.Query failed: %v", err)
 	}
@@ -461,7 +397,7 @@ func TestConnQueryReadWrongTypeError(t *testing.T) {
 		t.Fatal("Expected Rows to have an error after an improper read but it didn't")
 	}
 
-	if rows.Err().Error() != "can't scan into dest[0]: Can't convert OID 23 to time.Time" && !strings.Contains(rows.Err().Error(), "cannot assign") {
+	if rows.Err().Error() != "can't scan into dest[0]: cannot scan int4 (OID 23) in binary format into *time.Time" {
 		t.Fatalf("Expected different Rows.Err(): %v", rows.Err())
 	}
 
@@ -541,7 +477,7 @@ func TestConnQueryDeferredError(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 	mustExec(t, conn, `create temporary table t (
 	id text primary key,
@@ -583,7 +519,7 @@ func TestConnQueryErrorWhileReturningRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server uses numeric instead of int")
+	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
 	for i := 0; i < 100; i++ {
 		func() {
@@ -661,18 +597,18 @@ func TestQueryRowCoreTypes(t *testing.T) {
 
 	tests := []struct {
 		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
+		queryArgs []any
+		scanArgs  []any
 		expected  allTypes
 	}{
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.s}, allTypes{s: "Jack"}},
-		{"select $1::float4", []interface{}{float32(1.23)}, []interface{}{&actual.f32}, allTypes{f32: 1.23}},
-		{"select $1::float8", []interface{}{float64(1.23)}, []interface{}{&actual.f64}, allTypes{f64: 1.23}},
-		{"select $1::bool", []interface{}{true}, []interface{}{&actual.b}, allTypes{b: true}},
-		{"select $1::timestamptz", []interface{}{time.Unix(123, 5000)}, []interface{}{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
-		{"select $1::timestamp", []interface{}{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
-		{"select $1::date", []interface{}{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []interface{}{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
-		{"select $1::oid", []interface{}{uint32(42)}, []interface{}{&actual.oid}, allTypes{oid: 42}},
+		{"select $1::text", []any{"Jack"}, []any{&actual.s}, allTypes{s: "Jack"}},
+		{"select $1::float4", []any{float32(1.23)}, []any{&actual.f32}, allTypes{f32: 1.23}},
+		{"select $1::float8", []any{float64(1.23)}, []any{&actual.f64}, allTypes{f64: 1.23}},
+		{"select $1::bool", []any{true}, []any{&actual.b}, allTypes{b: true}},
+		{"select $1::timestamptz", []any{time.Unix(123, 5000)}, []any{&actual.t}, allTypes{t: time.Unix(123, 5000)}},
+		{"select $1::timestamp", []any{time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}, []any{&actual.t}, allTypes{t: time.Date(2010, 1, 2, 3, 4, 5, 0, time.UTC)}},
+		{"select $1::date", []any{time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}, []any{&actual.t}, allTypes{t: time.Date(1987, 1, 2, 0, 0, 0, 0, time.UTC)}},
+		{"select $1::oid", []any{uint32(42)}, []any{&actual.oid}, allTypes{oid: 42}},
 	}
 
 	for i, tt := range tests {
@@ -722,8 +658,8 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 
 	successfulEncodeTests := []struct {
 		sql      string
-		queryArg interface{}
-		scanArg  interface{}
+		queryArg any
+		scanArg  any
 		expected allTypes
 	}{
 		// Check any integer type where value is within int2 range can be encoded
@@ -781,7 +717,7 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 
 	failedEncodeTests := []struct {
 		sql      string
-		queryArg interface{}
+		queryArg any
 	}{
 		// Check any integer type where value is outside pg:int2 range cannot be encoded
 		{"select $1::int2", int(32769)},
@@ -837,7 +773,7 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 
 	successfulDecodeTests := []struct {
 		sql      string
-		scanArg  interface{}
+		scanArg  any
 		expected allTypes
 	}{
 		// Check any integer type where value is within Go:int range can be decoded
@@ -923,65 +859,64 @@ func TestQueryRowCoreIntegerDecoding(t *testing.T) {
 	}
 
 	failedDecodeTests := []struct {
-		sql         string
-		scanArg     interface{}
-		expectedErr string
+		sql     string
+		scanArg any
 	}{
 		// Check any integer type where value is outside Go:int8 range cannot be decoded
-		{"select 128::int2", &actual.i8, "is greater than"},
-		{"select 128::int4", &actual.i8, "is greater than"},
-		{"select 128::int8", &actual.i8, "is greater than"},
-		{"select -129::int2", &actual.i8, "is less than"},
-		{"select -129::int4", &actual.i8, "is less than"},
-		{"select -129::int8", &actual.i8, "is less than"},
+		{"select 128::int2", &actual.i8},
+		{"select 128::int4", &actual.i8},
+		{"select 128::int8", &actual.i8},
+		{"select -129::int2", &actual.i8},
+		{"select -129::int4", &actual.i8},
+		{"select -129::int8", &actual.i8},
 
 		// Check any integer type where value is outside Go:int16 range cannot be decoded
-		{"select 32768::int4", &actual.i16, "is greater than"},
-		{"select 32768::int8", &actual.i16, "is greater than"},
-		{"select -32769::int4", &actual.i16, "is less than"},
-		{"select -32769::int8", &actual.i16, "is less than"},
+		{"select 32768::int4", &actual.i16},
+		{"select 32768::int8", &actual.i16},
+		{"select -32769::int4", &actual.i16},
+		{"select -32769::int8", &actual.i16},
 
 		// Check any integer type where value is outside Go:int32 range cannot be decoded
-		{"select 2147483648::int8", &actual.i32, "is greater than"},
-		{"select -2147483649::int8", &actual.i32, "is less than"},
+		{"select 2147483648::int8", &actual.i32},
+		{"select -2147483649::int8", &actual.i32},
 
 		// Check any integer type where value is outside Go:uint range cannot be decoded
-		{"select -1::int2", &actual.ui, "is less than"},
-		{"select -1::int4", &actual.ui, "is less than"},
-		{"select -1::int8", &actual.ui, "is less than"},
+		{"select -1::int2", &actual.ui},
+		{"select -1::int4", &actual.ui},
+		{"select -1::int8", &actual.ui},
 
 		// Check any integer type where value is outside Go:uint8 range cannot be decoded
-		{"select 256::int2", &actual.ui8, "is greater than"},
-		{"select 256::int4", &actual.ui8, "is greater than"},
-		{"select 256::int8", &actual.ui8, "is greater than"},
-		{"select -1::int2", &actual.ui8, "is less than"},
-		{"select -1::int4", &actual.ui8, "is less than"},
-		{"select -1::int8", &actual.ui8, "is less than"},
+		{"select 256::int2", &actual.ui8},
+		{"select 256::int4", &actual.ui8},
+		{"select 256::int8", &actual.ui8},
+		{"select -1::int2", &actual.ui8},
+		{"select -1::int4", &actual.ui8},
+		{"select -1::int8", &actual.ui8},
 
 		// Check any integer type where value is outside Go:uint16 cannot be decoded
-		{"select 65536::int4", &actual.ui16, "is greater than"},
-		{"select 65536::int8", &actual.ui16, "is greater than"},
-		{"select -1::int2", &actual.ui16, "is less than"},
-		{"select -1::int4", &actual.ui16, "is less than"},
-		{"select -1::int8", &actual.ui16, "is less than"},
+		{"select 65536::int4", &actual.ui16},
+		{"select 65536::int8", &actual.ui16},
+		{"select -1::int2", &actual.ui16},
+		{"select -1::int4", &actual.ui16},
+		{"select -1::int8", &actual.ui16},
 
 		// Check any integer type where value is outside Go:uint32 range cannot be decoded
-		{"select 4294967296::int8", &actual.ui32, "is greater than"},
-		{"select -1::int2", &actual.ui32, "is less than"},
-		{"select -1::int4", &actual.ui32, "is less than"},
-		{"select -1::int8", &actual.ui32, "is less than"},
+		{"select 4294967296::int8", &actual.ui32},
+		{"select -1::int2", &actual.ui32},
+		{"select -1::int4", &actual.ui32},
+		{"select -1::int8", &actual.ui32},
 
 		// Check any integer type where value is outside Go:uint64 range cannot be decoded
-		{"select -1::int2", &actual.ui64, "is less than"},
-		{"select -1::int4", &actual.ui64, "is less than"},
-		{"select -1::int8", &actual.ui64, "is less than"},
+		{"select -1::int2", &actual.ui64},
+		{"select -1::int4", &actual.ui64},
+		{"select -1::int8", &actual.ui64},
 	}
 
 	for i, tt := range failedDecodeTests {
 		err := conn.QueryRow(context.Background(), tt.sql).Scan(tt.scanArg)
 		if err == nil {
 			t.Errorf("%d. Expected failure to decode, but unexpectedly succeeded: %v (sql -> %v)", i, err, tt.sql)
-		} else if !strings.Contains(err.Error(), tt.expectedErr) {
+		} else if !strings.Contains(err.Error(), "can't scan") {
 			t.Errorf("%d. Expected failure to decode, but got: %v (sql -> %v)", i, err, tt.sql)
 		}
 
@@ -997,7 +932,7 @@ func TestQueryRowCoreByteSlice(t *testing.T) {
 
 	tests := []struct {
 		sql      string
-		queryArg interface{}
+		queryArg any
 		expected []byte
 	}{
 		{"select $1::text", "Jack", []byte("Jack")},
@@ -1028,6 +963,10 @@ func TestQueryRowErrors(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		t.Skip("Skipping due to known server missing point type")
+	}
+
 	type allTypes struct {
 		i16 int16
 		i   int
@@ -1038,14 +977,14 @@ func TestQueryRowErrors(t *testing.T) {
 
 	tests := []struct {
 		sql       string
-		queryArgs []interface{}
-		scanArgs  []interface{}
+		queryArgs []any
+		scanArgs  []any
 		err       string
 	}{
-		// {"select $1::badtype", []interface{}{"Jack"}, []interface{}{&actual.i16}, `type "badtype" does not exist`},
-		// {"SYNTAX ERROR", []interface{}{}, []interface{}{&actual.i16}, "SQLSTATE 42601"},
-		{"select $1::text", []interface{}{"Jack"}, []interface{}{&actual.i16}, "unable to assign"},
-		// {"select $1::point", []interface{}{int(705)}, []interface{}{&actual.s}, "cannot convert 705 to Point"},
+		{"select $1::badtype", []any{"Jack"}, []any{&actual.i16}, `type "badtype" does not exist`},
+		{"SYNTAX ERROR", []any{}, []any{&actual.i16}, "SQLSTATE 42601"},
+		{"select $1::text", []any{"Jack"}, []any{&actual.i16}, "cannot scan text (OID 25) in text format into *int16"},
+		{"select $1::point", []any{int(705)}, []any{&actual.s}, "unable to encode 705 into binary format for point (OID 600)"},
 	}
 
 	for i, tt := range tests {
@@ -1155,55 +1094,52 @@ func TestReadingNullByteArrays(t *testing.T) {
 	}
 }
 
-// Use github.com/shopspring/decimal as real-world database/sql custom type
-// to test against.
+func TestQueryNullSliceIsSet(t *testing.T) {
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	a := []int32{1, 2, 3}
+	err := conn.QueryRow(context.Background(), "select null::int[]").Scan(&a)
+	if err != nil {
+		t.Fatalf("conn.QueryRow failed: %v", err)
+	}
+
+	if a != nil {
+		t.Errorf("Expected 'a' to be nil, but it was: %v", a)
+	}
+}
+
 func TestConnQueryDatabaseSQLScanner(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	var num decimal.Decimal
+	var num sql.NullFloat64
 
-	err := conn.QueryRow(context.Background(), "select '1234.567'::decimal").Scan(&num)
+	err := conn.QueryRow(context.Background(), "select '1234.567'::float8").Scan(&num)
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
 	}
 
-	expected, err := decimal.NewFromString("1234.567")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !num.Equals(expected) {
-		t.Errorf("Expected num to be %v, but it was %v", expected, num)
-	}
+	require.True(t, num.Valid)
+	require.Equal(t, 1234.567, num.Float64)
 
 	ensureConnValid(t, conn)
 }
 
-// Use github.com/shopspring/decimal as real-world database/sql custom type
-// to test against.
 func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	expected, err := decimal.NewFromString("1234.567")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var num decimal.Decimal
+	expected := sql.NullFloat64{Float64: 1234.567, Valid: true}
+	var actual sql.NullFloat64
 
-	err = conn.QueryRow(context.Background(), "select $1::decimal", &expected).Scan(&num)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
-	}
-
-	if !num.Equals(expected) {
-		t.Errorf("Expected num to be %v, but it was %v", expected, num)
-	}
+	err := conn.QueryRow(context.Background(), "select $1::float8", &expected).Scan(&actual)
+	require.NoError(t, err)
+	require.Equal(t, expected, actual)
 
 	ensureConnValid(t, conn)
 }
@@ -1217,38 +1153,50 @@ func TestConnQueryDatabaseSQLDriverValuerWithAutoGeneratedPointerReceiver(t *tes
 
 	mustExec(t, conn, "create temporary table t(n numeric)")
 
-	var d *apd.Decimal
+	var d *sql.NullInt64
 	commandTag, err := conn.Exec(context.Background(), `insert into t(n) values($1)`, d)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(commandTag) != "INSERT 0 1" {
+	if commandTag.String() != "INSERT 0 1" {
 		t.Fatalf("want %s, got %s", "INSERT 0 1", commandTag)
 	}
 
 	ensureConnValid(t, conn)
 }
 
-func TestConnQueryDatabaseSQLDriverValuerWithBinaryPgTypeThatAcceptsSameType(t *testing.T) {
+func TestConnQueryDatabaseSQLDriverScannerWithBinaryPgTypeThatAcceptsSameType(t *testing.T) {
 	t.Parallel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	expected, err := uuid.FromString("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
-	if err != nil {
-		t.Fatal(err)
-	}
+	var actual sql.NullString
+	err := conn.QueryRow(context.Background(), "select '6ba7b810-9dad-11d1-80b4-00c04fd430c8'::uuid").Scan(&actual)
+	require.NoError(t, err)
 
-	var u2 uuid.UUID
-	err = conn.QueryRow(context.Background(), "select $1::uuid", expected).Scan(&u2)
-	if err != nil {
-		t.Fatalf("Scan failed: %v", err)
-	}
+	require.True(t, actual.Valid)
+	require.Equal(t, "6ba7b810-9dad-11d1-80b4-00c04fd430c8", actual.String)
 
-	if expected != u2 {
-		t.Errorf("Expected u2 to be %v, but it was %v", expected, u2)
-	}
+	ensureConnValid(t, conn)
+}
+
+// https://github.com/jackc/pgx/issues/1273#issuecomment-1221672175
+func TestConnQueryDatabaseSQLDriverValuerTextWhenBinaryIsPreferred(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	arg := sql.NullString{String: "1.234", Valid: true}
+	var result pgtype.Numeric
+	err := conn.QueryRow(context.Background(), "select $1::numeric", arg).Scan(&result)
+	require.NoError(t, err)
+
+	require.True(t, result.Valid)
+	f64, err := result.Float64Value()
+	require.NoError(t, err)
+	require.Equal(t, pgtype.Float8{Float64: 1.234, Valid: true}, f64)
 
 	ensureConnValid(t, conn)
 }
@@ -1354,7 +1302,7 @@ func TestQueryContextErrorWhileReceivingRows(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server uses numeric instead of int")
+	pgxtest.SkipCockroachDB(t, conn, "Server uses numeric instead of int")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 	defer cancelFunc()
@@ -1449,7 +1397,7 @@ func TestScanRow(t *testing.T) {
 
 	for resultReader.NextRow() {
 		var n int32
-		err := pgx.ScanRow(conn.ConnInfo(), resultReader.FieldDescriptions(), resultReader.Values(), &n)
+		err := pgx.ScanRow(conn.TypeMap(), resultReader.FieldDescriptions(), resultReader.Values(), &n)
 		assert.NoError(t, err)
 		sum += n
 		rowCount++
@@ -1476,7 +1424,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::int8",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1493,7 +1441,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::float8",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1509,8 +1457,8 @@ func TestConnSimpleProtocol(t *testing.T) {
 		var actual bool
 		err := conn.QueryRow(
 			context.Background(),
-			"select $1",
-			pgx.QuerySimpleProtocol(true),
+			"select $1::boolean",
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1527,7 +1475,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::bytea",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1544,7 +1492,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1::text",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1569,7 +1517,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::text[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1590,7 +1538,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::smallint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1611,7 +1559,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::int[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1632,7 +1580,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1653,7 +1601,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1674,7 +1622,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::smallint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1695,7 +1643,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1716,7 +1664,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1737,7 +1685,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::bigint[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1758,7 +1706,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::float4[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1779,7 +1727,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::float8[]",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				tt.expected,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
@@ -1792,12 +1740,12 @@ func TestConnSimpleProtocol(t *testing.T) {
 	{
 		if conn.PgConn().ParameterStatus("crdb_version") == "" {
 			// CockroachDB doesn't support circle type.
-			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Status: pgtype.Present}
+			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Valid: true}
 			actual := expected
 			err := conn.QueryRow(
 				context.Background(),
 				"select $1::circle",
-				pgx.QuerySimpleProtocol(true),
+				pgx.QueryExecModeSimpleProtocol,
 				&expected,
 			).Scan(&actual)
 			if err != nil {
@@ -1824,8 +1772,8 @@ func TestConnSimpleProtocol(t *testing.T) {
 		var actualString string
 		err := conn.QueryRow(
 			context.Background(),
-			"select $1::int8, $2::float8, $3, $4::bytea, $5::text",
-			pgx.QuerySimpleProtocol(true),
+			"select $1::int8, $2::float8, $3::boolean, $4::bytea, $5::text",
+			pgx.QueryExecModeSimpleProtocol,
 			expectedInt64, expectedFloat64, expectedBool, expectedBytes, expectedString,
 		).Scan(&actualInt64, &actualFloat64, &actualBool, &actualBytes, &actualString)
 		if err != nil {
@@ -1856,7 +1804,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		err := conn.QueryRow(
 			context.Background(),
 			"select $1",
-			pgx.QuerySimpleProtocol(true),
+			pgx.QueryExecModeSimpleProtocol,
 			expected,
 		).Scan(&actual)
 		if err != nil {
@@ -1876,7 +1824,7 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support changing client_encoding (https://www.cockroachlabs.com/docs/stable/set-vars.html)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support changing client_encoding (https://www.cockroachlabs.com/docs/stable/set-vars.html)")
 
 	mustExec(t, conn, "set client_encoding to 'SQL_ASCII'")
 
@@ -1884,7 +1832,7 @@ func TestConnSimpleProtocolRefusesNonUTF8ClientEncoding(t *testing.T) {
 	err := conn.QueryRow(
 		context.Background(),
 		"select $1",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		"test",
 	).Scan(&expected)
 	if err == nil {
@@ -1900,7 +1848,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support standard_conforming_strings = off (https://github.com/cockroachdb/cockroach/issues/36215)")
 
 	mustExec(t, conn, "set standard_conforming_strings to off")
 
@@ -1908,7 +1856,7 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	err := conn.QueryRow(
 		context.Background(),
 		"select $1",
-		pgx.QuerySimpleProtocol(true),
+		pgx.QueryExecModeSimpleProtocol,
 		`\'; drop table users; --`,
 	).Scan(&expected)
 	if err == nil {
@@ -1918,63 +1866,14 @@ func TestConnSimpleProtocolRefusesNonStandardConformingStrings(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestQueryStatementCacheModes(t *testing.T) {
-	t.Parallel()
-
-	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-
-	tests := []struct {
-		name                string
-		buildStatementCache pgx.BuildStatementCacheFunc
-	}{
-		{
-			name:                "disabled",
-			buildStatementCache: nil,
-		},
-		{
-			name: "prepare",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModePrepare, 32)
-			},
-		},
-		{
-			name: "describe",
-			buildStatementCache: func(conn *pgconn.PgConn) stmtcache.Cache {
-				return stmtcache.New(conn, stmtcache.ModeDescribe, 32)
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		func() {
-			config.BuildStatementCache = tt.buildStatementCache
-			conn := mustConnect(t, config)
-			defer closeConn(t, conn)
-
-			var n int
-			err := conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 1, n, tt.name)
-
-			err = conn.QueryRow(context.Background(), "select 2").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 2, n, tt.name)
-
-			err = conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			assert.NoError(t, err, tt.name)
-			assert.Equal(t, 1, n, tt.name)
-
-			ensureConnValid(t, conn)
-		}()
-	}
-}
-
 // https://github.com/jackc/pgx/issues/895
-func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
+func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 	t.Parallel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
-	config.BuildStatementCache = nil
+	config.DefaultQueryExecMode = pgx.QueryExecModeDescribeExec
+	config.StatementCacheCapacity = 0
+	config.DescriptionCacheCapacity = 0
 
 	conn := mustConnect(t, config)
 	defer closeConn(t, conn)
@@ -2000,101 +1899,101 @@ func TestQueryErrorWithNilStatementCacheMode(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
-func TestConnQueryFunc(t *testing.T) {
+func TestQueryWithQueryRewriter(t *testing.T) {
 	t.Parallel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		var actualResults []interface{}
-
-		var a, b int
-		ct, err := conn.QueryFunc(
-			context.Background(),
-			"select n, n * 2 from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
-			func(pgx.QueryFuncRow) error {
-				actualResults = append(actualResults, []interface{}{a, b})
-				return nil
-			},
-		)
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		qr := testQueryRewriter{sql: "select $1::int", args: []any{42}}
+		rows, err := conn.Query(ctx, "should be replaced", &qr)
 		require.NoError(t, err)
 
-		expectedResults := []interface{}{
-			[]interface{}{1, 2},
-			[]interface{}{2, 4},
-			[]interface{}{3, 6},
+		var n int32
+		var rowCount int
+		for rows.Next() {
+			rowCount++
+			err = rows.Scan(&n)
+			require.NoError(t, err)
 		}
-		require.Equal(t, expectedResults, actualResults)
-		require.EqualValues(t, 3, ct.RowsAffected())
+
+		require.NoError(t, rows.Err())
 	})
 }
 
-func TestConnQueryFuncScanError(t *testing.T) {
-	t.Parallel()
+// This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another
+// helper function should be used.
+func ExampleConn_Query() {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		var actualResults []interface{}
-
-		var a, b int
-		ct, err := conn.QueryFunc(
-			context.Background(),
-			"select 'foo', 'bar' from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
-			func(pgx.QueryFuncRow) error {
-				actualResults = append(actualResults, []interface{}{a, b})
-				return nil
-			},
-		)
-		require.EqualError(t, err, "can't scan into dest[0]: unable to assign to *int")
-		require.Nil(t, ct)
-	})
-}
-
-func TestConnQueryFuncAbort(t *testing.T) {
-	t.Parallel()
-
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, conn *pgx.Conn) {
-		var a, b int
-		ct, err := conn.QueryFunc(
-			context.Background(),
-			"select n, n * 2 from generate_series(1, $1) n",
-			[]interface{}{3},
-			[]interface{}{&a, &b},
-			func(pgx.QueryFuncRow) error {
-				return errors.New("abort")
-			},
-		)
-		require.EqualError(t, err, "abort")
-		require.Nil(t, ct)
-	})
-}
-
-func ExampleConn_QueryFunc() {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	if err != nil {
 		fmt.Printf("Unable to establish connection: %v", err)
 		return
 	}
 
-	var a, b int
-	_, err = conn.QueryFunc(
-		context.Background(),
-		"select n, n * 2 from generate_series(1, $1) n",
-		[]interface{}{3},
-		[]interface{}{&a, &b},
-		func(pgx.QueryFuncRow) error {
-			fmt.Printf("%v, %v\n", a, b)
-			return nil
-		},
-	)
+	if conn.PgConn().ParameterStatus("crdb_version") != "" {
+		// Skip test / example when running on CockroachDB. Since an example can't be skipped fake success instead.
+		fmt.Println(`Cheeseburger: $10
+Fries: $5
+Soft Drink: $3`)
+		return
+	}
+
+	// Setup example schema and data.
+	_, err = conn.Exec(ctx, `
+create temporary table products (
+	id int primary key generated by default as identity,
+	name varchar(100) not null,
+	price int not null
+);
+
+insert into products (name, price) values
+	('Cheeseburger', 10),
+	('Double Cheeseburger', 14),
+	('Fries', 5),
+	('Soft Drink', 3);
+`)
 	if err != nil {
-		fmt.Printf("QueryFunc error: %v", err)
+		fmt.Printf("Unable to setup example schema and data: %v", err)
+		return
+	}
+
+	rows, err := conn.Query(ctx, "select name, price from products where price < $1 order by price desc", 12)
+
+	// It is unnecessary to check err. If an error occurred it will be returned by rows.Err() later. But in rare
+	// cases it may be useful to detect the error as early as possible.
+	if err != nil {
+		fmt.Printf("Query error: %v", err)
+		return
+	}
+
+	// Ensure rows is closed. It is safe to close rows multiple times.
+	defer rows.Close()
+
+	// Iterate through the result set
+	for rows.Next() {
+		var name string
+		var price int32
+
+		err = rows.Scan(&name, &price)
+		if err != nil {
+			fmt.Printf("Scan error: %v", err)
+			return
+		}
+
+		fmt.Printf("%s: $%d\n", name, price)
+	}
+
+	// rows is closed automatically when rows.Next() returns false so it is not necessary to manually close rows.
+
+	// The first error encountered by the original Query call, rows.Next or rows.Scan will be returned here.
+	if rows.Err() != nil {
+		fmt.Printf("rows error: %v", err)
 		return
 	}
 
 	// Output:
-	// 1, 2
-	// 2, 4
-	// 3, 6
+	// Cheeseburger: $10
+	// Fries: $5
+	// Soft Drink: $3
 }

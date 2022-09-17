@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,17 +21,17 @@ func waitForReleaseToComplete() {
 }
 
 type execer interface {
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
 func testExec(t *testing.T, db execer) {
 	results, err := db.Exec(context.Background(), "set time zone 'America/Chicago'")
 	require.NoError(t, err)
-	assert.EqualValues(t, "SET", results)
+	assert.EqualValues(t, "SET", results.String())
 }
 
 type queryer interface {
-	Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
 func testQuery(t *testing.T, db queryer) {
@@ -53,7 +53,7 @@ func testQuery(t *testing.T, db queryer) {
 }
 
 type queryRower interface {
-	QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
 func testQueryRow(t *testing.T, db queryRower) {
@@ -103,7 +103,7 @@ func testCopyFrom(t *testing.T, db interface {
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
 
-	inputRows := [][]interface{}{
+	inputRows := [][]any{
 		{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
@@ -115,7 +115,7 @@ func testCopyFrom(t *testing.T, db interface {
 	rows, err := db.Query(context.Background(), "select * from foo")
 	assert.NoError(t, err)
 
-	var outputRows [][]interface{}
+	var outputRows [][]any
 	for rows.Next() {
 		row, err := rows.Values()
 		if err != nil {
@@ -148,7 +148,6 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgxpool.Config, testName
 	assert.Equalf(t, expected.MaxConns, actual.MaxConns, "%s - MaxConns", testName)
 	assert.Equalf(t, expected.MinConns, actual.MinConns, "%s - MinConns", testName)
 	assert.Equalf(t, expected.HealthCheckPeriod, actual.HealthCheckPeriod, "%s - HealthCheckPeriod", testName)
-	assert.Equalf(t, expected.LazyConnect, actual.LazyConnect, "%s - LazyConnect", testName)
 
 	assertConnConfigsEqual(t, expected.ConnConfig, actual.ConnConfig, testName)
 }
@@ -161,15 +160,12 @@ func assertConnConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, test
 		return
 	}
 
-	assert.Equalf(t, expected.Logger, actual.Logger, "%s - Logger", testName)
-	assert.Equalf(t, expected.LogLevel, actual.LogLevel, "%s - LogLevel", testName)
+	assert.Equalf(t, expected.Tracer, actual.Tracer, "%s - Tracer", testName)
 	assert.Equalf(t, expected.ConnString(), actual.ConnString(), "%s - ConnString", testName)
-
-	// Can't test function equality, so just test that they are set or not.
-	assert.Equalf(t, expected.BuildStatementCache == nil, actual.BuildStatementCache == nil, "%s - BuildStatementCache", testName)
-
-	assert.Equalf(t, expected.PreferSimpleProtocol, actual.PreferSimpleProtocol, "%s - PreferSimpleProtocol", testName)
-
+	assert.Equalf(t, expected.StatementCacheCapacity, actual.StatementCacheCapacity, "%s - StatementCacheCapacity", testName)
+	assert.Equalf(t, expected.DescriptionCacheCapacity, actual.DescriptionCacheCapacity, "%s - DescriptionCacheCapacity", testName)
+	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
+	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
 	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
 	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)

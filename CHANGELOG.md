@@ -1,268 +1,177 @@
-# 4.17.2 (September 3, 2022)
-
-* Fix panic when logging batch error (Tom Möller)
+# v5.0.0
 
-# 4.17.1 (August 27, 2022)
+## Merged Packages
 
-* Upgrade puddle to v1.3.0 - fixes context failing to cancel Acquire when acquire is creating resource which was introduced in v4.17.0 (James Hartig)
-* Fix atomic alignment on 32-bit platforms
+`github.com/jackc/pgtype`, `github.com/jackc/pgconn`, and `github.com/jackc/pgproto3` are now included in the main
+`github.com/jackc/pgx` repository. Previously there was confusion as to where issues should be reported, additional
+release work due to releasing multiple packages, and less clear changelogs.
 
-# 4.17.0 (August 6, 2022)
+## pgconn
 
-* Upgrade pgconn to v1.13.0
-* Upgrade pgproto3 to v2.3.1
-* Upgrade pgtype to v1.12.0
-* Allow background pool connections to continue even if cause is canceled (James Hartig)
-* Add LoggerFunc (Gabor Szabad)
-* pgxpool: health check should avoid going below minConns (James Hartig)
-* Add pgxpool.Conn.Hijack()
-* Logging improvements (Stepan Rabotkin)
+`CommandTag` is now an opaque type instead of directly exposing an underlying `[]byte`.
 
-# 4.16.1 (May 7, 2022)
+The return value `ResultReader.Values()` is no longer safe to retain a reference to after a subsequent call to `NextRow()` or `Close()`.
 
-* Upgrade pgconn to v1.12.1
-* Fix explicitly prepared statements with describe statement cache mode
+`Trace()` method adds low level message tracing similar to the `PQtrace` function in `libpq`.
 
-# 4.16.0 (April 21, 2022)
+pgconn now uses non-blocking IO. This is a significant internal restructuring, but it should not cause any visible changes on its own. However, it is important in implementing other new features.
 
-* Upgrade pgconn to v1.12.0
-* Upgrade pgproto3 to v2.3.0
-* Upgrade pgtype to v1.11.0
-* Fix: Do not panic when context cancelled while getting statement from cache.
-* Fix: Less memory pinning from old Rows.
-* Fix: Support '\r' line ending when sanitizing SQL comment.
-* Add pluggable GSSAPI support (Oliver Tan)
+`CheckConn()` checks a connection's liveness by doing a non-blocking read. This can be used to detect database restarts or network interruptions without executing a query or a ping.
 
-# 4.15.0 (February 7, 2022)
+pgconn now supports pipeline mode.
 
-* Upgrade to pgconn v1.11.0
-* Upgrade to pgtype v1.10.0
-* Upgrade puddle to v1.2.1
-* Make BatchResults.Close safe to be called multiple times
+`*PgConn.ReceiveResults` removed. Use pipeline mode instead.
 
-# 4.14.1 (November 28, 2021)
+`Timeout()` no longer considers `context.Canceled` as a timeout error. `context.DeadlineExceeded` still is considered a timeout error.
 
-* Upgrade pgtype to v1.9.1 (fixes unintentional change to timestamp binary decoding)
-* Start pgxpool background health check after initial connections
+## pgxpool
 
-# 4.14.0 (November 20, 2021)
+`Connect` and `ConnectConfig` have been renamed to `New` and `NewWithConfig` respectively. The `LazyConnect` option has been removed. Pools always lazily connect.
 
-* Upgrade pgconn to v1.10.1
-* Upgrade pgproto3 to v2.2.0
-* Upgrade pgtype to v1.9.0
-* Upgrade puddle to v1.2.0
-* Add QueryFunc to BatchResults
-* Add context options to zerologadapter (Thomas Frössman)
-* Add zerologadapter.NewContextLogger (urso)
-* Eager initialize minpoolsize on connect (Daniel)
-* Unpin memory used by large queries immediately after use
+## pgtype
 
-# 4.13.0 (July 24, 2021)
+The `pgtype` package has been significantly changed.
 
-* Trimmed pseudo-dependencies in Go modules from other packages tests
-* Upgrade pgconn -- context cancellation no longer will return a net.Error
-* Support time durations for simple protocol (Michael Darr)
+### NULL Representation
 
-# 4.12.0 (July 10, 2021)
+Previously, types had a `Status` field that could be `Undefined`, `Null`, or `Present`. This has been changed to a
+`Valid` `bool` field to harmonize with how `database/sql` represents `NULL` and to make the zero value useable.
 
-* ResetSession hook is called before a connection is reused from pool for another query (Dmytro Haranzha)
-* stdlib: Add RandomizeHostOrderFunc (dkinder)
-* stdlib: add OptionBeforeConnect (dkinder)
-* stdlib: Do not reuse ConnConfig strings (Andrew Kimball)
-* stdlib: implement Conn.ResetSession (Jonathan Amsterdam)
-* Upgrade pgconn to v1.9.0
-* Upgrade pgtype to v1.8.0
+### Codec and Value Split
 
-# 4.11.0 (March 25, 2021)
+Previously, the type system combined decoding and encoding values with the value types. e.g. Type `Int8` both handled
+encoding and decoding the PostgreSQL representation and acted as a value object. This caused some difficulties when
+there was not an exact 1 to 1 relationship between the Go types and the PostgreSQL types For example, scanning a
+PostgreSQL binary `numeric` into a Go `float64` was awkward (see https://github.com/jackc/pgtype/issues/147). This
+concepts have been separated. A `Codec` only has responsibility for encoding and decoding values. Value types are
+generally defined by implementing an interface that a particular `Codec` understands (e.g. `PointScanner` and
+`PointValuer` for the PostgreSQL `point` type).
 
-* Add BeforeConnect callback to pgxpool.Config (Robert Froehlich)
-* Add Ping method to pgxpool.Conn (davidsbond)
-* Added a kitlog level log adapter (Fabrice Aneche)
-* Make ScanArgError public to allow identification of offending column (Pau Sanchez)
-* Add *pgxpool.AcquireFunc
-* Add BeginFunc and BeginTxFunc
-* Add prefer_simple_protocol to connection string
-* Add logging on CopyFrom (Patrick Hemmer)
-* Add comment support when sanitizing SQL queries (Rusakow Andrew)
-* Do not panic on double close of pgxpool.Pool (Matt Schultz)
-* Avoid panic on SendBatch on closed Tx (Matt Schultz)
-* Update pgconn to v1.8.1
-* Update pgtype to v1.7.0
+### Array Types
 
-# 4.10.1 (December 19, 2020)
+All array types are now handled by `ArrayCodec` instead of using code generation for each new array type. This also
+means that less common array types such as `point[]` are now supported. `Array[T]` supports PostgreSQL multi-dimensional
+arrays.
 
-* Fix panic on Query error with nil stmtcache.
+### Composite Types
 
-# 4.10.0 (December 3, 2020)
+Composite types must be registered before use. `CompositeFields` may still be used to construct and destruct composite
+values, but any type may now implement `CompositeIndexGetter` and `CompositeIndexScanner` to be used as a composite.
 
-* Add CopyFromSlice to simplify CopyFrom usage (Egon Elbre)
-* Remove broken prepared statements from stmtcache (Ethan Pailes)
-* stdlib: consider any Ping error as fatal
-* Update puddle to v1.1.3 - this fixes an issue where concurrent Acquires can hang when a connection cannot be established
-* Update pgtype to v1.6.2
+### Range Types
 
-# 4.9.2 (November 3, 2020)
+Range types are now handled with types `RangeCodec` and `Range[T]`. This allows additional user defined range types to
+easily be handled. Multirange types are handled similarly with `MultirangeCodec` and `Multirange[T]`.
 
-The underlying library updates fix an issue where appending to a scanned slice could corrupt other data.
+### pgxtype
 
-* Update pgconn to v1.7.2
-* Update pgproto3 to v2.0.6
+`LoadDataType` moved to `*Conn` as `LoadType`.
 
-# 4.9.1 (October 31, 2020)
+### Bytea
 
-* Update pgconn to v1.7.1
-* Update pgtype to v1.6.1
-* Fix SendBatch of all prepared statements with statement cache disabled
+The `Bytea` and `GenericBinary` types have been replaced. Use the following instead:
 
-# 4.9.0 (September 26, 2020)
+* `[]byte` - For normal usage directly use `[]byte`.
+* `DriverBytes` - Uses driver memory only available until next database method call. Avoids a copy and an allocation.
+* `PreallocBytes` - Uses preallocated byte slice to avoid an allocation.
+* `UndecodedBytes` - Avoids any decoding. Allows working with raw bytes.
 
-* pgxpool now waits for connection cleanup to finish before making room in pool for another connection. This prevents temporarily exceeding max pool size.
-* Fix when scanning a column to nil to skip it on the first row but scanning it to a real value on a subsequent row.
-* Fix prefer simple protocol with prepared statements. (Jinzhu)
-* Fix FieldDescriptions not being available on Rows before calling Next the first time.
-* Various minor fixes in updated versions of pgconn, pgtype, and puddle.
+### Dropped lib/pq Support
 
-# 4.8.1 (July 29, 2020)
+`pgtype` previously supported and was tested against [lib/pq](https://github.com/lib/pq). While it will continue to work
+in most cases this is no longer supported.
 
-* Update pgconn to v1.6.4
-    * Fix deadlock on error after CommandComplete but before ReadyForQuery
-    * Fix panic on parsing DSN with trailing '='
+### database/sql Scan
 
-# 4.8.0 (July 22, 2020)
+Previously, most `Scan` implementations would convert `[]byte` to `string` automatically to decode a text value. Now
+only `string` is handled. This is to allow the possibility of future binary support in `database/sql` mode by
+considering `[]byte` to be binary format and `string` text format. This change should have no effect for any use with
+`pgx`. The previous behavior was only necessary for `lib/pq` compatibility.
 
-* All argument types supported by native pgx should now also work through database/sql
-* Update pgconn to v1.6.3
-* Update pgtype to v1.4.2
+Added `*Map.SQLScanner` to create a `sql.Scanner` for types such as `[]int32` and `Range[T]` that do not implement
+`sql.Scanner` directly.
 
-# 4.7.2 (July 14, 2020)
+### Number Type Fields Include Bit size
 
-* Improve performance of Columns() (zikaeroh)
-* Fix fatal Commit() failure not being considered fatal
-* Update pgconn to v1.6.2
-* Update pgtype to v1.4.1
+`Int2`, `Int4`, `Int8`, `Float4`, `Float8`, and `Uint32` fields now include bit size. e.g. `Int` is renamed to `Int64`.
+This matches the convention set by `database/sql`. In addition, for comparable types like `pgtype.Int8` and
+`sql.NullInt64` the structures are identical. This means they can be directly converted one to another.
 
-# 4.7.1 (June 29, 2020)
+### 3rd Party Type Integrations
 
-* Fix stdlib decoding error with certain order and combination of fields
+* Extracted integrations with https://github.com/shopspring/decimal and https://github.com/gofrs/uuid to
+  https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid respectively. This trims
+  the pgx dependency tree.
 
-# 4.7.0 (June 27, 2020)
+### Other Changes
 
-* Update pgtype to v1.4.0
-* Update pgconn to v1.6.1
-* Update puddle to v1.1.1
-* Fix context propagation with Tx commit and Rollback (georgysavva)
-* Add lazy connect option to pgxpool (georgysavva)
-* Fix connection leak if pgxpool.BeginTx() fail (Jean-Baptiste Bronisz)
-* Add native Go slice support for strings and numbers to simple protocol
-* stdlib add default timeouts for Conn.Close() and Stmt.Close() (georgysavva)
-* Assorted performance improvements especially with large result sets
-* Fix close pool on not lazy connect failure (Yegor Myskin)
-* Add Config copy (georgysavva)
-* Support SendBatch with Simple Protocol (Jordan Lewis)
-* Better error logging on rows close (Igor V. Kozinov)
-* Expose stdlib.Conn.Conn() to enable database/sql.Conn.Raw()
-* Improve unknown type support for database/sql
-* Fix transaction commit failure closing connection
+* `Bit` and `Varbit` are both replaced by the `Bits` type.
+* `CID`, `OID`, `OIDValue`, and `XID` are replaced by the `Uint32` type.
+* `Hstore` is now defined as `map[string]*string`.
+* `JSON` and `JSONB` types removed. Use `[]byte` or `string` directly.
+* `QChar` type removed. Use `rune` or `byte` directly.
+* `Inet` and `Cidr` types removed. Use `netip.Addr` and `netip.Prefix` directly. These types are more memory efficient than the previous `net.IPNet`.
+* `Macaddr` type removed. Use `net.HardwareAddr` directly.
+* Renamed `pgtype.ConnInfo` to `pgtype.Map`.
+* Renamed `pgtype.DataType` to `pgtype.Type`.
+* Renamed `pgtype.None` to `pgtype.Finite`.
+* `RegisterType` now accepts a `*Type` instead of `Type`.
+* Assorted array helper methods and types made private.
 
-# 4.6.0 (March 30, 2020)
+## stdlib
 
-* stdlib: Bail early if preloading rows.Next() results in rows.Err() (Bas van Beek)
-* Sanitize time to microsecond accuracy (Andrew Nicoll)
-* Update pgtype to v1.3.0
-* Update pgconn to v1.5.0
-    * Update golang.org/x/crypto for security fix
-    * Implement "verify-ca" SSL mode
+* Removed `AcquireConn` and `ReleaseConn` as that functionality has been built in since Go 1.13.
 
-# 4.5.0 (March 7, 2020)
+## Reduced Memory Usage by Reusing Read Buffers
 
-* Update to pgconn v1.4.0
-    * Fixes QueryRow with empty SQL
-    * Adds PostgreSQL service file support
-* Add Len() to *pgx.Batch (WGH)
-* Better logging for individual batch items (Ben Bader)
+Previously, the connection read buffer would allocate large chunks of memory and never reuse them. This allowed
+transferring ownership to anything such as scanned values without incurring an additional allocation and memory copy.
+However, this came at the cost of overall increased memory allocation size. But worse it was also possible to pin large
+chunks of memory by retaining a reference to a small value that originally came directly from the read buffer. Now
+ownership remains with the read buffer and anything needing to retain a value must make a copy.
 
-# 4.4.1 (February 14, 2020)
+## Query Execution Modes
 
-* Update pgconn to v1.3.2 - better default read buffer size
-* Fix race in CopyFrom
+Control over automatic prepared statement caching and simple protocol use are now combined into query execution mode.
+See documentation for `QueryExecMode`.
 
-# 4.4.0 (February 5, 2020)
+## QueryRewriter Interface and NamedArgs
 
-* Update puddle to v1.1.0 - fixes possible deadlock when acquire is cancelled
-* Update pgconn to v1.3.1 - fixes CopyFrom deadlock when multiple NoticeResponse received during copy
-* Update pgtype to v1.2.0
-* Add MaxConnIdleTime to pgxpool (Patrick Ellul)
-* Add MinConns to pgxpool (Patrick Ellul)
-* Fix: stdlib.ReleaseConn closes connections left in invalid state
+pgx now supports named arguments with the `NamedArgs` type. This is implemented via the new `QueryRewriter` interface which
+allows arbitrary rewriting of query SQL and arguments.
 
-# 4.3.0 (January 23, 2020)
+## RowScanner Interface
 
-* Fix Rows.Values panic when unable to decode
-* Add Rows.Values support for unknown types
-* Add DriverContext support for stdlib (Alex Gaynor)
-* Update pgproto3 to v2.0.1 to never return an io.EOF as it would be misinterpreted by database/sql. Instead return io.UnexpectedEOF.
+The `RowScanner` interface allows a single argument to Rows.Scan to scan the entire row.
 
-# 4.2.1 (January 13, 2020)
+## Rows Result Helpers
 
-* Update pgconn to v1.2.1 (fixes context cancellation data race introduced in v1.2.0))
+* `CollectRows` and `RowTo*` functions simplify collecting results into a slice.
+* `CollectOneRow` collects one row using `RowTo*` functions.
+* `ForEachRow` simplifies scanning each row and executing code using the scanned values. `ForEachRow` replaces `QueryFunc`.
 
-# 4.2.0 (January 11, 2020)
+## Tx Helpers
 
-* Update pgconn to v1.2.0.
-* Update pgtype to v1.1.0.
-* Return error instead of panic when wrong number of arguments passed to Exec. (malstoun)
-* Fix large objects functionality when PreferSimpleProtocol = true.
-* Restore GetDefaultDriver which existed in v3. (Johan Brandhorst)
-* Add RegisterConnConfig to stdlib which replaces the removed RegisterDriverConfig from v3.
+Rather than every type that implemented `Begin` or `BeginTx` methods also needing to implement `BeginFunc` and
+`BeginTxFunc` these methods have been converted to functions that take a db that implements `Begin` or `BeginTx`.
 
-# 4.1.2 (October 22, 2019)
+## Improved Batch Query Ergonomics
 
-* Fix dbSavepoint.Begin recursive self call
-* Upgrade pgtype to v1.0.2 - fix scan pointer to pointer
+Previously, the code for building a batch went in one place before the call to `SendBatch`, and the code for reading the
+results went in one place after the call to `SendBatch`. This could make it difficult to match up the query and the code
+to handle the results. Now `Queue` returns a `QueuedQuery` which has methods `Query`, `QueryRow`, and `Exec` which can
+be used to register a callback function that will handle the result. Callback functions are called automatically when
+`BatchResults.Close` is called.
 
-# 4.1.1 (October 21, 2019)
+## SendBatch Uses Pipeline Mode When Appropriate
 
-* Fix pgxpool Rows.CommandTag() infinite loop / typo
+Previously, a batch with 10 unique parameterized statements executed 100 times would entail 11 network round trips. 1
+for each prepare / describe and 1 for executing them all. Now pipeline mode is used to prepare / describe all statements
+in a single network round trip. So it would only take 2 round trips.
 
-# 4.1.0 (October 12, 2019)
+## Tracing and Logging
 
-## Potentially Breaking Changes
+Internal logging support has been replaced with tracing hooks. This allows custom tracing integration with tools like OpenTelemetry. Package tracelog provides an adapter for pgx v4 loggers to act as a tracer.
 
-Technically, two changes are breaking changes, but in practice these are extremely unlikely to break existing code.
-
-* Conn.Begin and Conn.BeginTx return a Tx interface instead of the internal dbTx struct. This is necessary for the Conn.Begin method to signature as other methods that begin a transaction.
-* Add Conn() to Tx interface. This is necessary to allow code using a Tx to access the *Conn (and pgconn.PgConn) on which the Tx is executing.
-
-## Fixes
-
-* Releasing a busy connection closes the connection instead of returning an unusable connection to the pool
-* Do not mutate config.Config.OnNotification in connect
-
-# 4.0.1 (September 19, 2019)
-
-* Fix statement cache cleanup.
-* Corrected daterange OID.
-* Fix Tx when committing or rolling back multiple times in certain cases.
-* Improve documentation.
-
-# 4.0.0 (September 14, 2019)
-
-v4 is a major release with many significant changes some of which are breaking changes. The most significant are
-included below.
-
-* Simplified establishing a connection with a connection string.
-* All potentially blocking operations now require a context.Context. The non-context aware functions have been removed.
-* OIDs are hard-coded for known types. This saves the query on connection.
-* Context cancellations while network activity is in progress is now always fatal. Previously, it was sometimes recoverable. This led to increased complexity in pgx itself and in application code.
-* Go modules are required.
-* Errors are now implemented in the Go 1.13 style.
-* `Rows` and `Tx` are now interfaces.
-* The connection pool as been decoupled from pgx and is now a separate, included package (github.com/jackc/pgx/v4/pgxpool).
-* pgtype has been spun off to a separate package (github.com/jackc/pgtype).
-* pgproto3 has been spun off to a separate package (github.com/jackc/pgproto3/v2).
-* Logical replication support has been spun off to a separate package (github.com/jackc/pglogrepl).
-* Lower level PostgreSQL functionality is now implemented in a separate package (github.com/jackc/pgconn).
-* Tests are now configured with environment variables.
-* Conn has an automatic statement cache by default.
-* Batch interface has been simplified.
-* QueryArgs has been removed.
+All integrations with 3rd party loggers have been extracted to separate repositories. This trims the pgx dependency
+tree.

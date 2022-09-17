@@ -1,0 +1,31 @@
+package zeronull_test
+
+import (
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype/testutil"
+	"github.com/jackc/pgx/v5/pgtype/zeronull"
+)
+
+<% [2, 4, 8].each do |pg_byte_size| %>
+<% pg_bit_size = pg_byte_size * 8 %>
+func TestInt<%= pg_byte_size %>Transcode(t *testing.T) {
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "int<%= pg_byte_size %>", []pgxtest.ValueRoundTripTest{
+		{
+			(zeronull.Int<%= pg_byte_size %>)(1),
+			new(zeronull.Int<%= pg_byte_size %>),
+			isExpectedEq((zeronull.Int<%= pg_byte_size %>)(1)),
+		},
+		{
+			nil,
+			new(zeronull.Int<%= pg_byte_size %>),
+			isExpectedEq((zeronull.Int<%= pg_byte_size %>)(0)),
+		},
+		{
+			(zeronull.Int<%= pg_byte_size %>)(0),
+			new(any),
+			isExpectedEq(nil),
+		},
+	})
+}
+<% end %>

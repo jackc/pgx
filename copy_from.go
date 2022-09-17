@@ -5,20 +5,19 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgio"
+	"github.com/jackc/pgx/v5/internal/pgio"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // CopyFromRows returns a CopyFromSource interface over the provided rows slice
 // making it usable by *Conn.CopyFrom.
-func CopyFromRows(rows [][]interface{}) CopyFromSource {
+func CopyFromRows(rows [][]any) CopyFromSource {
 	return &copyFromRows{rows: rows, idx: -1}
 }
 
 type copyFromRows struct {
-	rows [][]interface{}
+	rows [][]any
 	idx  int
 }
 
@@ -27,7 +26,7 @@ func (ctr *copyFromRows) Next() bool {
 	return ctr.idx < len(ctr.rows)
 }
 
-func (ctr *copyFromRows) Values() ([]interface{}, error) {
+func (ctr *copyFromRows) Values() ([]any, error) {
 	return ctr.rows[ctr.idx], nil
 }
 
@@ -37,12 +36,12 @@ func (ctr *copyFromRows) Err() error {
 
 // CopyFromSlice returns a CopyFromSource interface over a dynamic func
 // making it usable by *Conn.CopyFrom.
-func CopyFromSlice(length int, next func(int) ([]interface{}, error)) CopyFromSource {
+func CopyFromSlice(length int, next func(int) ([]any, error)) CopyFromSource {
 	return &copyFromSlice{next: next, idx: -1, len: length}
 }
 
 type copyFromSlice struct {
-	next func(int) ([]interface{}, error)
+	next func(int) ([]any, error)
 	idx  int
 	len  int
 	err  error
@@ -53,7 +52,7 @@ func (cts *copyFromSlice) Next() bool {
 	return cts.idx < cts.len
 }
 
-func (cts *copyFromSlice) Values() ([]interface{}, error) {
+func (cts *copyFromSlice) Values() ([]any, error) {
 	values, err := cts.next(cts.idx)
 	if err != nil {
 		cts.err = err
@@ -73,7 +72,7 @@ type CopyFromSource interface {
 	Next() bool
 
 	// Values returns the values for the current row.
-	Values() ([]interface{}, error)
+	Values() ([]any, error)
 
 	// Err returns any error that has been encountered by the CopyFromSource. If
 	// this is not nil *Conn.CopyFrom will abort the copy.
@@ -89,6 +88,13 @@ type copyFrom struct {
 }
 
 func (ct *copyFrom) run(ctx context.Context) (int64, error) {
+	if ct.conn.copyFromTracer != nil {
+		ctx = ct.conn.copyFromTracer.TraceCopyFromStart(ctx, ct.conn, TraceCopyFromStartData{
+			TableName:   ct.tableName,
+			ColumnNames: ct.columnNames,
+		})
+	}
+
 	quotedTableName := ct.tableName.Sanitize()
 	cbuf := &bytes.Buffer{}
 	for i, cn := range ct.columnNames {
@@ -145,24 +151,19 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		w.Close()
 	}()
 
-	startTime := time.Now()
-
 	commandTag, err := ct.conn.pgConn.CopyFrom(ctx, r, fmt.Sprintf("copy %s ( %s ) from stdin binary;", quotedTableName, quotedColumnNames))
 
 	r.Close()
 	<-doneChan
 
-	rowsAffected := commandTag.RowsAffected()
-	endTime := time.Now()
-	if err == nil {
-		if ct.conn.shouldLog(LogLevelInfo) {
-			ct.conn.log(ctx, LogLevelInfo, "CopyFrom", map[string]interface{}{"tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime), "rowCount": rowsAffected})
-		}
-	} else if ct.conn.shouldLog(LogLevelError) {
-		ct.conn.log(ctx, LogLevelError, "CopyFrom", map[string]interface{}{"err": err, "tableName": ct.tableName, "columnNames": ct.columnNames, "time": endTime.Sub(startTime)})
+	if ct.conn.copyFromTracer != nil {
+		ct.conn.copyFromTracer.TraceCopyFromEnd(ctx, ct.conn, TraceCopyFromEndData{
+			CommandTag: commandTag,
+			Err:        err,
+		})
 	}
 
-	return rowsAffected, err
+	return commandTag.RowsAffected(), err
 }
 
 func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (bool, []byte, error) {
@@ -178,7 +179,7 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 
 		buf = pgio.AppendInt16(buf, int16(len(ct.columnNames)))
 		for i, val := range values {
-			buf, err = encodePreparedStatementArgument(ct.conn.connInfo, buf, sd.Fields[i].DataTypeOID, val)
+			buf, err = encodeCopyValue(ct.conn.typeMap, buf, sd.Fields[i].DataTypeOID, val)
 			if err != nil {
 				return false, nil, err
 			}

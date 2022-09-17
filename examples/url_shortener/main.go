@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/log/log15adapter"
-	"github.com/jackc/pgx/v4/pgxpool"
-	log "gopkg.in/inconshreveable/log15.v2"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var db *pgxpool.Pool
@@ -71,28 +70,21 @@ func urlHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	logger := log15adapter.NewLogger(log.New("module", "pgx"))
-
 	poolConfig, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
 	if err != nil {
-		log.Crit("Unable to parse DATABASE_URL", "error", err)
-		os.Exit(1)
+		log.Fatalln("Unable to parse DATABASE_URL:", err)
 	}
 
-	poolConfig.ConnConfig.Logger = logger
-
-	db, err = pgxpool.ConnectConfig(context.Background(), poolConfig)
+	db, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
-		log.Crit("Unable to create connection pool", "error", err)
-		os.Exit(1)
+		log.Fatalln("Unable to create connection pool:", err)
 	}
 
 	http.HandleFunc("/", urlHandler)
 
-	log.Info("Starting URL shortener on localhost:8080")
+	log.Println("Starting URL shortener on localhost:8080")
 	err = http.ListenAndServe("localhost:8080", nil)
 	if err != nil {
-		log.Crit("Unable to start web server", "error", err)
-		os.Exit(1)
+		log.Fatalln("Unable to start web server:", err)
 	}
 }
