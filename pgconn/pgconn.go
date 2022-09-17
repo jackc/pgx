@@ -255,11 +255,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
 	netConn, err := config.DialFunc(ctx, network, address)
 	if err != nil {
-		var netErr net.Error
-		if errors.As(err, &netErr) && netErr.Timeout() {
-			err = &errTimeout{err: err}
-		}
-		return nil, &connectError{config: config, msg: "dial error", err: err}
+		return nil, &connectError{config: config, msg: "dial error", err: normalizeTimeoutError(ctx, err)}
 	}
 	nbNetConn := nbconn.NewNetConn(netConn, false)
 
@@ -314,7 +310,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			if err, ok := err.(*PgError); ok {
 				return nil, err
 			}
-			return nil, &connectError{config: config, msg: "failed to receive message", err: preferContextOverNetTimeoutError(ctx, err)}
+			return nil, &connectError{config: config, msg: "failed to receive message", err: normalizeTimeoutError(ctx, err)}
 		}
 
 		switch msg := msg.(type) {
@@ -448,7 +444,7 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 	if err != nil {
 		err = &pgconnError{
 			msg:         "receive message failed",
-			err:         preferContextOverNetTimeoutError(ctx, err),
+			err:         normalizeTimeoutError(ctx, err),
 			safeToRetry: true}
 	}
 	return msg, err
@@ -794,7 +790,7 @@ readloop:
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
 			pgConn.asyncClose()
-			return nil, preferContextOverNetTimeoutError(ctx, err)
+			return nil, normalizeTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -907,7 +903,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			return preferContextOverNetTimeoutError(ctx, err)
+			return normalizeTimeoutError(ctx, err)
 		}
 
 		switch msg.(type) {
@@ -1106,7 +1102,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
 			pgConn.asyncClose()
-			return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
+			return CommandTag{}, normalizeTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -1203,7 +1199,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 					break
 				}
 				pgConn.asyncClose()
-				return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
+				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
 
 			switch msg := msg.(type) {
@@ -1238,7 +1234,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
 			pgConn.asyncClose()
-			return CommandTag{}, preferContextOverNetTimeoutError(ctx, err)
+			return CommandTag{}, normalizeTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
@@ -1281,7 +1277,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 
 	if err != nil {
 		mrr.pgConn.contextWatcher.Unwatch()
-		mrr.err = preferContextOverNetTimeoutError(mrr.ctx, err)
+		mrr.err = normalizeTimeoutError(mrr.ctx, err)
 		mrr.closed = true
 		mrr.pgConn.asyncClose()
 		return nil, mrr.err
@@ -1497,7 +1493,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 	}
 
 	if err != nil {
-		err = preferContextOverNetTimeoutError(rr.ctx, err)
+		err = normalizeTimeoutError(rr.ctx, err)
 		rr.concludeCommand(CommandTag{}, err)
 		rr.pgConn.contextWatcher.Unwatch()
 		rr.closed = true
@@ -1814,7 +1810,7 @@ func (p *Pipeline) Flush() error {
 
 	err := p.conn.frontend.Flush()
 	if err != nil {
-		err = preferContextOverNetTimeoutError(p.ctx, err)
+		err = normalizeTimeoutError(p.ctx, err)
 
 		p.conn.asyncClose()
 
@@ -1901,7 +1897,7 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
 			p.conn.asyncClose()
-			return nil, preferContextOverNetTimeoutError(p.ctx, err)
+			return nil, normalizeTimeoutError(p.ctx, err)
 		}
 
 		switch msg := msg.(type) {

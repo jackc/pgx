@@ -22,6 +22,8 @@ pgconn now supports pipeline mode.
 
 `*PgConn.ReceiveResults` removed. Use pipeline mode instead.
 
+`Timeout()` no longer considers `context.Canceled` as a timeout error. `context.DeadlineExceeded` still is considered a timeout error.
+
 ## pgxpool
 
 `Connect` and `ConnectConfig` have been renamed to `New` and `NewWithConfig` respectively. The `LazyConnect` option has been removed. Pools always lazily connect.
