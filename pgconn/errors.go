@@ -19,7 +19,7 @@ func SafeToRetry(err error) bool {
 }
 
 // Timeout checks if err was was caused by a timeout. To be specific, it is true if err was caused within pgconn by a
-// context.Canceled, context.DeadlineExceeded or an implementer of net.Error where Timeout() is true.
+// context.DeadlineExceeded or an implementer of net.Error where Timeout() is true.
 func Timeout(err error) bool {
 	var timeoutErr *errTimeout
 	return errors.As(err, &timeoutErr)
@@ -106,11 +106,16 @@ func (e *parseConfigError) Unwrap() error {
 	return e.err
 }
 
-// preferContextOverNetTimeoutError returns ctx.Err() if ctx.Err() is present and err is a net.Error with Timeout() ==
-// true. Otherwise returns err.
-func preferContextOverNetTimeoutError(ctx context.Context, err error) error {
-	if err, ok := err.(net.Error); ok && err.Timeout() && ctx.Err() != nil {
-		return &errTimeout{err: ctx.Err()}
+func normalizeTimeoutError(ctx context.Context, err error) error {
+	if err, ok := err.(net.Error); ok && err.Timeout() {
+		if ctx.Err() == context.Canceled {
+			// Since the timeout was caused by a context cancellation, the actual error is context.Canceled not the timeout error.
+			return context.Canceled
+		} else if ctx.Err() == context.DeadlineExceeded {
+			return &errTimeout{err: ctx.Err()}
+		} else {
+			return &errTimeout{err: err}
+		}
 	}
 	return err
 }
