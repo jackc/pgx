@@ -3,7 +3,7 @@
 
 ---
 
-This is the stable `v4` release. `v5` is now in beta testing with final release expected in September. See https://github.com/jackc/pgx/issues/1273 for more information. Please consider testing `v5`.
+This is the previous stable `v4` release. `v5` been released.
 
 ---
 # pgx - PostgreSQL Driver and Toolkit
