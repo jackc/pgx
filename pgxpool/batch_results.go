@@ -1,8 +1,8 @@
 package pgxpool
 
 import (
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type errBatchResults struct {
@@ -10,15 +10,11 @@ type errBatchResults struct {
 }
 
 func (br errBatchResults) Exec() (pgconn.CommandTag, error) {
-	return nil, br.err
+	return pgconn.CommandTag{}, br.err
 }
 
 func (br errBatchResults) Query() (pgx.Rows, error) {
 	return errRows{err: br.err}, br.err
-}
-
-func (br errBatchResults) QueryFunc(scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
-	return nil, br.err
 }
 
 func (br errBatchResults) QueryRow() pgx.Row {
@@ -40,10 +36,6 @@ func (br *poolBatchResults) Exec() (pgconn.CommandTag, error) {
 
 func (br *poolBatchResults) Query() (pgx.Rows, error) {
 	return br.br.Query()
-}
-
-func (br *poolBatchResults) QueryFunc(scans []interface{}, f func(pgx.QueryFuncRow) error) (pgconn.CommandTag, error) {
-	return br.br.QueryFunc(scans, f)
 }
 
 func (br *poolBatchResults) QueryRow() pgx.Row {

@@ -7,48 +7,21 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
-func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, conn *pgx.Conn)) {
-	t.Run("SimpleProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
+var defaultConnTestRunner pgxtest.ConnTestRunner
 
-			config.PreferSimpleProtocol = true
-			conn, err := pgx.ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			defer func() {
-				err := conn.Close(context.Background())
-				require.NoError(t, err)
-			}()
-
-			f(t, conn)
-
-			ensureConnValid(t, conn)
-		},
-	)
-
-	t.Run("DefaultProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
-
-			conn, err := pgx.ConnectConfig(context.Background(), config)
-			require.NoError(t, err)
-			defer func() {
-				err := conn.Close(context.Background())
-				require.NoError(t, err)
-			}()
-
-			f(t, conn)
-
-			ensureConnValid(t, conn)
-		},
-	)
+func init() {
+	defaultConnTestRunner = pgxtest.DefaultConnTestRunner()
+	defaultConnTestRunner.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		return config
+	}
 }
 
 func mustConnectString(t testing.TB, connString string) *pgx.Conn {
@@ -80,7 +53,7 @@ func closeConn(t testing.TB, conn *pgx.Conn) {
 	}
 }
 
-func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
+func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...any) (commandTag pgconn.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
 		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)
@@ -89,7 +62,7 @@ func mustExec(t testing.TB, conn *pgx.Conn, sql string, arguments ...interface{}
 }
 
 // Do a simple query to ensure the connection is still usable
-func ensureConnValid(t *testing.T, conn *pgx.Conn) {
+func ensureConnValid(t testing.TB, conn *pgx.Conn) {
 	var sum, rowCount int32
 
 	rows, err := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
@@ -125,13 +98,11 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 		return
 	}
 
-	assert.Equalf(t, expected.Logger, actual.Logger, "%s - Logger", testName)
-	assert.Equalf(t, expected.LogLevel, actual.LogLevel, "%s - LogLevel", testName)
+	assert.Equalf(t, expected.Tracer, actual.Tracer, "%s - Tracer", testName)
 	assert.Equalf(t, expected.ConnString(), actual.ConnString(), "%s - ConnString", testName)
-	// Can't test function equality, so just test that they are set or not.
-	assert.Equalf(t, expected.BuildStatementCache == nil, actual.BuildStatementCache == nil, "%s - BuildStatementCache", testName)
-	assert.Equalf(t, expected.PreferSimpleProtocol, actual.PreferSimpleProtocol, "%s - PreferSimpleProtocol", testName)
-
+	assert.Equalf(t, expected.StatementCacheCapacity, actual.StatementCacheCapacity, "%s - StatementCacheCapacity", testName)
+	assert.Equalf(t, expected.DescriptionCacheCapacity, actual.DescriptionCacheCapacity, "%s - DescriptionCacheCapacity", testName)
+	assert.Equalf(t, expected.DefaultQueryExecMode, actual.DefaultQueryExecMode, "%s - DefaultQueryExecMode", testName)
 	assert.Equalf(t, expected.Host, actual.Host, "%s - Host", testName)
 	assert.Equalf(t, expected.Database, actual.Database, "%s - Database", testName)
 	assert.Equalf(t, expected.Port, actual.Port, "%s - Port", testName)
@@ -163,11 +134,5 @@ func assertConfigsEqual(t *testing.T, expected, actual *pgx.ConnConfig, testName
 				}
 			}
 		}
-	}
-}
-
-func skipCockroachDB(t testing.TB, conn *pgx.Conn, msg string) {
-	if conn.PgConn().ParameterStatus("crdb_version") != "" {
-		t.Skip(msg)
 	}
 }

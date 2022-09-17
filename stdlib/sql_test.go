@@ -9,13 +9,15 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/stdlib"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,7 +38,7 @@ func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
 	require.NoError(t, err)
 	defer conn.Close()
 
-	err = conn.Raw(func(driverConn interface{}) error {
+	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		if conn.PgConn().ParameterStatus("crdb_version") != "" {
 			t.Skip(msg)
@@ -46,73 +48,60 @@ func skipCockroachDB(t testing.TB, db *sql.DB, msg string) {
 	require.NoError(t, err)
 }
 
-func skipPostgreSQLVersion(t testing.TB, db *sql.DB, constraintStr, msg string) {
+func skipPostgreSQLVersionLessThan(t testing.TB, db *sql.DB, minVersion int64) {
 	conn, err := db.Conn(context.Background())
 	require.NoError(t, err)
 	defer conn.Close()
 
-	err = conn.Raw(func(driverConn interface{}) error {
+	err = conn.Raw(func(driverConn any) error {
 		conn := driverConn.(*stdlib.Conn).Conn()
 		serverVersionStr := conn.PgConn().ParameterStatus("server_version")
-		serverVersionStr = regexp.MustCompile(`^[0-9.]+`).FindString(serverVersionStr)
+		serverVersionStr = regexp.MustCompile(`^[0-9]+`).FindString(serverVersionStr)
 		// if not PostgreSQL do nothing
 		if serverVersionStr == "" {
 			return nil
 		}
 
-		serverVersion, err := semver.NewVersion(serverVersionStr)
+		serverVersion, err := strconv.ParseInt(serverVersionStr, 10, 64)
 		if err != nil {
 			return err
 		}
 
-		c, err := semver.NewConstraint(constraintStr)
-		if err != nil {
-			return err
+		if serverVersion < minVersion {
+			t.Skipf("Test requires PostgreSQL v%d+", minVersion)
 		}
 
-		if c.Check(serverVersion) {
-			t.Skip(msg)
-		}
 		return nil
 	})
 	require.NoError(t, err)
 }
 
-func testWithAndWithoutPreferSimpleProtocol(t *testing.T, f func(t *testing.T, db *sql.DB)) {
-	t.Run("SimpleProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
-
-			config.PreferSimpleProtocol = true
-			db := stdlib.OpenDB(*config)
-			defer func() {
-				err := db.Close()
+func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
+	for _, mode := range []pgx.QueryExecMode{
+		pgx.QueryExecModeCacheStatement,
+		pgx.QueryExecModeCacheDescribe,
+		pgx.QueryExecModeDescribeExec,
+		pgx.QueryExecModeExec,
+		pgx.QueryExecModeSimpleProtocol,
+	} {
+		t.Run(mode.String(),
+			func(t *testing.T) {
+				config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 				require.NoError(t, err)
-			}()
 
-			f(t, db)
+				config.DefaultQueryExecMode = mode
+				db := stdlib.OpenDB(*config)
+				defer func() {
+					err := db.Close()
+					require.NoError(t, err)
+				}()
 
-			ensureDBValid(t, db)
-		},
-	)
+				f(t, db)
 
-	t.Run("DefaultProto",
-		func(t *testing.T) {
-			config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
-			require.NoError(t, err)
-
-			db := stdlib.OpenDB(*config)
-			defer func() {
-				err := db.Close()
-				require.NoError(t, err)
-			}()
-
-			f(t, db)
-
-			ensureDBValid(t, db)
-		},
-	)
+				ensureDBValid(t, db)
+			},
+		)
+	}
 }
 
 // Do a simple query to ensure the DB is still usable. This is of less use in stdlib as the connection pool should
@@ -271,7 +260,7 @@ func TestQueryCloseRowsEarly(t *testing.T) {
 }
 
 func TestConnExec(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Exec("create temporary table t(a varchar not null)")
 		require.NoError(t, err)
 
@@ -285,7 +274,7 @@ func TestConnExec(t *testing.T) {
 }
 
 func TestConnQuery(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 
 		rows, err := db.Query("select 'foo', n from generate_series($1::int, $2::int) n", int32(1), int32(10))
@@ -317,7 +306,7 @@ func TestConnQuery(t *testing.T) {
 
 // https://github.com/jackc/pgx/issues/781
 func TestConnQueryDifferentScanPlansIssue781(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		var s string
 		var b bool
 
@@ -332,7 +321,7 @@ func TestConnQueryDifferentScanPlansIssue781(t *testing.T) {
 }
 
 func TestConnQueryNull(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		rows, err := db.Query("select $1::int", nil)
 		require.NoError(t, err)
 
@@ -357,7 +346,7 @@ func TestConnQueryNull(t *testing.T) {
 }
 
 func TestConnQueryRowByteSlice(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		expected := []byte{222, 173, 190, 239}
 		var actual []byte
 
@@ -368,7 +357,7 @@ func TestConnQueryRowByteSlice(t *testing.T) {
 }
 
 func TestConnQueryFailure(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Query("select 'foo")
 		require.Error(t, err)
 		require.IsType(t, new(pgconn.PgError), err)
@@ -376,7 +365,7 @@ func TestConnQueryFailure(t *testing.T) {
 }
 
 func TestConnSimpleSlicePassThrough(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support cardinality function")
 
 		var n int64
@@ -386,10 +375,54 @@ func TestConnSimpleSlicePassThrough(t *testing.T) {
 	})
 }
 
+func TestConnQueryScanGoArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		m := pgtype.NewMap()
+
+		var a []int64
+		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, []int64{1, 2, 3}, a)
+	})
+}
+
+func TestConnQueryScanArray(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		m := pgtype.NewMap()
+
+		var a pgtype.Array[int64]
+		err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+		require.NoError(t, err)
+		assert.Equal(t, pgtype.Array[int64]{Elements: []int64{1, 2, 3}, Dims: []pgtype.ArrayDimension{{Length: 3, LowerBound: 1}}, Valid: true}, a)
+	})
+}
+
+func TestConnQueryScanRange(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support int4range")
+
+		m := pgtype.NewMap()
+
+		var r pgtype.Range[pgtype.Int4]
+		err := db.QueryRow("select int4range(1, 5)").Scan(m.SQLScanner(&r))
+		require.NoError(t, err)
+		assert.Equal(
+			t,
+			pgtype.Range[pgtype.Int4]{
+				Lower:     pgtype.Int4{Int32: 1, Valid: true},
+				Upper:     pgtype.Int4{Int32: 5, Valid: true},
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Exclusive,
+				Valid:     true,
+			},
+			r)
+	})
+}
+
 // Test type that pgx would handle natively in binary, but since it is not a
 // database/sql native type should be passed through as a string
 func TestConnQueryRowPgxBinary(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		sql := "select $1::int4[]"
 		expected := "{1,2,3}"
 		var actual string
@@ -401,7 +434,7 @@ func TestConnQueryRowPgxBinary(t *testing.T) {
 }
 
 func TestConnQueryRowUnknownType(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server does not support point type")
 
 		sql := "select $1::point"
@@ -415,7 +448,7 @@ func TestConnQueryRowUnknownType(t *testing.T) {
 }
 
 func TestConnQueryJSONIntoByteSlice(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Exec(`
 		create temporary table docs(
 			body json not null
@@ -475,7 +508,7 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 }
 
 func TestTransactionLifeCycle(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Exec("create temporary table t(a varchar not null)")
 		require.NoError(t, err)
 
@@ -509,7 +542,7 @@ func TestTransactionLifeCycle(t *testing.T) {
 }
 
 func TestConnBeginTxIsolation(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server always uses serializable isolation level")
 
 		var defaultIsoLevel string
@@ -565,7 +598,7 @@ func TestConnBeginTxIsolation(t *testing.T) {
 }
 
 func TestConnBeginTxReadOnly(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		tx, err := db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
 		require.NoError(t, err)
 		defer tx.Rollback()
@@ -583,7 +616,7 @@ func TestConnBeginTxReadOnly(t *testing.T) {
 }
 
 func TestBeginTxContextCancel(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.Exec("drop table if exists t")
 		require.NoError(t, err)
 
@@ -610,49 +643,13 @@ func TestBeginTxContextCancel(t *testing.T) {
 	})
 }
 
-func TestAcquireConn(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		var conns []*pgx.Conn
-
-		for i := 1; i < 6; i++ {
-			conn, err := stdlib.AcquireConn(db)
-			if err != nil {
-				t.Errorf("%d. AcquireConn failed: %v", i, err)
-				continue
-			}
-
-			var n int32
-			err = conn.QueryRow(context.Background(), "select 1").Scan(&n)
-			if err != nil {
-				t.Errorf("%d. QueryRow failed: %v", i, err)
-			}
-			if n != 1 {
-				t.Errorf("%d. n => %d, want %d", i, n, 1)
-			}
-
-			stats := db.Stats()
-			if stats.OpenConnections != i {
-				t.Errorf("%d. stats.OpenConnections => %d, want %d", i, stats.OpenConnections, i)
-			}
-
-			conns = append(conns, conn)
-		}
-
-		for i, conn := range conns {
-			if err := stdlib.ReleaseConn(db, conn); err != nil {
-				t.Errorf("%d. stdlib.ReleaseConn failed: %v", i, err)
-			}
-		}
-	})
-}
-
 func TestConnRaw(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		conn, err := db.Conn(context.Background())
 		require.NoError(t, err)
 
 		var n int
-		err = conn.Raw(func(driverConn interface{}) error {
+		err = conn.Raw(func(driverConn any) error {
 			conn := driverConn.(*stdlib.Conn).Conn()
 			return conn.QueryRow(context.Background(), "select 42").Scan(&n)
 		})
@@ -661,47 +658,15 @@ func TestConnRaw(t *testing.T) {
 	})
 }
 
-// https://github.com/jackc/pgx/issues/673
-func TestReleaseConnWithTxInProgress(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		skipCockroachDB(t, db, "Server does not support backend PID")
-
-		c1, err := stdlib.AcquireConn(db)
-		require.NoError(t, err)
-
-		_, err = c1.Exec(context.Background(), "begin")
-		require.NoError(t, err)
-
-		c1PID := c1.PgConn().PID()
-
-		err = stdlib.ReleaseConn(db, c1)
-		require.NoError(t, err)
-
-		c2, err := stdlib.AcquireConn(db)
-		require.NoError(t, err)
-
-		c2PID := c2.PgConn().PID()
-
-		err = stdlib.ReleaseConn(db, c2)
-		require.NoError(t, err)
-
-		require.NotEqual(t, c1PID, c2PID)
-
-		// Releasing a conn with a tx in progress should close the connection
-		stats := db.Stats()
-		require.Equal(t, 1, stats.OpenConnections)
-	})
-}
-
 func TestConnPingContextSuccess(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		err := db.PingContext(context.Background())
 		require.NoError(t, err)
 	})
 }
 
 func TestConnPrepareContextSuccess(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		stmt, err := db.PrepareContext(context.Background(), "select now()")
 		require.NoError(t, err)
 		err = stmt.Close()
@@ -710,31 +675,14 @@ func TestConnPrepareContextSuccess(t *testing.T) {
 }
 
 func TestConnExecContextSuccess(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.ExecContext(context.Background(), "create temporary table exec_context_test(id serial primary key)")
 		require.NoError(t, err)
 	})
 }
 
-func TestConnExecContextFailureRetry(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		// We get a connection, immediately close it, and then get it back;
-		// DB.Conn along with Conn.ResetSession does the retry for us.
-		{
-			conn, err := stdlib.AcquireConn(db)
-			require.NoError(t, err)
-			conn.Close(context.Background())
-			stdlib.ReleaseConn(db, conn)
-		}
-		conn, err := db.Conn(context.Background())
-		require.NoError(t, err)
-		_, err = conn.ExecContext(context.Background(), "select 1")
-		require.NoError(t, err)
-	})
-}
-
 func TestConnQueryContextSuccess(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		rows, err := db.QueryContext(context.Background(), "select * from generate_series(1,10) n")
 		require.NoError(t, err)
 
@@ -747,26 +695,8 @@ func TestConnQueryContextSuccess(t *testing.T) {
 	})
 }
 
-func TestConnQueryContextFailureRetry(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		// We get a connection, immediately close it, and then get it back;
-		// DB.Conn along with Conn.ResetSession does the retry for us.
-		{
-			conn, err := stdlib.AcquireConn(db)
-			require.NoError(t, err)
-			conn.Close(context.Background())
-			stdlib.ReleaseConn(db, conn)
-		}
-		conn, err := db.Conn(context.Background())
-		require.NoError(t, err)
-
-		_, err = conn.QueryContext(context.Background(), "select 1")
-		require.NoError(t, err)
-	})
-}
-
 func TestRowsColumnTypeDatabaseTypeName(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		rows, err := db.Query("select 42::bigint")
 		require.NoError(t, err)
 
@@ -850,7 +780,7 @@ func TestStmtQueryContextSuccess(t *testing.T) {
 }
 
 func TestRowsColumnTypes(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		columnTypesTests := []struct {
 			Name     string
 			TypeName string
@@ -988,7 +918,7 @@ func TestRowsColumnTypes(t *testing.T) {
 }
 
 func TestQueryLifeCycle(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		skipCockroachDB(t, db, "Server issues incorrect ParameterDescription (https://github.com/cockroachdb/cockroach/issues/60907)")
 
 		rows, err := db.Query("SELECT 'foo', n FROM generate_series($1::int, $2::int) n WHERE 3 = $3", 1, 10, 3)
@@ -1037,7 +967,7 @@ func TestQueryLifeCycle(t *testing.T) {
 
 // https://github.com/jackc/pgx/issues/409
 func TestScanJSONIntoJSONRawMessage(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		var msg json.RawMessage
 
 		err := db.QueryRow("select '{}'::json").Scan(&msg)
@@ -1047,16 +977,16 @@ func TestScanJSONIntoJSONRawMessage(t *testing.T) {
 }
 
 type testLog struct {
-	lvl  pgx.LogLevel
+	lvl  tracelog.LogLevel
 	msg  string
-	data map[string]interface{}
+	data map[string]any
 }
 
 type testLogger struct {
 	logs []testLog
 }
 
-func (l *testLogger) Log(ctx context.Context, lvl pgx.LogLevel, msg string, data map[string]interface{}) {
+func (l *testLogger) Log(ctx context.Context, lvl tracelog.LogLevel, msg string, data map[string]any) {
 	l.logs = append(l.logs, testLog{lvl: lvl, msg: msg, data: data})
 }
 
@@ -1065,7 +995,7 @@ func TestRegisterConnConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	logger := &testLogger{}
-	connConfig.Logger = logger
+	connConfig.Tracer = &tracelog.TraceLog{Logger: logger, LogLevel: tracelog.LogLevelInfo}
 
 	// Issue 947: Register and unregister a ConnConfig and ensure that the
 	// returned connection string is not reused.
@@ -1092,8 +1022,8 @@ func TestRegisterConnConfig(t *testing.T) {
 
 // https://github.com/jackc/pgx/issues/958
 func TestConnQueryRowConstraintErrors(t *testing.T) {
-	testWithAndWithoutPreferSimpleProtocol(t, func(t *testing.T, db *sql.DB) {
-		skipPostgreSQLVersion(t, db, "< 11", "Test requires PG 11+")
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipPostgreSQLVersionLessThan(t, db, 11)
 		skipCockroachDB(t, db, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 		_, err := db.Exec(`create temporary table defer_test (
@@ -1224,4 +1154,68 @@ func TestResetSessionHookCalled(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, mockCalled)
+}
+
+func TestCheckIdleConn(t *testing.T) {
+	controllerConn, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeDB(t, controllerConn)
+
+	skipCockroachDB(t, controllerConn, "Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+
+	db, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeDB(t, db)
+
+	var conns []*sql.Conn
+	for i := 0; i < 3; i++ {
+		c, err := db.Conn(context.Background())
+		require.NoError(t, err)
+		conns = append(conns, c)
+	}
+
+	require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	var pids []uint32
+	for _, c := range conns {
+		err := c.Raw(func(driverConn any) error {
+			pids = append(pids, driverConn.(*stdlib.Conn).Conn().PgConn().PID())
+			return nil
+		})
+		require.NoError(t, err)
+		err = c.Close()
+		require.NoError(t, err)
+	}
+
+	// The database/sql connection pool seems to automatically close idle connections to only keep 2 alive.
+	// require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	_, err = controllerConn.ExecContext(context.Background(), `select pg_terminate_backend(n) from unnest($1::int[]) n`, pids)
+	require.NoError(t, err)
+
+	// All conns are dead they don't know it and neither does the pool. But because of database/sql automatically closing
+	// idle connections we can't be sure how many we should have. require.EqualValues(t, 3, db.Stats().OpenConnections)
+
+	// Wait long enough so the pool will realize it needs to check the connections.
+	time.Sleep(time.Second)
+
+	// Pool should try all existing connections and find them dead, then create a new connection which should successfully ping.
+	err = db.PingContext(context.Background())
+	require.NoError(t, err)
+
+	// The original 3 conns should have been terminated and the a new conn established for the ping.
+	require.EqualValues(t, 1, db.Stats().OpenConnections)
+	c, err := db.Conn(context.Background())
+	require.NoError(t, err)
+
+	var cPID uint32
+	err = c.Raw(func(driverConn any) error {
+		cPID = driverConn.(*stdlib.Conn).Conn().PgConn().PID()
+		return nil
+	})
+	require.NoError(t, err)
+	err = c.Close()
+	require.NoError(t, err)
+
+	require.NotContains(t, pids, cPID)
 }

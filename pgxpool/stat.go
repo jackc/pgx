@@ -3,7 +3,7 @@ package pgxpool
 import (
 	"time"
 
-	"github.com/jackc/puddle"
+	"github.com/jackc/puddle/v2"
 )
 
 // Stat is a snapshot of Pool statistics.

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, v5-dev ]
   pull_request:
     branches: [ master ]
 
@@ -14,21 +14,52 @@ jobs:
 
     strategy:
       matrix:
-        go-version: [1.16, 1.17]
+        go-version: [1.18]
         pg-version: [10, 11, 12, 13, 14, cockroachdb]
         include:
           - pg-version: 10
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: 11
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: 12
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: 13
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: 14
             pgx-test-database: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
+            pgx-test-tcp-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-tls-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test?sslmode=require
+            pgx-test-md5-password-conn-string: postgres://pgx_md5:secret@127.0.0.1/pgx_test
+            pgx-test-plain-password-conn-string: postgres://pgx_pw:secret@127.0.0.1/pgx_test
           - pg-version: cockroachdb
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
+            pgx-test-conn-string: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
 
@@ -49,3 +80,9 @@ jobs:
       run: go test -race ./...
       env:
         PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
+        PGX_TEST_CONN_STRING: ${{ matrix.pgx-test-conn-string }}
+        PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
+        PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
+        PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
+        PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
+        PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}

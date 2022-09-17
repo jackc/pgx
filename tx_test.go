@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxtest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,7 +107,7 @@ func TestTxCommitWhenDeferredConstraintFailure(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support deferred constraint (https://github.com/cockroachdb/cockroach/issues/31632)")
 
 	createSql := `
     create temporary table foo(
@@ -273,7 +274,7 @@ func TestBeginIsoLevels(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	skipCockroachDB(t, conn, "Server always uses SERIALIZABLE isolation (https://www.cockroachlabs.com/docs/stable/demo-serializable.html)")
+	pgxtest.SkipCockroachDB(t, conn, "Server always uses SERIALIZABLE isolation (https://www.cockroachlabs.com/docs/stable/demo-serializable.html)")
 
 	isoLevels := []pgx.TxIsoLevel{pgx.Serializable, pgx.RepeatableRead, pgx.ReadCommitted, pgx.ReadUncommitted}
 	for _, iso := range isoLevels {
@@ -311,7 +312,7 @@ func TestBeginFunc(t *testing.T) {
 	_, err := conn.Exec(context.Background(), createSql)
 	require.NoError(t, err)
 
-	err = conn.BeginFunc(context.Background(), func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), conn, func(tx pgx.Tx) error {
 		_, err := tx.Exec(context.Background(), "insert into foo(id) values (1)")
 		require.NoError(t, err)
 		return nil
@@ -340,7 +341,7 @@ func TestBeginFuncRollbackOnError(t *testing.T) {
 	_, err := conn.Exec(context.Background(), createSql)
 	require.NoError(t, err)
 
-	err = conn.BeginFunc(context.Background(), func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), conn, func(tx pgx.Tx) error {
 		_, err := tx.Exec(context.Background(), "insert into foo(id) values (1)")
 		require.NoError(t, err)
 		return errors.New("some error")
@@ -521,15 +522,15 @@ func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 	_, err := db.Exec(context.Background(), createSql)
 	require.NoError(t, err)
 
-	err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 		_, err := db.Exec(context.Background(), "insert into foo(id) values (1)")
 		require.NoError(t, err)
 
-		err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+		err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 			_, err := db.Exec(context.Background(), "insert into foo(id) values (2)")
 			require.NoError(t, err)
 
-			err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+			err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 				_, err := db.Exec(context.Background(), "insert into foo(id) values (3)")
 				require.NoError(t, err)
 				return nil
@@ -564,11 +565,11 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 	_, err := db.Exec(context.Background(), createSql)
 	require.NoError(t, err)
 
-	err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+	err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 		_, err := db.Exec(context.Background(), "insert into foo(id) values (1)")
 		require.NoError(t, err)
 
-		err = db.BeginFunc(context.Background(), func(db pgx.Tx) error {
+		err = pgx.BeginFunc(context.Background(), db, func(db pgx.Tx) error {
 			_, err := db.Exec(context.Background(), "insert into foo(id) values (2)")
 			require.NoError(t, err)
 			return errors.New("do a rollback")

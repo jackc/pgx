@@ -1,29 +1,29 @@
 package pgxpool
 
 import (
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgproto3/v2"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type errRows struct {
 	err error
 }
 
-func (errRows) Close()                                         {}
-func (e errRows) Err() error                                   { return e.err }
-func (errRows) CommandTag() pgconn.CommandTag                  { return nil }
-func (errRows) FieldDescriptions() []pgproto3.FieldDescription { return nil }
-func (errRows) Next() bool                                     { return false }
-func (e errRows) Scan(dest ...interface{}) error               { return e.err }
-func (e errRows) Values() ([]interface{}, error)               { return nil, e.err }
-func (e errRows) RawValues() [][]byte                          { return nil }
+func (errRows) Close()                                       {}
+func (e errRows) Err() error                                 { return e.err }
+func (errRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
+func (errRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
+func (errRows) Next() bool                                   { return false }
+func (e errRows) Scan(dest ...any) error                     { return e.err }
+func (e errRows) Values() ([]any, error)                     { return nil, e.err }
+func (e errRows) RawValues() [][]byte                        { return nil }
+func (e errRows) Conn() *pgx.Conn                            { return nil }
 
 type errRow struct {
 	err error
 }
 
-func (e errRow) Scan(dest ...interface{}) error { return e.err }
+func (e errRow) Scan(dest ...any) error { return e.err }
 
 type poolRows struct {
 	r   pgx.Rows
@@ -50,7 +50,7 @@ func (rows *poolRows) CommandTag() pgconn.CommandTag {
 	return rows.r.CommandTag()
 }
 
-func (rows *poolRows) FieldDescriptions() []pgproto3.FieldDescription {
+func (rows *poolRows) FieldDescriptions() []pgconn.FieldDescription {
 	return rows.r.FieldDescriptions()
 }
 
@@ -66,7 +66,7 @@ func (rows *poolRows) Next() bool {
 	return n
 }
 
-func (rows *poolRows) Scan(dest ...interface{}) error {
+func (rows *poolRows) Scan(dest ...any) error {
 	err := rows.r.Scan(dest...)
 	if err != nil {
 		rows.Close()
@@ -74,7 +74,7 @@ func (rows *poolRows) Scan(dest ...interface{}) error {
 	return err
 }
 
-func (rows *poolRows) Values() ([]interface{}, error) {
+func (rows *poolRows) Values() ([]any, error) {
 	values, err := rows.r.Values()
 	if err != nil {
 		rows.Close()
@@ -86,13 +86,17 @@ func (rows *poolRows) RawValues() [][]byte {
 	return rows.r.RawValues()
 }
 
+func (rows *poolRows) Conn() *pgx.Conn {
+	return rows.r.Conn()
+}
+
 type poolRow struct {
 	r   pgx.Row
 	c   *Conn
 	err error
 }
 
-func (row *poolRow) Scan(dest ...interface{}) error {
+func (row *poolRow) Scan(dest ...any) error {
 	if row.err != nil {
 		return row.err
 	}
