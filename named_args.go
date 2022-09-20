@@ -12,8 +12,8 @@ import (
 //
 // For example, the following two queries are equivalent:
 //
-// 	conn.Query(ctx, "select * from widgets where foo = @foo and bar = @bar", pgx.NamedArgs{"foo": 1, "bar": 2}))
-// 	conn.Query(ctx, "select * from widgets where foo = $1 and bar = $2", 1, 2}))
+// 	conn.Query(ctx, "select * from widgets where foo = @foo and bar = @bar", pgx.NamedArgs{"foo": 1, "bar": 2})
+// 	conn.Query(ctx, "select * from widgets where foo = $1 and bar = $2", 1, 2)
 type NamedArgs map[string]any
 
 // RewriteQuery implements the QueryRewriter interface.
