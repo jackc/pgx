@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -106,6 +107,13 @@ func (Float8Codec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 	}
 
 	return nil
+}
+
+func (f *Float8) MarshalJSON() ([]byte, error) {
+	if !f.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(f.Float64)
 }
 
 type encodePlanFloat8CodecBinaryFloat64 struct{}
