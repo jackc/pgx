@@ -564,7 +564,7 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 		pgConn.contextWatcher.Unwatch()
 
 		pgConn.contextWatcher.Watch(ctx)
-		defer pgConn.contextWatcher.Unwatch()
+		defer pgConn.contextWatcher.Stop()
 	}
 
 	// Ignore any errors sending Terminate message and waiting for server to close connection.

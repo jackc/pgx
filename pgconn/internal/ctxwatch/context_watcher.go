@@ -14,6 +14,7 @@ type ContextWatcher struct {
 	watchInProgress uint32
 	watchChan       chan context.Context
 	unwatchChan     chan struct{}
+	watchDoneChan   chan struct{}
 }
 
 // NewContextWatcher returns a ContextWatcher. onCancel will be called when a watched context is canceled.
@@ -28,15 +29,20 @@ func NewContextWatcher(onCancel func(), onUnwatchAfterCancel func()) *ContextWat
 }
 
 func (cw *ContextWatcher) watch() {
-	for ctx := range cw.watchChan {
+	for {
 		select {
-		case <-ctx.Done():
-			cw.onCancel()
-			<-cw.watchChan
-			cw.onUnwatchAfterCancel()
-			cw.unwatchChan <- struct{}{}
-		case <-cw.watchChan:
-			cw.unwatchChan <- struct{}{}
+		case ctx := <-cw.watchChan:
+			select {
+			case <-ctx.Done():
+				cw.onCancel()
+				<-cw.watchChan
+				cw.onUnwatchAfterCancel()
+				cw.unwatchChan <- struct{}{}
+			case <-cw.watchChan:
+				cw.unwatchChan <- struct{}{}
+			}
+		case <-cw.watchDoneChan:
+			return
 		}
 	}
 }
@@ -54,6 +60,7 @@ func (cw *ContextWatcher) Watch(ctx context.Context) {
 	if cw.watchChan == nil {
 		cw.watchChan = make(chan context.Context, 1)
 		cw.unwatchChan = make(chan struct{}, 1)
+		cw.watchDoneChan = make(chan struct{})
 		go cw.watch()
 	}
 	cw.watchChan <- ctx
@@ -72,6 +79,6 @@ func (cw *ContextWatcher) Unwatch() {
 func (cw *ContextWatcher) Stop() {
 	cw.Unwatch()
 	if cw.watchChan != nil {
-		close(cw.watchChan)
+		close(cw.watchDoneChan)
 	}
 }
