@@ -1921,13 +1921,15 @@ func (w *sqlScannerWrapper) Scan(src any) error {
 	}
 
 	var bufSrc []byte
-	switch src := src.(type) {
-	case string:
-		bufSrc = []byte(src)
-	case []byte:
-		bufSrc = src
-	default:
-		bufSrc = []byte(fmt.Sprint(bufSrc))
+	if src != nil {
+		switch src := src.(type) {
+		case string:
+			bufSrc = []byte(src)
+		case []byte:
+			bufSrc = src
+		default:
+			bufSrc = []byte(fmt.Sprint(bufSrc))
+		}
 	}
 
 	return w.m.Scan(t.OID, TextFormatCode, bufSrc, w.v)
