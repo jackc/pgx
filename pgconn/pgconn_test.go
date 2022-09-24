@@ -235,8 +235,7 @@ func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
 			require.NoError(t, err)
 			defer ln.Close()
 
-			serverErrChan := make(chan error)
-			defer close(serverErrChan)
+			serverErrChan := make(chan error, 1)
 			go func() {
 				conn, err := ln.Accept()
 				if err != nil {
