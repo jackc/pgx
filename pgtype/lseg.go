@@ -117,7 +117,7 @@ func (encodePlanLsegCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 		return nil, nil
 	}
 
-	buf = append(buf, fmt.Sprintf(`(%s,%s),(%s,%s)`,
+	buf = append(buf, fmt.Sprintf(`[(%s,%s),(%s,%s)]`,
 		strconv.FormatFloat(lseg.P[0].X, 'f', -1, 64),
 		strconv.FormatFloat(lseg.P[0].Y, 'f', -1, 64),
 		strconv.FormatFloat(lseg.P[1].X, 'f', -1, 64),
