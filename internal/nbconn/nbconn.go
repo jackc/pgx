@@ -60,6 +60,11 @@ type Conn interface {
 
 // NetConn is a non-blocking net.Conn wrapper. It implements net.Conn.
 type NetConn struct {
+	// 64 bit fields accessed with atomics must be at beginning of struct to guarantee alignment for certain 32-bit
+	// architectures. See BUGS section of https://pkg.go.dev/sync/atomic and https://github.com/jackc/pgx/issues/1288 and
+	// https://github.com/jackc/pgx/issues/1307. Only access with atomics
+	closed int64 // 0 = not closed, 1 = closed
+
 	conn    net.Conn
 	rawConn syscall.RawConn
 
@@ -79,9 +84,6 @@ type NetConn struct {
 
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
-
-	// Only access with atomics
-	closed int64 // 0 = not closed, 1 = closed
 }
 
 func NewNetConn(conn net.Conn, fakeNonBlockingIO bool) *NetConn {
