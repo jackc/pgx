@@ -1,3 +1,10 @@
+# v5.0.1
+
+* Fix 32-bit atomic usage
+* Add MarshalJSON for Float8 (yogipristiawan)
+* Add `[` and `]` to text encoding of `Lseg`
+* Fix sqlScannerWrapper NULL handling
+
 # v5.0.0
 
 ## Merged Packages
