@@ -860,7 +860,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 			func() { cancelConn.SetDeadline(time.Time{}) },
 		)
 		contextWatcher.Watch(ctx)
-		defer contextWatcher.Unwatch()
+		defer contextWatcher.Stop()
 	}
 
 	buf := make([]byte, 16)
@@ -1955,7 +1955,7 @@ func (p *Pipeline) Close() error {
 		}
 	}
 
-	p.conn.contextWatcher.Unwatch()
+	p.conn.contextWatcher.Stop()
 	p.conn.unlock()
 
 	return p.err

@@ -2,7 +2,7 @@ package ctxwatch
 
 import (
 	"context"
-	"sync"
+	"sync/atomic"
 )
 
 // ContextWatcher watches a context and performs an action when the context is canceled. It can watch one context at a
@@ -10,11 +10,10 @@ import (
 type ContextWatcher struct {
 	onCancel             func()
 	onUnwatchAfterCancel func()
-	unwatchChan          chan struct{}
 
-	lock              sync.Mutex
-	watchInProgress   bool
-	onCancelWasCalled bool
+	watchInProgress uint32
+	watchChan       chan context.Context
+	unwatchChan     chan struct{}
 }
 
 // NewContextWatcher returns a ContextWatcher. onCancel will be called when a watched context is canceled.
@@ -24,50 +23,55 @@ func NewContextWatcher(onCancel func(), onUnwatchAfterCancel func()) *ContextWat
 	cw := &ContextWatcher{
 		onCancel:             onCancel,
 		onUnwatchAfterCancel: onUnwatchAfterCancel,
-		unwatchChan:          make(chan struct{}),
 	}
-
 	return cw
+}
+
+func (cw *ContextWatcher) watch() {
+	for ctx := range cw.watchChan {
+		select {
+		case <-ctx.Done():
+			cw.onCancel()
+			<-cw.watchChan
+			cw.onUnwatchAfterCancel()
+			cw.unwatchChan <- struct{}{}
+		case <-cw.watchChan:
+			cw.unwatchChan <- struct{}{}
+		}
+	}
 }
 
 // Watch starts watching ctx. If ctx is canceled then the onCancel function passed to NewContextWatcher will be called.
 func (cw *ContextWatcher) Watch(ctx context.Context) {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
-
-	if cw.watchInProgress {
+	if atomic.SwapUint32(&cw.watchInProgress, 1) != 0 {
 		panic("Watch already in progress")
 	}
-
-	cw.onCancelWasCalled = false
-
-	if ctx.Done() != nil {
-		cw.watchInProgress = true
-		go func() {
-			select {
-			case <-ctx.Done():
-				cw.onCancel()
-				cw.onCancelWasCalled = true
-				<-cw.unwatchChan
-			case <-cw.unwatchChan:
-			}
-		}()
-	} else {
-		cw.watchInProgress = false
+	if ctx.Done() == nil {
+		atomic.StoreUint32(&cw.watchInProgress, 0)
+		return
 	}
+	// watch never gets spawned if ctx is always context.Background()
+	if cw.watchChan == nil {
+		cw.watchChan = make(chan context.Context, 1)
+		cw.unwatchChan = make(chan struct{}, 1)
+		go cw.watch()
+	}
+	cw.watchChan <- ctx
 }
 
 // Unwatch stops watching the previously watched context. If the onCancel function passed to NewContextWatcher was
 // called then onUnwatchAfterCancel will also be called.
 func (cw *ContextWatcher) Unwatch() {
-	cw.lock.Lock()
-	defer cw.lock.Unlock()
+	if atomic.SwapUint32(&cw.watchInProgress, 0) != 1 {
+		return
+	}
+	cw.watchChan <- nil
+	<-cw.unwatchChan
+}
 
-	if cw.watchInProgress {
-		cw.unwatchChan <- struct{}{}
-		if cw.onCancelWasCalled {
-			cw.onUnwatchAfterCancel()
-		}
-		cw.watchInProgress = false
+func (cw *ContextWatcher) Stop() {
+	cw.Unwatch()
+	if cw.watchChan != nil {
+		close(cw.watchChan)
 	}
 }
