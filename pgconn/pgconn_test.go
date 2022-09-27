@@ -2814,3 +2814,43 @@ func TestSNISupport(t *testing.T) {
 		})
 	}
 }
+
+type delayedReader struct {
+	r io.Reader
+}
+
+func (d delayedReader) Read(p []byte) (int, error) {
+	// W/o sleep test passes, with sleep it fails.
+	time.Sleep(time.Millisecond)
+	return d.r.Read(p)
+}
+
+func TestCopyFrom(t *testing.T) {
+	connString := os.Getenv("PGX_TEST_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_CONN_STRING")
+	}
+
+	config, err := pgconn.ParseConfig(connString)
+	require.NoError(t, err)
+
+	pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+	require.NoError(t, err)
+
+	setupSQL := `create temporary table t (
+		id text primary key,
+		n int not null
+	);`
+
+	_, err = pgConn.Exec(context.Background(), setupSQL).ReadAll()
+	assert.NoError(t, err)
+
+	r1 := delayedReader{r: strings.NewReader(`id	0\n`)}
+	// Generate an error with a bogus COPY command
+	_, err = pgConn.CopyFrom(context.Background(), r1, "COPY nosuchtable FROM STDIN ")
+	assert.Error(t, err)
+
+	r2 := delayedReader{r: strings.NewReader(`id	0\n`)}
+	_, err = pgConn.CopyFrom(context.Background(), r2, "COPY t FROM STDIN")
+	assert.NoError(t, err)
+}
