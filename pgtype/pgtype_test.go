@@ -3,7 +3,9 @@ package pgtype_test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"regexp"
@@ -263,6 +265,56 @@ func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	err := plan.Scan(src, &v)
 	require.NoError(t, err)
 	require.Equal(t, []string{"foo", "bar"}, *v)
+}
+
+type databaseValuerString string
+
+func (s databaseValuerString) Value() (driver.Value, error) {
+	return fmt.Sprintf("%d", len(s)), nil
+}
+
+// https://github.com/jackc/pgx/issues/1319
+func TestMapEncodeTextFormatDatabaseValuerThatIsRenamedSimpleType(t *testing.T) {
+	m := pgtype.NewMap()
+	src := databaseValuerString("foo")
+	buf, err := m.Encode(pgtype.TextOID, pgtype.TextFormatCode, src, nil)
+	require.NoError(t, err)
+	require.Equal(t, "3", string(buf))
+}
+
+type databaseValuerFmtStringer string
+
+func (s databaseValuerFmtStringer) Value() (driver.Value, error) {
+	return nil, nil
+}
+
+func (s databaseValuerFmtStringer) String() string {
+	return "foobar"
+}
+
+// https://github.com/jackc/pgx/issues/1311
+func TestMapEncodeTextFormatDatabaseValuerThatIsFmtStringer(t *testing.T) {
+	m := pgtype.NewMap()
+	src := databaseValuerFmtStringer("")
+	buf, err := m.Encode(pgtype.TextOID, pgtype.TextFormatCode, src, nil)
+	require.NoError(t, err)
+	require.Nil(t, buf)
+}
+
+type databaseValuerStringFormat struct {
+	n int32
+}
+
+func (v databaseValuerStringFormat) Value() (driver.Value, error) {
+	return fmt.Sprint(v.n), nil
+}
+
+func TestMapEncodeBinaryFormatDatabaseValuerThatReturnsString(t *testing.T) {
+	m := pgtype.NewMap()
+	src := databaseValuerStringFormat{n: 42}
+	buf, err := m.Encode(pgtype.Int4OID, pgtype.BinaryFormatCode, src, nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte{0, 0, 0, 42}, buf)
 }
 
 func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
