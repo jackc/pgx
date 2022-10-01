@@ -195,8 +195,14 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 
 		buf = strconv.AppendInt(buf, int64(year), 10)
 		buf = append(buf, '-')
+		if date.Time.Month() < 10 {
+			buf = append(buf, '0')
+		}
 		buf = strconv.AppendInt(buf, int64(date.Time.Month()), 10)
 		buf = append(buf, '-')
+		if date.Time.Day() < 10 {
+			buf = append(buf, '0')
+		}
 		buf = strconv.AppendInt(buf, int64(date.Time.Day()), 10)
 
 		if bc {
