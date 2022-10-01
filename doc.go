@@ -161,12 +161,14 @@ notification is received or the context is canceled.
 
     _, err := conn.Exec(context.Background(), "listen channelname")
     if err != nil {
-        return nil
+        return err
     }
 
-    if notification, err := conn.WaitForNotification(context.Background()); err != nil {
-        // do something with notification
+    notification, err := conn.WaitForNotification(context.Background())
+    if err != nil {
+        return err
     }
+    // do something with notification
 
 
 Tracing and Logging
