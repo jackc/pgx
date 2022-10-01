@@ -41,8 +41,8 @@ fi
 
 if [[ "${PGVERSION-}" =~ ^cockroach ]]
 then
-  wget -qO- https://binaries.cockroachdb.com/cockroach-v20.2.5.linux-amd64.tgz | tar xvz
-  sudo mv cockroach-v20.2.5.linux-amd64/cockroach /usr/local/bin/
+  wget -qO- https://binaries.cockroachdb.com/cockroach-v22.1.8.linux-amd64.tgz | tar xvz
+  sudo mv cockroach-v22.1.8.linux-amd64/cockroach /usr/local/bin/
   cockroach start-single-node --insecure --background --listen-addr=localhost
   cockroach sql --insecure -e 'create database pgx_test'
 fi
