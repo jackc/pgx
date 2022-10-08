@@ -1,11 +1,18 @@
-# v5.0.1
+# v5.0.2 (October 8, 2022)
+
+* Fix date encoding in text format to always use 2 digits for month and day
+* Prefer driver.Valuer over wrap plans when encoding
+* Fix scan to pointer to pointer to renamed type
+* Allow scanning NULL even if PG and Go types are incompatible
+
+# v5.0.1 (September 24, 2022)
 
 * Fix 32-bit atomic usage
 * Add MarshalJSON for Float8 (yogipristiawan)
 * Add `[` and `]` to text encoding of `Lseg`
 * Fix sqlScannerWrapper NULL handling
 
-# v5.0.0
+# v5.0.0 (September 17, 2022)
 
 ## Merged Packages
 
