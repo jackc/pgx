@@ -558,6 +558,23 @@ type scanPlanFail struct {
 }
 
 func (plan *scanPlanFail) Scan(src []byte, dst any) error {
+	// If src is NULL it might be possible to scan into dst even though it is the types are not compatible. While this
+	// may seem to be a contrived case it can occur when selecting NULL directly. PostgreSQL assigns it the type of text.
+	// It would be surprising to the caller to have to cast the NULL (e.g. `select null::int`). So try to figure out a
+	// compatible data type for dst and scan with that.
+	//
+	// See https://github.com/jackc/pgx/issues/1326
+	if src == nil {
+		// As a horrible hack try all types to find anything that can scan into dst.
+		for oid := range plan.m.oidToType {
+			// using planScan instead of Scan or PlanScan to avoid polluting the planned scan cache.
+			plan := plan.m.planScan(oid, plan.formatCode, dst)
+			if _, ok := plan.(*scanPlanFail); !ok {
+				return plan.Scan(src, dst)
+			}
+		}
+	}
+
 	var format string
 	switch plan.formatCode {
 	case TextFormatCode:
