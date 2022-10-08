@@ -659,7 +659,12 @@ func TryFindUnderlyingTypeScanPlan(dst any) (plan WrappedScanPlanNextSetter, nex
 	dstValue := reflect.ValueOf(dst)
 
 	if dstValue.Kind() == reflect.Ptr {
-		elemValue := dstValue.Elem()
+		var elemValue reflect.Value
+		if dstValue.IsNil() {
+			elemValue = reflect.New(dstValue.Type().Elem()).Elem()
+		} else {
+			elemValue = dstValue.Elem()
+		}
 		nextDstType := elemKindToPointerTypes[elemValue.Kind()]
 		if nextDstType == nil && elemValue.Kind() == reflect.Slice {
 			if elemValue.Type().Elem().Kind() == reflect.Uint8 {
