@@ -105,3 +105,10 @@ type TraceConnectEndData struct {
 	Conn *Conn
 	Err  error
 }
+
+var defaultQueryTracer QueryTracer
+
+// SetDefaultQueryTracer allows to set the default tracer
+func SetDefaultQueryTracer(tracer QueryTracer) {
+	defaultQueryTracer = tracer
+}
