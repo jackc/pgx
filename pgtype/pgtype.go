@@ -1317,10 +1317,6 @@ func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
 		}
 	}
 
-	if _, ok := value.(driver.Valuer); ok {
-		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
-	}
-
 	for _, f := range m.TryWrapEncodePlanFuncs {
 		if wrapperPlan, nextValue, ok := f(value); ok {
 			if nextPlan := m.PlanEncode(oid, format, nextValue); nextPlan != nil {
@@ -1328,6 +1324,10 @@ func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
 				return wrapperPlan
 			}
 		}
+	}
+
+	if _, ok := value.(driver.Valuer); ok {
+		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
 	}
 
 	return nil
@@ -1453,6 +1453,10 @@ func (plan *derefPointerEncodePlan) Encode(value any, buf []byte) (newBuf []byte
 // TryWrapDerefPointerEncodePlan tries to dereference a pointer. e.g. If value was of type *string then a wrapper plan
 // would be returned that derefences the value.
 func TryWrapDerefPointerEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	if valueType := reflect.TypeOf(value); valueType.Kind() == reflect.Ptr {
 		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
 	}
@@ -1490,6 +1494,10 @@ func (plan *underlyingTypeEncodePlan) Encode(value any, buf []byte) (newBuf []by
 // TryWrapFindUnderlyingTypeEncodePlan tries to convert to a Go builtin type. e.g. If value was of type MyString and
 // MyString was defined as a string then a wrapper plan would be returned that converts MyString to string.
 func TryWrapFindUnderlyingTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	if _, ok := value.(SkipUnderlyingTypePlanner); ok {
 		return nil, nil, false
 	}
@@ -1513,6 +1521,10 @@ type WrappedEncodePlanNextSetter interface {
 // value was of type int32 then a wrapper plan would be returned that converts value to a type that implements
 // Int64Valuer.
 func TryWrapBuiltinTypeEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	switch value := value.(type) {
 	case int8:
 		return &wrapInt8EncodePlan{}, int8Wrapper(value), true
@@ -1809,6 +1821,10 @@ func (plan *wrapFmtStringerEncodePlan) Encode(value any, buf []byte) (newBuf []b
 
 // TryWrapStructPlan tries to wrap a struct with a wrapper that implements CompositeIndexGetter.
 func TryWrapStructEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	if reflect.TypeOf(value).Kind() == reflect.Struct {
 		exportedFields := getExportedFieldValues(reflect.ValueOf(value))
 		if len(exportedFields) == 0 {
@@ -1854,6 +1870,10 @@ func getExportedFieldValues(structValue reflect.Value) []reflect.Value {
 }
 
 func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	// Avoid using reflect path for common types.
 	switch value := value.(type) {
 	case []int16:
@@ -1911,6 +1931,10 @@ func (plan *wrapSliceEncodeReflectPlan) Encode(value any, buf []byte) (newBuf []
 }
 
 func TryWrapMultiDimSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
 	sliceValue := reflect.ValueOf(value)
 	if sliceValue.Kind() == reflect.Slice {
 		valueElemType := sliceValue.Type().Elem()
