@@ -1432,7 +1432,7 @@ func TryWrapDerefPointerEncodePlan(value any) (plan WrappedEncodePlanNextSetter,
 		return nil, nil, false
 	}
 
-	if valueType := reflect.TypeOf(value); valueType.Kind() == reflect.Ptr {
+	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Ptr {
 		return &derefPointerEncodePlan{}, reflect.New(valueType.Elem()).Elem().Interface(), true
 	}
 
