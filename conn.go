@@ -181,6 +181,7 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 
 	connConfig := &ConnConfig{
 		Config:                   *config,
+		Tracer:                   defaultQueryTracer,
 		createdByParseConfig:     true,
 		StatementCacheCapacity:   statementCacheCapacity,
 		DescriptionCacheCapacity: descriptionCacheCapacity,
