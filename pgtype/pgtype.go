@@ -1389,6 +1389,11 @@ func (plan *encodePlanDriverValuer) Encode(value any, buf []byte) (newBuf []byte
 		return nil, err
 	}
 
+	// Prevent infinite loop. We can't encode this. See https://github.com/jackc/pgx/issues/1331.
+	if reflect.TypeOf(value) == reflect.TypeOf(scannedValue) {
+		return nil, fmt.Errorf("tried to encode %v via encoding to text and scanning but failed due to receiving same type back", value)
+	}
+
 	var err2 error
 	newBuf, err2 = plan.m.Encode(plan.oid, BinaryFormatCode, scannedValue, buf)
 	if err2 != nil {
