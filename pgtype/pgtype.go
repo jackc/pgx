@@ -1403,31 +1403,6 @@ func (plan *encodePlanDriverValuer) Encode(value any, buf []byte) (newBuf []byte
 	return newBuf, nil
 }
 
-type encodePlanStringToBinary struct {
-	m   *Map
-	oid uint32
-}
-
-func (plan *encodePlanStringToBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	s, ok := value.(string)
-	if !ok {
-		return nil, fmt.Errorf("expected %v to be a string to attempt conversion to binary", value)
-	}
-
-	var scannedValue any
-	err = plan.m.Scan(plan.oid, TextFormatCode, []byte(s), &scannedValue)
-	if err != nil {
-		return nil, fmt.Errorf("tried to scan %v to convert to binary but failed: %v", value, err)
-	}
-
-	newBuf, err = plan.m.Encode(plan.oid, BinaryFormatCode, scannedValue, buf)
-	if err != nil {
-		return nil, fmt.Errorf("tried to encode %v to binary via scanning but failed: %v", value, err)
-	}
-
-	return newBuf, nil
-}
-
 // TryWrapEncodePlanFunc is a function that tries to create a wrapper plan for value. If successful it returns a plan
 // that will convert the value passed to Encode and then call the next plan. nextValue is value as it will be converted
 // by plan. It must be used to find another suitable EncodePlan. When it is found SetNext must be called on plan for it
