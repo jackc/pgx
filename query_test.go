@@ -42,7 +42,7 @@ func TestConnQueryScan(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: %v", err)
+		t.Fatalf("conn.Query failed: %v", rows.Err())
 	}
 
 	assert.Equal(t, "SELECT 10", rows.CommandTag().String())
@@ -126,7 +126,7 @@ func TestConnQueryScanWithManyColumns(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: %v", err)
+		t.Fatalf("conn.Query failed: %v", rows.Err())
 	}
 
 	if rowCount != 5 {
@@ -162,7 +162,7 @@ func TestConnQueryValues(t *testing.T) {
 	}
 
 	if rows.Err() != nil {
-		t.Fatalf("conn.Query failed: %v", err)
+		t.Fatalf("conn.Query failed: %v", rows.Err())
 	}
 
 	if rowCount != 10 {
@@ -1988,7 +1988,7 @@ insert into products (name, price) values
 
 	// The first error encountered by the original Query call, rows.Next or rows.Scan will be returned here.
 	if rows.Err() != nil {
-		fmt.Printf("rows error: %v", err)
+		fmt.Printf("rows error: %v", rows.Err())
 		return
 	}
 
