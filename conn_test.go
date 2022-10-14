@@ -575,7 +575,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			}
 
 			if rows.Err() != nil {
-				t.Errorf("conn.Query failed: %v", err)
+				t.Errorf("conn.Query failed: %v", rows.Err())
 				return
 			}
 
