@@ -1,3 +1,7 @@
+# 5.0.3 (October 14, 2022)
+
+* Fix `driver.Valuer` handling edge cases that could cause infinite loop or crash
+
 # v5.0.2 (October 8, 2022)
 
 * Fix date encoding in text format to always use 2 digits for month and day
