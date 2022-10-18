@@ -383,6 +383,34 @@ func TestRowToStructByPosEmbeddedStruct(t *testing.T) {
 	})
 }
 
+func TestRowToStructByPosMultipleEmbeddedStruct(t *testing.T) {
+	type Sandwich struct {
+		Bread string
+		Salad string
+	}
+	type Drink struct {
+		Ml int
+	}
+
+	type meal struct {
+		Sandwich
+		Drink
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Baguette' as bread, 'Lettuce' as salad, drink_ml from generate_series(0, 9) drink_ml`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByPos[meal])
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Baguette", slice[i].Sandwich.Bread)
+			assert.Equal(t, "Lettuce", slice[i].Sandwich.Salad)
+			assert.EqualValues(t, i, slice[i].Drink.Ml)
+		}
+	})
+}
+
 // Pointer to struct is not supported. But check that we don't panic.
 func TestRowToStructByPosEmbeddedPointerToStruct(t *testing.T) {
 	type Name struct {
