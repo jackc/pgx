@@ -433,6 +433,9 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	var err error
 
 	if !rows.Next() {
+		if err = rows.Err(); err != nil {
+			return value, err
+		}
 		return value, ErrNoRows
 	}
 
