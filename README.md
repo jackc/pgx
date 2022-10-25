@@ -143,6 +143,11 @@ pgerrcode contains constants for the PostgreSQL error codes.
 * [github.com/jackc/pgx-shopspring-decimal](https://github.com/jackc/pgx-shopspring-decimal)
 * [github.com/vgarvardt/pgx-google-uuid](https://github.com/vgarvardt/pgx-google-uuid)
 
+
+## Adapters for 3rd Party Tracers
+
+* [https://github.com/jackhopner/pgx-xray-tracer](https://github.com/jackhopner/pgx-xray-tracer)
+
 ## Adapters for 3rd Party Loggers
 
 These adapters can be used with the tracelog package.
