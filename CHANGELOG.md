@@ -1,3 +1,15 @@
+# 5.0.4 (October 24, 2022)
+
+* Fix: CollectOneRow prefers PostgreSQL error over pgx.ErrorNoRows
+* Fix: some reflect Kind checks to first check for nil
+* Bump golang.org/x/text dependency to placate snyk
+* Fix: RowToStructByPos on structs with multiple anonymous sub-structs (Baptiste Fontaine)
+* Fix: Exec checks if tx is closed
+
+# 5.0.3 (October 14, 2022)
+
+* Fix `driver.Valuer` handling edge cases that could cause infinite loop or crash
+
 # v5.0.2 (October 8, 2022)
 
 * Fix date encoding in text format to always use 2 digits for month and day

@@ -1800,7 +1800,7 @@ func TryWrapStructEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextV
 		return nil, nil, false
 	}
 
-	if reflect.TypeOf(value).Kind() == reflect.Struct {
+	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Struct {
 		exportedFields := getExportedFieldValues(reflect.ValueOf(value))
 		if len(exportedFields) == 0 {
 			return nil, nil, false
@@ -1867,7 +1867,7 @@ func TryWrapSliceEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextVa
 		return &wrapSliceEncodePlan[time.Time]{}, (FlatArray[time.Time])(value), true
 	}
 
-	if reflect.TypeOf(value).Kind() == reflect.Slice {
+	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Slice {
 		w := anySliceArrayReflect{
 			slice: reflect.ValueOf(value),
 		}

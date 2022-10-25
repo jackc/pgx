@@ -433,6 +433,9 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	var err error
 
 	if !rows.Next() {
+		if err = rows.Err(); err != nil {
+			return value, err
+		}
 		return value, ErrNoRows
 	}
 
@@ -530,9 +533,9 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 	for i := 0; i < dstElemType.NumField(); i++ {
 		sf := dstElemType.Field(i)
 		if sf.PkgPath == "" {
-			// Handle anoymous struct embedding, but do not try to handle embedded pointers.
+			// Handle anonymous struct embedding, but do not try to handle embedded pointers.
 			if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
-				scanTargets = append(scanTargets, rs.appendScanTargets(dstElemValue.Field(i), scanTargets)...)
+				scanTargets = rs.appendScanTargets(dstElemValue.Field(i), scanTargets)
 			} else {
 				scanTargets = append(scanTargets, dstElemValue.Field(i).Addr().Interface())
 			}
