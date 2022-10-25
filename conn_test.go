@@ -39,6 +39,44 @@ func TestCrateDBConnect(t *testing.T) {
 	}
 }
 
+func TestCrateDBConnectWithSSLPasswordOptions(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_CRATEDB_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_CRATEDB_CONN_STRING")
+	}
+
+    passString := os.Getenv("PGX_SSL_PASSWORD")
+    if passString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_SSL_PASSWORD")
+	}
+
+	var sslOptions pgx.ParseConfigOptions
+	sslOptions.GetSSLPassword = GetSSLPassword
+	sslpasswordfromcallback := sslOptions.GetSSLPassword(context.Background())
+	connStringChanged := connString
+    if(sslpasswordfromcallback != ""){
+		  connStringChanged += "&sslpasswordfromcallback="+sslpasswordfromcallback;
+	}
+
+	conn, err := pgx.ConnectWithOptions(context.Background(), connString, sslOptions)
+	require.Nil(t, err)
+	defer closeConn(t, conn)
+
+	assert.Equal(t, connStringChanged, conn.Config().ConnString())
+
+	var result int
+	err = conn.QueryRow(context.Background(), "select 1 +1").Scan(&result)
+	if err != nil {
+		t.Fatalf("QueryRow Scan unexpectedly failed: %v", err)
+	}
+	if result != 2 {
+		t.Errorf("bad result: %d", result)
+	}
+}
+
+
 func TestConnect(t *testing.T) {
 	t.Parallel()
 
@@ -177,7 +215,7 @@ func TestConnectWithSSLPasswordOptions(t *testing.T) {
 	}
 	connString := os.Getenv("PGX_TEST_DATABASE")
 
-	var sslOptions pgconn.ParseConfigOptions
+	var sslOptions pgx.ParseConfigOptions
 	sslOptions.GetSSLPassword = GetSSLPassword
 	config := mustParseConfigWithOptions(t, connString, sslOptions)
 

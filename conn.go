@@ -40,6 +40,14 @@ type ConnConfig struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+//GetSSLPasswordFunc is a function that used to get SSLPassword
+type GetSSLPasswordFunc func(ctx context.Context) string
+
+//Congig Options such as getsslpassword function
+type ParseConfigOptions struct {
+    GetSSLPassword GetSSLPasswordFunc
+}
+
 // Copy returns a deep copy of the config that is safe to use and modify.
 // The only exception is the tls.Config:
 // according to the tls.Config docs it must not be modified after creation.
@@ -107,20 +115,35 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
+// ConnectWithOptions establishes a connection with a PostgreSQL server with a connection string and ParseConfigOptions. See
+// pgconn.Connect for details.
+func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions ParseConfigOptions) (*Conn, error) {
+	connConfig, err := ParseConfigWithOptions(connString, parseConfigOptions)
+	if err != nil {
+		return nil, err
+	}
+	return connect(ctx, connConfig)
+}
+
 // ConnectConfig establishes a connection with a PostgreSQL server with a configuration struct.
 // connConfig must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
-// ParseConfig creates a ConnConfig from a connection string without GetSSLPassword function
-func ParseConfig(connString string) (*ConnConfig, error) {
-   var parseConfigOptions pgconn.ParseConfigOptions
-   return ParseConfigWithOptions(connString, parseConfigOptions)
+// ParseConfigWithOptions creates a ConnConfig from a connection string and a GetSSLPassword function
+func ParseConfigWithOptions(connString string, parseConfigOptions ParseConfigOptions) (*ConnConfig, error) {
+   if(parseConfigOptions.GetSSLPassword != nil){
+         //get sslpassword from function and append it to connString
+		 sslpasswordfromcallback := parseConfigOptions.GetSSLPassword(context.Background())
+		 if(sslpasswordfromcallback != ""){
+		     connString += "&sslpasswordfromcallback="+sslpasswordfromcallback;
+		 }
+	}
+   return ParseConfig(connString)
 }
 
-// ParseConfig creates a ConnConfig from a connection string and pgconn.ParseConfigWithOptions
-// with GetSSLPassword function
+// ParseConfig creates a ConnConfig from a connection string
 // ParseConfig handles all options that pgconn.ParseConfig
 // does. In addition, it accepts the following options:
 //
@@ -135,8 +158,8 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 //
 //	prefer_simple_protocol
 //		Possible values: "true" and "false". Use the simple protocol instead of extended protocol. Default: false
-func ParseConfigWithOptions(connString string, parseConfigOptions pgconn.ParseConfigOptions) (*ConnConfig, error) {
-	config, err := pgconn.ParseConfigWithOptions(connString, parseConfigOptions)
+func ParseConfig(connString string) (*ConnConfig, error) {
+	config, err := pgconn.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}

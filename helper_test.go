@@ -65,7 +65,7 @@ func mustParseConfig(t testing.TB, connString string) *pgx.ConnConfig {
 	return config
 }
 
-func mustParseConfigWithOptions(t testing.TB, connString string, parseConfigOptions pgconn.ParseConfigOptions) *pgx.ConnConfig {
+func mustParseConfigWithOptions(t testing.TB, connString string, parseConfigOptions pgx.ParseConfigOptions) *pgx.ConnConfig {
     config, err := pgx.ParseConfigWithOptions(connString,parseConfigOptions)
 	require.Nil(t, err)
 	return config

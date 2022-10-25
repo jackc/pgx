@@ -28,6 +28,14 @@ type connResource struct {
 	poolRowss []poolRows
 }
 
+//GetSSLPasswordFunc is a function that used to get SSLPassword
+type GetSSLPasswordFunc func(ctx context.Context) string
+
+//Congig Options such as getsslpassword function
+type ParseConfigOptions struct {
+    GetSSLPassword GetSSLPasswordFunc
+}
+
 func (cr *connResource) getConn(p *Pool, res *puddle.Resource) *Conn {
 	if len(cr.conns) == 0 {
 		cr.conns = make([]Conn, 128)
@@ -168,9 +176,9 @@ func Connect(ctx context.Context, connString string) (*Pool, error) {
 	return ConnectConfig(ctx, config)
 }
 
-// Connect creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
-// connection. See ParseConfigWithOptions for information on connString format and pgconn.ParseConfigWithOptions 
-func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions pgconn.ParseConfigOptions) (*Pool, error) {
+// ConnectWithOptions creates a new Pool and immediately establishes one connection. ctx can be used to cancel this initial
+// connection. ParseConfigOptions used to get sslpassword. See ParseConfig for information on connString format
+func ConnectWithOptions(ctx context.Context, connString string, parseConfigOptions ParseConfigOptions) (*Pool, error) {
 	config, err := ParseConfigWithOptions(connString, parseConfigOptions)
 	if err != nil {
 		return nil, err
@@ -271,14 +279,20 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString without GetSSLPassword function
-func ParseConfig(connString string) (*Config, error) {
-     var parseConfigOptions pgconn.ParseConfigOptions
-     return ParseConfigWithOptions(connString, parseConfigOptions)
+// ParseConfigWithOptions builds a Config from connString and ParseConfigOptions
+func ParseConfigWithOptions(connString string, parseConfigOptions ParseConfigOptions) (*Config, error) {
+     if(parseConfigOptions.GetSSLPassword != nil){
+         //get sslpassword from function and append it to connString
+		 sslpasswordfromcallback := parseConfigOptions.GetSSLPassword(context.Background())
+		 if(sslpasswordfromcallback != ""){
+		     connString += "&sslpasswordfromcallback="+sslpasswordfromcallback;
+		 }
+	}
+     return ParseConfig(connString)
 }
 
-// ParseConfig builds a Config from connString and and pgconn.ParseConfigWithOptions.
-// It parses connString and and pgconn.ParseConfigWithOptions with the same behavior as pgx.ParseConfig with the
+// ParseConfig builds a Config from connString.
+// It parses connString with the same behavior as pgx.ParseConfig with the
 // addition of the following variables:
 //
 // pool_max_conns: integer greater than 0
@@ -295,8 +309,8 @@ func ParseConfig(connString string) (*Config, error) {
 //
 //   # Example URL
 //   postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10
-func ParseConfigWithOptions(connString string, parseConfigOptions pgconn.ParseConfigOptions) (*Config, error) {
-	connConfig, err := pgx.ParseConfigWithOptions(connString, parseConfigOptions)
+func ParseConfig(connString string) (*Config, error) {
+	connConfig, err := pgx.ParseConfig(connString)
 	if err != nil {
 		return nil, err
 	}

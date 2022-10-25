@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-    "github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +25,7 @@ func TestConnExec(t *testing.T) {
 
 func TestConnExecWithOptions(t *testing.T) {
 	t.Parallel()
-    var sslOptions pgconn.ParseConfigOptions
+    var sslOptions pgxpool.ParseConfigOptions
 	sslOptions.GetSSLPassword = GetSSLPassword
 	pool, err := pgxpool.ConnectWithOptions(context.Background(), os.Getenv("PGX_TEST_DATABASE"),sslOptions)
 	require.NoError(t, err)
