@@ -317,6 +317,33 @@ func TestMapEncodeBinaryFormatDatabaseValuerThatReturnsString(t *testing.T) {
 	require.Equal(t, []byte{0, 0, 0, 42}, buf)
 }
 
+// https://github.com/jackc/pgx/issues/1326
+func TestMapScanPointerToRenamedType(t *testing.T) {
+	srcBuf := []byte("foo")
+	m := pgtype.NewMap()
+
+	var rs *_string
+	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, srcBuf, &rs)
+	assert.NoError(t, err)
+	require.NotNil(t, rs)
+	assert.Equal(t, "foo", string(*rs))
+}
+
+// https://github.com/jackc/pgx/issues/1326
+func TestMapScanNullToWrongType(t *testing.T) {
+	m := pgtype.NewMap()
+
+	var n *int32
+	err := m.Scan(pgtype.TextOID, pgx.TextFormatCode, nil, &n)
+	assert.NoError(t, err)
+	assert.Nil(t, n)
+
+	var pn pgtype.Int4
+	err = m.Scan(pgtype.TextOID, pgx.TextFormatCode, nil, &pn)
+	assert.NoError(t, err)
+	assert.False(t, pn.Valid)
+}
+
 func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}

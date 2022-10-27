@@ -1,11 +1,30 @@
-# v5.0.1
+# 5.0.4 (October 24, 2022)
+
+* Fix: CollectOneRow prefers PostgreSQL error over pgx.ErrorNoRows
+* Fix: some reflect Kind checks to first check for nil
+* Bump golang.org/x/text dependency to placate snyk
+* Fix: RowToStructByPos on structs with multiple anonymous sub-structs (Baptiste Fontaine)
+* Fix: Exec checks if tx is closed
+
+# 5.0.3 (October 14, 2022)
+
+* Fix `driver.Valuer` handling edge cases that could cause infinite loop or crash
+
+# v5.0.2 (October 8, 2022)
+
+* Fix date encoding in text format to always use 2 digits for month and day
+* Prefer driver.Valuer over wrap plans when encoding
+* Fix scan to pointer to pointer to renamed type
+* Allow scanning NULL even if PG and Go types are incompatible
+
+# v5.0.1 (September 24, 2022)
 
 * Fix 32-bit atomic usage
 * Add MarshalJSON for Float8 (yogipristiawan)
 * Add `[` and `]` to text encoding of `Lseg`
 * Fix sqlScannerWrapper NULL handling
 
-# v5.0.0
+# v5.0.0 (September 17, 2022)
 
 ## Merged Packages
 

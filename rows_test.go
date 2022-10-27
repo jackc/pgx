@@ -218,6 +218,35 @@ func TestCollectOneRowIgnoresExtraRows(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1334
+func TestCollectOneRowPrefersPostgreSQLErrorOverErrNoRows(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Exec(ctx, `create temporary table t (name text not null unique)`)
+		require.NoError(t, err)
+
+		var name string
+		rows, _ := conn.Query(ctx, `insert into t (name) values ('foo') returning name`)
+		name, err = pgx.CollectOneRow(rows, func(row pgx.CollectableRow) (string, error) {
+			var n string
+			err := row.Scan(&n)
+			return n, err
+		})
+		require.NoError(t, err)
+		require.Equal(t, "foo", name)
+
+		rows, _ = conn.Query(ctx, `insert into t (name) values ('foo') returning name`)
+		name, err = pgx.CollectOneRow(rows, func(row pgx.CollectableRow) (string, error) {
+			var n string
+			err := row.Scan(&n)
+			return n, err
+		})
+		require.Error(t, err)
+		var pgErr *pgconn.PgError
+		require.ErrorAs(t, err, &pgErr)
+		require.Equal(t, "23505", pgErr.Code)
+	})
+}
+
 func TestRowTo(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)
@@ -350,6 +379,34 @@ func TestRowToStructByPosEmbeddedStruct(t *testing.T) {
 			assert.Equal(t, "John", slice[i].Name.First)
 			assert.Equal(t, "Smith", slice[i].Name.Last)
 			assert.EqualValues(t, i, slice[i].Age)
+		}
+	})
+}
+
+func TestRowToStructByPosMultipleEmbeddedStruct(t *testing.T) {
+	type Sandwich struct {
+		Bread string
+		Salad string
+	}
+	type Drink struct {
+		Ml int
+	}
+
+	type meal struct {
+		Sandwich
+		Drink
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 'Baguette' as bread, 'Lettuce' as salad, drink_ml from generate_series(0, 9) drink_ml`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByPos[meal])
+		require.NoError(t, err)
+
+		assert.Len(t, slice, 10)
+		for i := range slice {
+			assert.Equal(t, "Baguette", slice[i].Sandwich.Bread)
+			assert.Equal(t, "Lettuce", slice[i].Sandwich.Salad)
+			assert.EqualValues(t, i, slice[i].Drink.Ml)
 		}
 	})
 }
