@@ -9,6 +9,9 @@ create user pgx_md5 PASSWORD 'secret';
 set password_encryption = 'scram-sha-256';
 create user pgx_pw PASSWORD 'secret';
 create user pgx_scram PASSWORD 'secret';
+\set whoami `whoami`
+create user :whoami; -- unix domain socket user
+
 
 -- The tricky test user, below, has to actually exist so that it can be used in a test
 -- of aclitem formatting. It turns out aclitems cannot contain non-existing users/roles.
