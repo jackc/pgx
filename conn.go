@@ -407,7 +407,10 @@ optionLoop:
 	}
 
 	if queryRewriter != nil {
-		sql, arguments = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+		sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+		if err != nil {
+			return pgconn.CommandTag{}, fmt.Errorf("rewrite query failed: %v", err)
+		}
 	}
 
 	// Always use simple protocol when there are no arguments.
@@ -600,7 +603,7 @@ type QueryResultFormatsByOID map[uint32]int16
 
 // QueryRewriter rewrites a query when used as the first arguments to a query method.
 type QueryRewriter interface {
-	RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any)
+	RewriteQuery(ctx context.Context, conn *Conn, sql string, args []any) (newSQL string, newArgs []any, err error)
 }
 
 // Query sends a query to the server and returns a Rows to read the results. Only errors encountered sending the query
@@ -659,7 +662,16 @@ optionLoop:
 	}
 
 	if queryRewriter != nil {
-		sql, args = queryRewriter.RewriteQuery(ctx, c, sql, args)
+		var err error
+		originalSQL := sql
+		originalArgs := args
+		sql, args, err = queryRewriter.RewriteQuery(ctx, c, sql, args)
+		if err != nil {
+			rows := c.getRows(ctx, originalSQL, originalArgs)
+			err = fmt.Errorf("rewrite query failed: %v", err)
+			rows.fatal(err)
+			return rows, err
+		}
 	}
 
 	// Bypass any statement caching.
@@ -826,7 +838,11 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 		}
 
 		if queryRewriter != nil {
-			sql, arguments = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+			var err error
+			sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
+			if err != nil {
+				return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("rewrite query failed: %v", err)}
+			}
 		}
 
 		bi.query = sql

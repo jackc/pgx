@@ -6,6 +6,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNamedArgsRewriteQuery(t *testing.T) {
@@ -95,7 +96,8 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 
 		// test comments and quotes
 	} {
-		sql, args := tt.namedArgs.RewriteQuery(context.Background(), nil, tt.sql, tt.args)
+		sql, args, err := tt.namedArgs.RewriteQuery(context.Background(), nil, tt.sql, tt.args)
+		require.NoError(t, err)
 		assert.Equalf(t, tt.expectedSQL, sql, "%d", i)
 		assert.Equalf(t, tt.expectedArgs, args, "%d", i)
 	}

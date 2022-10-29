@@ -236,8 +236,8 @@ type testQueryRewriter struct {
 	args []any
 }
 
-func (qr *testQueryRewriter) RewriteQuery(ctx context.Context, conn *pgx.Conn, sql string, args []any) (newSQL string, newArgs []any) {
-	return qr.sql, qr.args
+func (qr *testQueryRewriter) RewriteQuery(ctx context.Context, conn *pgx.Conn, sql string, args []any) (newSQL string, newArgs []any, err error) {
+	return qr.sql, qr.args, nil
 }
 
 func TestExecWithQueryRewriter(t *testing.T) {
