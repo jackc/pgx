@@ -1870,9 +1870,9 @@ func (d delayedReader) Read(p []byte) (int, error) {
 
 // https://github.com/jackc/pgconn/issues/128
 func TestConnCopyFromDataWriteAfterErrorAndReturn(t *testing.T) {
-	connString := os.Getenv("PGX_TEST_CONN_STRING")
+	connString := os.Getenv("PGX_TEST_DATABASE")
 	if connString == "" {
-		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_CONN_STRING")
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_DATABASE")
 	}
 
 	config, err := pgconn.ParseConfig(connString)
