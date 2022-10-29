@@ -110,6 +110,8 @@ func TestNumericCodec(t *testing.T) {
 		{int64(math.MinInt64 + 1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, strconv.FormatInt(math.MinInt64+1, 10)))},
 		{int64(math.MaxInt64), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, strconv.FormatInt(math.MaxInt64, 10)))},
 		{int64(math.MaxInt64 - 1), new(pgtype.Numeric), isExpectedEqNumeric(mustParseNumeric(t, strconv.FormatInt(math.MaxInt64-1, 10)))},
+		{uint64(math.MaxUint64), new(uint64), isExpectedEq(uint64(math.MaxUint64))},
+		{uint(math.MaxUint), new(uint), isExpectedEq(uint(math.MaxUint))},
 		{"1.23", new(string), isExpectedEq("1.23")},
 		{pgtype.Numeric{}, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},
 		{nil, new(pgtype.Numeric), isExpectedEq(pgtype.Numeric{})},

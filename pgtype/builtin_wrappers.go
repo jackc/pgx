@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"net"
 	"net/netip"
 	"reflect"
@@ -223,6 +224,29 @@ func (w uint64Wrapper) Int64Value() (Int8, error) {
 	return Int8{Int64: int64(w), Valid: true}, nil
 }
 
+func (w *uint64Wrapper) ScanNumeric(v Numeric) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *uint64")
+	}
+
+	bi, err := v.toBigInt()
+	if err != nil {
+		return fmt.Errorf("cannot scan into *uint64: %v", err)
+	}
+
+	if !bi.IsUint64() {
+		return fmt.Errorf("cannot scan %v into *uint64", bi.String())
+	}
+
+	*w = uint64Wrapper(v.Int.Uint64())
+
+	return nil
+}
+
+func (w uint64Wrapper) NumericValue() (Numeric, error) {
+	return Numeric{Int: new(big.Int).SetUint64(uint64(w)), Valid: true}, nil
+}
+
 type uintWrapper uint
 
 func (w uintWrapper) SkipUnderlyingTypePlan() {}
@@ -251,6 +275,35 @@ func (w uintWrapper) Int64Value() (Int8, error) {
 	}
 
 	return Int8{Int64: int64(w), Valid: true}, nil
+}
+
+func (w *uintWrapper) ScanNumeric(v Numeric) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into *uint")
+	}
+
+	bi, err := v.toBigInt()
+	if err != nil {
+		return fmt.Errorf("cannot scan into *uint: %v", err)
+	}
+
+	if !bi.IsUint64() {
+		return fmt.Errorf("cannot scan %v into *uint", bi.String())
+	}
+
+	ui := v.Int.Uint64()
+
+	if math.MaxUint < ui {
+		return fmt.Errorf("cannot scan %v into *uint", ui)
+	}
+
+	*w = uintWrapper(ui)
+
+	return nil
+}
+
+func (w uintWrapper) NumericValue() (Numeric, error) {
+	return Numeric{Int: new(big.Int).SetUint64(uint64(w)), Valid: true}, nil
 }
 
 type float32Wrapper float32

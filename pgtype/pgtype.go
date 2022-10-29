@@ -351,8 +351,8 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants[uint8](m, "int8")
 	registerDefaultPgTypeVariants[uint16](m, "int8")
 	registerDefaultPgTypeVariants[uint32](m, "int8")
-	registerDefaultPgTypeVariants[uint64](m, "int8")
-	registerDefaultPgTypeVariants[uint](m, "int8")
+	registerDefaultPgTypeVariants[uint64](m, "numeric")
+	registerDefaultPgTypeVariants[uint](m, "numeric")
 
 	registerDefaultPgTypeVariants[float32](m, "float4")
 	registerDefaultPgTypeVariants[float64](m, "float8")
