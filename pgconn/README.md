@@ -26,8 +26,8 @@ if err != nil {
 
 ## Testing
 
-The pgconn tests require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_CONN_STRING`
-environment variable. The `PGX_TEST_CONN_STRING` environment variable can be a URL or DSN. In addition, the standard `PG*`
+The pgconn tests require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE`
+environment variable. The `PGX_TEST_DATABASE` environment variable can be a URL or DSN. In addition, the standard `PG*`
 environment variables will be respected. Consider using [direnv](https://github.com/direnv/direnv) to simplify
 environment variable handling.
 
@@ -42,7 +42,7 @@ create database pgx_test;
 Now you can run the tests:
 
 ```bash
-PGX_TEST_CONN_STRING="host=/var/run/postgresql dbname=pgx_test" go test ./...
+PGX_TEST_DATABASE="host=/var/run/postgresql dbname=pgx_test" go test ./...
 ```
 
 ### Connection and Authentication Tests
