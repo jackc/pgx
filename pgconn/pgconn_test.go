@@ -2158,7 +2158,7 @@ func TestConnCheckConn(t *testing.T) {
 
 	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtlely different.)
 
-	connString := os.Getenv(os.Getenv("PGX_TEST_TCP_CONN_STRING"))
+	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
 	if connString == "" {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
 	}
