@@ -53,7 +53,7 @@ func BenchmarkExec(b *testing.B) {
 	for _, bm := range benchmarks {
 		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
-			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_DATABASE"))
 			require.Nil(b, err)
 			defer closeConn(b, conn)
 
@@ -97,7 +97,7 @@ func BenchmarkExec(b *testing.B) {
 }
 
 func BenchmarkExecPossibleToCancel(b *testing.B) {
-	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
@@ -159,7 +159,7 @@ func BenchmarkExecPrepared(b *testing.B) {
 	for _, bm := range benchmarks {
 		bm := bm
 		b.Run(bm.name, func(b *testing.B) {
-			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+			conn, err := pgconn.Connect(bm.ctx, os.Getenv("PGX_TEST_DATABASE"))
 			require.Nil(b, err)
 			defer closeConn(b, conn)
 
@@ -197,7 +197,7 @@ func BenchmarkExecPrepared(b *testing.B) {
 }
 
 func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
-	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.Nil(b, err)
 	defer closeConn(b, conn)
 
@@ -238,7 +238,7 @@ func BenchmarkExecPreparedPossibleToCancel(b *testing.B) {
 }
 
 // func BenchmarkChanToSetDeadlinePossibleToCancel(b *testing.B) {
-// 	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+// 	conn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 // 	require.Nil(b, err)
 // 	defer closeConn(b, conn)
 

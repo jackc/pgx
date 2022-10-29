@@ -810,7 +810,7 @@ func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
 }
 
 func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
-	connString := os.Getenv("PGX_TEST_CONN_STRING")
+	connString := os.Getenv("PGX_TEST_DATABASE")
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
