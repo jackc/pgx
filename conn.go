@@ -535,9 +535,13 @@ type QueryResultFormats []int16
 // QueryResultFormatsByOID controls the result format (text=0, binary=1) of a query by the result column OID.
 type QueryResultFormatsByOID map[uint32]int16
 
-// Query executes sql with args. It is safe to attempt to read from the returned Rows even if an error is returned. The
-// error will be the available in rows.Err() after rows are closed. So it is allowed to ignore the error returned from
-// Query and handle it in Rows.
+// Query sends a query to the server and returns a Rows to read the results. Only errors encountered sending the query
+// and initializing Rows will be returned. Err() on the returned Rows must be checked after the Rows is closed to
+// determine if the query executed successfully.
+//
+// The returned Rows must be closed before the connection can be used again. It is safe to attempt to read from the
+// returned Rows even if an error is returned. The error will be the available in rows.Err() after rows are closed. It
+// is allowed to ignore the error returned from Query and handle it in Rows.
 //
 // Err() on the returned Rows must be checked after the Rows is closed to determine if the query executed successfully
 // as some errors can only be detected by reading the entire response. e.g. A divide by zero error on the last row.
