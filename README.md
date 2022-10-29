@@ -84,32 +84,7 @@ It is also possible to use the `database/sql` interface and convert a connection
 
 ## Testing
 
-pgx tests naturally require a PostgreSQL database. It will connect to the database specified in the `PGX_TEST_DATABASE` environment
-variable. The `PGX_TEST_DATABASE` environment variable can either be a URL or DSN. In addition, the standard `PG*` environment
-variables will be respected. Consider using [direnv](https://github.com/direnv/direnv) to simplify environment variable
-handling.
-
-### Example Test Environment
-
-Connect to your PostgreSQL server and run:
-
-```
-create database pgx_test;
-```
-
-Connect to the newly-created database and run:
-
-```
-create domain uint64 as numeric(20,0);
-```
-
-Now, you can run the tests:
-
-```
-PGX_TEST_DATABASE="host=/var/run/postgresql database=pgx_test" go test ./...
-```
-
-In addition, there are tests specific for PgBouncer that will be executed if `PGX_TEST_PGBOUNCER_CONN_STRING` is set.
+See CONTRIBUTING.md for setup instructions.
 
 ## Supported Go and PostgreSQL Versions
 
