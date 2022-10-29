@@ -27,8 +27,10 @@ func getDefaultPort(t *testing.T) uint16 {
 	return 5432
 }
 
-func TestParseConfig(t *testing.T) {
-	t.Parallel()
+func getDefaultUser(t *testing.T) string {
+	if pguser := os.Getenv("PGUSER"); pguser != "" {
+		return pguser
+	}
 
 	var osUserName string
 	osUser, err := user.Current()
@@ -42,10 +44,17 @@ func TestParseConfig(t *testing.T) {
 		}
 	}
 
+	return osUserName
+}
+
+func TestParseConfig(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig("")
 	require.NoError(t, err)
 	defaultHost := config.Host
 
+	defaultUser := getDefaultUser(t)
 	defaultPort := getDefaultPort(t)
 
 	tests := []struct {
@@ -215,7 +224,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url missing user and password",
 			connString: "postgres://localhost:5432/mydb?sslmode=disable",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "localhost",
 				Port:          5432,
 				Database:      "mydb",
@@ -240,7 +249,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url unix domain socket host",
 			connString: "postgres:///foo?host=/tmp",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "/tmp",
 				Port:          defaultPort,
 				Database:      "foo",
@@ -252,7 +261,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url unix domain socket host on windows",
 			connString: "postgres:///foo?host=C:\\tmp",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "C:\\tmp",
 				Port:          defaultPort,
 				Database:      "foo",
@@ -264,7 +273,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url dbname",
 			connString: "postgres://localhost/?dbname=foo&sslmode=disable",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "localhost",
 				Port:          defaultPort,
 				Database:      "foo",
