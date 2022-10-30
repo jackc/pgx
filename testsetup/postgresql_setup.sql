@@ -3,12 +3,13 @@ create extension hstore;
 create domain uint64 as numeric(20,0);
 
 -- Create users for different types of connections and authentication.
-create user pgx_ssl PASSWORD 'secret' with superuser;
+create user pgx_ssl with superuser PASSWORD 'secret';
+create user pgx_sslcert with superuser PASSWORD 'secret';
 set password_encryption = md5;
-create user pgx_md5 PASSWORD 'secret' with superuser;
+create user pgx_md5 with superuser PASSWORD 'secret';
 set password_encryption = 'scram-sha-256';
-create user pgx_pw PASSWORD 'secret' with superuser;
-create user pgx_scram PASSWORD 'secret' with superuser;
+create user pgx_pw with superuser PASSWORD 'secret';
+create user pgx_scram with superuser PASSWORD 'secret';
 \set whoami `whoami`
 create user :whoami with superuser; -- unix domain socket user
 
