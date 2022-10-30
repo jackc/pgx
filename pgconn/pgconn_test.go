@@ -93,15 +93,60 @@ func TestConnectTLS(t *testing.T) {
 		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CONN_STRING")
 	}
 
-	var conn *pgconn.PgConn
-	var err error
+	conn, err := pgconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	result := conn.ExecParams(context.Background(), `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Len(t, result.Rows[0], 1)
+	require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
+
+	closeConn(t, conn)
+}
+
+func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_TLS_CLIENT_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CLIENT_CONN_STRING")
+	}
+	if os.Getenv("PGX_SSL_PASSWORD") == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_SSL_PASSWORD")
+	}
+
+	connString += " sslpassword=" + os.Getenv("PGX_SSL_PASSWORD")
+
+	conn, err := pgconn.Connect(context.Background(), connString)
+	require.NoError(t, err)
+
+	result := conn.ExecParams(context.Background(), `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Len(t, result.Rows, 1)
+	require.Len(t, result.Rows[0], 1)
+	require.Equalf(t, "t", string(result.Rows[0][0]), "not a TLS connection")
+
+	closeConn(t, conn)
+}
+
+func TestConnectTLSPasswordProtectedClientCertWithGetSSLPasswordConfigOption(t *testing.T) {
+	t.Parallel()
+
+	connString := os.Getenv("PGX_TEST_TLS_CLIENT_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TLS_CLIENT_CONN_STRING")
+	}
+	if os.Getenv("PGX_SSL_PASSWORD") == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_SSL_PASSWORD")
+	}
 
 	var sslOptions pgconn.ParseConfigOptions
 	sslOptions.GetSSLPassword = GetSSLPassword
 	config, err := pgconn.ParseConfigWithOptions(connString, sslOptions)
 	require.Nil(t, err)
 
-	conn, err = pgconn.ConnectConfig(context.Background(), config)
+	conn, err := pgconn.ConnectConfig(context.Background(), config)
 	require.NoError(t, err)
 
 	result := conn.ExecParams(context.Background(), `select ssl from pg_stat_ssl where pg_backend_pid() = pid;`, nil, nil, nil, nil).Read()
