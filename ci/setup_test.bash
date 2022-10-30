@@ -11,11 +11,6 @@ then
   sudo apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::="--force-confnew" install postgresql-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-contrib-$PGVERSION
   sudo cp testsetup/pg_hba.conf /etc/postgresql/$PGVERSION/main/pg_hba.conf
   sudo chmod 777 /etc/postgresql/$PGVERSION/main/postgresql.conf
-  if $(dpkg --compare-versions $PGVERSION ge 9.6) ; then
-    echo "wal_level='logical'"     >> /etc/postgresql/$PGVERSION/main/postgresql.conf
-    echo "max_wal_senders=5"       >> /etc/postgresql/$PGVERSION/main/postgresql.conf
-    echo "max_replication_slots=5" >> /etc/postgresql/$PGVERSION/main/postgresql.conf
-  fi
   sudo /etc/init.d/postgresql restart
 
   createdb -U postgres pgx_test
