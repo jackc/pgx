@@ -9,8 +9,39 @@ then
   sudo sh -c "echo deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main $PGVERSION >> /etc/apt/sources.list.d/postgresql.list"
   sudo apt-get update -qq
   sudo apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::="--force-confnew" install postgresql-$PGVERSION postgresql-server-dev-$PGVERSION postgresql-contrib-$PGVERSION
+
   sudo cp testsetup/pg_hba.conf /etc/postgresql/$PGVERSION/main/pg_hba.conf
-  sudo chmod 777 /etc/postgresql/$PGVERSION/main/postgresql.conf
+  sudo sh -c "echo \"listen_addresses = '127.0.0.1'\" >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
+  sudo sh -c "cat testsetup/postgresql_ssl.conf >> /etc/postgresql/$PGVERSION/main/postgresql.conf"
+
+  cd testsetup
+
+  # Generate a CA public / private key pair.
+  openssl genrsa -out ca.key 4096
+  openssl req -x509 -config ca.cnf -new -nodes -key ca.key -sha256 -days 365 -subj '/O=pgx-test-root' -out ca.pem
+
+  # Generate the certificate for localhost (the server).
+  openssl genrsa -out localhost.key 2048
+  openssl req -new -config localhost.cnf -key localhost.key -out localhost.csr
+  openssl x509 -req -in localhost.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out localhost.crt -days 364 -sha256 -extfile localhost.cnf -extensions v3_req
+
+  # Copy certificates to server directory and set permissions.
+  cp ca.pem /etc/postgresql/$PGVERSION/main/root.crt
+  cp localhost.key /etc/postgresql/$PGVERSION/main/server.key
+  chmod 600 /etc/postgresql/$PGVERSION/main/server.key
+  cp localhost.crt /etc/postgresql/$PGVERSION/main/server.crt
+
+  # Generate the certificate for client authentication.
+  openssl genrsa -des -out pgx_sslcert.key -passout pass:certpw 2048
+  openssl req -new -config pgx_sslcert.cnf -key pgx_sslcert.key -passin pass:certpw -out pgx_sslcert.csr
+  openssl x509 -req -in pgx_sslcert.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out pgx_sslcert.crt -days 363 -sha256 -extfile pgx_sslcert.cnf -extensions v3_req
+
+  cp ca.pem ~
+  cp pgx_sslcert.key ~
+  cp pgx_sslcert.crt ~
+
+  cd ..
+
   sudo /etc/init.d/postgresql restart
 
   createdb -U postgres pgx_test
