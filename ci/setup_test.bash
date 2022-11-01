@@ -32,7 +32,7 @@ then
   sudo cp localhost.crt /etc/postgresql/$PGVERSION/main/server.crt
 
   # Generate the certificate for client authentication.
-  openssl genrsa -des -out pgx_sslcert.key -passout pass:certpw 2048
+  openssl genrsa -des3 -out pgx_sslcert.key -passout pass:certpw 2048
   openssl req -new -config pgx_sslcert.cnf -key pgx_sslcert.key -passin pass:certpw -out pgx_sslcert.csr
   openssl x509 -req -in pgx_sslcert.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out pgx_sslcert.crt -days 363 -sha256 -extfile pgx_sslcert.cnf -extensions v3_req
 
