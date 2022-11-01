@@ -10,7 +10,10 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-22.04
+    # Note: The TLS tests are rather finicky. It seems that openssl 3 encrypts certificates differently than older
+    # openssl and it does it in a way Go and/or pgx ssl handling code can't handle. So stick with Ubuntu 20.04 until
+    # that is figured out.
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
