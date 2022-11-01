@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.18]
-        pg-version: [10, 11, 12, 13, 14, cockroachdb]
+        pg-version: [14]
         include:
           - pg-version: 10
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
@@ -24,9 +24,9 @@ jobs:
             pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
             pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=~/ca.pem"
+            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
             pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=~/ca.pem sslcert=~/pgx_sslcert.crt sslkey=~/pgx_sslcert.key"
+            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: 11
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
@@ -34,9 +34,9 @@ jobs:
             pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
             pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=~/ca.pem"
+            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
             pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=~/ca.pem sslcert=~/pgx_sslcert.crt sslkey=~/pgx_sslcert.key"
+            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: 12
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
@@ -44,9 +44,9 @@ jobs:
             pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
             pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=~/ca.pem"
+            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
             pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=~/ca.pem sslcert=~/pgx_sslcert.crt sslkey=~/pgx_sslcert.key"
+            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: 13
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
@@ -54,9 +54,9 @@ jobs:
             pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
             pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=~/ca.pem"
+            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
             pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=~/ca.pem sslcert=~/pgx_sslcert.crt sslkey=~/pgx_sslcert.key"
+            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: 14
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-unix-socket-conn-string: "host=/var/run/postgresql dbname=pgx_test"
@@ -64,9 +64,9 @@ jobs:
             pgx-test-scram-password-conn-string: "host=127.0.0.1 user=pgx_scram password=secret dbname=pgx_test"
             pgx-test-md5-password-conn-string: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
             pgx-test-plain-password-conn-string: "host=127.0.0.1 user=pgx_pw password=secret dbname=pgx_test"
-            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=~/ca.pem"
+            pgx-test-tls-conn-string: "host=localhost user=pgx_ssl password=secret sslmode=verify-full sslrootcert=/tmp/ca.pem dbname=pgx_test"
             pgx-ssl-password: certpw
-            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=~/ca.pem sslcert=~/pgx_sslcert.crt sslkey=~/pgx_sslcert.key"
+            pgx-test-tls-client-conn-string: "host=localhost user=pgx_sslcert sslmode=verify-full sslrootcert=/tmp/ca.pem sslcert=/tmp/pgx_sslcert.crt sslkey=/tmp/pgx_sslcert.key dbname=pgx_test"
           - pg-version: cockroachdb
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
