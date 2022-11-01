@@ -26,19 +26,22 @@ then
   openssl x509 -req -in localhost.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out localhost.crt -days 364 -sha256 -extfile localhost.cnf -extensions v3_req
 
   # Copy certificates to server directory and set permissions.
-  sudo cp ca.pem /etc/postgresql/$PGVERSION/main/root.crt
-  sudo cp localhost.key /etc/postgresql/$PGVERSION/main/server.key
-  sudo chmod 600 /etc/postgresql/$PGVERSION/main/server.key
-  sudo cp localhost.crt /etc/postgresql/$PGVERSION/main/server.crt
+  sudo cp ca.pem /var/lib/postgresql/$PGVERSION/main/root.crt
+  sudo chown postgres:postgres /var/lib/postgresql/$PGVERSION/main/root.crt
+  sudo cp localhost.key /var/lib/postgresql/$PGVERSION/main/server.key
+  sudo chown postgres:postgres /var/lib/postgresql/$PGVERSION/main/server.key
+  sudo chmod 600 /var/lib/postgresql/$PGVERSION/main/server.key
+  sudo cp localhost.crt /var/lib/postgresql/$PGVERSION/main/server.crt
+  sudo chown postgres:postgres /var/lib/postgresql/$PGVERSION/main/server.crt
 
   # Generate the certificate for client authentication.
   openssl genrsa -des3 -out pgx_sslcert.key -passout pass:certpw 2048
   openssl req -new -config pgx_sslcert.cnf -key pgx_sslcert.key -passin pass:certpw -out pgx_sslcert.csr
   openssl x509 -req -in pgx_sslcert.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out pgx_sslcert.crt -days 363 -sha256 -extfile pgx_sslcert.cnf -extensions v3_req
 
-  cp ca.pem ~
-  cp pgx_sslcert.key ~
-  cp pgx_sslcert.crt ~
+  cp ca.pem /tmp
+  cp pgx_sslcert.key /tmp
+  cp pgx_sslcert.crt /tmp
 
   cd ..
 
