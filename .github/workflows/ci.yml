@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.18]
-        pg-version: [10, 11, 12, 13, 14]
+        pg-version: [10, 11, 12, 13, 14, cockroachdb]
         include:
           - pg-version: 10
             pgx-test-database: "host=127.0.0.1 user=pgx_md5 password=secret dbname=pgx_test"
