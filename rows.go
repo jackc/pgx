@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
+	"github.com/iancoleman/strcase"
 	"github.com/jackc/pgx/v5/internal/stmtcache"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -543,4 +545,75 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 	}
 
 	return scanTargets
+}
+
+func RowToStructByTag[T any](row CollectableRow) (T, error) {
+	var value T
+	err := row.Scan(&structTagRowScanner{ptrToStruct: &value})
+	return value, err
+}
+
+type structTagRowScanner struct {
+	ptrToStruct any
+}
+
+func (rs *structTagRowScanner) ScanRow(rows Rows) error {
+	dst := rs.ptrToStruct
+	dstValue := reflect.ValueOf(dst)
+	if dstValue.Kind() != reflect.Ptr {
+		return fmt.Errorf("dst not a pointer")
+	}
+
+	indexByFieldName := make(map[string]int, len(rows.FieldDescriptions()))
+	for i, desc := range rows.FieldDescriptions() {
+		indexByFieldName[desc.Name] = i
+	}
+	scanTargets, err := rs.appendScanTargets(dstValue.Elem(), nil, indexByFieldName)
+	if err != nil {
+		return err
+	}
+
+	return rows.Scan(scanTargets...)
+}
+
+func (rs *structTagRowScanner) appendScanTargets(dstElemValue reflect.Value, scanTargets []any, indexByFieldName map[string]int) ([]any, error) {
+	dstElemType := dstElemValue.Type()
+
+	if scanTargets == nil {
+		scanTargets = make([]any, len(indexByFieldName))
+	}
+
+	var err error
+	for i := 0; i < dstElemType.NumField(); i++ {
+		sf := dstElemType.Field(i)
+		if sf.PkgPath != "" {
+			continue
+		}
+		// handle anonymous struct embedding, but do not try to handle embedded pointers.
+		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
+			scanTargets, err = rs.appendScanTargets(dstElemValue.Field(i), scanTargets, indexByFieldName)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			columnName, ok := sf.Tag.Lookup("pgx")
+			if ok {
+				columnName = strings.Split(columnName, ",")[0]
+			} else {
+				columnName = strcase.ToSnake(sf.Name)
+			}
+
+			if columnName == "-" {
+				continue
+			}
+
+			if idx, ok := indexByFieldName[columnName]; ok {
+				scanTargets[idx] = dstElemValue.Field(i).Addr().Interface()
+			} else {
+				return nil, fmt.Errorf("cannot find field %s in returned row", columnName)
+			}
+		}
+	}
+
+	return scanTargets, err
 }
