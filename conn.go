@@ -42,6 +42,11 @@ type ConnConfig struct {
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
+// ParseConfigOptions contains options that control how a config is built such as getsslpassword.
+type ParseConfigOptions struct {
+	pgconn.ParseConfigOptions
+}
+
 // Copy returns a deep copy of the config that is safe to use and modify.
 // The only exception is the tls.Config:
 // according to the tls.Config docs it must not be modified after creation.
@@ -110,6 +115,16 @@ func Connect(ctx context.Context, connString string) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
+// ConnectWithOptions behaves exactly like Connect with the addition of options. At the present options is only used to
+// provide a GetSSLPassword function.
+func ConnectWithOptions(ctx context.Context, connString string, options ParseConfigOptions) (*Conn, error) {
+	connConfig, err := ParseConfigWithOptions(connString, options)
+	if err != nil {
+		return nil, err
+	}
+	return connect(ctx, connConfig)
+}
+
 // ConnectConfig establishes a connection with a PostgreSQL server with a configuration struct.
 // connConfig must have been created by ParseConfig.
 func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
@@ -120,22 +135,10 @@ func ConnectConfig(ctx context.Context, connConfig *ConnConfig) (*Conn, error) {
 	return connect(ctx, connConfig)
 }
 
-// ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
-// does. In addition, it accepts the following options:
-//
-//	default_query_exec_mode
-//		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
-//		QueryExecMode constant documentation for the meaning of these values. Default: "cache_statement".
-//
-//	statement_cache_capacity
-//		The maximum size of the statement cache used when executing a query with "cache_statement" query exec mode.
-//		Default: 512.
-//
-//	description_cache_capacity
-//		The maximum size of the description cache used when executing a query with "cache_describe" query exec mode.
-//		Default: 512.
-func ParseConfig(connString string) (*ConnConfig, error) {
-	config, err := pgconn.ParseConfig(connString)
+// ParseConfigWithOptions behaves exactly as ParseConfig does with the addition of options. At the present options is
+// only used to provide a GetSSLPassword function.
+func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*ConnConfig, error) {
+	config, err := pgconn.ParseConfigWithOptions(connString, options.ParseConfigOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +192,24 @@ func ParseConfig(connString string) (*ConnConfig, error) {
 	}
 
 	return connConfig, nil
+}
+
+// ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
+// does. In addition, it accepts the following options:
+//
+//	default_query_exec_mode
+//		Possible values: "cache_statement", "cache_describe", "describe_exec", "exec", and "simple_protocol". See
+//		QueryExecMode constant documentation for the meaning of these values. Default: "cache_statement".
+//
+//	statement_cache_capacity
+//		The maximum size of the statement cache used when executing a query with "cache_statement" query exec mode.
+//		Default: 512.
+//
+//	description_cache_capacity
+//		The maximum size of the description cache used when executing a query with "cache_describe" query exec mode.
+//		Default: 512.
+func ParseConfig(connString string) (*ConnConfig, error) {
+	return ParseConfigWithOptions(connString, ParseConfigOptions{})
 }
 
 // connect connects to a database. connect takes ownership of config. The caller must not use or access it again.
