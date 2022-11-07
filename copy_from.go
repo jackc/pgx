@@ -193,12 +193,14 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 	return false, buf, nil
 }
 
-// CopyFrom uses the PostgreSQL copy protocol to perform bulk data insertion.
-// It returns the number of rows copied and an error.
+// CopyFrom uses the PostgreSQL copy protocol to perform bulk data insertion. It returns the number of rows copied and
+// an error.
 //
-// CopyFrom requires all values use the binary format. Almost all types
-// implemented by pgx use the binary format by default. Types implementing
-// Encoder can only be used if they encode to the binary format.
+// CopyFrom requires all values use the binary format. A pgtype.Type that supports the binary format must be registered
+// for the type of each column. Almost all types implemented by pgx support the binary format.
+//
+// Even though enum types appear to be strings they still must be registered to use with CopyFrom. This can be done with
+// Conn.LoadType and pgtype.Map.RegisterType.
 func (c *Conn) CopyFrom(ctx context.Context, tableName Identifier, columnNames []string, rowSrc CopyFromSource) (int64, error) {
 	ct := &copyFrom{
 		conn:          c,

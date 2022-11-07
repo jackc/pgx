@@ -137,6 +137,48 @@ func TestLogQuery(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1365
+func TestLogQueryArgsHandlesUTF8(t *testing.T) {
+	t.Parallel()
+
+	logger := &testLogger{}
+	tracer := &tracelog.TraceLog{
+		Logger:   logger,
+		LogLevel: tracelog.LogLevelTrace,
+	}
+
+	ctr := defaultConnTestRunner
+	ctr.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config := defaultConnTestRunner.CreateConfig(ctx, t)
+		config.Tracer = tracer
+		return config
+	}
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		logger.logs = logger.logs[0:0] // Clear any logs written when establishing connection
+
+		var s string
+		for i := 0; i < 63; i++ {
+			s += "0"
+		}
+		s += "😊"
+
+		_, err := conn.Exec(ctx, `select $1::text`, s)
+		require.NoError(t, err)
+		require.Len(t, logger.logs, 1)
+		require.Equal(t, "Query", logger.logs[0].msg)
+		require.Equal(t, tracelog.LogLevelInfo, logger.logs[0].lvl)
+		require.Equal(t, s, logger.logs[0].data["args"].([]any)[0])
+
+		_, err = conn.Exec(ctx, `select $1::text`, s+"000")
+		require.NoError(t, err)
+		require.Len(t, logger.logs, 2)
+		require.Equal(t, "Query", logger.logs[1].msg)
+		require.Equal(t, tracelog.LogLevelInfo, logger.logs[1].lvl)
+		require.Equal(t, s+" (truncated 3 bytes)", logger.logs[1].data["args"].([]any)[0])
+	})
+}
+
 func TestLogCopyFrom(t *testing.T) {
 	t.Parallel()
 

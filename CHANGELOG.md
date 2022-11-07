@@ -63,6 +63,9 @@ The `pgtype` package has been significantly changed.
 Previously, types had a `Status` field that could be `Undefined`, `Null`, or `Present`. This has been changed to a
 `Valid` `bool` field to harmonize with how `database/sql` represents `NULL` and to make the zero value useable.
 
+Previously, a type that implemented `driver.Valuer` would have the `Value` method called even on a nil pointer. All nils
+whether typed or untyped now represent `NULL`.
+
 ### Codec and Value Split
 
 Previously, the type system combined decoding and encoding values with the value types. e.g. Type `Int8` both handled

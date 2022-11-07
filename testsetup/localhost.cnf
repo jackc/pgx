@@ -1,0 +1,13 @@
+[ req ]
+default_bits       = 2048
+distinguished_name = dn
+req_extensions     = v3_req
+prompt             = no
+[ dn ]
+commonName         = localhost
+[ v3_req ]
+subjectAltName     = @alt_names
+keyUsage           = digitalSignature
+extendedKeyUsage   = serverAuth
+[alt_names]
+DNS.1              = localhost

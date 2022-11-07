@@ -40,7 +40,7 @@ directly.
 
     var sum, n int32
     rows, _ := conn.Query(context.Background(), "select generate_series(1,$1)", 10)
-    _, err := pgx.ForEachRow(rows, []any{&n}, func(pgx.QueryFuncRow) error {
+    _, err := pgx.ForEachRow(rows, []any{&n}, func() error {
       sum += n
       return nil
     })

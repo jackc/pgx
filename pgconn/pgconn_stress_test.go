@@ -14,7 +14,7 @@ import (
 )
 
 func TestConnStress(t *testing.T) {
-	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_CONN_STRING"))
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 

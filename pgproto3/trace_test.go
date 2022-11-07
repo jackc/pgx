@@ -18,7 +18,7 @@ func TestTrace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_CONN_STRING"))
+	conn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer conn.Close(ctx)
 

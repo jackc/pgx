@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -62,6 +63,7 @@ func (f LoggerFunc) Log(ctx context.Context, level LogLevel, msg string, data ma
 // LogLevelFromString converts log level string to constant
 //
 // Valid levels:
+//
 //	trace
 //	debug
 //	info
@@ -100,7 +102,13 @@ func logQueryArgs(args []any) []any {
 			}
 		case string:
 			if len(v) > 64 {
-				a = fmt.Sprintf("%s (truncated %d bytes)", v[:64], len(v)-64)
+				var l int = 0
+				for w := 0; l < 64; l += w {
+					_, w = utf8.DecodeRuneInString(v[l:])
+				}
+				if len(v) > l {
+					a = fmt.Sprintf("%s (truncated %d bytes)", v[:l], len(v)-l)
+				}
 			}
 		}
 		logArgs = append(logArgs, a)

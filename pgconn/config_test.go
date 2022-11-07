@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,8 +18,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseConfig(t *testing.T) {
-	t.Parallel()
+func getDefaultPort(t *testing.T) uint16 {
+	if envPGPORT := os.Getenv("PGPORT"); envPGPORT != "" {
+		p, err := strconv.ParseUint(envPGPORT, 10, 16)
+		require.NoError(t, err)
+		return uint16(p)
+	}
+	return 5432
+}
+
+func getDefaultUser(t *testing.T) string {
+	if pguser := os.Getenv("PGUSER"); pguser != "" {
+		return pguser
+	}
 
 	var osUserName string
 	osUser, err := user.Current()
@@ -32,9 +44,18 @@ func TestParseConfig(t *testing.T) {
 		}
 	}
 
+	return osUserName
+}
+
+func TestParseConfig(t *testing.T) {
+	t.Parallel()
+
 	config, err := pgconn.ParseConfig("")
 	require.NoError(t, err)
 	defaultHost := config.Host
+
+	defaultUser := getDefaultUser(t)
+	defaultPort := getDefaultPort(t)
 
 	tests := []struct {
 		name       string
@@ -203,7 +224,7 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url missing user and password",
 			connString: "postgres://localhost:5432/mydb?sslmode=disable",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "localhost",
 				Port:          5432,
 				Database:      "mydb",
@@ -228,9 +249,9 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url unix domain socket host",
 			connString: "postgres:///foo?host=/tmp",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "/tmp",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "foo",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -240,9 +261,9 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url unix domain socket host on windows",
 			connString: "postgres:///foo?host=C:\\tmp",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "C:\\tmp",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "foo",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -252,9 +273,9 @@ func TestParseConfig(t *testing.T) {
 			name:       "database url dbname",
 			connString: "postgres://localhost/?dbname=foo&sslmode=disable",
 			config: &pgconn.Config{
-				User:          osUserName,
+				User:          defaultUser,
 				Host:          "localhost",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "foo",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -302,7 +323,7 @@ func TestParseConfig(t *testing.T) {
 			config: &pgconn.Config{
 				User:          "jack",
 				Host:          "2001:db8::1",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -357,7 +378,7 @@ func TestParseConfig(t *testing.T) {
 			config: &pgconn.Config{
 				User:          "jack",
 				Host:          "localhost",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -369,7 +390,7 @@ func TestParseConfig(t *testing.T) {
 			config: &pgconn.Config{
 				User:          "jack's",
 				Host:          "localhost",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -381,7 +402,7 @@ func TestParseConfig(t *testing.T) {
 			config: &pgconn.Config{
 				User:          "jack",
 				Host:          "localhost",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -393,7 +414,7 @@ func TestParseConfig(t *testing.T) {
 			config: &pgconn.Config{
 				User:          "jack",
 				Host:          "localhost",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
@@ -406,19 +427,19 @@ func TestParseConfig(t *testing.T) {
 				User:          "jack",
 				Password:      "secret",
 				Host:          "foo",
-				Port:          5432,
+				Port:          defaultPort,
 				Database:      "mydb",
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
 					&pgconn.FallbackConfig{
 						Host:      "bar",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 					&pgconn.FallbackConfig{
 						Host:      "baz",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 				},
@@ -520,7 +541,7 @@ func TestParseConfig(t *testing.T) {
 				User:     "jack",
 				Password: "secret",
 				Host:     "foo",
-				Port:     5432,
+				Port:     defaultPort,
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
@@ -530,31 +551,31 @@ func TestParseConfig(t *testing.T) {
 				Fallbacks: []*pgconn.FallbackConfig{
 					&pgconn.FallbackConfig{
 						Host:      "foo",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 					&pgconn.FallbackConfig{
 						Host: "bar",
-						Port: 5432,
+						Port: defaultPort,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "bar",
 						}},
 					&pgconn.FallbackConfig{
 						Host:      "bar",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 					&pgconn.FallbackConfig{
 						Host: "baz",
-						Port: 5432,
+						Port: defaultPort,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "baz",
 						}},
 					&pgconn.FallbackConfig{
 						Host:      "baz",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 				},
@@ -724,7 +745,7 @@ func TestParseConfig(t *testing.T) {
 				User:     "jack",
 				Password: "secret",
 				Host:     "sni.test",
-				Port:     5432,
+				Port:     defaultPort,
 				Database: "mydb",
 				TLSConfig: &tls.Config{
 					InsecureSkipVerify: true,
@@ -789,7 +810,7 @@ func TestConfigCopyOriginalConfigDidNotChange(t *testing.T) {
 }
 
 func TestConfigCopyCanBeUsedToConnect(t *testing.T) {
-	connString := os.Getenv("PGX_TEST_CONN_STRING")
+	connString := os.Getenv("PGX_TEST_DATABASE")
 	original, err := pgconn.ParseConfig(connString)
 	require.NoError(t, err)
 
@@ -1060,6 +1081,8 @@ application_name = spaced string
 `))
 	require.NoError(t, err)
 
+	defaultPort := getDefaultPort(t)
+
 	tests := []struct {
 		name       string
 		connString string
@@ -1092,7 +1115,7 @@ application_name = spaced string
 			connString: fmt.Sprintf("postgres:///?servicefile=%s&service=%s", tf.Name(), "def"),
 			config: &pgconn.Config{
 				Host:     "def.example.com",
-				Port:     5432,
+				Port:     defaultPort,
 				Database: "defdb",
 				User:     "defuser",
 				TLSConfig: &tls.Config{
@@ -1103,7 +1126,7 @@ application_name = spaced string
 				Fallbacks: []*pgconn.FallbackConfig{
 					&pgconn.FallbackConfig{
 						Host:      "def.example.com",
-						Port:      5432,
+						Port:      defaultPort,
 						TLSConfig: nil,
 					},
 				},
