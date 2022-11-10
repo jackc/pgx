@@ -424,7 +424,7 @@ func TestPrepare(t *testing.T) {
 		t.Errorf("Prepared statement did not return expected value: %v", s)
 	}
 
-	err = conn.Deallocate(context.Background(), "test")
+	err = conn.DeallocateAll(context.Background(), "test")
 	if err != nil {
 		t.Errorf("conn.Deallocate failed: %v", err)
 	}

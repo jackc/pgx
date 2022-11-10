@@ -326,6 +326,13 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	return err
 }
 
+// Deallocate all released prepared statements
+func (c *Conn) DeallocateAll(ctx context.Context, name string) error {
+	c.preparedStatements = map[string]*pgconn.StatementDescription{}
+	_, err := c.pgConn.Exec(ctx, "deallocate all").ReadAll()
+	return err
+}
+
 func (c *Conn) bufferNotifications(_ *pgconn.PgConn, n *pgconn.Notification) {
 	c.notifications = append(c.notifications, n)
 }
