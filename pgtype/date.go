@@ -336,16 +336,9 @@ func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (an
 		return nil, err
 	}
 
-	if date.Valid {
-		switch date.InfinityModifier {
-		case Finite:
-			return date.Time, nil
-		case Infinity:
-			return "infinity", nil
-		case NegativeInfinity:
-			return "-infinity", nil
-		}
+	if date.InfinityModifier != Finite {
+		return date.InfinityModifier, nil
 	}
 
-	return nil, nil
+	return date.Time, nil
 }
