@@ -546,16 +546,19 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 	return scanTargets
 }
 
-// RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number a named public fields as row
-// has fields. The row and T fields will by matched by name.
+// RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number of named public
+// fields as row has fields. The row and T fields will by matched by name. The match is case-insensitive. The database
+// column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByName[T any](row CollectableRow) (T, error) {
 	var value T
 	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value})
 	return value, err
 }
 
-// RowToAddrOfStructByPos returns the address of a T scanned from row. T must be a struct. T must have the same number a
-// named public fields as row has fields. The row and T fields will by matched by name.
+// RowToAddrOfStructByPos returns the address of a T scanned from row. T must be a struct. T must have the same number
+// of named public fields as row has fields. The row and T fields will by matched by name. The match is
+// case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
+// then the field will be ignored.
 func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
 	var value T
 	err := row.Scan(&namedStructRowScanner{ptrToStruct: &value})
