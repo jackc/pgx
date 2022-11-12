@@ -326,9 +326,15 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	return err
 }
 
-// Deallocate all released prepared statements
+// DeallocateAll releases all previously prepared statements from the server and client, where it also resets the statement and description cache.
 func (c *Conn) DeallocateAll(ctx context.Context, name string) error {
 	c.preparedStatements = map[string]*pgconn.StatementDescription{}
+	if c.config.StatementCacheCapacity > 0 {
+		c.statementCache = stmtcache.NewLRUCache(c.config.StatementCacheCapacity)
+	}
+	if c.config.DescriptionCacheCapacity > 0 {
+		c.descriptionCache = stmtcache.NewLRUCache(c.config.DescriptionCacheCapacity)
+	}
 	_, err := c.pgConn.Exec(ctx, "deallocate all").ReadAll()
 	return err
 }
