@@ -215,7 +215,6 @@ func (src *ErrorResponse) marshalBinary(typeByte byte) []byte {
 
 	for k, v := range src.UnknownFields {
 		buf.WriteByte(k)
-		buf.WriteByte(0)
 		buf.WriteString(v)
 		buf.WriteByte(0)
 	}
