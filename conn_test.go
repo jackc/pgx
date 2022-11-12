@@ -837,24 +837,21 @@ func TestDomainType(t *testing.T) {
 		// uint64 but a result OID of the underlying numeric.
 
 		var s string
-		err := conn.QueryRow(context.Background(), "select $1::uint64", "24").Scan(&s)
+		err := conn.QueryRow(ctx, "select $1::uint64", "24").Scan(&s)
 		require.NoError(t, err)
 		require.Equal(t, "24", s)
 
 		// Register type
-		var uint64OID uint32
-		err = conn.QueryRow(context.Background(), "select t.oid from pg_type t where t.typname='uint64';").Scan(&uint64OID)
-		if err != nil {
-			t.Fatalf("did not find uint64 OID, %v", err)
-		}
-		conn.TypeMap().RegisterType(&pgtype.Type{Name: "uint64", OID: uint64OID, Codec: pgtype.NumericCodec{}})
+		uint64Type, err := conn.LoadType(ctx, "uint64")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(uint64Type)
 
 		var n uint64
-		err = conn.QueryRow(context.Background(), "select $1::uint64", uint64(24)).Scan(&n)
+		err = conn.QueryRow(ctx, "select $1::uint64", uint64(24)).Scan(&n)
 		require.NoError(t, err)
 
 		// String is still an acceptable argument after registration
-		err = conn.QueryRow(context.Background(), "select $1::uint64", "7").Scan(&n)
+		err = conn.QueryRow(ctx, "select $1::uint64", "7").Scan(&n)
 		if err != nil {
 			t.Fatal(err)
 		}
