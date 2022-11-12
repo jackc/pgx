@@ -193,7 +193,11 @@ func (encodePlanDateCodecText) Encode(value any, buf []byte) (newBuf []byte, err
 			bc = true
 		}
 
-		buf = strconv.AppendInt(buf, int64(year), 10)
+		yearBytes := strconv.AppendInt(make([]byte, 0, 6), int64(year), 10)
+		for i := len(yearBytes); i < 4; i++ {
+			buf = append(buf, '0')
+		}
+		buf = append(buf, yearBytes...)
 		buf = append(buf, '-')
 		if date.Time.Month() < 10 {
 			buf = append(buf, '0')

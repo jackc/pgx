@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/assert"
 )
 
 func isExpectedEqTime(a any) func(any) bool {
@@ -35,6 +36,29 @@ func TestDateCodec(t *testing.T) {
 		{pgtype.Date{}, new(pgtype.Date), isExpectedEq(pgtype.Date{})},
 		{nil, new(*time.Time), isExpectedEq((*time.Time)(nil))},
 	})
+}
+
+func TestDateCodecTextEncode(t *testing.T) {
+	m := pgtype.NewMap()
+
+	successfulTests := []struct {
+		source pgtype.Date
+		result string
+	}{
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 0, 0, 0, 0, time.UTC), Valid: true}, result: "2012-03-29"},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.FixedZone("", -6*60*60)), Valid: true}, result: "2012-03-29"},
+		{source: pgtype.Date{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.FixedZone("", -6*60*60)), Valid: true}, result: "2012-03-29"},
+		{source: pgtype.Date{Time: time.Date(789, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true}, result: "0789-01-02"},
+		{source: pgtype.Date{Time: time.Date(89, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true}, result: "0089-01-02"},
+		{source: pgtype.Date{Time: time.Date(9, 1, 2, 0, 0, 0, 0, time.UTC), Valid: true}, result: "0009-01-02"},
+		{source: pgtype.Date{InfinityModifier: pgtype.Infinity, Valid: true}, result: "infinity"},
+		{source: pgtype.Date{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "-infinity"},
+	}
+	for i, tt := range successfulTests {
+		buf, err := m.Encode(pgtype.DateOID, pgtype.TextFormatCode, tt.source, nil)
+		assert.NoErrorf(t, err, "%d", i)
+		assert.Equalf(t, tt.result, string(buf), "%d", i)
+	}
 }
 
 func TestDateMarshalJSON(t *testing.T) {
