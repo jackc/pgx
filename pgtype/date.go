@@ -308,7 +308,21 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 }
 
 func (c DateCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, m, oid, format, src)
+	if src == nil {
+		return nil, nil
+	}
+
+	var date Date
+	err := codecScan(c, m, oid, format, src, &date)
+	if err != nil {
+		return nil, err
+	}
+
+	if date.InfinityModifier != Finite {
+		return date.InfinityModifier.String(), nil
+	}
+
+	return date.Time, nil
 }
 
 func (c DateCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
