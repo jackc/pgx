@@ -1,3 +1,16 @@
+# 5.1.0 (November 12, 2022)
+
+* Update puddle to v2.1.2. This resolves a race condition and a deadlock in pgxpool.
+* `QueryRewriter.RewriteQuery` now returns an error. Technically, this is a breaking change for any external implementers, but given the minimal likelihood that there are actually any external implementers this change was accepted.
+* Expose `GetSSLPassword` support to pgx.
+* Fix encode `ErrorResponse` unknown field handling. This would only affect pgproto3 being used directly as a proxy with a non-PostgreSQL server that included additional error fields.
+* Fix date text format encoding with 5 digit years.
+* Fix date values passed to a `sql.Scanner` as `string` instead of `time.Time`.
+* DateCodec.DecodeValue can return `pgtype.InfinityModifier` instead of `string` for infinite values. This now matches the behavior of the timestamp types.
+* Add domain type support to `Conn.LoadType()`.
+* Add `RowToStructByName` and `RowToAddrOfStructByName`. (Pavlo Golub)
+* Add `Conn.DeallocateAll()` to clear all prepared statements including the statement cache. (Bodo Kaiser)
+
 # 5.0.4 (October 24, 2022)
 
 * Fix: CollectOneRow prefers PostgreSQL error over pgx.ErrorNoRows
