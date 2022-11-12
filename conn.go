@@ -1147,8 +1147,9 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 	}
 
 	var typtype string
+	var typbasetype uint32
 
-	err = c.QueryRow(ctx, "select typtype::text from pg_type where oid=$1", oid).Scan(&typtype)
+	err = c.QueryRow(ctx, "select typtype::text, typbasetype from pg_type where oid=$1", oid).Scan(&typtype, &typbasetype)
 	if err != nil {
 		return nil, err
 	}
@@ -1173,6 +1174,13 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 		}
 
 		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.CompositeCodec{Fields: fields}}, nil
+	case "d": // domain
+		dt, ok := c.TypeMap().TypeForOID(typbasetype)
+		if !ok {
+			return nil, errors.New("domain base type OID not registered")
+		}
+
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: dt.Codec}, nil
 	case "e": // enum
 		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
 	default:
