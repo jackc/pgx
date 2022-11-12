@@ -310,7 +310,7 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 	case "-infinity":
 		return scanner.ScanDate(Date{InfinityModifier: -Infinity, Valid: true})
 	default:
-		return fmt.Errorf("date too short")
+		return fmt.Errorf("invalid date format")
 	}
 }
 
