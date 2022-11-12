@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -267,6 +268,8 @@ func (scanPlanBinaryDateToDateScanner) Scan(src []byte, dst any) error {
 
 type scanPlanTextAnyToDateScanner struct{}
 
+var dateRegexp = regexp.MustCompile(`^(\d{4,})-(\d\d)-(\d\d)( BC)?$`)
+
 func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(DateScanner)
 
@@ -275,35 +278,39 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 	}
 
 	sbuf := string(src)
+	match := dateRegexp.FindStringSubmatch(sbuf)
+	if match != nil {
+		year, err := strconv.ParseInt(match[1], 10, 32)
+		if err != nil {
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (year): %v", err)
+		}
+
+		month, err := strconv.ParseInt(match[2], 10, 32)
+		if err != nil {
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %v", err)
+		}
+
+		day, err := strconv.ParseInt(match[3], 10, 32)
+		if err != nil {
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %v", err)
+		}
+
+		// BC matched
+		if len(match[4]) > 0 {
+			year = -year + 1
+		}
+
+		t := time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
+		return scanner.ScanDate(Date{Time: t, Valid: true})
+	}
+
 	switch sbuf {
 	case "infinity":
 		return scanner.ScanDate(Date{InfinityModifier: Infinity, Valid: true})
 	case "-infinity":
 		return scanner.ScanDate(Date{InfinityModifier: -Infinity, Valid: true})
 	default:
-		if len(sbuf) >= 10 {
-			year, err := strconv.ParseInt(sbuf[0:4], 10, 32)
-			if err != nil {
-				return fmt.Errorf("cannot parse year: %v", err)
-			}
-			month, err := strconv.ParseInt(sbuf[5:7], 10, 32)
-			if err != nil {
-				return fmt.Errorf("cannot parse month: %v", err)
-			}
-			day, err := strconv.ParseInt(sbuf[8:10], 10, 32)
-			if err != nil {
-				return fmt.Errorf("cannot parse day: %v", err)
-			}
-
-			if len(sbuf) == 13 && sbuf[11:] == "BC" {
-				year = -year + 1
-			}
-
-			t := time.Date(int(year), time.Month(month), int(day), 0, 0, 0, 0, time.UTC)
-			return scanner.ScanDate(Date{Time: t, Valid: true})
-		} else {
-			return fmt.Errorf("date too short")
-		}
+		return fmt.Errorf("date too short")
 	}
 }
 
