@@ -1,4 +1,4 @@
-[![](https://godoc.org/github.com/jackc/pgx?status.svg)](https://pkg.go.dev/github.com/jackc/pgx/v5)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jackc/pgx/v5.svg)](https://pkg.go.dev/github.com/jackc/pgx/v5)
 ![Build Status](https://github.com/jackc/pgx/actions/workflows/ci.yml/badge.svg)
 
 # pgx - PostgreSQL Driver and Toolkit
