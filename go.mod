@@ -3,6 +3,7 @@ module github.com/jackc/pgx/v5
 go 1.18
 
 require (
+	github.com/google/uuid v1.3.0
 	github.com/jackc/pgpassfile v1.0.0
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b
 	github.com/jackc/puddle/v2 v2.1.2

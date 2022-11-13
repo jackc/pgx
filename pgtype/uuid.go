@@ -5,6 +5,8 @@ import (
 	"database/sql/driver"
 	"encoding/hex"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type UUIDScanner interface {
@@ -52,7 +54,7 @@ func parseUUID(src string) (dst [16]byte, err error) {
 
 // encodeUUID converts a uuid byte array to UUID standard string form.
 func encodeUUID(src [16]byte) string {
-	return fmt.Sprintf("%x-%x-%x-%x-%x", src[0:4], src[4:6], src[6:8], src[8:10], src[10:16])
+	return uuid.UUID(src).String()
 }
 
 // Scan implements the database/sql Scanner interface.
