@@ -88,6 +88,16 @@ func TestNewQuery(t *testing.T) {
 			sql:      "select 42, -- \\nis a Deep Thought's favorite number\r$1",
 			expected: sanitize.Query{Parts: []sanitize.Part{"select 42, -- \\nis a Deep Thought's favorite number\r", 1}},
 		},
+		{
+			// https://github.com/jackc/pgx/issues/1380
+			sql:      "select 'hello w�rld'",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 'hello w�rld'"}},
+		},
+		{
+			// Unterminated quoted string
+			sql:      "select 'hello world",
+			expected: sanitize.Query{Parts: []sanitize.Part{"select 'hello world"}},
+		},
 	}
 
 	for i, tt := range successTests {
