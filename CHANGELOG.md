@@ -1,3 +1,8 @@
+# 5.1.1 (November 17, 2022)
+
+* Fix simple query sanitizer where query text contains a Unicode replacement character.
+* Remove erroneous `name` argument from `DeallocateAll()`. Technically, this is a breaking change, but given that method was only added 5 days ago this change was accepted. (Bodo Kaiser)
+
 # 5.1.0 (November 12, 2022)
 
 * Update puddle to v2.1.2. This resolves a race condition and a deadlock in pgxpool.
