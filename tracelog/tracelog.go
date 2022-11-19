@@ -132,6 +132,7 @@ const (
 	tracelogBatchCtxKey
 	tracelogCopyFromCtxKey
 	tracelogConnectCtxKey
+	tracelogPrepareCtxKey
 )
 
 type traceQueryData struct {
@@ -279,6 +280,38 @@ func (tl *TraceLog) TraceConnectEnd(ctx context.Context, data pgx.TraceConnectEn
 				"time":     interval,
 			})
 		}
+	}
+}
+
+type tracePrepareData struct {
+	startTime time.Time
+	name      string
+	sql       string
+}
+
+func (tl *TraceLog) TracePrepareStart(ctx context.Context, _ *pgx.Conn, data pgx.TracePrepareStartData) context.Context {
+	return context.WithValue(ctx, tracelogPrepareCtxKey, &tracePrepareData{
+		startTime: time.Now(),
+		name:      data.Name,
+		sql:       data.SQL,
+	})
+}
+
+func (tl *TraceLog) TracePrepareEnd(ctx context.Context, conn *pgx.Conn, data pgx.TracePrepareEndData) {
+	prepareData := ctx.Value(tracelogPrepareCtxKey).(*tracePrepareData)
+
+	endTime := time.Now()
+	interval := endTime.Sub(prepareData.startTime)
+
+	if data.Err != nil {
+		if tl.shouldLog(LogLevelError) {
+			tl.log(ctx, conn, LogLevelError, "Prepare", map[string]any{"name": prepareData.name, "sql": prepareData.sql, "err": data.Err, "time": interval})
+		}
+		return
+	}
+
+	if tl.shouldLog(LogLevelInfo) {
+		tl.log(ctx, conn, LogLevelInfo, "Prepare", map[string]any{"name": prepareData.name, "sql": prepareData.sql, "time": interval, "alreadyPrepared": data.AlreadyPrepared})
 	}
 }
 
