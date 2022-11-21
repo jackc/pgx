@@ -1,7 +1,6 @@
 package pgx
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -52,19 +51,23 @@ func (txOptions TxOptions) beginSQL() string {
 	if txOptions == emptyTxOptions {
 		return "begin"
 	}
-	buf := &bytes.Buffer{}
-	buf.WriteString("begin")
+
+	buf := make([]byte, 0, 64) // 64 - maximum length of string with available options
+	buf = append(buf, "begin"...)
 	if txOptions.IsoLevel != "" {
-		fmt.Fprintf(buf, " isolation level %s", txOptions.IsoLevel)
+		buf = append(buf, " isolation level "...)
+		buf = append(buf, txOptions.IsoLevel...)
 	}
 	if txOptions.AccessMode != "" {
-		fmt.Fprintf(buf, " %s", txOptions.AccessMode)
+		buf = append(buf, ' ')
+		buf = append(buf, txOptions.AccessMode...)
 	}
 	if txOptions.DeferrableMode != "" {
-		fmt.Fprintf(buf, " %s", txOptions.DeferrableMode)
+		buf = append(buf, ' ')
+		buf = append(buf, txOptions.DeferrableMode...)
 	}
 
-	return buf.String()
+	return string(buf)
 }
 
 var ErrTxClosed = errors.New("tx is closed")
