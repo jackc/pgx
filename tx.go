@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -52,22 +53,24 @@ func (txOptions TxOptions) beginSQL() string {
 		return "begin"
 	}
 
-	buf := make([]byte, 0, 64) // 64 - maximum length of string with available options
-	buf = append(buf, "begin"...)
+	var buf strings.Builder
+	buf.Grow(64) // 64 - maximum length of string with available options
+	buf.WriteString("begin")
+
 	if txOptions.IsoLevel != "" {
-		buf = append(buf, " isolation level "...)
-		buf = append(buf, txOptions.IsoLevel...)
+		buf.WriteString(" isolation level ")
+		buf.WriteString(string(txOptions.IsoLevel))
 	}
 	if txOptions.AccessMode != "" {
-		buf = append(buf, ' ')
-		buf = append(buf, txOptions.AccessMode...)
+		buf.WriteByte(' ')
+		buf.WriteString(string(txOptions.AccessMode))
 	}
 	if txOptions.DeferrableMode != "" {
-		buf = append(buf, ' ')
-		buf = append(buf, txOptions.DeferrableMode...)
+		buf.WriteByte(' ')
+		buf.WriteString(string(txOptions.DeferrableMode))
 	}
 
-	return string(buf)
+	return buf.String()
 }
 
 var ErrTxClosed = errors.New("tx is closed")
