@@ -903,6 +903,65 @@ create type pgx_b.point as (c text);
 	})
 }
 
+func TestLoadRangeType(t *testing.T) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does support range types")
+
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		_, err = tx.Exec(ctx, "create type examplefloatrange as range (subtype=float8, subtype_diff=float8mi, multirange_type_name=examplefloatmultirange)")
+		require.NoError(t, err)
+
+		// Register types
+		newRangeType, err := conn.LoadType(ctx, "examplefloatrange")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(newRangeType)
+		conn.TypeMap().RegisterDefaultPgType(pgtype.Range[float64]{}, "examplefloatrange")
+
+		newMultiRangeType, err := conn.LoadType(ctx, "examplefloatmultirange")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(newMultiRangeType)
+		conn.TypeMap().RegisterDefaultPgType(pgtype.Multirange[pgtype.Range[float64]]{}, "examplefloatmultirange")
+
+		// Test range type
+		var inputRangeType = pgtype.Range[float64]{
+			Lower:     1.0,
+			Upper:     2.0,
+			LowerType: pgtype.Inclusive,
+			UpperType: pgtype.Inclusive,
+			Valid:     true,
+		}
+		var outputRangeType pgtype.Range[float64]
+		err = tx.QueryRow(ctx, "SELECT $1::examplefloatrange", inputRangeType).Scan(&outputRangeType)
+		require.NoError(t, err)
+		require.Equal(t, inputRangeType, outputRangeType)
+
+		// Test multi range type
+		var inputMultiRangeType = pgtype.Multirange[pgtype.Range[float64]]{
+			{
+				Lower:     1.0,
+				Upper:     2.0,
+				LowerType: pgtype.Inclusive,
+				UpperType: pgtype.Inclusive,
+				Valid:     true,
+			},
+			{
+				Lower:     3.0,
+				Upper:     4.0,
+				LowerType: pgtype.Exclusive,
+				UpperType: pgtype.Exclusive,
+				Valid:     true,
+			},
+		}
+		var outputMultiRangeType pgtype.Multirange[pgtype.Range[float64]]
+		err = tx.QueryRow(ctx, "SELECT $1::examplefloatmultirange", inputMultiRangeType).Scan(&outputMultiRangeType)
+		require.NoError(t, err)
+		require.Equal(t, inputMultiRangeType, outputMultiRangeType)
+	})
+}
+
 func TestStmtCacheInvalidationConn(t *testing.T) {
 	ctx := context.Background()
 

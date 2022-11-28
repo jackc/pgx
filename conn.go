@@ -1196,6 +1196,30 @@ func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, err
 		return &pgtype.Type{Name: typeName, OID: oid, Codec: dt.Codec}, nil
 	case "e": // enum
 		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.EnumCodec{}}, nil
+	case "r": // range
+		elementOID, err := c.getRangeElementOID(ctx, oid)
+		if err != nil {
+			return nil, err
+		}
+
+		dt, ok := c.TypeMap().TypeForOID(elementOID)
+		if !ok {
+			return nil, errors.New("range element OID not registered")
+		}
+
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.RangeCodec{ElementType: dt}}, nil
+	case "m": // multirange
+		elementOID, err := c.getMultiRangeElementOID(ctx, oid)
+		if err != nil {
+			return nil, err
+		}
+
+		dt, ok := c.TypeMap().TypeForOID(elementOID)
+		if !ok {
+			return nil, errors.New("multirange element OID not registered")
+		}
+
+		return &pgtype.Type{Name: typeName, OID: oid, Codec: &pgtype.MultirangeCodec{ElementType: dt}}, nil
 	default:
 		return &pgtype.Type{}, errors.New("unknown typtype")
 	}
@@ -1205,6 +1229,28 @@ func (c *Conn) getArrayElementOID(ctx context.Context, oid uint32) (uint32, erro
 	var typelem uint32
 
 	err := c.QueryRow(ctx, "select typelem from pg_type where oid=$1", oid).Scan(&typelem)
+	if err != nil {
+		return 0, err
+	}
+
+	return typelem, nil
+}
+
+func (c *Conn) getRangeElementOID(ctx context.Context, oid uint32) (uint32, error) {
+	var typelem uint32
+
+	err := c.QueryRow(ctx, "select rngsubtype from pg_range where rngtypid=$1", oid).Scan(&typelem)
+	if err != nil {
+		return 0, err
+	}
+
+	return typelem, nil
+}
+
+func (c *Conn) getMultiRangeElementOID(ctx context.Context, oid uint32) (uint32, error) {
+	var typelem uint32
+
+	err := c.QueryRow(ctx, "select rngtypid from pg_range where rngmultitypid=$1", oid).Scan(&typelem)
 	if err != nil {
 		return 0, err
 	}
