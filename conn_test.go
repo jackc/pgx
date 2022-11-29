@@ -911,6 +911,38 @@ func TestLoadRangeType(t *testing.T) {
 		require.NoError(t, err)
 		defer tx.Rollback(ctx)
 
+		_, err = tx.Exec(ctx, "create type examplefloatrange as range (subtype=float8, subtype_diff=float8mi)")
+		require.NoError(t, err)
+
+		// Register types
+		newRangeType, err := conn.LoadType(ctx, "examplefloatrange")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(newRangeType)
+		conn.TypeMap().RegisterDefaultPgType(pgtype.Range[float64]{}, "examplefloatrange")
+
+		var inputRangeType = pgtype.Range[float64]{
+			Lower:     1.0,
+			Upper:     2.0,
+			LowerType: pgtype.Inclusive,
+			UpperType: pgtype.Inclusive,
+			Valid:     true,
+		}
+		var outputRangeType pgtype.Range[float64]
+		err = tx.QueryRow(ctx, "SELECT $1::examplefloatrange", inputRangeType).Scan(&outputRangeType)
+		require.NoError(t, err)
+		require.Equal(t, inputRangeType, outputRangeType)
+	})
+}
+
+func TestLoadMultiRangeType(t *testing.T) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does support range types")
+		pgxtest.SkipPostgreSQLVersionLessThan(t, conn, 14) // multirange data type was added in 14 postgresql
+
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
 		_, err = tx.Exec(ctx, "create type examplefloatrange as range (subtype=float8, subtype_diff=float8mi, multirange_type_name=examplefloatmultirange)")
 		require.NoError(t, err)
 
@@ -925,20 +957,6 @@ func TestLoadRangeType(t *testing.T) {
 		conn.TypeMap().RegisterType(newMultiRangeType)
 		conn.TypeMap().RegisterDefaultPgType(pgtype.Multirange[pgtype.Range[float64]]{}, "examplefloatmultirange")
 
-		// Test range type
-		var inputRangeType = pgtype.Range[float64]{
-			Lower:     1.0,
-			Upper:     2.0,
-			LowerType: pgtype.Inclusive,
-			UpperType: pgtype.Inclusive,
-			Valid:     true,
-		}
-		var outputRangeType pgtype.Range[float64]
-		err = tx.QueryRow(ctx, "SELECT $1::examplefloatrange", inputRangeType).Scan(&outputRangeType)
-		require.NoError(t, err)
-		require.Equal(t, inputRangeType, outputRangeType)
-
-		// Test multi range type
 		var inputMultiRangeType = pgtype.Multirange[pgtype.Range[float64]]{
 			{
 				Lower:     1.0,
