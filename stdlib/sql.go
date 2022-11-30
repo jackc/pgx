@@ -629,6 +629,16 @@ func (r *Rows) Next(dest []driver.Value) error {
 					}
 					return d.Value()
 				}
+			case pgtype.PgLSNOID:
+				var d pgtype.Uint64
+				scanPlan := m.PlanScan(dataTypeOID, format, &d)
+				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
+					err := scanPlan.Scan(src, &d)
+					if err != nil {
+						return nil, err
+					}
+					return d.Value()
+				}
 			case pgtype.DateOID:
 				var d pgtype.Date
 				scanPlan := m.PlanScan(dataTypeOID, format, &d)

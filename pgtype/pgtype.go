@@ -90,6 +90,8 @@ const (
 	RecordArrayOID         = 2287
 	UUIDOID                = 2950
 	UUIDArrayOID           = 2951
+	PgLSNOID               = 3220
+	PgLSNArrayOID          = 3221
 	JSONBOID               = 3802
 	JSONBArrayOID          = 3807
 	DaterangeOID           = 3912
@@ -263,6 +265,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
 	m.RegisterType(&Type{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
 	m.RegisterType(&Type{Name: "path", OID: PathOID, Codec: PathCodec{}})
+	m.RegisterType(&Type{Name: "pg_lsn", OID: PgLSNOID, Codec: Uint64Codec{}})
 	m.RegisterType(&Type{Name: "point", OID: PointOID, Codec: PointCodec{}})
 	m.RegisterType(&Type{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
 	m.RegisterType(&Type{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
@@ -325,6 +328,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "_numrange", OID: NumrangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[NumrangeOID]}})
 	m.RegisterType(&Type{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[OIDOID]}})
 	m.RegisterType(&Type{Name: "_path", OID: PathArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PathOID]}})
+	m.RegisterType(&Type{Name: "_pg_lsn", OID: PgLSNArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PgLSNOID]}})
 	m.RegisterType(&Type{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PointOID]}})
 	m.RegisterType(&Type{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PolygonOID]}})
 	m.RegisterType(&Type{Name: "_record", OID: RecordArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[RecordOID]}})
