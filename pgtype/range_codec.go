@@ -2,6 +2,7 @@ package pgtype
 
 import (
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
@@ -157,8 +158,10 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 }
 
 type encodePlanRangeCodecRangeValuerToText struct {
-	rc *RangeCodec
-	m  *Map
+	rc Codec
+	m  interface {
+		PlanEncode(oid uint32, format int16, value any) EncodePlan
+	}
 }
 
 func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte) (newBuf []byte, err error) {
@@ -182,12 +185,18 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 		return nil, fmt.Errorf("unknown lower bound type %v", lowerType)
 	}
 
+	var oid uint32
+
+	if rc, ok := plan.rc.(*RangeCodec); ok {
+		oid = rc.ElementType.OID
+	}
+
 	if lowerType != Unbounded {
 		if lower == nil {
 			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
 		}
 
-		lowerPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, lower)
+		lowerPlan := plan.m.PlanEncode(oid, TextFormatCode, lower)
 		if lowerPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", lower)
 		}
@@ -208,7 +217,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
 		}
 
-		upperPlan := plan.m.PlanEncode(plan.rc.ElementType.OID, TextFormatCode, upper)
+		upperPlan := plan.m.PlanEncode(oid, TextFormatCode, upper)
 		if upperPlan == nil {
 			return nil, fmt.Errorf("cannot encode %v as element of range", upper)
 		}
@@ -376,4 +385,25 @@ func (c *RangeCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 	var r Range[any]
 	err := c.PlanScan(m, oid, format, &r).Scan(src, &r)
 	return r, err
+}
+
+type encodePlanRangeCodecJson struct{}
+
+func (s *encodePlanRangeCodecJson) PlanEncode(_ uint32, _ int16, _ any) EncodePlan {
+	return s
+}
+
+func (s *encodePlanRangeCodecJson) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %v as element of range: %v", value, err)
+	}
+
+	if b[0] == byte('"') && b[len(b)-1] == byte('"') {
+		buf = append(buf, b[1:len(b)-1]...)
+	} else {
+		buf = append(buf, b...)
+	}
+
+	return buf, nil
 }

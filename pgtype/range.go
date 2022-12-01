@@ -3,6 +3,7 @@ package pgtype
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 )
 
@@ -319,4 +320,74 @@ func (r *Range[T]) SetBoundTypes(lower, upper BoundType) error {
 	r.UpperType = upper
 	r.Valid = true
 	return nil
+}
+
+func (r Range[T]) MarshalJSON() ([]byte, error) {
+	if !r.Valid {
+		return []byte("null"), nil
+	}
+
+	enc := encodePlanRangeCodecRangeValuerToText{
+		m: &encodePlanRangeCodecJson{},
+	}
+
+	buf, err := enc.Encode(r, []byte(`"`))
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode %v as range: %w", r, err)
+	}
+
+	buf = append(buf, `"`...)
+
+	return buf, nil
+}
+
+func (r *Range[T]) UnmarshalJSON(b []byte) error {
+	if b[0] == byte('"') && b[len(b)-1] == byte('"') {
+		b = b[1 : len(b)-1]
+	}
+
+	s := string(b)
+
+	if s == "null" {
+		*r = Range[T]{}
+		return nil
+	}
+
+	utr, err := parseUntypedTextRange(s)
+	if err != nil {
+		return fmt.Errorf("failed to decode %s to range: %w", s, err)
+	}
+
+	*r = Range[T]{
+		LowerType: utr.LowerType,
+		UpperType: utr.UpperType,
+		Valid:     true,
+	}
+
+	if r.LowerType == Empty && r.UpperType == Empty {
+		return nil
+	}
+
+	if r.LowerType != Unbounded {
+		if err = r.unmarshalJSON(utr.Lower, &r.Lower); err != nil {
+			return fmt.Errorf("failed to decode %s to range lower: %w", utr.Lower, err)
+		}
+	}
+
+	if r.UpperType != Unbounded {
+		if err = r.unmarshalJSON(utr.Upper, &r.Upper); err != nil {
+			return fmt.Errorf("failed to decode %s to range upper: %w", utr.Upper, err)
+		}
+	}
+
+	return nil
+}
+
+func (_ *Range[T]) unmarshalJSON(data string, v *T) error {
+	buf := make([]byte, 0, len(data)+2)
+	buf = append(buf, `"`...)
+	buf = append(buf, data...)
+	buf = append(buf, `"`...)
+
+	return json.Unmarshal(buf, v)
 }
