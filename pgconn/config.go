@@ -225,22 +225,15 @@ func ParseConfig(connString string) (*Config, error) {
 func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Config, error) {
 	defaultSettings := defaultSettings()
 	envSettings := parseEnvSettings()
-
-	connStringSettings := make(map[string]string)
-	if connString != "" {
-		var err error
-		connStringSettings, err = makeConnStringSettings(connString)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
-	err := makeSettings(connString, defaultSettings, envSettings, connStringSettings, settings)
+	connStringSettings, err := makeConnStringSettings(connString)
 	if err != nil {
 		return nil, err
 	}
-
+	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
+	settings, err = makeSettings(connString, defaultSettings, envSettings, connStringSettings, settings)
+	if err != nil {
+		return nil, err
+	}
 	config := &Config{
 		createdByParseConfig: true,
 		Database:             settings["database"],
@@ -281,7 +274,6 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 	configKerb(config, settings)
 	configRuntimeParams(config, settings, notRuntimeParams)
-
 	fallbacks := []*FallbackConfig{}
 
 	hosts := strings.Split(settings["host"], ",")
@@ -307,8 +299,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		if err != nil {
 			return nil, err
 		}
-
-		fallbacks = makeFallback(host, port, tlsConfigs)
+		fallbacks = makeFallback(host, port, fallbacks, tlsConfigs)
 	}
 
 	config.Host = fallbacks[0].Host
@@ -341,8 +332,11 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 
 // MakeConnStringSettings perfroms all of the checks on connString in order to make the connStringSettings for ParseConfigWithOptions.
 func makeConnStringSettings(connString string) (map[string]string, error) {
-	var connStringSettings map[string]string
+	connStringSettings := make(map[string]string)
 	var err error
+	if connString == "" {
+		return connStringSettings, nil
+	}
 	if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
 		connStringSettings, err = parseURLSettings(connString)
 		if err != nil {
@@ -358,8 +352,8 @@ func makeConnStringSettings(connString string) (map[string]string, error) {
 }
 
 // MakeFallback simply makes the fallback value for ParseConfigWithOptions.
-func makeFallback(host string, port uint16, tlsConfigs []*tls.Config) []*FallbackConfig {
-	fallbacks := []*FallbackConfig{}
+func makeFallback(host string, port uint16, fallbacks []*FallbackConfig, tlsConfigs []*tls.Config) []*FallbackConfig {
+
 	for _, tlsConfig := range tlsConfigs {
 		fallbacks = append(fallbacks, &FallbackConfig{
 			Host:      host,
@@ -386,16 +380,16 @@ func makeTlsConfig(host, connString string, port uint16, settings map[string]str
 }
 
 // MakeSettings makes the settings for ParseConfigWithOptions
-func makeSettings(connString string, defaultSettings, envSettings, connStringSettings, settings map[string]string) error {
+func makeSettings(connString string, defaultSettings, envSettings, connStringSettings, settings map[string]string) (map[string]string, error) {
 	if service, present := settings["service"]; present {
 		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
 		if err != nil {
-			return &parseConfigError{connString: connString, msg: "failed to read service", err: err}
+			return nil, &parseConfigError{connString: connString, msg: "failed to read service", err: err}
 		}
 
 		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
 	}
-	return nil
+	return settings, nil
 }
 
 // ConfigTimeout configures the connect_timeout settings for ParseConfigWithOptions.
