@@ -229,28 +229,16 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	connStringSettings := make(map[string]string)
 	if connString != "" {
 		var err error
-		// connString may be a database URL or a DSN
-		if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
-			connStringSettings, err = parseURLSettings(connString)
-			if err != nil {
-				return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
-			}
-		} else {
-			connStringSettings, err = parseDSNSettings(connString)
-			if err != nil {
-				return nil, &parseConfigError{connString: connString, msg: "failed to parse as DSN", err: err}
-			}
+		connStringSettings, err = makeConnStringSettings(connString)
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	settings := mergeSettings(defaultSettings, envSettings, connStringSettings)
-	if service, present := settings["service"]; present {
-		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
-		if err != nil {
-			return nil, &parseConfigError{connString: connString, msg: "failed to read service", err: err}
-		}
-
-		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
+	err := makeSettings(connString, defaultSettings, envSettings, connStringSettings, settings)
+	if err != nil {
+		return nil, err
 	}
 
 	config := &Config{
@@ -264,18 +252,10 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		},
 	}
 
-	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
-		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
-		if err != nil {
-			return nil, &parseConfigError{connString: connString, msg: "invalid connect_timeout", err: err}
-		}
-		config.ConnectTimeout = connectTimeout
-		config.DialFunc = makeConnectTimeoutDialFunc(connectTimeout)
-	} else {
-		defaultDialer := makeDefaultDialer()
-		config.DialFunc = defaultDialer.DialContext
+	err = configTimeout(settings, connString, config)
+	if err != nil {
+		return nil, err
 	}
-
 	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
@@ -299,20 +279,8 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		"servicefile":          {},
 	}
 
-	// Adding kerberos configuration
-	if _, present := settings["krbsrvname"]; present {
-		config.KerberosSrvName = settings["krbsrvname"]
-	}
-	if _, present := settings["krbspn"]; present {
-		config.KerberosSpn = settings["krbspn"]
-	}
-
-	for k, v := range settings {
-		if _, present := notRuntimeParams[k]; present {
-			continue
-		}
-		config.RuntimeParams[k] = v
-	}
+	configKerb(config, settings)
+	configRuntimeParams(config, settings, notRuntimeParams)
 
 	fallbacks := []*FallbackConfig{}
 
@@ -335,23 +303,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		var tlsConfigs []*tls.Config
 
 		// Ignore TLS settings if Unix domain socket like libpq
-		if network, _ := NetworkAddress(host, port); network == "unix" {
-			tlsConfigs = append(tlsConfigs, nil)
-		} else {
-			var err error
-			tlsConfigs, err = configTLS(settings, host, options)
-			if err != nil {
-				return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
-			}
+		tlsConfigs, err = makeTlsConfig(host, connString, port, settings, options)
+		if err != nil {
+			return nil, err
 		}
 
-		for _, tlsConfig := range tlsConfigs {
-			fallbacks = append(fallbacks, &FallbackConfig{
-				Host:      host,
-				Port:      port,
-				TLSConfig: tlsConfig,
-			})
-		}
+		fallbacks = makeFallback(host, port, tlsConfigs)
 	}
 
 	config.Host = fallbacks[0].Host
@@ -360,16 +317,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	config.Fallbacks = fallbacks[1:]
 
 	passfile, err := pgpassfile.ReadPassfile(settings["passfile"])
-	if err == nil {
-		if config.Password == "" {
-			host := config.Host
-			if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
-				host = "localhost"
-			}
-
-			config.Password = passfile.FindPassword(host, strconv.Itoa(int(config.Port)), config.Database, config.User)
-		}
-	}
+	configPass(err, passfile, config)
 
 	switch tsa := settings["target_session_attrs"]; tsa {
 	case "read-write":
@@ -389,6 +337,115 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	}
 
 	return config, nil
+}
+
+// MakeConnStringSettings perfroms all of the checks on connString in order to make the connStringSettings for ParseConfigWithOptions.
+func makeConnStringSettings(connString string) (map[string]string, error) {
+	var connStringSettings map[string]string
+	var err error
+	if strings.HasPrefix(connString, "postgres://") || strings.HasPrefix(connString, "postgresql://") {
+		connStringSettings, err = parseURLSettings(connString)
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "failed to parse as URL", err: err}
+		}
+	} else {
+		connStringSettings, err = parseDSNSettings(connString)
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "failed to parse as DSN", err: err}
+		}
+	}
+	return connStringSettings, nil
+}
+
+// MakeFallback simply makes the fallback value for ParseConfigWithOptions.
+func makeFallback(host string, port uint16, tlsConfigs []*tls.Config) []*FallbackConfig {
+	fallbacks := []*FallbackConfig{}
+	for _, tlsConfig := range tlsConfigs {
+		fallbacks = append(fallbacks, &FallbackConfig{
+			Host:      host,
+			Port:      port,
+			TLSConfig: tlsConfig,
+		})
+	}
+	return fallbacks
+}
+
+// MakeTlsConfig makes the tlsConfig for ParseConfigWithOptions.
+func makeTlsConfig(host, connString string, port uint16, settings map[string]string, options ParseConfigOptions) ([]*tls.Config, error) {
+	var tlsConfigs []*tls.Config
+	if network, _ := NetworkAddress(host, port); network == "unix" {
+		tlsConfigs = append(tlsConfigs, nil)
+	} else {
+		var err error
+		tlsConfigs, err = configTLS(settings, host, options)
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "failed to configure TLS", err: err}
+		}
+	}
+	return tlsConfigs, nil
+}
+
+// MakeSettings makes the settings for ParseConfigWithOptions
+func makeSettings(connString string, defaultSettings, envSettings, connStringSettings, settings map[string]string) error {
+	if service, present := settings["service"]; present {
+		serviceSettings, err := parseServiceSettings(settings["servicefile"], service)
+		if err != nil {
+			return &parseConfigError{connString: connString, msg: "failed to read service", err: err}
+		}
+
+		settings = mergeSettings(defaultSettings, envSettings, serviceSettings, connStringSettings)
+	}
+	return nil
+}
+
+// ConfigTimeout configures the connect_timeout settings for ParseConfigWithOptions.
+func configTimeout(settings map[string]string, connString string, config *Config) error {
+	if connectTimeoutSetting, present := settings["connect_timeout"]; present {
+		connectTimeout, err := parseConnectTimeoutSetting(connectTimeoutSetting)
+		if err != nil {
+			return &parseConfigError{connString: connString, msg: "invalid connect_timeout", err: err}
+		}
+		config.ConnectTimeout = connectTimeout
+		config.DialFunc = makeConnectTimeoutDialFunc(connectTimeout)
+	} else {
+		defaultDialer := makeDefaultDialer()
+		config.DialFunc = defaultDialer.DialContext
+	}
+	return nil
+}
+
+// ConfigKerb adds the kerberos configuration for ParseConfigWithOptions.
+func configKerb(config *Config, settings map[string]string) {
+	if _, present := settings["krbsrvname"]; present {
+		config.KerberosSrvName = settings["krbsrvname"]
+	}
+	if _, present := settings["krbspn"]; present {
+		config.KerberosSpn = settings["krbspn"]
+	}
+}
+
+// ConfigRuntimeParams checks the notRuntimeParams map and configures actual runtime params for ParseConfigWithOptions.
+func configRuntimeParams(config *Config, settings map[string]string, notRuntimeParams map[string]struct{}) {
+	for k, v := range settings {
+		if _, present := notRuntimeParams[k]; present {
+			continue
+		}
+		config.RuntimeParams[k] = v
+	}
+}
+
+// ConfigPass configures the password if none was provided for ParseConfigWithOptions.
+func configPass(err error, passfile *pgpassfile.Passfile, config *Config) {
+	if err == nil {
+		if config.Password == "" {
+			host := config.Host
+			if network, _ := NetworkAddress(config.Host, config.Port); network == "unix" {
+				host = "localhost"
+			}
+
+			config.Password = passfile.FindPassword(host, strconv.Itoa(int(config.Port)), config.Database, config.User)
+		}
+	}
 }
 
 func mergeSettings(settingSets ...map[string]string) map[string]string {
