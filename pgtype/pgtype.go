@@ -265,7 +265,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
 	m.RegisterType(&Type{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
 	m.RegisterType(&Type{Name: "path", OID: PathOID, Codec: PathCodec{}})
-	m.RegisterType(&Type{Name: "pg_lsn", OID: PgLSNOID, Codec: Uint64Codec{}})
+	m.RegisterType(&Type{Name: "pg_lsn", OID: PgLSNOID, Codec: PgLSNCodec{}})
 	m.RegisterType(&Type{Name: "point", OID: PointOID, Codec: PointCodec{}})
 	m.RegisterType(&Type{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
 	m.RegisterType(&Type{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
