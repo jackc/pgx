@@ -14,6 +14,129 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestConnCopyWithAllQueryExecModes(t *testing.T) {
+	for _, mode := range pgxtest.AllQueryExecModes {
+		t.Run(mode.String(), func(t *testing.T) {
+			t.Parallel()
+
+			cfg := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+			cfg.DefaultQueryExecMode = mode
+			conn := mustConnect(t, cfg)
+			defer closeConn(t, conn)
+
+			mustExec(t, conn, `create temporary table foo(
+			a int2,
+			b int4,
+			c int8,
+			d text,
+			e timestamptz
+		)`)
+
+			tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
+			inputRows := [][]any{
+				{int16(0), int32(1), int64(2), "abc", tzedTime},
+				{nil, nil, nil, nil, nil},
+			}
+
+			copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e"}, pgx.CopyFromRows(inputRows))
+			if err != nil {
+				t.Errorf("Unexpected error for CopyFrom: %v", err)
+			}
+			if int(copyCount) != len(inputRows) {
+				t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
+			}
+
+			rows, err := conn.Query(context.Background(), "select * from foo")
+			if err != nil {
+				t.Errorf("Unexpected error for Query: %v", err)
+			}
+
+			var outputRows [][]any
+			for rows.Next() {
+				row, err := rows.Values()
+				if err != nil {
+					t.Errorf("Unexpected error for rows.Values(): %v", err)
+				}
+				outputRows = append(outputRows, row)
+			}
+
+			if rows.Err() != nil {
+				t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+			}
+
+			if !reflect.DeepEqual(inputRows, outputRows) {
+				t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+			}
+
+			ensureConnValid(t, conn)
+		})
+	}
+}
+
+func TestConnCopyWithKnownOIDQueryExecModes(t *testing.T) {
+
+	for _, mode := range pgxtest.KnownOIDQueryExecModes {
+		t.Run(mode.String(), func(t *testing.T) {
+			t.Parallel()
+
+			cfg := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
+			cfg.DefaultQueryExecMode = mode
+			conn := mustConnect(t, cfg)
+			defer closeConn(t, conn)
+
+			mustExec(t, conn, `create temporary table foo(
+			a int2,
+			b int4,
+			c int8,
+			d varchar,
+			e text,
+			f date,
+			g timestamptz
+		)`)
+
+			tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
+
+			inputRows := [][]any{
+				{int16(0), int32(1), int64(2), "abc", "efg", time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), tzedTime},
+				{nil, nil, nil, nil, nil, nil, nil},
+			}
+
+			copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
+			if err != nil {
+				t.Errorf("Unexpected error for CopyFrom: %v", err)
+			}
+			if int(copyCount) != len(inputRows) {
+				t.Errorf("Expected CopyFrom to return %d copied rows, but got %d", len(inputRows), copyCount)
+			}
+
+			rows, err := conn.Query(context.Background(), "select * from foo")
+			if err != nil {
+				t.Errorf("Unexpected error for Query: %v", err)
+			}
+
+			var outputRows [][]any
+			for rows.Next() {
+				row, err := rows.Values()
+				if err != nil {
+					t.Errorf("Unexpected error for rows.Values(): %v", err)
+				}
+				outputRows = append(outputRows, row)
+			}
+
+			if rows.Err() != nil {
+				t.Errorf("Unexpected error for rows.Err(): %v", rows.Err())
+			}
+
+			if !reflect.DeepEqual(inputRows, outputRows) {
+				t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
+			}
+
+			ensureConnValid(t, conn)
+		})
+	}
+}
+
 func TestConnCopyFromSmall(t *testing.T) {
 	t.Parallel()
 
@@ -220,7 +343,7 @@ func TestConnCopyFromEnum(t *testing.T) {
 		conn.TypeMap().RegisterType(typ)
 	}
 
-	_, err = tx.Exec(ctx, `create table foo(
+	_, err = tx.Exec(ctx, `create temporary table foo(
 		a text,
 		b color,
 		c fruit,

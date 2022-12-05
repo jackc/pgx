@@ -721,43 +721,10 @@ optionLoop:
 	sd, explicitPreparedStatement := c.preparedStatements[sql]
 	if sd != nil || mode == QueryExecModeCacheStatement || mode == QueryExecModeCacheDescribe || mode == QueryExecModeDescribeExec {
 		if sd == nil {
-			switch mode {
-			case QueryExecModeCacheStatement:
-				if c.statementCache == nil {
-					err = errDisabledStatementCache
-					rows.fatal(err)
-					return rows, err
-				}
-				sd = c.statementCache.Get(sql)
-				if sd == nil {
-					sd, err = c.Prepare(ctx, stmtcache.NextStatementName(), sql)
-					if err != nil {
-						rows.fatal(err)
-						return rows, err
-					}
-					c.statementCache.Put(sd)
-				}
-			case QueryExecModeCacheDescribe:
-				if c.descriptionCache == nil {
-					err = errDisabledDescriptionCache
-					rows.fatal(err)
-					return rows, err
-				}
-				sd = c.descriptionCache.Get(sql)
-				if sd == nil {
-					sd, err = c.Prepare(ctx, "", sql)
-					if err != nil {
-						rows.fatal(err)
-						return rows, err
-					}
-					c.descriptionCache.Put(sd)
-				}
-			case QueryExecModeDescribeExec:
-				sd, err = c.Prepare(ctx, "", sql)
-				if err != nil {
-					rows.fatal(err)
-					return rows, err
-				}
+			sd, err = c.getStatementDescription(ctx, mode, sql)
+			if err != nil {
+				rows.fatal(err)
+				return rows, err
 			}
 		}
 
@@ -825,6 +792,48 @@ optionLoop:
 	c.eqb.reset() // Allow c.eqb internal memory to be GC'ed as soon as possible.
 
 	return rows, rows.err
+}
+
+// getStatementDescription returns the statement description of the sql query
+// according to the given mode.
+//
+// If the mode is one that doesn't require to know the param and result OIDs
+// then nil is returned without error.
+func (c *Conn) getStatementDescription(
+	ctx context.Context,
+	mode QueryExecMode,
+	sql string,
+) (sd *pgconn.StatementDescription, err error) {
+
+	switch mode {
+	case QueryExecModeCacheStatement:
+		if c.statementCache == nil {
+			return nil, errDisabledStatementCache
+		}
+		sd = c.statementCache.Get(sql)
+		if sd == nil {
+			sd, err = c.Prepare(ctx, stmtcache.NextStatementName(), sql)
+			if err != nil {
+				return nil, err
+			}
+			c.statementCache.Put(sd)
+		}
+	case QueryExecModeCacheDescribe:
+		if c.descriptionCache == nil {
+			return nil, errDisabledDescriptionCache
+		}
+		sd = c.descriptionCache.Get(sql)
+		if sd == nil {
+			sd, err = c.Prepare(ctx, "", sql)
+			if err != nil {
+				return nil, err
+			}
+			c.descriptionCache.Put(sd)
+		}
+	case QueryExecModeDescribeExec:
+		return c.Prepare(ctx, "", sql)
+	}
+	return sd, err
 }
 
 // QueryRow is a convenience wrapper over Query. Any error that occurs while
