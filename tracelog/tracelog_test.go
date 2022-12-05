@@ -217,7 +217,7 @@ func TestLogCopyFrom(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, pgxtest.KnownOIDQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(context.Background(), `create temporary table foo(a int4)`)
 		require.NoError(t, err)
 

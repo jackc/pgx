@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/internal/pgmock"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgproto3"
@@ -1655,6 +1657,59 @@ func TestConnCopyFrom(t *testing.T) {
 		copySql = "COPY foo FROM STDIN WITH CSV"
 	}
 	ct, err := pgConn.CopyFrom(context.Background(), srcBuf, copySql)
+	require.NoError(t, err)
+	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
+
+	result := pgConn.ExecParams(context.Background(), "select * from foo", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+
+	assert.Equal(t, inputRows, result.Rows)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnCopyFromBinary(t *testing.T) {
+	t.Parallel()
+
+	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
+		a int4,
+		b varchar
+	)`).ReadAll()
+	require.NoError(t, err)
+
+	buf := []byte{}
+	buf = append(buf, "PGCOPY\n\377\r\n\000"...)
+	buf = pgio.AppendInt32(buf, 0)
+	buf = pgio.AppendInt32(buf, 0)
+
+	inputRows := [][][]byte{}
+	for i := 0; i < 1000; i++ {
+		// Number of elements in the tuple
+		buf = pgio.AppendInt16(buf, int16(2))
+		a := i
+
+		// Length of element for column `a int4`
+		buf = pgio.AppendInt32(buf, 4)
+		buf, err = pgtype.NewMap().Encode(pgtype.Int4OID, pgx.BinaryFormatCode, a, buf)
+		require.NoError(t, err)
+
+		b := "foo " + strconv.Itoa(a) + " bar"
+		lenB := int32(len([]byte(b)))
+		// Length of element for column `b varchar`
+		buf = pgio.AppendInt32(buf, lenB)
+		buf, err = pgtype.NewMap().Encode(pgtype.VarcharOID, pgx.BinaryFormatCode, b, buf)
+		require.NoError(t, err)
+
+		inputRows = append(inputRows, [][]byte{[]byte(strconv.Itoa(a)), []byte(b)})
+	}
+
+	srcBuf := &bytes.Buffer{}
+	srcBuf.Write(buf)
+	ct, err := pgConn.CopyFrom(context.Background(), srcBuf, "COPY foo (a, b) FROM STDIN BINARY;")
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
 
