@@ -238,7 +238,7 @@ func (w *uint64Wrapper) ScanNumeric(v Numeric) error {
 		return fmt.Errorf("cannot scan %v into *uint64", bi.String())
 	}
 
-	*w = uint64Wrapper(v.Int.Uint64())
+	*w = uint64Wrapper(bi.Uint64())
 
 	return nil
 }
@@ -291,7 +291,7 @@ func (w *uintWrapper) ScanNumeric(v Numeric) error {
 		return fmt.Errorf("cannot scan %v into *uint", bi.String())
 	}
 
-	ui := v.Int.Uint64()
+	ui := bi.Uint64()
 
 	if math.MaxUint < ui {
 		return fmt.Errorf("cannot scan %v into *uint", ui)
