@@ -1,3 +1,10 @@
+# 5.2.0 (December 5, 2022)
+
+* `tracelog.TraceLog` implements the pgx.PrepareTracer interface. (Vitalii Solodilov)
+* Optimize creating begin transaction SQL string (Petr Evdokimov and ksco)
+* `Conn.LoadType` supports range and multirange types (Vitalii Solodilov)
+* Fix scan `uint` and `uint64` `ScanNumeric`. This resolves a PostgreSQL `numeric` being incorrectly scanned into `uint` and `uint64`.
+
 # 5.1.1 (November 17, 2022)
 
 * Fix simple query sanitizer where query text contains a Unicode replacement character.
