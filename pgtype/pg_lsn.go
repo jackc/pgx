@@ -1,6 +1,10 @@
 package pgtype
 
-import "fmt"
+import (
+	"database/sql/driver"
+	"errors"
+	"fmt"
+)
 
 type PgLSN struct {
 	LSN   uint64
@@ -18,7 +22,46 @@ func (n *PgLSN) ScanUint64(v Uint64) error {
 func (n PgLSN) Uint64Value() (Uint64, error) {
 	return Uint64{
 		Uint64: n.LSN,
-		Valid:  true,
+		Valid:  n.Valid,
+	}, nil
+}
+
+func (n *PgLSN) ScanText(v Text) error {
+	if v.Valid {
+		i, err := parsePgLSN(v.String)
+		if err != nil {
+			return err
+		}
+		*n = PgLSN{
+			LSN:   i,
+			Valid: true,
+		}
+		return nil
+	}
+
+	*n = PgLSN{
+		LSN:   0,
+		Valid: false,
+	}
+	return nil
+}
+
+func parsePgLSN(s string) (uint64, error) {
+	var hi, lo uint32
+	n, err := fmt.Sscanf(s, "%X/%X", &hi, &lo)
+	if err != nil {
+		return 0, err
+	}
+	if n != 2 {
+		return 0, errors.New("invalid pg_lsn value")
+	}
+	return uint64(hi)<<32 | uint64(lo), nil
+}
+
+func (n PgLSN) TextValue() (Text, error) {
+	return Text{
+		String: n.String(),
+		Valid:  n.Valid,
 	}, nil
 }
 
@@ -27,6 +70,41 @@ func (src *PgLSN) String() string {
 		return ""
 	}
 	return fmt.Sprintf("%X/%X", src.LSN>>32, uint32(src.LSN))
+}
+
+// Scan implements the database/sql Scanner interface.
+func (dst *PgLSN) Scan(src any) error {
+	if src == nil {
+		*dst = PgLSN{}
+		return nil
+	}
+
+	var n uint64
+
+	switch src := src.(type) {
+	case uint64:
+		n = src
+	case string:
+		var err error
+		n, err = parsePgLSN(src)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("cannot scan %T", src)
+	}
+
+	*dst = PgLSN{LSN: n, Valid: true}
+
+	return nil
+}
+
+// Value implements the database/sql/driver Valuer interface.
+func (src PgLSN) Value() (driver.Value, error) {
+	if !src.Valid {
+		return nil, nil
+	}
+	return src.LSN, nil
 }
 
 type PgLSNCodec struct {

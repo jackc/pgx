@@ -1147,9 +1147,6 @@ func TestConnQueryDatabaseSQLDriverValuer(t *testing.T) {
 func TestConnQuerPgLSN(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
-
 	testCases := []sql.NullString{
 		{Valid: false},
 		{Valid: true, String: "0/0"},
@@ -1157,19 +1154,43 @@ func TestConnQuerPgLSN(t *testing.T) {
 		{Valid: true, String: "1F/2"},
 		{Valid: true, String: "FFFFFFFF/FFFFFFFF"},
 	}
-	for _, expected := range testCases {
-		var got pgtype.PgLSN
-		err := conn.QueryRow(context.Background(), "select $1::pg_lsn", &expected).Scan(&got)
-		require.NoError(t, err)
-		var actual sql.NullString
-		if got.Valid {
-			actual.Valid = true
-			actual.String = got.String()
-		}
-		require.Equal(t, expected, actual)
-	}
 
-	ensureConnValid(t, conn)
+	t.Run("binary", func(t *testing.T) {
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+		defer closeConn(t, conn)
+
+		for _, expected := range testCases {
+			var got pgtype.PgLSN
+			err := conn.QueryRow(context.Background(), "select $1::pg_lsn", &expected).Scan(&got)
+			require.NoError(t, err)
+			var actual sql.NullString
+			if got.Valid {
+				actual.Valid = true
+				actual.String = got.String()
+			}
+			require.Equal(t, expected, actual)
+		}
+
+		ensureConnValid(t, conn)
+	})
+	t.Run("text", func(t *testing.T) {
+		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+		defer closeConn(t, conn)
+
+		for _, expected := range testCases {
+			var got pgtype.PgLSN
+			err := conn.QueryRow(context.Background(), "select $1", &expected).Scan(&got)
+			require.NoError(t, err)
+			var actual sql.NullString
+			if got.Valid {
+				actual.Valid = true
+				actual.String = got.String()
+			}
+			require.Equal(t, expected, actual)
+		}
+
+		ensureConnValid(t, conn)
+	})
 }
 
 // https://github.com/jackc/pgx/issues/339
