@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
@@ -48,6 +49,9 @@ func TestJSONCodec(t *testing.T) {
 		{map[string]any(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{[]byte(nil), new([]byte), isExpectedEqBytes([]byte(nil))},
 		{nil, new([]byte), isExpectedEqBytes([]byte(nil))},
+
+		// Test sql.Scanner. (https://github.com/jackc/pgx/issues/1418)
+		{"42", new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{

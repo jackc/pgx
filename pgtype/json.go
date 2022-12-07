@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -82,6 +83,13 @@ func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 		return scanPlanJSONToByteSlice{}
 	case BytesScanner:
 		return scanPlanBinaryBytesToBytesScanner{}
+
+	// Cannot rely on sql.Scanner being handled later because scanPlanJSONToJSONUnmarshal will take precedence.
+	//
+	// https://github.com/jackc/pgx/issues/1418
+	case sql.Scanner:
+		return &scanPlanSQLScanner{formatCode: format}
+
 	default:
 		return scanPlanJSONToJSONUnmarshal{}
 	}
