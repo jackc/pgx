@@ -82,6 +82,8 @@ func (dst *PgLSN) Scan(src any) error {
 	var n uint64
 
 	switch src := src.(type) {
+	case int64:
+		n = uint64(src)
 	case uint64:
 		n = src
 	case string:
@@ -104,7 +106,9 @@ func (src PgLSN) Value() (driver.Value, error) {
 	if !src.Valid {
 		return nil, nil
 	}
-	return src.LSN, nil
+	// Return int64 instead of uint64 because uint64 is not allowed at
+	// https://pkg.go.dev/database/sql/driver#Value
+	return int64(src.LSN), nil
 }
 
 type PgLSNCodec struct {
