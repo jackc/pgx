@@ -1633,10 +1633,6 @@ func TestConnCopyFrom(t *testing.T) {
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
 
-	if pgConn.ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does not fully support COPY FROM (https://www.cockroachlabs.com/docs/v20.2/copy-from.html)")
-	}
-
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int4,
 		b varchar
@@ -1654,7 +1650,11 @@ func TestConnCopyFrom(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	ct, err := pgConn.CopyFrom(context.Background(), srcBuf, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		copySql = "COPY foo FROM STDIN WITH CSV"
+	}
+	ct, err := pgConn.CopyFrom(context.Background(), srcBuf, copySql)
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
 
@@ -1672,10 +1672,6 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	pgConn, err := pgconn.Connect(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer closeConn(t, pgConn)
-
-	if pgConn.ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does not support query cancellation (https://github.com/cockroachdb/cockroach/issues/41335)")
-	}
 
 	_, err = pgConn.Exec(context.Background(), `create temporary table foo(
 		a int4,
@@ -1697,7 +1693,11 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	ct, err := pgConn.CopyFrom(ctx, r, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		copySql = "COPY foo FROM STDIN WITH CSV"
+	}
+	ct, err := pgConn.CopyFrom(ctx, r, copySql)
 	cancel()
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	assert.Error(t, err)
@@ -1787,7 +1787,11 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	gr, err := gzip.NewReader(f)
 	require.NoError(t, err)
 
-	ct, err := pgConn.CopyFrom(context.Background(), gr, "COPY foo FROM STDIN WITH (FORMAT csv)")
+	copySql := "COPY foo FROM STDIN WITH (FORMAT csv)"
+	if pgConn.ParameterStatus("crdb_version") != "" {
+		copySql = "COPY foo FROM STDIN WITH CSV"
+	}
+	ct, err := pgConn.CopyFrom(context.Background(), gr, copySql)
 	require.NoError(t, err)
 	assert.Equal(t, int64(len(inputRows)), ct.RowsAffected())
 
@@ -1927,7 +1931,7 @@ func TestConnCopyFromDataWriteAfterErrorAndReturn(t *testing.T) {
 	require.NoError(t, err)
 
 	if pgConn.ParameterStatus("crdb_version") != "" {
-		t.Skip("Server does support COPY FROM")
+		t.Skip("Server does not fully support COPY FROM")
 	}
 
 	setupSQL := `create temporary table t (
