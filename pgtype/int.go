@@ -33,7 +33,7 @@ func (dst *Int2) ScanInt64(n Int8) error {
 	}
 
 	if n.Int64 < math.MinInt16 {
-		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int64)
+		return fmt.Errorf("%d is less than minimum value for Int2", n.Int64)
 	}
 	if n.Int64 > math.MaxInt16 {
 		return fmt.Errorf("%d is greater than maximum value for Int2", n.Int64)
@@ -593,7 +593,7 @@ func (dst *Int4) ScanInt64(n Int8) error {
 	}
 
 	if n.Int64 < math.MinInt32 {
-		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int64)
+		return fmt.Errorf("%d is less than minimum value for Int4", n.Int64)
 	}
 	if n.Int64 > math.MaxInt32 {
 		return fmt.Errorf("%d is greater than maximum value for Int4", n.Int64)
@@ -1164,7 +1164,7 @@ func (dst *Int8) ScanInt64(n Int8) error {
 	}
 
 	if n.Int64 < math.MinInt64 {
-		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int64)
+		return fmt.Errorf("%d is less than minimum value for Int8", n.Int64)
 	}
 	if n.Int64 > math.MaxInt64 {
 		return fmt.Errorf("%d is greater than maximum value for Int8", n.Int64)
