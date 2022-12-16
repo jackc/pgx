@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -34,7 +35,7 @@ func (dst *Int<%= pg_byte_size %>) ScanInt64(n Int8) error {
 	}
 
 	if n.Int64 < math.MinInt<%= pg_bit_size %> {
-		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int64)
+		return fmt.Errorf("%d is less than minimum value for Int<%= pg_byte_size %>", n.Int64)
 	}
 	if n.Int64 > math.MaxInt<%= pg_bit_size %> {
 		return fmt.Errorf("%d is greater than maximum value for Int<%= pg_byte_size %>", n.Int64)
