@@ -1106,6 +1106,8 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 	for _, bi := range b.queuedQueries {
 		err := c.eqb.Build(c.typeMap, bi.sd, bi.arguments)
 		if err != nil {
+			// we wrap the error so we the user can understand which query failed inside the batch
+			err = fmt.Errorf("error building query %s: %w", bi.query, err)
 			return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
 		}
 
