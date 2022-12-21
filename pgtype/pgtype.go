@@ -223,6 +223,7 @@ func NewMap() *Map {
 			TryWrapStructEncodePlan,
 			TryWrapSliceEncodePlan,
 			TryWrapMultiDimSliceEncodePlan,
+			TryWrapArrayEncodePlan,
 		},
 
 		TryWrapScanPlanFuncs: []TryWrapScanPlanFunc{
@@ -232,6 +233,7 @@ func NewMap() *Map {
 			TryWrapStructScanPlan,
 			TryWrapPtrSliceScanPlan,
 			TryWrapPtrMultiDimSliceScanPlan,
+			TryWrapPtrArrayScanPlan,
 		},
 	}
 
@@ -1139,6 +1141,31 @@ func (plan *wrapPtrMultiDimSliceScanPlan) Scan(src []byte, target any) error {
 	return plan.next.Scan(src, &anyMultiDimSliceArray{slice: reflect.ValueOf(target).Elem()})
 }
 
+// TryWrapPtrArrayScanPlan tries to wrap a pointer to a single dimension array.
+func TryWrapPtrArrayScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValue any, ok bool) {
+	targetValue := reflect.ValueOf(target)
+	if targetValue.Kind() != reflect.Ptr {
+		return nil, nil, false
+	}
+
+	targetElemValue := targetValue.Elem()
+
+	if targetElemValue.Kind() == reflect.Array {
+		return &wrapPtrArrayReflectScanPlan{}, &anyArrayArrayReflect{array: targetElemValue}, true
+	}
+	return nil, nil, false
+}
+
+type wrapPtrArrayReflectScanPlan struct {
+	next ScanPlan
+}
+
+func (plan *wrapPtrArrayReflectScanPlan) SetNext(next ScanPlan) { plan.next = next }
+
+func (plan *wrapPtrArrayReflectScanPlan) Scan(src []byte, target any) error {
+	return plan.next.Scan(src, &anyArrayArrayReflect{array: reflect.ValueOf(target).Elem()})
+}
+
 // PlanScan prepares a plan to scan a value into target.
 func (m *Map) PlanScan(oid uint32, formatCode int16, target any) ScanPlan {
 	oidMemo := m.memoizedScanPlans[oid]
@@ -1939,6 +1966,35 @@ func (plan *wrapMultiDimSliceEncodePlan) Encode(value any, buf []byte) (newBuf [
 	}
 
 	return plan.next.Encode(&w, buf)
+}
+
+func TryWrapArrayEncodePlan(value any) (plan WrappedEncodePlanNextSetter, nextValue any, ok bool) {
+	if _, ok := value.(driver.Valuer); ok {
+		return nil, nil, false
+	}
+
+	if valueType := reflect.TypeOf(value); valueType != nil && valueType.Kind() == reflect.Array {
+		w := anyArrayArrayReflect{
+			array: reflect.ValueOf(value),
+		}
+		return &wrapArrayEncodeReflectPlan{}, w, true
+	}
+
+	return nil, nil, false
+}
+
+type wrapArrayEncodeReflectPlan struct {
+	next EncodePlan
+}
+
+func (plan *wrapArrayEncodeReflectPlan) SetNext(next EncodePlan) { plan.next = next }
+
+func (plan *wrapArrayEncodeReflectPlan) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	w := anyArrayArrayReflect{
+		array: reflect.ValueOf(value),
+	}
+
+	return plan.next.Encode(w, buf)
 }
 
 func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) error {

@@ -126,6 +126,29 @@ func TestArrayCodecAnySlice(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1442
+func TestArrayCodecAnyArray(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		type _point3 [3]float32
+
+		for i, tt := range []struct {
+			expected any
+		}{
+			{_point3{0, 0, 0}},
+			{_point3{1, 2, 3}},
+		} {
+			var actual _point3
+			err := conn.QueryRow(
+				ctx,
+				"select $1::float4[]",
+				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	})
+}
+
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1218262703
 func TestArrayCodecSliceArgConversion(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
