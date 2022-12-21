@@ -120,6 +120,13 @@ func skipPostgreSQLVersionLessThan(t testing.TB, minVersion int64) {
 	}
 }
 
+// sqlScannerFunc lets an arbitrary function be used as a sql.Scanner.
+type sqlScannerFunc func(src any) error
+
+func (f sqlScannerFunc) Scan(src any) error {
+	return f(src)
+}
+
 func TestMapScanNilIsNoOp(t *testing.T) {
 	m := pgtype.NewMap()
 
