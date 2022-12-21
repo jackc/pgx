@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
@@ -112,5 +113,25 @@ func TestUndecodedBytes(t *testing.T) {
 
 		require.Len(t, buf, 4)
 		require.Equal(t, buf, []byte{0, 0, 0, 1})
+	})
+}
+
+func TestByteaCodecDecodeDatabaseSQLValue(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var buf []byte
+		err := conn.QueryRow(ctx, `select '\xa1b2c3d4'::bytea`).Scan(sqlScannerFunc(func(src any) error {
+			switch src := src.(type) {
+			case []byte:
+				buf = make([]byte, len(src))
+				copy(buf, src)
+				return nil
+			default:
+				return fmt.Errorf("expected []byte, got %T", src)
+			}
+		}))
+		require.NoError(t, err)
+
+		require.Len(t, buf, 4)
+		require.Equal(t, buf, []byte{0xa1, 0xb2, 0xc3, 0xd4})
 	})
 }

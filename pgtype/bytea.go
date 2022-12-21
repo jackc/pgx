@@ -238,7 +238,7 @@ func decodeHexBytea(src []byte) ([]byte, error) {
 }
 
 func (c ByteaCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {
-	return codecDecodeToTextFormat(c, m, oid, format, src)
+	return c.DecodeValue(m, oid, format, src)
 }
 
 func (c ByteaCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
