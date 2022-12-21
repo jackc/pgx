@@ -142,3 +142,7 @@ Library for scanning data from a database into Go structs and more.
 ### [https://github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
 
 Adds GSSAPI / Kerberos authentication support.
+
+### [github.com/wcamarao/pmx](https://github.com/wcamarao/pmx)
+
+Explicit data mapping and scanning library for Go structs and slices.
