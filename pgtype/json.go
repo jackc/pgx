@@ -24,6 +24,12 @@ func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 		return encodePlanJSONCodecEitherFormatString{}
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
+
+	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
+	//
+	// https://github.com/jackc/pgx/issues/1430
+	case driver.Valuer:
+		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
 	}
 
 	// Because anything can be marshalled the normal wrapping in Map.PlanScan doesn't get a chance to run. So try the
