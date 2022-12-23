@@ -69,8 +69,9 @@ Use Exec to execute a query that does not return a result set.
 
 PostgreSQL Data Types
 
-The package pgtype provides extensive and customizable support for converting Go values to and from PostgreSQL values
-including array and composite types. See that package's documentation for details.
+pgx uses the pgtype package to converting Go values to and from PostgreSQL values. It supports many PostgreSQL types
+directly and is customizable and extendable. User defined data types such as enums, domains,  and composite types may
+require type registration. See that package's documentation for details.
 
 Transactions
 

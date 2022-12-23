@@ -1326,15 +1326,15 @@ func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
 	}
 
 	var dt *Type
-
-	if oid == 0 {
+	if dataType, ok := m.TypeForOID(oid); ok {
+		dt = dataType
+	} else {
+		// If no type for the OID was found, then either it is unknowable (e.g. the simple protocol) or it is an
+		// unregistered type. In either case try to find the type and OID that matches the value (e.g. a []byte would be
+		// registered to PostgreSQL bytea).
 		if dataType, ok := m.TypeForValue(value); ok {
 			dt = dataType
 			oid = dt.OID // Preserve assumed OID in case we are recursively called below.
-		}
-	} else {
-		if dataType, ok := m.TypeForOID(oid); ok {
-			dt = dataType
 		}
 	}
 
