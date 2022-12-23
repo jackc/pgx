@@ -1227,6 +1227,16 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 		}
 	}
 
+	// This needs to happen before trying m.TryWrapScanPlanFuncs. Otherwise, a sql.Scanner would not get called if it was
+	// defined on a type that could be unwrapped such as `type myString string`.
+	//
+	//  https://github.com/jackc/pgtype/issues/197
+	if dt == nil {
+		if _, ok := target.(sql.Scanner); ok {
+			return &scanPlanSQLScanner{formatCode: formatCode}
+		}
+	}
+
 	for _, f := range m.TryWrapScanPlanFuncs {
 		if wrapperPlan, nextDst, ok := f(target); ok {
 			if nextPlan := m.planScan(oid, formatCode, nextDst); nextPlan != nil {
@@ -1246,10 +1256,6 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 		if _, ok := target.(sql.Scanner); ok {
 			return &scanPlanCodecSQLScanner{c: dt.Codec, m: m, oid: oid, formatCode: formatCode}
 		}
-	}
-
-	if _, ok := target.(sql.Scanner); ok {
-		return &scanPlanSQLScanner{formatCode: formatCode}
 	}
 
 	return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
