@@ -43,6 +43,10 @@ type _float32Slice []float32
 type _float64Slice []float64
 type _byteSlice []byte
 
+// unregisteredOID represents a actual type that is not registered. Cannot use 0 because that represents that the type
+// is not known (e.g. when using the simple protocol).
+const unregisteredOID = uint32(1)
+
 func mustParseCIDR(t testing.TB, s string) *net.IPNet {
 	_, ipnet, err := net.ParseCIDR(s)
 	if err != nil {
@@ -125,6 +129,13 @@ type sqlScannerFunc func(src any) error
 
 func (f sqlScannerFunc) Scan(src any) error {
 	return f(src)
+}
+
+// driverValuerFunc lets an arbitrary function be used as a driver.Valuer.
+type driverValuerFunc func() (driver.Value, error)
+
+func (f driverValuerFunc) Value() (driver.Value, error) {
+	return f()
 }
 
 func TestMapScanNilIsNoOp(t *testing.T) {
@@ -322,6 +333,36 @@ func TestMapEncodeBinaryFormatDatabaseValuerThatReturnsString(t *testing.T) {
 	buf, err := m.Encode(pgtype.Int4OID, pgtype.BinaryFormatCode, src, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte{0, 0, 0, 42}, buf)
+}
+
+// https://github.com/jackc/pgx/issues/1445
+func TestMapEncodeDatabaseValuerThatReturnsStringIntoUnregisteredTypeTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(unregisteredOID, pgtype.TextFormatCode, driverValuerFunc(func() (driver.Value, error) { return "foo", nil }), nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte("foo"), buf)
+}
+
+// https://github.com/jackc/pgx/issues/1445
+func TestMapEncodeDatabaseValuerThatReturnsByteSliceIntoUnregisteredTypeTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(unregisteredOID, pgtype.TextFormatCode, driverValuerFunc(func() (driver.Value, error) { return []byte{0, 1, 2, 3}, nil }), nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte(`\x00010203`), buf)
+}
+
+func TestMapEncodeStringIntoUnregisteredTypeTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(unregisteredOID, pgtype.TextFormatCode, "foo", nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte("foo"), buf)
+}
+
+func TestMapEncodeByteSliceIntoUnregisteredTypeTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(unregisteredOID, pgtype.TextFormatCode, []byte{0, 1, 2, 3}, nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte(`\x00010203`), buf)
 }
 
 // https://github.com/jackc/pgx/issues/1326

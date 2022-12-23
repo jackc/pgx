@@ -190,7 +190,7 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 	require.Equal(t, "({1},)", values[0])
 }
 
-func TestConnQueryValuesWithUnknownOID(t *testing.T) {
+func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -215,6 +215,24 @@ func TestConnQueryValuesWithUnknownOID(t *testing.T) {
 	values, err := rows.Values()
 	require.NoError(t, err)
 	require.Equal(t, "orange", values[0])
+}
+
+func TestConnQueryArgsAndScanWithUnregisteredOID(t *testing.T) {
+	t.Parallel()
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		_, err = tx.Exec(ctx, "create type fruit as enum('orange', 'apple', 'pear')")
+		require.NoError(t, err)
+
+		var result string
+		err = conn.QueryRow(ctx, "select $1::fruit", "orange").Scan(&result)
+		require.NoError(t, err)
+		require.Equal(t, "orange", result)
+	})
 }
 
 // https://github.com/jackc/pgx/issues/478
