@@ -52,6 +52,9 @@ func TestJSONCodec(t *testing.T) {
 
 		// Test sql.Scanner. (https://github.com/jackc/pgx/issues/1418)
 		{"42", new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
+
+		// Test driver.Valuer. (https://github.com/jackc/pgx/issues/1430)
+		{sql.NullInt64{Int64: 42, Valid: true}, new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
