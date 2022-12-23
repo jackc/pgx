@@ -223,6 +223,23 @@ func TestMapScanUnknownOIDIntoSQLScanner(t *testing.T) {
 	assert.False(t, s.Valid)
 }
 
+type scannerString string
+
+func (ss *scannerString) Scan(v any) error {
+	*ss = scannerString("scanned")
+	return nil
+}
+
+// https://github.com/jackc/pgtype/issues/197
+func TestMapScanUnregisteredOIDIntoRenamedStringSQLScanner(t *testing.T) {
+	m := pgtype.NewMap()
+
+	var s scannerString
+	err := m.Scan(unregisteredOID, pgx.TextFormatCode, []byte(nil), &s)
+	assert.NoError(t, err)
+	assert.Equal(t, "scanned", string(s))
+}
+
 type pgCustomInt int64
 
 func (ci *pgCustomInt) Scan(src interface{}) error {
