@@ -146,3 +146,8 @@ Adds GSSAPI / Kerberos authentication support.
 ### [github.com/wcamarao/pmx](https://github.com/wcamarao/pmx)
 
 Explicit data mapping and scanning library for Go structs and slices.
+
+### [github.com/stephenafamo/scan](https://github.com/stephenafamo/scan)
+
+Type safe and flexible package for scanning database data into Go types.  
+Supports, structs, maps, slices and custom mapping functions.
