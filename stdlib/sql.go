@@ -2,58 +2,58 @@
 //
 // A database/sql connection can be established through sql.Open.
 //
-//  db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
-//  if err != nil {
-//    return err
-//  }
+//	db, err := sql.Open("pgx", "postgres://pgx_md5:secret@localhost:5432/pgx_test?sslmode=disable")
+//	if err != nil {
+//	  return err
+//	}
 //
 // Or from a DSN string.
 //
-//  db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
-//  if err != nil {
-//    return err
-//  }
+//	db, err := sql.Open("pgx", "user=postgres password=secret host=localhost port=5432 database=pgx_test sslmode=disable")
+//	if err != nil {
+//	  return err
+//	}
 //
 // Or a pgx.ConnConfig can be used to set configuration not accessible via connection string. In this case the
 // pgx.ConnConfig must first be registered with the driver. This registration returns a connection string which is used
 // with sql.Open.
 //
-//  connConfig, _ := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
-//  connConfig.Logger = myLogger
-//  connStr := stdlib.RegisterConnConfig(connConfig)
-//  db, _ := sql.Open("pgx", connStr)
+//	connConfig, _ := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
+//	connConfig.Logger = myLogger
+//	connStr := stdlib.RegisterConnConfig(connConfig)
+//	db, _ := sql.Open("pgx", connStr)
 //
 // pgx uses standard PostgreSQL positional parameters in queries. e.g. $1, $2. It does not support named parameters.
 //
-//  db.QueryRow("select * from users where id=$1", userID)
+//	db.QueryRow("select * from users where id=$1", userID)
 //
 // (*sql.Conn) Raw() can be used to get a *pgx.Conn from the standard database/sql.DB connection pool. This allows
 // operations that use pgx specific functionality.
 //
-//  // Given db is a *sql.DB
-//  conn, err := db.Conn(context.Background())
-//  if err != nil {
-//    // handle error from acquiring connection from DB pool
-//  }
+//	// Given db is a *sql.DB
+//	conn, err := db.Conn(context.Background())
+//	if err != nil {
+//	  // handle error from acquiring connection from DB pool
+//	}
 //
-//  err = conn.Raw(func(driverConn any) error {
-//    conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
-//    // Do pgx specific stuff with conn
-//    conn.CopyFrom(...)
-//    return nil
-//  })
-//  if err != nil {
-//    // handle error that occurred while using *pgx.Conn
-//  }
+//	err = conn.Raw(func(driverConn any) error {
+//	  conn := driverConn.(*stdlib.Conn).Conn() // conn is a *pgx.Conn
+//	  // Do pgx specific stuff with conn
+//	  conn.CopyFrom(...)
+//	  return nil
+//	})
+//	if err != nil {
+//	  // handle error that occurred while using *pgx.Conn
+//	}
 //
-// PostgreSQL Specific Data Types
+// # PostgreSQL Specific Data Types
 //
 // The pgtype package provides support for PostgreSQL specific types. *pgtype.Map.SQLScanner is an adapter that makes
 // these types usable as a sql.Scanner.
 //
-//  m := pgtype.NewMap()
-//  var a []int64
-//  err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
+//	m := pgtype.NewMap()
+//	var a []int64
+//	err := db.QueryRow("select '{1,2,3}'::bigint[]").Scan(m.SQLScanner(&a))
 package stdlib
 
 import (
@@ -65,10 +65,12 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"net"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -140,7 +142,7 @@ func RandomizeHostOrderFunc(ctx context.Context, connConfig *pgx.ConnConfig) err
 		return nil
 	}
 
-	newFallbacks := append([]*pgconn.FallbackConfig{&pgconn.FallbackConfig{
+	newFallbacks := append([]*pgconn.FallbackConfig{{
 		Host:      connConfig.Host,
 		Port:      connConfig.Port,
 		TLSConfig: connConfig.TLSConfig,
@@ -197,15 +199,15 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 	// Create a shallow copy of the config, so that BeforeConnect can safely modify it
 	connConfig := c.ConnConfig
 	if err = c.BeforeConnect(ctx, &connConfig); err != nil {
-		return nil, err
+		return nil, translateError(err)
 	}
 
 	if conn, err = pgx.ConnectConfig(ctx, &connConfig); err != nil {
-		return nil, err
+		return nil, translateError(err)
 	}
 
 	if err = c.AfterConnect(ctx, conn); err != nil {
-		return nil, err
+		return nil, translateError(err)
 	}
 
 	return &Conn{conn: conn, driver: c.driver, connConfig: connConfig, resetSessionFunc: c.ResetSession}, nil
@@ -234,7 +236,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 
 	connector, err := d.OpenConnector(name)
 	if err != nil {
-		return nil, err
+		return nil, translateError(err)
 	}
 	return connector.Connect(ctx)
 }
@@ -280,7 +282,7 @@ func (dc *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
 
 	conn, err := pgx.ConnectConfig(ctx, connConfig)
 	if err != nil {
-		return nil, err
+		return nil, translateError(err)
 	}
 
 	c := &Conn{
@@ -308,12 +310,26 @@ func UnregisterConnConfig(connStr string) {
 }
 
 type Conn struct {
+	// TODO: replace with atomic.Bool after Go 1.20 release
+	badConn              int32
 	conn                 *pgx.Conn
 	psCount              int64 // Counter used for creating unique prepared statement names
 	driver               *Driver
 	connConfig           pgx.ConnConfig
 	resetSessionFunc     func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
 	lastResetSessionTime time.Time
+}
+
+func (c *Conn) translateError(err error) error {
+	err = translateError(err)
+	if err == driver.ErrBadConn {
+		atomic.StoreInt32(&c.badConn, 1)
+	}
+	return err
+}
+
+func (c *Conn) isBadConn() bool {
+	return atomic.LoadInt32(&c.badConn) == 1
 }
 
 // Conn returns the underlying *pgx.Conn
@@ -326,7 +342,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -335,7 +351,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 
 	sd, err := c.conn.Prepare(ctx, name, query)
 	if err != nil {
-		return nil, err
+		return nil, c.translateError(err)
 	}
 
 	return &Stmt{sd: sd, conn: c}, nil
@@ -352,7 +368,7 @@ func (c *Conn) Begin() (driver.Tx, error) {
 }
 
 func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, error) {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -377,14 +393,14 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 
 	tx, err := c.conn.BeginTx(ctx, pgxOpts)
 	if err != nil {
-		return nil, err
+		return nil, c.translateError(err)
 	}
 
 	return wrapTx{ctx: ctx, tx: tx}, nil
 }
 
 func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Result, error) {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -393,15 +409,13 @@ func (c *Conn) ExecContext(ctx context.Context, query string, argsV []driver.Nam
 	commandTag, err := c.conn.Exec(ctx, query, args...)
 	// if we got a network error before we had a chance to send the query, retry
 	if err != nil {
-		if pgconn.SafeToRetry(err) {
-			return nil, driver.ErrBadConn
-		}
+		return nil, c.translateError(err)
 	}
 	return driver.RowsAffected(commandTag.RowsAffected()), err
 }
 
 func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.NamedValue) (driver.Rows, error) {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return nil, driver.ErrBadConn
 	}
 
@@ -410,23 +424,20 @@ func (c *Conn) QueryContext(ctx context.Context, query string, argsV []driver.Na
 
 	rows, err := c.conn.Query(ctx, query, args...)
 	if err != nil {
-		if pgconn.SafeToRetry(err) {
-			return nil, driver.ErrBadConn
-		}
-		return nil, err
+		return nil, c.translateError(err)
 	}
 
 	// Preload first row because otherwise we won't know what columns are available when database/sql asks.
 	more := rows.Next()
 	if err = rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, c.translateError(err)
 	}
 	return &Rows{conn: c, rows: rows, skipNext: true, skipNextMore: more}, nil
 }
 
 func (c *Conn) Ping(ctx context.Context) error {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return driver.ErrBadConn
 	}
 
@@ -447,7 +458,7 @@ func (c *Conn) CheckNamedValue(*driver.NamedValue) error {
 }
 
 func (c *Conn) ResetSession(ctx context.Context) error {
-	if c.conn.IsClosed() {
+	if c.conn.IsClosed() || c.isBadConn() {
 		return driver.ErrBadConn
 	}
 
@@ -725,9 +736,9 @@ func (r *Rows) Next(dest []driver.Value) error {
 
 	if !more {
 		if r.rows.Err() == nil {
-			return io.EOF
+			return driver.ErrBadConn
 		} else {
-			return r.rows.Err()
+			return translateError(r.rows.Err())
 		}
 	}
 
@@ -768,6 +779,19 @@ func namedValueToInterface(argsV []driver.NamedValue) []any {
 		}
 	}
 	return args
+}
+
+func translateError(err error) error {
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return driver.ErrBadConn
+	}
+	if pgconn.SafeToRetry(err) {
+		return driver.ErrBadConn
+	}
+	if _, ok := err.(*net.OpError); ok {
+		return driver.ErrBadConn
+	}
+	return err
 }
 
 type wrapTx struct {
