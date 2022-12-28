@@ -736,7 +736,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 
 	if !more {
 		if r.rows.Err() == nil {
-			return driver.ErrBadConn
+			return io.EOF
 		} else {
 			return translateError(r.rows.Err())
 		}
