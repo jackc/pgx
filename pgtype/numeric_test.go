@@ -213,6 +213,12 @@ func TestNumericMarshalJSON(t *testing.T) {
 			{"123e-3"},
 			{"243723409723490243842378942378901237502734019231380123e23790"},
 			{"3409823409243892349028349023482934092340892390101e-14021"},
+			{"-1.1"},
+			{"-1.0231"},
+			{"-10.0231"},
+			{"-0.1"},   // failed with "invalid character '.' in numeric literal"
+			{"-0.01"},  // failed with "invalid character '-' after decimal point in numeric literal"
+			{"-0.001"}, // failed with "invalid character '-' after top-level value"
 		} {
 			var num pgtype.Numeric
 			var pgJSON string
