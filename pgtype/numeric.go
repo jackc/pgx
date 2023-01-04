@@ -243,7 +243,14 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
 func (n Numeric) numberTextBytes() []byte {
 	intStr := n.Int.String()
+
 	buf := &bytes.Buffer{}
+
+	if len(intStr) > 0 && intStr[:1] == "-" {
+		intStr = intStr[1:]
+		buf.WriteByte('-')
+	}
+
 	exp := int(n.Exp)
 	if exp > 0 {
 		buf.WriteString(intStr)
