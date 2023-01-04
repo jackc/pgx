@@ -1219,6 +1219,34 @@ func TestConnQueryDatabaseSQLDriverValuerTextWhenBinaryIsPreferred(t *testing.T)
 	ensureConnValid(t, conn)
 }
 
+// https://github.com/jackc/pgx/issues/1426
+func TestConnQueryDatabaseSQLNullFloat64NegativeZeroPointZero(t *testing.T) {
+	t.Parallel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	type test struct {
+		want sql.NullFloat64
+		in   float64
+	}
+
+	tests := []float64{
+		-0.01,
+		-0.001,
+		-0.0001,
+	}
+
+	for _, val := range tests {
+		var result sql.NullFloat64
+		err := conn.QueryRow(context.Background(), "select $1::numeric", val).Scan(&result)
+		require.NoError(t, err)
+		require.Equal(t, sql.NullFloat64{Float64: val, Valid: true}, result)
+	}
+
+	ensureConnValid(t, conn)
+}
+
 func TestConnQueryDatabaseSQLNullX(t *testing.T) {
 	t.Parallel()
 
