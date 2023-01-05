@@ -247,6 +247,34 @@ func TestCollectOneRowPrefersPostgreSQLErrorOverErrNoRows(t *testing.T) {
 	})
 }
 
+func TestCollectOneRowOK(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 42`)
+		n, ok, err := pgx.CollectOneRowOK(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, int32(42), n)
+		assert.True(t, ok)
+	})
+}
+
+func TestCollectOneRowOKNotFound(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 42 where false`)
+		n, ok, err := pgx.CollectOneRowOK(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, int32(0), n)
+		assert.False(t, ok)
+	})
+}
+
 func TestRowTo(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)

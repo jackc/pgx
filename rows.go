@@ -449,6 +449,23 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	return value, rows.Err()
 }
 
+// CollectOneRowOK is CollectOneRow with the "comma OK idiom": think 'val, ok := myMap["foo"]'
+// or os.GetEnv (no comma OK idiom) versus os.LookupEnv (follows comma OK idiom).
+// If no rows are found, the second return value is false (instead of returning error ErrNoRows
+// as CollectOneRow does). If a row is found, the second return value is true.
+func CollectOneRowOK[T any](rows Rows, fn RowToFunc[T]) (T, bool, error) {
+	var value T
+	var err error
+	value, err = CollectOneRow(rows, fn)
+	if err != nil {
+		if err == ErrNoRows {
+			return value, false, nil
+		}
+		return value, false, err
+	}
+	return value, true, nil
+}
+
 // RowTo returns a T scanned from row.
 func RowTo[T any](row CollectableRow) (T, error) {
 	var value T
