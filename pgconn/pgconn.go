@@ -203,6 +203,8 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*FallbackConfig) ([]*FallbackConfig, error) {
 	var configs []*FallbackConfig
 
+	var lookupErrors []error
+
 	for _, fb := range fallbacks {
 		// skip resolve for unix sockets
 		if isAbsolutePath(fb.Host) {
@@ -217,7 +219,8 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 
 		ips, err := lookupFn(ctx, fb.Host)
 		if err != nil {
-			return nil, err
+			lookupErrors = append(lookupErrors, err)
+			continue
 		}
 
 		for _, ip := range ips {
@@ -240,6 +243,12 @@ func expandWithIPs(ctx context.Context, lookupFn LookupFunc, fallbacks []*Fallba
 				})
 			}
 		}
+	}
+
+	// See https://github.com/jackc/pgx/issues/1464. When Go 1.20 can be used in pgx consider using errors.Join so all
+	// errors are reported.
+	if len(configs) == 0 && len(lookupErrors) > 0 {
+		return nil, lookupErrors[0]
 	}
 
 	return configs, nil
