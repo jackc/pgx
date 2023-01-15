@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"net"
@@ -1819,7 +1818,7 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 	)`).ReadAll()
 	require.NoError(t, err)
 
-	f, err := ioutil.TempFile("", "*")
+	f, err := os.CreateTemp("", "*")
 	require.NoError(t, err)
 
 	gw := gzip.NewWriter(f)
