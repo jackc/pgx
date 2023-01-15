@@ -54,7 +54,7 @@ type Conn interface {
 	// Flush flushes any buffered writes.
 	Flush() error
 
-	// BufferReadUntilBlock reads and buffers any sucessfully read bytes until the read would block.
+	// BufferReadUntilBlock reads and buffers any successfully read bytes until the read would block.
 	BufferReadUntilBlock() error
 }
 

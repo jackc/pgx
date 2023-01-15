@@ -196,7 +196,7 @@ func (b *Backend) Receive() (FrontendMessage, error) {
 		case AuthTypeCleartextPassword, AuthTypeMD5Password:
 			fallthrough
 		default:
-			// to maintain backwards compatability
+			// to maintain backwards compatibility
 			msg = &PasswordMessage{}
 		}
 	case 'Q':
