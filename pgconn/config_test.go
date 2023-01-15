@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"runtime"
@@ -1031,7 +1030,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 func TestParseConfigReadsPgPassfile(t *testing.T) {
 	t.Parallel()
 
-	tf, err := ioutil.TempFile("", "")
+	tf, err := os.CreateTemp("", "")
 	require.NoError(t, err)
 
 	defer tf.Close()
@@ -1060,7 +1059,7 @@ func TestParseConfigReadsPgPassfile(t *testing.T) {
 func TestParseConfigReadsPgServiceFile(t *testing.T) {
 	t.Parallel()
 
-	tf, err := ioutil.TempFile("", "")
+	tf, err := os.CreateTemp("", "")
 	require.NoError(t, err)
 
 	defer tf.Close()
