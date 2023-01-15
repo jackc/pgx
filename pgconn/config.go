@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/url"
@@ -687,7 +686,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		caCertPool := x509.NewCertPool()
 
 		caPath := sslrootcert
-		caCert, err := ioutil.ReadFile(caPath)
+		caCert, err := os.ReadFile(caPath)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read CA file: %w", err)
 		}
@@ -705,7 +704,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	}
 
 	if sslcert != "" && sslkey != "" {
-		buf, err := ioutil.ReadFile(sslkey)
+		buf, err := os.ReadFile(sslkey)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read sslkey: %w", err)
 		}
@@ -744,7 +743,7 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 		} else {
 			pemKey = pem.EncodeToMemory(block)
 		}
-		certfile, err := ioutil.ReadFile(sslcert)
+		certfile, err := os.ReadFile(sslcert)
 		if err != nil {
 			return nil, fmt.Errorf("unable to read cert: %w", err)
 		}
