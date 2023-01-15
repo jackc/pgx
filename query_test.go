@@ -1226,11 +1226,6 @@ func TestConnQueryDatabaseSQLNullFloat64NegativeZeroPointZero(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	type test struct {
-		want sql.NullFloat64
-		in   float64
-	}
-
 	tests := []float64{
 		-0.01,
 		-0.001,
