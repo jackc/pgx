@@ -484,7 +484,7 @@ func multiInsert(conn *pgx.Conn, tableName string, columnNames []string, rowSrc 
 	}
 
 	if err := tx.Commit(context.Background()); err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	return rowCount, nil
