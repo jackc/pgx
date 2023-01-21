@@ -101,6 +101,21 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1470
+func TestJSONCodecPointerToPointerToString(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var s *string
+		err := conn.QueryRow(ctx, "select '{}'::json").Scan(&s)
+		require.NoError(t, err)
+		require.NotNil(t, s)
+		require.Equal(t, "{}", *s)
+
+		err = conn.QueryRow(ctx, "select null::json").Scan(&s)
+		require.NoError(t, err)
+		require.Nil(t, s)
+	})
+}
+
 func TestJSONCodecClearExistingValueBeforeUnmarshal(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		m := map[string]any{}
