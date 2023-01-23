@@ -210,9 +210,9 @@ func NetworkAddress(host string, port uint16) (network, address string) {
 //
 // In addition, ParseConfig accepts the following options:
 //
-//	servicefile
-//		libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
-//		part of the connection string.
+//   - servicefile.
+//     libpq only reads servicefile from the PGSERVICEFILE environment variable. ParseConfig accepts servicefile as a
+//     part of the connection string.
 func ParseConfig(connString string) (*Config, error) {
 	var parseConfigOptions ParseConfigOptions
 	return ParseConfigWithOptions(connString, parseConfigOptions)
