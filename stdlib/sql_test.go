@@ -1105,9 +1105,9 @@ func TestRandomizeHostOrderFunc(t *testing.T) {
 
 	// Test that at some point we connect to all 3 hosts
 	hostsNotSeenYet := map[string]struct{}{
-		"host1": struct{}{},
-		"host2": struct{}{},
-		"host3": struct{}{},
+		"host1": {},
+		"host2": {},
+		"host3": {},
 	}
 
 	// If we don't succeed within this many iterations, something is certainly wrong

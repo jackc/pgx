@@ -75,7 +75,7 @@ jobs:
 
     steps:
 
-    - name: Set up Go 1.x
+    - name: Set up Go ${{ matrix.go-version }}
       uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
@@ -103,6 +103,12 @@ jobs:
     #     PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
     #     PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
     #     PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
+
+    - name: Check formatting
+      run: |
+        gofmt -l -s -w .
+        git status
+        git diff --exit-code
 
     - name: Test
       run: go test -race ./...
