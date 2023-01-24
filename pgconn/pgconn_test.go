@@ -468,7 +468,7 @@ func TestConnectWithFallback(t *testing.T) {
 
 	// Prepend current primary config to fallbacks
 	config.Fallbacks = append([]*pgconn.FallbackConfig{
-		&pgconn.FallbackConfig{
+		{
 			Host:      config.Host,
 			Port:      config.Port,
 			TLSConfig: config.TLSConfig,
@@ -481,7 +481,7 @@ func TestConnectWithFallback(t *testing.T) {
 
 	// Prepend bad first fallback
 	config.Fallbacks = append([]*pgconn.FallbackConfig{
-		&pgconn.FallbackConfig{
+		{
 			Host:      "localhost",
 			Port:      1,
 			TLSConfig: config.TLSConfig,
