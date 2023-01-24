@@ -77,7 +77,7 @@ func TestParseConfig(t *testing.T) {
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "localhost",
 						Port:      5432,
 						TLSConfig: nil,
@@ -110,7 +110,7 @@ func TestParseConfig(t *testing.T) {
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host: "localhost",
 						Port: 5432,
 						TLSConfig: &tls.Config{
@@ -137,7 +137,7 @@ func TestParseConfig(t *testing.T) {
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "localhost",
 						Port:      5432,
 						TLSConfig: nil,
@@ -431,12 +431,12 @@ func TestParseConfig(t *testing.T) {
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "bar",
 						Port:      defaultPort,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "baz",
 						Port:      defaultPort,
 						TLSConfig: nil,
@@ -456,12 +456,12 @@ func TestParseConfig(t *testing.T) {
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "bar",
 						Port:      2,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "baz",
 						Port:      3,
 						TLSConfig: nil,
@@ -495,12 +495,12 @@ func TestParseConfig(t *testing.T) {
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "bar",
 						Port:      5432,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "baz",
 						Port:      5432,
 						TLSConfig: nil,
@@ -520,12 +520,12 @@ func TestParseConfig(t *testing.T) {
 				TLSConfig:     nil,
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "bar",
 						Port:      2,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "baz",
 						Port:      3,
 						TLSConfig: nil,
@@ -548,31 +548,31 @@ func TestParseConfig(t *testing.T) {
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "foo",
 						Port:      defaultPort,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host: "bar",
 						Port: defaultPort,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "bar",
 						}},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "bar",
 						Port:      defaultPort,
 						TLSConfig: nil,
 					},
-					&pgconn.FallbackConfig{
+					{
 						Host: "baz",
 						Port: defaultPort,
 						TLSConfig: &tls.Config{
 							InsecureSkipVerify: true,
 							ServerName:         "baz",
 						}},
-					&pgconn.FallbackConfig{
+					{
 						Host:      "baz",
 						Port:      defaultPort,
 						TLSConfig: nil,
@@ -957,7 +957,7 @@ func TestParseConfigEnvLibpq(t *testing.T) {
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "123.123.123.123",
 						Port:      5432,
 						TLSConfig: nil,
@@ -1101,7 +1101,7 @@ application_name = spaced string
 				},
 				RuntimeParams: map[string]string{},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "abc.example.com",
 						Port:      9999,
 						TLSConfig: nil,
@@ -1123,7 +1123,7 @@ application_name = spaced string
 				},
 				RuntimeParams: map[string]string{"application_name": "spaced string"},
 				Fallbacks: []*pgconn.FallbackConfig{
-					&pgconn.FallbackConfig{
+					{
 						Host:      "def.example.com",
 						Port:      defaultPort,
 						TLSConfig: nil,

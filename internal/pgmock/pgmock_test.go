@@ -23,7 +23,7 @@ func TestScript(t *testing.T) {
 	script.Steps = append(script.Steps, pgmock.ExpectMessage(&pgproto3.Query{String: "select 42"}))
 	script.Steps = append(script.Steps, pgmock.SendMessage(&pgproto3.RowDescription{
 		Fields: []pgproto3.FieldDescription{
-			pgproto3.FieldDescription{
+			{
 				Name:                 []byte("?column?"),
 				TableOID:             0,
 				TableAttributeNumber: 0,
