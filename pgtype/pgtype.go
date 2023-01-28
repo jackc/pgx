@@ -192,7 +192,8 @@ type Map struct {
 
 	reflectTypeToType map[reflect.Type]*Type
 
-	memoizedScanPlans map[uint32]map[reflect.Type][2]ScanPlan
+	memoizedScanPlans   map[uint32]map[reflect.Type][2]ScanPlan
+	memoizedEncodePlans map[uint32]map[reflect.Type][2]EncodePlan
 
 	// TryWrapEncodePlanFuncs is a slice of functions that will wrap a value that cannot be encoded by the Codec. Every
 	// time a wrapper is found the PlanEncode method will be recursively called with the new value. This allows several layers of wrappers
@@ -214,7 +215,8 @@ func NewMap() *Map {
 		reflectTypeToName: make(map[reflect.Type]string),
 		oidToFormatCode:   make(map[uint32]int16),
 
-		memoizedScanPlans: make(map[uint32]map[reflect.Type][2]ScanPlan),
+		memoizedScanPlans:   make(map[uint32]map[reflect.Type][2]ScanPlan),
+		memoizedEncodePlans: make(map[uint32]map[reflect.Type][2]EncodePlan),
 
 		TryWrapEncodePlanFuncs: []TryWrapEncodePlanFunc{
 			TryWrapDerefPointerEncodePlan,
@@ -422,6 +424,9 @@ func (m *Map) RegisterType(t *Type) {
 	for k := range m.memoizedScanPlans {
 		delete(m.memoizedScanPlans, k)
 	}
+	for k := range m.memoizedEncodePlans {
+		delete(m.memoizedEncodePlans, k)
+	}
 }
 
 // RegisterDefaultPgType registers a mapping of a Go type to a PostgreSQL type name. Typically the data type to be
@@ -434,6 +439,9 @@ func (m *Map) RegisterDefaultPgType(value any, name string) {
 	m.reflectTypeToType = nil
 	for k := range m.memoizedScanPlans {
 		delete(m.memoizedScanPlans, k)
+	}
+	for k := range m.memoizedEncodePlans {
+		delete(m.memoizedEncodePlans, k)
 	}
 }
 
@@ -1322,6 +1330,24 @@ func codecDecodeToTextFormat(codec Codec, m *Map, oid uint32, format int16, src 
 // PlanEncode returns an Encode plan for encoding value into PostgreSQL format for oid and format. If no plan can be
 // found then nil is returned.
 func (m *Map) PlanEncode(oid uint32, format int16, value any) EncodePlan {
+	oidMemo := m.memoizedEncodePlans[oid]
+	if oidMemo == nil {
+		oidMemo = make(map[reflect.Type][2]EncodePlan)
+		m.memoizedEncodePlans[oid] = oidMemo
+	}
+	targetReflectType := reflect.TypeOf(value)
+	typeMemo := oidMemo[targetReflectType]
+	plan := typeMemo[format]
+	if plan == nil {
+		plan = m.planEncode(oid, format, value)
+		typeMemo[format] = plan
+		oidMemo[targetReflectType] = typeMemo
+	}
+
+	return plan
+}
+
+func (m *Map) planEncode(oid uint32, format int16, value any) EncodePlan {
 	if format == TextFormatCode {
 		switch value.(type) {
 		case string:
