@@ -317,6 +317,8 @@ func (c *NetConn) BufferReadUntilBlock() error {
 		if n > 0 {
 			buf = buf[:n]
 			c.readQueue.pushBack(buf)
+		} else if n == 0 {
+			iobufpool.Put(buf)
 		}
 
 		if err != nil {
