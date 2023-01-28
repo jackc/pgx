@@ -79,6 +79,13 @@ type NetConn struct {
 	nonblockWriteErr  error
 	nonblockWriteN    int
 
+	// non-blocking reads with syscall.RawConn are done with a callback function. By using these fields instead of the
+	// callback functions closure to pass the buf argument and receive the n and err results we avoid some allocations.
+	nonblockReadFunc func(fd uintptr) (done bool)
+	nonblockReadBuf  []byte
+	nonblockReadErr  error
+	nonblockReadN    int
+
 	readDeadlineLock sync.Mutex
 	readDeadline     time.Time
 	readNonblocking  bool

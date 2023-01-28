@@ -24,6 +24,7 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 
 	err = c.rawConn.Write(c.nonblockWriteFunc)
 	n = c.nonblockWriteN
+	c.nonblockWriteBuf = nil // ensure that no reference to b is kept.
 	if err == nil && c.nonblockWriteErr != nil {
 		if errors.Is(c.nonblockWriteErr, syscall.EWOULDBLOCK) {
 			err = ErrWouldBlock
@@ -44,16 +45,24 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 }
 
 func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
-	var funcErr error
-	err = c.rawConn.Read(func(fd uintptr) (done bool) {
-		n, funcErr = syscall.Read(int(fd), b)
-		return true
-	})
-	if err == nil && funcErr != nil {
-		if errors.Is(funcErr, syscall.EWOULDBLOCK) {
+	if c.nonblockReadFunc == nil {
+		c.nonblockReadFunc = func(fd uintptr) (done bool) {
+			c.nonblockReadN, c.nonblockReadErr = syscall.Read(int(fd), c.nonblockReadBuf)
+			return true
+		}
+	}
+	c.nonblockReadBuf = b
+	c.nonblockReadN = 0
+	c.nonblockReadErr = nil
+
+	err = c.rawConn.Read(c.nonblockReadFunc)
+	n = c.nonblockReadN
+	c.nonblockReadBuf = nil // ensure that no reference to b is kept.
+	if err == nil && c.nonblockReadErr != nil {
+		if errors.Is(c.nonblockReadErr, syscall.EWOULDBLOCK) {
 			err = ErrWouldBlock
 		} else {
-			err = funcErr
+			err = c.nonblockReadErr
 		}
 	}
 	if err != nil {
