@@ -8,11 +8,11 @@ const minBufferQueueLen = 8
 
 type bufferQueue struct {
 	lock  sync.Mutex
-	queue [][]byte
+	queue []*[]byte
 	r, w  int
 }
 
-func (bq *bufferQueue) pushBack(buf []byte) {
+func (bq *bufferQueue) pushBack(buf *[]byte) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
 
@@ -23,7 +23,7 @@ func (bq *bufferQueue) pushBack(buf []byte) {
 	bq.w++
 }
 
-func (bq *bufferQueue) pushFront(buf []byte) {
+func (bq *bufferQueue) pushFront(buf *[]byte) {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
 
@@ -35,7 +35,7 @@ func (bq *bufferQueue) pushFront(buf []byte) {
 	bq.w++
 }
 
-func (bq *bufferQueue) popFront() []byte {
+func (bq *bufferQueue) popFront() *[]byte {
 	bq.lock.Lock()
 	defer bq.lock.Unlock()
 
@@ -51,7 +51,7 @@ func (bq *bufferQueue) popFront() []byte {
 		bq.r = 0
 		bq.w = 0
 		if len(bq.queue) > minBufferQueueLen {
-			bq.queue = make([][]byte, minBufferQueueLen)
+			bq.queue = make([]*[]byte, minBufferQueueLen)
 		}
 	}
 
@@ -64,7 +64,7 @@ func (bq *bufferQueue) growQueue() {
 		desiredLen = minBufferQueueLen
 	}
 
-	newQueue := make([][]byte, desiredLen)
+	newQueue := make([]*[]byte, desiredLen)
 	copy(newQueue, bq.queue)
 	bq.queue = newQueue
 }

@@ -1,4 +1,7 @@
 // Package iobufpool implements a global segregated-fit pool of buffers for IO.
+//
+// It uses *[]byte instead of []byte to avoid the sync.Pool allocation with Put. Unfortunately, using a pointer to avoid
+// an allocation is purposely not documented. https://github.com/golang/go/issues/16323
 package iobufpool
 
 import "sync"
@@ -10,17 +13,27 @@ var pools [18]*sync.Pool
 func init() {
 	for i := range pools {
 		bufLen := 1 << (minPoolExpOf2 + i)
-		pools[i] = &sync.Pool{New: func() any { return make([]byte, bufLen) }}
+		pools[i] = &sync.Pool{
+			New: func() any {
+				buf := make([]byte, bufLen)
+				return &buf
+			},
+		}
 	}
 }
 
 // Get gets a []byte of len size with cap <= size*2.
-func Get(size int) []byte {
+func Get(size int) *[]byte {
 	i := getPoolIdx(size)
 	if i >= len(pools) {
-		return make([]byte, size)
+		buf := make([]byte, size)
+		return &buf
 	}
-	return pools[i].Get().([]byte)[:size]
+
+	ptrBuf := (pools[i].Get().(*[]byte))
+	*ptrBuf = (*ptrBuf)[:size]
+
+	return ptrBuf
 }
 
 func getPoolIdx(size int) int {
@@ -36,8 +49,8 @@ func getPoolIdx(size int) int {
 }
 
 // Put returns buf to the pool.
-func Put(buf []byte) {
-	i := putPoolIdx(cap(buf))
+func Put(buf *[]byte) {
+	i := putPoolIdx(cap(*buf))
 	if i < 0 {
 		return
 	}

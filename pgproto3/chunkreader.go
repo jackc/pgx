@@ -14,7 +14,7 @@ import (
 type chunkReader struct {
 	r io.Reader
 
-	buf    []byte
+	buf    *[]byte
 	rp, wp int // buf read position and write position
 
 	minBufSize int
@@ -45,7 +45,7 @@ func newChunkReader(r io.Reader, minBufSize int) *chunkReader {
 func (r *chunkReader) Next(n int) (buf []byte, err error) {
 	// Reset the buffer if it is empty
 	if r.rp == r.wp {
-		if len(r.buf) != r.minBufSize {
+		if len(*r.buf) != r.minBufSize {
 			iobufpool.Put(r.buf)
 			r.buf = iobufpool.Get(r.minBufSize)
 		}
@@ -55,15 +55,15 @@ func (r *chunkReader) Next(n int) (buf []byte, err error) {
 
 	// n bytes already in buf
 	if (r.wp - r.rp) >= n {
-		buf = r.buf[r.rp : r.rp+n : r.rp+n]
+		buf = (*r.buf)[r.rp : r.rp+n : r.rp+n]
 		r.rp += n
 		return buf, err
 	}
 
 	// buf is smaller than requested number of bytes
-	if len(r.buf) < n {
+	if len(*r.buf) < n {
 		bigBuf := iobufpool.Get(n)
-		r.wp = copy(bigBuf, r.buf[r.rp:r.wp])
+		r.wp = copy((*bigBuf), (*r.buf)[r.rp:r.wp])
 		r.rp = 0
 		iobufpool.Put(r.buf)
 		r.buf = bigBuf
@@ -71,20 +71,20 @@ func (r *chunkReader) Next(n int) (buf []byte, err error) {
 
 	// buf is large enough, but need to shift filled area to start to make enough contiguous space
 	minReadCount := n - (r.wp - r.rp)
-	if (len(r.buf) - r.wp) < minReadCount {
-		r.wp = copy(r.buf, r.buf[r.rp:r.wp])
+	if (len(*r.buf) - r.wp) < minReadCount {
+		r.wp = copy((*r.buf), (*r.buf)[r.rp:r.wp])
 		r.rp = 0
 	}
 
 	// Read at least the required number of bytes from the underlying io.Reader
-	readBytesCount, err := io.ReadAtLeast(r.r, r.buf[r.wp:], minReadCount)
+	readBytesCount, err := io.ReadAtLeast(r.r, (*r.buf)[r.wp:], minReadCount)
 	r.wp += readBytesCount
 	// fmt.Println("read", n)
 	if err != nil {
 		return nil, err
 	}
 
-	buf = r.buf[r.rp : r.rp+n : r.rp+n]
+	buf = (*r.buf)[r.rp : r.rp+n : r.rp+n]
 	r.rp += n
 	return buf, nil
 }
