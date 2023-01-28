@@ -12,13 +12,17 @@ import (
 
 // realNonblockingWrite does a non-blocking write. readFlushLock must already be held.
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
+	if c.nonblockWriteFunc == nil {
+		c.nonblockWriteFunc = func(fd uintptr) (done bool) {
+			c.nonblockWriteN, c.nonblockWriteErr = syscall.Write(int(fd), c.nonblockWriteBuf)
+			return true
+		}
+	}
 	c.nonblockWriteBuf = b
 	c.nonblockWriteN = 0
 	c.nonblockWriteErr = nil
-	err = c.rawConn.Write(func(fd uintptr) (done bool) {
-		c.nonblockWriteN, c.nonblockWriteErr = syscall.Write(int(fd), c.nonblockWriteBuf)
-		return true
-	})
+
+	err = c.rawConn.Write(c.nonblockWriteFunc)
 	n = c.nonblockWriteN
 	if err == nil && c.nonblockWriteErr != nil {
 		if errors.Is(c.nonblockWriteErr, syscall.EWOULDBLOCK) {
