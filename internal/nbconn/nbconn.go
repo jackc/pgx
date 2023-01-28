@@ -73,10 +73,11 @@ type NetConn struct {
 
 	readFlushLock sync.Mutex
 	// non-blocking writes with syscall.RawConn are done with a callback function. By using these fields instead of the
-	// callback functions closure  to pass the buf argument and receive the n and err results we avoid some allocations.
-	nonblockWriteBuf []byte
-	nonblockWriteErr error
-	nonblockWriteN   int
+	// callback functions closure to pass the buf argument and receive the n and err results we avoid some allocations.
+	nonblockWriteFunc func(fd uintptr) (done bool)
+	nonblockWriteBuf  []byte
+	nonblockWriteErr  error
+	nonblockWriteN    int
 
 	readDeadlineLock sync.Mutex
 	readDeadline     time.Time
