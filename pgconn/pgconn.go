@@ -1175,20 +1175,20 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 	buf := iobufpool.Get(65536)
 	defer iobufpool.Put(buf)
-	buf[0] = 'd'
+	(*buf)[0] = 'd'
 
 	var readErr, pgErr error
 	for pgErr == nil {
 		// Read chunk from r.
 		var n int
-		n, readErr = r.Read(buf[5:cap(buf)])
+		n, readErr = r.Read((*buf)[5:cap(*buf)])
 
 		// Send chunk to PostgreSQL.
 		if n > 0 {
-			buf = buf[0 : n+5]
-			pgio.SetInt32(buf[1:], int32(n+4))
+			*buf = (*buf)[0 : n+5]
+			pgio.SetInt32((*buf)[1:], int32(n+4))
 
-			writeErr := pgConn.frontend.SendUnbufferedEncodedCopyData(buf)
+			writeErr := pgConn.frontend.SendUnbufferedEncodedCopyData(*buf)
 			if writeErr != nil {
 				pgConn.asyncClose()
 				return CommandTag{}, err

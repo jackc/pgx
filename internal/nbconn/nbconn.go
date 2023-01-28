@@ -129,9 +129,9 @@ func (c *NetConn) Read(b []byte) (n int, err error) {
 		if buf == nil {
 			break
 		}
-		copiedN := copy(b[n:], buf)
-		if copiedN < len(buf) {
-			buf = buf[copiedN:]
+		copiedN := copy(b[n:], *buf)
+		if copiedN < len(*buf) {
+			*buf = (*buf)[copiedN:]
 			c.readQueue.pushFront(buf)
 		} else {
 			iobufpool.Put(buf)
@@ -168,7 +168,7 @@ func (c *NetConn) Write(b []byte) (n int, err error) {
 	}
 
 	buf := iobufpool.Get(len(b))
-	copy(buf, b)
+	copy(*buf, b)
 	c.writeQueue.pushBack(buf)
 	return len(b), nil
 }
@@ -286,14 +286,14 @@ func (c *NetConn) flush() error {
 	}()
 
 	for buf := c.writeQueue.popFront(); buf != nil; buf = c.writeQueue.popFront() {
-		remainingBuf := buf
+		remainingBuf := *buf
 		for len(remainingBuf) > 0 {
 			n, err := c.nonblockingWrite(remainingBuf)
 			remainingBuf = remainingBuf[n:]
 			if err != nil {
 				if !errors.Is(err, ErrWouldBlock) {
-					buf = buf[:len(remainingBuf)]
-					copy(buf, remainingBuf)
+					*buf = (*buf)[:len(remainingBuf)]
+					copy(*buf, remainingBuf)
 					c.writeQueue.pushFront(buf)
 					return err
 				}
@@ -321,9 +321,9 @@ func (c *NetConn) flush() error {
 func (c *NetConn) BufferReadUntilBlock() error {
 	for {
 		buf := iobufpool.Get(8 * 1024)
-		n, err := c.nonblockingRead(buf)
+		n, err := c.nonblockingRead(*buf)
 		if n > 0 {
-			buf = buf[:n]
+			*buf = (*buf)[:n]
 			c.readQueue.pushBack(buf)
 		} else if n == 0 {
 			iobufpool.Put(buf)
