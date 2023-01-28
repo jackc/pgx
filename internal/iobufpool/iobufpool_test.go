@@ -30,15 +30,15 @@ func TestGetCap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		buf := iobufpool.Get(tt.requestedLen)
-		assert.Equalf(t, tt.requestedLen, len(buf), "bad len for requestedLen: %d", len(buf), tt.requestedLen)
-		assert.Equalf(t, tt.expectedCap, cap(buf), "bad cap for requestedLen: %d", tt.requestedLen)
+		assert.Equalf(t, tt.requestedLen, len(*buf), "bad len for requestedLen: %d", len(*buf), tt.requestedLen)
+		assert.Equalf(t, tt.expectedCap, cap(*buf), "bad cap for requestedLen: %d", tt.requestedLen)
 	}
 }
 
 func TestPutHandlesWrongSizedBuffers(t *testing.T) {
 	for putBufSize := range []int{0, 1, 128, 250, 256, 257, 1023, 1024, 1025, 1 << 28} {
 		putBuf := make([]byte, putBufSize)
-		iobufpool.Put(putBuf)
+		iobufpool.Put(&putBuf)
 
 		tests := []struct {
 			requestedLen int
@@ -62,8 +62,8 @@ func TestPutHandlesWrongSizedBuffers(t *testing.T) {
 		}
 		for _, tt := range tests {
 			getBuf := iobufpool.Get(tt.requestedLen)
-			assert.Equalf(t, tt.requestedLen, len(getBuf), "len(putBuf): %d, requestedLen: %d", len(putBuf), tt.requestedLen)
-			assert.Equalf(t, tt.expectedCap, cap(getBuf), "cap(putBuf): %d, requestedLen: %d", cap(putBuf), tt.requestedLen)
+			assert.Equalf(t, tt.requestedLen, len(*getBuf), "len(putBuf): %d, requestedLen: %d", len(putBuf), tt.requestedLen)
+			assert.Equalf(t, tt.expectedCap, cap(*getBuf), "cap(putBuf): %d, requestedLen: %d", cap(putBuf), tt.requestedLen)
 		}
 	}
 }
@@ -73,10 +73,10 @@ func TestPutGetBufferReuse(t *testing.T) {
 	// it not to be. So try many times.
 	for i := 0; i < 100000; i++ {
 		buf := iobufpool.Get(4)
-		buf[0] = 1
+		(*buf)[0] = 1
 		iobufpool.Put(buf)
 		buf = iobufpool.Get(4)
-		if buf[0] == 1 {
+		if (*buf)[0] == 1 {
 			return
 		}
 	}
