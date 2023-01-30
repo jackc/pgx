@@ -265,7 +265,7 @@ func ConnectConfig(ctx context.Context, config *Config) (*Pool, error) {
 	)
 
 	if !config.LazyConnect {
-		if err := p.checkMinConns(); err != nil {
+		if err := p.checkMinConnsWithContext(ctx); err != nil {
 			// Couldn't create resources for minpool size. Close unhealthy pool.
 			p.Close()
 			return nil, err
@@ -485,15 +485,19 @@ func (p *Pool) checkConnsHealth() bool {
 	return destroyed
 }
 
-func (p *Pool) checkMinConns() error {
+func (p *Pool) checkMinConnsWithContext(ctx context.Context) error {
 	// TotalConns can include ones that are being destroyed but we should have
 	// sleep(500ms) around all of the destroys to help prevent that from throwing
 	// off this check
 	toCreate := p.minConns - p.Stat().TotalConns()
 	if toCreate > 0 {
-		return p.createIdleResources(context.Background(), int(toCreate))
+		return p.createIdleResources(ctx, int(toCreate))
 	}
 	return nil
+}
+
+func (p *Pool) checkMinConns() error {
+	return p.checkMinConnsWithContext(context.Background())
 }
 
 func (p *Pool) createIdleResources(parentCtx context.Context, targetResources int) error {

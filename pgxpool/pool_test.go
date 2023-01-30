@@ -73,6 +73,26 @@ func TestLazyConnect(t *testing.T) {
 	assert.Equal(t, context.Canceled, err)
 }
 
+func TestBeforeConnectWithContextWithValueAndOneMinConn(t *testing.T) {
+	t.Parallel()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	assert.NoError(t, err)
+	config.MinConns = 1
+	config.BeforeConnect = func(ctx context.Context, config *pgx.ConnConfig) error {
+		val := ctx.Value("key")
+		if val == nil {
+			return errors.New("no value found with key 'key'")
+		}
+		return nil
+	}
+
+	ctx := context.WithValue(context.Background(), "key", "value")
+
+	_, err = pgxpool.ConnectConfig(ctx, config)
+	assert.NoError(t, err)
+}
+
 func TestConstructorIgnoresContext(t *testing.T) {
 	t.Parallel()
 
