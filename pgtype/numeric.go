@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -233,11 +234,49 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 		return []byte("null"), nil
 	}
 
-	if n.NaN {
+	switch {
+	case n.InfinityModifier == Infinity:
+		return []byte(`"infinity"`), nil
+	case n.InfinityModifier == NegativeInfinity:
+		return []byte(`"-infinity"`), nil
+	case n.NaN:
 		return []byte(`"NaN"`), nil
 	}
 
 	return n.numberTextBytes(), nil
+}
+
+func (n *Numeric) UnmarshalJSON(b []byte) error {
+	var s *string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	if s == nil {
+		*n = Numeric{}
+		return nil
+	}
+
+	switch *s {
+	case "infinity":
+		*n = Numeric{NaN: true, InfinityModifier: Infinity, Valid: true}
+	case "-infinity":
+		*n = Numeric{NaN: true, InfinityModifier: -Infinity, Valid: true}
+	default:
+		num, exp, err := parseNumericString(*s)
+		if err != nil {
+			return fmt.Errorf("failed to decode %s to numeric: %w", *s, err)
+		}
+
+		*n = Numeric{
+			Int:   num,
+			Exp:   exp,
+			Valid: true,
+		}
+	}
+
+	return nil
 }
 
 // numberString returns a string of the number. undefined if NaN, infinite, or NULL
