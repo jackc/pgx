@@ -188,8 +188,13 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 }
 
 func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (bool, []byte, error) {
+	const sendBufSize = 65536 - 5 // The packet has a 5-byte header
+	lastBufLen := 0
+	largestRowLen := 0
 
 	for ct.rowSrc.Next() {
+		lastBufLen = len(buf)
+
 		values, err := ct.rowSrc.Values()
 		if err != nil {
 			return false, nil, err
@@ -206,7 +211,15 @@ func (ct *copyFrom) buildCopyBuf(buf []byte, sd *pgconn.StatementDescription) (b
 			}
 		}
 
-		if len(buf) > 65536 {
+		rowLen := len(buf) - lastBufLen
+		if rowLen > largestRowLen {
+			largestRowLen = rowLen
+		}
+
+		// Try not to overflow size of the buffer PgConn.CopyFrom will be reading into. If that happens then the nature of
+		// io.Pipe means that the next Read will be short. This can lead to pathological send sizes such as 65531, 13, 65531
+		// 13, 65531, 13, 65531, 13.
+		if len(buf) > sendBufSize-largestRowLen {
 			return true, buf, nil
 		}
 	}
