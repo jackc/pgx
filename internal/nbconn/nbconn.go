@@ -91,6 +91,7 @@ type NetConn struct {
 	readDeadlineLock                sync.Mutex
 	readDeadline                    time.Time
 	readNonblocking                 bool
+	fakeNonBlockingShortReadCount   int
 	fakeNonblockingReadWaitDuration time.Duration
 
 	writeDeadlineLock sync.Mutex
@@ -415,6 +416,13 @@ func (c *NetConn) nonblockingRead(b []byte) (n int, err error) {
 func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 	c.readDeadlineLock.Lock()
 	defer c.readDeadlineLock.Unlock()
+
+	// The first 5 reads only read 1 byte at a time. This should give us 4 chances to read when we are sure the bytes are
+	// already in Go or the OS's receive buffer.
+	if c.fakeNonBlockingShortReadCount < 5 && len(b) > 0 {
+		b = b[:1]
+		c.fakeNonBlockingShortReadCount++
+	}
 
 	startTime := time.Now()
 	deadline := startTime.Add(c.fakeNonblockingReadWaitDuration)
