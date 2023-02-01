@@ -421,7 +421,6 @@ func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 	// already in Go or the OS's receive buffer.
 	if c.fakeNonBlockingShortReadCount < 5 && len(b) > 0 {
 		b = b[:1]
-		c.fakeNonBlockingShortReadCount++
 	}
 
 	startTime := time.Now()
@@ -435,6 +434,10 @@ func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 			// If the read was successful and the wait duration is not already the minimum
 			if err == nil && c.fakeNonblockingReadWaitDuration > minNonblockingReadWaitDuration {
 				endTime := time.Now()
+
+				if n > 0 && c.fakeNonBlockingShortReadCount < 5 {
+					c.fakeNonBlockingShortReadCount++
+				}
 
 				// The wait duration should be 2x the fastest read that has occurred. This should give reasonable assurance that
 				// a Read deadline will not block a read before it has a chance to read data already in Go or the OS's receive
