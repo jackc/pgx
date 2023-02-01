@@ -432,10 +432,10 @@ func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 				// a Read deadline will not block a read before it has a chance to read data already in Go or the OS's receive
 				// buffer.
 				proposedWait := endTime.Sub(startTime) * 2
+				if proposedWait < minNonblockingReadWaitDuration {
+					proposedWait = minNonblockingReadWaitDuration
+				}
 				if proposedWait < c.fakeNonblockingReadWaitDuration {
-					if proposedWait < minNonblockingReadWaitDuration {
-						proposedWait = minNonblockingReadWaitDuration
-					}
 					c.fakeNonblockingReadWaitDuration = proposedWait
 				}
 			}
