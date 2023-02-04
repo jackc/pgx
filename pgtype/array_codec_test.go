@@ -103,7 +103,7 @@ func TestArrayCodecArray(t *testing.T) {
 	})
 }
 
-func TestArrayCodecAnySlice(t *testing.T) {
+func TestArrayCodecNamedSliceType(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		type _int16Slice []int16
 
@@ -119,6 +119,29 @@ func TestArrayCodecAnySlice(t *testing.T) {
 				ctx,
 				"select $1::smallint[]",
 				tt.expected,
+			).Scan(&actual)
+			assert.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expected, actual, "%d", i)
+		}
+	})
+}
+
+// https://github.com/jackc/pgx/issues/1488
+func TestArrayCodecAnySliceArgument(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		type _int16Slice []int16
+
+		for i, tt := range []struct {
+			arg      any
+			expected []int16
+		}{
+			{[]any{1, 2, 3}, []int16{1, 2, 3}},
+		} {
+			var actual []int16
+			err := conn.QueryRow(
+				ctx,
+				"select $1::smallint[]",
+				tt.arg,
 			).Scan(&actual)
 			assert.NoErrorf(t, err, "%d", i)
 			assert.Equalf(t, tt.expected, actual, "%d", i)

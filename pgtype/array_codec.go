@@ -60,7 +60,9 @@ func (c *ArrayCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Enc
 
 	elementEncodePlan := m.PlanEncode(c.ElementType.OID, format, elementType)
 	if elementEncodePlan == nil {
-		return nil
+		if reflect.TypeOf(elementType) != nil {
+			return nil
+		}
 	}
 
 	switch format {
