@@ -903,6 +903,25 @@ create type pgx_b.point as (c text);
 	})
 }
 
+func TestLoadCompositeType(t *testing.T) {
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "Server does support composite types (https://github.com/cockroachdb/cockroach/issues/27792)")
+
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		_, err = tx.Exec(ctx, "create type compositetype as (attr1 int, attr2 int)")
+		require.NoError(t, err)
+
+		_, err = tx.Exec(ctx, "alter type compositetype drop attribute attr1")
+		require.NoError(t, err)
+
+		_, err = conn.LoadType(ctx, "compositetype")
+		require.NoError(t, err)
+	})
+}
+
 func TestLoadRangeType(t *testing.T) {
 	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		pgxtest.SkipCockroachDB(t, conn, "Server does support range types")

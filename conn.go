@@ -1282,7 +1282,7 @@ func (c *Conn) getCompositeFields(ctx context.Context, oid uint32) ([]pgtype.Com
 	var fieldOID uint32
 	rows, _ := c.Query(ctx, `select attname, atttypid
 from pg_attribute
-where attrelid=$1
+where attrelid=$1 and not attisdropped
 order by attnum`,
 		typrelid,
 	)
