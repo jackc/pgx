@@ -1028,7 +1028,7 @@ func TryWrapStructScanPlan(target any) (plan WrappedScanPlanNextSetter, nextValu
 
 	var targetElemValue reflect.Value
 	if targetValue.IsNil() {
-		targetElemValue = reflect.New(targetValue.Type().Elem())
+		targetElemValue = reflect.Zero(targetValue.Type().Elem())
 	} else {
 		targetElemValue = targetValue.Elem()
 	}
