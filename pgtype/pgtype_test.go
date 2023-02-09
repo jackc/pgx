@@ -313,13 +313,8 @@ func TestPointerPointerStructScan(t *testing.T) {
 	m.RegisterType(pgt)
 
 	var c *composite
-	plan := m.PlanScan(pgt.OID, pgtype.BinaryFormatCode, &c)
-	err := plan.Scan([]byte{
-		0, 0, 0, 1,
-		0, 0, 0, 23,
-		0, 0, 0, 4,
-		0, 0, 0, 1,
-	}, &c)
+	plan := m.PlanScan(pgt.OID, pgtype.TextFormatCode, &c)
+	err := plan.Scan([]byte("(1)"), &c)
 	require.NoError(t, err)
 	require.Equal(t, c.ID, 1)
 }
