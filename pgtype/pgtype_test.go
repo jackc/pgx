@@ -291,6 +291,39 @@ func TestScanPlanInterface(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestPointerPointerStructScan(t *testing.T) {
+	m := pgtype.NewMap()
+	type composite struct {
+		ID int
+	}
+
+	int4Type, _ := m.TypeForOID(pgtype.Int4OID)
+	pgt := &pgtype.Type{
+		Codec: &pgtype.CompositeCodec{
+			Fields: []pgtype.CompositeCodecField{
+				{
+					Name: "id",
+					Type: int4Type,
+				},
+			},
+		},
+		Name: "composite",
+		OID:  215333,
+	}
+	m.RegisterType(pgt)
+
+	var c *composite
+	plan := m.PlanScan(pgt.OID, pgtype.BinaryFormatCode, &c)
+	err := plan.Scan([]byte{
+		0, 0, 0, 1,
+		0, 0, 0, 23,
+		0, 0, 0, 4,
+		0, 0, 0, 1,
+	}, &c)
+	require.NoError(t, err)
+	require.Equal(t, c.ID, 1)
+}
+
 // https://github.com/jackc/pgx/issues/1263
 func TestMapScanPtrToPtrToSlice(t *testing.T) {
 	m := pgtype.NewMap()
