@@ -157,9 +157,22 @@ func closeStmt(t *testing.T, stmt *sql.Stmt) {
 }
 
 func TestSQLOpen(t *testing.T) {
-	db, err := sql.Open("pgx", os.Getenv("PGX_TEST_DATABASE"))
-	require.NoError(t, err)
-	closeDB(t, db)
+	tests := []struct {
+		driverName string
+	}{
+		{driverName: "pgx"},
+		{driverName: "pgx/v4"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.driverName, func(t *testing.T) {
+			db, err := sql.Open(tt.driverName, os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+			closeDB(t, db)
+		})
+	}
 }
 
 func TestNormalLifeCycle(t *testing.T) {
