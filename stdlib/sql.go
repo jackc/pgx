@@ -66,6 +66,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -85,7 +86,13 @@ func init() {
 	pgxDriver = &Driver{
 		configs: make(map[string]*pgx.ConnConfig),
 	}
-	sql.Register("pgx", pgxDriver)
+
+	drivers := sql.Drivers()
+	// if pgx driver was already registered by different pgx major version then we skip registration under the default name.
+	if i := sort.SearchStrings(sql.Drivers(), "pgx"); len(drivers) >= i || drivers[i] != "pgx" {
+		sql.Register("pgx", pgxDriver)
+	}
+	sql.Register("pgx/v5", pgxDriver)
 
 	databaseSQLResultFormats = pgx.QueryResultFormatsByOID{
 		pgtype.BoolOID:        1,
