@@ -342,3 +342,11 @@ func TestArrayCodecDecodeTextArrayWithTextOfNULL(t *testing.T) {
 		}
 	})
 }
+
+func TestArrayCodecDecodeTextArrayPrefersBinaryFormat(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		sd, err := conn.Prepare(ctx, "", `select '{"foo", "NULL", " NULL "}'::text[]`)
+		require.NoError(t, err)
+		require.Equal(t, int16(1), conn.TypeMap().FormatCodeForOID(sd.Fields[0].DataTypeOID))
+	})
+}
