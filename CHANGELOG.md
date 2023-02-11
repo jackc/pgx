@@ -1,3 +1,27 @@
+# 5.3.0 (February 11, 2023)
+
+* Fix: json values work with sql.Scanner
+* Fixed / improved error messages (Mark Chambers and Yevgeny Pats)
+* Fix: support scan into single dimensional arrays
+* Fix: MaxConnLifetimeJitter setting actually jitter (Ben Weintraub)
+* Fix: driver.Value representation of bytea should be []byte not string
+* Fix: better handling of unregistered OIDs
+* CopyFrom can use query cache to avoid extra round trip to get OIDs (Alejandro Do Nascimento Mora)
+* Fix: encode to json ignoring driver.Valuer
+* Support sql.Scanner on renamed base type
+* Fix: pgtype.Numeric text encoding of negative numbers (Mark Chambers)
+* Fix: connect with multiple hostnames when one can't be resolved
+* Upgrade puddle to remove dependency on uber/atomic and fix alignment issue on 32-bit platform
+* Fix: scanning json column into **string
+* Multiple reductions in memory allocations
+* Fake non-blocking read adapts its max wait time
+* Improve CopyFrom performance and reduce memory usage
+* Fix: encode []any to array
+* Fix: LoadType for composite with dropped attributes (Felix Röhrich)
+* Support v4 and v5 stdlib in same program
+* Fix: text format array decoding with string of "NULL"
+* Prefer binary format for arrays
+
 # 5.2.0 (December 5, 2022)
 
 * `tracelog.TraceLog` implements the pgx.PrepareTracer interface. (Vitalii Solodilov)
