@@ -303,7 +303,7 @@ func (c *ArrayCodec) decodeText(m *Map, arrayOID uint32, src []byte, array Array
 	for i, s := range uta.Elements {
 		elem := array.ScanIndex(i)
 		var elemSrc []byte
-		if s != "NULL" {
+		if s != "NULL" || uta.Quoted[i] {
 			elemSrc = []byte(s)
 		}
 

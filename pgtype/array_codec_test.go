@@ -318,3 +318,27 @@ func TestArrayCodecEncodeMultipleDimensionsRagged(t *testing.T) {
 		defer rows.Close()
 	})
 }
+
+// https://github.com/jackc/pgx/issues/1494
+func TestArrayCodecDecodeTextArrayWithTextOfNULL(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		{
+			var actual []string
+			err := conn.QueryRow(ctx, `select '{"foo", "NULL", " NULL "}'::text[]`).Scan(&actual)
+			require.NoError(t, err)
+			require.Equal(t, []string{"foo", "NULL", " NULL "}, actual)
+		}
+
+		{
+			var actual []pgtype.Text
+			err := conn.QueryRow(ctx, `select '{"foo", "NULL", NULL, " NULL "}'::text[]`).Scan(&actual)
+			require.NoError(t, err)
+			require.Equal(t, []pgtype.Text{
+				{String: "foo", Valid: true},
+				{String: "NULL", Valid: true},
+				{},
+				{String: " NULL ", Valid: true},
+			}, actual)
+		}
+	})
+}
