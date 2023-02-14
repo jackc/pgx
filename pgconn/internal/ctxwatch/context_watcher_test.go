@@ -53,6 +53,7 @@ func TestContextWatcherMultipleWatchPanics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	cw.Watch(ctx)
+	defer cw.Unwatch()
 
 	ctx2, cancel2 := context.WithCancel(context.Background())
 	defer cancel2()
