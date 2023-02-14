@@ -1239,9 +1239,11 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 	// defined on a type that could be unwrapped such as `type myString string`.
 	//
 	//  https://github.com/jackc/pgtype/issues/197
-	if dt == nil {
-		if _, ok := target.(sql.Scanner); ok {
+	if _, ok := target.(sql.Scanner); ok {
+		if dt == nil {
 			return &scanPlanSQLScanner{formatCode: formatCode}
+		} else {
+			return &scanPlanCodecSQLScanner{c: dt.Codec, m: m, oid: oid, formatCode: formatCode}
 		}
 	}
 
@@ -1259,10 +1261,6 @@ func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
 	if dt != nil {
 		if _, ok := target.(*any); ok {
 			return &pointerEmptyInterfaceScanPlan{codec: dt.Codec, m: m, oid: oid, formatCode: formatCode}
-		}
-
-		if _, ok := target.(sql.Scanner); ok {
-			return &scanPlanCodecSQLScanner{c: dt.Codec, m: m, oid: oid, formatCode: formatCode}
 		}
 	}
 
