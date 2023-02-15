@@ -104,6 +104,8 @@ const (
 	TstzrangeArrayOID      = 3911
 	Int8rangeOID           = 3926
 	Int8rangeArrayOID      = 3927
+	JSONPathOID            = 4072
+	JSONPathArrayOID       = 4073
 	Int4multirangeOID      = 4451
 	NummultirangeOID       = 4532
 	TsmultirangeOID        = 4533
@@ -260,6 +262,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
 	m.RegisterType(&Type{Name: "json", OID: JSONOID, Codec: JSONCodec{}})
 	m.RegisterType(&Type{Name: "jsonb", OID: JSONBOID, Codec: JSONBCodec{}})
+	m.RegisterType(&Type{Name: "jsonpath", OID: JSONPathOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	m.RegisterType(&Type{Name: "line", OID: LineOID, Codec: LineCodec{}})
 	m.RegisterType(&Type{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
 	m.RegisterType(&Type{Name: "macaddr", OID: MacaddrOID, Codec: MacaddrCodec{}})
@@ -321,6 +324,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "_interval", OID: IntervalArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[IntervalOID]}})
 	m.RegisterType(&Type{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONOID]}})
 	m.RegisterType(&Type{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONBOID]}})
+	m.RegisterType(&Type{Name: "_jsonpath", OID: JSONPathArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONPathOID]}})
 	m.RegisterType(&Type{Name: "_line", OID: LineArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[LineOID]}})
 	m.RegisterType(&Type{Name: "_lseg", OID: LsegArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[LsegOID]}})
 	m.RegisterType(&Type{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[MacaddrOID]}})
