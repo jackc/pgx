@@ -3,6 +3,7 @@ package pgtype
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"reflect"
@@ -438,6 +439,36 @@ func (a Array[T]) ScanIndex(i int) any {
 
 func (a Array[T]) ScanIndexType() any {
 	return new(T)
+}
+
+func inflate[T any](lst []T, shape []ArrayDimension) any {
+	if len(shape) == 1 {
+		return lst
+	}
+	dimSize := shape[0]
+	dimShape := shape[1:]
+	result := make([]any, dimSize.Length)
+	sublistSize := len(lst) / int(dimSize.Length)
+	for i := 0; i < int(dimSize.Length); i++ {
+		startIdx := i * sublistSize
+		endIdx := (i + 1) * sublistSize
+		result[i] = inflate(lst[startIdx:endIdx], dimShape)
+	}
+	return result
+}
+
+func (a Array[T]) MarshalJSON() ([]byte, error) {
+	if !a.Valid {
+		return []byte("null"), nil
+	}
+	if cardinality(a.Dims) != len(a.Elements) {
+		return nil, fmt.Errorf("invalid dimensions")
+	}
+	if len(a.Dims) == 0 {
+		return []byte("null"), nil
+	}
+
+	return json.Marshal(inflate(a.Elements, a.Dimensions()))
 }
 
 // FlatArray implements the ArrayGetter and ArraySetter interfaces for any slice of T. It ignores PostgreSQL dimensions

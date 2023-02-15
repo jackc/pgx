@@ -119,3 +119,78 @@ func TestParseUntypedTextArray(t *testing.T) {
 		}
 	}
 }
+
+func TestArray_JSONMarshal(t *testing.T) {
+	tests := []struct {
+		source Array[int]
+		result string
+		err    bool
+	}{
+		{
+			source: Array[int]{Valid: false},
+			result: "null",
+			err:    false,
+		},
+		{
+			source: Array[int]{
+				Dims:  []ArrayDimension{},
+				Valid: true,
+			},
+			result: "null",
+			err:    false,
+		},
+		{
+			source: Array[int]{
+				Dims: []ArrayDimension{
+					{Length: 1, LowerBound: 1},
+				},
+				Valid: true,
+			},
+			result: "",
+			err:    true,
+		},
+		{
+			source: Array[int]{
+				Elements: []int{},
+				Dims: []ArrayDimension{
+					{Length: 0, LowerBound: 1},
+				},
+				Valid: true,
+			},
+			result: "[]",
+			err:    false,
+		},
+		{
+			source: Array[int]{
+				Elements: []int{1, 2, 3, 4},
+				Dims: []ArrayDimension{
+					{Length: 4, LowerBound: 1},
+				},
+				Valid: true,
+			},
+			result: "[1,2,3,4]",
+			err:    false,
+		},
+		{
+			source: Array[int]{
+				Elements: []int{1, 2, 3, 4},
+				Dims: []ArrayDimension{
+					{Length: 2, LowerBound: 1},
+					{Length: 2, LowerBound: 1},
+				},
+				Valid: true,
+			},
+			result: "[[1,2],[3,4]]",
+			err:    false,
+		},
+	}
+	for _, tt := range tests {
+		b, err := tt.source.MarshalJSON()
+		if err != nil != tt.err {
+			t.Errorf("want err != nil == %v; got err: %v", tt.err, err)
+		}
+		if got := string(b); got != tt.result {
+			t.Errorf("want %q; got %q", tt.result, got)
+		}
+	}
+}
