@@ -151,3 +151,7 @@ Explicit data mapping and scanning library for Go structs and slices.
 
 Type safe and flexible package for scanning database data into Go types.
 Supports, structs, maps, slices and custom mapping functions.
+
+### [https://github.com/z0ne-dev/mgx](https://github.com/z0ne-dev/mgx)
+
+Code first migration library for native pgx (no database/sql abstraction).
