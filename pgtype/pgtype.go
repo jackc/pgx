@@ -1945,11 +1945,7 @@ type wrapSliceEncodePlan[T any] struct {
 func (plan *wrapSliceEncodePlan[T]) SetNext(next EncodePlan) { plan.next = next }
 
 func (plan *wrapSliceEncodePlan[T]) Encode(value any, buf []byte) (newBuf []byte, err error) {
-	w := anySliceArrayReflect{
-		slice: reflect.ValueOf(value),
-	}
-
-	return plan.next.Encode(w, buf)
+	return plan.next.Encode((FlatArray[T])(value.([]T)), buf)
 }
 
 type wrapSliceEncodeReflectPlan struct {
