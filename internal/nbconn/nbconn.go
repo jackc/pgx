@@ -419,7 +419,7 @@ func (c *NetConn) fakeNonblockingRead(b []byte) (n int, err error) {
 
 	// The first 5 reads only read 1 byte at a time. This should give us 4 chances to read when we are sure the bytes are
 	// already in Go or the OS's receive buffer.
-	if c.fakeNonBlockingShortReadCount < 5 && len(b) > 0 {
+	if c.fakeNonBlockingShortReadCount < 5 && len(b) > 0 && c.fakeNonblockingReadWaitDuration < minNonblockingReadWaitDuration {
 		b = b[:1]
 	}
 
