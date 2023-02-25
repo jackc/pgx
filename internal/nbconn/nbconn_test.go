@@ -313,7 +313,7 @@ func TestInternalNonBlockingWriteWithDeadline(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, deadlockSize, n)
 
-		err = conn.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		err = conn.SetDeadline(time.Now())
 		require.NoError(t, err)
 
 		err = conn.Flush()
