@@ -96,7 +96,7 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 		c.nonblockReadFunc = func(fd uintptr) (done bool) {
 			// Make sock non-blocking
 			if err := setSockMode(fd, sockModeNonBlocking); err != nil {
-				c.nonblockWriteErr = err
+				c.nonblockReadErr = err
 				return true
 			}
 
@@ -110,7 +110,7 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 
 			// Make sock blocking again
 			if err := setSockMode(fd, sockModeBlocking); err != nil {
-				c.nonblockWriteErr = err
+				c.nonblockReadErr = err
 				return true
 			}
 
