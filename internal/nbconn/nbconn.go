@@ -13,6 +13,7 @@ package nbconn
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -172,6 +173,8 @@ func (c *NetConn) Write(b []byte) (n int, err error) {
 		return 0, errClosed
 	}
 
+	fmt.Println("NetConn Write", len(b))
+
 	buf := iobufpool.Get(len(b))
 	copy(*buf, b)
 	c.writeQueue.pushBack(buf)
@@ -293,7 +296,11 @@ func (c *NetConn) flush() error {
 	for buf := c.writeQueue.popFront(); buf != nil; buf = c.writeQueue.popFront() {
 		remainingBuf := *buf
 		for len(remainingBuf) > 0 {
+			if len(remainingBuf) == 24 {
+				fmt.Println("break")
+			}
 			n, err := c.nonblockingWrite(remainingBuf)
+			fmt.Println("flush nonblockingWrite", n, err)
 			remainingBuf = remainingBuf[n:]
 			if err != nil {
 				if !errors.Is(err, ErrWouldBlock) {
@@ -406,6 +413,12 @@ func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
 }
 
 func (c *NetConn) nonblockingRead(b []byte) (n int, err error) {
+	defer func() {
+		fmt.Println("nonblockingRead", n, err)
+		if n == 0 {
+			fmt.Println("break2")
+		}
+	}()
 	if c.rawConn == nil {
 		return c.fakeNonblockingRead(b)
 	} else {

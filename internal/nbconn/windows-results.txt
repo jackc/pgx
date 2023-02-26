@@ -1,0 +1,1061 @@
+PS C:\Users\jack\dev\pgx\internal\nbconn> go test -run TestInternalNonBlockingWrite$
+NetConn Write 239
+flush nonblockingWrite 239 <nil>
+NetConn Write 64
+flush nonblockingWrite 64 <nil>
+NetConn Write 1208
+NetConn Write 2394
+NetConn Write 3580
+NetConn Write 4766
+NetConn Write 5952
+NetConn Write 7138
+NetConn Write 8324
+NetConn Write 9510
+NetConn Write 10696
+NetConn Write 11882
+NetConn Write 13068
+NetConn Write 14254
+NetConn Write 15440
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 16406
+NetConn Write 6784
+flush nonblockingWrite 1208 <nil>
+flush nonblockingWrite 2394 <nil>
+flush nonblockingWrite 3580 <nil>
+flush nonblockingWrite 4766 <nil>
+flush nonblockingWrite 5952 <nil>
+flush nonblockingWrite 7138 <nil>
+flush nonblockingWrite 8324 <nil>
+flush nonblockingWrite 9510 <nil>
+flush nonblockingWrite 10696 <nil>
+flush nonblockingWrite 11882 <nil>
+flush nonblockingWrite 13068 <nil>
+flush nonblockingWrite 14254 <nil>
+flush nonblockingWrite 15440 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 16406 <nil>
+flush nonblockingWrite 0 would block
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+after remote write
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 16406 <nil>
+nonblockingRead 8192 <nil>
+flush nonblockingWrite 6784 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 8192 <nil>
+nonblockingRead 5810 <nil>
+nonblockingRead 0 would block
+break2
+--- FAIL: TestInternalNonBlockingWrite (1.04s)
+    --- FAIL: TestInternalNonBlockingWrite/TLS_over_TCP_with_Real_Non-blocking_IO (1.04s)
+        nbconn_test.go:305:
+                Error Trace:    C:\Users\jack\dev\pgx\internal\nbconn\nbconn_test.go:305
+                                                        C:\Users\jack\dev\pgx\internal\nbconn\nbconn_test.go:144
+                Error:          Received unexpected error:
+                                local error: tls: bad record MAC
+                Test:           TestInternalNonBlockingWrite/TLS_over_TCP_with_Real_Non-blocking_IO
+FAIL
+exit status 1
+FAIL    github.com/jackc/pgx/v5/internal/nbconn 1.268s
+PS C:\Users\jack\dev\pgx\internal\nbconn>
+PS C:\Users\jack\dev\pgx\internal\nbconn>

@@ -2,6 +2,7 @@ package nbconn_test
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -73,30 +74,30 @@ func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote n
 		useTLS            bool
 		fakeNonBlockingIO bool
 	}{
-		{
-			name:              "Pipe",
-			makeConns:         makePipeConns,
-			useTLS:            false,
-			fakeNonBlockingIO: true,
-		},
-		{
-			name:              "TCP with Fake Non-blocking IO",
-			makeConns:         makeTCPConns,
-			useTLS:            false,
-			fakeNonBlockingIO: true,
-		},
-		{
-			name:              "TLS over TCP with Fake Non-blocking IO",
-			makeConns:         makeTCPConns,
-			useTLS:            true,
-			fakeNonBlockingIO: true,
-		},
-		{
-			name:              "TCP with Real Non-blocking IO",
-			makeConns:         makeTCPConns,
-			useTLS:            false,
-			fakeNonBlockingIO: false,
-		},
+		// {
+		// 	name:              "Pipe",
+		// 	makeConns:         makePipeConns,
+		// 	useTLS:            false,
+		// 	fakeNonBlockingIO: true,
+		// },
+		// {
+		// 	name:              "TCP with Fake Non-blocking IO",
+		// 	makeConns:         makeTCPConns,
+		// 	useTLS:            false,
+		// 	fakeNonBlockingIO: true,
+		// },
+		// {
+		// 	name:              "TLS over TCP with Fake Non-blocking IO",
+		// 	makeConns:         makeTCPConns,
+		// 	useTLS:            true,
+		// 	fakeNonBlockingIO: true,
+		// },
+		// {
+		// 	name:              "TCP with Real Non-blocking IO",
+		// 	makeConns:         makeTCPConns,
+		// 	useTLS:            false,
+		// 	fakeNonBlockingIO: false,
+		// },
 		{
 			name:              "TLS over TCP with Real Non-blocking IO",
 			makeConns:         makeTCPConns,
@@ -272,6 +273,8 @@ func TestCloseFlushesWriteBuffer(t *testing.T) {
 // large values.
 func TestInternalNonBlockingWrite(t *testing.T) {
 	const deadlockSize = 4 * 1024 * 1024
+	// const deadlockSize = 2762135
+	// const deadlockSize = 3001720
 
 	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		writeBuf := make([]byte, deadlockSize)
@@ -288,6 +291,8 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 				return
 			}
 
+			fmt.Println("after remote write")
+
 			readBuf := make([]byte, deadlockSize)
 			_, err = io.ReadFull(remote, readBuf)
 			errChan <- err
@@ -297,11 +302,78 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 		_, err = io.ReadFull(conn, readBuf)
 		require.NoError(t, err)
 
+		require.NoError(t, <-errChan)
+
 		err = conn.Close()
 		require.NoError(t, err)
 
-		require.NoError(t, <-errChan)
 	})
+}
+
+func TestTLSCrash(t *testing.T) {
+	local, remote := makeTCPConns(t)
+	defer local.Close()
+	defer remote.Close()
+
+	cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
+	require.NoError(t, err)
+
+	tlsServer := tls.Server(remote, &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	})
+	serverTLSHandshakeChan := make(chan error)
+	go func() {
+		err := tlsServer.Handshake()
+		serverTLSHandshakeChan <- err
+	}()
+
+	local = tls.Client(local, &tls.Config{InsecureSkipVerify: true})
+	_, err = local.Read(nil) // trigger handshake
+	require.NoError(t, err)
+
+	err = <-serverTLSHandshakeChan
+	require.NoError(t, err)
+	remote = tlsServer
+
+	const blockSize = 4 * 1024 * 1024
+	const blockCount = 16
+
+	errChan := make(chan error, 1)
+	go func() {
+		for i := 0; i < blockCount; i++ {
+			writeBuf := make([]byte, blockSize)
+			_, err := remote.Write(writeBuf)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			readBuf := make([]byte, blockSize)
+			_, err = io.ReadFull(remote, readBuf)
+			if err != nil {
+				errChan <- err
+				return
+			}
+		}
+
+		errChan <- nil
+	}()
+
+	for i := 0; i < blockCount; i++ {
+		readBuf := make([]byte, blockSize)
+		_, err = io.ReadFull(local, readBuf)
+		require.NoError(t, err)
+
+		writeBuf := make([]byte, blockSize)
+		_, err := local.Write(writeBuf)
+		require.NoError(t, err)
+	}
+
+	err = local.Close()
+	require.NoError(t, err)
+
+	require.NoError(t, <-errChan)
+
 }
 
 func TestInternalNonBlockingWriteWithDeadline(t *testing.T) {
