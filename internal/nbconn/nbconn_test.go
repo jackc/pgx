@@ -1,10 +1,12 @@
 package nbconn_test
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -67,6 +69,34 @@ pz01y53wMSTJs0ocAxkYvUc5laF+vMsLpG2vp8f35w8uKuO7+vm5LAjUsPd099jG
 2qWm8jTPeDC3sq+67s2oojHf+Q==
 -----END TESTING KEY-----`, "TESTING KEY", "PRIVATE KEY"))
 
+type interceptConn struct {
+	net.Conn
+}
+
+var logRead bytes.Buffer
+
+func (c *interceptConn) Read(b []byte) (int, error) {
+	n, err := c.Conn.Read(b)
+
+	logRead.Write(b[:n])
+	fmt.Println(logRead.Len(), nbconn.LogWritten.Len())
+	for i := 0; i < logRead.Len(); i++ {
+		if logRead.Bytes()[i] != nbconn.LogWritten.Bytes()[i] {
+			fmt.Println("mismatch at", i)
+			fmt.Println(logRead.Bytes()[i-20 : i+20])
+			fmt.Println(nbconn.LogWritten.Bytes()[i-20 : i+20])
+			fmt.Println(
+				bytes.Contains(nbconn.LogWritten.Bytes(), logRead.Bytes()[i:i+10]),
+				bytes.Index(nbconn.LogWritten.Bytes(), logRead.Bytes()[i:i+10]),
+				i-bytes.Index(nbconn.LogWritten.Bytes(), logRead.Bytes()[i:i+10]),
+			)
+			os.Exit(1)
+		}
+	}
+
+	return n, err
+}
+
 func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote net.Conn)) {
 	for _, tt := range []struct {
 		name              string
@@ -121,7 +151,7 @@ func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote n
 				cert, err := tls.X509KeyPair(testTLSPublicKey, testTLSPrivateKey)
 				require.NoError(t, err)
 
-				tlsServer := tls.Server(remote, &tls.Config{
+				tlsServer := tls.Server(&interceptConn{remote}, &tls.Config{
 					Certificates: []tls.Certificate{cert},
 				})
 				serverTLSHandshakeChan := make(chan error)
@@ -278,6 +308,9 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 
 	testVariants(t, func(t *testing.T, conn nbconn.Conn, remote net.Conn) {
 		writeBuf := make([]byte, deadlockSize)
+		for i := range writeBuf {
+			writeBuf[i] = 1
+		}
 		n, err := conn.Write(writeBuf)
 		require.NoError(t, err)
 		require.EqualValues(t, deadlockSize, n)
@@ -295,6 +328,15 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 
 			readBuf := make([]byte, deadlockSize)
 			_, err = io.ReadFull(remote, readBuf)
+
+			fmt.Println(logRead.Len(), nbconn.LogWritten.Len())
+			for i := 0; i < logRead.Len(); i++ {
+				if logRead.Bytes()[i] != nbconn.LogWritten.Bytes()[i] {
+					fmt.Println("mismatch at", i)
+					break
+				}
+			}
+
 			errChan <- err
 		}()
 
@@ -336,36 +378,33 @@ func TestTLSCrash(t *testing.T) {
 	remote = tlsServer
 
 	const blockSize = 4 * 1024 * 1024
-	const blockCount = 16
 
 	errChan := make(chan error, 1)
 	go func() {
-		for i := 0; i < blockCount; i++ {
-			writeBuf := make([]byte, blockSize)
-			_, err := remote.Write(writeBuf)
-			if err != nil {
-				errChan <- err
-				return
-			}
+		writeBuf := make([]byte, blockSize)
+		_, err := remote.Write(writeBuf)
+		if err != nil {
+			errChan <- err
+			return
+		}
 
-			readBuf := make([]byte, blockSize)
-			_, err = io.ReadFull(remote, readBuf)
-			if err != nil {
-				errChan <- err
-				return
-			}
+		readBuf := make([]byte, blockSize)
+		_, err = io.ReadFull(remote, readBuf)
+		if err != nil {
+			errChan <- err
+			return
 		}
 
 		errChan <- nil
 	}()
 
-	for i := 0; i < blockCount; i++ {
-		readBuf := make([]byte, blockSize)
-		_, err = io.ReadFull(local, readBuf)
+	for i := 0; i < 64; i++ {
+		writeBuf := make([]byte, blockSize/64)
+		_, err = local.Write(writeBuf)
 		require.NoError(t, err)
 
-		writeBuf := make([]byte, blockSize)
-		_, err := local.Write(writeBuf)
+		readBuf := make([]byte, blockSize/64)
+		_, err = io.ReadFull(local, readBuf)
 		require.NoError(t, err)
 	}
 

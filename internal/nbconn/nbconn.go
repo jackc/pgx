@@ -11,9 +11,11 @@
 package nbconn
 
 import (
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"os"
 	"sync"
@@ -173,8 +175,6 @@ func (c *NetConn) Write(b []byte) (n int, err error) {
 		return 0, errClosed
 	}
 
-	fmt.Println("NetConn Write", len(b))
-
 	buf := iobufpool.Get(len(b))
 	copy(*buf, b)
 	c.writeQueue.pushBack(buf)
@@ -279,6 +279,8 @@ func (c *NetConn) Flush() error {
 	return c.flush()
 }
 
+var LogWritten bytes.Buffer
+
 // flush does the actual work of flushing the writeQueue. readFlushLock must already be held.
 func (c *NetConn) flush() error {
 	var stopChan chan struct{}
@@ -296,11 +298,7 @@ func (c *NetConn) flush() error {
 	for buf := c.writeQueue.popFront(); buf != nil; buf = c.writeQueue.popFront() {
 		remainingBuf := *buf
 		for len(remainingBuf) > 0 {
-			if len(remainingBuf) == 24 {
-				fmt.Println("break")
-			}
 			n, err := c.nonblockingWrite(remainingBuf)
-			fmt.Println("flush nonblockingWrite", n, err)
 			remainingBuf = remainingBuf[n:]
 			if err != nil {
 				if !errors.Is(err, ErrWouldBlock) {
@@ -380,6 +378,9 @@ func (c *NetConn) isClosed() bool {
 }
 
 func (c *NetConn) nonblockingWrite(b []byte) (n int, err error) {
+	if rand.Float32() > 0.9 {
+		// return 0, ErrWouldBlock
+	}
 	if c.rawConn == nil {
 		return c.fakeNonblockingWrite(b)
 	} else {
@@ -390,6 +391,11 @@ func (c *NetConn) nonblockingWrite(b []byte) (n int, err error) {
 func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
 	c.writeDeadlineLock.Lock()
 	defer c.writeDeadlineLock.Unlock()
+
+	defer func() {
+		LogWritten.Write(b[:n])
+		fmt.Println(n)
+	}()
 
 	deadline := time.Now().Add(fakeNonblockingWriteWaitDuration)
 	if c.writeDeadline.IsZero() || deadline.Before(c.writeDeadline) {
@@ -413,12 +419,6 @@ func (c *NetConn) fakeNonblockingWrite(b []byte) (n int, err error) {
 }
 
 func (c *NetConn) nonblockingRead(b []byte) (n int, err error) {
-	defer func() {
-		fmt.Println("nonblockingRead", n, err)
-		if n == 0 {
-			fmt.Println("break2")
-		}
-	}()
 	if c.rawConn == nil {
 		return c.fakeNonblockingRead(b)
 	} else {
