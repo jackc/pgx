@@ -86,24 +86,24 @@ func testVariants(t *testing.T, f func(t *testing.T, local nbconn.Conn, remote n
 		// 	useTLS:            false,
 		// 	fakeNonBlockingIO: true,
 		// },
-		// {
-		// 	name:              "TLS over TCP with Fake Non-blocking IO",
-		// 	makeConns:         makeTCPConns,
-		// 	useTLS:            true,
-		// 	fakeNonBlockingIO: true,
-		// },
+		{
+			name:              "TLS over TCP with Fake Non-blocking IO",
+			makeConns:         makeTCPConns,
+			useTLS:            true,
+			fakeNonBlockingIO: true,
+		},
 		// {
 		// 	name:              "TCP with Real Non-blocking IO",
 		// 	makeConns:         makeTCPConns,
 		// 	useTLS:            false,
 		// 	fakeNonBlockingIO: false,
 		// },
-		{
-			name:              "TLS over TCP with Real Non-blocking IO",
-			makeConns:         makeTCPConns,
-			useTLS:            true,
-			fakeNonBlockingIO: false,
-		},
+		// {
+		// 	name:              "TLS over TCP with Real Non-blocking IO",
+		// 	makeConns:         makeTCPConns,
+		// 	useTLS:            true,
+		// 	fakeNonBlockingIO: false,
+		// },
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			local, remote := tt.makeConns(t)
