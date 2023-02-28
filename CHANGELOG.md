@@ -1,3 +1,7 @@
+# 4.18.1 (February 27, 2023)
+
+* Fix: Support pgx v4 and v5 stdlib in same program (Tomáš Procházka)
+
 # 4.18.0 (February 11, 2023)
 
 * Upgrade pgconn to v1.14.0
