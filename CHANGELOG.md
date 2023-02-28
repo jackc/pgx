@@ -1,3 +1,10 @@
+# 5.3.1 (February 27, 2023)
+
+* Fix: Support v4 and v5 stdlib in same program (Tomáš Procházka)
+* Fix: sql.Scanner not being used in certain cases
+* Add text format jsonpath support
+* Fix: fake non-blocking read adaptive wait time
+
 # 5.3.0 (February 11, 2023)
 
 * Fix: json values work with sql.Scanner
