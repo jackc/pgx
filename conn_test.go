@@ -545,6 +545,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 
 	listenerDone := make(chan bool)
 	notifierDone := make(chan bool)
+	listening := make(chan bool)
 	go func() {
 		conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 		defer closeConn(t, conn)
@@ -553,6 +554,7 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 		}()
 
 		mustExec(t, conn, "listen busysafe")
+		listening <- true
 
 		for i := 0; i < 5000; i++ {
 			var sum int32
@@ -588,8 +590,6 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 				t.Errorf("Wrong number of rows: %v", rowCount)
 				return
 			}
-
-			time.Sleep(1 * time.Microsecond)
 		}
 	}()
 
@@ -600,9 +600,10 @@ func TestListenNotifyWhileBusyIsSafe(t *testing.T) {
 			notifierDone <- true
 		}()
 
+		<-listening
+
 		for i := 0; i < 100000; i++ {
 			mustExec(t, conn, "notify busysafe, 'hello'")
-			time.Sleep(1 * time.Microsecond)
 		}
 	}()
 
