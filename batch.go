@@ -57,6 +57,12 @@ func (qq *QueuedQuery) Exec(fn func(ct pgconn.CommandTag) error) {
 	}
 }
 
+// Result sets fn to be called when the response to qq is received and gives
+// access to the pgx error immediately (unlike Query, QueryRow or Exec).
+func (qq *QueuedQuery) Result(fn func(br BatchResults) error) {
+	qq.fn = fn
+}
+
 // Batch queries are a way of bundling multiple queries together to avoid
 // unnecessary network round trips. A Batch must only be sent once.
 type Batch struct {
