@@ -24,7 +24,7 @@ var ioctlsocket = dll.MustFindProc("ioctlsocket")
 type sockMode int
 
 const (
-	FIONBIO             int      = 0x8004667e
+	FIONBIO             uint32   = 0x8004667e
 	sockModeBlocking    sockMode = 0
 	sockModeNonBlocking sockMode = 1
 )
