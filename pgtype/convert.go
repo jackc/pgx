@@ -262,7 +262,7 @@ func int64AssignTo(srcVal int64, srcValid bool, dst any) error {
 			*v = uint8(srcVal)
 		case *uint16:
 			if srcVal < 0 {
-				return fmt.Errorf("%d is less than zero for uint32", srcVal)
+				return fmt.Errorf("%d is less than zero for uint16", srcVal)
 			} else if srcVal > math.MaxUint16 {
 				return fmt.Errorf("%d is greater than maximum value for uint16", srcVal)
 			}
