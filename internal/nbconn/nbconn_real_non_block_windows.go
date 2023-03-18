@@ -43,10 +43,12 @@ func setSockMode(fd uintptr, mode sockMode) error {
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	if c.nonblockWriteFunc == nil {
 		c.nonblockWriteFunc = func(fd uintptr) (done bool) {
-			// Make sock non-blocking
-			if err := setSockMode(fd, sockModeNonBlocking); err != nil {
-				c.nonblockWriteErr = err
-				return true
+			if !c.isNonBlocking {
+				// Make sock non-blocking
+				if err := setSockMode(fd, sockModeNonBlocking); err != nil {
+					c.nonblockWriteErr = err
+					return true
+				}
 			}
 
 			var written uint32
@@ -56,10 +58,12 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 			c.nonblockWriteErr = syscall.WSASend(syscall.Handle(fd), &buf, 1, &written, 0, nil, nil)
 			c.nonblockWriteN = int(written)
 
-			// Make sock blocking again
-			if err := setSockMode(fd, sockModeBlocking); err != nil {
-				c.nonblockWriteErr = err
-				return true
+			if !c.isNonBlocking {
+				// Make sock blocking again
+				if err := setSockMode(fd, sockModeBlocking); err != nil {
+					c.nonblockWriteErr = err
+					return true
+				}
 			}
 
 			return true
@@ -94,10 +98,12 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	if c.nonblockReadFunc == nil {
 		c.nonblockReadFunc = func(fd uintptr) (done bool) {
-			// Make sock non-blocking
-			if err := setSockMode(fd, sockModeNonBlocking); err != nil {
-				c.nonblockReadErr = err
-				return true
+			if !c.isNonBlocking {
+				// Make sock non-blocking
+				if err := setSockMode(fd, sockModeNonBlocking); err != nil {
+					c.nonblockReadErr = err
+					return true
+				}
 			}
 
 			var read uint32
@@ -108,10 +114,12 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 			c.nonblockReadErr = syscall.WSARecv(syscall.Handle(fd), &buf, 1, &read, &flags, nil, nil)
 			c.nonblockReadN = int(read)
 
-			// Make sock blocking again
-			if err := setSockMode(fd, sockModeBlocking); err != nil {
-				c.nonblockReadErr = err
-				return true
+			if !c.isNonBlocking {
+				// Make sock blocking again
+				if err := setSockMode(fd, sockModeBlocking); err != nil {
+					c.nonblockReadErr = err
+					return true
+				}
 			}
 
 			return true
@@ -146,4 +154,23 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	}
 
 	return n, nil
+}
+
+func (c *NetConn) SetBlockingMode(blocking bool) error {
+	mode := sockModeNonBlocking
+	if blocking {
+		mode = sockModeBlocking
+	}
+
+	var err error
+
+	c.rawConn.Control(func(fd uintptr) {
+		err = setSockMode(fd, mode)
+	})
+
+	if err == nil {
+		c.isNonBlocking = !blocking
+	}
+
+	return err
 }
