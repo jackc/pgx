@@ -132,9 +132,6 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("unknown QueryExecMode: %v", ct.mode)
 	}
 
-	r, w := io.Pipe()
-	doneChan := make(chan struct{})
-
 	if realNbConn, ok := ct.conn.pgConn.Conn().(*nbconn.NetConn); ok {
 		if err := realNbConn.SetBlockingMode(false); err != nil {
 			return 0, fmt.Errorf("cannot set socket non-blocking mode: %w", err)
@@ -145,6 +142,9 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 			_ = realNbConn.SetBlockingMode(true)
 		}()
 	}
+
+	r, w := io.Pipe()
+	doneChan := make(chan struct{})
 
 	go func() {
 		defer close(doneChan)
