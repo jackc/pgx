@@ -164,9 +164,11 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 
 	var err error
 
-	c.rawConn.Control(func(fd uintptr) {
+	if ctrlErr := c.rawConn.Control(func(fd uintptr) {
 		err = setSockMode(fd, mode)
-	})
+	}); ctrlErr != nil {
+		return ctrlErr
+	}
 
 	if err == nil {
 		c.isNonBlocking = !blocking

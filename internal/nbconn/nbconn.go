@@ -97,7 +97,7 @@ type NetConn struct {
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
 
-	// Indicates that underlying socket connection mode set to be non-blocking
+	// Indicates that underlying socket connection mode explicitly set to be non-blocking
 	isNonBlocking bool
 }
 
