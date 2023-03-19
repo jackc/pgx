@@ -132,7 +132,7 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 	}
 
 	if blocking {
-		// No ready to exit from non-blocking mode, there are pending non-blocking operations
+		// Not ready to exit from non-blocking mode, there are pending non-blocking operations
 		if atomic.AddInt32(&c.nbOperCnt, -1) > 0 {
 			return nil
 		}
@@ -141,8 +141,6 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 		if atomic.AddInt32(&c.nbOperCnt, 1) > 1 {
 			return nil
 		}
-
-		//fmt.Println("socket reverting to blocking mode")
 	}
 
 	mode := sockModeNonBlocking
