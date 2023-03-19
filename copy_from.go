@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5/internal/nbconn"
 	"io"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
@@ -130,17 +129,6 @@ func (ct *copyFrom) run(ctx context.Context) (int64, error) {
 		}
 	default:
 		return 0, fmt.Errorf("unknown QueryExecMode: %v", ct.mode)
-	}
-
-	if realNbConn, ok := ct.conn.pgConn.Conn().(*nbconn.NetConn); ok {
-		if err := realNbConn.SetBlockingMode(false); err != nil {
-			return 0, fmt.Errorf("cannot set socket non-blocking mode: %w", err)
-		}
-
-		defer func() {
-			// TODO: Deal with it
-			_ = realNbConn.SetBlockingMode(true)
-		}()
 	}
 
 	r, w := io.Pipe()

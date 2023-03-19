@@ -6,6 +6,7 @@ import (
 	"errors"
 	"golang.org/x/sys/windows"
 	"io"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -43,28 +44,12 @@ func setSockMode(fd uintptr, mode sockMode) error {
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	if c.nonblockWriteFunc == nil {
 		c.nonblockWriteFunc = func(fd uintptr) (done bool) {
-			if !c.isNonBlocking {
-				// Make sock non-blocking
-				if err := setSockMode(fd, sockModeNonBlocking); err != nil {
-					c.nonblockWriteErr = err
-					return true
-				}
-			}
-
 			var written uint32
 			var buf syscall.WSABuf
 			buf.Buf = &c.nonblockWriteBuf[0]
 			buf.Len = uint32(len(c.nonblockWriteBuf))
 			c.nonblockWriteErr = syscall.WSASend(syscall.Handle(fd), &buf, 1, &written, 0, nil, nil)
 			c.nonblockWriteN = int(written)
-
-			if !c.isNonBlocking {
-				// Make sock blocking again
-				if err := setSockMode(fd, sockModeBlocking); err != nil {
-					c.nonblockWriteErr = err
-					return true
-				}
-			}
 
 			return true
 		}
@@ -98,14 +83,6 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	if c.nonblockReadFunc == nil {
 		c.nonblockReadFunc = func(fd uintptr) (done bool) {
-			if !c.isNonBlocking {
-				// Make sock non-blocking
-				if err := setSockMode(fd, sockModeNonBlocking); err != nil {
-					c.nonblockReadErr = err
-					return true
-				}
-			}
-
 			var read uint32
 			var flags uint32
 			var buf syscall.WSABuf
@@ -113,14 +90,6 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 			buf.Len = uint32(len(c.nonblockReadBuf))
 			c.nonblockReadErr = syscall.WSARecv(syscall.Handle(fd), &buf, 1, &read, &flags, nil, nil)
 			c.nonblockReadN = int(read)
-
-			if !c.isNonBlocking {
-				// Make sock blocking again
-				if err := setSockMode(fd, sockModeBlocking); err != nil {
-					c.nonblockReadErr = err
-					return true
-				}
-			}
 
 			return true
 		}
@@ -157,22 +126,52 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 }
 
 func (c *NetConn) SetBlockingMode(blocking bool) error {
+	// Fake non-blocking I/O is ignored
+	if c.rawConn == nil {
+		return nil
+	}
+
+	if blocking {
+		// No ready to exit from non-blocking mode, there are pending non-blocking operations
+		if atomic.AddInt32(&c.nbOperCnt, -1) > 0 {
+			return nil
+		}
+	} else {
+		// Socket is already in non-blocking state
+		if atomic.AddInt32(&c.nbOperCnt, 1) > 1 {
+			return nil
+		}
+
+		//fmt.Println("socket reverting to blocking mode")
+	}
+
 	mode := sockModeNonBlocking
 	if blocking {
 		mode = sockModeBlocking
 	}
 
-	var err error
+	var ctrlErr, err error
 
-	if ctrlErr := c.rawConn.Control(func(fd uintptr) {
+	ctrlErr = c.rawConn.Control(func(fd uintptr) {
 		err = setSockMode(fd, mode)
-	}); ctrlErr != nil {
-		return ctrlErr
+	})
+
+	if ctrlErr != nil || err != nil {
+		// Revert counters inc/dec in case of error
+		if blocking {
+			atomic.AddInt32(&c.nbOperCnt, 1)
+		} else {
+			atomic.AddInt32(&c.nbOperCnt, -1)
+		}
+
+		if ctrlErr != nil {
+			return ctrlErr
+		}
+
+		if err != nil {
+			return err
+		}
 	}
 
-	if err == nil {
-		c.isNonBlocking = !blocking
-	}
-
-	return err
+	return nil
 }
