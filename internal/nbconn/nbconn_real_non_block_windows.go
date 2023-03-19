@@ -6,7 +6,6 @@ import (
 	"errors"
 	"golang.org/x/sys/windows"
 	"io"
-	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -133,12 +132,12 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 
 	if blocking {
 		// Not ready to exit from non-blocking mode, there are pending non-blocking operations
-		if atomic.AddInt32(&c.nbOperCnt, -1) > 0 {
+		if c.nbOperCnt.Add(-1) > 0 {
 			return nil
 		}
 	} else {
 		// Socket is already in non-blocking state
-		if atomic.AddInt32(&c.nbOperCnt, 1) > 1 {
+		if c.nbOperCnt.Add(1) > 1 {
 			return nil
 		}
 	}
@@ -157,9 +156,9 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 	if ctrlErr != nil || err != nil {
 		// Revert counters inc/dec in case of error
 		if blocking {
-			atomic.AddInt32(&c.nbOperCnt, 1)
+			c.nbOperCnt.Add(1)
 		} else {
-			atomic.AddInt32(&c.nbOperCnt, -1)
+			c.nbOperCnt.Add(-1)
 		}
 
 		if ctrlErr != nil {
