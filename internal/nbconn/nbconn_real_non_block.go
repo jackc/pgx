@@ -81,6 +81,6 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 }
 
 func (c *NetConn) SetBlockingMode(blocking bool) error {
-	// for UNIX do nothing
+	// Do nothing on UNIX systems
 	return nil
 }
