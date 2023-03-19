@@ -4,6 +4,7 @@ package nbconn
 
 import (
 	"errors"
+	"fmt"
 	"golang.org/x/sys/windows"
 	"io"
 	"syscall"
@@ -154,19 +155,20 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 	})
 
 	if ctrlErr != nil || err != nil {
+		retErr := ctrlErr
+		if retErr == nil {
+			retErr = err
+		}
+
 		// Revert counters inc/dec in case of error
 		if blocking {
 			c.nbOperCnt.Add(1)
+
+			return fmt.Errorf("cannot set socket to blocking mode: %w", retErr)
 		} else {
 			c.nbOperCnt.Add(-1)
-		}
 
-		if ctrlErr != nil {
-			return ctrlErr
-		}
-
-		if err != nil {
-			return err
+			return fmt.Errorf("cannot set socket to non-blocking mode: %w", retErr)
 		}
 	}
 

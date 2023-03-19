@@ -13,7 +13,6 @@ package nbconn
 import (
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -162,11 +161,7 @@ func (c *NetConn) Read(b []byte) (n int, err error) {
 	var readN int
 	if readNonblocking {
 		if setSockModeErr := c.SetBlockingMode(false); setSockModeErr != nil {
-			err = fmt.Errorf("cannot set socket to non-blocking mode: %w", setSockModeErr)
-		}
-
-		if err != nil {
-			return n, err
+			return n, setSockModeErr
 		}
 
 		defer func() {
@@ -298,7 +293,7 @@ func (c *NetConn) flush() error {
 	var errChan chan error
 
 	if err := c.SetBlockingMode(false); err != nil {
-		return fmt.Errorf("cannot set socket to non-blocking mode: %w", err)
+		return err
 	}
 
 	defer func() {
@@ -349,7 +344,7 @@ func (c *NetConn) flush() error {
 
 func (c *NetConn) BufferReadUntilBlock() error {
 	if err := c.SetBlockingMode(false); err != nil {
-		return fmt.Errorf("cannot set socket to non-blocking mode: %w", err)
+		return err
 	}
 
 	defer func() {
