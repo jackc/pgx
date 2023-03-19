@@ -13,6 +13,7 @@ package nbconn
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -97,8 +98,8 @@ type NetConn struct {
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
 
-	// Indicates that underlying socket connection mode explicitly set to be non-blocking
-	isNonBlocking bool
+	// nbOperCnt Tracks how many operations performing simultaneously
+	nbOperCnt int32
 }
 
 func NewNetConn(conn net.Conn, fakeNonBlockingIO bool) *NetConn {
@@ -160,6 +161,18 @@ func (c *NetConn) Read(b []byte) (n int, err error) {
 
 	var readN int
 	if readNonblocking {
+		if setSockModeErr := c.SetBlockingMode(false); setSockModeErr != nil {
+			err = fmt.Errorf("cannot set socket to non-blocking mode: %w", setSockModeErr)
+		}
+
+		if err != nil {
+			return n, err
+		}
+
+		defer func() {
+			_ = c.SetBlockingMode(true)
+		}()
+
 		readN, err = c.nonblockingRead(b[n:])
 	} else {
 		readN, err = c.conn.Read(b[n:])
@@ -284,6 +297,14 @@ func (c *NetConn) flush() error {
 	var stopChan chan struct{}
 	var errChan chan error
 
+	if err := c.SetBlockingMode(false); err != nil {
+		return fmt.Errorf("cannot set socket to non-blocking mode: %w", err)
+	}
+
+	defer func() {
+		_ = c.SetBlockingMode(true)
+	}()
+
 	defer func() {
 		if stopChan != nil {
 			select {
@@ -327,6 +348,14 @@ func (c *NetConn) flush() error {
 }
 
 func (c *NetConn) BufferReadUntilBlock() error {
+	if err := c.SetBlockingMode(false); err != nil {
+		return fmt.Errorf("cannot set socket to non-blocking mode: %w", err)
+	}
+
+	defer func() {
+		_ = c.SetBlockingMode(true)
+	}()
+
 	for {
 		buf := iobufpool.Get(8 * 1024)
 		n, err := c.nonblockingRead(*buf)
