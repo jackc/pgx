@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sys/windows"
 	"io"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -40,6 +41,10 @@ func setSockMode(fd uintptr, mode sockMode) error {
 	return nil
 }
 
+func (c *NetConn) isDeadlineSet(dl time.Time) bool {
+	return !dl.IsZero() && dl != NonBlockingDeadline && dl != disableSetDeadlineDeadline
+}
+
 // realNonblockingWrite does a non-blocking write. readFlushLock must already be held.
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	if c.nonblockWriteFunc == nil {
@@ -57,6 +62,12 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	c.nonblockWriteBuf = b
 	c.nonblockWriteN = 0
 	c.nonblockWriteErr = nil
+
+	if c.isDeadlineSet(c.writeDeadline) && time.Now().After(c.writeDeadline) {
+		c.nonblockWriteErr = errors.New("i/o timeout")
+
+		return 0, c.nonblockWriteErr
+	}
 
 	err = c.rawConn.Write(c.nonblockWriteFunc)
 	n = c.nonblockWriteN
@@ -97,6 +108,12 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	c.nonblockReadBuf = b
 	c.nonblockReadN = 0
 	c.nonblockReadErr = nil
+
+	if c.isDeadlineSet(c.readDeadline) && time.Now().After(c.readDeadline) {
+		c.nonblockReadErr = errors.New("i/o timeout")
+
+		return 0, c.nonblockReadErr
+	}
 
 	err = c.rawConn.Read(c.nonblockReadFunc)
 	n = c.nonblockReadN
