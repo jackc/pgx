@@ -23,6 +23,8 @@ var dll = syscall.MustLoadDLL("ws2_32.dll")
 // );
 var ioctlsocket = dll.MustFindProc("ioctlsocket")
 
+var deadlineExpErr = errors.New("i/o timeout")
+
 type sockMode int
 
 const (
@@ -45,6 +47,20 @@ func (c *NetConn) isDeadlineSet(dl time.Time) bool {
 	return !dl.IsZero() && dl != NonBlockingDeadline && dl != disableSetDeadlineDeadline
 }
 
+func (c *NetConn) isWriteDeadlineExpired() bool {
+	c.writeDeadlineLock.Lock()
+	defer c.writeDeadlineLock.Unlock()
+
+	return c.isDeadlineSet(c.writeDeadline) && !time.Now().Before(c.writeDeadline)
+}
+
+func (c *NetConn) isReadDeadlineExpired() bool {
+	c.readDeadlineLock.Lock()
+	defer c.readDeadlineLock.Unlock()
+
+	return c.isDeadlineSet(c.readDeadline) && !time.Now().Before(c.readDeadline)
+}
+
 // realNonblockingWrite does a non-blocking write. readFlushLock must already be held.
 func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	if c.nonblockWriteFunc == nil {
@@ -63,8 +79,8 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	c.nonblockWriteN = 0
 	c.nonblockWriteErr = nil
 
-	if c.isDeadlineSet(c.writeDeadline) && !time.Now().Before(c.writeDeadline) {
-		c.nonblockWriteErr = errors.New("i/o timeout")
+	if c.isWriteDeadlineExpired() {
+		c.nonblockWriteErr = deadlineExpErr
 
 		return 0, c.nonblockWriteErr
 	}
@@ -109,8 +125,8 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	c.nonblockReadN = 0
 	c.nonblockReadErr = nil
 
-	if c.isDeadlineSet(c.readDeadline) && !time.Now().Before(c.readDeadline) {
-		c.nonblockReadErr = errors.New("i/o timeout")
+	if c.isReadDeadlineExpired() {
+		c.nonblockReadErr = deadlineExpErr
 
 		return 0, c.nonblockReadErr
 	}
