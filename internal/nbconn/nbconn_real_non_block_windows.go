@@ -181,12 +181,10 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 		// Revert counters inc/dec in case of error
 		if blocking {
 			c.nbOperCnt++
-			//c.nbOperCnt.Add(1)
 
 			return fmt.Errorf("cannot set socket to blocking mode: %w", retErr)
 		} else {
 			c.nbOperCnt--
-			//c.nbOperCnt.Add(-1)
 
 			return fmt.Errorf("cannot set socket to non-blocking mode: %w", retErr)
 		}
