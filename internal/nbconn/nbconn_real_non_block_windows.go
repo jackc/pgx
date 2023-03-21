@@ -63,7 +63,7 @@ func (c *NetConn) realNonblockingWrite(b []byte) (n int, err error) {
 	c.nonblockWriteN = 0
 	c.nonblockWriteErr = nil
 
-	if c.isDeadlineSet(c.writeDeadline) && time.Now().After(c.writeDeadline) {
+	if c.isDeadlineSet(c.writeDeadline) && !time.Now().Before(c.writeDeadline) {
 		c.nonblockWriteErr = errors.New("i/o timeout")
 
 		return 0, c.nonblockWriteErr
@@ -109,7 +109,7 @@ func (c *NetConn) realNonblockingRead(b []byte) (n int, err error) {
 	c.nonblockReadN = 0
 	c.nonblockReadErr = nil
 
-	if c.isDeadlineSet(c.readDeadline) && time.Now().After(c.readDeadline) {
+	if c.isDeadlineSet(c.readDeadline) && !time.Now().Before(c.readDeadline) {
 		c.nonblockReadErr = errors.New("i/o timeout")
 
 		return 0, c.nonblockReadErr
