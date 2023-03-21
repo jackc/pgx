@@ -131,14 +131,32 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 		return nil
 	}
 
+	// Prevent concurrent SetBlockingMode calls
+	c.nbOperMu.Lock()
+	defer c.nbOperMu.Unlock()
+
+	// Guard against negative value (which should never happen in practice)
+	if c.nbOperCnt < 0 {
+		c.nbOperCnt = 0
+	}
+
 	if blocking {
-		// Not ready to exit from non-blocking mode, there are pending non-blocking operations
-		if c.nbOperCnt.Add(-1) > 0 {
+		// Socket is already in blocking mode
+		if c.nbOperCnt == 0 {
+			return nil
+		}
+
+		c.nbOperCnt--
+
+		// Not ready to exit from non-blocking mode, there is pending non-blocking operations
+		if c.nbOperCnt > 0 {
 			return nil
 		}
 	} else {
-		// Socket is already in non-blocking state
-		if c.nbOperCnt.Add(1) > 1 {
+		c.nbOperCnt++
+
+		// Socket is already in non-blocking mode
+		if c.nbOperCnt > 1 {
 			return nil
 		}
 	}
@@ -162,11 +180,13 @@ func (c *NetConn) SetBlockingMode(blocking bool) error {
 
 		// Revert counters inc/dec in case of error
 		if blocking {
-			c.nbOperCnt.Add(1)
+			c.nbOperCnt++
+			//c.nbOperCnt.Add(1)
 
 			return fmt.Errorf("cannot set socket to blocking mode: %w", retErr)
 		} else {
-			c.nbOperCnt.Add(-1)
+			c.nbOperCnt--
+			//c.nbOperCnt.Add(-1)
 
 			return fmt.Errorf("cannot set socket to non-blocking mode: %w", retErr)
 		}
