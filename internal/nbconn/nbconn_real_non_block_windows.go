@@ -44,7 +44,7 @@ func setSockMode(fd uintptr, mode sockMode) error {
 }
 
 func (c *NetConn) isDeadlineSet(dl time.Time) bool {
-	return !dl.IsZero() && dl != NonBlockingDeadline && dl != disableSetDeadlineDeadline
+	return !dl.IsZero() && !dl.Equal(NonBlockingDeadline) && !dl.Equal(disableSetDeadlineDeadline)
 }
 
 func (c *NetConn) isWriteDeadlineExpired() bool {
