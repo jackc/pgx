@@ -150,7 +150,7 @@ func (scanPlanJSONToJSONUnmarshal) Scan(src []byte, dst any) error {
 		if dstValue.Kind() == reflect.Ptr {
 			el := dstValue.Elem()
 			switch el.Kind() {
-			case reflect.Ptr, reflect.Slice, reflect.Map:
+			case reflect.Ptr, reflect.Slice, reflect.Map, reflect.Interface:
 				el.Set(reflect.Zero(el.Type()))
 				return nil
 			}
