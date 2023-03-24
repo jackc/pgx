@@ -578,7 +578,6 @@ func (rs *namedStructRowScanner) ScanRow(rows Rows) error {
 
 	dstElemValue := dstValue.Elem()
 	scanTargets, err := rs.appendScanTargets(dstElemValue, nil, rows.FieldDescriptions())
-
 	if err != nil {
 		return err
 	}
@@ -640,6 +639,95 @@ func (rs *namedStructRowScanner) appendScanTargets(dstElemValue reflect.Value, s
 			fpos := fieldPosByName(fldDescs, colName)
 			if fpos == -1 || fpos >= len(scanTargets) {
 				return nil, fmt.Errorf("cannot find field %s in returned row", colName)
+			}
+			scanTargets[fpos] = dstElemValue.Field(i).Addr().Interface()
+		}
+	}
+
+	return scanTargets, err
+}
+
+// RowToStructByNameLax returns a T scanned from row. T must be a struct. T must have greater than or equal number of named public
+// fields as row has fields. The row and T fields will by matched by name. The match is case-insensitive. The database
+// column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
+func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
+	var value T
+	err := row.Scan(&namedStructRowLaxScanner{ptrToStruct: &value})
+	return value, err
+}
+
+// RowToAddrOfStructByNameLax returns the address of a T scanned from row. T must be a struct. T must have greater than or
+// equal number of named public fields as row has fields. The row and T fields will by matched by name. The match is
+// case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
+// then the field will be ignored.
+func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
+	var value T
+	err := row.Scan(&namedStructRowLaxScanner{ptrToStruct: &value})
+	return &value, err
+}
+
+type namedStructRowLaxScanner struct {
+	ptrToStruct any
+}
+
+func (rs *namedStructRowLaxScanner) ScanRow(rows Rows) error {
+	dst := rs.ptrToStruct
+	dstValue := reflect.ValueOf(dst)
+	if dstValue.Kind() != reflect.Ptr {
+		return fmt.Errorf("dst not a pointer")
+	}
+
+	dstElemValue := dstValue.Elem()
+	scanTargets, err := rs.appendScanTargets(dstElemValue, nil, rows.FieldDescriptions())
+	if err != nil {
+		return err
+	}
+
+	for i, t := range scanTargets {
+		if t == nil {
+			return fmt.Errorf("struct doesn't have corresponding row field %s", rows.FieldDescriptions()[i].Name)
+		}
+	}
+
+	return rows.Scan(scanTargets...)
+}
+
+func (rs *namedStructRowLaxScanner) appendScanTargets(dstElemValue reflect.Value, scanTargets []any, fldDescs []pgconn.FieldDescription) ([]any, error) {
+	var err error
+	dstElemType := dstElemValue.Type()
+
+	if scanTargets == nil {
+		scanTargets = make([]any, len(fldDescs))
+	}
+
+	for i := 0; i < dstElemType.NumField(); i++ {
+		sf := dstElemType.Field(i)
+		if sf.PkgPath != "" && !sf.Anonymous {
+			// Field is unexported, skip it.
+			continue
+		}
+		// Handle anoymous struct embedding, but do not try to handle embedded pointers.
+		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
+			scanTargets, err = rs.appendScanTargets(dstElemValue.Field(i), scanTargets, fldDescs)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			dbTag, dbTagPresent := sf.Tag.Lookup(structTagKey)
+			if dbTagPresent {
+				dbTag = strings.Split(dbTag, ",")[0]
+			}
+			if dbTag == "-" {
+				// Field is ignored, skip it.
+				continue
+			}
+			colName := dbTag
+			if !dbTagPresent {
+				colName = sf.Name
+			}
+			fpos := fieldPosByName(fldDescs, colName)
+			if fpos == -1 {
+				continue
 			}
 			scanTargets[fpos] = dstElemValue.Field(i).Addr().Interface()
 		}
