@@ -83,6 +83,11 @@ func TestJSONCodecUnmarshalSQLNull(t *testing.T) {
 		require.NoError(t, err)
 		require.Nil(t, m)
 
+		m = map[string]interface{}{"foo": "bar"}
+		err = conn.QueryRow(ctx, "select null::json").Scan(&m)
+		require.NoError(t, err)
+		require.Nil(t, m)
+
 		// Pointer to pointer are nilified
 		n := 42
 		p := &n

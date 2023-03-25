@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
+	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxtest"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSONBTranscode(t *testing.T) {
@@ -29,5 +31,42 @@ func TestJSONBTranscode(t *testing.T) {
 		{[]byte(`"hello"`), new(string), isExpectedEq(`"hello"`)},
 		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
 		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
+	})
+}
+
+func TestJSONBCodecUnmarshalSQLNull(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		// Slices are nilified
+		slice := []string{"foo", "bar", "baz"}
+		err := conn.QueryRow(ctx, "select null::jsonb").Scan(&slice)
+		require.NoError(t, err)
+		require.Nil(t, slice)
+
+		// Maps are nilified
+		m := map[string]any{"foo": "bar"}
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&m)
+		require.NoError(t, err)
+		require.Nil(t, m)
+
+		m = map[string]interface{}{"foo": "bar"}
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&m)
+		require.NoError(t, err)
+		require.Nil(t, m)
+
+		// Pointer to pointer are nilified
+		n := 42
+		p := &n
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&p)
+		require.NoError(t, err)
+		require.Nil(t, p)
+
+		// A string cannot scan a NULL.
+		str := "foobar"
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&str)
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *string")
+
+		// A non-string cannot scan a NULL.
+		err = conn.QueryRow(ctx, "select null::jsonb").Scan(&n)
+		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *int")
 	})
 }
