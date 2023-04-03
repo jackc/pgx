@@ -736,7 +736,7 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 	})
 }
 
-func TestRowToStructByNameLaxJSON(t *testing.T) {
+func TestRowToStructByNameLaxRowValue(t *testing.T) {
 	type AnotherTable struct{}
 	type User struct {
 		UserID int    `json:"userId" db:"user_id"`
