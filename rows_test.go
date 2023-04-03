@@ -751,17 +751,13 @@ func TestRowToStructByNameLaxJSON(t *testing.T) {
 	}
 
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		// FIXME
-		// user_api_key_id  │ user_id │              user
-		// ═════════════════╪═════════╪═════════════════════════════════
-		//             101  │       1 │ {"user_id":1,"name":"John Doe"}
 		rows, _ := conn.Query(ctx, `
 		WITH user_api_keys AS (
 			SELECT 1 AS user_id, 101 AS user_api_key_id, 'abc123' AS api_key
 		), users AS (
 			SELECT 1 AS user_id, 'John Doe' AS name
 		)
-		SELECT user_api_keys.user_api_key_id, user_api_keys.user_id, row_to_json(users.*) AS user
+		SELECT user_api_keys.user_api_key_id, user_api_keys.user_id, row(users.*) AS user
 		FROM user_api_keys
 		LEFT JOIN users ON users.user_id = user_api_keys.user_id
 		WHERE user_api_keys.api_key = 'abc123';
