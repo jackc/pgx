@@ -736,6 +736,42 @@ func TestRowToStructByNameLaxEmbeddedStruct(t *testing.T) {
 	})
 }
 
+func TestRowToStructByNameLaxJSON(t *testing.T) {
+	type AnotherTable struct{}
+	type User struct {
+		UserID int    `json:"userId" db:"user_id"`
+		Name   string `json:"name" db:"name"`
+	}
+	type UserAPIKey struct {
+		UserAPIKeyID int `json:"userApiKeyId" db:"user_api_key_id"`
+		UserID       int `json:"userId" db:"user_id"`
+
+		User         *User         `json:"user" db:"user"`
+		AnotherTable *AnotherTable `json:"anotherTable" db:"another_table"`
+	}
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		// FIXME
+		// user_api_key_id  │ user_id │              user
+		// ═════════════════╪═════════╪═════════════════════════════════
+		//             101  │       1 │ {"user_id":1,"name":"John Doe"}
+		rows, _ := conn.Query(ctx, `
+		WITH user_api_keys AS (
+			SELECT 1 AS user_id, 101 AS user_api_key_id, 'abc123' AS api_key
+		), users AS (
+			SELECT 1 AS user_id, 'John Doe' AS name
+		)
+		SELECT user_api_keys.user_api_key_id, user_api_keys.user_id, row_to_json(users.*) AS user
+		FROM user_api_keys
+		LEFT JOIN users ON users.user_id = user_api_keys.user_id
+		WHERE user_api_keys.api_key = 'abc123';
+		`)
+		slice, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[UserAPIKey])
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, slice, []UserAPIKey{{UserAPIKeyID: 101, UserID: 1, User: &User{UserID: 1, Name: "John Doe"}, AnotherTable: nil}})
+	})
+}
+
 func ExampleRowToStructByNameLax() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
