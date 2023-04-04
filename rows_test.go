@@ -751,6 +751,8 @@ func TestRowToStructByNameLaxRowValue(t *testing.T) {
 	}
 
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "")
+
 		rows, _ := conn.Query(ctx, `
 		WITH user_api_keys AS (
 			SELECT 1 AS user_id, 101 AS user_api_key_id, 'abc123' AS api_key
@@ -763,6 +765,7 @@ func TestRowToStructByNameLaxRowValue(t *testing.T) {
 		WHERE user_api_keys.api_key = 'abc123';
 		`)
 		slice, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[UserAPIKey])
+
 		assert.NoError(t, err)
 		assert.ElementsMatch(t, slice, []UserAPIKey{{UserAPIKeyID: 101, UserID: 1, User: &User{UserID: 1, Name: "John Doe"}, AnotherTable: nil}})
 	})
