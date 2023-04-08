@@ -1089,15 +1089,16 @@ func TryWrapPtrSliceScanPlan(target any) (plan WrappedScanPlanNextSetter, nextVa
 		return &wrapPtrSliceScanPlan[time.Time]{}, (*FlatArray[time.Time])(target), true
 	}
 
-	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	targetType := reflect.TypeOf(target)
+	if targetType.Kind() != reflect.Ptr {
 		return nil, nil, false
 	}
 
-	targetElemValue := targetValue.Elem()
+	targetElemType := targetType.Elem()
 
-	if targetElemValue.Kind() == reflect.Slice {
-		return &wrapPtrSliceReflectScanPlan{}, &anySliceArrayReflect{slice: targetElemValue}, true
+	if targetElemType.Kind() == reflect.Slice {
+		slice := reflect.New(targetElemType).Elem()
+		return &wrapPtrSliceReflectScanPlan{}, &anySliceArrayReflect{slice: slice}, true
 	}
 	return nil, nil, false
 }
@@ -1198,6 +1199,10 @@ func (m *Map) PlanScan(oid uint32, formatCode int16, target any) ScanPlan {
 }
 
 func (m *Map) planScan(oid uint32, formatCode int16, target any) ScanPlan {
+	if target == nil {
+		return &scanPlanFail{m: m, oid: oid, formatCode: formatCode}
+	}
+
 	if _, ok := target.(*UndecodedBytes); ok {
 		return scanPlanAnyToUndecodedBytes{}
 	}
