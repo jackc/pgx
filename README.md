@@ -139,6 +139,11 @@ These adapters can be used with the tracelog package.
 
 Library for scanning data from a database into Go structs and more.
 
+### [github.com/vingarcia/ksql](https://github.com/vingarcia/ksql)
+
+A carefully designed SQL client for making using SQL easier,
+more productive, and less error-prone on Golang.
+
 ### [https://github.com/otan/gopgkrb5](https://github.com/otan/gopgkrb5)
 
 Adds GSSAPI / Kerberos authentication support.
