@@ -2050,7 +2050,7 @@ func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) 
 		dataTypeName = "unknown type"
 	}
 
-	return fmt.Errorf("unable to encode %#v into %s format for %s (OID %d): %s", value, format, dataTypeName, oid, err)
+	return fmt.Errorf("unable to encode %#v into %s format for %s (OID %d): %w", value, format, dataTypeName, oid, err)
 }
 
 // Encode appends the encoded bytes of value to buf. If value is the SQL value NULL then append nothing and return
