@@ -742,6 +742,27 @@ func TestSendBatchErrorWhileReadingResultsWithoutCallback(t *testing.T) {
 	})
 }
 
+func TestSendBatchErrorWhileReadingResultsWithExecWhereSomeRowsAreReturned(t *testing.T) {
+	t.Parallel()
+
+	pgxtest.RunWithQueryExecModes(context.Background(), t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		batch := &pgx.Batch{}
+		batch.Queue("select 4 / n from generate_series(-2, 2) n")
+
+		batchResult := conn.SendBatch(ctx, batch)
+
+		_, execErr := batchResult.Exec()
+		require.Error(t, execErr)
+
+		closeErr := batchResult.Close()
+		require.Equal(t, execErr, closeErr)
+
+		// Try to use the connection.
+		_, err := conn.Exec(ctx, "select 1")
+		require.NoError(t, err)
+	})
+}
+
 func TestConnBeginBatchDeferredError(t *testing.T) {
 	t.Parallel()
 
