@@ -381,17 +381,13 @@ func (br *pipelineBatchResults) Close() error {
 		}
 	}()
 
-	if br.err != nil {
-		return br.err
-	}
-
-	if br.lastRows != nil && br.lastRows.err != nil {
+	if br.err == nil && br.lastRows != nil && br.lastRows.err != nil {
 		br.err = br.lastRows.err
 		return br.err
 	}
 
 	if br.closed {
-		return nil
+		return br.err
 	}
 
 	// Read and run fn for all remaining items
