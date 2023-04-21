@@ -208,3 +208,48 @@ create type point3d as (
 		}
 	})
 }
+
+// Test for composite type from table instead of create type. Table types have system / hidden columns like tableoid,
+// cmax, xmax, etc. These are not included when sending or receiving composite types.
+//
+// https://github.com/jackc/pgx/issues/1576
+func TestCompositeCodecTranscodeStructWrapperForTable(t *testing.T) {
+	skipCockroachDB(t, "Server does not support composite types (see https://github.com/cockroachdb/cockroach/issues/27792)")
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+
+		_, err := conn.Exec(ctx, `drop table if exists point3d;
+
+create table point3d (
+	x float8,
+	y float8,
+	z float8
+);`)
+		require.NoError(t, err)
+		defer conn.Exec(ctx, "drop table point3d")
+
+		dt, err := conn.LoadType(ctx, "point3d")
+		require.NoError(t, err)
+		conn.TypeMap().RegisterType(dt)
+
+		formats := []struct {
+			name string
+			code int16
+		}{
+			{name: "TextFormat", code: pgx.TextFormatCode},
+			{name: "BinaryFormat", code: pgx.BinaryFormatCode},
+		}
+
+		type anotherPoint struct {
+			X, Y, Z float64
+		}
+
+		for _, format := range formats {
+			input := anotherPoint{X: 1, Y: 2, Z: 3}
+			var output anotherPoint
+			err := conn.QueryRow(ctx, "select $1::point3d", pgx.QueryResultFormats{format.code}, input).Scan(&output)
+			require.NoErrorf(t, err, "%v", format.name)
+			require.Equalf(t, input, output, "%v", format.name)
+		}
+	})
+}
