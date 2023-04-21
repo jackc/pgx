@@ -139,7 +139,10 @@ func (br *batchResults) Exec() (pgconn.CommandTag, error) {
 	}
 
 	commandTag, err := br.mrr.ResultReader().Close()
-	br.err = err
+	if err != nil {
+		br.err = err
+		br.mrr.Close()
+	}
 
 	if br.conn.batchTracer != nil {
 		br.conn.batchTracer.TraceBatchQuery(br.ctx, br.conn, TraceBatchQueryData{
