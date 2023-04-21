@@ -287,7 +287,7 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 	results, err := br.pipeline.GetResults()
 	if err != nil {
 		br.err = err
-		return pgconn.CommandTag{}, err
+		return pgconn.CommandTag{}, br.err
 	}
 	var commandTag pgconn.CommandTag
 	switch results := results.(type) {
@@ -306,7 +306,7 @@ func (br *pipelineBatchResults) Exec() (pgconn.CommandTag, error) {
 		})
 	}
 
-	return commandTag, err
+	return commandTag, br.err
 }
 
 // Query reads the results from the next query in the batch as if the query has been sent with Query.
