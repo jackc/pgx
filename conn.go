@@ -975,7 +975,7 @@ func (c *Conn) sendBatchQueryExecModeExec(ctx context.Context, b *Batch) *batchR
 
 func (c *Conn) sendBatchQueryExecModeCacheStatement(ctx context.Context, b *Batch) (pbr *pipelineBatchResults) {
 	if c.statementCache == nil {
-		return &pipelineBatchResults{ctx: ctx, conn: c, err: errDisabledStatementCache}
+		return &pipelineBatchResults{ctx: ctx, conn: c, err: errDisabledStatementCache, closed: true}
 	}
 
 	distinctNewQueries := []*pgconn.StatementDescription{}
@@ -1007,7 +1007,7 @@ func (c *Conn) sendBatchQueryExecModeCacheStatement(ctx context.Context, b *Batc
 
 func (c *Conn) sendBatchQueryExecModeCacheDescribe(ctx context.Context, b *Batch) (pbr *pipelineBatchResults) {
 	if c.descriptionCache == nil {
-		return &pipelineBatchResults{ctx: ctx, conn: c, err: errDisabledDescriptionCache}
+		return &pipelineBatchResults{ctx: ctx, conn: c, err: errDisabledDescriptionCache, closed: true}
 	}
 
 	distinctNewQueries := []*pgconn.StatementDescription{}
@@ -1074,18 +1074,18 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 
 		err := pipeline.Sync()
 		if err != nil {
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
+			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 		}
 
 		for _, sd := range distinctNewQueries {
 			results, err := pipeline.GetResults()
 			if err != nil {
-				return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
+				return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 			}
 
 			resultSD, ok := results.(*pgconn.StatementDescription)
 			if !ok {
-				return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected statement description, got %T", results)}
+				return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected statement description, got %T", results), closed: true}
 			}
 
 			// Fill in the previously empty / pending statement descriptions.
@@ -1095,12 +1095,12 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 
 		results, err := pipeline.GetResults()
 		if err != nil {
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
+			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 		}
 
 		_, ok := results.(*pgconn.PipelineSync)
 		if !ok {
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected sync, got %T", results)}
+			return &pipelineBatchResults{ctx: ctx, conn: c, err: fmt.Errorf("expected sync, got %T", results), closed: true}
 		}
 	}
 
@@ -1117,7 +1117,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 		if err != nil {
 			// we wrap the error so we the user can understand which query failed inside the batch
 			err = fmt.Errorf("error building query %s: %w", bi.query, err)
-			return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
+			return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 		}
 
 		if bi.sd.Name == "" {
@@ -1129,7 +1129,7 @@ func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, d
 
 	err := pipeline.Sync()
 	if err != nil {
-		return &pipelineBatchResults{ctx: ctx, conn: c, err: err}
+		return &pipelineBatchResults{ctx: ctx, conn: c, err: err, closed: true}
 	}
 
 	return &pipelineBatchResults{
