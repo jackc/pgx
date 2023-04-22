@@ -1,10 +1,12 @@
 package pgtype
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type BoolScanner interface {
@@ -264,8 +266,8 @@ func (scanPlanTextAnyToBool) Scan(src []byte, dst any) error {
 		return fmt.Errorf("cannot scan NULL into %T", dst)
 	}
 
-	if len(src) != 1 {
-		return fmt.Errorf("invalid length for bool: %v", len(src))
+	if len(src) == 0 {
+		return fmt.Errorf("cannot scan empty string into %T", dst)
 	}
 
 	p, ok := (dst).(*bool)
@@ -273,7 +275,12 @@ func (scanPlanTextAnyToBool) Scan(src []byte, dst any) error {
 		return ErrScanTargetTypeChanged
 	}
 
-	*p = src[0] == 't'
+	v, err := planTextToBool(src)
+	if err != nil {
+		return err
+	}
+
+	*p = v
 
 	return nil
 }
@@ -309,9 +316,28 @@ func (scanPlanTextAnyToBoolScanner) Scan(src []byte, dst any) error {
 		return s.ScanBool(Bool{})
 	}
 
-	if len(src) != 1 {
-		return fmt.Errorf("invalid length for bool: %v", len(src))
+	if len(src) == 0 {
+		return fmt.Errorf("cannot scan empty string into %T", dst)
 	}
 
-	return s.ScanBool(Bool{Bool: src[0] == 't', Valid: true})
+	v, err := planTextToBool(src)
+	if err != nil {
+		return err
+	}
+
+	return s.ScanBool(Bool{Bool: v, Valid: true})
+}
+
+// https://www.postgresql.org/docs/11/datatype-boolean.html
+func planTextToBool(src []byte) (bool, error) {
+	s := string(bytes.ToLower(bytes.TrimSpace(src)))
+
+	switch {
+	case strings.HasPrefix("true", s), strings.HasPrefix("yes", s), s == "on", s == "1":
+		return true, nil
+	case strings.HasPrefix("false", s), strings.HasPrefix("no", s), strings.HasPrefix("off", s), s == "0":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unknown boolean string representation %q", src)
+	}
 }
