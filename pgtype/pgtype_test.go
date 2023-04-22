@@ -453,6 +453,60 @@ func TestMapScanNullToWrongType(t *testing.T) {
 	assert.False(t, pn.Valid)
 }
 
+func TestMapScanTextToBool(t *testing.T) {
+	tests := []struct {
+		name string
+		src  []byte
+		want bool
+	}{
+		{"t", []byte("t"), true},
+		{"f", []byte("f"), false},
+		{"y", []byte("y"), true},
+		{"n", []byte("n"), false},
+		{"1", []byte("1"), true},
+		{"0", []byte("0"), false},
+		{"true", []byte("true"), true},
+		{"false", []byte("false"), false},
+		{"yes", []byte("yes"), true},
+		{"no", []byte("no"), false},
+		{"on", []byte("on"), true},
+		{"off", []byte("off"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := pgtype.NewMap()
+
+			var v bool
+			err := m.Scan(pgtype.BoolOID, pgx.TextFormatCode, tt.src, &v)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, v)
+		})
+	}
+}
+
+func TestMapScanTextToBoolError(t *testing.T) {
+	tests := []struct {
+		name string
+		src  []byte
+		want string
+	}{
+		{"nil", nil, "cannot scan NULL into *bool"},
+		{"empty", []byte{}, "cannot scan empty string into *bool"},
+		{"foo", []byte("foo"), "unknown boolean string representation \"foo\""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := pgtype.NewMap()
+
+			var v bool
+			err := m.Scan(pgtype.BoolOID, pgx.TextFormatCode, tt.src, &v)
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
 type databaseValuerUUID [16]byte
 
 func (v databaseValuerUUID) Value() (driver.Value, error) {
