@@ -533,13 +533,11 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 
 	for i := 0; i < dstElemType.NumField(); i++ {
 		sf := dstElemType.Field(i)
-		if sf.PkgPath == "" {
-			// Handle anonymous struct embedding, but do not try to handle embedded pointers.
-			if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
-				scanTargets = rs.appendScanTargets(dstElemValue.Field(i), scanTargets)
-			} else {
-				scanTargets = append(scanTargets, dstElemValue.Field(i).Addr().Interface())
-			}
+		// Handle anonymous struct embedding, but do not try to handle embedded pointers.
+		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
+			scanTargets = rs.appendScanTargets(dstElemValue.Field(i), scanTargets)
+		} else if sf.PkgPath == "" {
+			scanTargets = append(scanTargets, dstElemValue.Field(i).Addr().Interface())
 		}
 	}
 
