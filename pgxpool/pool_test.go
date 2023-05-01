@@ -347,6 +347,49 @@ func TestPoolAfterRelease(t *testing.T) {
 	assert.EqualValues(t, 5, len(connPIDs))
 }
 
+func TestPoolBeforeClose(t *testing.T) {
+	t.Parallel()
+
+	func() {
+		pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		defer pool.Close()
+
+		err = pool.AcquireFunc(context.Background(), func(conn *pgxpool.Conn) error {
+			if conn.Conn().PgConn().ParameterStatus("crdb_version") != "" {
+				t.Skip("Server does not support backend PID")
+			}
+			return nil
+		})
+		require.NoError(t, err)
+	}()
+
+	config, err := pgxpool.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+
+	connPIDs := make(chan uint32, 5)
+	config.BeforeClose = func(c *pgx.Conn) {
+		connPIDs <- c.PgConn().PID()
+	}
+
+	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	require.NoError(t, err)
+	defer db.Close()
+
+	acquiredPIDs := make([]uint32, 0, 5)
+	closedPIDs := make([]uint32, 0, 5)
+	for i := 0; i < 5; i++ {
+		conn, err := db.Acquire(context.Background())
+		assert.NoError(t, err)
+		acquiredPIDs = append(acquiredPIDs, conn.Conn().PgConn().PID())
+		conn.Release()
+		db.Reset()
+		closedPIDs = append(closedPIDs, <-connPIDs)
+	}
+
+	assert.ElementsMatch(t, acquiredPIDs, closedPIDs)
+}
+
 func TestPoolAcquireAllIdle(t *testing.T) {
 	t.Parallel()
 
