@@ -727,15 +727,17 @@ func ParseURI(uri string) (ConnConfig, error) {
 		cp.Password, _ = url.User.Password()
 	}
 
-	parts := strings.SplitN(url.Host, ":", 2)
-	cp.Host = parts[0]
-	if len(parts) == 2 {
-		p, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return cp, err
-		}
-		cp.Port = uint16(p)
-	}
+	//parts := strings.SplitN(url.Host, ":", 2)
+	//cp.Host = parts[0]
+	//if len(parts) == 2 {
+	//	p, err := strconv.ParseUint(parts[1], 10, 16)
+	//	if err != nil {
+	//		return cp, err
+	//	}
+	//	cp.Port = uint16(p)
+	//}
+	cp.Host = url.Host
+	cp.Port = 5432
 	cp.Database = strings.TrimLeft(url.Path, "/")
 
 	if pgtimeout := url.Query().Get("connect_timeout"); pgtimeout != "" {
