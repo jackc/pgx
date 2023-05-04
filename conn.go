@@ -289,12 +289,14 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 
 	// Create a new dialer with any options
 	d, err := cloudsqlconn.NewDialer(context.Background())
-
 	if err != nil {
 		return err
 	}
-	c.conn, err = d.Dial(context.Background(), address)
 
+	c.conn, err = d.Dial(context.Background(), address)
+	if err != nil {
+		return err
+	}
 	defer func() {
 		if c != nil && err != nil {
 			c.conn.Close()
