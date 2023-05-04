@@ -1,6 +1,7 @@
 package pgx
 
 import (
+	"cloud.google.com/go/cloudsqlconn"
 	"context"
 	"crypto/md5"
 	"crypto/tls"
@@ -284,10 +285,16 @@ func connect(config ConnConfig, connInfo *pgtype.ConnInfo) (c *Conn, err error) 
 }
 
 func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tls.Config) (err error) {
-	c.conn, err = c.config.Dial(network, address)
+	//c.conn, err = c.config.Dial(network, address)
+
+	// Create a new dialer with any options
+	d, err := cloudsqlconn.NewDialer(context.Background())
+
 	if err != nil {
 		return err
 	}
+	c.conn = d.Dial(context.Background(), address)
+
 	defer func() {
 		if c != nil && err != nil {
 			c.conn.Close()
