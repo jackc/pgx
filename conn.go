@@ -293,7 +293,7 @@ func (c *Conn) connect(config ConnConfig, network, address string, tlsConfig *tl
 	if err != nil {
 		return err
 	}
-	c.conn = d.Dial(context.Background(), address)
+	c.conn, err = d.Dial(context.Background(), address)
 
 	defer func() {
 		if c != nil && err != nil {
