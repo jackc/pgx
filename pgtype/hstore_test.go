@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -179,4 +180,26 @@ func TestHstoreCodec(t *testing.T) {
 	}
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, pgxtest.KnownOIDQueryExecModes, "hstore", tests)
+
+	// scan empty and NULL: should be different
+	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, pgxtest.AllQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		h := pgtype.Hstore{"should_be_erased": nil}
+		err := conn.QueryRow(ctx, `select cast(null as hstore)`).Scan(&h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedNil := pgtype.Hstore(nil)
+		if !reflect.DeepEqual(h, expectedNil) {
+			t.Errorf("plain conn.Scan failed expectedNil=%#v actual=%#v", expectedNil, h)
+		}
+
+		err = conn.QueryRow(ctx, `select cast('' as hstore)`).Scan(&h)
+		if err != nil {
+			t.Fatal(err)
+		}
+		expectedEmpty := pgtype.Hstore{}
+		if !reflect.DeepEqual(h, expectedEmpty) {
+			t.Errorf("plain conn.Scan failed expectedEmpty=%#v actual=%#v", expectedEmpty, h)
+		}
+	})
 }

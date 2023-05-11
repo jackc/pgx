@@ -174,7 +174,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
-		return scanner.ScanHstore(Hstore{})
+		return scanner.ScanHstore(Hstore(nil))
 	}
 
 	rp := 0
@@ -234,7 +234,7 @@ func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
-		return scanner.ScanHstore(Hstore{})
+		return scanner.ScanHstore(Hstore(nil))
 	}
 
 	keys, values, err := parseHstore(string(src))
