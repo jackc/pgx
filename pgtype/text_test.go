@@ -83,16 +83,18 @@ func TestTextCodecBPChar(t *testing.T) {
 // ACLItem is used for PostgreSQL's aclitem data type. A sample aclitem
 // might look like this:
 //
-//	postgres=arwdDxt/postgres
+//	pg_database_owner=arwdDxt/pg_database_owner
 //
 // Note, however, that because the user/role name part of an aclitem is
 // an identifier, it follows all the usual formatting rules for SQL
 // identifiers: if it contains spaces and other special characters,
 // it should appear in double-quotes:
 //
-//	postgres=arwdDxt/"role with spaces"
+//	pg_database_owner=arwdDxt/"role with spaces"
 //
 // It only supports the text format.
+//
+// Use the pg_database_owner in the test since it is a predefined role.
 func TestTextCodecACLItem(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -101,9 +103,9 @@ func TestTextCodecACLItem(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, nil, "aclitem", []pgxtest.ValueRoundTripTest{
 		{
-			pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true},
+			pgtype.Text{String: "pg_database_owner=arwdDxt/pg_database_owner", Valid: true},
 			new(pgtype.Text),
-			isExpectedEq(pgtype.Text{String: "postgres=arwdDxt/postgres", Valid: true}),
+			isExpectedEq(pgtype.Text{String: "pg_database_owner=arwdDxt/pg_database_owner", Valid: true}),
 		},
 		{pgtype.Text{}, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
 		{nil, new(pgtype.Text), isExpectedEq(pgtype.Text{})},
