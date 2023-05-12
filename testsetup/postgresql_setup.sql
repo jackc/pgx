@@ -1,5 +1,4 @@
 -- Create extensions and types.
-create extension hstore;
 create domain uint64 as numeric(20,0);
 
 -- Create users for different types of connections and authentication.

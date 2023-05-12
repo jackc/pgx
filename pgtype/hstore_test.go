@@ -51,13 +51,34 @@ func isExpectedEqMapStringPointerString(a any) func(any) bool {
 	}
 }
 
+// loadHstoreExtension returns the Hstore OID after loading the extension (if needed).
+func loadHstoreExtensionOID(ctx context.Context, conn *pgx.Conn) (uint32, error) {
+	queryHstoreOID := func() (uint32, error) {
+		var hstoreOID uint32
+		err := conn.QueryRow(context.Background(), `select oid from pg_type where typname = 'hstore'`).Scan(&hstoreOID)
+		return hstoreOID, err
+	}
+	hstoreOID, err := queryHstoreOID()
+	if err == pgx.ErrNoRows {
+		// attempt to load the extension
+		_, err = conn.Exec(ctx, "create extension hstore")
+		if err != nil {
+			return 0, err
+		}
+
+		// attempt the query again
+		return queryHstoreOID()
+	}
+	// returns valid OID, but also unexpected errors
+	return hstoreOID, err
+}
+
 func TestHstoreCodec(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		var hstoreOID uint32
-		err := conn.QueryRow(context.Background(), `select oid from pg_type where typname = 'hstore'`).Scan(&hstoreOID)
+		hstoreOID, err := loadHstoreExtensionOID(ctx, conn)
 		if err != nil {
-			t.Skipf("Skipping: cannot find hstore OID")
+			t.Skipf("Skipping: failed to load the hstore extension; err=%s", err)
 		}
 
 		conn.TypeMap().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
