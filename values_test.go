@@ -865,6 +865,10 @@ func TestEncodeTypeRename(t *testing.T) {
 		inString := _string("foo")
 		var outString _string
 
+		type _bool bool
+		inBool := _bool(true)
+		var outBool _bool
+
 		// pgx.QueryExecModeExec requires all types to be registered.
 		conn.TypeMap().RegisterDefaultPgType(inInt, "int8")
 		conn.TypeMap().RegisterDefaultPgType(inInt8, "int8")
@@ -878,9 +882,9 @@ func TestEncodeTypeRename(t *testing.T) {
 		conn.TypeMap().RegisterDefaultPgType(inUint64, "int8")
 		conn.TypeMap().RegisterDefaultPgType(inString, "text")
 
-		err := conn.QueryRow(context.Background(), "select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text",
-			inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString,
-		).Scan(&outInt, &outInt8, &outInt16, &outInt32, &outInt64, &outUint, &outUint8, &outUint16, &outUint32, &outUint64, &outString)
+		err := conn.QueryRow(context.Background(), "select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text, $12::bool",
+			inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString, inBool,
+		).Scan(&outInt, &outInt8, &outInt16, &outInt32, &outInt64, &outUint, &outUint8, &outUint16, &outUint32, &outUint64, &outString, &outBool)
 		if err != nil {
 			t.Fatalf("Failed with type rename: %v", err)
 		}
@@ -927,6 +931,10 @@ func TestEncodeTypeRename(t *testing.T) {
 
 		if inString != outString {
 			t.Errorf("string rename: expected %v, got %v", inString, outString)
+		}
+
+		if inBool != outBool {
+			t.Errorf("bool rename: expected %v, got %v", inBool, outBool)
 		}
 	})
 }
