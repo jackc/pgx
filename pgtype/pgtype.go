@@ -1519,6 +1519,7 @@ var kindToTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]reflect.Type{
 	reflect.Float32: reflect.TypeOf(float32(0)),
 	reflect.Float64: reflect.TypeOf(float64(0)),
 	reflect.String:  reflect.TypeOf(""),
+	reflect.Bool:    reflect.TypeOf(false),
 }
 
 type underlyingTypeEncodePlan struct {
