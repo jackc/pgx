@@ -271,12 +271,6 @@ func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 	return hstore, nil
 }
 
-var quoteHstoreReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
-
-func quoteHstoreElement(src string) string {
-	return `"` + quoteArrayReplacer.Replace(src) + `"`
-}
-
 func quoteHstoreElementIfNeeded(src string) string {
 	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || strings.ContainsAny(src, ` {},"\=>`) {
 		return quoteArrayElement(src)
