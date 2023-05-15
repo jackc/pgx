@@ -203,3 +203,18 @@ func TestHstoreCodec(t *testing.T) {
 		}
 	})
 }
+
+func TestParseInvalidInputs(t *testing.T) {
+	// these inputs should be invalid, but previously were considered correct
+	invalidInputs := []string{
+		`"a"=>"1", ,b"=>"2"`,
+		`""=>"", 0"=>""`,
+	}
+	for i, input := range invalidInputs {
+		var hstore pgtype.Hstore
+		err := hstore.Scan(input)
+		if err == nil {
+			t.Errorf("test %d: input=%s (%#v) should fail; parsed correctly", i, input, input)
+		}
+	}
+}
