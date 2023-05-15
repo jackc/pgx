@@ -428,12 +428,21 @@ func parseHstore(s string) (k []string, v []Text, err error) {
 				r, end = p.Consume()
 				switch {
 				case end:
-					err = errors.New("Found EOS after ',', expcting space")
+					err = errors.New("Found EOS after ',', expecting space")
 				case (unicode.IsSpace(r)):
+					// after space is a doublequote to start the key
 					r, end = p.Consume()
+					if end {
+						err = errors.New("Found EOS after space, expecting \"")
+						return
+					}
+					if r != '"' {
+						err = fmt.Errorf("Invalid character '%c' after space, expecting \"", r)
+						return
+					}
 					state = hsKey
 				default:
-					err = fmt.Errorf("Invalid character '%c' after ', ', expecting \"", r)
+					err = fmt.Errorf("Invalid character '%c' after ',', expecting space", r)
 				}
 			} else {
 				err = fmt.Errorf("Invalid character '%c' after value, expecting ','", r)
