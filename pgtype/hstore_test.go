@@ -181,7 +181,34 @@ func TestHstoreCodec(t *testing.T) {
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, pgxtest.KnownOIDQueryExecModes, "hstore", tests)
 
-	// scan empty and NULL: should be different
+	// run the tests using pgtype.Hstore as input and output types, and test all query modes
+	for i := range tests {
+		var h pgtype.Hstore
+		switch typedParam := tests[i].Param.(type) {
+		case map[string]*string:
+			h = pgtype.Hstore(typedParam)
+		case map[string]string:
+			if typedParam != nil {
+				h = pgtype.Hstore{}
+				for k, v := range typedParam {
+					h[k] = fs(v)
+				}
+			}
+		}
+
+		tests[i].Param = h
+		tests[i].Result = &pgtype.Hstore{}
+		tests[i].Test = func(input any) bool {
+			return reflect.DeepEqual(input, h)
+		}
+	}
+	pgxtest.RunValueRoundTripTests(context.Background(), t, ctr, pgxtest.AllQueryExecModes, "hstore", tests)
+
+	// run the tests again without the codec registered: uses the text protocol
+	ctrWithoutCodec := defaultConnTestRunner
+	pgxtest.RunValueRoundTripTests(context.Background(), t, ctrWithoutCodec, pgxtest.AllQueryExecModes, "hstore", tests)
+
+	// scan empty and NULL: should be different in all query modes
 	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, pgxtest.AllQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		h := pgtype.Hstore{"should_be_erased": nil}
 		err := conn.QueryRow(ctx, `select cast(null as hstore)`).Scan(&h)
