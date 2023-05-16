@@ -122,6 +122,12 @@ func TestHstoreCodec(t *testing.T) {
 		`=>`,
 		` `,
 		`\ / / \\ => " ' " '`,
+		"line1\nline2",
+		"tab\tafter",
+		"vtab\vafter",
+		"form\\ffeed",
+		"carriage\rreturn",
+		"curly{}braces",
 	}
 	for _, s := range specialStrings {
 		// Special key values
