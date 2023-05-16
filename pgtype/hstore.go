@@ -272,9 +272,15 @@ func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 }
 
 func quoteHstoreElementIfNeeded(src string) string {
-	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || strings.ContainsAny(src, ` {},"\=>`) {
+	// Double-quote keys and values that include whitespace, commas, =s or >s. To include a double
+	// quote or a backslash in a key or value, escape it with a backslash.
+	// From: https://www.postgresql.org/docs/current/hstore.html
+	// whitespace appears to be defined as the isspace() C function: \t\n\v\f\r\n and space
+	const quoteRequiredChars = `,"\=> ` + "\t\n\v\f\r"
+	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || strings.ContainsAny(src, quoteRequiredChars) {
 		return quoteArrayElement(src)
 	}
+
 	return src
 }
 
