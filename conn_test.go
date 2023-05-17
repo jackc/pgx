@@ -197,6 +197,21 @@ func TestParseConfigExtractsDefaultQueryExecMode(t *testing.T) {
 	}
 }
 
+func TestParseConfigErrors(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		connString           string
+		expectedErrSubstring string
+	}{
+		{"default_query_exec_mode=does_not_exist", "does_not_exist"},
+	} {
+		config, err := pgx.ParseConfig(tt.connString)
+		require.Nil(t, config)
+		require.ErrorContains(t, err, tt.expectedErrSubstring)
+	}
+}
+
 func TestExec(t *testing.T) {
 	t.Parallel()
 
