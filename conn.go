@@ -1326,6 +1326,7 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 
 	for _, sd := range invalidatedStatements {
 		pipeline.SendDeallocate(sd.Name)
+		delete(c.preparedStatements, sd.Name)
 	}
 
 	err := pipeline.Sync()
