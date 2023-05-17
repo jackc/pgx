@@ -857,9 +857,28 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	// the connection config. This is important in high availability configurations where fallback connections may be
 	// specified or DNS may be used to load balance.
 	serverAddr := pgConn.conn.RemoteAddr()
-	cancelConn, err := pgConn.config.DialFunc(ctx, serverAddr.Network(), serverAddr.String())
+	var serverNetwork string
+	var serverAddress string
+	if serverAddr.Network() == "unix" {
+		// for unix sockets, RemoteAddr() calls getpeername() which returns the name the
+		// server passed to bind(). For Postgres, this is always a relative path "./.s.PGSQL.5432"
+		// so connecting to it will fail. Fall back to the config's value
+		serverNetwork, serverAddress = NetworkAddress(pgConn.config.Host, pgConn.config.Port)
+	} else {
+		serverNetwork, serverAddress = serverAddr.Network(), serverAddr.String()
+	}
+	cancelConn, err := pgConn.config.DialFunc(ctx, serverNetwork, serverAddress)
 	if err != nil {
-		return err
+		// In case of unix sockets, RemoteAddr() returns only the file part of the path. If the
+		// first connect failed, try the config.
+		if serverAddr.Network() != "unix" {
+			return err
+		}
+		serverNetwork, serverAddr := NetworkAddress(pgConn.config.Host, pgConn.config.Port)
+		cancelConn, err = pgConn.config.DialFunc(ctx, serverNetwork, serverAddr)
+		if err != nil {
+			return err
+		}
 	}
 	defer cancelConn.Close()
 
