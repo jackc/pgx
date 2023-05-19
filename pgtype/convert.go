@@ -64,6 +64,9 @@ func underlyingNumberType(val any) (any, bool) {
 	case reflect.String:
 		convVal := refVal.String()
 		return convVal, reflect.TypeOf(convVal) != refVal.Type()
+	case reflect.Bool:
+		convVal := refVal.Bool()
+		return convVal, reflect.TypeOf(convVal) != refVal.Type()
 	}
 
 	return nil, false
