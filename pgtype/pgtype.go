@@ -276,7 +276,7 @@ func NewMap() *Map {
 	m.RegisterType(&Type{Name: "text", OID: TextOID, Codec: TextCodec{}})
 	m.RegisterType(&Type{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
 	m.RegisterType(&Type{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
-	m.RegisterType(&Type{Name: "timestamp", OID: TimestampOID, Codec: TimestampCodec{}})
+	m.RegisterType(&Type{Name: "timestamp", OID: TimestampOID, Codec: &TimestampCodec{}})
 	m.RegisterType(&Type{Name: "timestamptz", OID: TimestamptzOID, Codec: TimestamptzCodec{}})
 	m.RegisterType(&Type{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
 	m.RegisterType(&Type{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
@@ -416,6 +416,24 @@ func NewMap() *Map {
 	registerDefaultPgTypeVariants[UUID](m, "uuid")
 
 	return m
+}
+
+// EnableInfinityTs controls the handling of Postgres' "-infinity" and "infinity" "timestamp
+func (m *Map) EnableInfinityTs(negativeInfinity, positiveInfinity time.Time) error {
+	if negativeInfinity.Unix() >= positiveInfinity.Unix() {
+		return errors.New("invalid timerange between negative and positive infinity")
+	}
+
+	ts := m.nameToType["timestamp"]
+	tsc, _ := ts.Codec.(*TimestampCodec)
+
+	tsc.InfinityTsEnabled = true
+	tsc.Min = negativeInfinity
+	tsc.Max = positiveInfinity
+
+	delete(m.memoizedScanPlans, ts.OID)
+	delete(m.memoizedEncodePlans, ts.OID)
+	return nil
 }
 
 func (m *Map) RegisterType(t *Type) {
