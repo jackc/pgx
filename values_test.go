@@ -881,6 +881,7 @@ func TestEncodeTypeRename(t *testing.T) {
 		conn.TypeMap().RegisterDefaultPgType(inUint32, "int8")
 		conn.TypeMap().RegisterDefaultPgType(inUint64, "int8")
 		conn.TypeMap().RegisterDefaultPgType(inString, "text")
+		conn.TypeMap().RegisterDefaultPgType(inBool, "bool")
 
 		err := conn.QueryRow(context.Background(), "select $1::int, $2::int, $3::int2, $4::int4, $5::int8, $6::int, $7::int, $8::int, $9::int, $10::int, $11::text, $12::bool",
 			inInt, inInt8, inInt16, inInt32, inInt64, inUint, inUint8, inUint16, inUint32, inUint64, inString, inBool,

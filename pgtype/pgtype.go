@@ -666,6 +666,7 @@ var elemKindToPointerTypes map[reflect.Kind]reflect.Type = map[reflect.Kind]refl
 	reflect.Float32: reflect.TypeOf(new(float32)),
 	reflect.Float64: reflect.TypeOf(new(float64)),
 	reflect.String:  reflect.TypeOf(new(string)),
+	reflect.Bool:    reflect.TypeOf(new(bool)),
 }
 
 type underlyingTypeScanPlan struct {
