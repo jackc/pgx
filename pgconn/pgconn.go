@@ -1644,6 +1644,11 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 // connection. If this is done immediately before sending a query it reduces the chances a query will be sent that fails
 // without the client knowing whether the server received it or not.
 func (pgConn *PgConn) CheckConn() error {
+	if err := pgConn.lock(); err != nil {
+		return err
+	}
+	defer pgConn.unlock()
+
 	err := pgConn.conn.BufferReadUntilBlock()
 	if err != nil && !errors.Is(err, nbconn.ErrWouldBlock) {
 		return err
