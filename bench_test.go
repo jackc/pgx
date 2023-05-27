@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/internal/nbconn"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/require"
@@ -1120,7 +1119,7 @@ func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 }
 
 type queryRecorder struct {
-	conn      nbconn.Conn
+	conn      net.Conn
 	writeBuf  []byte
 	readCount int
 }
@@ -1134,14 +1133,6 @@ func (qr *queryRecorder) Read(b []byte) (n int, err error) {
 func (qr *queryRecorder) Write(b []byte) (n int, err error) {
 	qr.writeBuf = append(qr.writeBuf, b...)
 	return qr.conn.Write(b)
-}
-
-func (qr *queryRecorder) BufferReadUntilBlock() error {
-	return qr.conn.BufferReadUntilBlock()
-}
-
-func (qr *queryRecorder) Flush() error {
-	return qr.conn.Flush()
 }
 
 func (qr *queryRecorder) Close() error {
