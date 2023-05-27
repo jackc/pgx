@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -299,8 +300,12 @@ func TestInternalNonBlockingWrite(t *testing.T) {
 
 		err = conn.Close()
 		require.NoError(t, err)
-
-		require.NoError(t, <-errChan)
+		if runtime.GOOS == "windows" && t.Name() == "TestInternalNonBlockingWrite/TLS_over_TCP_with_Fake_Non-blocking_IO" {
+			// this test is expected to fail on Windows see https://github.com/golang/go/issues/58764
+			require.Error(t, <-errChan)
+		} else {
+			require.NoError(t, <-errChan)
+		}
 	})
 }
 
