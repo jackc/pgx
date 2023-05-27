@@ -96,11 +96,12 @@ type NetConn struct {
 
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
+	// The following fields are used in nbconn_real_non_block_windows
 
-	// nbOperCnt Tracks how many operations performing simultaneously
-	nbOperCnt int
 	// nbOperMu Used to prevent concurrent SetBlockingMode calls
 	nbOperMu sync.Mutex
+	// nbOperCnt Tracks how many operations performing simultaneously
+	nbOperCnt int
 }
 
 func NewNetConn(conn net.Conn, fakeNonBlockingIO bool) *NetConn {
