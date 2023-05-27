@@ -146,6 +146,14 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
 
+      - name: Initialize test database
+        run: |
+          psql -f testsetup/postgresql_setup.sql pgx_test
+
+        env:
+          PGSERVICE: ${{ steps.postgres.outputs.service-name }}
+        shell: bash
+
       - name: Test
         run: go test -v -race -timeout 5m  ./...
         env:
