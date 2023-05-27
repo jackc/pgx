@@ -96,6 +96,11 @@ type NetConn struct {
 
 	writeDeadlineLock sync.Mutex
 	writeDeadline     time.Time
+
+	// nbOperCnt Tracks how many operations performing simultaneously
+	nbOperCnt int
+	// nbOperMu Used to prevent concurrent SetBlockingMode calls
+	nbOperMu sync.Mutex
 }
 
 func NewNetConn(conn net.Conn, fakeNonBlockingIO bool) *NetConn {
