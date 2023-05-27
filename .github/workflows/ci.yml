@@ -76,7 +76,7 @@ jobs:
     steps:
 
     - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
 
@@ -123,3 +123,30 @@ jobs:
         # PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
         PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
         PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
+
+  test-windows:
+    name: Test Windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        go-version: ["1.19", "1.20"]
+
+    steps:
+      - name: Setup PostgreSQL
+        id: postgres
+        uses: ikalnytskyi/action-setup-postgres@v4
+        with:
+          database: pgx_test
+
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Test
+        run: go test -v -race -timeout 5m  ./...
+        env:
+          PGX_TEST_DATABASE: ${{ steps.postgres.outputs.connection-uri }}
