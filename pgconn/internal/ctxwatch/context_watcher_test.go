@@ -104,7 +104,9 @@ func TestContextWatcherStress(t *testing.T) {
 		}
 
 		// Without time.Sleep, cw.Unwatch will almost always run before the cancel func which means cancel will never happen. This gives us a better mix.
-		if i%3 == 0 {
+		if i%333 == 0 {
+			// on Windows Sleep takes more time than expected so we try to get here less frequently to avoid
+			// the CI takes a long time
 			time.Sleep(time.Nanosecond)
 		}
 
