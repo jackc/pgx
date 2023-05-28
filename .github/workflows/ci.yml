@@ -149,7 +149,6 @@ jobs:
       - name: Initialize test database
         run: |
           psql -f testsetup/postgresql_setup.sql pgx_test
-
         env:
           PGSERVICE: ${{ steps.postgres.outputs.service-name }}
         shell: bash
