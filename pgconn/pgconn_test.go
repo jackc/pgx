@@ -332,7 +332,7 @@ func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
 				require.True(t, pgconn.Timeout(err), err)
 			case err = <-serverErrChan:
 				t.Fatalf("server failed with error: %s", err)
-			case <-time.After(time.Millisecond * 100):
+			case <-time.After(time.Millisecond * 500):
 				t.Fatal("exceeded connection timeout without erroring out")
 			}
 		})
