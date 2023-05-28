@@ -896,17 +896,11 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
 	binary.BigEndian.PutUint32(buf[8:12], uint32(pgConn.pid))
 	binary.BigEndian.PutUint32(buf[12:16], uint32(pgConn.secretKey))
+	// Postgres will process the request and close the connection
+	// so when don't need to read the reply
+	// https://www.postgresql.org/docs/current/protocol-flow.html#id-1.10.6.7.10
 	_, err = cancelConn.Write(buf)
-	if err != nil {
-		return err
-	}
-
-	_, err = cancelConn.Read(buf)
-	if err != io.EOF {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 // WaitForNotification waits for a LISTON/NOTIFY message to be received. It returns an error if a notification was not
