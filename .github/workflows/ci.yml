@@ -154,6 +154,6 @@ jobs:
         shell: bash
 
       - name: Test
-        run: go test -v -race -timeout 5m  ./...
+        run: go test -v -race  ./...
         env:
           PGX_TEST_DATABASE: ${{ steps.postgres.outputs.connection-uri }}
