@@ -4,6 +4,7 @@ import (
 	"context"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -215,7 +216,10 @@ func TestHstoreCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctrWithoutCodec, pgxtest.AllQueryExecModes, "hstore", tests)
 
 	// scan empty and NULL: should be different in all query modes
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, pgxtest.AllQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, pgxtest.AllQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		h := pgtype.Hstore{"should_be_erased": nil}
 		err := conn.QueryRow(ctx, `select cast(null as hstore)`).Scan(&h)
 		if err != nil {
