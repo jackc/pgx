@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -12,69 +13,84 @@ import (
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	c, err := pool.Acquire(context.Background())
+	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.Release()
 
-	testExec(t, c)
+	testExec(t, ctx, c)
 }
 
 func TestConnQuery(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	c, err := pool.Acquire(context.Background())
+	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.Release()
 
-	testQuery(t, c)
+	testQuery(t, ctx, c)
 }
 
 func TestConnQueryRow(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	c, err := pool.Acquire(context.Background())
+	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.Release()
 
-	testQueryRow(t, c)
+	testQueryRow(t, ctx, c)
 }
 
 func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	c, err := pool.Acquire(context.Background())
+	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.Release()
 
-	testSendBatch(t, c)
+	testSendBatch(t, ctx, c)
 }
 
 func TestConnCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	c, err := pool.Acquire(context.Background())
+	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.Release()
 
-	testCopyFrom(t, c)
+	testCopyFrom(t, ctx, c)
 }

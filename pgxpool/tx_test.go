@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
@@ -12,69 +13,84 @@ import (
 func TestTxExec(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background())
+	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	testExec(t, tx)
+	testExec(t, ctx, tx)
 }
 
 func TestTxQuery(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background())
+	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	testQuery(t, tx)
+	testQuery(t, ctx, tx)
 }
 
 func TestTxQueryRow(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background())
+	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	testQueryRow(t, tx)
+	testQueryRow(t, ctx, tx)
 }
 
 func TestTxSendBatch(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background())
+	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	testSendBatch(t, tx)
+	testSendBatch(t, ctx, tx)
 }
 
 func TestTxCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 	defer pool.Close()
 
-	tx, err := pool.Begin(context.Background())
+	tx, err := pool.Begin(ctx)
 	require.NoError(t, err)
-	defer tx.Rollback(context.Background())
+	defer tx.Rollback(ctx)
 
-	testCopyFrom(t, tx)
+	testCopyFrom(t, ctx, tx)
 }
