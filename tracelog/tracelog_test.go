@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxtest"
@@ -71,7 +72,10 @@ func TestContextGetsPassedToLogMethod(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		ctx = context.WithValue(context.Background(), "ctxdata", "foo")
@@ -133,7 +137,10 @@ func TestLogQuery(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		_, err := conn.Exec(ctx, `select $1::text`, "testing")
@@ -172,7 +179,10 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		var s string
@@ -217,7 +227,10 @@ func TestLogCopyFrom(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, pgxtest.KnownOIDQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, pgxtest.KnownOIDQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		_, err := conn.Exec(context.Background(), `create temporary table foo(a int4)`)
 		require.NoError(t, err)
 
@@ -302,7 +315,10 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		batch := &pgx.Batch{}
@@ -346,7 +362,10 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		batch := &pgx.Batch{}
@@ -382,7 +401,10 @@ func TestLogPrepare(t *testing.T) {
 		return config
 	}
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, []pgx.QueryExecMode{
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, []pgx.QueryExecMode{
 		pgx.QueryExecModeCacheStatement,
 		pgx.QueryExecModeCacheDescribe,
 		pgx.QueryExecModeDescribeExec,
@@ -406,7 +428,10 @@ func TestLogPrepare(t *testing.T) {
 		require.Equal(t, err, logs[0].data["err"])
 	})
 
-	pgxtest.RunWithQueryExecModes(context.Background(), t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
 		_, err := conn.Prepare(ctx, "test_query_1", `select $1::int`)
