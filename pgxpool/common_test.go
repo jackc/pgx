@@ -24,8 +24,8 @@ type execer interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
 }
 
-func testExec(t *testing.T, db execer) {
-	results, err := db.Exec(context.Background(), "set time zone 'America/Chicago'")
+func testExec(t *testing.T, ctx context.Context, db execer) {
+	results, err := db.Exec(ctx, "set time zone 'America/Chicago'")
 	require.NoError(t, err)
 	assert.EqualValues(t, "SET", results.String())
 }
@@ -34,10 +34,10 @@ type queryer interface {
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
 }
 
-func testQuery(t *testing.T, db queryer) {
+func testQuery(t *testing.T, ctx context.Context, db queryer) {
 	var sum, rowCount int32
 
-	rows, err := db.Query(context.Background(), "select generate_series(1,$1)", 10)
+	rows, err := db.Query(ctx, "select generate_series(1,$1)", 10)
 	require.NoError(t, err)
 
 	for rows.Next() {
@@ -56,9 +56,9 @@ type queryRower interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func testQueryRow(t *testing.T, db queryRower) {
+func testQueryRow(t *testing.T, ctx context.Context, db queryRower) {
 	var what, who string
-	err := db.QueryRow(context.Background(), "select 'hello', $1::text", "world").Scan(&what, &who)
+	err := db.QueryRow(ctx, "select 'hello', $1::text", "world").Scan(&what, &who)
 	assert.NoError(t, err)
 	assert.Equal(t, "hello", what)
 	assert.Equal(t, "world", who)
@@ -68,12 +68,12 @@ type sendBatcher interface {
 	SendBatch(context.Context, *pgx.Batch) pgx.BatchResults
 }
 
-func testSendBatch(t *testing.T, db sendBatcher) {
+func testSendBatch(t *testing.T, ctx context.Context, db sendBatcher) {
 	batch := &pgx.Batch{}
 	batch.Queue("select 1")
 	batch.Queue("select 2")
 
-	br := db.SendBatch(context.Background(), batch)
+	br := db.SendBatch(ctx, batch)
 
 	var err error
 	var n int32
@@ -93,12 +93,12 @@ type copyFromer interface {
 	CopyFrom(context.Context, pgx.Identifier, []string, pgx.CopyFromSource) (int64, error)
 }
 
-func testCopyFrom(t *testing.T, db interface {
+func testCopyFrom(t *testing.T, ctx context.Context, db interface {
 	execer
 	queryer
 	copyFromer
 }) {
-	_, err := db.Exec(context.Background(), `create temporary table foo(a int2, b int4, c int8, d varchar, e text, f date, g timestamptz)`)
+	_, err := db.Exec(ctx, `create temporary table foo(a int2, b int4, c int8, d varchar, e text, f date, g timestamptz)`)
 	require.NoError(t, err)
 
 	tzedTime := time.Date(2010, 2, 3, 4, 5, 6, 0, time.Local)
@@ -108,11 +108,11 @@ func testCopyFrom(t *testing.T, db interface {
 		{nil, nil, nil, nil, nil, nil, nil},
 	}
 
-	copyCount, err := db.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := db.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f", "g"}, pgx.CopyFromRows(inputRows))
 	assert.NoError(t, err)
 	assert.EqualValues(t, len(inputRows), copyCount)
 
-	rows, err := db.Query(context.Background(), "select * from foo")
+	rows, err := db.Query(ctx, "select * from foo")
 	assert.NoError(t, err)
 
 	var outputRows [][]any

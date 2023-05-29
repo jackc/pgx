@@ -630,7 +630,7 @@ func TestPoolExec(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	testExec(t, pool)
+	testExec(t, ctx, pool)
 }
 
 func TestPoolQuery(t *testing.T) {
@@ -644,7 +644,7 @@ func TestPoolQuery(t *testing.T) {
 	defer pool.Close()
 
 	// Test common usage
-	testQuery(t, pool)
+	testQuery(t, ctx, pool)
 	waitForReleaseToComplete()
 
 	// Test expected pool behavior
@@ -675,7 +675,7 @@ func TestPoolQueryRow(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	testQueryRow(t, pool)
+	testQueryRow(t, ctx, pool)
 	waitForReleaseToComplete()
 
 	stats := pool.Stat()
@@ -708,7 +708,7 @@ func TestPoolSendBatch(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	testSendBatch(t, pool)
+	testSendBatch(t, ctx, pool)
 	waitForReleaseToComplete()
 
 	stats := pool.Stat()
@@ -883,8 +883,8 @@ func TestConnPoolQueryConcurrentLoad(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func() {
 			defer func() { done <- true }()
-			testQuery(t, pool)
-			testQueryRow(t, pool)
+			testQuery(t, ctx, pool)
+			testQueryRow(t, ctx, pool)
 		}()
 	}
 
