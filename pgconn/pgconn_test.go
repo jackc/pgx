@@ -2233,13 +2233,14 @@ func TestConnCancelRequest(t *testing.T) {
 
 	multiResult := pgConn.Exec(ctx, "select 'Hello, world', pg_sleep(2)")
 
+	errChan := make(chan error)
 	go func() {
 		// The query is actually sent when multiResult.NextResult() is called. So wait to ensure it is sent.
 		// Once Flush is available this could use that instead.
 		time.Sleep(500 * time.Millisecond)
 
 		err := pgConn.CancelRequest(ctx)
-		require.NoError(t, err)
+		errChan <- err
 	}()
 
 	for multiResult.NextResult() {
@@ -2248,6 +2249,9 @@ func TestConnCancelRequest(t *testing.T) {
 
 	require.IsType(t, &pgconn.PgError{}, err)
 	require.Equal(t, "57014", err.(*pgconn.PgError).Code)
+
+	err = <-errChan
+	require.NoError(t, err)
 
 	ensureConnValid(t, pgConn)
 }
