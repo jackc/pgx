@@ -59,6 +59,9 @@ func (l *testLogger) FilterByMsg(msg string) (res []testLog) {
 func TestContextGetsPassedToLogMethod(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -72,13 +75,10 @@ func TestContextGetsPassedToLogMethod(t *testing.T) {
 		return config
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
-		ctx = context.WithValue(context.Background(), "ctxdata", "foo")
+		ctx = context.WithValue(ctx, "ctxdata", "foo")
 		_, err := conn.Exec(ctx, `;`)
 		require.NoError(t, err)
 		require.Len(t, logger.logs, 1)
@@ -88,6 +88,9 @@ func TestContextGetsPassedToLogMethod(t *testing.T) {
 
 func TestLoggerFunc(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
 	const testMsg = "foo"
 
@@ -100,15 +103,15 @@ func TestLoggerFunc(t *testing.T) {
 		}
 	}
 
-	config := defaultConnTestRunner.CreateConfig(context.Background(), t)
+	config := defaultConnTestRunner.CreateConfig(ctx, t)
 	config.Tracer = &tracelog.TraceLog{
 		Logger:   createAdapterFn(logger),
 		LogLevel: tracelog.LogLevelTrace,
 	}
 
-	conn, err := pgx.ConnectConfig(context.Background(), config)
+	conn, err := pgx.ConnectConfig(ctx, config)
 	require.NoError(t, err)
-	defer conn.Close(context.Background())
+	defer conn.Close(ctx)
 
 	buf.Reset() // Clear logs written when establishing connection
 
@@ -124,6 +127,9 @@ func TestLoggerFunc(t *testing.T) {
 func TestLogQuery(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -136,9 +142,6 @@ func TestLogQuery(t *testing.T) {
 		config.Tracer = tracer
 		return config
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
@@ -166,6 +169,9 @@ func TestLogQuery(t *testing.T) {
 func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -178,9 +184,6 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 		config.Tracer = tracer
 		return config
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
@@ -214,6 +217,9 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 func TestLogCopyFrom(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -227,11 +233,8 @@ func TestLogCopyFrom(t *testing.T) {
 		return config
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, pgxtest.KnownOIDQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		_, err := conn.Exec(context.Background(), `create temporary table foo(a int4)`)
+		_, err := conn.Exec(ctx, `create temporary table foo(a int4)`)
 		require.NoError(t, err)
 
 		logger.Clear()
@@ -241,7 +244,7 @@ func TestLogCopyFrom(t *testing.T) {
 			{nil},
 		}
 
-		copyCount, err := conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
+		copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
 		require.NoError(t, err)
 		require.EqualValues(t, len(inputRows), copyCount)
 
@@ -256,7 +259,7 @@ func TestLogCopyFrom(t *testing.T) {
 			{nil},
 		}
 
-		copyCount, err = conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
+		copyCount, err = conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a"}, pgx.CopyFromRows(inputRows))
 		require.Error(t, err)
 		require.EqualValues(t, 0, copyCount)
 
@@ -269,18 +272,21 @@ func TestLogCopyFrom(t *testing.T) {
 func TestLogConnect(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
 		LogLevel: tracelog.LogLevelTrace,
 	}
 
-	config := defaultConnTestRunner.CreateConfig(context.Background(), t)
+	config := defaultConnTestRunner.CreateConfig(ctx, t)
 	config.Tracer = tracer
 
-	conn1, err := pgx.ConnectConfig(context.Background(), config)
+	conn1, err := pgx.ConnectConfig(ctx, config)
 	require.NoError(t, err)
-	defer conn1.Close(context.Background())
+	defer conn1.Close(ctx)
 	require.Len(t, logger.logs, 1)
 	require.Equal(t, "Connect", logger.logs[0].msg)
 	require.Equal(t, tracelog.LogLevelInfo, logger.logs[0].lvl)
@@ -291,7 +297,7 @@ func TestLogConnect(t *testing.T) {
 	require.NoError(t, err)
 	config.Tracer = tracer
 
-	conn2, err := pgx.ConnectConfig(context.Background(), config)
+	conn2, err := pgx.ConnectConfig(ctx, config)
 	require.Nil(t, conn2)
 	require.Error(t, err)
 	require.Len(t, logger.logs, 1)
@@ -301,6 +307,9 @@ func TestLogConnect(t *testing.T) {
 
 func TestLogBatchStatementsOnExec(t *testing.T) {
 	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
@@ -315,9 +324,6 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 		return config
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
@@ -325,7 +331,7 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 		batch.Queue("create table foo (id bigint)")
 		batch.Queue("drop table foo")
 
-		br := conn.SendBatch(context.Background(), batch)
+		br := conn.SendBatch(ctx, batch)
 
 		_, err := br.Exec()
 		require.NoError(t, err)
@@ -349,6 +355,9 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -362,9 +371,6 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 		return config
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		logger.Clear() // Clear any logs written when establishing connection
 
@@ -372,7 +378,7 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 		batch.Queue("select generate_series(1,$1)", 100)
 		batch.Queue("select 1 = 1;")
 
-		br := conn.SendBatch(context.Background(), batch)
+		br := conn.SendBatch(ctx, batch)
 		err := br.Close()
 		require.NoError(t, err)
 
@@ -388,6 +394,9 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 func TestLogPrepare(t *testing.T) {
 	t.Parallel()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	logger := &testLogger{}
 	tracer := &tracelog.TraceLog{
 		Logger:   logger,
@@ -400,9 +409,6 @@ func TestLogPrepare(t *testing.T) {
 		config.Tracer = tracer
 		return config
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, []pgx.QueryExecMode{
 		pgx.QueryExecModeCacheStatement,
@@ -428,7 +434,7 @@ func TestLogPrepare(t *testing.T) {
 		require.Equal(t, err, logs[0].data["err"])
 	})
 
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
