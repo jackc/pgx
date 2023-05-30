@@ -135,6 +135,11 @@ These adapters can be used with the tracelog package.
 
 ## 3rd Party Libraries with PGX Support
 
+### [github.com/pashagolub/pgxmock](https://github.com/pashagolub/pgxmock)
+
+pgxmock is a mock library implementing pgx interfaces. 
+pgxmock has one and only purpose - to simulate pgx behavior in tests, without needing a real database connection. 
+
 ### [github.com/georgysavva/scany](https://github.com/georgysavva/scany)
 
 Library for scanning data from a database into Go structs and more.
