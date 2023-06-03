@@ -63,7 +63,7 @@ func (c *PgConn) gssAuth() error {
 			Data: nextData,
 		}
 		c.frontend.Send(gssResponse)
-		err = c.frontend.Flush()
+		err = c.flushWithPotentialWriteReadDeadlock()
 		if err != nil {
 			return err
 		}

@@ -42,7 +42,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		Data:          sc.clientFirstMessage(),
 	}
 	c.frontend.Send(saslInitialResponse)
-	err = c.frontend.Flush()
+	err = c.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		Data: []byte(sc.clientFinalMessage()),
 	}
 	c.frontend.Send(saslResponse)
-	err = c.frontend.Flush()
+	err = c.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		return err
 	}
