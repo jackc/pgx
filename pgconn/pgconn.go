@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
 	"github.com/jackc/pgx/v5/internal/pgio"
+	"github.com/jackc/pgx/v5/pgconn/internal/bgreader"
 	"github.com/jackc/pgx/v5/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 )
@@ -71,6 +72,8 @@ type PgConn struct {
 	parameterStatuses map[string]string // parameters that have been reported by the server
 	txStatus          byte
 	frontend          *pgproto3.Frontend
+	bgReader          *bgreader.BGReader
+	slowWriteTimer    *time.Timer
 
 	config *Config
 
@@ -293,7 +296,9 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	pgConn.parameterStatuses = make(map[string]string)
 	pgConn.status = connStatusConnecting
-	pgConn.frontend = config.BuildFrontend(pgConn.conn, pgConn.conn)
+	pgConn.bgReader = bgreader.New(pgConn.conn)
+	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64), pgConn.bgReader.Start)
+	pgConn.frontend = config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
 		ProtocolVersion: pgproto3.ProtocolVersionNumber,
@@ -311,7 +316,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 
 	pgConn.frontend.Send(&startupMsg)
-	if err := pgConn.frontend.Flush(); err != nil {
+	if err := pgConn.flushWithPotentialWriteReadDeadlock(); err != nil {
 		pgConn.conn.Close()
 		return nil, &connectError{config: config, msg: "failed to write startup message", err: err}
 	}
@@ -416,7 +421,7 @@ func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 
 func (pgConn *PgConn) txPasswordMessage(password string) (err error) {
 	pgConn.frontend.Send(&pgproto3.PasswordMessage{Password: password})
-	return pgConn.frontend.Flush()
+	return pgConn.flushWithPotentialWriteReadDeadlock()
 }
 
 func hexMD5(s string) string {
@@ -611,7 +616,7 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	//
 	// See https://github.com/jackc/pgx/issues/637
 	pgConn.frontend.Send(&pgproto3.Terminate{})
-	pgConn.frontend.Flush()
+	pgConn.flushWithPotentialWriteReadDeadlock()
 
 	return pgConn.conn.Close()
 }
@@ -638,7 +643,7 @@ func (pgConn *PgConn) asyncClose() {
 		pgConn.conn.SetDeadline(deadline)
 
 		pgConn.frontend.Send(&pgproto3.Terminate{})
-		pgConn.frontend.Flush()
+		pgConn.flushWithPotentialWriteReadDeadlock()
 	}()
 }
 
@@ -813,7 +818,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 	pgConn.frontend.SendParse(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
 	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'S', Name: name})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
-	err := pgConn.frontend.Flush()
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		return nil, err
@@ -995,7 +1000,7 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 	}
 
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
-	err := pgConn.frontend.Flush()
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		pgConn.contextWatcher.Unwatch()
@@ -1106,7 +1111,7 @@ func (pgConn *PgConn) execExtendedSuffix(result *ResultReader) {
 	pgConn.frontend.SendExecute(&pgproto3.Execute{})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
 
-	err := pgConn.frontend.Flush()
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		result.concludeCommand(CommandTag{}, err)
@@ -1139,7 +1144,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	// Send copy to command
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 
-	err := pgConn.frontend.Flush()
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		pgConn.unlock()
@@ -1197,7 +1202,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 
 	// Send copy from query
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
-	err := pgConn.frontend.Flush()
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		return CommandTag{}, err
@@ -1273,7 +1278,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	} else {
 		pgConn.frontend.Send(&pgproto3.CopyFail{Message: copyErr.Error()})
 	}
-	err = pgConn.frontend.Flush()
+	err = pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		pgConn.asyncClose()
 		return CommandTag{}, err
@@ -1634,7 +1639,9 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 
 	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
 
+	pgConn.enterPotentialWriteReadDeadlock()
 	_, err := pgConn.conn.Write(batch.buf)
+	pgConn.exitPotentialWriteReadDeadlock()
 	if err != nil {
 		multiResult.closed = true
 		multiResult.err = err
@@ -1686,6 +1693,26 @@ func (pgConn *PgConn) CheckConn() error {
 // makeCommandTag makes a CommandTag. It does not retain a reference to buf or buf's underlying memory.
 func (pgConn *PgConn) makeCommandTag(buf []byte) CommandTag {
 	return CommandTag{s: string(buf)}
+}
+
+// enterPotentialWriteReadDeadlock must be called before a write that could deadlock if the server is simultaneously
+// blocked writing to us.
+func (pgConn *PgConn) enterPotentialWriteReadDeadlock() {
+	pgConn.slowWriteTimer.Reset(10 * time.Millisecond)
+}
+
+// exitPotentialWriteReadDeadlock must be called after a call to enterPotentialWriteReadDeadlock.
+func (pgConn *PgConn) exitPotentialWriteReadDeadlock() {
+	if !pgConn.slowWriteTimer.Reset(time.Duration(math.MaxInt64)) {
+		pgConn.slowWriteTimer.Stop()
+	}
+}
+
+func (pgConn *PgConn) flushWithPotentialWriteReadDeadlock() error {
+	pgConn.enterPotentialWriteReadDeadlock()
+	err := pgConn.frontend.Flush()
+	pgConn.exitPotentialWriteReadDeadlock()
+	return err
 }
 
 // HijackedConn is the result of hijacking a connection.
@@ -1746,6 +1773,8 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	}
 
 	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
+	pgConn.bgReader = bgreader.New(pgConn.conn)
+	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64), pgConn.bgReader.Start)
 
 	return pgConn, nil
 }
@@ -1868,7 +1897,7 @@ func (p *Pipeline) Flush() error {
 		return errors.New("pipeline closed")
 	}
 
-	err := p.conn.frontend.Flush()
+	err := p.conn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		err = normalizeTimeoutError(p.ctx, err)
 
