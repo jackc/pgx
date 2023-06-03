@@ -1669,25 +1669,33 @@ func (pgConn *PgConn) EscapeString(s string) (string, error) {
 	return strings.Replace(s, "'", "''", -1), nil
 }
 
-// CheckConn checks the underlying connection without writing any bytes. This is currently implemented by reading and
-// buffering until the read would block or an error occurs. This can be used to check if the server has closed the
-// connection. If this is done immediately before sending a query it reduces the chances a query will be sent that fails
+// CheckConn checks the underlying connection without writing any bytes. This is currently implemented by doing a read
+// with a very short deadline. This can be useful because a TCP connection can be broken such that a write will appear
+// to succeed even though it will never actually reach the server. Reading immediately before a write will detect this
+// condition. If this is done immediately before sending a query it reduces the chances a query will be sent that fails
 // without the client knowing whether the server received it or not.
+//
+// Deprecated: CheckConn is deprecated in favor of Ping. CheckConn cannot detect all types of broken connections where
+// the write would still appear to succeed. Prefer Ping unless on a high latency connection.
 func (pgConn *PgConn) CheckConn() error {
-	// if err := pgConn.lock(); err != nil {
-	// 	return err
-	// }
-	// defer pgConn.unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
 
-	rr := pgConn.ExecParams(context.Background(), "select 1", nil, nil, nil, nil)
-	_, err := rr.Close()
-	return err
+	_, err := pgConn.ReceiveMessage(ctx)
+	if err != nil {
+		if !Timeout(err) {
+			return err
+		}
+	}
 
-	// err := pgConn.conn.BufferReadUntilBlock()
-	// if err != nil && !errors.Is(err, nbconn.ErrWouldBlock) {
-	// 	return err
-	// }
 	return nil
+}
+
+// Ping pings the server. This can be useful because a TCP connection can be broken such that a write will appear to
+// succeed even though it will never actually reach the server. Pinging immediately before sending a query reduces the
+// chances a query will be sent that fails without the client knowing whether the server received it or not.
+func (pgConn *PgConn) Ping(ctx context.Context) error {
+	return pgConn.Exec(ctx, "-- ping").Close()
 }
 
 // makeCommandTag makes a CommandTag. It does not retain a reference to buf or buf's underlying memory.
