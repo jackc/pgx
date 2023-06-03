@@ -375,11 +375,11 @@ func TestConnCopyFromEnum(t *testing.T) {
 		{nil, nil, nil, nil, nil, nil},
 	}
 
-	copyCount, err := conn.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f"}, pgx.CopyFromRows(inputRows))
+	copyCount, err := tx.CopyFrom(ctx, pgx.Identifier{"foo"}, []string{"a", "b", "c", "d", "e", "f"}, pgx.CopyFromRows(inputRows))
 	require.NoError(t, err)
 	require.EqualValues(t, len(inputRows), copyCount)
 
-	rows, err := conn.Query(ctx, "select * from foo")
+	rows, err := tx.Query(ctx, "select * from foo")
 	require.NoError(t, err)
 
 	var outputRows [][]any
@@ -394,6 +394,9 @@ func TestConnCopyFromEnum(t *testing.T) {
 	if !reflect.DeepEqual(inputRows, outputRows) {
 		t.Errorf("Input rows and output rows do not equal: %v -> %v", inputRows, outputRows)
 	}
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
 
 	ensureConnValid(t, conn)
 }
