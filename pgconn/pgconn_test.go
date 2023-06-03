@@ -2469,7 +2469,7 @@ func TestConnCheckConn(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtlely different.)
+	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtly different.)
 
 	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
 	if connString == "" {
@@ -2498,6 +2498,47 @@ func TestConnCheckConn(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	err = c1.CheckConn()
+	require.Error(t, err)
+}
+
+func TestConnPing(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtly different.)
+
+	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
+	if connString == "" {
+		t.Skipf("Skipping due to missing environment variable %v", "PGX_TEST_TCP_CONN_STRING")
+	}
+
+	c1, err := pgconn.Connect(ctx, connString)
+	require.NoError(t, err)
+	defer c1.Close(ctx)
+
+	if c1.ParameterStatus("crdb_version") != "" {
+		t.Skip("Server does not support pg_terminate_backend() (https://github.com/cockroachdb/cockroach/issues/35897)")
+	}
+
+	err = c1.Exec(ctx, "set log_statement = 'all'").Close()
+	require.NoError(t, err)
+
+	err = c1.Ping(ctx)
+	require.NoError(t, err)
+
+	c2, err := pgconn.Connect(ctx, connString)
+	require.NoError(t, err)
+	defer c2.Close(ctx)
+
+	_, err = c2.Exec(ctx, fmt.Sprintf("select pg_terminate_backend(%d)", c1.PID())).ReadAll()
+	require.NoError(t, err)
+
+	// Give a little time for the signal to actually kill the backend.
+	time.Sleep(500 * time.Millisecond)
+
+	err = c1.Ping(ctx)
 	require.Error(t, err)
 }
 
