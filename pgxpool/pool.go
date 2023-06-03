@@ -504,7 +504,7 @@ func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
 		cr := res.Value()
 
 		if res.IdleDuration() > time.Second {
-			err := cr.conn.PgConn().CheckConn()
+			err := cr.conn.Ping(ctx)
 			if err != nil {
 				res.Destroy()
 				continue
