@@ -101,7 +101,14 @@ func (row *poolRow) Scan(dest ...any) error {
 		return row.err
 	}
 
+	panicked := true
+	defer func() {
+		if panicked && row.c != nil {
+			row.c.Release()
+		}
+	}()
 	err := row.r.Scan(dest...)
+	panicked = false
 	if row.c != nil {
 		row.c.Release()
 	}

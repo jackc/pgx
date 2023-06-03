@@ -698,6 +698,25 @@ func TestPoolQueryRowErrNoRows(t *testing.T) {
 	require.Equal(t, pgx.ErrNoRows, err)
 }
 
+// https://github.com/jackc/pgx/issues/1628
+func TestPoolQueryRowScanPanicReleasesConnection(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	require.Panics(t, func() {
+		var greeting *string
+		pool.QueryRow(ctx, "select 'Hello, world!'").Scan(greeting) // Note lack of &. This means that a typed nil is passed to Scan.
+	})
+
+	// If the connection is not released this will block forever in the defer pool.Close().
+}
+
 func TestPoolSendBatch(t *testing.T) {
 	t.Parallel()
 
