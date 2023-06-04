@@ -318,7 +318,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn.frontend.Send(&startupMsg)
 	if err := pgConn.flushWithPotentialWriteReadDeadlock(); err != nil {
 		pgConn.conn.Close()
-		return nil, &connectError{config: config, msg: "failed to write startup message", err: err}
+		return nil, &connectError{config: config, msg: "failed to write startup message", err: normalizeTimeoutError(ctx, err)}
 	}
 
 	for {
