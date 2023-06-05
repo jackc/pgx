@@ -211,7 +211,9 @@ type Map struct {
 }
 
 func NewMap() *Map {
-	m := &Map{
+	defaultMapInitOnce.Do(initDefaultMap)
+
+	return &Map{
 		oidToType:         make(map[uint32]*Type),
 		nameToType:        make(map[string]*Type),
 		reflectTypeToName: make(map[reflect.Type]string),
@@ -240,182 +242,6 @@ func NewMap() *Map {
 			TryWrapPtrArrayScanPlan,
 		},
 	}
-
-	// Base types
-	m.RegisterType(&Type{Name: "aclitem", OID: ACLItemOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
-	m.RegisterType(&Type{Name: "bit", OID: BitOID, Codec: BitsCodec{}})
-	m.RegisterType(&Type{Name: "bool", OID: BoolOID, Codec: BoolCodec{}})
-	m.RegisterType(&Type{Name: "box", OID: BoxOID, Codec: BoxCodec{}})
-	m.RegisterType(&Type{Name: "bpchar", OID: BPCharOID, Codec: TextCodec{}})
-	m.RegisterType(&Type{Name: "bytea", OID: ByteaOID, Codec: ByteaCodec{}})
-	m.RegisterType(&Type{Name: "char", OID: QCharOID, Codec: QCharCodec{}})
-	m.RegisterType(&Type{Name: "cid", OID: CIDOID, Codec: Uint32Codec{}})
-	m.RegisterType(&Type{Name: "cidr", OID: CIDROID, Codec: InetCodec{}})
-	m.RegisterType(&Type{Name: "circle", OID: CircleOID, Codec: CircleCodec{}})
-	m.RegisterType(&Type{Name: "date", OID: DateOID, Codec: DateCodec{}})
-	m.RegisterType(&Type{Name: "float4", OID: Float4OID, Codec: Float4Codec{}})
-	m.RegisterType(&Type{Name: "float8", OID: Float8OID, Codec: Float8Codec{}})
-	m.RegisterType(&Type{Name: "inet", OID: InetOID, Codec: InetCodec{}})
-	m.RegisterType(&Type{Name: "int2", OID: Int2OID, Codec: Int2Codec{}})
-	m.RegisterType(&Type{Name: "int4", OID: Int4OID, Codec: Int4Codec{}})
-	m.RegisterType(&Type{Name: "int8", OID: Int8OID, Codec: Int8Codec{}})
-	m.RegisterType(&Type{Name: "interval", OID: IntervalOID, Codec: IntervalCodec{}})
-	m.RegisterType(&Type{Name: "json", OID: JSONOID, Codec: JSONCodec{}})
-	m.RegisterType(&Type{Name: "jsonb", OID: JSONBOID, Codec: JSONBCodec{}})
-	m.RegisterType(&Type{Name: "jsonpath", OID: JSONPathOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
-	m.RegisterType(&Type{Name: "line", OID: LineOID, Codec: LineCodec{}})
-	m.RegisterType(&Type{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
-	m.RegisterType(&Type{Name: "macaddr", OID: MacaddrOID, Codec: MacaddrCodec{}})
-	m.RegisterType(&Type{Name: "name", OID: NameOID, Codec: TextCodec{}})
-	m.RegisterType(&Type{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
-	m.RegisterType(&Type{Name: "oid", OID: OIDOID, Codec: Uint32Codec{}})
-	m.RegisterType(&Type{Name: "path", OID: PathOID, Codec: PathCodec{}})
-	m.RegisterType(&Type{Name: "point", OID: PointOID, Codec: PointCodec{}})
-	m.RegisterType(&Type{Name: "polygon", OID: PolygonOID, Codec: PolygonCodec{}})
-	m.RegisterType(&Type{Name: "record", OID: RecordOID, Codec: RecordCodec{}})
-	m.RegisterType(&Type{Name: "text", OID: TextOID, Codec: TextCodec{}})
-	m.RegisterType(&Type{Name: "tid", OID: TIDOID, Codec: TIDCodec{}})
-	m.RegisterType(&Type{Name: "time", OID: TimeOID, Codec: TimeCodec{}})
-	m.RegisterType(&Type{Name: "timestamp", OID: TimestampOID, Codec: TimestampCodec{}})
-	m.RegisterType(&Type{Name: "timestamptz", OID: TimestamptzOID, Codec: TimestamptzCodec{}})
-	m.RegisterType(&Type{Name: "unknown", OID: UnknownOID, Codec: TextCodec{}})
-	m.RegisterType(&Type{Name: "uuid", OID: UUIDOID, Codec: UUIDCodec{}})
-	m.RegisterType(&Type{Name: "varbit", OID: VarbitOID, Codec: BitsCodec{}})
-	m.RegisterType(&Type{Name: "varchar", OID: VarcharOID, Codec: TextCodec{}})
-	m.RegisterType(&Type{Name: "xid", OID: XIDOID, Codec: Uint32Codec{}})
-
-	// Range types
-	m.RegisterType(&Type{Name: "daterange", OID: DaterangeOID, Codec: &RangeCodec{ElementType: m.oidToType[DateOID]}})
-	m.RegisterType(&Type{Name: "int4range", OID: Int4rangeOID, Codec: &RangeCodec{ElementType: m.oidToType[Int4OID]}})
-	m.RegisterType(&Type{Name: "int8range", OID: Int8rangeOID, Codec: &RangeCodec{ElementType: m.oidToType[Int8OID]}})
-	m.RegisterType(&Type{Name: "numrange", OID: NumrangeOID, Codec: &RangeCodec{ElementType: m.oidToType[NumericOID]}})
-	m.RegisterType(&Type{Name: "tsrange", OID: TsrangeOID, Codec: &RangeCodec{ElementType: m.oidToType[TimestampOID]}})
-	m.RegisterType(&Type{Name: "tstzrange", OID: TstzrangeOID, Codec: &RangeCodec{ElementType: m.oidToType[TimestamptzOID]}})
-
-	// Multirange types
-	m.RegisterType(&Type{Name: "datemultirange", OID: DatemultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[DaterangeOID]}})
-	m.RegisterType(&Type{Name: "int4multirange", OID: Int4multirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[Int4rangeOID]}})
-	m.RegisterType(&Type{Name: "int8multirange", OID: Int8multirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[Int8rangeOID]}})
-	m.RegisterType(&Type{Name: "nummultirange", OID: NummultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[NumrangeOID]}})
-	m.RegisterType(&Type{Name: "tsmultirange", OID: TsmultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[TsrangeOID]}})
-	m.RegisterType(&Type{Name: "tstzmultirange", OID: TstzmultirangeOID, Codec: &MultirangeCodec{ElementType: m.oidToType[TstzrangeOID]}})
-
-	// Array types
-	m.RegisterType(&Type{Name: "_aclitem", OID: ACLItemArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[ACLItemOID]}})
-	m.RegisterType(&Type{Name: "_bit", OID: BitArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BitOID]}})
-	m.RegisterType(&Type{Name: "_bool", OID: BoolArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BoolOID]}})
-	m.RegisterType(&Type{Name: "_box", OID: BoxArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BoxOID]}})
-	m.RegisterType(&Type{Name: "_bpchar", OID: BPCharArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[BPCharOID]}})
-	m.RegisterType(&Type{Name: "_bytea", OID: ByteaArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[ByteaOID]}})
-	m.RegisterType(&Type{Name: "_char", OID: QCharArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[QCharOID]}})
-	m.RegisterType(&Type{Name: "_cid", OID: CIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[CIDOID]}})
-	m.RegisterType(&Type{Name: "_cidr", OID: CIDRArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[CIDROID]}})
-	m.RegisterType(&Type{Name: "_circle", OID: CircleArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[CircleOID]}})
-	m.RegisterType(&Type{Name: "_date", OID: DateArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[DateOID]}})
-	m.RegisterType(&Type{Name: "_daterange", OID: DaterangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[DaterangeOID]}})
-	m.RegisterType(&Type{Name: "_float4", OID: Float4ArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Float4OID]}})
-	m.RegisterType(&Type{Name: "_float8", OID: Float8ArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Float8OID]}})
-	m.RegisterType(&Type{Name: "_inet", OID: InetArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[InetOID]}})
-	m.RegisterType(&Type{Name: "_int2", OID: Int2ArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Int2OID]}})
-	m.RegisterType(&Type{Name: "_int4", OID: Int4ArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Int4OID]}})
-	m.RegisterType(&Type{Name: "_int4range", OID: Int4rangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Int4rangeOID]}})
-	m.RegisterType(&Type{Name: "_int8", OID: Int8ArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Int8OID]}})
-	m.RegisterType(&Type{Name: "_int8range", OID: Int8rangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[Int8rangeOID]}})
-	m.RegisterType(&Type{Name: "_interval", OID: IntervalArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[IntervalOID]}})
-	m.RegisterType(&Type{Name: "_json", OID: JSONArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONOID]}})
-	m.RegisterType(&Type{Name: "_jsonb", OID: JSONBArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONBOID]}})
-	m.RegisterType(&Type{Name: "_jsonpath", OID: JSONPathArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[JSONPathOID]}})
-	m.RegisterType(&Type{Name: "_line", OID: LineArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[LineOID]}})
-	m.RegisterType(&Type{Name: "_lseg", OID: LsegArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[LsegOID]}})
-	m.RegisterType(&Type{Name: "_macaddr", OID: MacaddrArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[MacaddrOID]}})
-	m.RegisterType(&Type{Name: "_name", OID: NameArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[NameOID]}})
-	m.RegisterType(&Type{Name: "_numeric", OID: NumericArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[NumericOID]}})
-	m.RegisterType(&Type{Name: "_numrange", OID: NumrangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[NumrangeOID]}})
-	m.RegisterType(&Type{Name: "_oid", OID: OIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[OIDOID]}})
-	m.RegisterType(&Type{Name: "_path", OID: PathArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PathOID]}})
-	m.RegisterType(&Type{Name: "_point", OID: PointArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PointOID]}})
-	m.RegisterType(&Type{Name: "_polygon", OID: PolygonArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[PolygonOID]}})
-	m.RegisterType(&Type{Name: "_record", OID: RecordArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[RecordOID]}})
-	m.RegisterType(&Type{Name: "_text", OID: TextArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TextOID]}})
-	m.RegisterType(&Type{Name: "_tid", OID: TIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TIDOID]}})
-	m.RegisterType(&Type{Name: "_time", OID: TimeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TimeOID]}})
-	m.RegisterType(&Type{Name: "_timestamp", OID: TimestampArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TimestampOID]}})
-	m.RegisterType(&Type{Name: "_timestamptz", OID: TimestamptzArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TimestamptzOID]}})
-	m.RegisterType(&Type{Name: "_tsrange", OID: TsrangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TsrangeOID]}})
-	m.RegisterType(&Type{Name: "_tstzrange", OID: TstzrangeArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[TstzrangeOID]}})
-	m.RegisterType(&Type{Name: "_uuid", OID: UUIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[UUIDOID]}})
-	m.RegisterType(&Type{Name: "_varbit", OID: VarbitArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[VarbitOID]}})
-	m.RegisterType(&Type{Name: "_varchar", OID: VarcharArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[VarcharOID]}})
-	m.RegisterType(&Type{Name: "_xid", OID: XIDArrayOID, Codec: &ArrayCodec{ElementType: m.oidToType[XIDOID]}})
-
-	// Integer types that directly map to a PostgreSQL type
-	registerDefaultPgTypeVariants[int16](m, "int2")
-	registerDefaultPgTypeVariants[int32](m, "int4")
-	registerDefaultPgTypeVariants[int64](m, "int8")
-
-	// Integer types that do not have a direct match to a PostgreSQL type
-	registerDefaultPgTypeVariants[int8](m, "int8")
-	registerDefaultPgTypeVariants[int](m, "int8")
-	registerDefaultPgTypeVariants[uint8](m, "int8")
-	registerDefaultPgTypeVariants[uint16](m, "int8")
-	registerDefaultPgTypeVariants[uint32](m, "int8")
-	registerDefaultPgTypeVariants[uint64](m, "numeric")
-	registerDefaultPgTypeVariants[uint](m, "numeric")
-
-	registerDefaultPgTypeVariants[float32](m, "float4")
-	registerDefaultPgTypeVariants[float64](m, "float8")
-
-	registerDefaultPgTypeVariants[bool](m, "bool")
-	registerDefaultPgTypeVariants[time.Time](m, "timestamptz")
-	registerDefaultPgTypeVariants[time.Duration](m, "interval")
-	registerDefaultPgTypeVariants[string](m, "text")
-	registerDefaultPgTypeVariants[[]byte](m, "bytea")
-
-	registerDefaultPgTypeVariants[net.IP](m, "inet")
-	registerDefaultPgTypeVariants[net.IPNet](m, "cidr")
-	registerDefaultPgTypeVariants[netip.Addr](m, "inet")
-	registerDefaultPgTypeVariants[netip.Prefix](m, "cidr")
-
-	// pgtype provided structs
-	registerDefaultPgTypeVariants[Bits](m, "varbit")
-	registerDefaultPgTypeVariants[Bool](m, "bool")
-	registerDefaultPgTypeVariants[Box](m, "box")
-	registerDefaultPgTypeVariants[Circle](m, "circle")
-	registerDefaultPgTypeVariants[Date](m, "date")
-	registerDefaultPgTypeVariants[Range[Date]](m, "daterange")
-	registerDefaultPgTypeVariants[Multirange[Range[Date]]](m, "datemultirange")
-	registerDefaultPgTypeVariants[Float4](m, "float4")
-	registerDefaultPgTypeVariants[Float8](m, "float8")
-	registerDefaultPgTypeVariants[Range[Float8]](m, "numrange")                  // There is no PostgreSQL builtin float8range so map it to numrange.
-	registerDefaultPgTypeVariants[Multirange[Range[Float8]]](m, "nummultirange") // There is no PostgreSQL builtin float8multirange so map it to nummultirange.
-	registerDefaultPgTypeVariants[Int2](m, "int2")
-	registerDefaultPgTypeVariants[Int4](m, "int4")
-	registerDefaultPgTypeVariants[Range[Int4]](m, "int4range")
-	registerDefaultPgTypeVariants[Multirange[Range[Int4]]](m, "int4multirange")
-	registerDefaultPgTypeVariants[Int8](m, "int8")
-	registerDefaultPgTypeVariants[Range[Int8]](m, "int8range")
-	registerDefaultPgTypeVariants[Multirange[Range[Int8]]](m, "int8multirange")
-	registerDefaultPgTypeVariants[Interval](m, "interval")
-	registerDefaultPgTypeVariants[Line](m, "line")
-	registerDefaultPgTypeVariants[Lseg](m, "lseg")
-	registerDefaultPgTypeVariants[Numeric](m, "numeric")
-	registerDefaultPgTypeVariants[Range[Numeric]](m, "numrange")
-	registerDefaultPgTypeVariants[Multirange[Range[Numeric]]](m, "nummultirange")
-	registerDefaultPgTypeVariants[Path](m, "path")
-	registerDefaultPgTypeVariants[Point](m, "point")
-	registerDefaultPgTypeVariants[Polygon](m, "polygon")
-	registerDefaultPgTypeVariants[TID](m, "tid")
-	registerDefaultPgTypeVariants[Text](m, "text")
-	registerDefaultPgTypeVariants[Time](m, "time")
-	registerDefaultPgTypeVariants[Timestamp](m, "timestamp")
-	registerDefaultPgTypeVariants[Timestamptz](m, "timestamptz")
-	registerDefaultPgTypeVariants[Range[Timestamp]](m, "tsrange")
-	registerDefaultPgTypeVariants[Multirange[Range[Timestamp]]](m, "tsmultirange")
-	registerDefaultPgTypeVariants[Range[Timestamptz]](m, "tstzrange")
-	registerDefaultPgTypeVariants[Multirange[Range[Timestamptz]]](m, "tstzmultirange")
-	registerDefaultPgTypeVariants[UUID](m, "uuid")
-
-	return m
 }
 
 func (m *Map) RegisterType(t *Type) {
@@ -450,12 +276,19 @@ func (m *Map) RegisterDefaultPgType(value any, name string) {
 }
 
 func (m *Map) TypeForOID(oid uint32) (*Type, bool) {
-	dt, ok := m.oidToType[oid]
+	if dt, ok := m.oidToType[oid]; ok {
+		return dt, true
+	}
+
+	dt, ok := defaultMap.oidToType[oid]
 	return dt, ok
 }
 
 func (m *Map) TypeForName(name string) (*Type, bool) {
-	dt, ok := m.nameToType[name]
+	if dt, ok := m.nameToType[name]; ok {
+		return dt, true
+	}
+	dt, ok := defaultMap.nameToType[name]
 	return dt, ok
 }
 
@@ -463,7 +296,7 @@ func (m *Map) buildReflectTypeToType() {
 	m.reflectTypeToType = make(map[reflect.Type]*Type)
 
 	for reflectType, name := range m.reflectTypeToName {
-		if dt, ok := m.nameToType[name]; ok {
+		if dt, ok := m.TypeForName(name); ok {
 			m.reflectTypeToType[reflectType] = dt
 		}
 	}
@@ -476,17 +309,29 @@ func (m *Map) TypeForValue(v any) (*Type, bool) {
 		m.buildReflectTypeToType()
 	}
 
-	dt, ok := m.reflectTypeToType[reflect.TypeOf(v)]
+	if dt, ok := m.reflectTypeToType[reflect.TypeOf(v)]; ok {
+		return dt, true
+	}
+
+	if defaultMap.reflectTypeToType == nil {
+		defaultMap.buildReflectTypeToType()
+	}
+
+	dt, ok := defaultMap.reflectTypeToType[reflect.TypeOf(v)]
 	return dt, ok
 }
 
 // FormatCodeForOID returns the preferred format code for type oid. If the type is not registered it returns the text
 // format code.
 func (m *Map) FormatCodeForOID(oid uint32) int16 {
-	fc, ok := m.oidToFormatCode[oid]
-	if ok {
+	if fc, ok := m.oidToFormatCode[oid]; ok {
 		return fc
 	}
+
+	if fc, ok := defaultMap.oidToFormatCode[oid]; ok {
+		return fc
+	}
+
 	return TextFormatCode
 }
 
@@ -587,6 +432,14 @@ func (plan *scanPlanFail) Scan(src []byte, dst any) error {
 				return plan.Scan(src, dst)
 			}
 		}
+		for oid := range defaultMap.oidToType {
+			if _, ok := plan.m.oidToType[oid]; !ok {
+				plan := plan.m.planScan(oid, plan.formatCode, dst)
+				if _, ok := plan.(*scanPlanFail); !ok {
+					return plan.Scan(src, dst)
+				}
+			}
+		}
 	}
 
 	var format string
@@ -600,7 +453,7 @@ func (plan *scanPlanFail) Scan(src []byte, dst any) error {
 	}
 
 	var dataTypeName string
-	if t, ok := plan.m.oidToType[plan.oid]; ok {
+	if t, ok := plan.m.TypeForOID(plan.oid); ok {
 		dataTypeName = t.Name
 	} else {
 		dataTypeName = "unknown type"
@@ -2046,7 +1899,7 @@ func newEncodeError(value any, m *Map, oid uint32, formatCode int16, err error) 
 	}
 
 	var dataTypeName string
-	if t, ok := m.oidToType[oid]; ok {
+	if t, ok := m.TypeForOID(oid); ok {
 		dataTypeName = t.Name
 	} else {
 		dataTypeName = "unknown type"
