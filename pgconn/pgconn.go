@@ -1712,7 +1712,13 @@ func (pgConn *PgConn) makeCommandTag(buf []byte) CommandTag {
 // enterPotentialWriteReadDeadlock must be called before a write that could deadlock if the server is simultaneously
 // blocked writing to us.
 func (pgConn *PgConn) enterPotentialWriteReadDeadlock() {
-	pgConn.slowWriteTimer.Reset(10 * time.Millisecond)
+	// The time to wait is somewhat arbitrary. A Write should only take as long as the syscall and memcpy to the OS
+	// outbound network buffer unless the buffer is full (which potentially is a block). It needs to be long enough for
+	// the normal case, but short enough not to kill performance if a block occurs.
+	//
+	// In addition, on Windows the default timer resolution is 15.6ms. So setting the timer to less than that is
+	// ineffective.
+	pgConn.slowWriteTimer.Reset(15 * time.Millisecond)
 }
 
 // exitPotentialWriteReadDeadlock must be called after a call to enterPotentialWriteReadDeadlock.
