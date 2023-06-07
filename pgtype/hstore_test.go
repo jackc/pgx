@@ -129,6 +129,9 @@ func TestHstoreCodec(t *testing.T) {
 		"form\\ffeed",
 		"carriage\rreturn",
 		"curly{}braces",
+		// Postgres on Mac OS X hstore parsing bug:
+		// ą = "\xc4\x85" in UTF-8; isspace(0x85) on Mac OS X returns true instead of false
+		"mac_bugą",
 	}
 	for _, s := range specialStrings {
 		// Special key values
@@ -253,5 +256,35 @@ func TestParseInvalidInputs(t *testing.T) {
 		if err == nil {
 			t.Errorf("test %d: input=%s (%#v) should fail; parsed correctly", i, input, input)
 		}
+	}
+}
+
+func BenchmarkHstoreEncode(b *testing.B) {
+	stringPtr := func(s string) *string {
+		return &s
+	}
+	h := pgtype.Hstore{"a x": stringPtr("100"), "b": stringPtr("200"), "c": stringPtr("300"),
+		"d": stringPtr("400"), "e": stringPtr("500")}
+
+	serializeConfigs := []struct {
+		name       string
+		encodePlan pgtype.EncodePlan
+	}{
+		{"text", pgtype.HstoreCodec{}.PlanEncode(nil, 0, pgtype.TextFormatCode, h)},
+		{"binary", pgtype.HstoreCodec{}.PlanEncode(nil, 0, pgtype.BinaryFormatCode, h)},
+	}
+
+	for _, serializeConfig := range serializeConfigs {
+		var buf []byte
+		b.Run(serializeConfig.name, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				var err error
+				buf, err = serializeConfig.encodePlan.Encode(h, buf)
+				if err != nil {
+					b.Fatal(err)
+				}
+				buf = buf[:0]
+			}
+		})
 	}
 }
