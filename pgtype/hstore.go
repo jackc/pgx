@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -137,13 +136,20 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 			buf = append(buf, ',')
 		}
 
-		buf = append(buf, quoteHstoreElementIfNeeded(k)...)
+		// unconditionally quote hstore keys/values like Postgres does
+		// this avoids a Mac OS X Postgres hstore parsing bug:
+		// https://www.postgresql.org/message-id/CA%2BHWA9awUW0%2BRV_gO9r1ABZwGoZxPztcJxPy8vMFSTbTfi4jig%40mail.gmail.com
+		buf = append(buf, '"')
+		buf = append(buf, quoteArrayReplacer.Replace(k)...)
+		buf = append(buf, '"')
 		buf = append(buf, "=>"...)
 
 		if v == nil {
 			buf = append(buf, "NULL"...)
 		} else {
-			buf = append(buf, quoteHstoreElementIfNeeded(*v)...)
+			buf = append(buf, '"')
+			buf = append(buf, quoteArrayReplacer.Replace(*v)...)
+			buf = append(buf, '"')
 		}
 	}
 
@@ -273,19 +279,6 @@ func (c HstoreCodec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (
 		return nil, err
 	}
 	return hstore, nil
-}
-
-func quoteHstoreElementIfNeeded(src string) string {
-	// Double-quote keys and values that include whitespace, commas, =s or >s. To include a double
-	// quote or a backslash in a key or value, escape it with a backslash.
-	// From: https://www.postgresql.org/docs/current/hstore.html
-	// whitespace appears to be defined as the isspace() C function: \t\n\v\f\r\n and space
-	const quoteRequiredChars = `,"\=> ` + "\t\n\v\f\r"
-	if src == "" || (len(src) == 4 && strings.ToLower(src) == "null") || strings.ContainsAny(src, quoteRequiredChars) {
-		return quoteArrayElement(src)
-	}
-
-	return src
 }
 
 const (
