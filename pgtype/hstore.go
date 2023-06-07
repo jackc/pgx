@@ -43,7 +43,7 @@ func (h *Hstore) Scan(src any) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToHstoreScanner{}.Scan([]byte(src), h)
+		return scanPlanTextAnyToHstoreScanner{}.scanString(src, h)
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -230,14 +230,18 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 
 type scanPlanTextAnyToHstoreScanner struct{}
 
-func (scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst any) error {
+func (s scanPlanTextAnyToHstoreScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(HstoreScanner)
 
 	if src == nil {
 		return scanner.ScanHstore(Hstore(nil))
 	}
+	return s.scanString(string(src), scanner)
+}
 
-	keys, values, err := parseHstore(string(src))
+// scanString does not return nil hstore values because string cannot be nil.
+func (scanPlanTextAnyToHstoreScanner) scanString(src string, scanner HstoreScanner) error {
+	keys, values, err := parseHstore(src)
 	if err != nil {
 		return err
 	}
