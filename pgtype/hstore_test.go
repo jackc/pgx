@@ -288,3 +288,22 @@ func BenchmarkHstoreEncode(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkHstoreScan(b *testing.B) {
+	strs := []string{
+		"",
+		`"a"=>"b"`,
+		`"a"=>"100", "b"=>"200", "c"=>"300", "d"=>"400", "e"=>"500"`,
+	}
+
+	var h pgtype.Hstore
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		for _, str := range strs {
+			err := h.Scan(str)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
