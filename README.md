@@ -132,6 +132,7 @@ These adapters can be used with the tracelog package.
 * [github.com/jackc/pgx-logrus](https://github.com/jackc/pgx-logrus)
 * [github.com/jackc/pgx-zap](https://github.com/jackc/pgx-zap)
 * [github.com/jackc/pgx-zerolog](https://github.com/jackc/pgx-zerolog)
+* [github.com/mcosta74/pgx-slog](https://github.com/mcosta74/pgx-slog)
 
 ## 3rd Party Libraries with PGX Support
 
