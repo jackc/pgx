@@ -585,8 +585,10 @@ const (
 	QueryExecModeCacheDescribe
 
 	// Get the statement description on every execution. This uses the extended protocol. Queries require two round trips
-	// to execute. It does not use prepared statements (allowing usage with most connection poolers) and is safe even
-	// when the the database schema is modified concurrently.
+	// to execute. It does not use named prepared statements. But it does use the unnamed prepared statement to get the
+	// statement description on the first round trip and then uses it to execute the query on the second round trip. This
+	// may cause problems with connection poolers that switch the underlying connection between round trips. It is safe
+	// even when the the database schema is modified concurrently.
 	QueryExecModeDescribeExec
 
 	// Assume the PostgreSQL query parameter types based on the Go type of the arguments. This uses the extended protocol
