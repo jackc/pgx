@@ -62,3 +62,50 @@ func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 	err := plan.Scan([]byte(`eeeee`), &ts)
 	require.Error(t, err)
 }
+
+func TestTimestampMarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Timestamp
+		result string
+	}{
+		{source: pgtype.Timestamp{}, result: "null"},
+		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.UTC), Valid: true}, result: "\"2012-03-29T10:05:45Z\""},
+		{source: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}, result: "\"2012-03-29T10:05:45.555Z\""},
+		{source: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}, result: "\"infinity\""},
+		{source: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}, result: "\"-infinity\""},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestTimestampUnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Timestamp
+	}{
+		{source: "null", result: pgtype.Timestamp{}},
+		{source: "\"2012-03-29T10:05:45Z\"", result: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 0, time.UTC), Valid: true}},
+		{source: "\"2012-03-29T10:05:45.555Z\"", result: pgtype.Timestamp{Time: time.Date(2012, 3, 29, 10, 5, 45, 555*1000*1000, time.UTC), Valid: true}},
+		{source: "\"infinity\"", result: pgtype.Timestamp{InfinityModifier: pgtype.Infinity, Valid: true}},
+		{source: "\"-infinity\"", result: pgtype.Timestamp{InfinityModifier: pgtype.NegativeInfinity, Valid: true}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Timestamp
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if !r.Time.Equal(tt.result.Time) || r.Valid != tt.result.Valid || r.InfinityModifier != tt.result.InfinityModifier {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}

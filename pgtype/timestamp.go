@@ -3,6 +3,7 @@ package pgtype
 import (
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -64,6 +65,55 @@ func (ts Timestamp) Value() (driver.Value, error) {
 		return ts.InfinityModifier.String(), nil
 	}
 	return ts.Time, nil
+}
+
+func (ts Timestamp) MarshalJSON() ([]byte, error) {
+	if !ts.Valid {
+		return []byte("null"), nil
+	}
+
+	var s string
+
+	switch ts.InfinityModifier {
+	case Finite:
+		s = ts.Time.Format(time.RFC3339Nano)
+	case Infinity:
+		s = "infinity"
+	case NegativeInfinity:
+		s = "-infinity"
+	}
+
+	return json.Marshal(s)
+}
+
+func (ts *Timestamp) UnmarshalJSON(b []byte) error {
+	var s *string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+
+	if s == nil {
+		*ts = Timestamp{}
+		return nil
+	}
+
+	switch *s {
+	case "infinity":
+		*ts = Timestamp{Valid: true, InfinityModifier: Infinity}
+	case "-infinity":
+		*ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
+	default:
+		// PostgreSQL uses ISO 8601 for to_json function and casting from a string to timestamptz
+		tim, err := time.Parse(time.RFC3339Nano, *s)
+		if err != nil {
+			return err
+		}
+
+		*ts = Timestamp{Time: tim, Valid: true}
+	}
+
+	return nil
 }
 
 type TimestampCodec struct{}
