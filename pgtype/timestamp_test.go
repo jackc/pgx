@@ -62,3 +62,45 @@ func TestTimestampCodecDecodeTextInvalid(t *testing.T) {
 	err := plan.Scan([]byte(`eeeee`), &ts)
 	require.Error(t, err)
 }
+
+func TestTimestampDecodeInfinity(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var inf time.Time
+		err := conn.
+			QueryRow(context.Background(), "select 'infinity'::timestamp").
+			Scan(&inf)
+		require.Error(t, err, "Cannot decode infinite as timestamp. Use EnableInfinityTs to interpret inf to a min and max date")
+
+		negInf, posInf := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
+		jan1st2023 := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+		conn.TypeMap().EnableInfinityTs(negInf, posInf)
+
+		var min, max, tim time.Time
+		err = conn.
+			QueryRow(context.Background(), "select '-infinity'::timestamp, 'infinity'::timestamp, '2023-01-01T00:00:00Z'::timestamp").
+			Scan(&min, &max, &tim)
+
+		require.NoError(t, err, "Inf timestamp should be properly scanned when EnableInfinityTs() is valid")
+		require.Equal(t, negInf, min, "Negative infinity should be decoded as negative time supplied in EnableInfinityTs")
+		require.Equal(t, posInf, max, "Positive infinity should be decoded as positive time supplied in EnableInfinityTs")
+		require.Equal(t, tim, jan1st2023, "Normal timestamp should be properly decoded")
+	})
+}
+
+func TestTimestampEncodeInfinity(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		negInf, posInf := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
+		conn.TypeMap().EnableInfinityTs(negInf, posInf)
+
+		_, err := conn.Exec(ctx, "create temporary table tts(neg timestamp NOT NULL, pos timestamp NOT NULL)")
+		require.NoError(t, err, "Temp table creation should not cause an error")
+
+		_, err = conn.Exec(ctx, "insert into tts(neg, pos) values($1, $2)", negInf, posInf)
+		require.NoError(t, err, "Inserting -infinity and infinity to temp tts table should not cause an error")
+
+		var min, max string
+		conn.QueryRow(ctx, "select neg::text, pos::text from tts limit 1").Scan(&min, &max)
+		require.Equal(t, "-infinity", min, "Inserting {negInf} value to temp tts table should be converted to -infinity")
+		require.Equal(t, "infinity", max, "Inserting {posInf} value to temp tts table should be converted to infinity")
+	})
+}

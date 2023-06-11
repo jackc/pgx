@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -612,5 +613,78 @@ func BenchmarkScanPlanScanInt4IntoGoInt32(b *testing.B) {
 func isExpectedEq(a any) func(any) bool {
 	return func(v any) bool {
 		return a == v
+	}
+}
+
+func TestMapEnableInfinityTs(t *testing.T) {
+	type args struct {
+		negativeInfinity time.Time
+		positiveInfinity time.Time
+	}
+
+	type want struct {
+		err         bool
+		assertionFn func(*pgtype.Map)
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "InfinityTs should be enabled",
+			args: args{
+				negativeInfinity: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC),
+				positiveInfinity: time.Date(2100, 1, 1, 1, 0, 0, 0, time.UTC),
+			},
+			want: want{
+				err: false,
+				assertionFn: func(m *pgtype.Map) {
+					ts, exists := m.TypeForName("timestamp")
+					assert.True(t, exists)
+
+					tsc, ok := ts.Codec.(*pgtype.TimestampCodec)
+					assert.True(t, ok)
+
+					assert.True(t, tsc.InfinityTsEnabled)
+				},
+			},
+		},
+		{
+			name: "Negative infinity should not be equal to positive infinity",
+			args: args{
+				negativeInfinity: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC),
+				positiveInfinity: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC),
+			},
+			want: want{
+				err: true,
+			},
+		},
+		{
+			name: "Negative infinity should be lower than positive infinity",
+			args: args{
+				negativeInfinity: time.Date(3000, 1, 1, 1, 0, 0, 0, time.UTC),
+				positiveInfinity: time.Date(2000, 1, 1, 1, 0, 0, 0, time.UTC),
+			},
+			want: want{
+				err: true,
+			},
+		},
+	}
+	typeMap := pgtype.NewMap()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := typeMap.EnableInfinityTs(tt.args.negativeInfinity, tt.args.positiveInfinity)
+			if tt.want.err {
+				assert.Error(t, err, tt.name)
+			} else {
+				assert.NoError(t, err, tt.name)
+			}
+
+			if tt.want.assertionFn != nil {
+				tt.want.assertionFn(typeMap)
+			}
+		})
 	}
 }

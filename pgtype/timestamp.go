@@ -13,7 +13,7 @@ import (
 const pgTimestampFormat = "2006-01-02 15:04:05.999999999"
 
 type TimestampScanner interface {
-	ScanTimestamp(v Timestamp) error
+	ScanTimestamp(v Timestamp, infinityTsEnabled bool) error
 }
 
 type TimestampValuer interface {
@@ -27,7 +27,7 @@ type Timestamp struct {
 	Valid            bool
 }
 
-func (ts *Timestamp) ScanTimestamp(v Timestamp) error {
+func (ts *Timestamp) ScanTimestamp(v Timestamp, infinityTsEnabled bool) error {
 	*ts = v
 	return nil
 }
@@ -66,7 +66,11 @@ func (ts Timestamp) Value() (driver.Value, error) {
 	return ts.Time, nil
 }
 
-type TimestampCodec struct{}
+type TimestampCodec struct {
+	InfinityTsEnabled bool
+	Min               time.Time
+	Max               time.Time
+}
 
 func (TimestampCodec) FormatSupported(format int16) bool {
 	return format == TextFormatCode || format == BinaryFormatCode
@@ -76,24 +80,28 @@ func (TimestampCodec) PreferredFormat() int16 {
 	return BinaryFormatCode
 }
 
-func (TimestampCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
+func (c TimestampCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
 	if _, ok := value.(TimestampValuer); !ok {
 		return nil
 	}
 
 	switch format {
 	case BinaryFormatCode:
-		return encodePlanTimestampCodecBinary{}
+		return encodePlanTimestampCodecBinary{infinityTsEnabled: c.InfinityTsEnabled, min: c.Min, max: c.Max}
 	case TextFormatCode:
-		return encodePlanTimestampCodecText{}
+		return encodePlanTimestampCodecText{infinityTsEnabled: c.InfinityTsEnabled, min: c.Min, max: c.Max}
 	}
 
 	return nil
 }
 
-type encodePlanTimestampCodecBinary struct{}
+type encodePlanTimestampCodecBinary struct {
+	infinityTsEnabled bool
+	min               time.Time
+	max               time.Time
+}
 
-func (encodePlanTimestampCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
+func (e encodePlanTimestampCodecBinary) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	ts, err := value.(TimestampValuer).TimestampValue()
 	if err != nil {
 		return nil, err
@@ -103,8 +111,17 @@ func (encodePlanTimestampCodecBinary) Encode(value any, buf []byte) (newBuf []by
 		return nil, nil
 	}
 
+	infinityModifier := ts.InfinityModifier
+	if e.infinityTsEnabled {
+		if ts.Time.Unix() <= e.min.Unix() {
+			infinityModifier = -Infinity
+		} else if ts.Time.Unix() >= e.max.Unix() {
+			infinityModifier = Infinity
+		}
+	}
+
 	var microsecSinceY2K int64
-	switch ts.InfinityModifier {
+	switch infinityModifier {
 	case Finite:
 		t := discardTimeZone(ts.Time)
 		microsecSinceUnixEpoch := t.Unix()*1000000 + int64(t.Nanosecond())/1000
@@ -120,7 +137,11 @@ func (encodePlanTimestampCodecBinary) Encode(value any, buf []byte) (newBuf []by
 	return buf, nil
 }
 
-type encodePlanTimestampCodecText struct{}
+type encodePlanTimestampCodecText struct {
+	infinityTsEnabled bool
+	min               time.Time
+	max               time.Time
+}
 
 func (encodePlanTimestampCodecText) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	ts, err := value.(TimestampValuer).TimestampValue()
@@ -170,31 +191,35 @@ func discardTimeZone(t time.Time) time.Time {
 	return t
 }
 
-func (TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
+func (c TimestampCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 
 	switch format {
 	case BinaryFormatCode:
 		switch target.(type) {
 		case TimestampScanner:
-			return scanPlanBinaryTimestampToTimestampScanner{}
+			return scanPlanBinaryTimestampToTimestampScanner{infinityTsEnabled: c.InfinityTsEnabled, min: c.Min, max: c.Max}
 		}
 	case TextFormatCode:
 		switch target.(type) {
 		case TimestampScanner:
-			return scanPlanTextTimestampToTimestampScanner{}
+			return scanPlanTextTimestampToTimestampScanner{infinityTsEnabled: c.InfinityTsEnabled, min: c.Min, max: c.Max}
 		}
 	}
 
 	return nil
 }
 
-type scanPlanBinaryTimestampToTimestampScanner struct{}
+type scanPlanBinaryTimestampToTimestampScanner struct {
+	infinityTsEnabled bool
+	min               time.Time
+	max               time.Time
+}
 
-func (scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any) error {
+func (s scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TimestampScanner)
 
 	if src == nil {
-		return scanner.ScanTimestamp(Timestamp{})
+		return scanner.ScanTimestamp(Timestamp{}, s.infinityTsEnabled)
 	}
 
 	if len(src) != 8 {
@@ -206,9 +231,9 @@ func (scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any) error
 
 	switch microsecSinceY2K {
 	case infinityMicrosecondOffset:
-		ts = Timestamp{Valid: true, InfinityModifier: Infinity}
+		ts = Timestamp{Valid: true, InfinityModifier: Infinity, Time: s.max}
 	case negativeInfinityMicrosecondOffset:
-		ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
+		ts = Timestamp{Valid: true, InfinityModifier: -Infinity, Time: s.min}
 	default:
 		tim := time.Unix(
 			microsecFromUnixEpochToY2K/1000000+microsecSinceY2K/1000000,
@@ -217,25 +242,29 @@ func (scanPlanBinaryTimestampToTimestampScanner) Scan(src []byte, dst any) error
 		ts = Timestamp{Time: tim, Valid: true}
 	}
 
-	return scanner.ScanTimestamp(ts)
+	return scanner.ScanTimestamp(ts, s.infinityTsEnabled)
 }
 
-type scanPlanTextTimestampToTimestampScanner struct{}
+type scanPlanTextTimestampToTimestampScanner struct {
+	infinityTsEnabled bool
+	min               time.Time
+	max               time.Time
+}
 
-func (scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) error {
+func (s scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) error {
 	scanner := (dst).(TimestampScanner)
 
 	if src == nil {
-		return scanner.ScanTimestamp(Timestamp{})
+		return scanner.ScanTimestamp(Timestamp{}, s.infinityTsEnabled)
 	}
 
 	var ts Timestamp
 	sbuf := string(src)
 	switch sbuf {
 	case "infinity":
-		ts = Timestamp{Valid: true, InfinityModifier: Infinity}
+		ts = Timestamp{Valid: true, InfinityModifier: Infinity, Time: s.max}
 	case "-infinity":
-		ts = Timestamp{Valid: true, InfinityModifier: -Infinity}
+		ts = Timestamp{Valid: true, InfinityModifier: -Infinity, Time: s.min}
 	default:
 		bc := false
 		if strings.HasSuffix(sbuf, " BC") {
@@ -255,7 +284,7 @@ func (scanPlanTextTimestampToTimestampScanner) Scan(src []byte, dst any) error {
 		ts = Timestamp{Time: tim, Valid: true}
 	}
 
-	return scanner.ScanTimestamp(ts)
+	return scanner.ScanTimestamp(ts, s.infinityTsEnabled)
 }
 
 func (c TimestampCodec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, src []byte) (driver.Value, error) {

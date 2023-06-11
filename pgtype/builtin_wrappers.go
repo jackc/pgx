@@ -419,12 +419,17 @@ func (w timeWrapper) DateValue() (Date, error) {
 	return Date{Time: time.Time(w), Valid: true}, nil
 }
 
-func (w *timeWrapper) ScanTimestamp(v Timestamp) error {
+func (w *timeWrapper) ScanTimestamp(v Timestamp, infinityTsEnabled bool) error {
 	if !v.Valid {
 		return fmt.Errorf("cannot scan NULL into *time.Time")
 	}
 
-	switch v.InfinityModifier {
+	infinityModifier := v.InfinityModifier
+	if infinityTsEnabled {
+		infinityModifier = Finite
+	}
+
+	switch infinityModifier {
 	case Finite:
 		*w = timeWrapper(v.Time)
 		return nil
