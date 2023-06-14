@@ -1479,7 +1479,8 @@ func (rr *ResultReader) NextRow() bool {
 }
 
 // FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until
-// the ResultReader is closed.
+// the ResultReader is closed. It may return nil (for example, if the query did not return a result set or an error was
+// encountered.)
 func (rr *ResultReader) FieldDescriptions() []FieldDescription {
 	return rr.fieldDescriptions
 }
