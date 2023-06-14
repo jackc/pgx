@@ -1,3 +1,26 @@
+# 5.4.0 (June 14, 2023)
+
+* Replace platform specific syscalls for non-blocking IO with more traditional goroutines and deadlines. This returns to the v4 approach with some additional improvements and fixes. This restores the ability to use a pgx.Conn over an ssh.Conn as well as other non-TCP or Unix socket connections. In addition, it is a significantly simpler implementation that is less likely to have cross platform issues.
+* Optimization: The default type registrations are now shared among all connections. This saves about 100KB of memory per connection. `pgtype.Type` and `pgtype.Codec` values are now required to be immutable after registration. This was already necessary in most cases but wasn't documented until now. (Lev Zakharov)
+* Fix: Ensure pgxpool.Pool.QueryRow.Scan releases connection on panic
+* CancelRequest: don't try to read the reply (Nicola Murino)
+* Fix: correctly handle bool type aliases (Wichert Akkerman)
+* Fix: pgconn.CancelRequest: Fix unix sockets: don't use RemoteAddr()
+* Fix: pgx.Conn memory leak with prepared statement caching (Evan Jones)
+* Add BeforeClose to pgxpool.Pool (Evan Cordell)
+* Fix: various hstore fixes and optimizations (Evan Jones)
+* Fix: RowToStructByPos with embedded unexported struct
+* Support different bool string representations (Lev Zakharov)
+* Fix: error when using BatchResults.Exec on a select that returns an error after some rows.
+* Fix: pipelineBatchResults.Exec() not returning error from ResultReader
+* Fix: pipeline batch results not closing pipeline when error occurs while reading directly from results instead of using
+    a callback.
+* Fix: scanning a table type into a struct
+* Fix: scan array of record to pointer to slice of struct
+* Fix: handle null for json (Cemre Mengu)
+* Batch Query callback is called even when there is an error
+* Add RowTo(AddrOf)StructByNameLax (Audi P. Risa P)
+
 # 5.3.1 (February 27, 2023)
 
 * Fix: Support v4 and v5 stdlib in same program (Tomáš Procházka)
