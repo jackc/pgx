@@ -98,6 +98,9 @@ type Pool struct {
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
 
+	healthCheckMu    sync.Mutex
+	healthCheckTimer *time.Timer
+
 	healthCheckChan chan struct{}
 
 	acquireTracer AcquireTracer
@@ -458,15 +461,25 @@ func (p *Pool) isExpired(res *puddle.Resource[*connResource]) bool {
 }
 
 func (p *Pool) triggerHealthCheck() {
-	go func() {
+	const healthCheckDelay = 500 * time.Millisecond
+
+	p.healthCheckMu.Lock()
+	defer p.healthCheckMu.Unlock()
+
+	if p.healthCheckTimer == nil {
 		// Destroy is asynchronous so we give it time to actually remove itself from
 		// the pool otherwise we might try to check the pool size too soon
-		time.Sleep(500 * time.Millisecond)
-		select {
-		case p.healthCheckChan <- struct{}{}:
-		default:
-		}
-	}()
+		p.healthCheckTimer = time.AfterFunc(healthCheckDelay, func() {
+			select {
+			case <-p.closeChan:
+			case p.healthCheckChan <- struct{}{}:
+			default:
+			}
+		})
+		return
+	}
+
+	p.healthCheckTimer.Reset(healthCheckDelay)
 }
 
 func (p *Pool) backgroundHealthCheck() {
