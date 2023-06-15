@@ -17,8 +17,6 @@ import (
 func TestConnCopyWithAllQueryExecModes(t *testing.T) {
 	for _, mode := range pgxtest.AllQueryExecModes {
 		t.Run(mode.String(), func(t *testing.T) {
-			t.Parallel()
-
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
@@ -81,8 +79,6 @@ func TestConnCopyWithKnownOIDQueryExecModes(t *testing.T) {
 
 	for _, mode := range pgxtest.KnownOIDQueryExecModes {
 		t.Run(mode.String(), func(t *testing.T) {
-			t.Parallel()
-
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 

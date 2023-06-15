@@ -1784,7 +1784,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 	{
 		if conn.PgConn().ParameterStatus("crdb_version") == "" {
 			// CockroachDB doesn't support circle type.
-			expected := pgtype.Circle{P: pgtype.Vec2{1, 2}, R: 1.5, Valid: true}
+			expected := pgtype.Circle{P: pgtype.Vec2{X: 1, Y: 2}, R: 1.5, Valid: true}
 			actual := expected
 			err := conn.QueryRow(
 				context.Background(),
