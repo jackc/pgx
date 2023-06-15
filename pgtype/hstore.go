@@ -183,47 +183,43 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 
 	rp := 0
 
-	if len(src[rp:]) < 4 {
+	const uint32Len = 4
+	if len(src[rp:]) < uint32Len {
 		return fmt.Errorf("hstore incomplete %v", src)
 	}
 	pairCount := int(int32(binary.BigEndian.Uint32(src[rp:])))
-	rp += 4
+	rp += uint32Len
 
 	hstore := make(Hstore, pairCount)
+	// one allocation for all strings, rather than one per string
+	valueStrings := make([]string, pairCount)
+	// one shared string for all key/value strings
+	keyValueString := string(src[rp:])
 
 	for i := 0; i < pairCount; i++ {
-		if len(src[rp:]) < 4 {
+		if len(src[rp:]) < uint32Len {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}
 		keyLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
-		rp += 4
+		rp += uint32Len
 
 		if len(src[rp:]) < keyLen {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}
-		key := string(src[rp : rp+keyLen])
+		key := string(keyValueString[rp-uint32Len : rp-uint32Len+keyLen])
 		rp += keyLen
 
-		if len(src[rp:]) < 4 {
+		if len(src[rp:]) < uint32Len {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}
 		valueLen := int(int32(binary.BigEndian.Uint32(src[rp:])))
 		rp += 4
 
-		var valueBuf []byte
 		if valueLen >= 0 {
-			valueBuf = src[rp : rp+valueLen]
+			valueStrings[i] = string(keyValueString[rp-uint32Len : rp-uint32Len+valueLen])
 			rp += valueLen
-		}
 
-		var value Text
-		err := scanPlanTextAnyToTextScanner{}.Scan(valueBuf, &value)
-		if err != nil {
-			return err
-		}
-
-		if value.Valid {
-			hstore[key] = &value.String
+			hstore[key] = &valueStrings[i]
 		} else {
 			hstore[key] = nil
 		}
