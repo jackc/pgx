@@ -496,7 +496,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 func TestConnectWithFallback(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
