@@ -191,10 +191,8 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 	rp += uint32Len
 
 	hstore := make(Hstore, pairCount)
-	// one allocation for all strings, rather than one per string
+	// one allocation for all *string, rather than one per string, just like text parsing
 	valueStrings := make([]string, pairCount)
-	// one shared string for all key/value strings
-	keyValueString := string(src[rp:])
 
 	for i := 0; i < pairCount; i++ {
 		if len(src[rp:]) < uint32Len {
@@ -206,7 +204,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 		if len(src[rp:]) < keyLen {
 			return fmt.Errorf("hstore incomplete %v", src)
 		}
-		key := string(keyValueString[rp-uint32Len : rp-uint32Len+keyLen])
+		key := string(src[rp : rp+keyLen])
 		rp += keyLen
 
 		if len(src[rp:]) < uint32Len {
@@ -216,7 +214,7 @@ func (scanPlanBinaryHstoreToHstoreScanner) Scan(src []byte, dst any) error {
 		rp += 4
 
 		if valueLen >= 0 {
-			valueStrings[i] = string(keyValueString[rp-uint32Len : rp-uint32Len+valueLen])
+			valueStrings[i] = string(src[rp : rp+valueLen])
 			rp += valueLen
 
 			hstore[key] = &valueStrings[i]
