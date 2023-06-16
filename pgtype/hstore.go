@@ -332,7 +332,7 @@ func (p *hstoreParser) consumeExpected2(one byte, two byte) error {
 var errEOSInQuoted = errors.New(`found end before closing double-quote ('"')`)
 
 // consumeDoubleQuoted consumes a double-quoted string from p. The double quote must have been
-// parsed already.
+// parsed already. This copies the string from the backing string so it can be garbage collected.
 func (p *hstoreParser) consumeDoubleQuoted() (string, error) {
 	// fast path: assume most keys/values do not contain escapes
 	nextDoubleQuote := strings.IndexByte(p.str[p.pos:], '"')
@@ -341,8 +341,9 @@ func (p *hstoreParser) consumeDoubleQuoted() (string, error) {
 	}
 	nextDoubleQuote += p.pos
 	if p.nextBackslash == -1 || p.nextBackslash > nextDoubleQuote {
-		// no escapes in this string
-		s := p.str[p.pos:nextDoubleQuote]
+		// clone the string from the source string to ensure it can be garbage collected separately
+		// TODO: use strings.Clone on Go 1.20; this could get optimized away
+		s := strings.Clone(p.str[p.pos:nextDoubleQuote])
 		p.pos = nextDoubleQuote + 1
 		return s, nil
 	}
@@ -357,7 +358,8 @@ func (p *hstoreParser) consumeDoubleQuoted() (string, error) {
 }
 
 // consumeDoubleQuotedWithEscapes consumes a double-quoted string containing escapes, starting
-// at p.pos, and with the first backslash at firstBackslash.
+// at p.pos, and with the first backslash at firstBackslash. This copies the string so it can be
+// garbage collected separately.
 func (p *hstoreParser) consumeDoubleQuotedWithEscapes(firstBackslash int) (string, error) {
 	// copy the prefix that does not contain backslashes
 	var builder strings.Builder
