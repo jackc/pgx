@@ -2494,10 +2494,12 @@ func TestConnCheckConn(t *testing.T) {
 	_, err = c2.Exec(ctx, fmt.Sprintf("select pg_terminate_backend(%d)", c1.PID())).ReadAll()
 	require.NoError(t, err)
 
-	// Give a little time for the signal to actually kill the backend.
-	time.Sleep(500 * time.Millisecond)
-
-	err = c1.CheckConn()
+	// It may take a while for the server to kill the backend. Retry until the error is detected or the test context is
+	// canceled.
+	for err == nil && ctx.Err() == nil {
+		time.Sleep(50 * time.Millisecond)
+		err = c1.CheckConn()
+	}
 	require.Error(t, err)
 }
 
