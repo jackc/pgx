@@ -599,12 +599,15 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
-
 	stats := db.Stat()
-	assert.EqualValues(t, 2, stats.TotalConns())
-	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
-	assert.EqualValues(t, 2, stats.NewConnsCount())
+	for !(stats.TotalConns() == 2 && stats.MaxLifetimeDestroyCount() == 0 && stats.NewConnsCount() == 2) || ctx.Err() != nil {
+		time.Sleep(50 * time.Millisecond)
+		stats = db.Stat()
+	}
+	require.NoError(t, ctx.Err())
+	require.EqualValues(t, 2, stats.TotalConns())
+	require.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	require.EqualValues(t, 2, stats.NewConnsCount())
 
 	c, err := db.Acquire(ctx)
 	require.NoError(t, err)
@@ -612,12 +615,15 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	require.NoError(t, err)
 	c.Release()
 
-	time.Sleep(config.HealthCheckPeriod + 500*time.Millisecond)
-
 	stats = db.Stat()
-	assert.EqualValues(t, 2, stats.TotalConns())
-	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
-	assert.EqualValues(t, 3, stats.NewConnsCount())
+	for !(stats.TotalConns() == 2 && stats.MaxIdleDestroyCount() == 0 && stats.NewConnsCount() == 3) || ctx.Err() != nil {
+		time.Sleep(50 * time.Millisecond)
+		stats = db.Stat()
+	}
+	require.NoError(t, ctx.Err())
+	require.EqualValues(t, 2, stats.TotalConns())
+	require.EqualValues(t, 0, stats.MaxIdleDestroyCount())
+	require.EqualValues(t, 3, stats.NewConnsCount())
 }
 
 func TestPoolExec(t *testing.T) {
