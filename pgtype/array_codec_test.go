@@ -3,6 +3,7 @@ package pgtype_test
 import (
 	"context"
 	"encoding/hex"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -51,23 +52,35 @@ func TestArrayCodec(t *testing.T) {
 	})
 }
 
-func TestArrayCodecFlatArray(t *testing.T) {
+func TestArrayCodecFlatArrayString(t *testing.T) {
+	testCases := []struct {
+		input []string
+	}{
+		{nil},
+		{[]string{}},
+		{[]string{"a"}},
+		{[]string{"a", "b"}},
+		// previously had a bug with whitespace handling
+		{[]string{"\v", "\t", "\n", "\r", "\f", " "}},
+		{[]string{"a\vb", "a\tb", "a\nb", "a\rb", "a\fb", "a b"}},
+	}
+
+	queryModes := []pgx.QueryExecMode{pgx.QueryExecModeSimpleProtocol, pgx.QueryExecModeDescribeExec}
+
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		for i, tt := range []struct {
-			expected any
-		}{
-			{pgtype.FlatArray[int32](nil)},
-			{pgtype.FlatArray[int32]{}},
-			{pgtype.FlatArray[int32]{1, 2, 3}},
-		} {
-			var actual pgtype.FlatArray[int32]
-			err := conn.QueryRow(
-				ctx,
-				"select $1::int[]",
-				tt.expected,
-			).Scan(&actual)
-			assert.NoErrorf(t, err, "%d", i)
-			assert.Equalf(t, tt.expected, actual, "%d", i)
+		for i, testCase := range testCases {
+			for _, queryMode := range queryModes {
+				var out []string
+				err := conn.QueryRow(ctx, "select $1::text[]", queryMode, testCase.input).Scan(&out)
+				if err != nil {
+					t.Fatalf("i=%d input=%#v queryMode=%s: Scan failed: %s",
+						i, testCase.input, queryMode, err)
+				}
+				if !reflect.DeepEqual(out, testCase.input) {
+					t.Errorf("i=%d input=%#v queryMode=%s: not equal output=%#v",
+						i, testCase.input, queryMode, out)
+				}
+			}
 		}
 	})
 }
