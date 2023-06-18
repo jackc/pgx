@@ -318,10 +318,6 @@ func (m *Map) TypeForValue(v any) (*Type, bool) {
 		return dt, true
 	}
 
-	if defaultMap.reflectTypeToType == nil {
-		defaultMap.buildReflectTypeToType()
-	}
-
 	dt, ok := defaultMap.reflectTypeToType[reflect.TypeOf(v)]
 	return dt, ok
 }
