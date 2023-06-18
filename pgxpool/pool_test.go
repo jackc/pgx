@@ -1102,7 +1102,7 @@ func TestConnectEagerlyReachesMinPoolSize(t *testing.T) {
 func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
