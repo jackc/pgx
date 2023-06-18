@@ -372,6 +372,26 @@ func TestBeginReadOnly(t *testing.T) {
 	}
 }
 
+func TestBeginTxBeginQuery(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		tx, err := conn.BeginTx(ctx, pgx.TxOptions{BeginQuery: "begin read only"})
+		require.NoError(t, err)
+		defer tx.Rollback(ctx)
+
+		var readOnly bool
+		conn.QueryRow(ctx, "select current_setting('transaction_read_only')::bool").Scan(&readOnly)
+		require.True(t, readOnly)
+
+		err = tx.Rollback(ctx)
+		require.NoError(t, err)
+	})
+}
+
 func TestTxNestedTransactionCommit(t *testing.T) {
 	t.Parallel()
 
