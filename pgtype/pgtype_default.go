@@ -218,4 +218,6 @@ func initDefaultMap() {
 	registerDefaultPgTypeVariants[Range[Timestamptz]](defaultMap, "tstzrange")
 	registerDefaultPgTypeVariants[Multirange[Range[Timestamptz]]](defaultMap, "tstzmultirange")
 	registerDefaultPgTypeVariants[UUID](defaultMap, "uuid")
+
+	defaultMap.buildReflectTypeToType()
 }
