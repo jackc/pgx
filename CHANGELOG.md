@@ -1,3 +1,8 @@
+# 5.4.1 (June 18, 2023)
+
+* Fix: concurrency bug with pgtypeDefaultMap and simple protocol (Lev Zakharov)
+* Add TxOptions.BeginQuery to allow overriding the default BEGIN query
+
 # 5.4.0 (June 14, 2023)
 
 * Replace platform specific syscalls for non-blocking IO with more traditional goroutines and deadlines. This returns to the v4 approach with some additional improvements and fixes. This restores the ability to use a pgx.Conn over an ssh.Conn as well as other non-TCP or Unix socket connections. In addition, it is a significantly simpler implementation that is less likely to have cross platform issues.
