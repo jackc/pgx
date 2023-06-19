@@ -111,7 +111,7 @@ jobs:
         git diff --exit-code
 
     - name: Test
-      run: go test -race ./...
+      run: go test -v -race ./...
       env:
         PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
         PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
