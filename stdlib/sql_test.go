@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -314,6 +315,68 @@ func TestConnQuery(t *testing.T) {
 
 		err = rows.Close()
 		require.NoError(t, err)
+	})
+}
+
+func TestConnConcurrency(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		_, err := db.Exec("create table t (id integer primary key, str text, dur_str interval)")
+		require.NoError(t, err)
+
+		defer func() {
+			_, err := db.Exec("drop table t")
+			require.NoError(t, err)
+		}()
+
+		var wg sync.WaitGroup
+
+		concurrency := 50
+
+		for i := 1; i <= concurrency; i++ {
+			wg.Add(1)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+
+				str := strconv.Itoa(idx)
+				duration := time.Duration(idx) * time.Second
+				_, err := db.ExecContext(ctx, "insert into t values($1)", idx)
+				require.NoError(t, err)
+				_, err = db.ExecContext(ctx, "update t set str = $1 where id = $2", str, idx)
+				require.NoError(t, err)
+				_, err = db.ExecContext(ctx, "update t set dur_str = $1 where id = $2", duration, idx)
+				require.NoError(t, err)
+			}(i)
+		}
+		wg.Wait()
+
+		for i := 1; i <= concurrency; i++ {
+			wg.Add(1)
+
+			go func(idx int) {
+				defer wg.Done()
+
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+
+				var id int
+				var str string
+				var duration pgtype.Interval
+				err := db.QueryRowContext(ctx, "select id,str,dur_str from t where id = $1", idx).Scan(&id, &str, &duration)
+				require.NoError(t, err)
+				require.Equal(t, idx, id)
+				require.Equal(t, strconv.Itoa(idx), str)
+				expectedDuration := pgtype.Interval{
+					Microseconds: int64(idx) * time.Second.Microseconds(),
+					Valid:        true,
+				}
+				require.Equal(t, expectedDuration, duration)
+			}(i)
+		}
+		wg.Wait()
 	})
 }
 
