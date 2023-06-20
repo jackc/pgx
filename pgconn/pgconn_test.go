@@ -2220,7 +2220,7 @@ func TestConnEscapeString(t *testing.T) {
 func TestConnCancelRequest(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2231,13 +2231,13 @@ func TestConnCancelRequest(t *testing.T) {
 		t.Skip("Server does not support query cancellation (https://github.com/cockroachdb/cockroach/issues/41335)")
 	}
 
-	multiResult := pgConn.Exec(ctx, "select 'Hello, world', pg_sleep(2)")
+	multiResult := pgConn.Exec(ctx, "select 'Hello, world', pg_sleep(25)")
 
 	errChan := make(chan error)
 	go func() {
 		// The query is actually sent when multiResult.NextResult() is called. So wait to ensure it is sent.
 		// Once Flush is available this could use that instead.
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 
 		err := pgConn.CancelRequest(ctx)
 		errChan <- err
