@@ -42,6 +42,7 @@ func (ers *testErrRowScanner) ScanRow(rows pgx.Rows) error {
 	return errors.New(string(*ers))
 }
 
+// https://github.com/jackc/pgx/issues/1654
 func TestRowScannerErrorIsFatalToRows(t *testing.T) {
 	t.Parallel()
 
