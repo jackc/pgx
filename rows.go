@@ -231,7 +231,11 @@ func (rows *baseRows) Scan(dest ...any) error {
 
 	if len(dest) == 1 {
 		if rc, ok := dest[0].(RowScanner); ok {
-			return rc.ScanRow(rows)
+			err := rc.ScanRow(rows)
+			if err != nil {
+				rows.fatal(err)
+			}
+			return err
 		}
 	}
 

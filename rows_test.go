@@ -36,6 +36,22 @@ func TestRowScanner(t *testing.T) {
 	})
 }
 
+type testErrRowScanner string
+
+func (ers *testErrRowScanner) ScanRow(rows pgx.Rows) error {
+	return errors.New(string(*ers))
+}
+
+func TestRowScannerErrorIsFatalToRows(t *testing.T) {
+	t.Parallel()
+
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		s := testErrRowScanner("foo")
+		err := conn.QueryRow(ctx, "select 'Adam' as name, 72 as height").Scan(&s)
+		require.EqualError(t, err, "foo")
+	})
+}
+
 func TestForEachRow(t *testing.T) {
 	t.Parallel()
 
