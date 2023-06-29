@@ -2,6 +2,7 @@ package pgtype_test
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -53,6 +54,11 @@ func isExpectedEqMapStringPointerString(a any) func(any) bool {
 	}
 }
 
+// stringPtr returns a pointer to s.
+func stringPtr(s string) *string {
+	return &s
+}
+
 func TestHstoreCodec(t *testing.T) {
 	ctr := defaultConnTestRunner
 	ctr.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -63,10 +69,6 @@ func TestHstoreCodec(t *testing.T) {
 		}
 
 		conn.TypeMap().RegisterType(&pgtype.Type{Name: "hstore", OID: hstoreOID, Codec: pgtype.HstoreCodec{}})
-	}
-
-	fs := func(s string) *string {
-		return &s
 	}
 
 	tests := []pgxtest.ValueRoundTripTest{
@@ -101,14 +103,14 @@ func TestHstoreCodec(t *testing.T) {
 			isExpectedEqMapStringPointerString(map[string]*string{}),
 		},
 		{
-			map[string]*string{"foo": fs("bar"), "baq": fs("quz")},
+			map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")},
 			new(map[string]*string),
-			isExpectedEqMapStringPointerString(map[string]*string{"foo": fs("bar"), "baq": fs("quz")}),
+			isExpectedEqMapStringPointerString(map[string]*string{"foo": stringPtr("bar"), "baq": stringPtr("quz")}),
 		},
 		{
-			map[string]*string{"foo": nil, "baq": fs("quz")},
+			map[string]*string{"foo": nil, "baq": stringPtr("quz")},
 			new(map[string]*string),
-			isExpectedEqMapStringPointerString(map[string]*string{"foo": nil, "baq": fs("quz")}),
+			isExpectedEqMapStringPointerString(map[string]*string{"foo": nil, "baq": stringPtr("quz")}),
 		},
 		{nil, new(*map[string]string), isExpectedEq((*map[string]string)(nil))},
 		{nil, new(*map[string]*string), isExpectedEq((*map[string]*string)(nil))},
@@ -201,7 +203,7 @@ func TestHstoreCodec(t *testing.T) {
 			if typedParam != nil {
 				h = pgtype.Hstore{}
 				for k, v := range typedParam {
-					h[k] = fs(v)
+					h[k] = stringPtr(v)
 				}
 			}
 		}
@@ -261,10 +263,53 @@ func TestParseInvalidInputs(t *testing.T) {
 	}
 }
 
-func BenchmarkHstoreEncode(b *testing.B) {
-	stringPtr := func(s string) *string {
-		return &s
+func TestRoundTrip(t *testing.T) {
+	codecs := []struct {
+		name       string
+		encodePlan pgtype.EncodePlan
+		scanPlan   pgtype.ScanPlan
+	}{
+		{
+			"text",
+			pgtype.HstoreCodec{}.PlanEncode(nil, 0, pgtype.TextFormatCode, pgtype.Hstore(nil)),
+			pgtype.HstoreCodec{}.PlanScan(nil, 0, pgtype.TextFormatCode, (*pgtype.Hstore)(nil)),
+		},
+		{
+			"binary",
+			pgtype.HstoreCodec{}.PlanEncode(nil, 0, pgtype.BinaryFormatCode, pgtype.Hstore(nil)),
+			pgtype.HstoreCodec{}.PlanScan(nil, 0, pgtype.BinaryFormatCode, (*pgtype.Hstore)(nil)),
+		},
 	}
+
+	inputs := []pgtype.Hstore{
+		nil,
+		{},
+		{"": stringPtr("")},
+		{"k1": stringPtr("v1")},
+		{"k1": stringPtr("v1"), "k2": stringPtr("v2")},
+	}
+	for _, codec := range codecs {
+		for i, input := range inputs {
+			t.Run(fmt.Sprintf("%s/%d", codec.name, i), func(t *testing.T) {
+				serialized, err := codec.encodePlan.Encode(input, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var output pgtype.Hstore
+				err = codec.scanPlan.Scan(serialized, &output)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(output, input) {
+					t.Errorf("output=%#v does not match input=%#v", output, input)
+				}
+			})
+		}
+	}
+
+}
+
+func BenchmarkHstoreEncode(b *testing.B) {
 	h := pgtype.Hstore{"a x": stringPtr("100"), "b": stringPtr("200"), "c": stringPtr("300"),
 		"d": stringPtr("400"), "e": stringPtr("500")}
 
