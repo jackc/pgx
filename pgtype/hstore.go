@@ -121,8 +121,15 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 		return nil, err
 	}
 
-	if hstore == nil {
-		return nil, nil
+	if len(hstore) == 0 {
+		// distinguish between empty and nil: Not strictly required by Postgres, since its protocol
+		// explicitly marks NULL column values separately. However, the Binary codec does this, and
+		// this means we can "round trip" Encode and Scan without data loss.
+		// nil: []byte(nil); empty: []byte{}
+		if hstore == nil {
+			return nil, nil
+		}
+		return []byte{}, nil
 	}
 
 	firstPair := true
@@ -131,7 +138,7 @@ func (encodePlanHstoreCodecText) Encode(value any, buf []byte) (newBuf []byte, e
 		if firstPair {
 			firstPair = false
 		} else {
-			buf = append(buf, ',')
+			buf = append(buf, ',', ' ')
 		}
 
 		// unconditionally quote hstore keys/values like Postgres does
