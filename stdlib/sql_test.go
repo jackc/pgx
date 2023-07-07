@@ -547,7 +547,7 @@ func TestConnQueryJSONIntoByteSlice(t *testing.T) {
 			t.Errorf("Unexpected failure: %v (sql -> %v)", err, sql)
 		}
 
-		if bytes.Compare(actual, expected) != 0 {
+		if !bytes.Equal(actual, expected) {
 			t.Errorf(`Expected "%v", got "%v" (sql -> %v)`, string(expected), string(actual), sql)
 		}
 
@@ -579,7 +579,7 @@ func TestConnExecInsertByteSliceIntoJSON(t *testing.T) {
 	err = db.QueryRow(`select body from docs`).Scan(&actual)
 	require.NoError(t, err)
 
-	if bytes.Compare(actual, expected) != 0 {
+	if !bytes.Equal(actual, expected) {
 		t.Errorf(`Expected "%v", got "%v"`, string(expected), string(actual))
 	}
 

@@ -22,7 +22,7 @@ func isExpectedEqHardwareAddr(a any) func(any) bool {
 			return true
 		}
 
-		return bytes.Compare(aa, vv) == 0
+		return bytes.Equal(aa, vv)
 	}
 }
 
