@@ -17,7 +17,7 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(n1, src[0:2]) != 0 {
+	if !bytes.Equal(n1, src[0:2]) {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[0:2], n1)
 	}
 
@@ -25,11 +25,11 @@ func TestChunkReaderNextDoesNotReadIfAlreadyBuffered(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(n2, src[2:4]) != 0 {
+	if !bytes.Equal(n2, src[2:4]) {
 		t.Fatalf("Expected read bytes to be %v, but they were %v", src[2:4], n2)
 	}
 
-	if bytes.Compare((*r.buf)[:len(src)], src) != 0 {
+	if !bytes.Equal((*r.buf)[:len(src)], src) {
 		t.Fatalf("Expected r.buf to be %v, but it was %v", src, r.buf)
 	}
 

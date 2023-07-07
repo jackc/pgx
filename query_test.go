@@ -1518,7 +1518,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if bytes.Compare(actual, expected) != 0 {
+		if !bytes.Equal(actual, expected) {
 			t.Errorf("expected %v got %v", expected, actual)
 		}
 	}
@@ -1825,7 +1825,7 @@ func TestConnSimpleProtocol(t *testing.T) {
 		if expectedBool != actualBool {
 			t.Errorf("expected %v got %v", expectedBool, actualBool)
 		}
-		if bytes.Compare(expectedBytes, actualBytes) != 0 {
+		if !bytes.Equal(expectedBytes, actualBytes) {
 			t.Errorf("expected %v got %v", expectedBytes, actualBytes)
 		}
 		if expectedString != actualString {
