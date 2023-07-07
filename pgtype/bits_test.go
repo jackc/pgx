@@ -13,7 +13,7 @@ func isExpectedEqBits(a any) func(any) bool {
 	return func(v any) bool {
 		ab := a.(pgtype.Bits)
 		vb := v.(pgtype.Bits)
-		return bytes.Compare(ab.Bytes, vb.Bytes) == 0 && ab.Len == vb.Len && ab.Valid == vb.Valid
+		return bytes.Equal(ab.Bytes, vb.Bytes) && ab.Len == vb.Len && ab.Valid == vb.Valid
 	}
 }
 

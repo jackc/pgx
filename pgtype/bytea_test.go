@@ -25,7 +25,7 @@ func isExpectedEqBytes(a any) func(any) bool {
 			return true
 		}
 
-		return bytes.Compare(ab, vb) == 0
+		return bytes.Equal(ab, vb)
 	}
 }
 
@@ -64,7 +64,7 @@ func TestDriverBytes(t *testing.T) {
 			rowCount++
 
 			// At some point the buffer should be reused and change.
-			if bytes.Compare(argBuf, resultBuf) != 0 {
+			if !bytes.Equal(argBuf, resultBuf) {
 				detectedResultMutation = true
 			}
 

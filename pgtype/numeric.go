@@ -241,11 +241,11 @@ func (n Numeric) MarshalJSON() ([]byte, error) {
 }
 
 func (n *Numeric) UnmarshalJSON(src []byte) error {
-	if bytes.Compare(src, []byte(`null`)) == 0 {
+	if bytes.Equal(src, []byte(`null`)) {
 		*n = Numeric{}
 		return nil
 	}
-	if bytes.Compare(src, []byte(`"NaN"`)) == 0 {
+	if bytes.Equal(src, []byte(`"NaN"`)) {
 		*n = Numeric{NaN: true, Valid: true}
 		return nil
 	}

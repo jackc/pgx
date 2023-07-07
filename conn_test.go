@@ -1242,7 +1242,7 @@ func TestRawValuesUnderlyingMemoryReused(t *testing.T) {
 			rows.Close()
 			require.NoError(t, rows.Err())
 
-			if bytes.Compare(original, buf) != 0 {
+			if !bytes.Equal(original, buf) {
 				return
 			}
 		}

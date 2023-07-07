@@ -151,7 +151,7 @@ func BenchmarkMinimalPgConnPreparedSelect(b *testing.B) {
 
 		for rr.NextRow() {
 			for i := range rr.Values() {
-				if bytes.Compare(rr.Values()[0], encodedBytes) != 0 {
+				if !bytes.Equal(rr.Values()[0], encodedBytes) {
 					b.Fatalf("unexpected values: %s %s", rr.Values()[i], encodedBytes)
 				}
 			}

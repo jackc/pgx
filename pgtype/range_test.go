@@ -166,11 +166,11 @@ func TestParseUntypedBinaryRange(t *testing.T) {
 			t.Errorf("%d. `%v`: expected result upper type %v, got %v", i, tt.src, string(tt.result.UpperType), string(r.UpperType))
 		}
 
-		if bytes.Compare(r.Lower, tt.result.Lower) != 0 {
+		if !bytes.Equal(r.Lower, tt.result.Lower) {
 			t.Errorf("%d. `%v`: expected result lower %v, got %v", i, tt.src, tt.result.Lower, r.Lower)
 		}
 
-		if bytes.Compare(r.Upper, tt.result.Upper) != 0 {
+		if !bytes.Equal(r.Upper, tt.result.Upper) {
 			t.Errorf("%d. `%v`: expected result upper %v, got %v", i, tt.src, tt.result.Upper, r.Upper)
 		}
 	}
