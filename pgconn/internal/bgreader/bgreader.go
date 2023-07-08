@@ -9,18 +9,18 @@ import (
 )
 
 const (
-	bgReaderStatusStopped = iota
-	bgReaderStatusRunning
-	bgReaderStatusStopping
+	StatusStopped = iota
+	StatusRunning
+	StatusStopping
 )
 
 // BGReader is an io.Reader that can optionally buffer reads in the background. It is safe for concurrent use.
 type BGReader struct {
 	r io.Reader
 
-	cond           *sync.Cond
-	bgReaderStatus int32
-	readResults    []readResult
+	cond        *sync.Cond
+	status      int32
+	readResults []readResult
 }
 
 type readResult struct {
@@ -34,14 +34,14 @@ func (r *BGReader) Start() {
 	r.cond.L.Lock()
 	defer r.cond.L.Unlock()
 
-	switch r.bgReaderStatus {
-	case bgReaderStatusStopped:
-		r.bgReaderStatus = bgReaderStatusRunning
+	switch r.status {
+	case StatusStopped:
+		r.status = StatusRunning
 		go r.bgRead()
-	case bgReaderStatusRunning:
+	case StatusRunning:
 		// no-op
-	case bgReaderStatusStopping:
-		r.bgReaderStatus = bgReaderStatusRunning
+	case StatusStopping:
+		r.status = StatusRunning
 	}
 }
 
@@ -51,14 +51,21 @@ func (r *BGReader) Stop() {
 	r.cond.L.Lock()
 	defer r.cond.L.Unlock()
 
-	switch r.bgReaderStatus {
-	case bgReaderStatusStopped:
+	switch r.status {
+	case StatusStopped:
 		// no-op
-	case bgReaderStatusRunning:
-		r.bgReaderStatus = bgReaderStatusStopping
-	case bgReaderStatusStopping:
+	case StatusRunning:
+		r.status = StatusStopping
+	case StatusStopping:
 		// no-op
 	}
+}
+
+// Status returns the current status of the background reader.
+func (r *BGReader) Status() int32 {
+	r.cond.L.Lock()
+	defer r.cond.L.Unlock()
+	return r.status
 }
 
 func (r *BGReader) bgRead() {
@@ -70,8 +77,8 @@ func (r *BGReader) bgRead() {
 
 		r.cond.L.Lock()
 		r.readResults = append(r.readResults, readResult{buf: buf, err: err})
-		if r.bgReaderStatus == bgReaderStatusStopping || err != nil {
-			r.bgReaderStatus = bgReaderStatusStopped
+		if r.status == StatusStopping || err != nil {
+			r.status = StatusStopped
 			keepReading = false
 		}
 		r.cond.L.Unlock()
@@ -89,7 +96,7 @@ func (r *BGReader) Read(p []byte) (int, error) {
 	}
 
 	// There are no unread background read results and the background reader is stopped.
-	if r.bgReaderStatus == bgReaderStatusStopped {
+	if r.status == StatusStopped {
 		return r.r.Read(p)
 	}
 
