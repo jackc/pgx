@@ -2319,6 +2319,9 @@ func TestHijackAndConstruct(t *testing.T) {
 	origConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
+	err = origConn.SyncConn(ctx)
+	require.NoError(t, err)
+
 	hc, err := origConn.Hijack()
 	require.NoError(t, err)
 
