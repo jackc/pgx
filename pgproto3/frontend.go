@@ -361,3 +361,7 @@ func (f *Frontend) findAuthenticationMessageType(src []byte) (BackendMessage, er
 func (f *Frontend) GetAuthType() uint32 {
 	return f.authType
 }
+
+func (f *Frontend) ReadBufferLen() int {
+	return f.cr.wp - f.cr.rp
+}

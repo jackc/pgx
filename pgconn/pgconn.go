@@ -556,7 +556,8 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	return msg, nil
 }
 
-// Conn returns the underlying net.Conn. This rarely necessary.
+// Conn returns the underlying net.Conn. This rarely necessary. If the connection will be directly used for reading or
+// writing then SyncConn should usually be called before Conn.
 func (pgConn *PgConn) Conn() net.Conn {
 	return pgConn.conn
 }
@@ -1740,6 +1741,30 @@ func (pgConn *PgConn) flushWithPotentialWriteReadDeadlock() error {
 	return err
 }
 
+// SyncConn prepares the underlying net.Conn for direct use. PgConn may internally buffer reads or use goroutines for
+// background IO. This means that any direct use of the underlying net.Conn may be corrupted if a read is already
+// buffered or a read is in progress. SyncConn drains read buffers and stops background IO. In some cases this may
+// require sending a ping to the server. ctx can be used to cancel this operation. This should be called before any
+// operation that will use the underlying net.Conn directly. e.g. Before Conn() or Hijack().
+//
+// This should not be confused with the PostgreSQL protocol Sync message.
+func (pgConn *PgConn) SyncConn(ctx context.Context) error {
+	for i := 0; i < 10; i++ {
+		if pgConn.bgReader.Status() == bgreader.StatusStopped && pgConn.frontend.ReadBufferLen() == 0 {
+			return nil
+		}
+
+		err := pgConn.Ping(ctx)
+		if err != nil {
+			return fmt.Errorf("SyncConn: Ping failed while syncing conn: %w", err)
+		}
+	}
+
+	// This should never happen. Only way I can imagine this occuring is if the server is constantly sending data such as
+	// LISTEN/NOTIFY or log notifications such that we never can get an empty buffer.
+	return errors.New("SyncConn: conn never synchronized")
+}
+
 // HijackedConn is the result of hijacking a connection.
 //
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
@@ -1754,9 +1779,9 @@ type HijackedConn struct {
 	Config            *Config
 }
 
-// Hijack extracts the internal connection data. pgConn must be in an idle state. pgConn is unusable after hijacking.
-// Hijacking is typically only useful when using pgconn to establish a connection, but taking complete control of the
-// raw connection after that (e.g. a load balancer or proxy).
+// Hijack extracts the internal connection data. pgConn must be in an idle state. SyncConn should be called immediately
+// before Hijack. pgConn is unusable after hijacking. Hijacking is typically only useful when using pgconn to establish
+// a connection, but taking complete control of the raw connection after that (e.g. a load balancer or proxy).
 //
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
