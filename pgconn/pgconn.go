@@ -1780,6 +1780,8 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 // Construct created a PgConn from an already established connection to a PostgreSQL server. This is the inverse of
 // PgConn.Hijack. The connection must be in an idle state.
 //
+// hc.Frontend is replaced by a new pgproto3.Frontend built by hc.Config.BuildFrontend.
+//
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
 // compatibility.
 func Construct(hc *HijackedConn) (*PgConn, error) {
@@ -1801,6 +1803,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64), pgConn.bgReader.Start)
 	pgConn.slowWriteTimer.Stop()
+	pgConn.frontend = hc.Config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
 	return pgConn, nil
 }
