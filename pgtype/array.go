@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -373,27 +372,6 @@ func quoteArrayElementIfNeeded(src string) string {
 		return quoteArrayElement(src)
 	}
 	return src
-}
-
-func findDimensionsFromValue(value reflect.Value, dimensions []ArrayDimension, elementsLength int) ([]ArrayDimension, int, bool) {
-	switch value.Kind() {
-	case reflect.Array:
-		fallthrough
-	case reflect.Slice:
-		length := value.Len()
-		if 0 == elementsLength {
-			elementsLength = length
-		} else {
-			elementsLength *= length
-		}
-		dimensions = append(dimensions, ArrayDimension{Length: int32(length), LowerBound: 1})
-		for i := 0; i < length; i++ {
-			if d, l, ok := findDimensionsFromValue(value.Index(i), dimensions, elementsLength); ok {
-				return d, l, true
-			}
-		}
-	}
-	return dimensions, elementsLength, true
 }
 
 // Array represents a PostgreSQL array for T. It implements the ArrayGetter and ArraySetter interfaces. It preserves
