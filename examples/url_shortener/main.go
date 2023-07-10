@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -29,7 +29,7 @@ func getUrlHandler(w http.ResponseWriter, req *http.Request) {
 func putUrlHandler(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Path
 	var url string
-	if body, err := ioutil.ReadAll(req.Body); err == nil {
+	if body, err := io.ReadAll(req.Body); err == nil {
 		url = string(body)
 	} else {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
