@@ -47,15 +47,6 @@ type _byteSlice []byte
 // is not known (e.g. when using the simple protocol).
 const unregisteredOID = uint32(1)
 
-func mustParseCIDR(t testing.TB, s string) *net.IPNet {
-	_, ipnet, err := net.ParseCIDR(s)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return ipnet
-}
-
 func mustParseInet(t testing.TB, s string) *net.IPNet {
 	ip, ipnet, err := net.ParseCIDR(s)
 	if err == nil {
