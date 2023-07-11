@@ -1732,6 +1732,7 @@ func (pgConn *PgConn) exitPotentialWriteReadDeadlock() {
 	// The state of the timer is not relevant upon exiting the potential slow write. It may both
 	// fire (due to a slow write), or not fire (due to a fast write).
 	_ = pgConn.slowWriteTimer.Stop()
+	pgConn.bgReader.Stop()
 }
 
 func (pgConn *PgConn) flushWithPotentialWriteReadDeadlock() error {
