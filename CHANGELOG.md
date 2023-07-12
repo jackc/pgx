@@ -1,3 +1,12 @@
+# 5.4.2 (July 11, 2023)
+
+* Fix: RowScanner errors are fatal to Rows
+* Fix: Enable failover efforts when pg_hba.conf disallows non-ssl connections (Brandon Kauffman)
+* Hstore text codec internal improvements (Evan Jones)
+* Fix: Stop timers for background reader when not in use. Fixes memory leak when closing connections (Adrian-Stefan Mares)
+* Fix: Stop background reader as soon as possible.
+* Add PgConn.SyncConn(). This combined with the above fix makes it safe to directly use the underlying net.Conn.
+
 # 5.4.1 (June 18, 2023)
 
 * Fix: concurrency bug with pgtypeDefaultMap and simple protocol (Lev Zakharov)
