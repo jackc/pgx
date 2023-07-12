@@ -70,3 +70,13 @@ func TestJSONBCodecUnmarshalSQLNull(t *testing.T) {
 		require.EqualError(t, err, "can't scan into dest[0]: cannot scan NULL into *int")
 	})
 }
+
+// https://github.com/jackc/pgx/issues/1681
+func TestJSONBCodecEncodeJSONMarshalerThatCanBeWrapped(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var jsonStr string
+		err := conn.QueryRow(context.Background(), "select $1::jsonb", &ParentIssue1681{}).Scan(&jsonStr)
+		require.NoError(t, err)
+		require.Equal(t, `{"custom": "thing"}`, jsonStr) // Note that unlike json, jsonb reformats the JSON string.
+	})
+}

@@ -133,3 +133,27 @@ func TestJSONCodecClearExistingValueBeforeUnmarshal(t *testing.T) {
 		require.Equal(t, map[string]any{"baz": "quz"}, m)
 	})
 }
+
+type ParentIssue1681 struct {
+	Child ChildIssue1681
+}
+
+func (t *ParentIssue1681) MarshalJSON() ([]byte, error) {
+	return []byte(`{"custom":"thing"}`), nil
+}
+
+type ChildIssue1681 struct{}
+
+func (t ChildIssue1681) MarshalJSON() ([]byte, error) {
+	return []byte(`{"someVal": false}`), nil
+}
+
+// https://github.com/jackc/pgx/issues/1681
+func TestJSONCodecEncodeJSONMarshalerThatCanBeWrapped(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		var jsonStr string
+		err := conn.QueryRow(context.Background(), "select $1::json", &ParentIssue1681{}).Scan(&jsonStr)
+		require.NoError(t, err)
+		require.Equal(t, `{"custom":"thing"}`, jsonStr)
+	})
+}

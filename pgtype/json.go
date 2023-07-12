@@ -25,6 +25,13 @@ func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
 
+	// Must come before trying wrap encode plans because a pointer to a struct may be unwrapped to a struct that can be
+	// marshalled.
+	//
+	// https://github.com/jackc/pgx/issues/1681
+	case json.Marshaler:
+		return encodePlanJSONCodecEitherFormatMarshal{}
+
 	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
 	//
 	// https://github.com/jackc/pgx/issues/1430
