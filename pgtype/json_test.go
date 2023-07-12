@@ -150,6 +150,8 @@ func (t ChildIssue1681) MarshalJSON() ([]byte, error) {
 
 // https://github.com/jackc/pgx/issues/1681
 func TestJSONCodecEncodeJSONMarshalerThatCanBeWrapped(t *testing.T) {
+	skipCockroachDB(t, "CockroachDB treats json as jsonb. This causes it to format differently than PostgreSQL.")
+
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		var jsonStr string
 		err := conn.QueryRow(context.Background(), "select $1::json", &ParentIssue1681{}).Scan(&jsonStr)
