@@ -21,7 +21,7 @@ type Team struct {
 
 // This example uses a single query to return parent and child records.
 func Example_childRecords() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))

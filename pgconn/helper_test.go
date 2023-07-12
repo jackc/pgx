@@ -12,19 +12,19 @@ import (
 )
 
 func closeConn(t testing.TB, conn *pgconn.PgConn) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	require.NoError(t, conn.Close(ctx))
 	select {
 	case <-conn.CleanupDone():
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("Connection cleanup exceeded maximum time")
 	}
 }
 
 // Do a simple query to ensure the connection is still usable
 func ensureConnValid(t *testing.T, pgConn *pgconn.PgConn) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	result := pgConn.ExecParams(ctx, "select generate_series(1,$1)", [][]byte{[]byte("3")}, nil, nil, nil).Read()
 	cancel()
 

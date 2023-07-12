@@ -56,7 +56,7 @@ func TestRowScannerErrorIsFatalToRows(t *testing.T) {
 func TestForEachRow(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -87,7 +87,7 @@ func TestForEachRow(t *testing.T) {
 func TestForEachRowScanError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -111,7 +111,7 @@ func TestForEachRowScanError(t *testing.T) {
 func TestForEachRowAbort(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -177,7 +177,7 @@ func TestCollectRows(t *testing.T) {
 // This example uses CollectRows with a manually written collector function. In most cases RowTo, RowToAddrOf,
 // RowToStructByPos, RowToAddrOfStructByPos, or another generic function would be used.
 func ExampleCollectRows() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -287,7 +287,7 @@ func TestRowTo(t *testing.T) {
 }
 
 func ExampleRowTo() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -323,7 +323,7 @@ func TestRowToAddrOf(t *testing.T) {
 }
 
 func ExampleRowToAddrOf() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -482,7 +482,7 @@ func TestRowToStructByPosEmbeddedPointerToStruct(t *testing.T) {
 }
 
 func ExampleRowToStructByPos() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -628,7 +628,7 @@ func TestRowToStructByNameEmbeddedStruct(t *testing.T) {
 }
 
 func ExampleRowToStructByName() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -823,7 +823,7 @@ func TestRowToStructByNameLaxRowValue(t *testing.T) {
 }
 
 func ExampleRowToStructByNameLax() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))

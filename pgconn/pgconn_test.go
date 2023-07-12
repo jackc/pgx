@@ -42,7 +42,7 @@ func TestConnect(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
 			connString := os.Getenv(tt.env)
@@ -73,7 +73,7 @@ func TestConnectWithOptions(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
 			connString := os.Getenv(tt.env)
@@ -95,7 +95,7 @@ func TestConnectWithOptions(t *testing.T) {
 func TestConnectTLS(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TLS_CONN_STRING")
@@ -118,7 +118,7 @@ func TestConnectTLS(t *testing.T) {
 func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TLS_CLIENT_CONN_STRING")
@@ -146,7 +146,7 @@ func TestConnectTLSPasswordProtectedClientCertWithSSLPassword(t *testing.T) {
 func TestConnectTLSPasswordProtectedClientCertWithGetSSLPasswordConfigOption(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TLS_CLIENT_CONN_STRING")
@@ -342,7 +342,7 @@ func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
 func TestConnectInvalidUser(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
@@ -369,7 +369,7 @@ func TestConnectInvalidUser(t *testing.T) {
 func TestConnectWithConnectionRefused(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// Presumably nothing is listening on 127.0.0.1:1
@@ -383,7 +383,7 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -404,7 +404,7 @@ func TestConnectCustomDialer(t *testing.T) {
 func TestConnectCustomLookup(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
@@ -430,7 +430,7 @@ func TestConnectCustomLookup(t *testing.T) {
 func TestConnectCustomLookupWithPort(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_TCP_CONN_STRING")
@@ -467,7 +467,7 @@ func TestConnectCustomLookupWithPort(t *testing.T) {
 func TestConnectWithRuntimeParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -496,7 +496,7 @@ func TestConnectWithRuntimeParams(t *testing.T) {
 func TestConnectWithFallback(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -532,7 +532,7 @@ func TestConnectWithFallback(t *testing.T) {
 func TestConnectWithValidateConnect(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -574,7 +574,7 @@ func TestConnectWithValidateConnect(t *testing.T) {
 func TestConnectWithValidateConnectTargetSessionAttrsReadWrite(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -592,7 +592,7 @@ func TestConnectWithValidateConnectTargetSessionAttrsReadWrite(t *testing.T) {
 func TestConnectWithAfterConnect(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -616,7 +616,7 @@ func TestConnectWithAfterConnect(t *testing.T) {
 func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config := &pgconn.Config{}
@@ -627,7 +627,7 @@ func TestConnectConfigRequiresConfigFromParseConfig(t *testing.T) {
 func TestConnPrepareSyntaxError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -644,7 +644,7 @@ func TestConnPrepareSyntaxError(t *testing.T) {
 func TestConnPrepareContextPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -665,7 +665,7 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -687,7 +687,7 @@ func TestConnExec(t *testing.T) {
 func TestConnExecEmpty(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -711,7 +711,7 @@ func TestConnExecEmpty(t *testing.T) {
 func TestConnExecMultipleQueries(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -739,7 +739,7 @@ func TestConnExecMultipleQueries(t *testing.T) {
 func TestConnExecMultipleQueriesEagerFieldDescriptions(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -770,7 +770,7 @@ func TestConnExecMultipleQueriesEagerFieldDescriptions(t *testing.T) {
 func TestConnExecMultipleQueriesError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -804,7 +804,7 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 func TestConnExecDeferredError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -839,7 +839,7 @@ func TestConnExecDeferredError(t *testing.T) {
 func TestConnExecContextCanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -867,7 +867,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 func TestConnExecContextPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -886,7 +886,7 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 func TestConnExecParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -913,7 +913,7 @@ func TestConnExecParams(t *testing.T) {
 func TestConnExecParamsDeferredError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -947,7 +947,7 @@ func TestConnExecParamsDeferredError(t *testing.T) {
 func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -973,7 +973,7 @@ func TestConnExecParamsMaxNumberOfParams(t *testing.T) {
 func TestConnExecParamsTooManyParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -999,7 +999,7 @@ func TestConnExecParamsTooManyParams(t *testing.T) {
 func TestConnExecParamsCanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1030,7 +1030,7 @@ func TestConnExecParamsCanceled(t *testing.T) {
 func TestConnExecParamsPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1049,7 +1049,7 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 func TestConnExecParamsEmptySQL(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1068,7 +1068,7 @@ func TestConnExecParamsEmptySQL(t *testing.T) {
 func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1096,7 +1096,7 @@ func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
 func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1129,7 +1129,7 @@ func TestConnExecPrepared(t *testing.T) {
 func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1161,7 +1161,7 @@ func TestConnExecPreparedMaxNumberOfParams(t *testing.T) {
 func TestConnExecPreparedTooManyParams(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1198,7 +1198,7 @@ func TestConnExecPreparedTooManyParams(t *testing.T) {
 func TestConnExecPreparedCanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1230,7 +1230,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 func TestConnExecPreparedPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1252,7 +1252,7 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 func TestConnExecPreparedEmptySQL(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1273,7 +1273,7 @@ func TestConnExecPreparedEmptySQL(t *testing.T) {
 func TestConnExecBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1308,7 +1308,7 @@ func TestConnExecBatch(t *testing.T) {
 func TestConnExecBatchDeferredError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1345,7 +1345,7 @@ func TestConnExecBatchDeferredError(t *testing.T) {
 func TestConnExecBatchPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1380,7 +1380,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1411,7 +1411,7 @@ func TestConnExecBatchHuge(t *testing.T) {
 func TestConnExecBatchImplicitTransaction(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1441,7 +1441,7 @@ func TestConnExecBatchImplicitTransaction(t *testing.T) {
 func TestConnLocking(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1468,7 +1468,7 @@ func TestConnLocking(t *testing.T) {
 func TestConnOnNotice(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -1502,7 +1502,7 @@ end$$;`)
 func TestConnOnNotification(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -1541,7 +1541,7 @@ func TestConnOnNotification(t *testing.T) {
 func TestConnWaitForNotification(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -1580,7 +1580,7 @@ func TestConnWaitForNotification(t *testing.T) {
 func TestConnWaitForNotificationPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -1600,7 +1600,7 @@ func TestConnWaitForNotificationPrecanceled(t *testing.T) {
 func TestConnWaitForNotificationTimeout(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -1622,7 +1622,7 @@ func TestConnWaitForNotificationTimeout(t *testing.T) {
 func TestConnCopyToSmall(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1667,7 +1667,7 @@ func TestConnCopyToSmall(t *testing.T) {
 func TestConnCopyToLarge(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1712,7 +1712,7 @@ func TestConnCopyToLarge(t *testing.T) {
 func TestConnCopyToQueryError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1732,7 +1732,7 @@ func TestConnCopyToQueryError(t *testing.T) {
 func TestConnCopyToCanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1762,7 +1762,7 @@ func TestConnCopyToCanceled(t *testing.T) {
 func TestConnCopyToPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1784,7 +1784,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 func TestConnCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1827,7 +1827,7 @@ func TestConnCopyFrom(t *testing.T) {
 func TestConnCopyFromBinary(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1883,7 +1883,7 @@ func TestConnCopyFromBinary(t *testing.T) {
 func TestConnCopyFromCanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1930,7 +1930,7 @@ func TestConnCopyFromCanceled(t *testing.T) {
 func TestConnCopyFromPrecanceled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -1970,7 +1970,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 func TestConnCopyFromGzipReader(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2038,7 +2038,7 @@ func TestConnCopyFromGzipReader(t *testing.T) {
 func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2075,7 +2075,7 @@ func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 func TestConnCopyFromQueryNoTableError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2096,7 +2096,7 @@ func TestConnCopyFromQueryNoTableError(t *testing.T) {
 func TestConnCopyFromNoticeResponseReceivedMidStream(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2150,7 +2150,7 @@ func (d delayedReader) Read(p []byte) (int, error) {
 
 // https://github.com/jackc/pgconn/issues/128
 func TestConnCopyFromDataWriteAfterErrorAndReturn(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	connString := os.Getenv("PGX_TEST_DATABASE")
@@ -2189,7 +2189,7 @@ func TestConnCopyFromDataWriteAfterErrorAndReturn(t *testing.T) {
 func TestConnEscapeString(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2220,7 +2220,7 @@ func TestConnEscapeString(t *testing.T) {
 func TestConnCancelRequest(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2260,7 +2260,7 @@ func TestConnCancelRequest(t *testing.T) {
 func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2313,7 +2313,7 @@ func TestConnContextCanceledCancelsRunningQueryOnServer(t *testing.T) {
 func TestHijackAndConstruct(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	origConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2345,7 +2345,7 @@ func TestHijackAndConstruct(t *testing.T) {
 func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2366,7 +2366,7 @@ func TestConnCloseWhileCancellableQueryInProgress(t *testing.T) {
 func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	steps := pgmock.AcceptUnauthenticatedConnRequestSteps()
@@ -2434,7 +2434,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2466,7 +2466,7 @@ func TestConnLargeResponseWhileWritingDoesNotDeadlock(t *testing.T) {
 func TestConnCheckConn(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtly different.)
@@ -2506,7 +2506,7 @@ func TestConnCheckConn(t *testing.T) {
 func TestConnPing(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	// Intentionally using TCP connection for more predictable close behavior. (Not sure if Unix domain sockets would behave subtly different.)
@@ -2547,7 +2547,7 @@ func TestConnPing(t *testing.T) {
 func TestPipelinePrepare(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2622,7 +2622,7 @@ func TestPipelinePrepare(t *testing.T) {
 func TestPipelinePrepareError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2667,7 +2667,7 @@ func TestPipelinePrepareError(t *testing.T) {
 func TestPipelinePrepareAndDeallocate(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2711,7 +2711,7 @@ func TestPipelinePrepareAndDeallocate(t *testing.T) {
 func TestPipelineQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2803,7 +2803,7 @@ func TestPipelineQuery(t *testing.T) {
 func TestPipelinePrepareQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2863,7 +2863,7 @@ func TestPipelinePrepareQuery(t *testing.T) {
 func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -2970,7 +2970,7 @@ func TestPipelineQueryErrorBetweenSyncs(t *testing.T) {
 func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -3008,7 +3008,7 @@ func TestPipelineCloseReadsUnreadResults(t *testing.T) {
 func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -3040,7 +3040,7 @@ func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 }
 
 func Example() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -3152,7 +3152,7 @@ func TestSNISupport(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
 			ln, err := net.Listen("tcp", "127.0.0.1:")

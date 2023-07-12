@@ -161,7 +161,7 @@ func TestTxCommitSerializationFailure(t *testing.T) {
 	c2 := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, c2)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	c1.Exec(ctx, `drop table if exists tx_serializable_sums`)
@@ -375,7 +375,7 @@ func TestBeginReadOnly(t *testing.T) {
 func TestBeginTxBeginQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {

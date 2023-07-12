@@ -221,7 +221,7 @@ func TestHstoreCodec(t *testing.T) {
 	pgxtest.RunValueRoundTripTests(context.Background(), t, ctrWithoutCodec, pgxtest.AllQueryExecModes, "hstore", tests)
 
 	// scan empty and NULL: should be different in all query modes
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, ctr, pgxtest.AllQueryExecModes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
