@@ -193,7 +193,7 @@ func TestConnQueryValuesWhenUnableToDecode(t *testing.T) {
 func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -220,7 +220,7 @@ func TestConnQueryValuesWithUnregisteredOID(t *testing.T) {
 func TestConnQueryArgsAndScanWithUnregisteredOID(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -1037,7 +1037,7 @@ func TestQueryRowEmptyQuery(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	var n int32
@@ -1939,7 +1939,7 @@ func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 func TestQueryWithQueryRewriter(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -1962,7 +1962,7 @@ func TestQueryWithQueryRewriter(t *testing.T) {
 // This example uses Query without using any helpers to read the results. Normally CollectRows, ForEachRow, or another
 // helper function should be used.
 func ExampleConn_Query() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))

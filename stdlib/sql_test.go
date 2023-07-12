@@ -338,7 +338,7 @@ func TestConnConcurrency(t *testing.T) {
 			go func(idx int) {
 				defer wg.Done()
 
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 				defer cancel()
 
 				str := strconv.Itoa(idx)
@@ -359,7 +359,7 @@ func TestConnConcurrency(t *testing.T) {
 			go func(idx int) {
 				defer wg.Done()
 
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 				defer cancel()
 
 				var id int

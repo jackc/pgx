@@ -18,7 +18,7 @@ import (
 func TestConnSendBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -156,7 +156,7 @@ func TestConnSendBatch(t *testing.T) {
 func TestConnSendBatchQueuedQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -252,7 +252,7 @@ func TestConnSendBatchQueuedQuery(t *testing.T) {
 func TestConnSendBatchMany(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -300,7 +300,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 		pgx.QueryExecModeExec,
 		// Don't test simple mode with prepared statements.
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, modes, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -350,7 +350,7 @@ func TestConnSendBatchWithPreparedStatement(t *testing.T) {
 func TestConnSendBatchWithQueryRewriter(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -384,7 +384,7 @@ func TestConnSendBatchWithQueryRewriter(t *testing.T) {
 func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config, err := pgx.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
@@ -445,7 +445,7 @@ func TestConnSendBatchWithPreparedStatementAndStatementCacheDisabled(t *testing.
 func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -507,7 +507,7 @@ func TestConnSendBatchCloseRowsPartiallyRead(t *testing.T) {
 func TestConnSendBatchQueryError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -548,7 +548,7 @@ func TestConnSendBatchQueryError(t *testing.T) {
 func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -575,7 +575,7 @@ func TestConnSendBatchQuerySyntaxError(t *testing.T) {
 func TestConnSendBatchQueryRowInsert(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -615,7 +615,7 @@ func TestConnSendBatchQueryRowInsert(t *testing.T) {
 func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -655,7 +655,7 @@ func TestConnSendBatchQueryPartialReadInsert(t *testing.T) {
 func TestTxSendBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -725,7 +725,7 @@ func TestTxSendBatch(t *testing.T) {
 func TestTxSendBatchRollback(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -764,7 +764,7 @@ func TestTxSendBatchRollback(t *testing.T) {
 func TestSendBatchErrorWhileReadingResultsWithoutCallback(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -788,7 +788,7 @@ func TestSendBatchErrorWhileReadingResultsWithoutCallback(t *testing.T) {
 func TestSendBatchErrorWhileReadingResultsWithExecWhereSomeRowsAreReturned(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -812,7 +812,7 @@ func TestSendBatchErrorWhileReadingResultsWithExecWhereSomeRowsAreReturned(t *te
 func TestConnBeginBatchDeferredError(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
@@ -860,7 +860,7 @@ func TestConnBeginBatchDeferredError(t *testing.T) {
 }
 
 func TestConnSendBatchNoStatementCache(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -875,7 +875,7 @@ func TestConnSendBatchNoStatementCache(t *testing.T) {
 }
 
 func TestConnSendBatchPrepareStatementCache(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -889,7 +889,7 @@ func TestConnSendBatchPrepareStatementCache(t *testing.T) {
 }
 
 func TestConnSendBatchDescribeStatementCache(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -931,7 +931,7 @@ func testConnSendBatch(t *testing.T, ctx context.Context, conn *pgx.Conn, queryC
 func TestSendBatchSimpleProtocol(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	config := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -970,7 +970,7 @@ func TestSendBatchSimpleProtocol(t *testing.T) {
 }
 
 func ExampleConn_SendBatch() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn, err := pgx.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))

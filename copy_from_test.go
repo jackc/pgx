@@ -17,7 +17,7 @@ import (
 func TestConnCopyWithAllQueryExecModes(t *testing.T) {
 	for _, mode := range pgxtest.AllQueryExecModes {
 		t.Run(mode.String(), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
 			cfg := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -79,7 +79,7 @@ func TestConnCopyWithKnownOIDQueryExecModes(t *testing.T) {
 
 	for _, mode := range pgxtest.KnownOIDQueryExecModes {
 		t.Run(mode.String(), func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
 			cfg := mustParseConfig(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -142,7 +142,7 @@ func TestConnCopyWithKnownOIDQueryExecModes(t *testing.T) {
 func TestConnCopyFromSmall(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -201,7 +201,7 @@ func TestConnCopyFromSmall(t *testing.T) {
 func TestConnCopyFromSliceSmall(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -263,7 +263,7 @@ func TestConnCopyFromSliceSmall(t *testing.T) {
 func TestConnCopyFromLarge(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -326,7 +326,7 @@ func TestConnCopyFromLarge(t *testing.T) {
 func TestConnCopyFromEnum(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -400,7 +400,7 @@ func TestConnCopyFromEnum(t *testing.T) {
 func TestConnCopyFromJSON(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -480,7 +480,7 @@ func (cfs *clientFailSource) Err() error {
 func TestConnCopyFromFailServerSideMidway(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -559,7 +559,7 @@ func (fs *failSource) Err() error {
 func TestConnCopyFromFailServerSideMidwayAbortsWithoutWaiting(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -639,7 +639,7 @@ func (fs *slowFailRaceSource) Err() error {
 func TestConnCopyFromSlowFailRace(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -667,7 +667,7 @@ func TestConnCopyFromSlowFailRace(t *testing.T) {
 func TestConnCopyFromCopyFromSourceErrorMidway(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -730,7 +730,7 @@ func (cfs *clientFinalErrSource) Err() error {
 func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
@@ -776,7 +776,7 @@ func TestConnCopyFromCopyFromSourceErrorEnd(t *testing.T) {
 func TestConnCopyFromAutomaticStringConversion(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))

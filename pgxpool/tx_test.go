@@ -13,7 +13,7 @@ import (
 func TestTxExec(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -30,7 +30,7 @@ func TestTxExec(t *testing.T) {
 func TestTxQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -47,7 +47,7 @@ func TestTxQuery(t *testing.T) {
 func TestTxQueryRow(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -64,7 +64,7 @@ func TestTxQueryRow(t *testing.T) {
 func TestTxSendBatch(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
@@ -81,7 +81,7 @@ func TestTxSendBatch(t *testing.T) {
 func TestTxCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))

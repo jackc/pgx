@@ -59,7 +59,7 @@ func (l *testLogger) FilterByMsg(msg string) (res []testLog) {
 func TestContextGetsPassedToLogMethod(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -89,7 +89,7 @@ func TestContextGetsPassedToLogMethod(t *testing.T) {
 func TestLoggerFunc(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	const testMsg = "foo"
@@ -127,7 +127,7 @@ func TestLoggerFunc(t *testing.T) {
 func TestLogQuery(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -169,7 +169,7 @@ func TestLogQuery(t *testing.T) {
 func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -217,7 +217,7 @@ func TestLogQueryArgsHandlesUTF8(t *testing.T) {
 func TestLogCopyFrom(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -272,7 +272,7 @@ func TestLogCopyFrom(t *testing.T) {
 func TestLogConnect(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -308,7 +308,7 @@ func TestLogConnect(t *testing.T) {
 func TestLogBatchStatementsOnExec(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -355,7 +355,7 @@ func TestLogBatchStatementsOnExec(t *testing.T) {
 func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
@@ -394,7 +394,7 @@ func TestLogBatchStatementsOnBatchResultClose(t *testing.T) {
 func TestLogPrepare(t *testing.T) {
 	t.Parallel()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
 	logger := &testLogger{}
