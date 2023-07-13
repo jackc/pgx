@@ -154,12 +154,15 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 
 	foundBestServer := false
 	var fallbackConfig *FallbackConfig
-	for _, fc := range fallbackConfigs {
+	for i, fc := range fallbackConfigs {
 		// ConnectTimeout restricts the whole connection process.
 		if config.ConnectTimeout != 0 {
-			var cancel context.CancelFunc
-			ctx, cancel = context.WithTimeout(octx, config.ConnectTimeout)
-			defer cancel()
+			// create new context first time or when previous host was different
+			if i == 0 || (fallbackConfigs[i].Host != fallbackConfigs[i-1].Host) {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(octx, config.ConnectTimeout)
+				defer cancel()
+			}
 		} else {
 			ctx = octx
 		}
