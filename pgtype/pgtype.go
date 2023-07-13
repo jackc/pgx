@@ -44,7 +44,7 @@ const (
 	MacaddrOID             = 829
 	InetOID                = 869
 	BoolArrayOID           = 1000
-	QCharArrayOID          = 1003
+	QCharArrayOID          = 1002
 	NameArrayOID           = 1003
 	Int2ArrayOID           = 1005
 	Int4ArrayOID           = 1007
