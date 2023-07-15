@@ -477,6 +477,10 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 		go func() {
 			atomic.AddInt64(&p.newConnsCount, 1)
 			err := p.p.CreateResource(ctx)
+			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
+			if err == puddle.ErrNotAvailable {
+				err = nil
+			}
 			errs <- err
 		}()
 	}
