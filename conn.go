@@ -1064,7 +1064,7 @@ func (c *Conn) sendBatchQueryExecModeDescribeExec(ctx context.Context, b *Batch)
 func (c *Conn) sendBatchExtendedWithDescription(ctx context.Context, b *Batch, distinctNewQueries []*pgconn.StatementDescription, sdCache stmtcache.Cache) (pbr *pipelineBatchResults) {
 	pipeline := c.pgConn.StartPipeline(context.Background())
 	defer func() {
-		if pbr.err != nil {
+		if pbr != nil && pbr.err != nil {
 			pipeline.Close()
 		}
 	}()
