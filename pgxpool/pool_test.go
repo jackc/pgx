@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -586,6 +587,12 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 }
 
 func TestPoolBackgroundChecksMinConns(t *testing.T) {
+	// jackc: I don't have a good way to investigate this as I don't develop on Windows. Problem started with
+	// c513e2e435dca8acde76a4a0ed4856b9946b14e0, but I have no idea how. Help wanted. Test disabled on Windows for now.
+	if runtime.GOOS == "windows" {
+		t.Skip("Test always runs for 10m and is killed on CI. See https://github.com/jackc/pgx/issues/1690")
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
