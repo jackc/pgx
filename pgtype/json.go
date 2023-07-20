@@ -92,6 +92,23 @@ func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 	switch target.(type) {
 	case *string:
 		return scanPlanAnyToString{}
+
+	case **string:
+		// This is to fix **string scanning. It seems wrong to special case **string, but it's not clear what a better
+		// solution would be.
+		//
+		// https://github.com/jackc/pgx/issues/1470 -- **string
+		// https://github.com/jackc/pgx/issues/1691 -- ** anything else
+
+		if wrapperPlan, nextDst, ok := TryPointerPointerScanPlan(target); ok {
+			if nextPlan := m.planScan(oid, format, nextDst); nextPlan != nil {
+				if _, failed := nextPlan.(*scanPlanFail); !failed {
+					wrapperPlan.SetNext(nextPlan)
+					return wrapperPlan
+				}
+			}
+		}
+
 	case *[]byte:
 		return scanPlanJSONToByteSlice{}
 	case BytesScanner:
@@ -102,19 +119,6 @@ func (JSONCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 	// https://github.com/jackc/pgx/issues/1418
 	case sql.Scanner:
 		return &scanPlanSQLScanner{formatCode: format}
-	}
-
-	// This is to fix **string scanning. It seems wrong to special case sql.Scanner and pointer to pointer, but it's not
-	// clear what a better solution would be.
-	//
-	// https://github.com/jackc/pgx/issues/1470
-	if wrapperPlan, nextDst, ok := TryPointerPointerScanPlan(target); ok {
-		if nextPlan := m.planScan(oid, format, nextDst); nextPlan != nil {
-			if _, failed := nextPlan.(*scanPlanFail); !failed {
-				wrapperPlan.SetNext(nextPlan)
-				return wrapperPlan
-			}
-		}
 	}
 
 	return scanPlanJSONToJSONUnmarshal{}

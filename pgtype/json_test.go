@@ -121,6 +121,32 @@ func TestJSONCodecPointerToPointerToString(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1691
+func TestJSONCodecPointerToPointerToInt(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		n := 44
+		p := &n
+		err := conn.QueryRow(ctx, "select 'null'::jsonb").Scan(&p)
+		require.NoError(t, err)
+		require.Nil(t, p)
+	})
+}
+
+// https://github.com/jackc/pgx/issues/1691
+func TestJSONCodecPointerToPointerToStruct(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		type ImageSize struct {
+			Height int    `json:"height"`
+			Width  int    `json:"width"`
+			Str    string `json:"str"`
+		}
+		is := &ImageSize{Height: 100, Width: 100, Str: "str"}
+		err := conn.QueryRow(ctx, `select 'null'::jsonb`).Scan(&is)
+		require.NoError(t, err)
+		require.Nil(t, is)
+	})
+}
+
 func TestJSONCodecClearExistingValueBeforeUnmarshal(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		m := map[string]any{}
