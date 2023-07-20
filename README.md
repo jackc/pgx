@@ -1,5 +1,5 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/jackc/pgx/v5.svg)](https://pkg.go.dev/github.com/jackc/pgx/v5)
-![Build Status](https://github.com/jackc/pgx/actions/workflows/ci.yml/badge.svg)
+[![Build Status](https://github.com/jackc/pgx/actions/workflows/ci.yml/badge.svg)](https://github.com/jackc/pgx/actions/workflows/ci.yml)
 
 # pgx - PostgreSQL Driver and Toolkit
 
@@ -139,8 +139,8 @@ These adapters can be used with the tracelog package.
 
 ### [github.com/pashagolub/pgxmock](https://github.com/pashagolub/pgxmock)
 
-pgxmock is a mock library implementing pgx interfaces. 
-pgxmock has one and only purpose - to simulate pgx behavior in tests, without needing a real database connection. 
+pgxmock is a mock library implementing pgx interfaces.
+pgxmock has one and only purpose - to simulate pgx behavior in tests, without needing a real database connection.
 
 ### [github.com/georgysavva/scany](https://github.com/georgysavva/scany)
 
