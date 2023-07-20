@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -549,6 +548,7 @@ func TestPoolBackgroundChecksMaxConnLifetime(t *testing.T) {
 	assert.EqualValues(t, 0, stats.TotalConns())
 	assert.EqualValues(t, 0, stats.MaxIdleDestroyCount())
 	assert.EqualValues(t, 1, stats.MaxLifetimeDestroyCount())
+	assert.EqualValues(t, 1, stats.NewConnsCount())
 }
 
 func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
@@ -584,14 +584,11 @@ func TestPoolBackgroundChecksMaxConnIdleTime(t *testing.T) {
 	assert.EqualValues(t, 0, stats.TotalConns())
 	assert.EqualValues(t, 1, stats.MaxIdleDestroyCount())
 	assert.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	assert.EqualValues(t, 1, stats.NewConnsCount())
 }
 
 func TestPoolBackgroundChecksMinConns(t *testing.T) {
-	// jackc: I don't have a good way to investigate this as I don't develop on Windows. Problem started with
-	// c513e2e435dca8acde76a4a0ed4856b9946b14e0, but I have no idea how. Help wanted. Test disabled on Windows for now.
-	if runtime.GOOS == "windows" {
-		t.Skip("Test always runs for 10m and is killed on CI. See https://github.com/jackc/pgx/issues/1690")
-	}
+	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -607,27 +604,31 @@ func TestPoolBackgroundChecksMinConns(t *testing.T) {
 	defer db.Close()
 
 	stats := db.Stat()
-	for !(stats.TotalConns() == 2 && stats.MaxLifetimeDestroyCount() == 0 && stats.NewConnsCount() == 2) || ctx.Err() != nil {
+	for !(stats.IdleConns() == 2 && stats.MaxLifetimeDestroyCount() == 0 && stats.NewConnsCount() == 2) && ctx.Err() == nil {
 		time.Sleep(50 * time.Millisecond)
 		stats = db.Stat()
 	}
-	require.NoError(t, ctx.Err())
-	require.EqualValues(t, 2, stats.TotalConns())
+	require.EqualValues(t, 2, stats.IdleConns())
 	require.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
 	require.EqualValues(t, 2, stats.NewConnsCount())
 
 	c, err := db.Acquire(ctx)
 	require.NoError(t, err)
+
+	stats = db.Stat()
+	require.EqualValues(t, 1, stats.IdleConns())
+	require.EqualValues(t, 0, stats.MaxLifetimeDestroyCount())
+	require.EqualValues(t, 2, stats.NewConnsCount())
+
 	err = c.Conn().Close(ctx)
 	require.NoError(t, err)
 	c.Release()
 
 	stats = db.Stat()
-	for !(stats.TotalConns() == 2 && stats.MaxIdleDestroyCount() == 0 && stats.NewConnsCount() == 3) || ctx.Err() != nil {
+	for !(stats.IdleConns() == 2 && stats.MaxIdleDestroyCount() == 0 && stats.NewConnsCount() == 3) && ctx.Err() == nil {
 		time.Sleep(50 * time.Millisecond)
 		stats = db.Stat()
 	}
-	require.NoError(t, ctx.Err())
 	require.EqualValues(t, 2, stats.TotalConns())
 	require.EqualValues(t, 0, stats.MaxIdleDestroyCount())
 	require.EqualValues(t, 3, stats.NewConnsCount())

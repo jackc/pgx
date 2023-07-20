@@ -199,6 +199,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	p.p, err = puddle.NewPool(
 		&puddle.Config[*connResource]{
 			Constructor: func(ctx context.Context) (*connResource, error) {
+				atomic.AddInt64(&p.newConnsCount, 1)
 				connConfig := p.config.ConnConfig.Copy()
 
 				// Connection will continue in background even if Acquire is canceled. Ensure that a connect won't hang forever.
@@ -475,7 +476,6 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 
 	for i := 0; i < targetResources; i++ {
 		go func() {
-			atomic.AddInt64(&p.newConnsCount, 1)
 			err := p.p.CreateResource(ctx)
 			// Ignore ErrNotAvailable since it means that the pool has become full since we started creating resource.
 			if err == puddle.ErrNotAvailable {
