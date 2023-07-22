@@ -269,8 +269,6 @@ func TestConnCopyFromLarge(t *testing.T) {
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
-	pgxtest.SkipCockroachDB(t, conn, "Skipping due to known server issue: (https://github.com/cockroachdb/cockroach/issues/52722)")
-
 	mustExec(t, conn, `create temporary table foo(
 		a int2,
 		b int4,
