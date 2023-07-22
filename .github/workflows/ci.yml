@@ -73,13 +73,13 @@ jobs:
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
 
       - name: Setup database server for testing
         run: ci/setup_test.bash
@@ -136,13 +136,13 @@ jobs:
         with:
           database: pgx_test
 
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go-version }}
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
 
       - name: Initialize test database
         run: |
