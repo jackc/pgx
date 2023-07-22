@@ -2,12 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
-
   test:
     name: Test
     # Note: The TLS tests are rather finicky. It seems that openssl 3 encrypts certificates differently than older
@@ -74,55 +73,54 @@ jobs:
             pgx-test-database: "postgresql://root@127.0.0.1:26257/pgx_test?sslmode=disable&experimental_enable_temp_tables=on"
 
     steps:
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: Set up Go ${{ matrix.go-version }}
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v3
+      - name: Setup database server for testing
+        run: ci/setup_test.bash
+        env:
+          PGVERSION: ${{ matrix.pg-version }}
 
-    - name: Setup database server for testing
-      run: ci/setup_test.bash
-      env:
-        PGVERSION: ${{ matrix.pg-version }}
+      # - name: Setup upterm session
+      #   uses: lhotari/action-upterm@v1
+      #   with:
+      #     ## limits ssh access and adds the ssh public key for the user which triggered the workflow
+      #     limit-access-to-actor: true
+      #   env:
+      #     PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
+      #     PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
+      #     PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
+      #     PGX_TEST_SCRAM_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-scram-password-conn-string }}
+      #     PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
+      #     PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}
+      #     PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
+      #     PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
+      #     PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
 
-    # - name: Setup upterm session
-    #   uses: lhotari/action-upterm@v1
-    #   with:
-    #     ## limits ssh access and adds the ssh public key for the user which triggered the workflow
-    #     limit-access-to-actor: true
-    #   env:
-    #     PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
-    #     PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
-    #     PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
-    #     PGX_TEST_SCRAM_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-scram-password-conn-string }}
-    #     PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
-    #     PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}
-    #     PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
-    #     PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
-    #     PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
+      - name: Check formatting
+        run: |
+          gofmt -l -s -w .
+          git status
+          git diff --exit-code
 
-    - name: Check formatting
-      run: |
-        gofmt -l -s -w .
-        git status
-        git diff --exit-code
-
-    - name: Test
-      run: go test -v -race ./...
-      env:
-        PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
-        PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
-        PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
-        PGX_TEST_SCRAM_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-scram-password-conn-string }}
-        PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
-        PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}
-        # TestConnectTLS fails. However, it succeeds if I connect to the CI server with upterm and run it. Give up on that test for now.
-        # PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
-        PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
-        PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
+      - name: Test
+        run: go test -v -race ./...
+        env:
+          PGX_TEST_DATABASE: ${{ matrix.pgx-test-database }}
+          PGX_TEST_UNIX_SOCKET_CONN_STRING: ${{ matrix.pgx-test-unix-socket-conn-string }}
+          PGX_TEST_TCP_CONN_STRING: ${{ matrix.pgx-test-tcp-conn-string }}
+          PGX_TEST_SCRAM_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-scram-password-conn-string }}
+          PGX_TEST_MD5_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-md5-password-conn-string }}
+          PGX_TEST_PLAIN_PASSWORD_CONN_STRING: ${{ matrix.pgx-test-plain-password-conn-string }}
+          # TestConnectTLS fails. However, it succeeds if I connect to the CI server with upterm and run it. Give up on that test for now.
+          # PGX_TEST_TLS_CONN_STRING: ${{ matrix.pgx-test-tls-conn-string }}
+          PGX_SSL_PASSWORD: ${{ matrix.pgx-ssl-password }}
+          PGX_TEST_TLS_CLIENT_CONN_STRING: ${{ matrix.pgx-test-tls-client-conn-string }}
 
   test-windows:
     name: Test Windows
