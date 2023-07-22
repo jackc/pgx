@@ -46,7 +46,7 @@ func (ts *Timestamptz) Scan(src any) error {
 		return nil
 	}
 
-	var nullable pgtype.Timestamp
+	var nullable pgtype.Timestamptz
 	err := nullable.Scan(src)
 	if err != nil {
 		return err
