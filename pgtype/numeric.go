@@ -144,20 +144,20 @@ func (n *Numeric) toBigInt() (*big.Int, error) {
 }
 
 func parseNumericString(str string) (n *big.Int, exp int32, err error) {
-	parts := strings.SplitN(str, ".", 2)
-	digits := strings.Join(parts, "")
+	idx := strings.IndexByte(str, '.')
 
-	if len(parts) > 1 {
-		exp = int32(-len(parts[1]))
-	} else {
-		for len(digits) > 1 && digits[len(digits)-1] == '0' && digits[len(digits)-2] != '-' {
-			digits = digits[:len(digits)-1]
+	if idx == -1 {
+		for len(str) > 1 && str[len(str)-1] == '0' && str[len(str)-2] != '-' {
+			str = str[:len(str)-1]
 			exp++
 		}
+	} else {
+		exp = int32(-(len(str) - idx - 1))
+		str = str[:idx] + str[idx+1:]
 	}
 
 	accum := &big.Int{}
-	if _, ok := accum.SetString(digits, 10); !ok {
+	if _, ok := accum.SetString(str, 10); !ok {
 		return nil, 0, fmt.Errorf("%s is not a number", str)
 	}
 
