@@ -679,20 +679,26 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 	case "verify-full":
 		tlsConfig.ServerName = host
 	default:
-		return nil, errors.New("sslmode is invalid")
+		if tlsConfig = findTLSConfig(sslmode); tlsConfig == nil {
+			return nil, errors.New("sslmode is invalid")
+		}
 	}
 
 	if sslrootcert != "" {
 		caCertPool := x509.NewCertPool()
 
-		caPath := sslrootcert
-		caCert, err := os.ReadFile(caPath)
-		if err != nil {
-			return nil, fmt.Errorf("unable to read CA file: %w", err)
-		}
+		if certPool := findTLSCACertPool(sslrootcert); certPool != nil {
+			caCertPool = certPool
+		} else {
+			caPath := sslrootcert
+			caCert, err := os.ReadFile(caPath)
+			if err != nil {
+				return nil, fmt.Errorf("unable to read CA file: %w", err)
+			}
 
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("unable to add CA to cert pool")
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				return nil, errors.New("unable to add CA to cert pool")
+			}
 		}
 
 		tlsConfig.RootCAs = caCertPool
