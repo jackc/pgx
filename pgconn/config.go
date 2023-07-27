@@ -26,7 +26,7 @@ type AfterConnectFunc func(ctx context.Context, pgconn *PgConn) error
 type ValidateConnectFunc func(ctx context.Context, pgconn *PgConn) error
 type GetSSLPasswordFunc func(ctx context.Context) string
 
-// Config is the settings used to establish a connection to a PostgreSQL server. It must be created by ParseConfig. A
+// Config is the settings used to establish a connection to a PostgreSQL server. It must be created by [ParseConfig]. A
 // manually initialized Config will cause ConnectConfig to panic.
 type Config struct {
 	Host           string // host (e.g. localhost) or absolute path to unix domain socket directory (e.g. /private/tmp)
