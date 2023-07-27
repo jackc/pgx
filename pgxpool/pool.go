@@ -99,8 +99,8 @@ type Pool struct {
 	closeChan chan struct{}
 }
 
-// Config is the configuration struct for creating a pool. It must be created by ParseConfig and then it can be
-// modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
+// Config is the configuration struct for creating a pool. It must be created by [ParseConfig] and then it can be
+// modified.
 type Config struct {
 	ConnConfig *pgx.ConnConfig
 
@@ -160,7 +160,7 @@ func (c *Config) Copy() *Config {
 // ConnString returns the connection string as parsed by pgxpool.ParseConfig into pgxpool.Config.
 func (c *Config) ConnString() string { return c.ConnConfig.ConnString() }
 
-// New creates a new Pool. See ParseConfig for information on connString format.
+// New creates a new Pool. See [ParseConfig] for information on connString format.
 func New(ctx context.Context, connString string) (*Pool, error) {
 	config, err := ParseConfig(connString)
 	if err != nil {
@@ -170,7 +170,7 @@ func New(ctx context.Context, connString string) (*Pool, error) {
 	return NewWithConfig(ctx, config)
 }
 
-// NewWithConfig creates a new Pool. config must have been created by ParseConfig.
+// NewWithConfig creates a new Pool. config must have been created by [ParseConfig].
 func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	// Default values are set in ParseConfig. Enforce initial creation by ParseConfig rather than setting defaults from
 	// zero values.
@@ -267,7 +267,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	return p, nil
 }
 
-// ParseConfig builds a Config from connString. It parses connString with the same behavior as pgx.ParseConfig with the
+// ParseConfig builds a Config from connString. It parses connString with the same behavior as [pgx.ParseConfig] with the
 // addition of the following variables:
 //
 //   - pool_max_conns: integer greater than 0

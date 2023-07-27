@@ -194,7 +194,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	return connConfig, nil
 }
 
-// ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that pgconn.ParseConfig
+// ParseConfig creates a ConnConfig from a connection string. ParseConfig handles all options that [pgconn.ParseConfig]
 // does. In addition, it accepts the following options:
 //
 //   - default_query_exec_mode.
