@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"math"
 	"os"
 	"reflect"
@@ -331,6 +332,7 @@ func TestConnConcurrency(t *testing.T) {
 		var wg sync.WaitGroup
 
 		concurrency := 50
+		errChan := make(chan error, concurrency)
 
 		for i := 1; i <= concurrency; i++ {
 			wg.Add(1)
@@ -344,14 +346,29 @@ func TestConnConcurrency(t *testing.T) {
 				str := strconv.Itoa(idx)
 				duration := time.Duration(idx) * time.Second
 				_, err := db.ExecContext(ctx, "insert into t values($1)", idx)
-				require.NoError(t, err)
+				if err != nil {
+					errChan <- fmt.Errorf("insert failed: %d %w", idx, err)
+					return
+				}
 				_, err = db.ExecContext(ctx, "update t set str = $1 where id = $2", str, idx)
-				require.NoError(t, err)
+				if err != nil {
+					errChan <- fmt.Errorf("update 1 failed: %d %w", idx, err)
+					return
+				}
 				_, err = db.ExecContext(ctx, "update t set dur_str = $1 where id = $2", duration, idx)
-				require.NoError(t, err)
+				if err != nil {
+					errChan <- fmt.Errorf("update 2 failed: %d %w", idx, err)
+					return
+				}
+
+				errChan <- nil
 			}(i)
 		}
 		wg.Wait()
+		for i := 1; i <= concurrency; i++ {
+			err := <-errChan
+			require.NoError(t, err)
+		}
 
 		for i := 1; i <= concurrency; i++ {
 			wg.Add(1)
@@ -366,7 +383,10 @@ func TestConnConcurrency(t *testing.T) {
 				var str string
 				var duration pgtype.Interval
 				err := db.QueryRowContext(ctx, "select id,str,dur_str from t where id = $1", idx).Scan(&id, &str, &duration)
-				require.NoError(t, err)
+				if err != nil {
+					errChan <- fmt.Errorf("select failed: %d %w", idx, err)
+					return
+				}
 				require.Equal(t, idx, id)
 				require.Equal(t, strconv.Itoa(idx), str)
 				expectedDuration := pgtype.Interval{
@@ -374,9 +394,15 @@ func TestConnConcurrency(t *testing.T) {
 					Valid:        true,
 				}
 				require.Equal(t, expectedDuration, duration)
+
+				errChan <- nil
 			}(i)
 		}
 		wg.Wait()
+		for i := 1; i <= concurrency; i++ {
+			err := <-errChan
+			require.NoError(t, err)
+		}
 	})
 }
 
