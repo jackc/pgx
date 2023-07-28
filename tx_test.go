@@ -555,6 +555,7 @@ func TestTxBeginFuncNestedTransactionCommit(t *testing.T) {
 				require.NoError(t, err)
 				return nil
 			})
+			require.NoError(t, err)
 
 			return nil
 		})
@@ -601,6 +602,7 @@ func TestTxBeginFuncNestedTransactionRollback(t *testing.T) {
 
 		return nil
 	})
+	require.NoError(t, err)
 
 	var n int64
 	err = db.QueryRow(context.Background(), "select count(*) from foo").Scan(&n)

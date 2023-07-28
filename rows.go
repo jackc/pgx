@@ -306,7 +306,7 @@ func (rows *baseRows) Values() ([]any, error) {
 				copy(newBuf, buf)
 				values = append(values, newBuf)
 			default:
-				rows.fatal(errors.New("Unknown format code"))
+				rows.fatal(errors.New("unknown format code"))
 			}
 		}
 

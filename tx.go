@@ -152,7 +152,6 @@ type Tx interface {
 // called on the dbTx.
 type dbTx struct {
 	conn         *Conn
-	err          error
 	savepointNum int64
 	closed       bool
 }
