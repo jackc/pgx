@@ -656,16 +656,9 @@ func TestQueryRowCoreIntegerEncoding(t *testing.T) {
 	defer closeConn(t, conn)
 
 	type allTypes struct {
-		ui   uint
-		ui8  uint8
-		ui16 uint16
-		ui32 uint32
-		ui64 uint64
-		i    int
-		i8   int8
-		i16  int16
-		i32  int32
-		i64  int64
+		i16 int16
+		i32 int32
+		i64 int64
 	}
 
 	var actual, zero allTypes
@@ -983,7 +976,6 @@ func TestQueryRowErrors(t *testing.T) {
 
 	type allTypes struct {
 		i16 int16
-		i   int
 		s   string
 	}
 

@@ -507,7 +507,7 @@ func (c *Conn) execSimpleProtocol(ctx context.Context, sql string, arguments []a
 
 	mrr := c.pgConn.Exec(ctx, sql)
 	for mrr.NextResult() {
-		commandTag, err = mrr.ResultReader().Close()
+		commandTag, _ = mrr.ResultReader().Close()
 	}
 	err = mrr.Close()
 	return commandTag, err

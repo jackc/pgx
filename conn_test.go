@@ -315,7 +315,7 @@ func TestExecContextWithoutCancelation(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		ctx, cancelFunc := context.WithCancel(context.Background())
+		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
 		commandTag, err := conn.Exec(ctx, "create temporary table foo(id integer primary key);")
@@ -336,7 +336,7 @@ func TestExecContextFailureWithoutCancelation(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		ctx, cancelFunc := context.WithCancel(context.Background())
+		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
 		_, err := conn.Exec(ctx, "selct;")
@@ -361,7 +361,7 @@ func TestExecContextFailureWithoutCancelationWithArguments(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
-		ctx, cancelFunc := context.WithCancel(context.Background())
+		ctx, cancelFunc := context.WithCancel(ctx)
 		defer cancelFunc()
 
 		_, err := conn.Exec(ctx, "selct $1;", 1)
@@ -565,6 +565,7 @@ func TestListenNotify(t *testing.T) {
 	defer cancel()
 	notification, err = listener.WaitForNotification(ctx)
 	assert.True(t, pgconn.Timeout(err))
+	assert.Nil(t, notification)
 
 	// listener can listen again after a timeout
 	mustExec(t, notifier, "notify chat")

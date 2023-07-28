@@ -270,6 +270,7 @@ func TestCollectOneRowPrefersPostgreSQLErrorOverErrNoRows(t *testing.T) {
 		var pgErr *pgconn.PgError
 		require.ErrorAs(t, err, &pgErr)
 		require.Equal(t, "23505", pgErr.Code)
+		require.Equal(t, "", name)
 	})
 }
 
