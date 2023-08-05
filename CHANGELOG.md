@@ -1,4 +1,4 @@
-# 5.4.3 (Auguest 5, 2023)
+# 5.4.3 (August 5, 2023)
 
 * Fix: QCharArrayOID was defined with the wrong OID (Christoph Engelbert)
 * Fix: connect_timeout for sslmode=allow|prefer (smaher-edb)
@@ -6,6 +6,7 @@
 * Fix: Check for nil in defer when sending batch (recover properly from panic)
 * Fix: json scan of non-string pointer to pointer
 * Fix: zeronull.Timestamptz should use pgtype.Timestamptz
+* Fix: NewConnsCount was not correctly counting connections created by Acquire directly. (James Hartig)
 * RowTo(AddrOf)StructByPos ignores fields with "-" db tag
 * Optimization: improve text format numeric parsing (horpto)
 
