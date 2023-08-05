@@ -1,3 +1,14 @@
+# 5.4.3 (Auguest 5, 2023)
+
+* Fix: QCharArrayOID was defined with the wrong OID (Christoph Engelbert)
+* Fix: connect_timeout for sslmode=allow|prefer (smaher-edb)
+* Fix: pgxpool: background health check cannot overflow pool
+* Fix: Check for nil in defer when sending batch (recover properly from panic)
+* Fix: json scan of non-string pointer to pointer
+* Fix: zeronull.Timestamptz should use pgtype.Timestamptz
+* RowTo(AddrOf)StructByPos ignores fields with "-" db tag
+* Optimization: improve text format numeric parsing (horpto)
+
 # 5.4.2 (July 11, 2023)
 
 * Fix: RowScanner errors are fatal to Rows
