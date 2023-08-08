@@ -407,6 +407,34 @@ func benchmarkWriteNRowsViaInsert(b *testing.B, n int) {
 	}
 }
 
+func benchmarkWriteNRowsViaBatchInsert(b *testing.B, n int) {
+	conn := mustConnect(b, mustParseConfig(b, os.Getenv("PGX_TEST_DATABASE")))
+	defer closeConn(b, conn)
+
+	mustExec(b, conn, benchmarkWriteTableCreateSQL)
+	_, err := conn.Prepare(context.Background(), "insert_t", benchmarkWriteTableInsertSQL)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		src := newBenchmarkWriteTableCopyFromSrc(n)
+
+		batch := &pgx.Batch{}
+		for src.Next() {
+			values, _ := src.Values()
+			batch.Queue("insert_t", values...)
+		}
+
+		err = conn.SendBatch(context.Background(), batch).Close()
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 type queryArgs []any
 
 func (qa *queryArgs) Append(v any) string {
@@ -560,12 +588,31 @@ func benchmarkWriteNRowsViaCopy(b *testing.B, n int) {
 	}
 }
 
+func BenchmarkWrite2RowsViaInsert(b *testing.B) {
+	benchmarkWriteNRowsViaInsert(b, 2)
+}
+
+func BenchmarkWrite2RowsViaMultiInsert(b *testing.B) {
+	benchmarkWriteNRowsViaMultiInsert(b, 2)
+}
+
+func BenchmarkWrite2RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 2)
+}
+
+func BenchmarkWrite2RowsViaCopy(b *testing.B) {
+	benchmarkWriteNRowsViaCopy(b, 2)
+}
+
 func BenchmarkWrite5RowsViaInsert(b *testing.B) {
 	benchmarkWriteNRowsViaInsert(b, 5)
 }
 
 func BenchmarkWrite5RowsViaMultiInsert(b *testing.B) {
 	benchmarkWriteNRowsViaMultiInsert(b, 5)
+}
+func BenchmarkWrite5RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 5)
 }
 
 func BenchmarkWrite5RowsViaCopy(b *testing.B) {
@@ -579,6 +626,9 @@ func BenchmarkWrite10RowsViaInsert(b *testing.B) {
 func BenchmarkWrite10RowsViaMultiInsert(b *testing.B) {
 	benchmarkWriteNRowsViaMultiInsert(b, 10)
 }
+func BenchmarkWrite10RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 10)
+}
 
 func BenchmarkWrite10RowsViaCopy(b *testing.B) {
 	benchmarkWriteNRowsViaCopy(b, 10)
@@ -590,6 +640,9 @@ func BenchmarkWrite100RowsViaInsert(b *testing.B) {
 
 func BenchmarkWrite100RowsViaMultiInsert(b *testing.B) {
 	benchmarkWriteNRowsViaMultiInsert(b, 100)
+}
+func BenchmarkWrite100RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 100)
 }
 
 func BenchmarkWrite100RowsViaCopy(b *testing.B) {
@@ -604,6 +657,10 @@ func BenchmarkWrite1000RowsViaMultiInsert(b *testing.B) {
 	benchmarkWriteNRowsViaMultiInsert(b, 1000)
 }
 
+func BenchmarkWrite1000RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 1000)
+}
+
 func BenchmarkWrite1000RowsViaCopy(b *testing.B) {
 	benchmarkWriteNRowsViaCopy(b, 1000)
 }
@@ -614,6 +671,9 @@ func BenchmarkWrite10000RowsViaInsert(b *testing.B) {
 
 func BenchmarkWrite10000RowsViaMultiInsert(b *testing.B) {
 	benchmarkWriteNRowsViaMultiInsert(b, 10000)
+}
+func BenchmarkWrite10000RowsViaBatchInsert(b *testing.B) {
+	benchmarkWriteNRowsViaBatchInsert(b, 10000)
 }
 
 func BenchmarkWrite10000RowsViaCopy(b *testing.B) {
