@@ -339,8 +339,9 @@ type benchmarkWriteTableCopyFromSrc struct {
 }
 
 func (s *benchmarkWriteTableCopyFromSrc) Next() bool {
+	next := s.idx < s.count
 	s.idx++
-	return s.idx < s.count
+	return next
 }
 
 func (s *benchmarkWriteTableCopyFromSrc) Values() ([]any, error) {
