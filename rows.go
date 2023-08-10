@@ -17,7 +17,8 @@ import (
 // the *Conn can be used again. Rows are closed by explicitly calling Close(),
 // calling Next() until it returns false, or when a fatal error occurs.
 //
-// Once a Rows is closed the only methods that may be called are Close(), Err(), and CommandTag().
+// Once a Rows is closed the only methods that may be called are Close(), Err(),
+// and CommandTag().
 //
 // Rows is an interface instead of a struct to allow tests to mock Query. However,
 // adding a method to an interface is technically a breaking change. Because of this
@@ -41,8 +42,15 @@ type Rows interface {
 	FieldDescriptions() []pgconn.FieldDescription
 
 	// Next prepares the next row for reading. It returns true if there is another
-	// row and false if no more rows are available. It automatically closes rows
-	// when all rows are read.
+	// row and false if no more rows are available or a fatal error has occurred.
+	// It automatically closes rows when all rows are read.
+	//
+	// Callers should check rows.Err() after rows.Next() returns false to detect
+	// whether result-set reading ended prematurely due to an error. See
+	// Conn.Query for details.
+        //
+	// For simpler error handling, consider using the higher-level pgx v5
+	// CollectRows() and ForEachRow() helpers instead.
 	Next() bool
 
 	// Scan reads the values from the current row into dest values positionally.
