@@ -48,7 +48,7 @@ type Rows interface {
 	// Callers should check rows.Err() after rows.Next() returns false to detect
 	// whether result-set reading ended prematurely due to an error. See
 	// Conn.Query for details.
-        //
+	//
 	// For simpler error handling, consider using the higher-level pgx v5
 	// CollectRows() and ForEachRow() helpers instead.
 	Next() bool
