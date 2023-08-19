@@ -467,7 +467,7 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 
 // CollectExactlyOneRow calls fn for the first row in rows and returns the result.
 //   - If no rows are found returns an error where errors.Is(ErrNoRows) is true.
-//   - If more than 1 row is found returns the first result and an error where errors.Is(ErrTooManyRows) is true.
+//   - If more than 1 row is found returns an error where errors.Is(ErrTooManyRows) is true.
 func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	defer rows.Close()
 
@@ -490,7 +490,9 @@ func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	}
 
 	if rows.Next() {
-		return value, ErrTooManyRows
+		var zero T
+
+		return zero, ErrTooManyRows
 	}
 
 	return value, rows.Err()
