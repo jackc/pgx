@@ -274,6 +274,45 @@ func TestCollectOneRowPrefersPostgreSQLErrorOverErrNoRows(t *testing.T) {
 	})
 }
 
+func TestCollectExactlyOneRow(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 42`)
+		n, err := pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, int32(42), n)
+	})
+}
+
+func TestCollectExactlyOneRowNotFound(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select 42 where false`)
+		n, err := pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		assert.ErrorIs(t, err, pgx.ErrNoRows)
+		assert.Equal(t, int32(0), n)
+	})
+}
+
+func TestCollectExactlyOneRowExtraRows(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select n from generate_series(42, 99) n`)
+		n, err := pgx.CollectExactlyOneRow(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		assert.ErrorIs(t, err, pgx.ErrTooManyRows)
+		assert.Equal(t, int32(0), n)
+	})
+}
+
 func TestRowTo(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
 		rows, _ := conn.Query(ctx, `select n from generate_series(0, 99) n`)
