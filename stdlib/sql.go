@@ -14,6 +14,18 @@
 //	  return err
 //	}
 //
+// Or from a *pgxpool.Pool.
+//
+//	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+//	if err != nil {
+//	  return err
+//	}
+//
+//	db, err := stdlib.OpenDBFromPool(pool)
+//	if err != nil {
+//	  return err
+//	}
+//
 // Or a pgx.ConnConfig can be used to set configuration not accessible via connection string. In this case the
 // pgx.ConnConfig must first be registered with the driver. This registration returns a connection string which is used
 // with sql.Open.
