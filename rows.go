@@ -48,7 +48,7 @@ type Rows interface {
 	// Callers should check rows.Err() after rows.Next() returns false to detect
 	// whether result-set reading ended prematurely due to an error. See
 	// Conn.Query for details.
-        //
+	//
 	// For simpler error handling, consider using the higher-level pgx v5
 	// CollectRows() and ForEachRow() helpers instead.
 	Next() bool
@@ -462,6 +462,37 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	}
 
 	rows.Close()
+	return value, rows.Err()
+}
+
+// CollectExactlyOneRow calls fn for the first row in rows and returns the result.
+//   - If no rows are found returns an error where errors.Is(ErrNoRows) is true.
+//   - If more than 1 row is found returns the first result and an error where errors.Is(ErrTooManyRows) is true.
+func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
+	defer rows.Close()
+
+	var (
+		err   error
+		value T
+	)
+
+	if !rows.Next() {
+		if err = rows.Err(); err != nil {
+			return value, err
+		}
+
+		return value, ErrNoRows
+	}
+
+	value, err = fn(rows)
+	if err != nil {
+		return value, err
+	}
+
+	if rows.Next() {
+		return value, ErrTooManyRows
+	}
+
 	return value, rows.Err()
 }
 

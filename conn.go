@@ -99,8 +99,12 @@ func (ident Identifier) Sanitize() string {
 	return strings.Join(parts, ".")
 }
 
-// ErrNoRows occurs when rows are expected but none are returned.
-var ErrNoRows = errors.New("no rows in result set")
+var (
+	// ErrNoRows occurs when rows are expected but none are returned.
+	ErrNoRows = errors.New("no rows in result set")
+	// ErrTooManyRows occurs when more rows than expected are returned.
+	ErrTooManyRows = errors.New("too many rows in result set")
+)
 
 var errDisabledStatementCache = fmt.Errorf("cannot use QueryExecModeCacheStatement with disabled statement cache")
 var errDisabledDescriptionCache = fmt.Errorf("cannot use QueryExecModeCacheDescribe with disabled description cache")
