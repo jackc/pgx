@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/jackc/pgx/v5/tracelog"
 	"github.com/stretchr/testify/assert"
@@ -164,6 +165,17 @@ func TestSQLOpen(t *testing.T) {
 			closeDB(t, db)
 		})
 	}
+}
+
+func TestSQLOpenFromPool(t *testing.T) {
+	pool, err := pgxpool.New(context.Background(), os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	db := stdlib.OpenDBFromPool(pool)
+	ensureDBValid(t, db)
+
+	db.Close()
 }
 
 func TestNormalLifeCycle(t *testing.T) {
