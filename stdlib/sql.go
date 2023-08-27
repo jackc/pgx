@@ -152,20 +152,6 @@ func OptionAfterConnect(ac func(context.Context, *pgx.Conn) error) OptionOpenDB 
 	}
 }
 
-// OptionBeforeConnect provides a callback for before acquire. Used only if db is opened with *pgxpool.Pool.
-func OptionBeforeAcquire(ba func(context.Context, *pgxpool.Pool) error) OptionOpenDB {
-	return func(c *connector) {
-		c.BeforeAcquire = ba
-	}
-}
-
-// OptionAfterAcquire provides a callback for after acquire. Used only if db is opened with *pgxpool.Pool.
-func OptionAfterAcquire(aa func(context.Context, *pgxpool.Conn) error) OptionOpenDB {
-	return func(c *connector) {
-		c.AfterAcquire = aa
-	}
-}
-
 // OptionResetSession provides a callback that can be used to add custom logic prior to executing a query on the
 // connection if the connection has been used before.
 // If ResetSessionFunc returns ErrBadConn error the connection will be discarded.
@@ -220,11 +206,9 @@ func GetConnector(config pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector 
 
 func GetPoolConnector(pool *pgxpool.Pool, opts ...OptionOpenDB) driver.Connector {
 	c := connector{
-		pool:          pool,
-		BeforeAcquire: func(context.Context, *pgxpool.Pool) error { return nil }, // noop before acquire by default
-		AfterAcquire:  func(context.Context, *pgxpool.Conn) error { return nil }, // noop after acquire by default
-		ResetSession:  func(context.Context, *pgx.Conn) error { return nil },     // noop reset session by default
-		driver:        pgxDriver,
+		pool:         pool,
+		ResetSession: func(context.Context, *pgx.Conn) error { return nil }, // noop reset session by default
+		driver:       pgxDriver,
 	}
 
 	for _, opt := range opts {
@@ -251,8 +235,6 @@ type connector struct {
 	pool          *pgxpool.Pool
 	BeforeConnect func(context.Context, *pgx.ConnConfig) error // function to call before creation of every new connection
 	AfterConnect  func(context.Context, *pgx.Conn) error       // function to call after creation of every new connection
-	BeforeAcquire func(context.Context, *pgxpool.Pool) error   // function to call before acquiring of every new connection
-	AfterAcquire  func(context.Context, *pgxpool.Conn) error   // function to call after acquiring of every new connection
 	ResetSession  func(context.Context, *pgx.Conn) error       // function is called before a connection is reused
 	driver        *Driver
 }
@@ -286,16 +268,8 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 	} else {
 		var pconn *pgxpool.Conn
 
-		if err = c.BeforeAcquire(ctx, c.pool); err != nil {
-			return nil, err
-		}
-
 		pconn, err = c.pool.Acquire(ctx)
 		if err != nil {
-			return nil, err
-		}
-
-		if err = c.AfterAcquire(ctx, pconn); err != nil {
 			return nil, err
 		}
 
