@@ -145,7 +145,7 @@ func OptionBeforeConnect(bc func(context.Context, *pgx.ConnConfig) error) Option
 	}
 }
 
-// OptionAfterConnect provides a callback for after connect.
+// OptionAfterConnect provides a callback for after connect. Used only if db is opened with *pgx.ConnConfig.
 func OptionAfterConnect(ac func(context.Context, *pgx.Conn) error) OptionOpenDB {
 	return func(dc *connector) {
 		dc.AfterConnect = ac
