@@ -223,6 +223,9 @@ func OpenDB(config pgx.ConnConfig, opts ...OptionOpenDB) *sql.DB {
 	return sql.OpenDB(c)
 }
 
+// OpenDBFromPool creates a new *sql.DB from the given *pgxpool.Pool. Note that this method automatically sets the
+// maximum number of idle connections in *sql.DB to zero, since they must be managed from the *pgxpool.Pool. This is
+// required to avoid acquiring all the connections from the pgxpool and starving any direct users of the pgxpool.
 func OpenDBFromPool(pool *pgxpool.Pool, opts ...OptionOpenDB) *sql.DB {
 	c := GetPoolConnector(pool, opts...)
 	db := sql.OpenDB(c)
