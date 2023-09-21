@@ -537,7 +537,7 @@ func (rs *mapRowScanner) ScanRow(rows Rows) error {
 }
 
 // RowToStructByPos returns a T scanned from row. T must be a struct. T must have the same number a public fields as row
-// has fields. The row and T fields will by matched by position. If the "db" struct tag is "-" then the field will be
+// has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then the field will be
 // ignored.
 func RowToStructByPos[T any](row CollectableRow) (T, error) {
 	var value T
@@ -546,7 +546,7 @@ func RowToStructByPos[T any](row CollectableRow) (T, error) {
 }
 
 // RowToAddrOfStructByPos returns the address of a T scanned from row. T must be a struct. T must have the same number a
-// public fields as row has fields. The row and T fields will by matched by position. If the "db" struct tag is "-" then
+// public fields as row has fields. The row and T fields will be matched by position. If the "db" struct tag is "-" then
 // the field will be ignored.
 func RowToAddrOfStructByPos[T any](row CollectableRow) (*T, error) {
 	var value T
@@ -601,7 +601,7 @@ func (rs *positionalStructRowScanner) appendScanTargets(dstElemValue reflect.Val
 }
 
 // RowToStructByName returns a T scanned from row. T must be a struct. T must have the same number of named public
-// fields as row has fields. The row and T fields will by matched by name. The match is case-insensitive. The database
+// fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByName[T any](row CollectableRow) (T, error) {
 	var value T
@@ -610,7 +610,7 @@ func RowToStructByName[T any](row CollectableRow) (T, error) {
 }
 
 // RowToAddrOfStructByName returns the address of a T scanned from row. T must be a struct. T must have the same number
-// of named public fields as row has fields. The row and T fields will by matched by name. The match is
+// of named public fields as row has fields. The row and T fields will be matched by name. The match is
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
 // then the field will be ignored.
 func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
@@ -620,7 +620,7 @@ func RowToAddrOfStructByName[T any](row CollectableRow) (*T, error) {
 }
 
 // RowToStructByNameLax returns a T scanned from row. T must be a struct. T must have greater than or equal number of named public
-// fields as row has fields. The row and T fields will by matched by name. The match is case-insensitive. The database
+// fields as row has fields. The row and T fields will be matched by name. The match is case-insensitive. The database
 // column name can be overridden with a "db" struct tag. If the "db" struct tag is "-" then the field will be ignored.
 func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 	var value T
@@ -629,7 +629,7 @@ func RowToStructByNameLax[T any](row CollectableRow) (T, error) {
 }
 
 // RowToAddrOfStructByNameLax returns the address of a T scanned from row. T must be a struct. T must have greater than or
-// equal number of named public fields as row has fields. The row and T fields will by matched by name. The match is
+// equal number of named public fields as row has fields. The row and T fields will be matched by name. The match is
 // case-insensitive. The database column name can be overridden with a "db" struct tag. If the "db" struct tag is "-"
 // then the field will be ignored.
 func RowToAddrOfStructByNameLax[T any](row CollectableRow) (*T, error) {
