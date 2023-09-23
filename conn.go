@@ -598,13 +598,16 @@ type QueryExecMode int32
 const (
 	_ QueryExecMode = iota
 
-	// Automatically prepare and cache statements. This uses the extended protocol. Queries are executed in a single
-	// round trip after the statement is cached. This is the default.
+	// Automatically prepare and cache statements. This uses the extended protocol. Queries are executed in a single round
+	// trip after the statement is cached. This is the default. If the database schema is modified or the search_path is
+	// changed after a statement is cached then the first execution of a previously cached query may fail. e.g. If the
+	// number of columns returned by a "SELECT *" changes or the type of a column is changed.
 	QueryExecModeCacheStatement
 
-	// Cache statement descriptions (i.e. argument and result types) and assume they do not change. This uses the
-	// extended protocol. Queries are executed in a single round trip after the description is cached. If the database
-	// schema is modified or the search_path is changed this may result in undetected result decoding errors.
+	// Cache statement descriptions (i.e. argument and result types) and assume they do not change. This uses the extended
+	// protocol. Queries are executed in a single round trip after the description is cached. If the database schema is
+	// modified or the search_path is changed after a statement is cached then the first execution of a previously cached
+	// query may fail. e.g. If the number of columns returned by a "SELECT *" changes or the type of a column is changed.
 	QueryExecModeCacheDescribe
 
 	// Get the statement description on every execution. This uses the extended protocol. Queries require two round trips

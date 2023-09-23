@@ -1928,6 +1928,64 @@ func TestQueryErrorWithDisabledStatementCache(t *testing.T) {
 	ensureConnValid(t, conn)
 }
 
+func TestConnQueryQueryExecModeCacheDescribeSafeEvenWhenTypesChange(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(t, conn)
+
+	_, err := conn.Exec(ctx, `create temporary table to_change (
+	name text primary key,
+	age int
+);
+
+insert into to_change (name, age) values ('John', 42);`)
+	require.NoError(t, err)
+
+	var name string
+	var ageInt32 int32
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&name, &ageInt32)
+	require.NoError(t, err)
+	require.Equal(t, "John", name)
+	require.Equal(t, int32(42), ageInt32)
+
+	_, err = conn.Exec(ctx, `alter table to_change alter column age type float4;`)
+	require.NoError(t, err)
+
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&name, &ageInt32)
+	require.NoError(t, err)
+	require.Equal(t, "John", name)
+	require.Equal(t, int32(42), ageInt32)
+
+	var ageFloat32 float32
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&name, &ageFloat32)
+	require.NoError(t, err)
+	require.Equal(t, "John", name)
+	require.Equal(t, float32(42), ageFloat32)
+
+	_, err = conn.Exec(ctx, `alter table to_change drop column name;`)
+	require.NoError(t, err)
+
+	// Number of result columns has changed, so just like with a prepared statement, this will fail the first time.
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&ageFloat32)
+	require.EqualError(t, err, "ERROR: bind message has 2 result formats but query has 1 columns (SQLSTATE 08P01)")
+
+	// But it will work the second time after the cache is invalidated.
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&ageFloat32)
+	require.NoError(t, err)
+	require.Equal(t, float32(42), ageFloat32)
+
+	_, err = conn.Exec(ctx, `alter table to_change alter column age type numeric;`)
+	require.NoError(t, err)
+
+	err = conn.QueryRow(ctx, "select * from to_change where age = $1", pgx.QueryExecModeCacheDescribe, int32(42)).Scan(&ageFloat32)
+	require.NoError(t, err)
+	require.Equal(t, float32(42), ageFloat32)
+}
+
 func TestQueryWithQueryRewriter(t *testing.T) {
 	t.Parallel()
 
