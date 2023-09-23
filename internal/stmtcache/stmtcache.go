@@ -2,18 +2,17 @@
 package stmtcache
 
 import (
-	"strconv"
-	"sync/atomic"
+	"crypto/sha256"
+	"encoding/hex"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-var stmtCounter int64
-
-// NextStatementName returns a statement name that will be unique for the lifetime of the program.
-func NextStatementName() string {
-	n := atomic.AddInt64(&stmtCounter, 1)
-	return "stmtcache_" + strconv.FormatInt(n, 10)
+// StatementName returns a statement name that will be stable for sql across multiple connections and program
+// executions.
+func StatementName(sql string) string {
+	digest := sha256.Sum256([]byte(sql))
+	return "stmtcache_" + hex.EncodeToString(digest[0:24])
 }
 
 // Cache caches statement descriptions.

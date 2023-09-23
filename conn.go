@@ -486,7 +486,7 @@ optionLoop:
 		}
 		sd := c.statementCache.Get(sql)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, stmtcache.NextStatementName(), sql)
+			sd, err = c.Prepare(ctx, stmtcache.StatementName(sql), sql)
 			if err != nil {
 				return pgconn.CommandTag{}, err
 			}
@@ -840,7 +840,7 @@ func (c *Conn) getStatementDescription(
 		}
 		sd = c.statementCache.Get(sql)
 		if sd == nil {
-			sd, err = c.Prepare(ctx, stmtcache.NextStatementName(), sql)
+			sd, err = c.Prepare(ctx, stmtcache.StatementName(sql), sql)
 			if err != nil {
 				return nil, err
 			}
@@ -1019,7 +1019,7 @@ func (c *Conn) sendBatchQueryExecModeCacheStatement(ctx context.Context, b *Batc
 					bi.sd = distinctNewQueries[idx]
 				} else {
 					sd = &pgconn.StatementDescription{
-						Name: stmtcache.NextStatementName(),
+						Name: stmtcache.StatementName(bi.query),
 						SQL:  bi.query,
 					}
 					distinctNewQueriesIdxMap[sd.SQL] = len(distinctNewQueries)
