@@ -38,19 +38,3 @@ type Cache interface {
 	// Cap returns the maximum number of cached prepared statement descriptions.
 	Cap() int
 }
-
-func IsStatementInvalid(err error) bool {
-	pgErr, ok := err.(*pgconn.PgError)
-	if !ok {
-		return false
-	}
-
-	// https://github.com/jackc/pgx/issues/1162
-	//
-	// We used to look for the message "cached plan must not change result type". However, that message can be localized.
-	// Unfortunately, error code "0A000" - "FEATURE NOT SUPPORTED" is used for many different errors and the only way to
-	// tell the difference is by the message. But all that happens is we clear a statement that we otherwise wouldn't
-	// have so it should be safe.
-	possibleInvalidCachedPlanError := pgErr.Code == "0A000"
-	return possibleInvalidCachedPlanError
-}
