@@ -526,6 +526,28 @@ func TestPrepareStatementCacheModes(t *testing.T) {
 	})
 }
 
+func TestPrepareWithDigestedName(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		sql := "select $1::text"
+		sd, err := conn.Prepare(ctx, sql, sql)
+		require.NoError(t, err)
+		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
+
+		var s string
+		err = conn.QueryRow(ctx, sql, "hello").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "hello", s)
+
+		err = conn.Deallocate(ctx, sql)
+		require.NoError(t, err)
+	})
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
