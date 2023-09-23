@@ -204,6 +204,10 @@ func GetConnector(config pgx.ConnConfig, opts ...OptionOpenDB) driver.Connector 
 	return c
 }
 
+// GetPoolConnector creates a new driver.Connector from the given *pgxpool.Pool. By using this be sure to set the
+// maximum idle connections of the *sql.DB created with this connector to zero since they must be managed from the
+// *pgxpool.Pool. This is required to avoid acquiring all the connections from the pgxpool and starving any direct
+// users of the pgxpool.
 func GetPoolConnector(pool *pgxpool.Pool, opts ...OptionOpenDB) driver.Connector {
 	c := connector{
 		pool:         pool,
