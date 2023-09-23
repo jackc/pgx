@@ -1937,6 +1937,8 @@ func TestConnQueryQueryExecModeCacheDescribeSafeEvenWhenTypesChange(t *testing.T
 	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(t, conn)
 
+	pgxtest.SkipCockroachDB(t, conn, "Server does not support alter column type from int to float4")
+
 	_, err := conn.Exec(ctx, `create temporary table to_change (
 	name text primary key,
 	age int
