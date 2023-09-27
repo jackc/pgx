@@ -742,14 +742,15 @@ func (r *Rows) Next(dest []driver.Value) error {
 					return d.Value()
 				}
 			case pgtype.XIDOID:
-				var d pgtype.XID
+				// there we get 32-xid or 64-xid
+				d, _ := ci.DataTypeForOID(pgtype.XIDOID)
 				scanPlan := ci.PlanScan(dataTypeOID, format, &d)
 				r.valueFuncs[i] = func(src []byte) (driver.Value, error) {
 					err := scanPlan.Scan(ci, dataTypeOID, format, src, &d)
 					if err != nil {
 						return nil, err
 					}
-					return d.Value()
+					return d.Value, nil
 				}
 			default:
 				var d string
