@@ -1996,7 +1996,8 @@ func (p *Pipeline) GetResults() (results any, err error) {
 	for {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
-			return nil, err
+			p.conn.asyncClose()
+			return nil, normalizeTimeoutError(p.ctx, err)
 		}
 
 		switch msg := msg.(type) {
