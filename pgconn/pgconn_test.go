@@ -249,9 +249,7 @@ func TestConnectTimeout(t *testing.T) {
 				}
 			}()
 
-			parts := strings.Split(ln.Addr().String(), ":")
-			host := parts[0]
-			port := parts[1]
+			host, port, _ := strings.Cut(ln.Addr().String(), ":")
 			connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
 			tooLate := time.Now().Add(time.Millisecond * 500)
 
@@ -316,9 +314,7 @@ func TestConnectTimeoutStuckOnTLSHandshake(t *testing.T) {
 				time.Sleep(time.Minute)
 			}()
 
-			parts := strings.Split(ln.Addr().String(), ":")
-			host := parts[0]
-			port := parts[1]
+			host, port, _ := strings.Cut(ln.Addr().String(), ":")
 			connStr := fmt.Sprintf("host=%s port=%s", host, port)
 
 			errChan := make(chan error)
@@ -2414,9 +2410,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 		}
 	}()
 
-	parts := strings.Split(ln.Addr().String(), ":")
-	host := parts[0]
-	port := parts[1]
+	host, port, _ := strings.cut(ln.Addr().String(), ":")
 	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
 
 	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
@@ -3229,7 +3223,7 @@ func TestSNISupport(t *testing.T) {
 				serverSNINameChan <- sniHost
 			}()
 
-			port := strings.Split(ln.Addr().String(), ":")[1]
+			_, port, _ := strings.Cut(ln.Addr().String(), ":")
 			connStr := fmt.Sprintf("sslmode=require host=localhost port=%s %s", port, tt.sni_param)
 			_, err = pgconn.Connect(ctx, connStr)
 

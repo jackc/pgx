@@ -69,9 +69,7 @@ func TestScript(t *testing.T) {
 		}
 	}()
 
-	parts := strings.Split(ln.Addr().String(), ":")
-	host := parts[0]
-	port := parts[1]
+	host, port, _ := strings.Cut(ln.Addr().String(), ":")
 	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

@@ -242,21 +242,21 @@ func (scanPlanTextAnyToIntervalScanner) Scan(src []byte, dst any) error {
 			return fmt.Errorf("bad interval minute format: %s", timeParts[1])
 		}
 
-		secondParts := strings.SplitN(timeParts[2], ".", 2)
+		sec, secFrac, secFracFound := strings.Cut(timeParts[2], ".")
 
-		seconds, err := strconv.ParseInt(secondParts[0], 10, 64)
+		seconds, err := strconv.ParseInt(sec, 10, 64)
 		if err != nil {
-			return fmt.Errorf("bad interval second format: %s", secondParts[0])
+			return fmt.Errorf("bad interval second format: %s", sec)
 		}
 
 		var uSeconds int64
-		if len(secondParts) == 2 {
-			uSeconds, err = strconv.ParseInt(secondParts[1], 10, 64)
+		if secFracFound {
+			uSeconds, err = strconv.ParseInt(secFrac, 10, 64)
 			if err != nil {
-				return fmt.Errorf("bad interval decimal format: %s", secondParts[1])
+				return fmt.Errorf("bad interval decimal format: %s", secFrac)
 			}
 
-			for i := 0; i < 6-len(secondParts[1]); i++ {
+			for i := 0; i < 6-len(secFrac); i++ {
 				uSeconds *= 10
 			}
 		}

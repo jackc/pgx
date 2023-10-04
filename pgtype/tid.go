@@ -205,17 +205,17 @@ func (scanPlanTextAnyToTIDScanner) Scan(src []byte, dst any) error {
 		return fmt.Errorf("invalid length for tid: %v", len(src))
 	}
 
-	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
-	if len(parts) < 2 {
+	block, offset, found := strings.Cut(string(src[1:len(src)-1]), ",")
+	if !found {
 		return fmt.Errorf("invalid format for tid")
 	}
 
-	blockNumber, err := strconv.ParseUint(parts[0], 10, 32)
+	blockNumber, err := strconv.ParseUint(block, 10, 32)
 	if err != nil {
 		return err
 	}
 
-	offsetNumber, err := strconv.ParseUint(parts[1], 10, 16)
+	offsetNumber, err := strconv.ParseUint(offset, 10, 16)
 	if err != nil {
 		return err
 	}
