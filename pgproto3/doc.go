@@ -1,7 +1,7 @@
-// Package pgproto3 is a encoder and decoder of the PostgreSQL wire protocol version 3.
+// Package pgproto3 is an encoder and decoder of the PostgreSQL wire protocol version 3.
 //
 // The primary interfaces are Frontend and Backend. They correspond to a client and server respectively. Messages are
-// sent with Send (or a specialized Send variant). Messages are automatically bufferred to minimize small writes. Call
+// sent with Send (or a specialized Send variant). Messages are automatically buffered to minimize small writes. Call
 // Flush to ensure a message has actually been sent.
 //
 // The Trace method of Frontend and Backend can be used to examine the wire-level message traffic. It outputs in a

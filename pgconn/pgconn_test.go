@@ -438,7 +438,7 @@ func TestConnectCustomLookupWithPort(t *testing.T) {
 	require.NoError(t, err)
 
 	origPort := config.Port
-	// Chnage the config an invalid port so it will fail if used
+	// Change the config an invalid port so it will fail if used
 	config.Port = 0
 
 	looked := false

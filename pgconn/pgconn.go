@@ -593,7 +593,7 @@ func (pgConn *PgConn) Frontend() *pgproto3.Frontend {
 	return pgConn.frontend
 }
 
-// Close closes a connection. It is safe to call Close on a already closed connection. Close attempts a clean close by
+// Close closes a connection. It is safe to call Close on an already closed connection. Close attempts a clean close by
 // sending the exit message to PostgreSQL. However, this could block so ctx is available to limit the time to wait. The
 // underlying net.Conn.Close() will always be called regardless of any other errors.
 func (pgConn *PgConn) Close(ctx context.Context) error {
@@ -1764,7 +1764,7 @@ func (pgConn *PgConn) SyncConn(ctx context.Context) error {
 		}
 	}
 
-	// This should never happen. Only way I can imagine this occuring is if the server is constantly sending data such as
+	// This should never happen. Only way I can imagine this occurring is if the server is constantly sending data such as
 	// LISTEN/NOTIFY or log notifications such that we never can get an empty buffer.
 	return errors.New("SyncConn: conn never synchronized")
 }

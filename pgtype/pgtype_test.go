@@ -43,7 +43,7 @@ type _float32Slice []float32
 type _float64Slice []float64
 type _byteSlice []byte
 
-// unregisteredOID represents a actual type that is not registered. Cannot use 0 because that represents that the type
+// unregisteredOID represents an actual type that is not registered. Cannot use 0 because that represents that the type
 // is not known (e.g. when using the simple protocol).
 const unregisteredOID = uint32(1)
 
