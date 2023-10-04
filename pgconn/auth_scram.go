@@ -47,7 +47,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		return err
 	}
 
-	// Receive server-first-message payload in a AuthenticationSASLContinue.
+	// Receive server-first-message payload in an AuthenticationSASLContinue.
 	saslContinue, err := c.rxSASLContinue()
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 		return err
 	}
 
-	// Receive server-final-message payload in a AuthenticationSASLFinal.
+	// Receive server-final-message payload in an AuthenticationSASLFinal.
 	saslFinal, err := c.rxSASLFinal()
 	if err != nil {
 		return err

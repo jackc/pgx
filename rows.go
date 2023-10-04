@@ -688,7 +688,7 @@ func (rs *namedStructRowScanner) appendScanTargets(dstElemValue reflect.Value, s
 			// Field is unexported, skip it.
 			continue
 		}
-		// Handle anoymous struct embedding, but do not try to handle embedded pointers.
+		// Handle anonymous struct embedding, but do not try to handle embedded pointers.
 		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
 			scanTargets, err = rs.appendScanTargets(dstElemValue.Field(i), scanTargets, fldDescs)
 			if err != nil {

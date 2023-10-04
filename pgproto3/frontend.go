@@ -156,7 +156,7 @@ func (f *Frontend) SendDescribe(msg *Describe) {
 	}
 }
 
-// SendExecute sends a Execute message to the backend (i.e. the server). The message is not guaranteed to be written until
+// SendExecute sends an Execute message to the backend (i.e. the server). The message is not guaranteed to be written until
 // Flush is called.
 func (f *Frontend) SendExecute(msg *Execute) {
 	prevLen := len(f.wbuf)

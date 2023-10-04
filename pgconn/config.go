@@ -809,7 +809,7 @@ func makeConnectTimeoutDialFunc(timeout time.Duration) DialFunc {
 	return d.DialContext
 }
 
-// ValidateConnectTargetSessionAttrsReadWrite is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsReadWrite is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-write.
 func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "show transaction_read_only", nil, nil, nil, nil).Read()
@@ -824,7 +824,7 @@ func ValidateConnectTargetSessionAttrsReadWrite(ctx context.Context, pgConn *PgC
 	return nil
 }
 
-// ValidateConnectTargetSessionAttrsReadOnly is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsReadOnly is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=read-only.
 func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "show transaction_read_only", nil, nil, nil, nil).Read()
@@ -839,7 +839,7 @@ func ValidateConnectTargetSessionAttrsReadOnly(ctx context.Context, pgConn *PgCo
 	return nil
 }
 
-// ValidateConnectTargetSessionAttrsStandby is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsStandby is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=standby.
 func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
@@ -854,7 +854,7 @@ func ValidateConnectTargetSessionAttrsStandby(ctx context.Context, pgConn *PgCon
 	return nil
 }
 
-// ValidateConnectTargetSessionAttrsPrimary is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsPrimary is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=primary.
 func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()
@@ -869,7 +869,7 @@ func ValidateConnectTargetSessionAttrsPrimary(ctx context.Context, pgConn *PgCon
 	return nil
 }
 
-// ValidateConnectTargetSessionAttrsPreferStandby is an ValidateConnectFunc that implements libpq compatible
+// ValidateConnectTargetSessionAttrsPreferStandby is a ValidateConnectFunc that implements libpq compatible
 // target_session_attrs=prefer-standby.
 func ValidateConnectTargetSessionAttrsPreferStandby(ctx context.Context, pgConn *PgConn) error {
 	result := pgConn.ExecParams(ctx, "select pg_is_in_recovery()", nil, nil, nil, nil).Read()

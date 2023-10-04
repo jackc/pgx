@@ -38,14 +38,14 @@ func (dst *StartupMessage) Decode(src []byte) error {
 	for {
 		idx := bytes.IndexByte(src[rp:], 0)
 		if idx < 0 {
-			return &invalidMessageFormatErr{messageType: "StartupMesage"}
+			return &invalidMessageFormatErr{messageType: "StartupMessage"}
 		}
 		key := string(src[rp : rp+idx])
 		rp += idx + 1
 
 		idx = bytes.IndexByte(src[rp:], 0)
 		if idx < 0 {
-			return &invalidMessageFormatErr{messageType: "StartupMesage"}
+			return &invalidMessageFormatErr{messageType: "StartupMessage"}
 		}
 		value := string(src[rp : rp+idx])
 		rp += idx + 1
