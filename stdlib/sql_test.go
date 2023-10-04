@@ -108,7 +108,7 @@ func testWithAllQueryExecModes(t *testing.T, f func(t *testing.T, db *sql.DB)) {
 }
 
 // Do a simple query to ensure the DB is still usable. This is of less use in stdlib as the connection pool should
-// cover an broken connections.
+// cover broken connections.
 func ensureDBValid(t testing.TB, db *sql.DB) {
 	var sum, rowCount int32
 

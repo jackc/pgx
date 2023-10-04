@@ -37,7 +37,7 @@ type ConnConfig struct {
 
 	// DefaultQueryExecMode controls the default mode for executing queries. By default pgx uses the extended protocol
 	// and automatically prepares and caches prepared statements. However, this may be incompatible with proxies such as
-	// PGBouncer. In this case it may be preferrable to use QueryExecModeExec or QueryExecModeSimpleProtocol. The same
+	// PGBouncer. In this case it may be preferable to use QueryExecModeExec or QueryExecModeSimpleProtocol. The same
 	// functionality can be controlled on a per query basis by passing a QueryExecMode as the first query argument.
 	DefaultQueryExecMode QueryExecMode
 
@@ -275,7 +275,7 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	return c, nil
 }
 
-// Close closes a connection. It is safe to call Close on a already closed
+// Close closes a connection. It is safe to call Close on an already closed
 // connection.
 func (c *Conn) Close(ctx context.Context) error {
 	if c.IsClosed() {
@@ -620,13 +620,13 @@ const (
 	// Assume the PostgreSQL query parameter types based on the Go type of the arguments. This uses the extended protocol
 	// with text formatted parameters and results. Queries are executed in a single round trip. Type mappings can be
 	// registered with pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are
-	// unregistered or ambigious. e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know
+	// unregistered or ambiguous. e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know
 	// the PostgreSQL type can use a map[string]string directly as an argument. This mode cannot.
 	QueryExecModeExec
 
 	// Use the simple protocol. Assume the PostgreSQL query parameter types based on the Go type of the arguments.
 	// Queries are executed in a single round trip. Type mappings can be registered with
-	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambigious.
+	// pgtype.Map.RegisterDefaultPgType. Queries will be rejected that have arguments that are unregistered or ambiguous.
 	// e.g. A map[string]string may have the PostgreSQL type json or hstore. Modes that know the PostgreSQL type can use
 	// a map[string]string directly as an argument. This mode cannot.
 	//

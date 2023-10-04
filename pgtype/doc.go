@@ -67,7 +67,7 @@ See example_custom_type_test.go for an example of a custom type for the PostgreS
 
 Sometimes pgx supports a PostgreSQL type such as numeric but the Go type is in an external package that does not have
 pgx support such as github.com/shopspring/decimal. These types can be registered with pgtype with custom conversion
-logic. See https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid for a example
+logic. See https://github.com/jackc/pgx-shopspring-decimal and https://github.com/jackc/pgx-gofrs-uuid for example
 integrations.
 
 New PostgreSQL Type Support
@@ -149,7 +149,7 @@ Overview of Scanning Implementation
 The first step is to use the OID to lookup the correct Codec. If the OID is unavailable, Map will try to find the OID
 from previous calls of Map.RegisterDefaultPgType. The Map will call the Codec's PlanScan method to get a plan for
 scanning into the Go value. A Codec will support scanning into one or more Go types. Oftentime these Go types are
-interfaces rather than explicit types. For example, PointCodec can use any Go type that implments the PointScanner and
+interfaces rather than explicit types. For example, PointCodec can use any Go type that implements the PointScanner and
 PointValuer interfaces.
 
 If a Go value is not supported directly by a Codec then Map will try wrapping it with additional logic and try again.
