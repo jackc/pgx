@@ -50,17 +50,17 @@ func parsePoint(src []byte) (*Point, error) {
 	if src[0] == '"' && src[len(src)-1] == '"' {
 		src = src[1 : len(src)-1]
 	}
-	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
-	if len(parts) < 2 {
+	sx, sy, found := strings.Cut(string(src[1:len(src)-1]), ",")
+	if !found {
 		return nil, fmt.Errorf("invalid format for point")
 	}
 
-	x, err := strconv.ParseFloat(parts[0], 64)
+	x, err := strconv.ParseFloat(sx, 64)
 	if err != nil {
 		return nil, err
 	}
 
-	y, err := strconv.ParseFloat(parts[1], 64)
+	y, err := strconv.ParseFloat(sy, 64)
 	if err != nil {
 		return nil, err
 	}
@@ -247,17 +247,17 @@ func (scanPlanTextAnyToPointScanner) Scan(src []byte, dst any) error {
 		return fmt.Errorf("invalid length for point: %v", len(src))
 	}
 
-	parts := strings.SplitN(string(src[1:len(src)-1]), ",", 2)
-	if len(parts) < 2 {
+	sx, sy, found := strings.Cut(string(src[1:len(src)-1]), ",")
+	if !found {
 		return fmt.Errorf("invalid format for point")
 	}
 
-	x, err := strconv.ParseFloat(parts[0], 64)
+	x, err := strconv.ParseFloat(sx, 64)
 	if err != nil {
 		return err
 	}
 
-	y, err := strconv.ParseFloat(parts[1], 64)
+	y, err := strconv.ParseFloat(sy, 64)
 	if err != nil {
 		return err
 	}

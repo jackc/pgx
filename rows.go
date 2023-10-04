@@ -697,7 +697,7 @@ func (rs *namedStructRowScanner) appendScanTargets(dstElemValue reflect.Value, s
 		} else {
 			dbTag, dbTagPresent := sf.Tag.Lookup(structTagKey)
 			if dbTagPresent {
-				dbTag = strings.Split(dbTag, ",")[0]
+				dbTag, _, _ = strings.Cut(dbTag, ",")
 			}
 			if dbTag == "-" {
 				// Field is ignored, skip it.
