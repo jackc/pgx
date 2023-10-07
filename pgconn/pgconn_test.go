@@ -2410,7 +2410,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 		}
 	}()
 
-	host, port, _ := strings.cut(ln.Addr().String(), ":")
+	host, port, _ := strings.Cut(ln.Addr().String(), ":")
 	connStr := fmt.Sprintf("sslmode=disable host=%s port=%s", host, port)
 
 	ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
