@@ -399,13 +399,22 @@ func TestConnConcurrency(t *testing.T) {
 					errChan <- fmt.Errorf("select failed: %d %w", idx, err)
 					return
 				}
-				require.Equal(t, idx, id)
-				require.Equal(t, strconv.Itoa(idx), str)
+				if id != idx {
+					errChan <- fmt.Errorf("id mismatch: %d %d", idx, id)
+					return
+				}
+				if str != strconv.Itoa(idx) {
+					errChan <- fmt.Errorf("str mismatch: %d %s", idx, str)
+					return
+				}
 				expectedDuration := pgtype.Interval{
 					Microseconds: int64(idx) * time.Second.Microseconds(),
 					Valid:        true,
 				}
-				require.Equal(t, expectedDuration, duration)
+				if duration != expectedDuration {
+					errChan <- fmt.Errorf("duration mismatch: %d %v", idx, duration)
+					return
+				}
 
 				errChan <- nil
 			}(i)
