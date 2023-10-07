@@ -397,7 +397,6 @@ func UnregisterConnConfig(connStr string) {
 type Conn struct {
 	conn                 *pgx.Conn
 	close                func(context.Context) error
-	psCount              int64 // Counter used for creating unique prepared statement names
 	driver               *Driver
 	connConfig           pgx.ConnConfig
 	resetSessionFunc     func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
@@ -418,10 +417,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 		return nil, driver.ErrBadConn
 	}
 
-	name := fmt.Sprintf("pgx_%d", c.psCount)
-	c.psCount++
-
-	sd, err := c.conn.Prepare(ctx, name, query)
+	sd, err := c.conn.Prepare(ctx, query, query)
 	if err != nil {
 		return nil, err
 	}
@@ -558,7 +554,7 @@ type Stmt struct {
 func (s *Stmt) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	return s.conn.conn.Deallocate(ctx, s.sd.Name)
+	return s.conn.conn.Deallocate(ctx, s.sd.SQL)
 }
 
 func (s *Stmt) NumInput() int {
@@ -570,7 +566,7 @@ func (s *Stmt) Exec(argsV []driver.Value) (driver.Result, error) {
 }
 
 func (s *Stmt) ExecContext(ctx context.Context, argsV []driver.NamedValue) (driver.Result, error) {
-	return s.conn.ExecContext(ctx, s.sd.Name, argsV)
+	return s.conn.ExecContext(ctx, s.sd.SQL, argsV)
 }
 
 func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
@@ -578,7 +574,7 @@ func (s *Stmt) Query(argsV []driver.Value) (driver.Rows, error) {
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, argsV []driver.NamedValue) (driver.Rows, error) {
-	return s.conn.QueryContext(ctx, s.sd.Name, argsV)
+	return s.conn.QueryContext(ctx, s.sd.SQL, argsV)
 }
 
 type rowValueFunc func(src []byte) (driver.Value, error)
