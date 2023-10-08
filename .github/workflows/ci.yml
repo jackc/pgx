@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        go-version: ["1.19", "1.20"]
+        go-version: ["1.20", "1.21"]
         pg-version: [11, 12, 13, 14, 15, cockroachdb]
         include:
           - pg-version: 11
@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
@@ -127,7 +127,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        go-version: ["1.19", "1.20"]
+        go-version: ["1.20", "1.21"]
 
     steps:
       - name: Setup PostgreSQL
@@ -137,7 +137,7 @@ jobs:
           database: pgx_test
 
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Go ${{ matrix.go-version }}
         uses: actions/setup-go@v4
