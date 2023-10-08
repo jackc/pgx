@@ -2,8 +2,8 @@
 package stmtcache
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"hash/fnv"
+	"strconv"
 
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -11,8 +11,9 @@ import (
 // StatementName returns a statement name that will be stable for sql across multiple connections and program
 // executions.
 func StatementName(sql string) string {
-	digest := sha256.Sum256([]byte(sql))
-	return "stmtcache_" + hex.EncodeToString(digest[0:24])
+	h := fnv.New64a()
+	h.Write([]byte(sql))
+	return "stmtcache_" + strconv.FormatUint(h.Sum64(), 10)
 }
 
 // Cache caches statement descriptions.

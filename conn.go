@@ -2,10 +2,9 @@ package pgx
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"strconv"
 	"strings"
 	"time"
@@ -318,8 +317,9 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 
 	var psName, psKey string
 	if name == sql {
-		digest := sha256.Sum256([]byte(sql))
-		psName = "stmt_" + hex.EncodeToString(digest[0:24])
+		h := fnv.New64a()
+		h.Write([]byte(sql))
+		psName = "stmt_" + strconv.FormatUint(h.Sum64(), 10)
 		psKey = sql
 	} else {
 		psName = name
