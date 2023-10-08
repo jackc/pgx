@@ -536,7 +536,7 @@ func TestPrepareWithDigestedName(t *testing.T) {
 		sql := "select $1::text"
 		sd, err := conn.Prepare(ctx, sql, sql)
 		require.NoError(t, err)
-		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
+		require.Equal(t, "stmt_12917919191120275379", sd.Name)
 
 		var s string
 		err = conn.QueryRow(ctx, sql, "hello").Scan(&s)
