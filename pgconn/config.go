@@ -55,10 +55,16 @@ type Config struct {
 	AfterConnect AfterConnectFunc
 
 	// OnNotice is a callback function called when a notice response is received.
+	// Deprecated: use OnNoticeCtx instead
 	OnNotice NoticeHandler
 
+	OnNoticeCtx NoticeHandlerCtx
+
 	// OnNotification is a callback function called when a notification from the LISTEN/NOTIFY system is received.
+	// Deprecated: use OnNotificationCtx instead
 	OnNotification NotificationHandler
+
+	OnNotificationCtx NotificationHandlerCtx
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }

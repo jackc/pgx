@@ -1505,7 +1505,7 @@ func TestConnOnNotification(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg string
-	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
+	config.OnNotificationCtx = func(ctx context.Context, c *pgconn.PgConn, n *pgconn.Notification) {
 		msg = n.Payload
 	}
 
@@ -1544,7 +1544,7 @@ func TestConnWaitForNotification(t *testing.T) {
 	require.NoError(t, err)
 
 	var msg string
-	config.OnNotification = func(c *pgconn.PgConn, n *pgconn.Notification) {
+	config.OnNotificationCtx = func(ctx context.Context, p *pgconn.PgConn, n *pgconn.Notification) {
 		msg = n.Payload
 	}
 

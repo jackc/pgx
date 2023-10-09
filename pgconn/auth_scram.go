@@ -14,6 +14,7 @@ package pgconn
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -30,7 +31,7 @@ import (
 const clientNonceLen = 18
 
 // Perform SCRAM authentication.
-func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
+func (c *PgConn) scramAuth(ctx context.Context, serverAuthMechanisms []string) error {
 	sc, err := newScramClient(serverAuthMechanisms, c.config.Password)
 	if err != nil {
 		return err
@@ -48,7 +49,7 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	}
 
 	// Receive server-first-message payload in an AuthenticationSASLContinue.
-	saslContinue, err := c.rxSASLContinue()
+	saslContinue, err := c.rxSASLContinue(ctx)
 	if err != nil {
 		return err
 	}
@@ -68,15 +69,15 @@ func (c *PgConn) scramAuth(serverAuthMechanisms []string) error {
 	}
 
 	// Receive server-final-message payload in an AuthenticationSASLFinal.
-	saslFinal, err := c.rxSASLFinal()
+	saslFinal, err := c.rxSASLFinal(ctx)
 	if err != nil {
 		return err
 	}
 	return sc.recvServerFinalMessage(saslFinal.Data)
 }
 
-func (c *PgConn) rxSASLContinue() (*pgproto3.AuthenticationSASLContinue, error) {
-	msg, err := c.receiveMessage()
+func (c *PgConn) rxSASLContinue(ctx context.Context) (*pgproto3.AuthenticationSASLContinue, error) {
+	msg, err := c.receiveMessage(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +91,8 @@ func (c *PgConn) rxSASLContinue() (*pgproto3.AuthenticationSASLContinue, error) 
 	return nil, fmt.Errorf("expected AuthenticationSASLContinue message but received unexpected message %T", msg)
 }
 
-func (c *PgConn) rxSASLFinal() (*pgproto3.AuthenticationSASLFinal, error) {
-	msg, err := c.receiveMessage()
+func (c *PgConn) rxSASLFinal(ctx context.Context) (*pgproto3.AuthenticationSASLFinal, error) {
+	msg, err := c.receiveMessage(ctx)
 	if err != nil {
 		return nil, err
 	}

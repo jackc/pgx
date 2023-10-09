@@ -58,11 +58,15 @@ type BuildFrontendFunc func(r io.Reader, w io.Writer) *pgproto3.Frontend
 // notification.
 type NoticeHandler func(*PgConn, *Notice)
 
+type NoticeHandlerCtx func(context.Context, *PgConn, *Notice)
+
 // NotificationHandler is a function that can handle notifications received from the PostgreSQL server. Notifications
 // can be received at any time, usually during handling of a query response. The *PgConn is provided so the handler is
 // aware of the origin of the notice, but it must not invoke any query method. Be aware that this is distinct from a
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
+
+type NotificationHandlerCtx func(context.Context, *PgConn, *Notification)
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
@@ -131,6 +135,32 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 	// zero values.
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
+	}
+
+	if config.OnNotice != nil && config.OnNoticeCtx != nil {
+		return nil, errors.New("cannot set both OnNotice and OnNoticeCtx")
+	}
+
+	// Adapt to the context version
+	if config.OnNotice != nil {
+		handler := config.OnNotice
+		config.OnNoticeCtx = func(ctx context.Context, pc *PgConn, n *Notice) {
+			handler(pc, n)
+		}
+		config.OnNotice = nil
+	}
+
+	if config.OnNotification != nil && config.OnNotificationCtx != nil {
+		return nil, errors.New("cannot set both OnNotification and OnNotificationCtx")
+	}
+
+	// Adapt to the context version
+	if config.OnNotification != nil {
+		handler := config.OnNotification
+		config.OnNotificationCtx = func(ctx context.Context, pc *PgConn, n *Notification) {
+			handler(pc, n)
+		}
+		config.OnNotification = nil
 	}
 
 	// Simplify usage by treating primary config and fallbacks the same.
@@ -327,7 +357,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	}
 
 	for {
-		msg, err := pgConn.receiveMessage()
+		msg, err := pgConn.receiveMessage(ctx)
 		if err != nil {
 			pgConn.conn.Close()
 			if err, ok := err.(*PgError); ok {
@@ -356,13 +386,13 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 				return nil, &connectError{config: config, msg: "failed to write password message", err: err}
 			}
 		case *pgproto3.AuthenticationSASL:
-			err = pgConn.scramAuth(msg.AuthMechanisms)
+			err = pgConn.scramAuth(ctx, msg.AuthMechanisms)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, &connectError{config: config, msg: "failed SASL auth", err: err}
 			}
 		case *pgproto3.AuthenticationGSS:
-			err = pgConn.gssAuth()
+			err = pgConn.gssAuth(ctx)
 			if err != nil {
 				pgConn.conn.Close()
 				return nil, &connectError{config: config, msg: "failed GSS auth", err: err}
@@ -456,7 +486,7 @@ func (pgConn *PgConn) signalMessage() chan struct{} {
 // ReceiveMessage receives one wire protocol message from the PostgreSQL server. It must only be used when the
 // connection is not busy. e.g. It is an error to call ReceiveMessage while reading the result of a query. The messages
 // are still handled by the core pgconn message handling system so receiving a NotificationResponse will still trigger
-// the OnNotification callback.
+// the OnNotificationCtx callback.
 //
 // This is a very low level method that requires deep understanding of the PostgreSQL wire protocol to use correctly.
 // See https://www.postgresql.org/docs/current/protocol.html.
@@ -476,7 +506,7 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
-	msg, err := pgConn.receiveMessage()
+	msg, err := pgConn.receiveMessage(ctx)
 	if err != nil {
 		err = &pgconnError{
 			msg:         "receive message failed",
@@ -527,7 +557,7 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 }
 
 // receiveMessage receives a message without setting up context cancellation
-func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
+func (pgConn *PgConn) receiveMessage(ctx context.Context) (pgproto3.BackendMessage, error) {
 	msg, err := pgConn.peekMessage()
 	if err != nil {
 		return nil, err
@@ -547,12 +577,12 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 			return nil, ErrorResponseToPgError(msg)
 		}
 	case *pgproto3.NoticeResponse:
-		if pgConn.config.OnNotice != nil {
-			pgConn.config.OnNotice(pgConn, noticeResponseToNotice(msg))
+		if pgConn.config.OnNoticeCtx != nil {
+			pgConn.config.OnNoticeCtx(ctx, pgConn, noticeResponseToNotice(msg))
 		}
 	case *pgproto3.NotificationResponse:
-		if pgConn.config.OnNotification != nil {
-			pgConn.config.OnNotification(pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
+		if pgConn.config.OnNotificationCtx != nil {
+			pgConn.config.OnNotificationCtx(ctx, pgConn, &Notification{PID: msg.PID, Channel: msg.Channel, Payload: msg.Payload})
 		}
 	}
 
@@ -837,7 +867,7 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 
 readloop:
 	for {
-		msg, err := pgConn.receiveMessage()
+		msg, err := pgConn.receiveMessage(ctx)
 		if err != nil {
 			pgConn.asyncClose()
 			return nil, normalizeTimeoutError(ctx, err)
@@ -964,7 +994,7 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	}
 
 	for {
-		msg, err := pgConn.receiveMessage()
+		msg, err := pgConn.receiveMessage(ctx)
 		if err != nil {
 			return normalizeTimeoutError(ctx, err)
 		}
@@ -1162,7 +1192,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	var commandTag CommandTag
 	var pgErr error
 	for {
-		msg, err := pgConn.receiveMessage()
+		msg, err := pgConn.receiveMessage(ctx)
 		if err != nil {
 			pgConn.asyncClose()
 			return CommandTag{}, normalizeTimeoutError(ctx, err)
@@ -1272,7 +1302,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 				close(pgConn.cleanupDone)
 				return CommandTag{}, normalizeTimeoutError(ctx, err)
 			}
-			msg, _ := pgConn.receiveMessage()
+			msg, _ := pgConn.receiveMessage(ctx)
 
 			switch msg := msg.(type) {
 			case *pgproto3.ErrorResponse:
@@ -1300,7 +1330,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	// Read results
 	var commandTag CommandTag
 	for {
-		msg, err := pgConn.receiveMessage()
+		msg, err := pgConn.receiveMessage(ctx)
 		if err != nil {
 			pgConn.asyncClose()
 			return CommandTag{}, normalizeTimeoutError(ctx, err)
@@ -1342,7 +1372,7 @@ func (mrr *MultiResultReader) ReadAll() ([]*Result, error) {
 }
 
 func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) {
-	msg, err := mrr.pgConn.receiveMessage()
+	msg, err := mrr.pgConn.receiveMessage(mrr.ctx)
 	if err != nil {
 		mrr.pgConn.contextWatcher.Unwatch()
 		mrr.err = normalizeTimeoutError(mrr.ctx, err)
@@ -1556,7 +1586,7 @@ func (rr *ResultReader) readUntilRowDescription() {
 
 func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error) {
 	if rr.multiResultReader == nil {
-		msg, err = rr.pgConn.receiveMessage()
+		msg, err = rr.pgConn.receiveMessage(rr.ctx)
 	} else {
 		msg, err = rr.multiResultReader.receiveMessage()
 	}
@@ -1994,7 +2024,7 @@ func (p *Pipeline) GetResults() (results any, err error) {
 	}
 
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.conn.receiveMessage(p.ctx)
 		if err != nil {
 			p.conn.asyncClose()
 			return nil, normalizeTimeoutError(p.ctx, err)
@@ -2041,7 +2071,7 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 	psd := &StatementDescription{}
 
 	for {
-		msg, err := p.conn.receiveMessage()
+		msg, err := p.conn.receiveMessage(p.ctx)
 		if err != nil {
 			p.conn.asyncClose()
 			return nil, normalizeTimeoutError(p.ctx, err)

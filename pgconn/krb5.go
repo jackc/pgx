@@ -1,6 +1,7 @@
 package pgconn
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -33,7 +34,7 @@ type GSS interface {
 	Continue(inToken []byte) (done bool, outToken []byte, err error)
 }
 
-func (c *PgConn) gssAuth() error {
+func (c *PgConn) gssAuth(ctx context.Context) error {
 	if newGSS == nil {
 		return errors.New("kerberos error: no GSSAPI provider registered, see https://github.com/otan/gopgkrb5")
 	}
@@ -67,7 +68,7 @@ func (c *PgConn) gssAuth() error {
 		if err != nil {
 			return err
 		}
-		resp, err := c.rxGSSContinue()
+		resp, err := c.rxGSSContinue(ctx)
 		if err != nil {
 			return err
 		}
@@ -83,8 +84,8 @@ func (c *PgConn) gssAuth() error {
 	return nil
 }
 
-func (c *PgConn) rxGSSContinue() (*pgproto3.AuthenticationGSSContinue, error) {
-	msg, err := c.receiveMessage()
+func (c *PgConn) rxGSSContinue(ctx context.Context) (*pgproto3.AuthenticationGSSContinue, error) {
+	msg, err := c.receiveMessage(ctx)
 	if err != nil {
 		return nil, err
 	}

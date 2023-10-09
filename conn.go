@@ -250,8 +250,8 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	}
 
 	// Only install pgx notification system if no other callback handler is present.
-	if config.Config.OnNotification == nil {
-		config.Config.OnNotification = c.bufferNotifications
+	if config.Config.OnNotificationCtx == nil {
+		config.Config.OnNotificationCtx = c.bufferNotifications
 	}
 
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
@@ -364,7 +364,7 @@ func (c *Conn) DeallocateAll(ctx context.Context) error {
 	return err
 }
 
-func (c *Conn) bufferNotifications(_ *pgconn.PgConn, n *pgconn.Notification) {
+func (c *Conn) bufferNotifications(_ context.Context, _ *pgconn.PgConn, n *pgconn.Notification) {
 	c.notifications = append(c.notifications, n)
 }
 
