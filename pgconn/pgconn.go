@@ -956,7 +956,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	return nil
 }
 
-// WaitForNotification waits for a LISTON/NOTIFY message to be received. It returns an error if a notification was not
+// WaitForNotification waits for a LISTEN/NOTIFY message to be received. It returns an error if a notification was not
 // received.
 func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	if err := pgConn.lock(); err != nil {
