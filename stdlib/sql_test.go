@@ -801,6 +801,32 @@ func TestConnPrepareContextSuccess(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/issues/1753#issuecomment-1746033281
+// https://github.com/jackc/pgx/issues/1754#issuecomment-1752004634
+func TestConnMultiplePrepareAndDeallocate(t *testing.T) {
+	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		sql := "select 42"
+		stmt1, err := db.PrepareContext(context.Background(), sql)
+		require.NoError(t, err)
+		stmt2, err := db.PrepareContext(context.Background(), sql)
+		require.NoError(t, err)
+		err = stmt1.Close()
+		require.NoError(t, err)
+
+		var preparedStmtCount int64
+		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sql).Scan(&preparedStmtCount)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, preparedStmtCount)
+
+		err = stmt2.Close() // err isn't as useful as it should be as database/sql will ignore errors from Deallocate.
+		require.NoError(t, err)
+
+		err = db.QueryRowContext(context.Background(), "select count(*) from pg_prepared_statements where statement = $1", sql).Scan(&preparedStmtCount)
+		require.NoError(t, err)
+		require.EqualValues(t, 0, preparedStmtCount)
+	})
+}
+
 func TestConnExecContextSuccess(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
 		_, err := db.ExecContext(context.Background(), "create temporary table exec_context_test(id serial primary key)")

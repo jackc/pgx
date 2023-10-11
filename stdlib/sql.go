@@ -294,6 +294,7 @@ func (c connector) Connect(ctx context.Context) (driver.Conn, error) {
 		driver:           c.driver,
 		connConfig:       connConfig,
 		resetSessionFunc: c.ResetSession,
+		psRefCounts:      make(map[*pgconn.StatementDescription]int),
 	}, nil
 }
 
@@ -375,6 +376,7 @@ func (dc *driverConnector) Connect(ctx context.Context) (driver.Conn, error) {
 		driver:           dc.driver,
 		connConfig:       *connConfig,
 		resetSessionFunc: func(context.Context, *pgx.Conn) error { return nil },
+		psRefCounts:      make(map[*pgconn.StatementDescription]int),
 	}
 
 	return c, nil
@@ -401,6 +403,14 @@ type Conn struct {
 	connConfig           pgx.ConnConfig
 	resetSessionFunc     func(context.Context, *pgx.Conn) error // Function is called before a connection is reused
 	lastResetSessionTime time.Time
+
+	// psRefCounts contains reference counts for prepared statements. Prepare uses the underlying pgx logic to generate
+	// deterministic statement names from the statement text. If this query has already been prepared then the existing
+	// *pgconn.StatementDescription will be returned. However, this means that if Close is called on the returned Stmt
+	// then the underlying prepared statement will be closed even when the underlying prepared statement is still in use
+	// by another database/sql Stmt. To prevent this psRefCounts keeps track of how many database/sql statements are using
+	// the same underlying statement and only closes the underlying statement when the reference count reaches 0.
+	psRefCounts map[*pgconn.StatementDescription]int
 }
 
 // Conn returns the underlying *pgx.Conn
@@ -421,6 +431,7 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 	if err != nil {
 		return nil, err
 	}
+	c.psRefCounts[sd]++
 
 	return &Stmt{sd: sd, conn: c}, nil
 }
@@ -554,6 +565,15 @@ type Stmt struct {
 func (s *Stmt) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
+	refCount := s.conn.psRefCounts[s.sd]
+	if refCount == 1 {
+		delete(s.conn.psRefCounts, s.sd)
+	} else {
+		s.conn.psRefCounts[s.sd]--
+		return nil
+	}
+
 	return s.conn.conn.Deallocate(ctx, s.sd.SQL)
 }
 
