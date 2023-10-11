@@ -805,6 +805,8 @@ func TestConnPrepareContextSuccess(t *testing.T) {
 // https://github.com/jackc/pgx/issues/1754#issuecomment-1752004634
 func TestConnMultiplePrepareAndDeallocate(t *testing.T) {
 	testWithAllQueryExecModes(t, func(t *testing.T, db *sql.DB) {
+		skipCockroachDB(t, db, "Server does not support pg_prepared_statements")
+
 		sql := "select 42"
 		stmt1, err := db.PrepareContext(context.Background(), sql)
 		require.NoError(t, err)
