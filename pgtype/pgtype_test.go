@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -415,6 +416,14 @@ func TestMapEncodeByteSliceIntoUnregisteredTypeTextFormat(t *testing.T) {
 	buf, err := m.Encode(unregisteredOID, pgtype.TextFormatCode, []byte{0, 1, 2, 3}, nil)
 	require.NoError(t, err)
 	require.Equal(t, []byte(`\x00010203`), buf)
+}
+
+// https://github.com/jackc/pgx/issues/1763
+func TestMapEncodeNamedTypeOfByteSliceIntoTextTextFormat(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(pgtype.TextOID, pgtype.TextFormatCode, json.RawMessage(`{"foo": "bar"}`), nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte(`{"foo": "bar"}`), buf)
 }
 
 // https://github.com/jackc/pgx/issues/1326
