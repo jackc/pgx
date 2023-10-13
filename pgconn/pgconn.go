@@ -942,17 +942,16 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	buf := make([]byte, 16)
 	binary.BigEndian.PutUint32(buf[0:4], 16)
 	binary.BigEndian.PutUint32(buf[4:8], 80877102)
-	binary.BigEndian.PutUint32(buf[8:12], uint32(pgConn.pid))
-	binary.BigEndian.PutUint32(buf[12:16], uint32(pgConn.secretKey))
-	_, err = cancelConn.Write(buf)
-	if err != nil {
-		return err
+	binary.BigEndian.PutUint32(buf[8:12], pgConn.pid)
+	binary.BigEndian.PutUint32(buf[12:16], pgConn.secretKey)
+
+	if _, err := cancelConn.Write(buf); err != nil {
+		return fmt.Errorf("write to connection for cancellation: %w", err)
 	}
 
-	_, err = cancelConn.Read(buf)
-	if err != io.EOF {
-		return err
-	}
+	// Wait for the cancel request to be acknowledged by the server.
+	// It copies the behavior of the libpq: https://github.com/postgres/postgres/blob/REL_16_0/src/interfaces/libpq/fe-connect.c#L4946-L4960
+	_, _ = cancelConn.Read(buf)
 
 	return nil
 }
