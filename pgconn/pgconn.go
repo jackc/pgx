@@ -74,6 +74,7 @@ type PgConn struct {
 	frontend          *pgproto3.Frontend
 	bgReader          *bgreader.BGReader
 	slowWriteTimer    *time.Timer
+	bgReaderStarted   chan struct{}
 
 	config *Config
 
@@ -301,8 +302,14 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn.parameterStatuses = make(map[string]string)
 	pgConn.status = connStatusConnecting
 	pgConn.bgReader = bgreader.New(pgConn.conn)
-	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64), pgConn.bgReader.Start)
+	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
+		func() {
+			pgConn.bgReader.Start()
+			pgConn.bgReaderStarted <- struct{}{}
+		},
+	)
 	pgConn.slowWriteTimer.Stop()
+	pgConn.bgReaderStarted = make(chan struct{})
 	pgConn.frontend = config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
 	startupMsg := pgproto3.StartupMessage{
@@ -1732,10 +1739,16 @@ func (pgConn *PgConn) enterPotentialWriteReadDeadlock() {
 
 // exitPotentialWriteReadDeadlock must be called after a call to enterPotentialWriteReadDeadlock.
 func (pgConn *PgConn) exitPotentialWriteReadDeadlock() {
-	// The state of the timer is not relevant upon exiting the potential slow write. It may both
-	// fire (due to a slow write), or not fire (due to a fast write).
-	_ = pgConn.slowWriteTimer.Stop()
-	pgConn.bgReader.Stop()
+	if !pgConn.slowWriteTimer.Stop() {
+		// The timer starts its function in a separate goroutine. It is necessary to ensure the background reader has
+		// started before calling Stop. Otherwise, the background reader may not be stopped. That on its own is not a
+		// serious problem. But what is a serious problem is that the background reader may start at an inopportune time in
+		// a subsequent query. For example, if a subsequent query was canceled then a deadline may be set on the net.Conn to
+		// interrupt an in-progress read. After the read is interrupted, but before the deadline is cleared, the background
+		// reader could start and read a deadline error. Then the next query would receive the an unexpected deadline error.
+		<-pgConn.bgReaderStarted
+		pgConn.bgReader.Stop()
+	}
 }
 
 func (pgConn *PgConn) flushWithPotentialWriteReadDeadlock() error {
@@ -1830,8 +1843,14 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 
 	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
 	pgConn.bgReader = bgreader.New(pgConn.conn)
-	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64), pgConn.bgReader.Start)
+	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
+		func() {
+			pgConn.bgReader.Start()
+			pgConn.bgReaderStarted <- struct{}{}
+		},
+	)
 	pgConn.slowWriteTimer.Stop()
+	pgConn.bgReaderStarted = make(chan struct{})
 	pgConn.frontend = hc.Config.BuildFrontend(pgConn.bgReader, pgConn.conn)
 
 	return pgConn, nil
