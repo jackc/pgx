@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"reflect"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -68,45 +67,26 @@ func (cts *copyFromSlice) Err() error {
 // CopyFromCh returns a CopyFromSource interface over the provided channel.
 // FieldNames is an ordered list of field names to copy from the struct, which
 // order must match the order of the columns.
-func CopyFromCh[T any](ch chan T, fieldNames []string) CopyFromSource {
-	return &copyFromCh[T]{c: ch, fieldNames: fieldNames}
+func CopyFromFunc(nxtf func() ([]any, error)) CopyFromSource {
+	return &copyFromFunc{next: nxtf}
 }
 
-type copyFromCh[T any] struct {
-	c          chan T
-	fieldNames []string
-	valueRow   []interface{}
-	err        error
+type copyFromFunc struct {
+	next     func() ([]any, error)
+	valueRow []any
+	err      error
 }
 
-func (g *copyFromCh[T]) Next() bool {
-	g.valueRow = g.valueRow[:0] // Clear buffer
-	val, ok := <-g.c
-	if !ok {
-		return false
-	}
-	// Handle both pointer to struct and struct
-	s := reflect.ValueOf(val)
-	if s.Kind() == reflect.Ptr {
-		s = s.Elem()
-	}
-
-	for i := 0; i < len(g.fieldNames); i++ {
-		f := s.FieldByName(g.fieldNames[i])
-		if !f.IsValid() {
-			g.err = fmt.Errorf("'%v' field not found in %#v", g.fieldNames[i], s.Interface())
-			return false
-		}
-		g.valueRow = append(g.valueRow, f.Interface())
-	}
-	return true
+func (g *copyFromFunc) Next() bool {
+	g.valueRow, g.err = g.next()
+	return g.err == nil
 }
 
-func (g *copyFromCh[T]) Values() ([]interface{}, error) {
+func (g *copyFromFunc) Values() ([]any, error) {
 	return g.valueRow, nil
 }
 
-func (g *copyFromCh[T]) Err() error {
+func (g *copyFromFunc) Err() error {
 	return g.err
 }
 
