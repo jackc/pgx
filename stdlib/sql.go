@@ -548,7 +548,7 @@ func (c *Conn) ResetSession(ctx context.Context) error {
 
 	now := time.Now()
 	if now.Sub(c.lastResetSessionTime) > time.Second {
-		if err := c.conn.PgConn().CheckConn(); err != nil {
+		if err := c.conn.PgConn().Ping(ctx); err != nil {
 			return driver.ErrBadConn
 		}
 	}
