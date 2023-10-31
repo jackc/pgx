@@ -458,3 +458,8 @@ func (a FlatArray[T]) ScanIndex(i int) any {
 func (a FlatArray[T]) ScanIndexType() any {
 	return new(T)
 }
+
+func (a *FlatArray[T]) Scan(src any) error {
+	scanner := &sqlScannerWrapper{m: defaultMap, v: (*[]T)(a)}
+	return scanner.Scan(src)
+}
