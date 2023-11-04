@@ -21,3 +21,44 @@ func TestFloat8Codec(t *testing.T) {
 		{nil, new(*float64), isExpectedEq((*float64)(nil))},
 	})
 }
+
+func TestFloat8MarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source pgtype.Float8
+		result string
+	}{
+		{source: pgtype.Float8{Float64: 0}, result: "null"},
+		{source: pgtype.Float8{Float64: 1.23, Valid: true}, result: "1.23"},
+	}
+	for i, tt := range successfulTests {
+		r, err := tt.source.MarshalJSON()
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if string(r) != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+		}
+	}
+}
+
+func TestFloat8UnmarshalJSON(t *testing.T) {
+	successfulTests := []struct {
+		source string
+		result pgtype.Float8
+	}{
+		{source: "null", result: pgtype.Float8{Float64: 0}},
+		{source: "1.23", result: pgtype.Float8{Float64: 1.23, Valid: true}},
+	}
+	for i, tt := range successfulTests {
+		var r pgtype.Float8
+		err := r.UnmarshalJSON([]byte(tt.source))
+		if err != nil {
+			t.Errorf("%d: %v", i, err)
+		}
+
+		if r != tt.result {
+			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		}
+	}
+}
