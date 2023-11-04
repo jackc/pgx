@@ -1,3 +1,17 @@
+# 5.5.0 (November 4, 2023)
+
+* Add CollectExactlyOneRow. (Julien GOTTELAND)
+* Add OpenDBFromPool to create *database/sql.DB from *pgxpool.Pool. (Lev Zakharov)
+* Prepare can automatically choose statement name based on sql. This makes it easier to explicitly manage prepared statements.
+* Statement cache now uses deterministic, stable statement names.
+* database/sql prepared statement names are deterministically generated.
+* Fix: SendBatch wasn't respecting context cancellation.
+* Fix: Timeout error from pipeline is now normalized.
+* Fix: database/sql encoding json.RawMessage to []byte.
+* CancelRequest: Wait for the cancel request to be acknowledged by the server. This should improve PgBouncer compatibility. (Anton Levakin)
+* stdlib: Use Ping instead of CheckConn in ResetSession
+* Add json.Marshaler and json.Unmarshaler for Float4, Float8 (Kirill Mironov)
+
 # 5.4.3 (August 5, 2023)
 
 * Fix: QCharArrayOID was defined with the wrong OID (Christoph Engelbert)
