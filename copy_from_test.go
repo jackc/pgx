@@ -2,7 +2,6 @@ package pgx_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -815,7 +814,6 @@ func TestCopyFromFunc(t *testing.T) {
 	)`)
 
 	dataCh := make(chan int, 1)
-	closeChanErr := errors.New("closed channel")
 
 	const channelItems = 10
 	go func() {
@@ -829,14 +827,12 @@ func TestCopyFromFunc(t *testing.T) {
 		pgx.CopyFromFunc(func() ([]any, error) {
 			v, ok := <-dataCh
 			if !ok {
-				return nil, closeChanErr
+				return nil, nil
 			}
 			return []any{v}, nil
 		}))
 
-	fmt.Print(copyCount, err, "\n")
-
-	require.ErrorIs(t, err, closeChanErr)
+	require.ErrorIs(t, err, nil)
 	require.EqualValues(t, channelItems, copyCount)
 
 	rows, err := conn.Query(context.Background(), "select * from foo order by a")
@@ -844,6 +840,21 @@ func TestCopyFromFunc(t *testing.T) {
 	nums, err := pgx.CollectRows(rows, pgx.RowTo[int64])
 	require.NoError(t, err)
 	require.Equal(t, []int64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, nums)
+
+	// simulate a failure
+	copyCount, err = conn.CopyFrom(context.Background(), pgx.Identifier{"foo"}, []string{"a"},
+		pgx.CopyFromFunc(func() func() ([]any, error) {
+			x := 9
+			return func() ([]any, error) {
+				x++
+				if x > 100 {
+					return nil, fmt.Errorf("simulated error")
+				}
+				return []any{x}, nil
+			}
+		}()))
+	require.NotErrorIs(t, err, nil)
+	require.EqualValues(t, 0, copyCount) // no change, due to error
 
 	ensureConnValid(t, conn)
 }
