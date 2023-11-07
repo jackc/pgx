@@ -64,10 +64,10 @@ func (cts *copyFromSlice) Err() error {
 	return cts.err
 }
 
-// CopyFromCh returns a CopyFromSource interface over the provided channel.
-// FieldNames is an ordered list of field names to copy from the struct, which
-// order must match the order of the columns.
-func CopyFromFunc(nxtf func() ([]any, error)) CopyFromSource {
+// CopyFromFunc returns a CopyFromSource interface that relies on nxtf for values.
+// nxtf returns rows until it either signals an 'end of data' by returning row=nil and err=nil,
+// or it returns an error. If nxtf returns an error, the copy is aborted.
+func CopyFromFunc(nxtf func() (row []any, err error)) CopyFromSource {
 	return &copyFromFunc{next: nxtf}
 }
 
@@ -79,11 +79,12 @@ type copyFromFunc struct {
 
 func (g *copyFromFunc) Next() bool {
 	g.valueRow, g.err = g.next()
-	return g.err == nil
+	// only return true if valueRow exists and no error
+	return g.valueRow != nil && g.err == nil
 }
 
 func (g *copyFromFunc) Values() ([]any, error) {
-	return g.valueRow, nil
+	return g.valueRow, g.err
 }
 
 func (g *copyFromFunc) Err() error {
