@@ -340,15 +340,18 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 
 // Deallocate releases a prepared statement.
 func (c *Conn) Deallocate(ctx context.Context, name string) error {
-	var psName string
+	psName := name
 	if sd, ok := c.preparedStatements[name]; ok {
-		delete(c.preparedStatements, name)
 		psName = sd.Name
-	} else {
-		psName = name
 	}
+
 	_, err := c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(psName)).ReadAll()
-	return err
+	if err != nil {
+		return err
+	}
+
+	delete(c.preparedStatements, name)
+	return nil
 }
 
 // DeallocateAll releases all previously prepared statements from the server and client, where it also resets the statement and description cache.
