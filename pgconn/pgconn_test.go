@@ -661,6 +661,73 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnDeallocate(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Prepare(ctx, "ps1", "select 1", nil)
+	require.NoError(t, err)
+
+	_, err = pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Close()
+	require.NoError(t, err)
+
+	err = pgConn.Deallocate(ctx, "ps1")
+	require.NoError(t, err)
+
+	_, err = pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Close()
+	require.Error(t, err)
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "26000", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
+}
+
+func TestConnDeallocateSucceedsInAbortedTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	err = pgConn.Exec(ctx, "begin").Close()
+	require.NoError(t, err)
+
+	_, err = pgConn.Prepare(ctx, "ps1", "select 1", nil)
+	require.NoError(t, err)
+
+	_, err = pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Close()
+	require.NoError(t, err)
+
+	err = pgConn.Exec(ctx, "select 1/0").Close() // break transaction with divide by 0 error
+	require.Error(t, err)
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "22012", pgErr.Code)
+
+	err = pgConn.Deallocate(ctx, "ps1")
+	require.NoError(t, err)
+
+	err = pgConn.Exec(ctx, "rollback").Close()
+	require.NoError(t, err)
+
+	_, err = pgConn.ExecPrepared(ctx, "ps1", nil, nil, nil).Close()
+	require.Error(t, err)
+	require.ErrorAs(t, err, &pgErr)
+	require.Equal(t, "26000", pgErr.Code)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 

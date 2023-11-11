@@ -872,6 +872,50 @@ readloop:
 	return psd, nil
 }
 
+// Deallocate deallocates a prepared statement.
+//
+// Deallocate does not send a DEALLOCATE statement to the server. It uses the PostgreSQL Close protocol message
+// directly. This has the implication that Deallocate can succeed in an aborted transaction.
+func (pgConn *PgConn) Deallocate(ctx context.Context, name string) error {
+	if err := pgConn.lock(); err != nil {
+		return err
+	}
+	defer pgConn.unlock()
+
+	if ctx != context.Background() {
+		select {
+		case <-ctx.Done():
+			return newContextAlreadyDoneError(ctx)
+		default:
+		}
+		pgConn.contextWatcher.Watch(ctx)
+		defer pgConn.contextWatcher.Unwatch()
+	}
+
+	pgConn.frontend.SendClose(&pgproto3.Close{ObjectType: 'S', Name: name})
+	pgConn.frontend.SendSync(&pgproto3.Sync{})
+	err := pgConn.flushWithPotentialWriteReadDeadlock()
+	if err != nil {
+		pgConn.asyncClose()
+		return err
+	}
+
+	for {
+		msg, err := pgConn.receiveMessage()
+		if err != nil {
+			pgConn.asyncClose()
+			return normalizeTimeoutError(ctx, err)
+		}
+
+		switch msg := msg.(type) {
+		case *pgproto3.ErrorResponse:
+			return ErrorResponseToPgError(msg)
+		case *pgproto3.ReadyForQuery:
+			return nil
+		}
+	}
+}
+
 // ErrorResponseToPgError converts a wire protocol error message to a *PgError.
 func ErrorResponseToPgError(msg *pgproto3.ErrorResponse) *PgError {
 	return &PgError{
