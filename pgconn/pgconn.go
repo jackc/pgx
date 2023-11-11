@@ -875,7 +875,9 @@ readloop:
 // Deallocate deallocates a prepared statement.
 //
 // Deallocate does not send a DEALLOCATE statement to the server. It uses the PostgreSQL Close protocol message
-// directly. This has the implication that Deallocate can succeed in an aborted transaction.
+// directly. This has slightly different behavior than executing DEALLOCATE statement.
+//   - Deallocate can succeed in an aborted transaction.
+//   - Deallocating a non-existent prepared statement is not an error.
 func (pgConn *PgConn) Deallocate(ctx context.Context, name string) error {
 	if err := pgConn.lock(); err != nil {
 		return err
