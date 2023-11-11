@@ -813,6 +813,9 @@ type StatementDescription struct {
 
 // Prepare creates a prepared statement. If the name is empty, the anonymous prepared statement will be used. This
 // allows Prepare to also to describe statements without creating a server-side prepared statement.
+//
+// Prepare does not send a PREPARE statement to the server. It uses the PostgreSQL Parse and Describe protocol messages
+// directly.
 func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs []uint32) (*StatementDescription, error) {
 	if err := pgConn.lock(); err != nil {
 		return nil, err
