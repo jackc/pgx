@@ -548,6 +548,42 @@ func TestPrepareWithDigestedName(t *testing.T) {
 	})
 }
 
+// https://github.com/jackc/pgx/pull/1795
+func TestDeallocateInAbortedTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		tx, err := conn.Begin(ctx)
+		require.NoError(t, err)
+
+		sql := "select $1::text"
+		sd, err := tx.Prepare(ctx, sql, sql)
+		require.NoError(t, err)
+		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
+
+		var s string
+		err = tx.QueryRow(ctx, sql, "hello").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "hello", s)
+
+		_, err = tx.Exec(ctx, "select 1/0") // abort transaction with divide by zero error
+		require.Error(t, err)
+
+		err = conn.Deallocate(ctx, sql)
+		require.NoError(t, err)
+
+		err = tx.Rollback(ctx)
+		require.NoError(t, err)
+
+		sd, err = conn.Prepare(ctx, sql, sql)
+		require.NoError(t, err)
+		require.Equal(t, "stmt_2510cc7db17de3f42758a2a29c8b9ef8305d007b997ebdd6", sd.Name)
+	})
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
