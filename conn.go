@@ -338,7 +338,7 @@ func (c *Conn) Prepare(ctx context.Context, name, sql string) (sd *pgconn.Statem
 	return sd, nil
 }
 
-// Deallocate releases a prepared statement.
+// Deallocate releases a prepared statement. Calling Deallocate on a non-existent prepared statement will succeed.
 func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	var psName string
 	sd := c.preparedStatements[name]
