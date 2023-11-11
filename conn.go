@@ -347,7 +347,7 @@ func (c *Conn) Deallocate(ctx context.Context, name string) error {
 	} else {
 		psName = name
 	}
-	_, err := c.pgConn.Exec(ctx, "deallocate "+quoteIdentifier(psName)).ReadAll()
+	err := c.pgConn.Deallocate(ctx, psName)
 	return err
 }
 
