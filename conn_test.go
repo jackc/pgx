@@ -584,6 +584,33 @@ func TestDeallocateInAbortedTransaction(t *testing.T) {
 	})
 }
 
+func TestDeallocateMissingPreparedStatementStillClearsFromPreparedStatementMap(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		_, err := conn.Prepare(ctx, "ps", "select $1::text")
+		require.NoError(t, err)
+
+		_, err = conn.Exec(ctx, "deallocate ps")
+		require.NoError(t, err)
+
+		err = conn.Deallocate(ctx, "ps")
+		require.NoError(t, err)
+
+		_, err = conn.Prepare(ctx, "ps", "select $1::text, $2::text")
+		require.NoError(t, err)
+
+		var s1, s2 string
+		err = conn.QueryRow(ctx, "ps", "hello", "world").Scan(&s1, &s2)
+		require.NoError(t, err)
+		require.Equal(t, "hello", s1)
+		require.Equal(t, "world", s2)
+	})
+}
+
 func TestListenNotify(t *testing.T) {
 	t.Parallel()
 
