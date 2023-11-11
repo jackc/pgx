@@ -728,6 +728,22 @@ func TestConnDeallocateSucceedsInAbortedTransaction(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+func TestConnDeallocateNonExistantStatementSucceeds(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	err = pgConn.Deallocate(ctx, "ps1")
+	require.NoError(t, err)
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExec(t *testing.T) {
 	t.Parallel()
 
