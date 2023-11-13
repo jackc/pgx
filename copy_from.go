@@ -64,6 +64,33 @@ func (cts *copyFromSlice) Err() error {
 	return cts.err
 }
 
+// CopyFromFunc returns a CopyFromSource interface that relies on nxtf for values.
+// nxtf returns rows until it either signals an 'end of data' by returning row=nil and err=nil,
+// or it returns an error. If nxtf returns an error, the copy is aborted.
+func CopyFromFunc(nxtf func() (row []any, err error)) CopyFromSource {
+	return &copyFromFunc{next: nxtf}
+}
+
+type copyFromFunc struct {
+	next     func() ([]any, error)
+	valueRow []any
+	err      error
+}
+
+func (g *copyFromFunc) Next() bool {
+	g.valueRow, g.err = g.next()
+	// only return true if valueRow exists and no error
+	return g.valueRow != nil && g.err == nil
+}
+
+func (g *copyFromFunc) Values() ([]any, error) {
+	return g.valueRow, g.err
+}
+
+func (g *copyFromFunc) Err() error {
+	return g.err
+}
+
 // CopyFromSource is the interface used by *Conn.CopyFrom as the source for copy data.
 type CopyFromSource interface {
 	// Next returns true if there is another row and makes the next row data

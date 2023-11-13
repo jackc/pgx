@@ -74,6 +74,29 @@ func (f Float8) Value() (driver.Value, error) {
 	return f.Float64, nil
 }
 
+func (f Float8) MarshalJSON() ([]byte, error) {
+	if !f.Valid {
+		return []byte("null"), nil
+	}
+	return json.Marshal(f.Float64)
+}
+
+func (f *Float8) UnmarshalJSON(b []byte) error {
+	var n *float64
+	err := json.Unmarshal(b, &n)
+	if err != nil {
+		return err
+	}
+
+	if n == nil {
+		*f = Float8{}
+	} else {
+		*f = Float8{Float64: *n, Valid: true}
+	}
+
+	return nil
+}
+
 type Float8Codec struct{}
 
 func (Float8Codec) FormatSupported(format int16) bool {
@@ -107,13 +130,6 @@ func (Float8Codec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 	}
 
 	return nil
-}
-
-func (f *Float8) MarshalJSON() ([]byte, error) {
-	if !f.Valid {
-		return []byte("null"), nil
-	}
-	return json.Marshal(f.Float64)
 }
 
 type encodePlanFloat8CodecBinaryFloat64 struct{}
