@@ -31,7 +31,7 @@
 // with sql.Open.
 //
 //	connConfig, _ := pgx.ParseConfig(os.Getenv("DATABASE_URL"))
-//	connConfig.Logger = myLogger
+//	connConfig.Tracer = &tracelog.TraceLog{Logger: myLogger, LogLevel: tracelog.LogLevelInfo}
 //	connStr := stdlib.RegisterConnConfig(connConfig)
 //	db, _ := sql.Open("pgx", connStr)
 //
