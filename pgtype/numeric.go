@@ -762,7 +762,6 @@ func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst any) error {
 	if strings.ContainsAny(string(src), "eE") {
 		if bigF, ok := new(big.Float).SetString(string(src)); ok {
 			smallF, _ := bigF.Float64()
-
 			src = []byte(strconv.FormatFloat(smallF, 'f', -1, int(bigF.Prec())))
 		}
 	}
