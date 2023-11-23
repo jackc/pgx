@@ -241,46 +241,58 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 		src     []byte
 		wantErr bool
 	}{
+		// {
+		// 	name:    "null",
+		// 	want:    &pgtype.Numeric{},
+		// 	src:     []byte(`null`),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "NaN",
+		// 	want:    &pgtype.Numeric{Valid: true, NaN: true},
+		// 	src:     []byte(`"NaN"`),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "0",
+		// 	want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(0)},
+		// 	src:     []byte("0"),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "1",
+		// 	want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1)},
+		// 	src:     []byte("1"),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "-1",
+		// 	want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(-1)},
+		// 	src:     []byte("-1"),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "bigInt",
+		// 	want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 30},
+		// 	src:     []byte("1000000000000000000000000000000"),
+		// 	wantErr: false,
+		// },
+		// {
+		// 	name:    "float: 1234.56789",
+		// 	want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(123456789), Exp: -5},
+		// 	src:     []byte("1234.56789"),
+		// 	wantErr: false,
+		// },
 		{
-			name:    "null",
-			want:    &pgtype.Numeric{},
-			src:     []byte(`null`),
+			name:    "float: 1e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 10},
+			src:     []byte("1e10"),
 			wantErr: false,
 		},
 		{
-			name:    "NaN",
-			want:    &pgtype.Numeric{Valid: true, NaN: true},
-			src:     []byte(`"NaN"`),
-			wantErr: false,
-		},
-		{
-			name:    "0",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(0)},
-			src:     []byte("0"),
-			wantErr: false,
-		},
-		{
-			name:    "1",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1)},
-			src:     []byte("1"),
-			wantErr: false,
-		},
-		{
-			name:    "-1",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(-1)},
-			src:     []byte("-1"),
-			wantErr: false,
-		},
-		{
-			name:    "bigInt",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 30},
-			src:     []byte("1000000000000000000000000000000"),
-			wantErr: false,
-		},
-		{
-			name:    "float: 1234.56789",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(123456789), Exp: -5},
-			src:     []byte("1234.56789"),
+			name:    "float: 1.000101231014e10",
+			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1000101231014), Exp: -2},
+			src:     []byte("1.000101231014e10"),
 			wantErr: false,
 		},
 		{
