@@ -25,18 +25,21 @@ func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
 
+	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
+	//
+	// https://github.com/jackc/pgx/issues/1430
+	//
+	// Check for driver.Valuer must come before json.Marshaler so that it is guaranteed to beused
+	// when both are implemented https://github.com/jackc/pgx/issues/1805
+	case driver.Valuer:
+		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
+
 	// Must come before trying wrap encode plans because a pointer to a struct may be unwrapped to a struct that can be
 	// marshalled.
 	//
 	// https://github.com/jackc/pgx/issues/1681
 	case json.Marshaler:
 		return encodePlanJSONCodecEitherFormatMarshal{}
-
-	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
-	//
-	// https://github.com/jackc/pgx/issues/1430
-	case driver.Valuer:
-		return &encodePlanDriverValuer{m: m, oid: oid, formatCode: format}
 	}
 
 	// Because anything can be marshalled the normal wrapping in Map.PlanScan doesn't get a chance to run. So try the

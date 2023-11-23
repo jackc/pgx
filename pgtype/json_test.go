@@ -3,6 +3,9 @@ package pgtype_test
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	pgx "github.com/jackc/pgx/v5"
@@ -55,6 +58,9 @@ func TestJSONCodec(t *testing.T) {
 
 		// Test driver.Valuer. (https://github.com/jackc/pgx/issues/1430)
 		{sql.NullInt64{Int64: 42, Valid: true}, new(sql.NullInt64), isExpectedEq(sql.NullInt64{Int64: 42, Valid: true})},
+
+		// Test driver.Valuer is used before json.Marshaler (https://github.com/jackc/pgx/issues/1805)
+		{Issue1805(7), new(Issue1805), isExpectedEq(Issue1805(7))},
 	})
 
 	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "json", []pgxtest.ValueRoundTripTest{
@@ -66,6 +72,39 @@ func TestJSONCodec(t *testing.T) {
 		{map[string]any{"foo": "bar"}, new(map[string]any), isExpectedEqMap(map[string]any{"foo": "bar"})},
 		{jsonStruct{Name: "Adam", Age: 10}, new(jsonStruct), isExpectedEq(jsonStruct{Name: "Adam", Age: 10})},
 	})
+}
+
+type Issue1805 int
+
+func (i *Issue1805) Scan(src any) error {
+	var source []byte
+	switch src.(type) {
+	case string:
+		source = []byte(src.(string))
+	case []byte:
+		source = src.([]byte)
+	default:
+		return errors.New("unknown source type")
+	}
+	var newI int
+	if err := json.Unmarshal(source, &newI); err != nil {
+		return err
+	}
+	*i = Issue1805(newI)
+	return nil
+}
+
+func (i Issue1805) Value() (driver.Value, error) {
+	b, err := json.Marshal(int(i))
+	return string(b), err
+}
+
+func (i Issue1805) UnmarshalJSON(bytes []byte) error {
+	return errors.New("UnmarshalJSON called")
+}
+
+func (i Issue1805) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("MarshalJSON called")
 }
 
 // https://github.com/jackc/pgx/issues/1273#issuecomment-1221414648
