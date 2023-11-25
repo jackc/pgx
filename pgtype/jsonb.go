@@ -13,7 +13,7 @@ func (JSONBCodec) FormatSupported(format int16) bool {
 }
 
 func (JSONBCodec) PreferredFormat() int16 {
-	return TextFormatCode
+	return BinaryFormatCode
 }
 
 func (JSONBCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
@@ -42,7 +42,7 @@ func (plan *encodePlanJSONBCodecBinaryWrapper) Encode(value any, buf []byte) (ne
 func (JSONBCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan {
 	switch format {
 	case BinaryFormatCode:
-		plan := JSONCodec{}.PlanScan(m, oid, TextFormatCode, target)
+		plan := JSONCodec{}.PlanScan(m, oid, BinaryFormatCode, target)
 		if plan != nil {
 			return &scanPlanJSONBCodecBinaryUnwrapper{textPlan: plan}
 		}
