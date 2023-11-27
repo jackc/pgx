@@ -110,7 +110,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 
 	r, _, err := buf.ReadRune()
 	if err != nil {
-		return nil, fmt.Errorf("invalid array: %v", err)
+		return nil, fmt.Errorf("invalid array: %w", err)
 	}
 
 	var explicitDimensions []ArrayDimension
@@ -122,7 +122,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 		for {
 			r, _, err = buf.ReadRune()
 			if err != nil {
-				return nil, fmt.Errorf("invalid array: %v", err)
+				return nil, fmt.Errorf("invalid array: %w", err)
 			}
 
 			if r == '=' {
@@ -133,12 +133,12 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 
 			lower, err := arrayParseInteger(buf)
 			if err != nil {
-				return nil, fmt.Errorf("invalid array: %v", err)
+				return nil, fmt.Errorf("invalid array: %w", err)
 			}
 
 			r, _, err = buf.ReadRune()
 			if err != nil {
-				return nil, fmt.Errorf("invalid array: %v", err)
+				return nil, fmt.Errorf("invalid array: %w", err)
 			}
 
 			if r != ':' {
@@ -147,12 +147,12 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 
 			upper, err := arrayParseInteger(buf)
 			if err != nil {
-				return nil, fmt.Errorf("invalid array: %v", err)
+				return nil, fmt.Errorf("invalid array: %w", err)
 			}
 
 			r, _, err = buf.ReadRune()
 			if err != nil {
-				return nil, fmt.Errorf("invalid array: %v", err)
+				return nil, fmt.Errorf("invalid array: %w", err)
 			}
 
 			if r != ']' {
@@ -164,7 +164,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 
 		r, _, err = buf.ReadRune()
 		if err != nil {
-			return nil, fmt.Errorf("invalid array: %v", err)
+			return nil, fmt.Errorf("invalid array: %w", err)
 		}
 	}
 
@@ -178,7 +178,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 	for {
 		r, _, err = buf.ReadRune()
 		if err != nil {
-			return nil, fmt.Errorf("invalid array: %v", err)
+			return nil, fmt.Errorf("invalid array: %w", err)
 		}
 
 		if r == '{' {
@@ -195,7 +195,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 	for {
 		r, _, err = buf.ReadRune()
 		if err != nil {
-			return nil, fmt.Errorf("invalid array: %v", err)
+			return nil, fmt.Errorf("invalid array: %w", err)
 		}
 
 		switch r {
@@ -214,7 +214,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 			buf.UnreadRune()
 			value, quoted, err := arrayParseValue(buf)
 			if err != nil {
-				return nil, fmt.Errorf("invalid array value: %v", err)
+				return nil, fmt.Errorf("invalid array value: %w", err)
 			}
 			if currentDim == counterDim {
 				implicitDimensions[currentDim].Length++
