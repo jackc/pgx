@@ -3324,7 +3324,7 @@ func TestSNISupport(t *testing.T) {
 				defer srv.Close()
 
 				if err := srv.Handshake(); err != nil {
-					serverErrChan <- fmt.Errorf("handshake: %v", err)
+					serverErrChan <- fmt.Errorf("handshake: %w", err)
 					return
 				}
 

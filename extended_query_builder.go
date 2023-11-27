@@ -36,7 +36,7 @@ func (eqb *ExtendedQueryBuilder) Build(m *pgtype.Map, sd *pgconn.StatementDescri
 	for i := range args {
 		err := eqb.appendParam(m, sd.ParamOIDs[i], -1, args[i])
 		if err != nil {
-			err = fmt.Errorf("failed to encode args[%d]: %v", i, err)
+			err = fmt.Errorf("failed to encode args[%d]: %w", i, err)
 			return err
 		}
 	}

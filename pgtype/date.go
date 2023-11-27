@@ -282,17 +282,17 @@ func (scanPlanTextAnyToDateScanner) Scan(src []byte, dst any) error {
 	if match != nil {
 		year, err := strconv.ParseInt(match[1], 10, 32)
 		if err != nil {
-			return fmt.Errorf("BUG: cannot parse date that regexp matched (year): %v", err)
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (year): %w", err)
 		}
 
 		month, err := strconv.ParseInt(match[2], 10, 32)
 		if err != nil {
-			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %v", err)
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %w", err)
 		}
 
 		day, err := strconv.ParseInt(match[3], 10, 32)
 		if err != nil {
-			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %v", err)
+			return fmt.Errorf("BUG: cannot parse date that regexp matched (month): %w", err)
 		}
 
 		// BC matched

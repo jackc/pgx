@@ -231,7 +231,7 @@ func (w *uint64Wrapper) ScanNumeric(v Numeric) error {
 
 	bi, err := v.toBigInt()
 	if err != nil {
-		return fmt.Errorf("cannot scan into *uint64: %v", err)
+		return fmt.Errorf("cannot scan into *uint64: %w", err)
 	}
 
 	if !bi.IsUint64() {
@@ -284,7 +284,7 @@ func (w *uintWrapper) ScanNumeric(v Numeric) error {
 
 	bi, err := v.toBigInt()
 	if err != nil {
-		return fmt.Errorf("cannot scan into *uint: %v", err)
+		return fmt.Errorf("cannot scan into *uint: %w", err)
 	}
 
 	if !bi.IsUint64() {

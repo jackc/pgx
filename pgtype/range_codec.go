@@ -120,7 +120,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 
 		buf, err = lowerPlan.Encode(lower, buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode %v as element of range: %v", lower, err)
+			return nil, fmt.Errorf("failed to encode %v as element of range: %w", lower, err)
 		}
 		if buf == nil {
 			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
@@ -144,7 +144,7 @@ func (plan *encodePlanRangeCodecRangeValuerToBinary) Encode(value any, buf []byt
 
 		buf, err = upperPlan.Encode(upper, buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode %v as element of range: %v", upper, err)
+			return nil, fmt.Errorf("failed to encode %v as element of range: %w", upper, err)
 		}
 		if buf == nil {
 			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
@@ -194,7 +194,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 
 		buf, err = lowerPlan.Encode(lower, buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode %v as element of range: %v", lower, err)
+			return nil, fmt.Errorf("failed to encode %v as element of range: %w", lower, err)
 		}
 		if buf == nil {
 			return nil, fmt.Errorf("Lower cannot be NULL unless LowerType is Unbounded")
@@ -215,7 +215,7 @@ func (plan *encodePlanRangeCodecRangeValuerToText) Encode(value any, buf []byte)
 
 		buf, err = upperPlan.Encode(upper, buf)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode %v as element of range: %v", upper, err)
+			return nil, fmt.Errorf("failed to encode %v as element of range: %w", upper, err)
 		}
 		if buf == nil {
 			return nil, fmt.Errorf("Upper cannot be NULL unless UpperType is Unbounded")
@@ -282,7 +282,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) erro
 
 		err = lowerPlan.Scan(ubr.Lower, lowerTarget)
 		if err != nil {
-			return fmt.Errorf("cannot scan into %v from range element: %v", lowerTarget, err)
+			return fmt.Errorf("cannot scan into %v from range element: %w", lowerTarget, err)
 		}
 	}
 
@@ -294,7 +294,7 @@ func (plan *scanPlanBinaryRangeToRangeScanner) Scan(src []byte, target any) erro
 
 		err = upperPlan.Scan(ubr.Upper, upperTarget)
 		if err != nil {
-			return fmt.Errorf("cannot scan into %v from range element: %v", upperTarget, err)
+			return fmt.Errorf("cannot scan into %v from range element: %w", upperTarget, err)
 		}
 	}
 
@@ -332,7 +332,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error 
 
 		err = lowerPlan.Scan([]byte(utr.Lower), lowerTarget)
 		if err != nil {
-			return fmt.Errorf("cannot scan into %v from range element: %v", lowerTarget, err)
+			return fmt.Errorf("cannot scan into %v from range element: %w", lowerTarget, err)
 		}
 	}
 
@@ -344,7 +344,7 @@ func (plan *scanPlanTextRangeToRangeScanner) Scan(src []byte, target any) error 
 
 		err = upperPlan.Scan([]byte(utr.Upper), upperTarget)
 		if err != nil {
-			return fmt.Errorf("cannot scan into %v from range element: %v", upperTarget, err)
+			return fmt.Errorf("cannot scan into %v from range element: %w", upperTarget, err)
 		}
 	}
 

@@ -475,7 +475,7 @@ optionLoop:
 	if queryRewriter != nil {
 		sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
 		if err != nil {
-			return pgconn.CommandTag{}, fmt.Errorf("rewrite query failed: %v", err)
+			return pgconn.CommandTag{}, fmt.Errorf("rewrite query failed: %w", err)
 		}
 	}
 
@@ -742,7 +742,7 @@ optionLoop:
 		sql, args, err = queryRewriter.RewriteQuery(ctx, c, sql, args)
 		if err != nil {
 			rows := c.getRows(ctx, originalSQL, originalArgs)
-			err = fmt.Errorf("rewrite query failed: %v", err)
+			err = fmt.Errorf("rewrite query failed: %w", err)
 			rows.fatal(err)
 			return rows, err
 		}
@@ -924,7 +924,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 			var err error
 			sql, arguments, err = queryRewriter.RewriteQuery(ctx, c, sql, arguments)
 			if err != nil {
-				return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("rewrite query failed: %v", err)}
+				return &batchResults{ctx: ctx, conn: c, err: fmt.Errorf("rewrite query failed: %w", err)}
 			}
 		}
 

@@ -840,7 +840,7 @@ func (r *Rows) Next(dest []driver.Value) error {
 			var err error
 			dest[i], err = r.valueFuncs[i](rv)
 			if err != nil {
-				return fmt.Errorf("convert field %d failed: %v", i, err)
+				return fmt.Errorf("convert field %d failed: %w", i, err)
 			}
 		} else {
 			dest[i] = nil
