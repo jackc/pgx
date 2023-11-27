@@ -169,7 +169,7 @@ func parseUntypedTextArray(src string) (*untypedTextArray, error) {
 	}
 
 	if r != '{' {
-		return nil, fmt.Errorf("invalid array, expected '{': %v", err)
+		return nil, fmt.Errorf("invalid array, expected '{' got %v", r)
 	}
 
 	implicitDimensions := []ArrayDimension{{LowerBound: 1, Length: 0}}

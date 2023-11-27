@@ -343,7 +343,7 @@ func parseUntypedTextMultirange(src []byte) ([]string, error) {
 	}
 
 	if r != '{' {
-		return nil, fmt.Errorf("invalid multirange, expected '{': %v", err)
+		return nil, fmt.Errorf("invalid multirange, expected '{' got %v", r)
 	}
 
 parseValueLoop:
