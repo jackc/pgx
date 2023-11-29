@@ -10,9 +10,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/puddle/v2"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/puddle/v2"
 )
 
 var defaultMaxConns = int32(4)
@@ -104,6 +105,9 @@ type Pool struct {
 type Config struct {
 	ConnConfig *pgx.ConnConfig
 
+	// PuddleMetrics are used to collect underlying resource pool metrics like histograms. Optional.
+	PuddleMetrics *puddle.Metrics
+
 	// BeforeConnect is called before a new connection is made. It is passed a copy of the underlying pgx.ConnConfig and
 	// will not impact any existing open connections.
 	BeforeConnect func(context.Context, *pgx.ConnConfig) error
@@ -148,12 +152,14 @@ type Config struct {
 }
 
 // Copy returns a deep copy of the config that is safe to use and modify.
-// The only exception is the tls.Config:
+// The only exceptions are puddle.Metrics and tls.Config:
+// metrics are not copied and must be created explicitly in a new config and
 // according to the tls.Config docs it must not be modified after creation.
 func (c *Config) Copy() *Config {
 	newConfig := new(Config)
 	*newConfig = *c
 	newConfig.ConnConfig = c.ConnConfig.Copy()
+	newConfig.PuddleMetrics = nil
 	return newConfig
 }
 
@@ -198,6 +204,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	var err error
 	p.p, err = puddle.NewPool(
 		&puddle.Config[*connResource]{
+			Metrics: config.PuddleMetrics,
 			Constructor: func(ctx context.Context) (*connResource, error) {
 				atomic.AddInt64(&p.newConnsCount, 1)
 				connConfig := p.config.ConnConfig.Copy()
