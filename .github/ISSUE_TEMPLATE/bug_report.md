@@ -37,6 +37,8 @@ func main() {
 }
 ```
 
+Please run your example with the race detector enabled. For example, `go run -race main.go` or `go test -race`.
+
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
