@@ -137,7 +137,7 @@ func TestTraceExec(t *testing.T) {
 	})
 }
 
-func TestTraceQuery(t *testing.T) {
+func TestTraceQueryRow(t *testing.T) {
 	t.Parallel()
 
 	tracer := &testTracer{}
@@ -172,6 +172,53 @@ func TestTraceQuery(t *testing.T) {
 
 		var s string
 		err := conn.QueryRow(ctx, `select $1::text`, "testing").Scan(&s)
+		require.NoError(t, err)
+		require.Equal(t, "testing", s)
+		require.True(t, traceQueryStartCalled)
+		require.True(t, traceQueryEndCalled)
+	})
+}
+
+func TestTraceQuery(t *testing.T) {
+	t.Parallel()
+
+	tracer := &testTracer{}
+
+	ctr := defaultConnTestRunner
+	ctr.CreateConfig = func(ctx context.Context, t testing.TB) *pgx.ConnConfig {
+		config := defaultConnTestRunner.CreateConfig(ctx, t)
+		config.Tracer = tracer
+		return config
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgxtest.RunWithQueryExecModes(ctx, t, ctr, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		traceQueryStartCalled := false
+		tracer.traceQueryStart = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+			traceQueryStartCalled = true
+			require.Equal(t, `select $1::text`, data.SQL)
+			require.Len(t, data.Args, 1)
+			require.Equal(t, `testing`, data.Args[0])
+			return context.WithValue(ctx, ctxKey("fromTraceQueryStart"), "foo")
+		}
+
+		traceQueryEndCalled := false
+		tracer.traceQueryEnd = func(ctx context.Context, conn *pgx.Conn, data pgx.TraceQueryEndData) {
+			traceQueryEndCalled = true
+			require.Equal(t, "foo", ctx.Value(ctxKey("fromTraceQueryStart")))
+			require.Equal(t, `SELECT 1`, data.CommandTag.String())
+			require.NoError(t, data.Err)
+		}
+
+		var s string
+		rows, err := conn.Query(ctx, `select $1::text`, "testing")
+		defer rows.Close()
+		require.NoError(t, err)
+		require.NoError(t, rows.Err())
+		require.True(t, rows.Next())
+		err = rows.Scan(&s)
 		require.NoError(t, err)
 		require.Equal(t, "testing", s)
 		require.True(t, traceQueryStartCalled)
