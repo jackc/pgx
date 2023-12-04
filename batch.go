@@ -61,6 +61,8 @@ type Batch struct {
 }
 
 // Queue queues a query to batch b. query can be an SQL query or the name of a prepared statement.
+// The only pgx option argument that is supported is QueryRewriter. Queries are executed using the
+// connection's DefaultQueryExecMode.
 func (b *Batch) Queue(query string, arguments ...any) *QueuedQuery {
 	qq := &QueuedQuery{
 		query:     query,

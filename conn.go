@@ -902,8 +902,6 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 		return &batchResults{ctx: ctx, conn: c, err: err}
 	}
 
-	mode := c.config.DefaultQueryExecMode
-
 	for _, bi := range b.queuedQueries {
 		var queryRewriter QueryRewriter
 		sql := bi.query
@@ -911,6 +909,7 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 
 	optionLoop:
 		for len(arguments) > 0 {
+			// Update Batch.Queue function comment when additional options are implemented
 			switch arg := arguments[0].(type) {
 			case QueryRewriter:
 				queryRewriter = arg
@@ -932,6 +931,8 @@ func (c *Conn) SendBatch(ctx context.Context, b *Batch) (br BatchResults) {
 		bi.arguments = arguments
 	}
 
+	// TODO: changing mode per batch? Update Batch.Queue function comment when implemented
+	mode := c.config.DefaultQueryExecMode
 	if mode == QueryExecModeSimpleProtocol {
 		return c.sendBatchQueryExecModeSimpleProtocol(ctx, b)
 	}
