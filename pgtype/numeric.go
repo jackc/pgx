@@ -119,6 +119,26 @@ func (n Numeric) Int64Value() (Int8, error) {
 	return Int8{Int64: bi.Int64(), Valid: true}, nil
 }
 
+func (n *Numeric) ScanScientific(src string) error {
+	if !strings.ContainsAny("eE", src) {
+		return scanPlanTextAnyToNumericScanner{}.Scan([]byte(src), n)
+	}
+
+	if bigF, ok := new(big.Float).SetString(string(src)); ok {
+		smallF, _ := bigF.Float64()
+		src = strconv.FormatFloat(smallF, 'f', -1, 64)
+	}
+
+	num, exp, err := parseNumericString(src)
+	if err != nil {
+		return err
+	}
+
+	*n = Numeric{Int: num, Exp: exp, Valid: true}
+
+	return nil
+}
+
 func (n *Numeric) toBigInt() (*big.Int, error) {
 	if n.Exp == 0 {
 		return n.Int, nil
@@ -757,13 +777,6 @@ func (scanPlanTextAnyToNumericScanner) Scan(src []byte, dst any) error {
 		return scanner.ScanNumeric(Numeric{InfinityModifier: Infinity, Valid: true})
 	} else if string(src) == "-Infinity" {
 		return scanner.ScanNumeric(Numeric{InfinityModifier: NegativeInfinity, Valid: true})
-	}
-
-	if strings.ContainsAny(string(src), "eE") {
-		if bigF, ok := new(big.Float).SetString(string(src)); ok {
-			smallF, _ := bigF.Float64()
-			src = []byte(strconv.FormatFloat(smallF, 'f', -1, 64))
-		}
 	}
 
 	num, exp, err := parseNumericString(string(src))
