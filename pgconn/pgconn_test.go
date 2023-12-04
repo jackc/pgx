@@ -636,6 +636,7 @@ func TestConnPrepareSyntaxError(t *testing.T) {
 	psd, err := pgConn.Prepare(ctx, "ps1", "SYNTAX ERROR", nil)
 	require.Nil(t, psd)
 	require.NotNil(t, err)
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -657,6 +658,7 @@ func TestConnPrepareContextPrecanceled(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
+	assert.Nil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -685,6 +687,7 @@ func TestConnDeallocate(t *testing.T) {
 	var pgErr *pgconn.PgError
 	require.ErrorAs(t, err, &pgErr)
 	require.Equal(t, "26000", pgErr.Code)
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -866,6 +869,7 @@ func TestConnExecMultipleQueriesError(t *testing.T) {
 	} else {
 		t.Errorf("unexpected error: %v", err)
 	}
+	assert.NotNil(t, pgConn.LastError())
 
 	if pgConn.ParameterStatus("crdb_version") != "" {
 		// CockroachDB starts the second query result set and then sends the divide by zero error.
@@ -910,6 +914,7 @@ func TestConnExecDeferredError(t *testing.T) {
 
 	_, err = pgConn.Exec(ctx, `update t set n=n+1 where id='b' returning *`).ReadAll()
 	require.NotNil(t, err)
+	assert.NotNil(t, pgConn.LastError())
 
 	var pgErr *pgconn.PgError
 	require.True(t, errors.As(err, &pgErr))
@@ -939,6 +944,7 @@ func TestConnExecContextCanceled(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.True(t, pgConn.IsClosed())
+	assert.NotNil(t, pgConn.LastError())
 	select {
 	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
@@ -961,6 +967,7 @@ func TestConnExecContextPrecanceled(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
+	assert.Nil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1022,6 +1029,7 @@ func TestConnExecParamsDeferredError(t *testing.T) {
 	var pgErr *pgconn.PgError
 	require.True(t, errors.As(result.Err, &pgErr))
 	require.Equal(t, "23505", pgErr.Code)
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1074,6 +1082,7 @@ func TestConnExecParamsTooManyParams(t *testing.T) {
 	result := pgConn.ExecParams(ctx, sql, args, nil, nil, nil).Read()
 	require.Error(t, result.Err)
 	require.Equal(t, "extended protocol limited to 65535 parameters", result.Err.Error())
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1100,8 +1109,8 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag{}, commandTag)
 	assert.True(t, pgconn.Timeout(err))
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-
 	assert.True(t, pgConn.IsClosed())
+	assert.NotNil(t, pgConn.LastError())
 	select {
 	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
@@ -1124,6 +1133,7 @@ func TestConnExecParamsPrecanceled(t *testing.T) {
 	require.Error(t, result.Err)
 	assert.True(t, errors.Is(result.Err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(result.Err))
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1273,6 +1283,7 @@ func TestConnExecPreparedTooManyParams(t *testing.T) {
 		result := pgConn.ExecPrepared(ctx, "ps1", args, nil, nil).Read()
 		require.EqualError(t, result.Err, "extended protocol limited to 65535 parameters")
 	}
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1302,6 +1313,7 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	assert.Equal(t, pgconn.CommandTag{}, commandTag)
 	assert.True(t, pgconn.Timeout(err))
 	assert.True(t, pgConn.IsClosed())
+	assert.NotNil(t, pgConn.LastError())
 	select {
 	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
@@ -1327,6 +1339,7 @@ func TestConnExecPreparedPrecanceled(t *testing.T) {
 	require.Error(t, result.Err)
 	assert.True(t, errors.Is(result.Err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(result.Err))
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1420,6 +1433,7 @@ func TestConnExecBatchDeferredError(t *testing.T) {
 	var pgErr *pgconn.PgError
 	require.True(t, errors.As(err, &pgErr))
 	require.Equal(t, "23505", pgErr.Code)
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1448,6 +1462,7 @@ func TestConnExecBatchPrecanceled(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
+	assert.Nil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1515,6 +1530,7 @@ func TestConnExecBatchImplicitTransaction(t *testing.T) {
 	batch.ExecParams("select 1/0", nil, nil, nil, nil)
 	_, err = pgConn.ExecBatch(ctx, batch).ReadAll()
 	require.Error(t, err)
+	assert.NotNil(t, pgConn.LastError())
 
 	result := pgConn.ExecParams(ctx, "select count(*) from t", nil, nil, nil, nil).Read()
 	require.Equal(t, "0", string(result.Rows[0][0]))
@@ -1807,6 +1823,7 @@ func TestConnCopyToQueryError(t *testing.T) {
 	require.Error(t, err)
 	assert.IsType(t, &pgconn.PgError{}, err)
 	assert.Equal(t, int64(0), res.RowsAffected())
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -1832,8 +1849,8 @@ func TestConnCopyToCanceled(t *testing.T) {
 	res, err := pgConn.CopyTo(ctx, outputWriter, "copy (select *, pg_sleep(0.01) from generate_series(1,1000)) to stdout")
 	assert.Error(t, err)
 	assert.Equal(t, pgconn.CommandTag{}, res)
-
 	assert.True(t, pgConn.IsClosed())
+	assert.NotNil(t, pgConn.LastError())
 	select {
 	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
@@ -1859,6 +1876,7 @@ func TestConnCopyToPrecanceled(t *testing.T) {
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
 	assert.Equal(t, pgconn.CommandTag{}, res)
+	assert.Nil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -2000,8 +2018,8 @@ func TestConnCopyFromCanceled(t *testing.T) {
 	cancel()
 	assert.Equal(t, int64(0), ct.RowsAffected())
 	assert.Error(t, err)
-
 	assert.True(t, pgConn.IsClosed())
+	assert.NotNil(t, pgConn.LastError())
 	select {
 	case <-pgConn.CleanupDone():
 	case <-time.After(5 * time.Second):
@@ -2045,6 +2063,7 @@ func TestConnCopyFromPrecanceled(t *testing.T) {
 	assert.True(t, errors.Is(err, context.Canceled))
 	assert.True(t, pgconn.SafeToRetry(err))
 	assert.Equal(t, pgconn.CommandTag{}, ct)
+	assert.Nil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -2150,6 +2169,7 @@ func TestConnCopyFromQuerySyntaxError(t *testing.T) {
 	require.Error(t, err)
 	assert.IsType(t, &pgconn.PgError{}, err)
 	assert.Equal(t, int64(0), res.RowsAffected())
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -2170,6 +2190,7 @@ func TestConnCopyFromQueryNoTableError(t *testing.T) {
 	require.Error(t, err)
 	assert.IsType(t, &pgconn.PgError{}, err)
 	assert.Equal(t, int64(0), res.RowsAffected())
+	assert.NotNil(t, pgConn.LastError())
 
 	ensureConnValid(t, pgConn)
 }
@@ -2537,6 +2558,7 @@ func TestFatalErrorReceivedAfterCommandComplete(t *testing.T) {
 
 	_, err = rr.Close()
 	require.Error(t, err)
+	assert.NotNil(t, conn.LastError())
 }
 
 // https://github.com/jackc/pgconn/issues/27
@@ -3146,6 +3168,41 @@ func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 
 	err = pipeline.Close()
 	require.EqualError(t, err, "pipeline has unsynced requests")
+}
+
+func TestConnLastError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	err = pgConn.Exec(ctx, "select 1/0").Close()
+	require.NotNil(t, err)
+	assert.Equal(t, err, pgConn.LastError())
+
+	ensureConnValid(t, pgConn)
+
+	_, err = pgConn.Prepare(ctx, "ps1", "select 1", nil)
+	require.Nil(t, err)
+	assert.Nil(t, pgConn.LastError())
+
+	ensureConnValid(t, pgConn)
+
+	batch := &pgconn.Batch{}
+	batch.ExecParams("select 1", nil, nil, nil, nil)
+	batch.ExecParams("select 1/0", nil, nil, nil, nil)
+	batch.ExecParams("select 1", nil, nil, nil, nil)
+	_, err = pgConn.ExecBatch(ctx, batch).ReadAll()
+	require.NotNil(t, err)
+	assert.Equal(t, err, pgConn.LastError())
+
+	err = pgConn.Close(ctx)
+	require.Nil(t, err)
+	assert.NotNil(t, pgConn.LastError())
 }
 
 func Example() {

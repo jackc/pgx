@@ -87,6 +87,8 @@ type PgConn struct {
 
 	peekedMsg pgproto3.BackendMessage
 
+	lastError error
+
 	// Reusable / preallocated resources
 	resultReader      ResultReader
 	multiResultReader MultiResultReader
@@ -460,6 +462,12 @@ func (pgConn *PgConn) signalMessage() chan struct{} {
 	return ch
 }
 
+// setLastError stores the received error for the LastError function to return.
+// This MUST be called before the connection is closed.
+func (pgConn *PgConn) setLastError(err error) {
+	pgConn.lastError = err
+}
+
 // ReceiveMessage receives one wire protocol message from the PostgreSQL server. It must only be used when the
 // connection is not busy. e.g. It is an error to call ReceiveMessage while reading the result of a query. The messages
 // are still handled by the core pgconn message handling system so receiving a NotificationResponse will still trigger
@@ -485,6 +493,7 @@ func (pgConn *PgConn) ReceiveMessage(ctx context.Context) (pgproto3.BackendMessa
 
 	msg, err := pgConn.receiveMessage()
 	if err != nil {
+		pgConn.setLastError(err)
 		err = &pgconnError{
 			msg:         "receive message failed",
 			err:         normalizeTimeoutError(ctx, err),
@@ -523,9 +532,8 @@ func (pgConn *PgConn) peekMessage() (pgproto3.BackendMessage, error) {
 		var netErr net.Error
 		isNetErr := errors.As(err, &netErr)
 		if !(isNetErr && netErr.Timeout()) {
-			pgConn.asyncClose()
+			pgConn.asyncClose(err)
 		}
-
 		return nil, err
 	}
 
@@ -547,11 +555,14 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	case *pgproto3.ParameterStatus:
 		pgConn.parameterStatuses[msg.Name] = msg.Value
 	case *pgproto3.ErrorResponse:
+		err := ErrorResponseToPgError(msg)
 		if msg.Severity == "FATAL" {
+			// call setLastError before we close but otherwise leave it up to the caller
+			pgConn.setLastError(err)
 			pgConn.status = connStatusClosed
 			pgConn.conn.Close() // Ignore error as the connection is already broken and there is already an error to return.
 			close(pgConn.cleanupDone)
-			return nil, ErrorResponseToPgError(msg)
+			return nil, err
 		}
 	case *pgproto3.NoticeResponse:
 		if pgConn.config.OnNotice != nil {
@@ -588,6 +599,16 @@ func (pgConn *PgConn) PID() uint32 {
 // See https://www.postgresql.org/docs/current/protocol-message-formats.html.
 func (pgConn *PgConn) TxStatus() byte {
 	return pgConn.txStatus
+}
+
+// LastError returns the last error caused either by the underlying connection
+// or returned from Postgres. If the error was returned from Postgres then the
+// error will be *pgconn.PgError.
+//
+// When a new request is initiated (via Exec, CopyFrom, CopyTo, etc) any previous
+// error will be cleared.
+func (pgConn *PgConn) LastError() error {
+	return pgConn.lastError
 }
 
 // SecretKey returns the backend secret key used to send a cancel query message to the server.
@@ -637,11 +658,12 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 
 // asyncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
 // connection.
-func (pgConn *PgConn) asyncClose() {
+func (pgConn *PgConn) asyncClose(err error) {
 	if pgConn.status == connStatusClosed {
 		return
 	}
 	pgConn.status = connStatusClosed
+	pgConn.setLastError(err)
 
 	go func() {
 		defer close(pgConn.cleanupDone)
@@ -832,12 +854,14 @@ func (pgConn *PgConn) Prepare(ctx context.Context, name, sql string, paramOIDs [
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	pgConn.frontend.SendParse(&pgproto3.Parse{Name: name, Query: sql, ParameterOIDs: paramOIDs})
 	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'S', Name: name})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		return nil, err
 	}
 
@@ -849,7 +873,7 @@ readloop:
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.asyncClose()
+			pgConn.asyncClose(err)
 			return nil, normalizeTimeoutError(ctx, err)
 		}
 
@@ -861,6 +885,7 @@ readloop:
 			psd.Fields = pgConn.convertRowDescription(nil, msg)
 		case *pgproto3.ErrorResponse:
 			parseErr = ErrorResponseToPgError(msg)
+			pgConn.setLastError(parseErr)
 		case *pgproto3.ReadyForQuery:
 			break readloop
 		}
@@ -894,24 +919,28 @@ func (pgConn *PgConn) Deallocate(ctx context.Context, name string) error {
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	pgConn.frontend.SendClose(&pgproto3.Close{ObjectType: 'S', Name: name})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		return err
 	}
 
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.asyncClose()
+			pgConn.asyncClose(err)
 			return normalizeTimeoutError(ctx, err)
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.ErrorResponse:
-			return ErrorResponseToPgError(msg)
+			err := ErrorResponseToPgError(msg)
+			pgConn.setLastError(err)
+			return err
 		case *pgproto3.ReadyForQuery:
 			return nil
 		}
@@ -1027,7 +1056,9 @@ func (pgConn *PgConn) WaitForNotification(ctx context.Context) error {
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			return normalizeTimeoutError(ctx, err)
+			err = normalizeTimeoutError(ctx, err)
+			pgConn.setLastError(err)
+			return err
 		}
 
 		switch msg.(type) {
@@ -1067,10 +1098,12 @@ func (pgConn *PgConn) Exec(ctx context.Context, sql string) *MultiResultReader {
 		pgConn.contextWatcher.Watch(ctx)
 	}
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		pgConn.contextWatcher.Unwatch()
 		multiResult.closed = true
 		multiResult.err = err
@@ -1175,13 +1208,15 @@ func (pgConn *PgConn) execExtendedPrefix(ctx context.Context, paramValues [][]by
 }
 
 func (pgConn *PgConn) execExtendedSuffix(result *ResultReader) {
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	pgConn.frontend.SendDescribe(&pgproto3.Describe{ObjectType: 'P'})
 	pgConn.frontend.SendExecute(&pgproto3.Execute{})
 	pgConn.frontend.SendSync(&pgproto3.Sync{})
 
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		result.concludeCommand(CommandTag{}, err)
 		pgConn.contextWatcher.Unwatch()
 		result.closed = true
@@ -1209,12 +1244,13 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	// Send copy to command
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
-
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		pgConn.unlock()
 		return CommandTag{}, err
 	}
@@ -1225,7 +1261,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.asyncClose()
+			pgConn.asyncClose(err)
 			return CommandTag{}, normalizeTimeoutError(ctx, err)
 		}
 
@@ -1234,7 +1270,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 		case *pgproto3.CopyData:
 			_, err := w.Write(msg.Data)
 			if err != nil {
-				pgConn.asyncClose()
+				pgConn.asyncClose(err)
 				return CommandTag{}, err
 			}
 		case *pgproto3.ReadyForQuery:
@@ -1244,6 +1280,7 @@ func (pgConn *PgConn) CopyTo(ctx context.Context, w io.Writer, sql string) (Comm
 			commandTag = pgConn.makeCommandTag(msg.CommandTag)
 		case *pgproto3.ErrorResponse:
 			pgErr = ErrorResponseToPgError(msg)
+			pgConn.setLastError(pgErr)
 		}
 	}
 }
@@ -1268,11 +1305,13 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 		defer pgConn.contextWatcher.Unwatch()
 	}
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	// Send copy from query
 	pgConn.frontend.SendQuery(&pgproto3.Query{String: sql})
 	err := pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		return CommandTag{}, err
 	}
 
@@ -1323,11 +1362,13 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for copyErr == nil && pgErr == nil {
 		select {
 		case copyErr = <-copyErrChan:
+			pgConn.setLastError(copyErr)
 		case <-signalMessageChan:
 			// If pgConn.receiveMessage encounters an error it will call pgConn.asyncClose. But that is a race condition with
 			// the goroutine. So instead check pgConn.bufferingReceiveErr which will have been set by the signalMessage. If an
 			// error is found then forcibly close the connection without sending the Terminate message.
 			if err := pgConn.bufferingReceiveErr; err != nil {
+				pgConn.setLastError(err)
 				pgConn.status = connStatusClosed
 				pgConn.conn.Close()
 				close(pgConn.cleanupDone)
@@ -1338,6 +1379,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			switch msg := msg.(type) {
 			case *pgproto3.ErrorResponse:
 				pgErr = ErrorResponseToPgError(msg)
+				pgConn.setLastError(pgErr)
 			default:
 				signalMessageChan = pgConn.signalMessage()
 			}
@@ -1354,7 +1396,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	}
 	err = pgConn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
-		pgConn.asyncClose()
+		pgConn.asyncClose(err)
 		return CommandTag{}, err
 	}
 
@@ -1363,7 +1405,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 	for {
 		msg, err := pgConn.receiveMessage()
 		if err != nil {
-			pgConn.asyncClose()
+			pgConn.asyncClose(err)
 			return CommandTag{}, normalizeTimeoutError(ctx, err)
 		}
 
@@ -1374,6 +1416,7 @@ func (pgConn *PgConn) CopyFrom(ctx context.Context, r io.Reader, sql string) (Co
 			commandTag = pgConn.makeCommandTag(msg.CommandTag)
 		case *pgproto3.ErrorResponse:
 			pgErr = ErrorResponseToPgError(msg)
+			pgConn.setLastError(pgErr)
 		}
 	}
 }
@@ -1408,7 +1451,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 		mrr.pgConn.contextWatcher.Unwatch()
 		mrr.err = normalizeTimeoutError(mrr.ctx, err)
 		mrr.closed = true
-		mrr.pgConn.asyncClose()
+		mrr.pgConn.asyncClose(err)
 		return nil, mrr.err
 	}
 
@@ -1423,6 +1466,7 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 		}
 	case *pgproto3.ErrorResponse:
 		mrr.err = ErrorResponseToPgError(msg)
+		mrr.pgConn.setLastError(mrr.err)
 	}
 
 	return msg, nil
@@ -1584,6 +1628,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 			// Detect a deferred constraint violation where the ErrorResponse is sent after CommandComplete.
 			case *pgproto3.ErrorResponse:
 				rr.err = ErrorResponseToPgError(msg)
+				rr.pgConn.setLastError(rr.err)
 			case *pgproto3.ReadyForQuery:
 				rr.pgConn.contextWatcher.Unwatch()
 				rr.pgConn.unlock()
@@ -1628,7 +1673,7 @@ func (rr *ResultReader) receiveMessage() (msg pgproto3.BackendMessage, err error
 		rr.pgConn.contextWatcher.Unwatch()
 		rr.closed = true
 		if rr.multiResultReader == nil {
-			rr.pgConn.asyncClose()
+			rr.pgConn.asyncClose(err)
 		}
 
 		return nil, rr.err
@@ -1652,6 +1697,7 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 	// Keep the first error that is recorded. Store the error before checking if the command is already concluded to
 	// allow for receiving an error after CommandComplete but before ReadyForQuery.
 	if err != nil && rr.err == nil {
+		rr.pgConn.setLastError(err)
 		rr.err = err
 	}
 
@@ -1713,10 +1759,13 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 
 	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
 
+	// clear the last error since we are sending a new command
+	pgConn.setLastError(nil)
 	pgConn.enterPotentialWriteReadDeadlock()
 	defer pgConn.exitPotentialWriteReadDeadlock()
 	_, err := pgConn.conn.Write(batch.buf)
 	if err != nil {
+		pgConn.setLastError(err)
 		multiResult.closed = true
 		multiResult.err = err
 		pgConn.unlock()
@@ -2032,7 +2081,7 @@ func (p *Pipeline) Flush() error {
 	if err != nil {
 		err = normalizeTimeoutError(p.ctx, err)
 
-		p.conn.asyncClose()
+		p.conn.asyncClose(err)
 
 		p.conn.contextWatcher.Unwatch()
 		p.conn.unlock()
@@ -2069,7 +2118,7 @@ func (p *Pipeline) GetResults() (results any, err error) {
 	for {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
-			p.conn.asyncClose()
+			p.conn.asyncClose(err)
 			return nil, normalizeTimeoutError(p.ctx, err)
 		}
 
@@ -2104,6 +2153,7 @@ func (p *Pipeline) GetResults() (results any, err error) {
 			return &PipelineSync{}, nil
 		case *pgproto3.ErrorResponse:
 			pgErr := ErrorResponseToPgError(msg)
+			p.conn.setLastError(pgErr)
 			return nil, pgErr
 		}
 
@@ -2116,7 +2166,7 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 	for {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
-			p.conn.asyncClose()
+			p.conn.asyncClose(err)
 			return nil, normalizeTimeoutError(p.ctx, err)
 		}
 
@@ -2136,13 +2186,16 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 		// These should never happen here. But don't take chances that could lead to a deadlock.
 		case *pgproto3.ErrorResponse:
 			pgErr := ErrorResponseToPgError(msg)
+			p.conn.setLastError(pgErr)
 			return nil, pgErr
 		case *pgproto3.CommandComplete:
-			p.conn.asyncClose()
-			return nil, errors.New("BUG: received CommandComplete while handling Describe")
+			err := errors.New("BUG: received CommandComplete while handling Describe")
+			p.conn.asyncClose(err)
+			return nil, err
 		case *pgproto3.ReadyForQuery:
-			p.conn.asyncClose()
-			return nil, errors.New("BUG: received ReadyForQuery while handling Describe")
+			err := errors.New("BUG: received ReadyForQuery while handling Describe")
+			p.conn.asyncClose(err)
+			return nil, err
 		}
 	}
 }
@@ -2155,11 +2208,10 @@ func (p *Pipeline) Close() error {
 	p.closed = true
 
 	if p.pendingSync {
-		p.conn.asyncClose()
 		p.err = errors.New("pipeline has unsynced requests")
+		p.conn.asyncClose(p.err)
 		p.conn.contextWatcher.Unwatch()
 		p.conn.unlock()
-
 		return p.err
 	}
 
@@ -2169,7 +2221,7 @@ func (p *Pipeline) Close() error {
 			p.err = err
 			var pgErr *PgError
 			if !errors.As(err, &pgErr) {
-				p.conn.asyncClose()
+				p.conn.asyncClose(err)
 				break
 			}
 		}
