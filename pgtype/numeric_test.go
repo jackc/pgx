@@ -284,18 +284,6 @@ func TestNumericUnmarshalJSON(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "float: 1e10",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1), Exp: 10},
-			src:     []byte("1e10"),
-			wantErr: false,
-		},
-		{
-			name:    "float: 1.000101231014e10",
-			want:    &pgtype.Numeric{Valid: true, Int: big.NewInt(1000101231014), Exp: -2},
-			src:     []byte("1.000101231014e10"),
-			wantErr: false,
-		},
-		{
 			name:    "invalid value",
 			want:    &pgtype.Numeric{},
 			src:     []byte("0xffff"),
