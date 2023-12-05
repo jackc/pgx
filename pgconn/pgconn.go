@@ -52,6 +52,12 @@ type LookupFunc func(ctx context.Context, host string) (addrs []string, err erro
 // BuildFrontendFunc is a function that can be used to create Frontend implementation for connection.
 type BuildFrontendFunc func(r io.Reader, w io.Writer) *pgproto3.Frontend
 
+// ErrorPGHandler is a function that handles errors returned from Postgres. This function must return true to keep
+// the connection open. Returning false will cause the connection to be closed immediately. You should return
+// false on any FATAL-severity errors. This will not receive network errors. The *PgConn is provided so the handler is
+// aware of the origin of the error, but it must not invoke any query method.
+type ErrorPGHandler func(*PgConn, *PgError) bool
+
 // NoticeHandler is a function that can handle notices received from the PostgreSQL server. Notices can be received at
 // any time, usually during handling of a query response. The *PgConn is provided so the handler is aware of the origin
 // of the notice, but it must not invoke any query method. Be aware that this is distinct from LISTEN/NOTIFY
@@ -547,11 +553,12 @@ func (pgConn *PgConn) receiveMessage() (pgproto3.BackendMessage, error) {
 	case *pgproto3.ParameterStatus:
 		pgConn.parameterStatuses[msg.Name] = msg.Value
 	case *pgproto3.ErrorResponse:
-		if msg.Severity == "FATAL" {
+		err := ErrorResponseToPgError(msg)
+		if pgConn.config.OnPGError != nil && !pgConn.config.OnPGError(pgConn, err) {
 			pgConn.status = connStatusClosed
 			pgConn.conn.Close() // Ignore error as the connection is already broken and there is already an error to return.
 			close(pgConn.cleanupDone)
-			return nil, ErrorResponseToPgError(msg)
+			return nil, err
 		}
 	case *pgproto3.NoticeResponse:
 		if pgConn.config.OnNotice != nil {
