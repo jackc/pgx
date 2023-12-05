@@ -60,6 +60,11 @@ type Config struct {
 	// OnNotification is a callback function called when a notification from the LISTEN/NOTIFY system is received.
 	OnNotification NotificationHandler
 
+	// OnPGError is a callback function called when a Postgres error is received by the server. The default handler will close
+	// the connection on any FATAL errors. If you override this handler you should call the previously set handler or ensure
+	// that you close on FATAL errors by returning false.
+	OnPGError ErrorPGHandler
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -260,6 +265,13 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		RuntimeParams:        make(map[string]string),
 		BuildFrontend: func(r io.Reader, w io.Writer) *pgproto3.Frontend {
 			return pgproto3.NewFrontend(r, w)
+		},
+		OnPGError: func(_ *PgConn, pgErr *PgError) bool {
+			// we want to automatically close any fatal errors
+			if strings.EqualFold(pgErr.Severity, "FATAL") {
+				return false
+			}
+			return true
 		},
 	}
 
