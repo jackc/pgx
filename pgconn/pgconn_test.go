@@ -3148,6 +3148,41 @@ func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 	require.EqualError(t, err, "pipeline has unsynced requests")
 }
 
+func TestConnOnPGError(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	config.OnPGError = func(c *pgconn.PgConn, pgErr *pgconn.PgError) bool {
+		require.NotNil(t, c)
+		require.NotNil(t, pgErr)
+		// close connection on undefined tables only
+		if pgErr.Code == "42P01" {
+			return false
+		}
+		return true
+	}
+
+	pgConn, err := pgconn.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	_, err = pgConn.Exec(ctx, "select 'Hello, world'").ReadAll()
+	assert.NoError(t, err)
+	assert.False(t, pgConn.IsClosed())
+
+	_, err = pgConn.Exec(ctx, "select 1/0").ReadAll()
+	assert.Error(t, err)
+	assert.False(t, pgConn.IsClosed())
+
+	_, err = pgConn.Exec(ctx, "select * from non_existant_table").ReadAll()
+	assert.Error(t, err)
+	assert.True(t, pgConn.IsClosed())
+}
+
 func Example() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
