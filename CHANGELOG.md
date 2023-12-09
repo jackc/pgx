@@ -1,10 +1,11 @@
-# Unreleased
+# 5.5.1 (December 9, 2023)
 
 * Add CopyFromFunc helper function. (robford)
 * Add PgConn.Deallocate method that uses PostgreSQL protocol Close message.
 * pgx uses new PgConn.Deallocate method. This allows deallocating statements to work in a failed transaction. This fixes a case where the prepared statement map could become invalid.
 * Fix: Prefer driver.Valuer over json.Marshaler for json fields. (Jacopo)
 * Fix: simple protocol SQL sanitizer previously panicked if an invalid $0 placeholder was used. This now returns an error instead. (maksymnevajdev)
+* Add pgtype.Numeric.ScanScientific (Eshton Robateau)
 
 # 5.5.0 (November 4, 2023)
 
