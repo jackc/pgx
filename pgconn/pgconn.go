@@ -295,7 +295,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
 		if err != nil {
 			netConn.Close()
-			return nil, &connectError{config: config, msg: "tls error", err: err}
+			return nil, &connectError{config: config, msg: "tls error", err: normalizeTimeoutError(ctx, err)}
 		}
 
 		pgConn.conn = nbTLSConn
