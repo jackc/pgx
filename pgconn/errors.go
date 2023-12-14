@@ -107,14 +107,15 @@ func (e *parseConfigError) Unwrap() error {
 }
 
 func normalizeTimeoutError(ctx context.Context, err error) error {
-	if err, ok := err.(net.Error); ok && err.Timeout() {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		if ctx.Err() == context.Canceled {
 			// Since the timeout was caused by a context cancellation, the actual error is context.Canceled not the timeout error.
 			return context.Canceled
 		} else if ctx.Err() == context.DeadlineExceeded {
 			return &errTimeout{err: ctx.Err()}
 		} else {
-			return &errTimeout{err: err}
+			return &errTimeout{err: netErr}
 		}
 	}
 	return err
