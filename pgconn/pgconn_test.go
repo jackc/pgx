@@ -3148,7 +3148,7 @@ func TestPipelineCloseDetectsUnsyncedRequests(t *testing.T) {
 	require.EqualError(t, err, "pipeline has unsynced requests")
 }
 
-func TestConnOnPGError(t *testing.T) {
+func TestConnOnPgError(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -3156,7 +3156,7 @@ func TestConnOnPGError(t *testing.T) {
 
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
-	config.OnPGError = func(c *pgconn.PgConn, pgErr *pgconn.PgError) bool {
+	config.OnPgError = func(c *pgconn.PgConn, pgErr *pgconn.PgError) bool {
 		require.NotNil(t, c)
 		require.NotNil(t, pgErr)
 		// close connection on undefined tables only
