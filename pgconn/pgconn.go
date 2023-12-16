@@ -2053,6 +2053,13 @@ func (p *Pipeline) Flush() error {
 
 // Sync establishes a synchronization point and flushes the queued requests.
 func (p *Pipeline) Sync() error {
+	if p.closed {
+		if p.err != nil {
+			return p.err
+		}
+		return errors.New("pipeline closed")
+	}
+
 	p.conn.frontend.SendSync(&pgproto3.Sync{})
 	err := p.Flush()
 	if err != nil {
