@@ -120,3 +120,21 @@ func TestStartupMessage(t *testing.T) {
 		}
 	})
 }
+
+func TestBackendReceiveExceededMaxBodyLen(t *testing.T) {
+	t.Parallel()
+
+	server := &interruptReader{}
+	server.push([]byte{'Q', 0, 0, 10, 10})
+
+	backend := pgproto3.NewBackend(server, nil)
+
+	// Set max body len to 5
+	backend.SetMaxBodyLen(5)
+
+	// Receive regular msg
+	msg, err := backend.Receive()
+	assert.Nil(t, msg)
+	var invalidBodyLenErr *pgproto3.ExceededMaxBodyLenErr
+	assert.ErrorAs(t, err, &invalidBodyLenErr)
+}
