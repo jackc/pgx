@@ -65,6 +65,10 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
+	// NoClosingConnMode enables mode when connections are not closed when timeout happens but cleaned up
+	// and returned back to the pool.
+	NoClosingConnMode bool
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
