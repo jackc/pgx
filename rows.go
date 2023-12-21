@@ -667,7 +667,7 @@ const structTagKey = "db"
 func fieldPosByName(fldDescs []pgconn.FieldDescription, field string) (i int) {
 	i = -1
 	for i, desc := range fldDescs {
-		if strings.EqualFold(desc.Name, field) {
+		if strings.EqualFold(strings.ReplaceAll(desc.Name, "_", ""), field) {
 			return i
 		}
 	}
