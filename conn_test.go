@@ -482,31 +482,33 @@ func TestPrepareBadSQLFailure(t *testing.T) {
 func TestPrepareIdempotency(t *testing.T) {
 	t.Parallel()
 
-	conn := mustConnectString(t, os.Getenv("PGX_TEST_DATABASE"))
-	defer closeConn(t, conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
 
-	for i := 0; i < 2; i++ {
-		_, err := conn.Prepare(context.Background(), "test", "select 42::integer")
-		if err != nil {
-			t.Fatalf("%d. Unable to prepare statement: %v", i, err)
+	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		for i := 0; i < 2; i++ {
+			_, err := conn.Prepare(context.Background(), "test", "select 42::integer")
+			if err != nil {
+				t.Fatalf("%d. Unable to prepare statement: %v", i, err)
+			}
+
+			var n int32
+			err = conn.QueryRow(context.Background(), "test").Scan(&n)
+			if err != nil {
+				t.Errorf("%d. Executing prepared statement failed: %v", i, err)
+			}
+
+			if n != int32(42) {
+				t.Errorf("%d. Prepared statement did not return expected value: %v", i, n)
+			}
 		}
 
-		var n int32
-		err = conn.QueryRow(context.Background(), "test").Scan(&n)
-		if err != nil {
-			t.Errorf("%d. Executing prepared statement failed: %v", i, err)
+		_, err := conn.Prepare(context.Background(), "test", "select 'fail'::varchar")
+		if err == nil {
+			t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
+			return
 		}
-
-		if n != int32(42) {
-			t.Errorf("%d. Prepared statement did not return expected value: %v", i, n)
-		}
-	}
-
-	_, err := conn.Prepare(context.Background(), "test", "select 'fail'::varchar")
-	if err == nil {
-		t.Fatalf("Prepare statement with same name but different SQL should have failed but it didn't")
-		return
-	}
+	})
 }
 
 func TestPrepareStatementCacheModes(t *testing.T) {
