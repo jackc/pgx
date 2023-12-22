@@ -667,7 +667,12 @@ const structTagKey = "db"
 func fieldPosByName(fldDescs []pgconn.FieldDescription, field string) (i int) {
 	i = -1
 	for i, desc := range fldDescs {
-		if strings.EqualFold(strings.ReplaceAll(desc.Name, "_", ""), field) {
+
+		// Support snake and spinal case.
+		desc.Name = strings.ReplaceAll(desc.Name, "_", "")
+		desc.Name = strings.ReplaceAll(desc.Name, "-", "")
+
+		if strings.EqualFold(desc.Name, field) {
 			return i
 		}
 	}
