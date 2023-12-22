@@ -513,6 +513,7 @@ optionLoop:
 			if err != nil {
 				return pgconn.CommandTag{}, err
 			}
+			c.descriptionCache.Put(sd)
 		}
 
 		return c.execParams(ctx, sd, arguments)
