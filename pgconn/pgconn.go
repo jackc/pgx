@@ -2117,7 +2117,8 @@ func (p *Pipeline) getResults() (results any, err error) {
 		case *pgproto3.ParseComplete:
 			peekedMsg, err := p.conn.peekMessage()
 			if err != nil {
-				return nil, err
+				p.conn.asyncClose()
+				return nil, normalizeTimeoutError(p.ctx, err)
 			}
 			if _, ok := peekedMsg.(*pgproto3.ParameterDescription); ok {
 				return p.getResultsPrepare()
