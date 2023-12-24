@@ -668,11 +668,11 @@ func fieldPosByName(fldDescs []pgconn.FieldDescription, field string) (i int) {
 	i = -1
 	for i, desc := range fldDescs {
 
-		// Support snake and spinal case.
-		desc.Name = strings.ReplaceAll(desc.Name, "_", "")
-		desc.Name = strings.ReplaceAll(desc.Name, "-", "")
+		// Snake case support.
+		field = strings.ReplaceAll(field, "_", "")
+		descName := strings.ReplaceAll(desc.Name, "_", "")
 
-		if strings.EqualFold(desc.Name, field) {
+		if strings.EqualFold(descName, field) {
 			return i
 		}
 	}
