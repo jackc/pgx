@@ -541,7 +541,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "multiple hosts and fallback tsl",
+			name:       "multiple hosts and fallback tls",
 			connString: "user=jack password=secret host=foo,bar,baz dbname=mydb sslmode=prefer",
 			config: &pgconn.Config{
 				User:     "jack",
