@@ -21,10 +21,7 @@
 //	  return err
 //	}
 //
-//	db, err := stdlib.OpenDBFromPool(pool)
-//	if err != nil {
-//	  return err
-//	}
+//	db := stdlib.OpenDBFromPool(pool)
 //
 // Or a pgx.ConnConfig can be used to set configuration not accessible via connection string. In this case the
 // pgx.ConnConfig must first be registered with the driver. This registration returns a connection string which is used
