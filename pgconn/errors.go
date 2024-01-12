@@ -97,6 +97,9 @@ type ParseConfigError struct {
 }
 
 func (e *ParseConfigError) Error() string {
+	// Now that ParseConfigError is public and ConnString is available to the developer, perhaps it would be better only
+	// return a static string. That would ensure that the error message cannot leak a password. The ConnString field would
+	// allow access to the original string if desired and Unwrap would allow access to the underlying error.
 	connString := redactPW(e.ConnString)
 	if e.err == nil {
 		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
