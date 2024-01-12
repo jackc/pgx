@@ -3,8 +3,8 @@
 package pgconn
 
 func NewParseConfigError(conn, msg string, err error) error {
-	return &parseConfigError{
-		connString: conn,
+	return &ParseConfigError{
+		ConnString: conn,
 		msg:        msg,
 		err:        err,
 	}
