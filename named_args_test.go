@@ -38,10 +38,10 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			expectedArgs: []any{int32(42), "foo"},
 		},
 		{
-			sql:          "select @Abc::int, @b_4::text",
-			namedArgs:    pgx.NamedArgs{"Abc": int32(42), "b_4": "foo"},
-			expectedSQL:  "select $1::int, $2::text",
-			expectedArgs: []any{int32(42), "foo"},
+			sql:          "select @Abc::int, @b_4::text, @_c::int",
+			namedArgs:    pgx.NamedArgs{"Abc": int32(42), "b_4": "foo", "_c": int32(1)},
+			expectedSQL:  "select $1::int, $2::text, $3::int",
+			expectedArgs: []any{int32(42), "foo", int32(1)},
 		},
 		{
 			sql:          "at end @",
@@ -50,15 +50,15 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			expectedArgs: []any{},
 		},
 		{
-			sql:          "ignores without letter after @ foo bar",
+			sql:          "ignores without valid character after @ foo bar",
 			namedArgs:    pgx.NamedArgs{"a": int32(42), "b": "foo"},
-			expectedSQL:  "ignores without letter after @ foo bar",
+			expectedSQL:  "ignores without valid character after @ foo bar",
 			expectedArgs: []any{},
 		},
 		{
-			sql:          "name must start with letter @1 foo bar",
+			sql:          "name cannot start with number @1 foo bar",
 			namedArgs:    pgx.NamedArgs{"a": int32(42), "b": "foo"},
-			expectedSQL:  "name must start with letter @1 foo bar",
+			expectedSQL:  "name cannot start with number @1 foo bar",
 			expectedArgs: []any{},
 		},
 		{
