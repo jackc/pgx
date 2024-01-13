@@ -1,3 +1,14 @@
+# 5.5.2 (January 13, 2024)
+
+* Allow NamedArgs to start with underscore
+* pgproto3: Maximum message body length support (jeremy.spriet)
+* Upgrade golang.org/x/crypto to v0.17.0
+* Add snake_case support to RowToStructByName (Tikhon Fedulov)
+* Fix: update description cache after exec prepare (James Hartig)
+* Fix: pipeline checks if it is closed (James Hartig and Ryan Fowler)
+* Fix: normalize timeout / context errors during TLS startup (Samuel Stauffer)
+* Add OnPgError for easier centralized error handling (James Hartig)
+
 # 5.5.1 (December 9, 2023)
 
 * Add CopyFromFunc helper function. (robford)
