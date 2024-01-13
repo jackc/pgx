@@ -67,6 +67,10 @@ type LargeObject struct {
 }
 
 // Write writes p to the large object and returns the number of bytes written and an error if not all of p was written.
+//
+// Write is implemented with a single call to lowrite. The PostgreSQL wire protocol has a limit of 1 GB - 1 per message.
+// See definition of PQ_LARGE_MESSAGE_LIMIT in the PostgreSQL source code. To allow for the other data in the message,
+// len(p) should be no larger than 1 GB - 1 KB.
 func (o *LargeObject) Write(p []byte) (int, error) {
 	var n int
 	err := o.tx.QueryRow(o.ctx, "select lowrite($1, $2)", o.fd, p).Scan(&n)
@@ -82,6 +86,10 @@ func (o *LargeObject) Write(p []byte) (int, error) {
 }
 
 // Read reads up to len(p) bytes into p returning the number of bytes read.
+//
+// Read is implemented with a single call to loread. PostgreSQL internally allocates a single buffer for the response.
+// The largest buffer PostgreSQL will allocate is 1 GB - 1. See definition of MaxAllocSize in the PostgreSQL source
+// code. To allow for the other data in the message, len(p) should be no larger than 1 GB - 1 KB.
 func (o *LargeObject) Read(p []byte) (int, error) {
 	var res []byte
 	err := o.tx.QueryRow(o.ctx, "select loread($1, $2)", o.fd, len(p)).Scan(&res)
