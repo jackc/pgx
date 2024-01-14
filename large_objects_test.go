@@ -13,7 +13,8 @@ import (
 )
 
 func TestLargeObjects(t *testing.T) {
-	t.Parallel()
+	// We use a very short limit to test chunking logic.
+	pgx.SetMaxLargeObjectMessageLength(t, 2)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -34,7 +35,8 @@ func TestLargeObjects(t *testing.T) {
 }
 
 func TestLargeObjectsSimpleProtocol(t *testing.T) {
-	t.Parallel()
+	// We use a very short limit to test chunking logic.
+	pgx.SetMaxLargeObjectMessageLength(t, 2)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
@@ -160,7 +162,8 @@ func testLargeObjects(t *testing.T, ctx context.Context, tx pgx.Tx) {
 }
 
 func TestLargeObjectsMultipleTransactions(t *testing.T) {
-	t.Parallel()
+	// We use a very short limit to test chunking logic.
+	pgx.SetMaxLargeObjectMessageLength(t, 2)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
