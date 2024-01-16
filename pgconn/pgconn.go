@@ -71,6 +71,9 @@ type NoticeHandler func(*PgConn, *Notice)
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
 
+// TODO
+type OnRecoverHandler func(context.Context, *PgConn) error
+
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
 	conn              net.Conn
@@ -644,138 +647,6 @@ func (pgConn *PgConn) Close(ctx context.Context) error {
 	return pgConn.conn.Close()
 }
 
-func (pgConn *PgConn) execRoundTrip(ctx context.Context, sql string) error {
-	rr := pgConn.Exec(ctx, sql)
-	if rr.err != nil {
-		return fmt.Errorf("exec: %w", rr.err)
-	}
-
-	// reading all that is left in socket
-	if err := rr.Close(); err != nil {
-		return fmt.Errorf("close: %w", err)
-	}
-
-	return nil
-}
-
-func (pgConn *PgConn) reset() error {
-	for {
-		msg, err := pgConn.receiveMessage()
-		if err != nil {
-			return fmt.Errorf("receive message: %w", err)
-		}
-
-		// every request is ended with ReadyForQuery message
-		// so we just read till it comes or error occurs
-		switch msg := msg.(type) {
-		case *pgproto3.ErrorResponse:
-			return ErrorResponseToPgError(msg)
-		case *pgproto3.ReadyForQuery:
-			return nil
-		}
-	}
-}
-
-func (pgConn *PgConn) cleanSocket() error {
-	// If this option is set, then there is nothing
-	// to read from the socket and there is no need
-	// to hang forever on reading.
-	if pgConn.cleanupWithoutReset {
-		return nil
-	}
-
-	// Read all the data left from the previous request.
-	if err := pgConn.reset(); err != nil {
-		return fmt.Errorf("reset: %w", err)
-	}
-
-	return nil
-}
-
-func (pgConn *PgConn) cleanup(ctx context.Context, resetQuery string) error {
-	deadline, ok := ctx.Deadline()
-	if ok {
-		pgConn.conn.SetDeadline(deadline)
-	} else {
-		pgConn.conn.SetDeadline(time.Time{})
-	}
-
-	if err := pgConn.cleanSocket(); err != nil {
-		return fmt.Errorf("clean socket: %w", err)
-	}
-
-	// Switch status to idle to not receive an error
-	// while locking connection on exec operation.
-	pgConn.status = connStatusIdle
-
-	// Rollback if there is an active transaction,
-	// Checking TxStatus to prevent overhead
-	if pgConn.TxStatus() != 'I' {
-		if err := pgConn.execRoundTrip(ctx, "ROLLBACK;"); err != nil {
-			return fmt.Errorf("rollback: %w", err)
-		}
-	}
-
-	// Full session reset
-	if resetQuery != "" {
-		if err := pgConn.execRoundTrip(ctx, resetQuery); err != nil {
-			return fmt.Errorf("discard all: %w", err)
-		}
-	}
-
-	// Reset everything.
-	pgConn.conn.SetDeadline(time.Time{})
-	pgConn.status = connStatusIdle
-	pgConn.cleanupWithoutReset = false
-	pgConn.contextWatcher.Unwatch()
-
-	return nil
-}
-
-func (pgConn *PgConn) LaunchCleanup(ctx context.Context, resetQuery string, onCleanupSucceeded func(), onCleanupFailed func(error)) (cleanupLaunched bool) {
-	if pgConn.status != connStatusNeedCleanup {
-		return false
-	}
-
-	go func() {
-		if err := pgConn.cleanup(ctx, resetQuery); err != nil {
-			if onCleanupFailed != nil {
-				onCleanupFailed(err)
-			}
-
-			return
-		}
-
-		if onCleanupSucceeded != nil {
-			onCleanupSucceeded()
-		}
-	}()
-
-	return true
-}
-
-func (pgConn *PgConn) setCleanupNeeded(reason error) bool {
-	if pgConn.status != connStatusBusy {
-		return false
-	}
-
-	// Set a connStatusNeedCleanup status to reset connection later.
-	var netErr net.Error
-	if isNetErr := errors.As(reason, &netErr); isNetErr && netErr.Timeout() {
-		pgConn.status = connStatusNeedCleanup
-
-		// if there was no data send to the server, then there is nothing to read back
-		// so we dont need to reset
-		if SafeToRetry(reason) {
-			pgConn.cleanupWithoutReset = true
-		}
-
-		return true
-	}
-
-	return false
-}
-
 // asyncClose marks the connection as closed and asynchronously sends a cancel query message and closes the underlying
 // connection.
 func (pgConn *PgConn) asyncClose(reason error) {
@@ -783,7 +654,7 @@ func (pgConn *PgConn) asyncClose(reason error) {
 		return
 	}
 
-	// Set a connStatusNeedCleanup status to reset connection later.
+	// Set a connStatusNeedCleanup status to recoverSocket connection later.
 	if pgConn.config.NoClosingConnMode && pgConn.setCleanupNeeded(reason) {
 		return
 	}

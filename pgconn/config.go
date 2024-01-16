@@ -69,6 +69,9 @@ type Config struct {
 	// and returned back to the pool.
 	NoClosingConnMode bool
 
+	//TODO
+	OnRecover OnRecoverHandler
+
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -276,6 +279,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 				return false
 			}
 			return true
+		},
+		OnRecover: func(ctx context.Context, conn *PgConn) error {
+			return conn.CancelRequest(ctx)
 		},
 	}
 

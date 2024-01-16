@@ -212,7 +212,7 @@ func TestCheckIfCleanupNeeded(t *testing.T) {
 			},
 		},
 		{
-			name:                        "need to cleanup without reset",
+			name:                        "need to cleanup without recoverSocket",
 			reason:                      &mockNetError{timeout: true, safeToRetry: true},
 			expected:                    true,
 			expectedStatus:              connStatusNeedCleanup,
