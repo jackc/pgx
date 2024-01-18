@@ -31,7 +31,7 @@ func TestConnSendBatch(t *testing.T) {
 	);`
 		mustExec(t, conn, sql)
 
-		batch := &pgx.Batch{}
+		batch := pgx.BatchN(7)
 		batch.Queue("insert into ledger(description, amount) values($1, $2)", "q1", 1)
 		batch.Queue("insert into ledger(description, amount) values($1, $2)", "q2", 2)
 		batch.Queue("insert into ledger(description, amount) values($1, $2)", "q3", 3)
@@ -40,7 +40,7 @@ func TestConnSendBatch(t *testing.T) {
 		batch.Queue("select * from ledger where false")
 		batch.Queue("select sum(amount) from ledger")
 
-		br := conn.SendBatch(ctx, batch)
+		br := conn.SendBatch(ctx, &batch)
 
 		ct, err := br.Exec()
 		if err != nil {

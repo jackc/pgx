@@ -72,6 +72,13 @@ func (b *Batch) Queue(query string, arguments ...any) *QueuedQuery {
 	return qq
 }
 
+// BatchN returns a new Batch with an initial capacity of n.
+// This is useful to avoid allocations if you know beforehand how many queries
+// at least you want to enqueue.
+func BatchN(n int) Batch {
+	return Batch{queuedQueries: make([]*QueuedQuery, 0, n)}
+}
+
 // Len returns number of queries that have been queued so far.
 func (b *Batch) Len() int {
 	return len(b.queuedQueries)
