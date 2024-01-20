@@ -52,7 +52,19 @@ func parseUUID(src string) (dst [16]byte, err error) {
 
 // encodeUUID converts a uuid byte array to UUID standard string form.
 func encodeUUID(src [16]byte) string {
-	return fmt.Sprintf("%x-%x-%x-%x-%x", src[0:4], src[4:6], src[6:8], src[8:10], src[10:16])
+	var buf [36]byte
+
+	hex.Encode(buf[0:8], src[:4])
+	buf[8] = '-'
+	hex.Encode(buf[9:13], src[4:6])
+	buf[13] = '-'
+	hex.Encode(buf[14:18], src[6:8])
+	buf[18] = '-'
+	hex.Encode(buf[19:23], src[8:10])
+	buf[23] = '-'
+	hex.Encode(buf[24:], src[10:])
+
+	return string(buf[:])
 }
 
 // Scan implements the database/sql Scanner interface.
