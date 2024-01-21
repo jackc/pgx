@@ -15,13 +15,6 @@ type Conn struct {
 	p   *Pool
 }
 
-// some pg cleanups before connection is returned to the pool
-const sessionResetQuery = `
-UNLISTEN *;
-SELECT pg_advisory_unlock_all();
-DISCARD SEQUENCES;
-DISCARD TEMP;`
-
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
 func (c *Conn) Release() {
@@ -34,22 +27,8 @@ func (c *Conn) Release() {
 	c.res = nil
 	pgConn := conn.PgConn()
 
-	cleanupCtx, cancel := context.WithTimeout(context.Background(), c.p.connCleanupTimeout)
-	defer cancel()
-
-	cleanupLaunched := pgConn.LaunchCleanup(
-		cleanupCtx,
-		sessionResetQuery,
-		func() {
-			res.Release()
-		},
-		func(error) {
-			res.Destroy()
-			c.p.triggerHealthCheck()
-		},
-	)
-	if cleanupLaunched {
-		return
+	if pgConn.IsRecovering() {
+		pgConn.WaitForRecover()
 	}
 
 	if conn.IsClosed() || pgConn.IsBusy() || pgConn.TxStatus() != 'I' {

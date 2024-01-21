@@ -20,7 +20,6 @@ var defaultMinConns = int32(0)
 var defaultMaxConnLifetime = time.Hour
 var defaultMaxConnIdleTime = time.Minute * 30
 var defaultHealthCheckPeriod = time.Minute
-var defaultConnCleanupTimeout = time.Millisecond * 100
 
 type connResource struct {
 	conn       *pgx.Conn
@@ -185,8 +184,6 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 	if !config.createdByParseConfig {
 		panic("config must be created by ParseConfig")
 	}
-
-	config.ConnConfig.NoClosingConnMode = config.NoClosingConnMode
 
 	p := &Pool{
 		config:                config,
@@ -374,26 +371,6 @@ func ParseConfig(connString string) (*Config, error) {
 			return nil, fmt.Errorf("invalid pool_max_conn_lifetime_jitter: %w", err)
 		}
 		config.MaxConnLifetimeJitter = d
-	}
-
-	if s, ok := config.ConnConfig.Config.RuntimeParams["conn_cleanup_timeout"]; ok {
-		delete(connConfig.Config.RuntimeParams, "conn_cleanup_timeout")
-		d, err := time.ParseDuration(s)
-		if err != nil {
-			return nil, fmt.Errorf("invalid conn_cleanup_timeout: %w", err)
-		}
-		config.ConnCleanupTimeout = d
-	} else {
-		config.ConnCleanupTimeout = defaultConnCleanupTimeout
-	}
-
-	if s, ok := config.ConnConfig.Config.RuntimeParams["no_closing_conn_mode"]; ok {
-		delete(connConfig.Config.RuntimeParams, "no_closing_conn_mode")
-		isEnabled, err := strconv.ParseBool(s)
-		if err != nil {
-			return nil, fmt.Errorf("invalid conn_cleanup_timeout: %w", err)
-		}
-		config.NoClosingConnMode = isEnabled
 	}
 
 	return config, nil

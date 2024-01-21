@@ -65,12 +65,9 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
-	// NoClosingConnMode enables mode when connections are not closed when timeout happens but cleaned up
-	// and returned back to the pool.
-	NoClosingConnMode bool
-
 	//TODO
-	OnRecover OnRecoverHandler
+	OnRecover      OnRecoverHandler
+	RecoverTimeout time.Duration
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
@@ -297,27 +294,38 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		config.DialFunc = defaultDialer.DialContext
 	}
 
+	if connectRecoverTimeout, present := settings["connect_recover_timeout"]; present {
+		d, err := time.ParseDuration(connectRecoverTimeout)
+		if err != nil {
+			return nil, &parseConfigError{connString: connString, msg: "invalid connect_recover_timeout", err: err}
+		}
+		config.RecoverTimeout = d
+	} else {
+		config.RecoverTimeout = time.Millisecond * 500
+	}
+
 	config.LookupFunc = makeDefaultResolver().LookupHost
 
 	notRuntimeParams := map[string]struct{}{
-		"host":                 {},
-		"port":                 {},
-		"database":             {},
-		"user":                 {},
-		"password":             {},
-		"passfile":             {},
-		"connect_timeout":      {},
-		"sslmode":              {},
-		"sslkey":               {},
-		"sslcert":              {},
-		"sslrootcert":          {},
-		"sslpassword":          {},
-		"sslsni":               {},
-		"krbspn":               {},
-		"krbsrvname":           {},
-		"target_session_attrs": {},
-		"service":              {},
-		"servicefile":          {},
+		"host":                    {},
+		"port":                    {},
+		"database":                {},
+		"user":                    {},
+		"password":                {},
+		"passfile":                {},
+		"connect_timeout":         {},
+		"connect_recover_timeout": {},
+		"sslmode":                 {},
+		"sslkey":                  {},
+		"sslcert":                 {},
+		"sslrootcert":             {},
+		"sslpassword":             {},
+		"sslsni":                  {},
+		"krbspn":                  {},
+		"krbsrvname":              {},
+		"target_session_attrs":    {},
+		"service":                 {},
+		"servicefile":             {},
 	}
 
 	// Adding kerberos configuration
