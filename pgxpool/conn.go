@@ -15,6 +15,51 @@ type Conn struct {
 	p   *Pool
 }
 
+func (c *Conn) destroyResource(res *puddle.Resource[*connResource]) (resourceDestroyed bool) {
+	conn := c.Conn()
+	pgConn := conn.PgConn()
+
+	if conn.IsClosed() || pgConn.IsBusy() || pgConn.TxStatus() != 'I' {
+		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
+		return true
+	}
+
+	// If the pool is consistently being used, we might never get to check the
+	// lifetime of a connection since we only check idle connections in checkConnsHealth
+	// so we also check the lifetime here and force a health check
+	if c.p.isExpired(res) {
+		atomic.AddInt64(&c.p.lifetimeDestroyCount, 1)
+		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
+		return true
+	}
+
+	return false
+}
+
+func (c *Conn) handleRecover(res *puddle.Resource[*connResource]) {
+	conn := c.Conn()
+	pgConn := conn.PgConn()
+
+	pgConn.WaitForRecover()
+
+	if c.destroyResource(res) {
+		return
+	}
+
+	if c.p.afterRelease == nil {
+		res.Release()
+		return
+	}
+
+	c.afterRelease(res)
+}
+
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
 // However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
 func (c *Conn) Release() {
@@ -28,26 +73,11 @@ func (c *Conn) Release() {
 	pgConn := conn.PgConn()
 
 	if pgConn.IsRecovering() {
-		pgConn.WaitForRecover()
-	}
-
-	if conn.IsClosed() || pgConn.IsBusy() || pgConn.TxStatus() != 'I' {
-		res.Destroy()
-		// Signal to the health check to run since we just destroyed a connections
-		// and we might be below minConns now
-		c.p.triggerHealthCheck()
+		go c.handleRecover(res)
 		return
 	}
 
-	// If the pool is consistently being used, we might never get to check the
-	// lifetime of a connection since we only check idle connections in checkConnsHealth
-	// so we also check the lifetime here and force a health check
-	if c.p.isExpired(res) {
-		atomic.AddInt64(&c.p.lifetimeDestroyCount, 1)
-		res.Destroy()
-		// Signal to the health check to run since we just destroyed a connections
-		// and we might be below minConns now
-		c.p.triggerHealthCheck()
+	if c.destroyResource(res) {
 		return
 	}
 
@@ -56,16 +86,19 @@ func (c *Conn) Release() {
 		return
 	}
 
-	go func() {
-		if c.p.afterRelease(conn) {
-			res.Release()
-		} else {
-			res.Destroy()
-			// Signal to the health check to run since we just destroyed a connections
-			// and we might be below minConns now
-			c.p.triggerHealthCheck()
-		}
-	}()
+	go c.afterRelease(res)
+}
+
+func (c *Conn) afterRelease(res *puddle.Resource[*connResource]) {
+	conn := c.Conn()
+	if c.p.afterRelease(conn) {
+		res.Release()
+	} else {
+		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
+	}
 }
 
 // Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack

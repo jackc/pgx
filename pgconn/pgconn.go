@@ -2053,7 +2053,9 @@ func (p *Pipeline) Flush() error {
 	err := p.conn.flushWithPotentialWriteReadDeadlock()
 	if err != nil {
 		err = normalizeTimeoutError(p.ctx, err)
+
 		p.conn.asyncClose()
+
 		p.conn.contextWatcher.Unwatch()
 		p.conn.unlock()
 		p.closed = true
@@ -2158,13 +2160,11 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 			pgErr := ErrorResponseToPgError(msg)
 			return nil, pgErr
 		case *pgproto3.CommandComplete:
-			err := errors.New("BUG: received CommandComplete while handling Describe")
 			p.conn.asyncClose()
-			return nil, err
+			return nil, errors.New("BUG: received CommandComplete while handling Describe")
 		case *pgproto3.ReadyForQuery:
-			err := errors.New("BUG: received ReadyForQuery while handling Describe")
 			p.conn.asyncClose()
-			return nil, err
+			return nil, errors.New("BUG: received CommandComplete while handling Describe")
 		}
 	}
 }
@@ -2177,8 +2177,8 @@ func (p *Pipeline) Close() error {
 	p.closed = true
 
 	if p.pendingSync {
-		p.err = errors.New("pipeline has unsynced requests")
 		p.conn.asyncClose()
+		p.err = errors.New("pipeline has unsynced requests")
 		p.conn.contextWatcher.Unwatch()
 		p.conn.unlock()
 
