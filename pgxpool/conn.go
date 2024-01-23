@@ -15,8 +15,7 @@ type Conn struct {
 	p   *Pool
 }
 
-func (c *Conn) destroyResource(res *puddle.Resource[*connResource]) (resourceDestroyed bool) {
-	conn := c.Conn()
+func (c *Conn) destroyResource(conn *pgx.Conn, res *puddle.Resource[*connResource]) (resourceDestroyed bool) {
 	pgConn := conn.PgConn()
 
 	if conn.IsClosed() || pgConn.IsBusy() || pgConn.TxStatus() != 'I' {
@@ -42,13 +41,12 @@ func (c *Conn) destroyResource(res *puddle.Resource[*connResource]) (resourceDes
 	return false
 }
 
-func (c *Conn) handleRecover(res *puddle.Resource[*connResource]) {
-	conn := c.Conn()
+func (c *Conn) handleRecover(conn *pgx.Conn, res *puddle.Resource[*connResource]) {
 	pgConn := conn.PgConn()
 
 	pgConn.WaitForRecover()
 
-	if c.destroyResource(res) {
+	if c.destroyResource(conn, res) {
 		return
 	}
 
@@ -73,11 +71,11 @@ func (c *Conn) Release() {
 	pgConn := conn.PgConn()
 
 	if pgConn.IsRecovering() {
-		go c.handleRecover(res)
+		go c.handleRecover(conn, res)
 		return
 	}
 
-	if c.destroyResource(res) {
+	if c.destroyResource(conn, res) {
 		return
 	}
 

@@ -1161,3 +1161,88 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 		assert.NoError(t, err)
 	}
 }
+
+func init() {
+	os.Setenv("PGX_TEST_DATABASE", "postgres://postgres:password@localhost:5432/postgres")
+}
+
+func TestPoolRelease(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*200)
+	defer queryCancel()
+
+	// query is longer than context timeout, so context is canceled
+	rows, err := pool.Query(queryCtx, `select pg_sleep(0.5)`)
+	require.NoError(t, err)
+
+	for rows.Next() {
+	}
+
+	require.Error(t, rows.Err())
+
+	// enough time for connection to recover
+	time.Sleep(time.Millisecond * 500)
+
+	stat := pool.Stat()
+
+	assert.Equal(t, int32(1), stat.TotalConns())
+	assert.Equal(t, int32(1), stat.IdleConns())
+
+	// checking that no data was left from previous request
+	rows, err = pool.Query(ctx, `select $1`, "hello world")
+	require.NoError(t, err)
+
+	var str string
+	for rows.Next() {
+		err = rows.Scan(&str)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, "hello world", str)
+}
+
+func TestPoolReleaseSimpleProtocol(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pool, err := pgxpool.New(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer pool.Close()
+
+	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*200)
+	defer queryCancel()
+
+	// query is longer than context timeout, so context is canceled
+	rows, err := pool.Query(queryCtx, `select pg_sleep(0.5)`, pgx.QueryExecModeSimpleProtocol)
+	require.Error(t, err)
+
+	// enough time for connection to recover
+	time.Sleep(time.Millisecond * 500)
+
+	stat := pool.Stat()
+
+	assert.Equal(t, int32(1), stat.TotalConns())
+	assert.Equal(t, int32(1), stat.IdleConns())
+
+	// checking that no data was left from previous request
+	rows, err = pool.Query(ctx, `select 'hello world'`, pgx.QueryExecModeSimpleProtocol)
+	require.NoError(t, err)
+
+	var str string
+	for rows.Next() {
+		err = rows.Scan(&str)
+		require.NoError(t, err)
+	}
+
+	assert.Equal(t, "hello world", str)
+}
