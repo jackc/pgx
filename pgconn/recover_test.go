@@ -9,13 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	os.Setenv("PGX_TEST_DATABASE", "")
-	os.Setenv("PGHOST", "localhost")
-	os.Setenv("PGUSER", "postgres")
-	os.Setenv("PGPASSWORD", "password")
-}
-
 func mustConnect(t *testing.T) *PgConn {
 	t.Helper()
 

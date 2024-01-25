@@ -145,12 +145,6 @@ type Config struct {
 	// HealthCheckPeriod is the duration between checks of the health of idle connections.
 	HealthCheckPeriod time.Duration
 
-	// NoClosingConnMode enables mode when connections are not closed when timeout happens but cleaned up
-	// and returned back to the pool
-	NoClosingConnMode bool
-	// ConnCleanupTimeout is the timeout for cleanup pool connection
-	ConnCleanupTimeout time.Duration
-
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
 
@@ -198,7 +192,6 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 		maxConnLifetimeJitter: config.MaxConnLifetimeJitter,
 		maxConnIdleTime:       config.MaxConnIdleTime,
 		healthCheckPeriod:     config.HealthCheckPeriod,
-		connCleanupTimeout:    config.ConnCleanupTimeout,
 		healthCheckChan:       make(chan struct{}, 1),
 		closeChan:             make(chan struct{}),
 	}

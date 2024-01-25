@@ -2164,7 +2164,7 @@ func (p *Pipeline) getResultsPrepare() (*StatementDescription, error) {
 			return nil, errors.New("BUG: received CommandComplete while handling Describe")
 		case *pgproto3.ReadyForQuery:
 			p.conn.asyncClose()
-			return nil, errors.New("BUG: received CommandComplete while handling Describe")
+			return nil, errors.New("BUG: received ReadyForQuery while handling Describe")
 		}
 	}
 }

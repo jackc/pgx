@@ -1162,10 +1162,6 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 	}
 }
 
-func init() {
-	os.Setenv("PGX_TEST_DATABASE", "postgres://postgres:password@localhost:5432/postgres")
-}
-
 func TestPoolRelease(t *testing.T) {
 	t.Parallel()
 
