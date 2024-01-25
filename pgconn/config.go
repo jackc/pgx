@@ -65,8 +65,12 @@ type Config struct {
 	// that you close on FATAL errors by returning false.
 	OnPgError PgErrorHandler
 
-	//TODO
-	OnRecover      OnRecoverHandler
+	// OnRecover is a callback function called when recover of connection is started. By default OnRecover sends cancel request
+	// to cancel running query. It may be set to nil to completely disable this functionю.
+	OnRecover RecoverHandler
+
+	// RecoverTimeout is a timeout for connection to recover. If connection wasnt able to recover during this time
+	// it will be closed. By default it is 500 ms.
 	RecoverTimeout time.Duration
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.

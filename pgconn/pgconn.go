@@ -71,8 +71,8 @@ type NoticeHandler func(*PgConn, *Notice)
 // notice event.
 type NotificationHandler func(*PgConn, *Notification)
 
-// TODO
-type OnRecoverHandler func(context.Context, *PgConn) error
+// RecoverHandler is a function that may be used when connection is at recover stage.
+type RecoverHandler func(context.Context, *PgConn) error
 
 // PgConn is a low-level PostgreSQL connection handle. It is not safe for concurrent usage.
 type PgConn struct {
