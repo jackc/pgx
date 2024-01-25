@@ -92,7 +92,6 @@ type Pool struct {
 	maxConnLifetimeJitter time.Duration
 	maxConnIdleTime       time.Duration
 	healthCheckPeriod     time.Duration
-	connCleanupTimeout    time.Duration
 
 	healthCheckChan chan struct{}
 
