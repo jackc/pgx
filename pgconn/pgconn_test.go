@@ -938,12 +938,10 @@ func TestConnExecContextCanceled(t *testing.T) {
 	err = multiResult.Close()
 	assert.True(t, pgconn.Timeout(err))
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.True(t, pgConn.IsClosed())
-	select {
-	case <-pgConn.CleanupDone():
-	case <-time.After(5 * time.Second):
-		t.Fatal("Connection cleanup exceeded maximum time")
-	}
+
+	pgConn.WaitForRecover()
+	// connection should be in idle state
+	assert.True(t, !pgConn.IsClosed() && !pgConn.IsBusy() && !pgConn.IsRecovering())
 }
 
 func TestConnExecContextPrecanceled(t *testing.T) {
@@ -1101,12 +1099,9 @@ func TestConnExecParamsCanceled(t *testing.T) {
 	assert.True(t, pgconn.Timeout(err))
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 
-	assert.True(t, pgConn.IsClosed())
-	select {
-	case <-pgConn.CleanupDone():
-	case <-time.After(5 * time.Second):
-		t.Fatal("Connection cleanup exceeded maximum time")
-	}
+	pgConn.WaitForRecover()
+	// connection should be in idle state
+	assert.True(t, !pgConn.IsClosed() && !pgConn.IsBusy() && !pgConn.IsRecovering())
 }
 
 func TestConnExecParamsPrecanceled(t *testing.T) {
@@ -1301,12 +1296,10 @@ func TestConnExecPreparedCanceled(t *testing.T) {
 	commandTag, err := result.Close()
 	assert.Equal(t, pgconn.CommandTag{}, commandTag)
 	assert.True(t, pgconn.Timeout(err))
-	assert.True(t, pgConn.IsClosed())
-	select {
-	case <-pgConn.CleanupDone():
-	case <-time.After(5 * time.Second):
-		t.Fatal("Connection cleanup exceeded maximum time")
-	}
+
+	pgConn.WaitForRecover()
+	// connection should be in idle state
+	assert.True(t, !pgConn.IsClosed() && !pgConn.IsBusy() && !pgConn.IsRecovering())
 }
 
 func TestConnExecPreparedPrecanceled(t *testing.T) {
@@ -2385,12 +2378,9 @@ func testConnContextCanceledCancelsRunningQueryOnServer(t *testing.T, connString
 	}
 	err = multiResult.Close()
 	assert.True(t, pgconn.Timeout(err))
-	assert.True(t, pgConn.IsClosed())
-	select {
-	case <-pgConn.CleanupDone():
-	case <-time.After(5 * time.Second):
-		t.Fatal("Connection cleanup exceeded maximum time")
-	}
+	pgConn.WaitForRecover()
+	// connection should be in idle state
+	assert.True(t, !pgConn.IsClosed() && !pgConn.IsBusy() && !pgConn.IsRecovering())
 
 	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -2404,7 +2394,7 @@ func testConnContextCanceledCancelsRunningQueryOnServer(t *testing.T, connString
 
 	for {
 		result := otherConn.ExecParams(ctx,
-			`select 1 from pg_stat_activity where query like $1`,
+			`select state from pg_stat_activity where query like $1`,
 			[][]byte{[]byte("%" + queryID + "%")},
 			nil,
 			nil,
@@ -2412,7 +2402,10 @@ func testConnContextCanceledCancelsRunningQueryOnServer(t *testing.T, connString
 		).Read()
 		require.NoError(t, result.Err)
 
-		if len(result.Rows) == 0 {
+		// we have to check state of last executed query on our idle connection
+		// it should be idle as we canceled query execution with cancel request
+		if result.Rows != nil && result.Rows[0] != nil &&
+			string(result.Rows[0][0]) == "idle" {
 			break
 		}
 	}

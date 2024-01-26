@@ -55,7 +55,7 @@ func (c *Conn) handleRecover(conn *pgx.Conn, res *puddle.Resource[*connResource]
 		return
 	}
 
-	c.afterRelease(res)
+	c.afterRelease(conn, res)
 }
 
 // Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
@@ -84,11 +84,10 @@ func (c *Conn) Release() {
 		return
 	}
 
-	go c.afterRelease(res)
+	go c.afterRelease(conn, res)
 }
 
-func (c *Conn) afterRelease(res *puddle.Resource[*connResource]) {
-	conn := c.Conn()
+func (c *Conn) afterRelease(conn *pgx.Conn, res *puddle.Resource[*connResource]) {
 	if c.p.afterRelease(conn) {
 		res.Release()
 	} else {
