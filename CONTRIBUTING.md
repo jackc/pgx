@@ -79,31 +79,17 @@ echo "listen_addresses = '127.0.0.1'" >> .testdb/$POSTGRESQL_DATA_DIR/postgresql
 echo "port = $PGPORT" >> .testdb/$POSTGRESQL_DATA_DIR/postgresql.conf
 cat testsetup/postgresql_ssl.conf >> .testdb/$POSTGRESQL_DATA_DIR/postgresql.conf
 cp testsetup/pg_hba.conf .testdb/$POSTGRESQL_DATA_DIR/pg_hba.conf
-cp testsetup/ca.cnf .testdb
-cp testsetup/localhost.cnf .testdb
-cp testsetup/pgx_sslcert.cnf .testdb
 
 cd .testdb
 
-# Generate a CA public / private key pair.
-openssl genrsa -out ca.key 4096
-openssl req -x509 -config ca.cnf -new -nodes -key ca.key -sha256 -days 365 -subj '/O=pgx-test-root' -out ca.pem
-
-# Generate the certificate for localhost (the server).
-openssl genrsa -out localhost.key 2048
-openssl req -new -config localhost.cnf -key localhost.key -out localhost.csr
-openssl x509 -req -in localhost.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out localhost.crt -days 364 -sha256 -extfile localhost.cnf -extensions v3_req
+# Generate CA, server, and encrypted client certificates.
+go run ../testsetup/generate_certs.go
 
 # Copy certificates to server directory and set permissions.
 cp ca.pem $POSTGRESQL_DATA_DIR/root.crt
 cp localhost.key $POSTGRESQL_DATA_DIR/server.key
 chmod 600 $POSTGRESQL_DATA_DIR/server.key
 cp localhost.crt $POSTGRESQL_DATA_DIR/server.crt
-
-# Generate the certificate for client authentication.
-openssl genrsa -des3 -out pgx_sslcert.key -passout pass:certpw 2048
-openssl req -new -config pgx_sslcert.cnf -key pgx_sslcert.key -passin pass:certpw -out pgx_sslcert.csr
-openssl x509 -req -in pgx_sslcert.csr -CA ca.pem -CAkey ca.key -CAcreateserial -out pgx_sslcert.crt -days 363 -sha256 -extfile pgx_sslcert.cnf -extensions v3_req
 
 cd ..
 ```
