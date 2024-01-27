@@ -1,9 +1,0 @@
-[ req ]
-default_bits       = 2048
-distinguished_name = dn
-req_extensions     = v3_req
-prompt             = no
-[ dn ]
-commonName         = pgx_sslcert
-[ v3_req ]
-keyUsage           = digitalSignature
