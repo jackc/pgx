@@ -106,11 +106,10 @@ func (pgConn *PgConn) recoverConnection(ctx context.Context) error {
 }
 
 func (pgConn *PgConn) execLocked(ctx context.Context, sql string) *MultiResultReader {
-	pgConn.multiResultReader = MultiResultReader{
+	multiResult := &MultiResultReader{
 		pgConn: pgConn,
 		ctx:    ctx,
 	}
-	multiResult := &pgConn.multiResultReader
 	if ctx != context.Background() {
 		select {
 		case <-ctx.Done():
