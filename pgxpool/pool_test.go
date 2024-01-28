@@ -1172,11 +1172,11 @@ func TestPoolRelease(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*200)
+	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer queryCancel()
 
 	// query is longer than context timeout, so context is canceled
-	rows, err := pool.Query(queryCtx, `select pg_sleep(0.5)`)
+	rows, err := pool.Query(queryCtx, `select pg_sleep(1)`)
 	require.NoError(t, err)
 
 	for rows.Next() {
@@ -1215,11 +1215,11 @@ func TestPoolReleaseSimpleProtocol(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*200)
+	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*500)
 	defer queryCancel()
 
 	// query is longer than context timeout, so context is canceled
-	rows, err := pool.Query(queryCtx, `select pg_sleep(0.5)`, pgx.QueryExecModeSimpleProtocol)
+	rows, err := pool.Query(queryCtx, `select pg_sleep(1)`, pgx.QueryExecModeSimpleProtocol)
 	require.Error(t, err)
 
 	// enough time for connection to recover
