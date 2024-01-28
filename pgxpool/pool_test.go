@@ -1163,8 +1163,6 @@ func TestPoolSendBatchBatchCloseTwice(t *testing.T) {
 }
 
 func TestPoolRelease(t *testing.T) {
-	t.Parallel()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
@@ -1206,8 +1204,6 @@ func TestPoolRelease(t *testing.T) {
 }
 
 func TestPoolReleaseSimpleProtocol(t *testing.T) {
-	t.Parallel()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 
