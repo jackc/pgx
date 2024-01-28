@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -764,6 +765,7 @@ optionLoop:
 			sd, err = c.getStatementDescription(ctx, mode, sql)
 			if err != nil {
 				rows.fatal(err)
+				log.Println("fatallllll ", err.Error())
 				return rows, err
 			}
 		}
@@ -777,6 +779,7 @@ optionLoop:
 
 		err = c.eqb.Build(c.typeMap, sd, args)
 		if err != nil {
+			log.Println("build failed %w", err.Error())
 			rows.fatal(err)
 			return rows, rows.err
 		}
@@ -795,6 +798,7 @@ optionLoop:
 		if !explicitPreparedStatement && mode == QueryExecModeCacheDescribe {
 			rows.resultReader = c.pgConn.ExecParams(ctx, sql, c.eqb.ParamValues, sd.ParamOIDs, c.eqb.ParamFormats, resultFormats)
 		} else {
+			log.Println("prepared ")
 			rows.resultReader = c.pgConn.ExecPrepared(ctx, sd.Name, c.eqb.ParamValues, c.eqb.ParamFormats, resultFormats)
 		}
 	} else if mode == QueryExecModeExec {
