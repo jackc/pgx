@@ -1172,11 +1172,11 @@ func TestPoolRelease(t *testing.T) {
 	require.NoError(t, err)
 	defer pool.Close()
 
-	queryCtx, queryCancel := context.WithTimeout(ctx, time.Millisecond*500)
+	queryCtx, queryCancel := context.WithTimeout(ctx, time.Second)
 	defer queryCancel()
 
 	// query is longer than context timeout, so context is canceled
-	rows, err := pool.Query(queryCtx, `select pg_sleep(1)`)
+	rows, err := pool.Query(queryCtx, `select pg_sleep(2)`)
 	require.NoError(t, err)
 
 	for rows.Next() {
