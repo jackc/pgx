@@ -39,7 +39,7 @@ func TestCleanup(t *testing.T) {
 				require.Error(t, err)
 
 				conn.WaitForRecover()
-				require.True(t, conn.status == connStatusIdle)
+				require.True(t, conn.status.Load() == connStatusIdle)
 
 				// checking that socket is clean, and we are reading data from our request, not from the previous one
 				rr = conn.Exec(ctx, `select 'goodbye world'`)
@@ -67,7 +67,7 @@ func TestCleanup(t *testing.T) {
 				require.Error(t, err)
 
 				conn.WaitForRecover()
-				require.True(t, conn.status == connStatusIdle)
+				require.True(t, conn.status.Load() == connStatusIdle)
 				require.True(t, conn.txStatus == 'I')
 
 				// checking that socket is clean, and we are reading data from our request, not from the previous one
@@ -96,7 +96,7 @@ func TestCleanup(t *testing.T) {
 
 				conn.WaitForRecover()
 				// we expect connection to be in closed state as we didnt have enough time for recover
-				require.True(t, conn.status == connStatusClosed)
+				require.True(t, conn.status.Load() == connStatusClosed)
 			},
 		},
 		{
@@ -113,7 +113,7 @@ func TestCleanup(t *testing.T) {
 				require.Error(t, err)
 
 				conn.WaitForRecover()
-				require.True(t, conn.status == connStatusIdle)
+				require.True(t, conn.status.Load() == connStatusIdle)
 
 				// checking that socket is clean, and we are reading data from our request, not from the previous one
 				mr := conn.Exec(ctx, `select 'goodbye world'`)
@@ -141,7 +141,7 @@ func TestCleanup(t *testing.T) {
 				require.Error(t, err)
 
 				conn.WaitForRecover()
-				require.True(t, conn.status == connStatusIdle)
+				require.True(t, conn.status.Load() == connStatusIdle)
 				require.True(t, conn.txStatus == 'I')
 
 				// checking that socket is clean, and we are reading data from our request, not from the previous one
@@ -171,7 +171,7 @@ func TestCleanup(t *testing.T) {
 
 				conn.WaitForRecover()
 				// we expect connection to be in closed state as we didnt have enough time for recover
-				require.True(t, conn.status == connStatusClosed)
+				require.True(t, conn.status.Load() == connStatusClosed)
 			},
 		},
 	}

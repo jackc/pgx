@@ -37,10 +37,10 @@ func (pgConn *PgConn) recoverContext() (recoverCtx context.Context, recoverCance
 }
 
 func (pgConn *PgConn) asyncRecover() {
-	if pgConn.status != connStatusBusy {
+	if pgConn.status.Load() != connStatusBusy {
 		return
 	}
-	pgConn.status = connStatusRecovering
+	pgConn.status.Store(connStatusRecovering)
 	pgConn.recoverWg.Add(1)
 
 	go func() {
