@@ -1193,7 +1193,7 @@ func TestPoolRelease(t *testing.T) {
 	assert.Equal(t, int32(1), stat.IdleConns())
 
 	// checking that no data was left from previous request
-	rows, err = pool.Query(ctx, `select $1`, "hello world")
+	rows, err = pool.Query(ctx, `select $1::text`, "hello world")
 	require.NoError(t, err)
 
 	var str string
