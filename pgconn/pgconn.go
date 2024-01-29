@@ -741,6 +741,12 @@ func (pgConn *PgConn) unlock() {
 // ParameterStatus returns the value of a parameter reported by the server (e.g.
 // server_version). Returns an empty string for unknown parameters.
 func (pgConn *PgConn) ParameterStatus(key string) string {
+	// if we are in recovering state parameter statuses are undefined
+	// so we have to wait until we recover
+	if pgConn.IsRecovering() {
+		pgConn.WaitForRecover()
+	}
+
 	return pgConn.parameterStatuses[key]
 }
 

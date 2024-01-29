@@ -18,7 +18,7 @@ func mustConnect(t *testing.T) *PgConn {
 	return conn
 }
 
-func TestCleanup(t *testing.T) {
+func TestRecover(t *testing.T) {
 	t.Parallel()
 
 	var tests = []struct {
