@@ -301,7 +301,7 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 	if connectRecoverTimeout, present := settings["connect_recover_timeout"]; present {
 		d, err := time.ParseDuration(connectRecoverTimeout)
 		if err != nil {
-			return nil, &parseConfigError{connString: connString, msg: "invalid connect_recover_timeout", err: err}
+			return nil, &ParseConfigError{ConnString: connString, msg: "invalid connect_recover_timeout", err: err}
 		}
 		config.RecoverTimeout = d
 	} else {
