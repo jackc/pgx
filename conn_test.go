@@ -1345,6 +1345,8 @@ func TestConnDeallocateInvalidatedCachedStatementsWhenCanceled(t *testing.T) {
 	defer cancel()
 
 	pgxtest.RunWithQueryExecModes(ctx, t, defaultConnTestRunner, nil, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		pgxtest.SkipCockroachDB(t, conn, "CockroachDB returns decimal instead of integer for integer division")
+
 		var n int32
 		err := conn.QueryRow(ctx, "select 1 / $1::int", 1).Scan(&n)
 		require.NoError(t, err)
