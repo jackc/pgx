@@ -55,7 +55,11 @@ func encodeCopyValue(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, er
 func tryScanStringCopyValueThenEncode(m *pgtype.Map, buf []byte, oid uint32, arg any) ([]byte, error) {
 	s, ok := arg.(string)
 	if !ok {
-		return nil, errors.New("not a string")
+		textBuf, err := m.Encode(oid, TextFormatCode, arg, nil)
+		if err != nil {
+			return nil, errors.New("not a string and cannot be encoded as text")
+		}
+		s = string(textBuf)
 	}
 
 	var v any
