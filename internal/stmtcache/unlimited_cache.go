@@ -54,10 +54,16 @@ func (c *UnlimitedCache) InvalidateAll() {
 	c.m = make(map[string]*pgconn.StatementDescription)
 }
 
-func (c *UnlimitedCache) HandleInvalidated() []*pgconn.StatementDescription {
-	invalidStmts := c.invalidStmts
+// GetInvalidated returns a slice of all statement descriptions invalidated since the last call to RemoveInvalidated.
+func (c *UnlimitedCache) GetInvalidated() []*pgconn.StatementDescription {
+	return c.invalidStmts
+}
+
+// RemoveInvalidated removes all invalidated statement descriptions. No other calls to Cache must be made between a
+// call to GetInvalidated and RemoveInvalidated or RemoveInvalidated may remove statement descriptions that were
+// never seen by the call to GetInvalidated.
+func (c *UnlimitedCache) RemoveInvalidated() {
 	c.invalidStmts = nil
-	return invalidStmts
 }
 
 // Len returns the number of cached prepared statement descriptions.

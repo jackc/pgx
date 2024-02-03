@@ -1359,12 +1359,12 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 	}
 
 	if c.descriptionCache != nil {
-		c.descriptionCache.HandleInvalidated()
+		c.descriptionCache.RemoveInvalidated()
 	}
 
 	var invalidatedStatements []*pgconn.StatementDescription
 	if c.statementCache != nil {
-		invalidatedStatements = c.statementCache.HandleInvalidated()
+		invalidatedStatements = c.statementCache.GetInvalidated()
 	}
 
 	if len(invalidatedStatements) == 0 {
@@ -1376,7 +1376,6 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 
 	for _, sd := range invalidatedStatements {
 		pipeline.SendDeallocate(sd.Name)
-		delete(c.preparedStatements, sd.Name)
 	}
 
 	err := pipeline.Sync()
@@ -1387,6 +1386,11 @@ func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error 
 	err = pipeline.Close()
 	if err != nil {
 		return fmt.Errorf("failed to deallocate cached statement(s): %w", err)
+	}
+
+	c.statementCache.RemoveInvalidated()
+	for _, sd := range invalidatedStatements {
+		delete(c.preparedStatements, sd.Name)
 	}
 
 	return nil
