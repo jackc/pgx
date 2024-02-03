@@ -1,3 +1,13 @@
+# 5.5.3 (February 3, 2024)
+
+* Fix: prepared statement already exists
+* Improve CopyFrom auto-conversion of text-ish values
+* Add ltree type support (Florent Viel)
+* Make some properties of Batch and QueuedQuery public (Pavlo Golub)
+* Add AppendRows function (Edoardo Spadolini)
+* Optimize convert UUID [16]byte to string (Kirill Malikov)
+* Fix: LargeObject Read and Write of more than ~1GB at a time (Mitar)
+
 # 5.5.2 (January 13, 2024)
 
 * Allow NamedArgs to start with underscore
