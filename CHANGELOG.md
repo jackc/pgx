@@ -1,3 +1,24 @@
+# 5.5.3 (February 3, 2024)
+
+* Fix: prepared statement already exists
+* Improve CopyFrom auto-conversion of text-ish values
+* Add ltree type support (Florent Viel)
+* Make some properties of Batch and QueuedQuery public (Pavlo Golub)
+* Add AppendRows function (Edoardo Spadolini)
+* Optimize convert UUID [16]byte to string (Kirill Malikov)
+* Fix: LargeObject Read and Write of more than ~1GB at a time (Mitar)
+
+# 5.5.2 (January 13, 2024)
+
+* Allow NamedArgs to start with underscore
+* pgproto3: Maximum message body length support (jeremy.spriet)
+* Upgrade golang.org/x/crypto to v0.17.0
+* Add snake_case support to RowToStructByName (Tikhon Fedulov)
+* Fix: update description cache after exec prepare (James Hartig)
+* Fix: pipeline checks if it is closed (James Hartig and Ryan Fowler)
+* Fix: normalize timeout / context errors during TLS startup (Samuel Stauffer)
+* Add OnPgError for easier centralized error handling (James Hartig)
+
 # 5.5.1 (December 9, 2023)
 
 * Add CopyFromFunc helper function. (robford)

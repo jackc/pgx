@@ -81,12 +81,16 @@ func (c *LRUCache) InvalidateAll() {
 	c.l = list.New()
 }
 
-// HandleInvalidated returns a slice of all statement descriptions invalidated since the last call to HandleInvalidated.
-// Typically, the caller will then deallocate them.
-func (c *LRUCache) HandleInvalidated() []*pgconn.StatementDescription {
-	invalidStmts := c.invalidStmts
+// GetInvalidated returns a slice of all statement descriptions invalidated since the last call to RemoveInvalidated.
+func (c *LRUCache) GetInvalidated() []*pgconn.StatementDescription {
+	return c.invalidStmts
+}
+
+// RemoveInvalidated removes all invalidated statement descriptions. No other calls to Cache must be made between a
+// call to GetInvalidated and RemoveInvalidated or RemoveInvalidated may remove statement descriptions that were
+// never seen by the call to GetInvalidated.
+func (c *LRUCache) RemoveInvalidated() {
 	c.invalidStmts = nil
-	return invalidStmts
 }
 
 // Len returns the number of cached prepared statement descriptions.

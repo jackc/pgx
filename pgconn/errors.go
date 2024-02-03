@@ -57,22 +57,23 @@ func (pe *PgError) SQLState() string {
 	return pe.Code
 }
 
-type connectError struct {
-	config *Config
+// ConnectError is the error returned when a connection attempt fails.
+type ConnectError struct {
+	Config *Config // The configuration that was used in the connection attempt.
 	msg    string
 	err    error
 }
 
-func (e *connectError) Error() string {
+func (e *ConnectError) Error() string {
 	sb := &strings.Builder{}
-	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.config.Host, e.config.User, e.config.Database, e.msg)
+	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.Config.Host, e.Config.User, e.Config.Database, e.msg)
 	if e.err != nil {
 		fmt.Fprintf(sb, " (%s)", e.err.Error())
 	}
 	return sb.String()
 }
 
-func (e *connectError) Unwrap() error {
+func (e *ConnectError) Unwrap() error {
 	return e.err
 }
 
@@ -88,21 +89,25 @@ func (e *connLockError) Error() string {
 	return e.status
 }
 
-type parseConfigError struct {
-	connString string
+// ParseConfigError is the error returned when a connection string cannot be parsed.
+type ParseConfigError struct {
+	ConnString string // The connection string that could not be parsed.
 	msg        string
 	err        error
 }
 
-func (e *parseConfigError) Error() string {
-	connString := redactPW(e.connString)
+func (e *ParseConfigError) Error() string {
+	// Now that ParseConfigError is public and ConnString is available to the developer, perhaps it would be better only
+	// return a static string. That would ensure that the error message cannot leak a password. The ConnString field would
+	// allow access to the original string if desired and Unwrap would allow access to the underlying error.
+	connString := redactPW(e.ConnString)
 	if e.err == nil {
 		return fmt.Sprintf("cannot parse `%s`: %s", connString, e.msg)
 	}
 	return fmt.Sprintf("cannot parse `%s`: %s (%s)", connString, e.msg, e.err.Error())
 }
 
-func (e *parseConfigError) Unwrap() error {
+func (e *ParseConfigError) Unwrap() error {
 	return e.err
 }
 

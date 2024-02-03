@@ -1,6 +1,0 @@
-[ req ]
-distinguished_name = dn
-[ dn ]
-commonName         = ca
-[ ext ]
-basicConstraints   =CA:TRUE,pathlen:0

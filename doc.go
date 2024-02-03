@@ -187,7 +187,7 @@ implemented on top of pgconn. The Conn.PgConn() method can be used to access thi
 
 PgBouncer
 
-By default pgx automatically uses prepared statements. Prepared statements are incompaptible with PgBouncer. This can be
+By default pgx automatically uses prepared statements. Prepared statements are incompatible with PgBouncer. This can be
 disabled by setting a different QueryExecMode in ConnConfig.DefaultQueryExecMode.
 */
 package pgx

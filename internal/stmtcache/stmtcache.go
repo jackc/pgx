@@ -29,8 +29,13 @@ type Cache interface {
 	// InvalidateAll invalidates all statement descriptions.
 	InvalidateAll()
 
-	// HandleInvalidated returns a slice of all statement descriptions invalidated since the last call to HandleInvalidated.
-	HandleInvalidated() []*pgconn.StatementDescription
+	// GetInvalidated returns a slice of all statement descriptions invalidated since the last call to RemoveInvalidated.
+	GetInvalidated() []*pgconn.StatementDescription
+
+	// RemoveInvalidated removes all invalidated statement descriptions. No other calls to Cache must be made between a
+	// call to GetInvalidated and RemoveInvalidated or RemoveInvalidated may remove statement descriptions that were
+	// never seen by the call to GetInvalidated.
+	RemoveInvalidated()
 
 	// Len returns the number of cached prepared statement descriptions.
 	Len() int

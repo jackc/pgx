@@ -70,6 +70,15 @@ func (e *writeError) Unwrap() error {
 	return e.err
 }
 
+type ExceededMaxBodyLenErr struct {
+	MaxExpectedBodyLen int
+	ActualBodyLen      int
+}
+
+func (e *ExceededMaxBodyLenErr) Error() string {
+	return fmt.Sprintf("invalid body length: expected at most %d, but got %d", e.MaxExpectedBodyLen, e.ActualBodyLen)
+}
+
 // getValueFromJSON gets the value from a protocol message representation in JSON.
 func getValueFromJSON(v map[string]string) ([]byte, error) {
 	if v == nil {
