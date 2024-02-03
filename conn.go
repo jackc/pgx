@@ -1203,7 +1203,15 @@ func (c *Conn) sanitizeForSimpleQuery(sql string, args ...any) (string, error) {
 	return sanitize.SanitizeSQL(sql, valueArgs...)
 }
 
-// LoadType inspects the database for typeName and produces a pgtype.Type suitable for registration.
+// LoadType inspects the database for typeName and produces a pgtype.Type suitable for registration. typeName must be
+// the name of a type where the underlying type(s) is already understood by pgx. It is for derived types. In particular,
+// typeName must be one of the following:
+//   - An array type name of a type that is already registered. e.g. "_foo" when "foo" is registered.
+//   - A composite type name where all field types are already registered.
+//   - A domain type name where the base type is already registered.
+//   - An enum type name.
+//   - A range type name where the element type is already registered.
+//   - A multirange type name where the element type is already registered.
 func (c *Conn) LoadType(ctx context.Context, typeName string) (*pgtype.Type, error) {
 	var oid uint32
 
