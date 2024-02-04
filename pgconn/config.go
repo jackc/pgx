@@ -282,7 +282,12 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 			return true
 		},
 		OnRecover: func(ctx context.Context, conn *PgConn) error {
-			return conn.CancelRequest(ctx)
+			if err := conn.CancelRequest(ctx); err != nil {
+				return err
+			}
+
+			time.Sleep(time.Millisecond * 100)
+			return nil
 		},
 	}
 
