@@ -18,8 +18,8 @@ import (
 
 	"github.com/jackc/pgx/v5/internal/iobufpool"
 	"github.com/jackc/pgx/v5/internal/pgio"
+	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgconn/internal/bgreader"
-	"github.com/jackc/pgx/v5/pgconn/internal/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
@@ -281,28 +281,26 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
-	netConn, err := config.DialFunc(ctx, network, address)
+	pgConn.conn, err = config.DialFunc(ctx, network, address)
 	if err != nil {
 		return nil, &ConnectError{Config: config, msg: "dial error", err: normalizeTimeoutError(ctx, err)}
 	}
 
-	pgConn.conn = netConn
-	pgConn.contextWatcher = newContextWatcher(netConn)
-	pgConn.contextWatcher.Watch(ctx)
-
 	if fallbackConfig.TLSConfig != nil {
-		nbTLSConn, err := startTLS(netConn, fallbackConfig.TLSConfig)
+		pgConn.contextWatcher = ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: pgConn.conn})
+		pgConn.contextWatcher.Watch(ctx)
+		tlsConn, err := startTLS(pgConn.conn, fallbackConfig.TLSConfig)
 		pgConn.contextWatcher.Unwatch() // Always unwatch `netConn` after TLS.
 		if err != nil {
-			netConn.Close()
+			pgConn.conn.Close()
 			return nil, &ConnectError{Config: config, msg: "tls error", err: normalizeTimeoutError(ctx, err)}
 		}
 
-		pgConn.conn = nbTLSConn
-		pgConn.contextWatcher = newContextWatcher(nbTLSConn)
-		pgConn.contextWatcher.Watch(ctx)
+		pgConn.conn = tlsConn
 	}
 
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(config.BuildContextWatcherHandler(pgConn))
+	pgConn.contextWatcher.Watch(ctx)
 	defer pgConn.contextWatcher.Unwatch()
 
 	pgConn.parameterStatuses = make(map[string]string)
@@ -410,13 +408,6 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 			return nil, &ConnectError{Config: config, msg: "received unexpected message", err: err}
 		}
 	}
-}
-
-func newContextWatcher(conn net.Conn) *ctxwatch.ContextWatcher {
-	return ctxwatch.NewContextWatcher(
-		func() { conn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
-		func() { conn.SetDeadline(time.Time{}) },
-	)
 }
 
 func startTLS(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
@@ -987,10 +978,7 @@ func (pgConn *PgConn) CancelRequest(ctx context.Context) error {
 	defer cancelConn.Close()
 
 	if ctx != context.Background() {
-		contextWatcher := ctxwatch.NewContextWatcher(
-			func() { cancelConn.SetDeadline(time.Date(1, 1, 1, 1, 1, 1, 1, time.UTC)) },
-			func() { cancelConn.SetDeadline(time.Time{}) },
-		)
+		contextWatcher := ctxwatch.NewContextWatcher(&DeadlineContextWatcherHandler{Conn: cancelConn})
 		contextWatcher.Watch(ctx)
 		defer contextWatcher.Unwatch()
 	}
@@ -1902,7 +1890,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		cleanupDone: make(chan struct{}),
 	}
 
-	pgConn.contextWatcher = newContextWatcher(pgConn.conn)
+	pgConn.contextWatcher = ctxwatch.NewContextWatcher(hc.Config.BuildContextWatcherHandler(pgConn))
 	pgConn.bgReader = bgreader.New(pgConn.conn)
 	pgConn.slowWriteTimer = time.AfterFunc(time.Duration(math.MaxInt64),
 		func() {
@@ -2206,4 +2194,20 @@ func (p *Pipeline) Close() error {
 	p.conn.unlock()
 
 	return p.err
+}
+
+// DeadlineContextWatcherHandler handles canceled contexts by setting a deadline on a net.Conn.
+type DeadlineContextWatcherHandler struct {
+	Conn net.Conn
+
+	// DeadlineDelay is the delay to set on the deadline set on net.Conn when the context is canceled.
+	DeadlineDelay time.Duration
+}
+
+func (h *DeadlineContextWatcherHandler) HandleCancel(ctx context.Context) {
+	h.Conn.SetDeadline(time.Now().Add(h.DeadlineDelay))
+}
+
+func (h *DeadlineContextWatcherHandler) HandleUnwatchAfterCancel() {
+	h.Conn.SetDeadline(time.Time{})
 }
