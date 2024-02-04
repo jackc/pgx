@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgpassfile"
 	"github.com/jackc/pgservicefile"
+	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 )
 
@@ -39,7 +40,12 @@ type Config struct {
 	DialFunc       DialFunc   // e.g. net.Dialer.DialContext
 	LookupFunc     LookupFunc // e.g. net.Resolver.LookupHost
 	BuildFrontend  BuildFrontendFunc
-	RuntimeParams  map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
+
+	// BuildContextWatcherHandler is called to create a ContextWatcherHandler for a connection. The handler is called
+	// when a context passed to a PgConn method is canceled.
+	BuildContextWatcherHandler func(*PgConn) ctxwatch.Handler
+
+	RuntimeParams map[string]string // Run-time parameters to set on connection as session default values (e.g. search_path or application_name)
 
 	KerberosSrvName string
 	KerberosSpn     string
@@ -265,6 +271,9 @@ func ParseConfigWithOptions(connString string, options ParseConfigOptions) (*Con
 		RuntimeParams:        make(map[string]string),
 		BuildFrontend: func(r io.Reader, w io.Writer) *pgproto3.Frontend {
 			return pgproto3.NewFrontend(r, w)
+		},
+		BuildContextWatcherHandler: func(pgConn *PgConn) ctxwatch.Handler {
+			return &DeadlineContextWatcherHandler{Conn: pgConn.conn}
 		},
 		OnPgError: func(_ *PgConn, pgErr *PgError) bool {
 			// we want to automatically close any fatal errors
