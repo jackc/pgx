@@ -2211,3 +2211,55 @@ func (h *DeadlineContextWatcherHandler) HandleCancel(ctx context.Context) {
 func (h *DeadlineContextWatcherHandler) HandleUnwatchAfterCancel() {
 	h.Conn.SetDeadline(time.Time{})
 }
+
+// CancelRequestContextWatcherHandler handles canceled contexts by sending a cancel request to the server. It also sets
+// a deadline on a net.Conn as a fallback.
+type CancelRequestContextWatcherHandler struct {
+	Conn *PgConn
+
+	// CancelRequestDelay is the delay before sending the cancel request to the server.
+	CancelRequestDelay time.Duration
+
+	// DeadlineDelay is the delay to set on the deadline set on net.Conn when the context is canceled.
+	DeadlineDelay time.Duration
+
+	cancelFinishedChan             chan struct{}
+	handleUnwatchAfterCancelCalled func()
+}
+
+func (h *CancelRequestContextWatcherHandler) HandleCancel(context.Context) {
+	h.cancelFinishedChan = make(chan struct{})
+	var handleUnwatchedAfterCancelCalledCtx context.Context
+	handleUnwatchedAfterCancelCalledCtx, h.handleUnwatchAfterCancelCalled = context.WithCancel(context.Background())
+
+	deadline := time.Now().Add(h.DeadlineDelay)
+	h.Conn.conn.SetDeadline(deadline)
+
+	go func() {
+		defer close(h.cancelFinishedChan)
+
+		select {
+		case <-handleUnwatchedAfterCancelCalledCtx.Done():
+			return
+		case <-time.After(h.CancelRequestDelay):
+		}
+
+		cancelRequestCtx, cancel := context.WithDeadline(handleUnwatchedAfterCancelCalledCtx, deadline)
+		defer cancel()
+		h.Conn.CancelRequest(cancelRequestCtx)
+
+		// CancelRequest is inherently racy. Even though the cancel request has been received by the server at this point,
+		// it hasn't necessarily been delivered to the other connection. If we immediately return and the connection is
+		// immediately used then it is possible the CancelRequest will actually cancel our next query. The
+		// TestCancelRequestContextWatcherHandler Stress test can produce this error without the sleep below. The sleep time
+		// is arbitrary, but should be sufficient to prevent this error case.
+		time.Sleep(100 * time.Millisecond)
+	}()
+}
+
+func (h *CancelRequestContextWatcherHandler) HandleUnwatchAfterCancel() {
+	h.handleUnwatchAfterCancelCalled()
+	<-h.cancelFinishedChan
+
+	h.Conn.conn.SetDeadline(time.Time{})
+}
