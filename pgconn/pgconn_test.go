@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/internal/pgmock"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -3479,4 +3480,50 @@ func mustEncode(buf []byte, err error) []byte {
 		panic(err)
 	}
 	return buf
+}
+
+func TestDeadlineContextWatcherHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("DeadlineExceeded with zero DeadlineDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.DeadlineContextWatcherHandler{Conn: conn.Conn()}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(1)").ReadAll()
+		require.Error(t, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.True(t, pgConn.IsClosed())
+	})
+
+	t.Run("DeadlineExceeded with DeadlineDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.DeadlineContextWatcherHandler{Conn: conn.Conn(), DeadlineDelay: 500 * time.Millisecond}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(0.250)").ReadAll()
+		require.NoError(t, err)
+
+		ensureConnValid(t, pgConn)
+	})
 }
