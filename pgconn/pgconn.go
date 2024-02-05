@@ -2282,6 +2282,7 @@ type DeadlineContextWatcherHandlerWithError struct {
 
 func (h *DeadlineContextWatcherHandlerWithError) HandleCancel(ctx context.Context) {
 	h.Conn.SetDeadline(time.Now().Add(h.DeadlineDelay))
+	// we know that context is already Done so there will be always an error
 	h.err = ctx.Err()
 }
 
