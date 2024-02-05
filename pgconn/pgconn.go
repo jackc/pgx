@@ -1586,7 +1586,7 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 				unwatchErr := rr.pgConn.contextWatcher.Unwatch()
 				rr.pgConn.unlock()
 				if rr.err == nil {
-					return rr.commandTag, unwatchErr
+					rr.err = unwatchErr
 				}
 
 				return rr.commandTag, rr.err
