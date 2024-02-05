@@ -57,17 +57,19 @@ func (cw *ContextWatcher) Watch(ctx context.Context) {
 
 // Unwatch stops watching the previously watched context. If the onCancel function passed to NewContextWatcher was
 // called then onUnwatchAfterCancel will also be called.
-func (cw *ContextWatcher) Unwatch() {
+func (cw *ContextWatcher) Unwatch() error {
 	cw.lock.Lock()
 	defer cw.lock.Unlock()
 
+	var err error
 	if cw.watchInProgress {
 		cw.unwatchChan <- struct{}{}
 		if cw.onCancelWasCalled {
-			cw.handler.HandleUnwatchAfterCancel()
+			err = cw.handler.HandleUnwatchAfterCancel()
 		}
 		cw.watchInProgress = false
 	}
+	return err
 }
 
 type Handler interface {
@@ -76,5 +78,5 @@ type Handler interface {
 	HandleCancel(canceledCtx context.Context)
 
 	// HandleUnwatchAfterCancel is called when a ContextWatcher that called HandleCancel on this Handler is unwatched.
-	HandleUnwatchAfterCancel()
+	HandleUnwatchAfterCancel() error
 }
