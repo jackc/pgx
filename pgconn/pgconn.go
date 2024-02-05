@@ -1413,8 +1413,11 @@ func (mrr *MultiResultReader) receiveMessage() (pgproto3.BackendMessage, error) 
 		if mrr.pipeline != nil {
 			mrr.pipeline.expectedReadyForQueryCount--
 		} else {
-			mrr.pgConn.contextWatcher.Unwatch()
+			unwatchErr := mrr.pgConn.contextWatcher.Unwatch()
 			mrr.pgConn.unlock()
+			if mrr.err == nil {
+				mrr.err = unwatchErr
+			}
 		}
 	case *pgproto3.ErrorResponse:
 		mrr.err = ErrorResponseToPgError(msg)
@@ -1580,8 +1583,12 @@ func (rr *ResultReader) Close() (CommandTag, error) {
 			case *pgproto3.ErrorResponse:
 				rr.err = ErrorResponseToPgError(msg)
 			case *pgproto3.ReadyForQuery:
-				rr.pgConn.contextWatcher.Unwatch()
+				unwatchErr := rr.pgConn.contextWatcher.Unwatch()
 				rr.pgConn.unlock()
+				if rr.err == nil {
+					return rr.commandTag, unwatchErr
+				}
+
 				return rr.commandTag, rr.err
 			}
 		}
@@ -2208,8 +2215,9 @@ func (h *DeadlineContextWatcherHandler) HandleCancel(ctx context.Context) {
 	h.Conn.SetDeadline(time.Now().Add(h.DeadlineDelay))
 }
 
-func (h *DeadlineContextWatcherHandler) HandleUnwatchAfterCancel() {
+func (h *DeadlineContextWatcherHandler) HandleUnwatchAfterCancel() error {
 	h.Conn.SetDeadline(time.Time{})
+	return nil
 }
 
 // CancelRequestContextWatcherHandler handles canceled contexts by sending a cancel request to the server. It also sets
@@ -2257,9 +2265,29 @@ func (h *CancelRequestContextWatcherHandler) HandleCancel(context.Context) {
 	}()
 }
 
-func (h *CancelRequestContextWatcherHandler) HandleUnwatchAfterCancel() {
+func (h *CancelRequestContextWatcherHandler) HandleUnwatchAfterCancel() error {
 	h.handleUnwatchAfterCancelCalled()
 	<-h.cancelFinishedChan
 
 	h.Conn.conn.SetDeadline(time.Time{})
+
+	return nil
+}
+
+type DeadlineContextWatcherHandlerWithError struct {
+	err           error
+	DeadlineDelay time.Duration
+	Conn          net.Conn
+}
+
+func (h *DeadlineContextWatcherHandlerWithError) HandleCancel(ctx context.Context) {
+	h.Conn.SetDeadline(time.Now().Add(h.DeadlineDelay))
+	h.err = ctx.Err()
+}
+
+func (h *DeadlineContextWatcherHandlerWithError) HandleUnwatchAfterCancel() error {
+	h.Conn.SetDeadline(time.Time{})
+	err := h.err
+	h.err = nil
+	return err
 }
