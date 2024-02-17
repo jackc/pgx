@@ -44,8 +44,18 @@ func (q *Query) Sanitize(args ...interface{}) (string, error) {
 				str = "null"
 			case int64:
 				str = strconv.FormatInt(arg, 10)
+				// Prevent SQL injection via Line Comment Creation
+				// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
+				if arg < 0 {
+					str = "(" + str + ")"
+				}
 			case float64:
+				// Prevent SQL injection via Line Comment Creation
+				// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
 				str = strconv.FormatFloat(arg, 'f', -1, 64)
+				if arg < 0 {
+					str = "(" + str + ")"
+				}
 			case bool:
 				str = strconv.FormatBool(arg)
 			case []byte:

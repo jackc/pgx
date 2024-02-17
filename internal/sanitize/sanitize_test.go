@@ -174,6 +174,16 @@ func TestQuerySanitize(t *testing.T) {
 			args:     []interface{}{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
 			expected: `insert '2020-03-01 23:59:59.999999Z'`,
 		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
+			args:     []interface{}{int64(-1)},
+			expected: `select 1-(-1)`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
+			args:     []interface{}{float64(-1)},
+			expected: `select 1-(-1)`,
+		},
 	}
 
 	for i, tt := range successfulTests {
