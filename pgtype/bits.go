@@ -176,8 +176,10 @@ func (scanPlanBinaryBitsToBitsScanner) Scan(src []byte, dst any) error {
 
 	bitLen := int32(binary.BigEndian.Uint32(src))
 	rp := 4
+	buf := make([]byte, len(src[rp:]))
+	copy(buf, src[rp:])
 
-	return scanner.ScanBits(Bits{Bytes: src[rp:], Len: bitLen, Valid: true})
+	return scanner.ScanBits(Bits{Bytes: buf, Len: bitLen, Valid: true})
 }
 
 type scanPlanTextAnyToBitsScanner struct{}
