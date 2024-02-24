@@ -98,37 +98,37 @@ func TestQuerySanitize(t *testing.T) {
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{float64(1.23)},
-			expected: `select 1.23`,
+			expected: `select (1.23)`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{true},
-			expected: `select true`,
+			expected: `select (true)`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{[]byte{0, 1, 2, 3, 255}},
-			expected: `select '\x00010203ff'::bytea`,
+			expected: `select ('\x00010203ff')`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{nil},
-			expected: `select null`,
+			expected: `select (null)`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{"foobar"},
-			expected: `select 'foobar'`,
+			expected: `select ('foobar')`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{"foo'bar"},
-			expected: `select 'foo''bar'`,
+			expected: `select ('foo''bar')`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []interface{}{`foo\'bar`},
-			expected: `select 'foo\''bar'`,
+			expected: `select ('foo\''bar')`,
 		},
 	}
 
