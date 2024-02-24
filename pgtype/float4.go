@@ -297,12 +297,12 @@ func (c Float4Codec) DecodeDatabaseSQLValue(m *Map, oid uint32, format int16, sr
 		return nil, nil
 	}
 
-	var n float64
+	var n float32
 	err := codecScan(c, m, oid, format, src, &n)
 	if err != nil {
 		return nil, err
 	}
-	return n, nil
+	return float64(n), nil
 }
 
 func (c Float4Codec) DecodeValue(m *Map, oid uint32, format int16, src []byte) (any, error) {
