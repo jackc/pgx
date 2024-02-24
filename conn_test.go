@@ -1369,3 +1369,42 @@ func TestConnDeallocateInvalidatedCachedStatementsWhenCanceled(t *testing.T) {
 		require.EqualValues(t, 1, n)
 	})
 }
+
+// https://github.com/jackc/pgx/issues/1847
+func TestConnDeallocateInvalidatedCachedStatementsInTransactionWithBatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	connString := os.Getenv("PGX_TEST_DATABASE")
+	config := mustParseConfig(t, connString)
+	config.DefaultQueryExecMode = pgx.QueryExecModeCacheStatement
+	config.StatementCacheCapacity = 2
+
+	conn, err := pgx.ConnectConfig(ctx, config)
+	require.NoError(t, err)
+
+	tx, err := conn.Begin(ctx)
+	require.NoError(t, err)
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, "select $1::int + 1", 1)
+	require.NoError(t, err)
+
+	_, err = tx.Exec(ctx, "select $1::int + 2", 1)
+	require.NoError(t, err)
+
+	// This should invalidate the first cached statement.
+	_, err = tx.Exec(ctx, "select $1::int + 3", 1)
+	require.NoError(t, err)
+
+	batch := &pgx.Batch{}
+	batch.Queue("select $1::int + 1", 1)
+	err = tx.SendBatch(ctx, batch).Close()
+	require.NoError(t, err)
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
+
+	ensureConnValid(t, conn)
+}
