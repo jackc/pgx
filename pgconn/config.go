@@ -721,6 +721,9 @@ func configTLS(settings map[string]string, thisHost string, parseConfigOptions P
 			return nil, fmt.Errorf("unable to read sslkey: %w", err)
 		}
 		block, _ := pem.Decode(buf)
+		if block == nil {
+			return nil, errors.New("failed to decode sslkey")
+		}
 		var pemKey []byte
 		var decryptedKey []byte
 		var decryptedError error
