@@ -1354,7 +1354,7 @@ order by attnum`,
 }
 
 func (c *Conn) deallocateInvalidatedCachedStatements(ctx context.Context) error {
-	if c.pgConn.TxStatus() != 'I' {
+	if txStatus := c.pgConn.TxStatus(); txStatus != 'I' && txStatus != 'T' {
 		return nil
 	}
 
