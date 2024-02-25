@@ -35,6 +35,7 @@ func init() {
 // Test for renamed types
 type _string string
 type _bool bool
+type _uint8 uint8
 type _int8 int8
 type _int16 int16
 type _int16Slice []int16
@@ -451,6 +452,14 @@ func TestMapScanNullToWrongType(t *testing.T) {
 	err = m.Scan(pgtype.TextOID, pgx.TextFormatCode, nil, &pn)
 	assert.NoError(t, err)
 	assert.False(t, pn.Valid)
+}
+
+func TestScanToSliceOfRenamedUint8(t *testing.T) {
+	m := pgtype.NewMap()
+	var ruint8 []_uint8
+	err := m.Scan(pgtype.Int2ArrayOID, pgx.TextFormatCode, []byte("{2,4}"), &ruint8)
+	assert.NoError(t, err)
+	assert.Equal(t, []_uint8{2, 4}, ruint8)
 }
 
 func TestMapScanTextToBool(t *testing.T) {
