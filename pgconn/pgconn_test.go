@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5/internal/pgio"
 	"github.com/jackc/pgx/v5/internal/pgmock"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgconn/ctxwatch"
 	"github.com/jackc/pgx/v5/pgproto3"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -3385,6 +3386,163 @@ func TestSNISupport(t *testing.T) {
 				t.Fatalf("server failed with error: %+v", err)
 			case <-time.After(time.Millisecond * 100):
 				t.Fatal("exceeded connection timeout without erroring out")
+			}
+		})
+	}
+}
+
+func TestDeadlineContextWatcherHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("DeadlineExceeded with zero DeadlineDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.DeadlineContextWatcherHandler{Conn: conn.Conn()}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(1)").ReadAll()
+		require.Error(t, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.True(t, pgConn.IsClosed())
+	})
+
+	t.Run("DeadlineExceeded with DeadlineDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.DeadlineContextWatcherHandler{Conn: conn.Conn(), DeadlineDelay: 500 * time.Millisecond}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(0.250)").ReadAll()
+		require.NoError(t, err)
+
+		ensureConnValid(t, pgConn)
+	})
+}
+
+func TestCancelRequestContextWatcherHandler(t *testing.T) {
+	t.Parallel()
+
+	t.Run("DeadlineExceeded cancels request after CancelRequestDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.CancelRequestContextWatcherHandler{
+				Conn:               conn,
+				CancelRequestDelay: 250 * time.Millisecond,
+				DeadlineDelay:      5000 * time.Millisecond,
+			}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(3)").ReadAll()
+		require.Error(t, err)
+		var pgErr *pgconn.PgError
+		require.ErrorAs(t, err, &pgErr)
+
+		ensureConnValid(t, pgConn)
+	})
+
+	t.Run("DeadlineExceeded - do not send cancel request when query finishes in grace period", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.CancelRequestContextWatcherHandler{
+				Conn:               conn,
+				CancelRequestDelay: 1000 * time.Millisecond,
+				DeadlineDelay:      5000 * time.Millisecond,
+			}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(0.250)").ReadAll()
+		require.NoError(t, err)
+
+		ensureConnValid(t, pgConn)
+	})
+
+	t.Run("DeadlineExceeded sets conn deadline with DeadlineDelay", func(t *testing.T) {
+		config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+		require.NoError(t, err)
+		config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+			return &pgconn.CancelRequestContextWatcherHandler{
+				Conn:               conn,
+				CancelRequestDelay: 5000 * time.Millisecond, // purposely setting this higher than DeadlineDelay to ensure the cancel request never happens.
+				DeadlineDelay:      250 * time.Millisecond,
+			}
+		}
+		config.ConnectTimeout = 5 * time.Second
+
+		pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+		require.NoError(t, err)
+		defer closeConn(t, pgConn)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+
+		_, err = pgConn.Exec(ctx, "select 1, pg_sleep(1)").ReadAll()
+		require.Error(t, err)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		require.True(t, pgConn.IsClosed())
+	})
+
+	for i := 0; i < 10; i++ {
+		t.Run(fmt.Sprintf("Stress %d", i), func(t *testing.T) {
+			t.Parallel()
+
+			config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
+			require.NoError(t, err)
+			config.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
+				return &pgconn.CancelRequestContextWatcherHandler{
+					Conn:               conn,
+					CancelRequestDelay: 5 * time.Millisecond,
+					DeadlineDelay:      1000 * time.Millisecond,
+				}
+			}
+			config.ConnectTimeout = 5 * time.Second
+
+			pgConn, err := pgconn.ConnectConfig(context.Background(), config)
+			require.NoError(t, err)
+			defer closeConn(t, pgConn)
+
+			for i := 0; i < 20; i++ {
+				func() {
+					ctx, cancel := context.WithTimeout(context.Background(), 4*time.Millisecond)
+					defer cancel()
+					pgConn.Exec(ctx, "select 1, pg_sleep(0.010)").ReadAll()
+					ensureConnValid(t, pgConn)
+				}()
 			}
 		})
 	}
