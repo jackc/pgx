@@ -2094,6 +2094,8 @@ func (p *Pipeline) getResults() (results any, err error) {
 	for {
 		msg, err := p.conn.receiveMessage()
 		if err != nil {
+			p.closed = true
+			p.err = err
 			p.conn.asyncClose()
 			return nil, normalizeTimeoutError(p.ctx, err)
 		}
