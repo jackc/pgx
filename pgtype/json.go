@@ -25,6 +25,11 @@ func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) Encod
 	case []byte:
 		return encodePlanJSONCodecEitherFormatByteSlice{}
 
+	// Handle json.RawMessage specifically because if it is run through json.Marshal it may be mutated.
+	// e.g. `{"foo": "bar"}` -> `{"foo":"bar"}`.
+	case json.RawMessage:
+		return encodePlanJSONCodecEitherFormatJSONRawMessage{}
+
 	// Cannot rely on driver.Valuer being handled later because anything can be marshalled.
 	//
 	// https://github.com/jackc/pgx/issues/1430
@@ -71,6 +76,18 @@ type encodePlanJSONCodecEitherFormatByteSlice struct{}
 
 func (encodePlanJSONCodecEitherFormatByteSlice) Encode(value any, buf []byte) (newBuf []byte, err error) {
 	jsonBytes := value.([]byte)
+	if jsonBytes == nil {
+		return nil, nil
+	}
+
+	buf = append(buf, jsonBytes...)
+	return buf, nil
+}
+
+type encodePlanJSONCodecEitherFormatJSONRawMessage struct{}
+
+func (encodePlanJSONCodecEitherFormatJSONRawMessage) Encode(value any, buf []byte) (newBuf []byte, err error) {
+	jsonBytes := value.(json.RawMessage)
 	if jsonBytes == nil {
 		return nil, nil
 	}

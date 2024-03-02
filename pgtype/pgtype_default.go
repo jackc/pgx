@@ -1,6 +1,7 @@
 package pgtype
 
 import (
+	"encoding/json"
 	"net"
 	"net/netip"
 	"reflect"
@@ -173,6 +174,7 @@ func initDefaultMap() {
 	registerDefaultPgTypeVariants[time.Time](defaultMap, "timestamptz")
 	registerDefaultPgTypeVariants[time.Duration](defaultMap, "interval")
 	registerDefaultPgTypeVariants[string](defaultMap, "text")
+	registerDefaultPgTypeVariants[json.RawMessage](defaultMap, "json")
 	registerDefaultPgTypeVariants[[]byte](defaultMap, "bytea")
 
 	registerDefaultPgTypeVariants[net.IP](defaultMap, "inet")

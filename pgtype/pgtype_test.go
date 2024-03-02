@@ -546,6 +546,14 @@ func TestMapEncodePlanCacheUUIDTypeConfusion(t *testing.T) {
 	require.Error(t, err)
 }
 
+// https://github.com/jackc/pgx/issues/1763
+func TestMapEncodeRawJSONIntoUnknownOID(t *testing.T) {
+	m := pgtype.NewMap()
+	buf, err := m.Encode(0, pgtype.TextFormatCode, json.RawMessage(`{"foo": "bar"}`), nil)
+	require.NoError(t, err)
+	require.Equal(t, []byte(`{"foo": "bar"}`), buf)
+}
+
 func BenchmarkMapScanInt4IntoBinaryDecoder(b *testing.B) {
 	m := pgtype.NewMap()
 	src := []byte{0, 0, 0, 42}
