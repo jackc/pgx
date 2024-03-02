@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFunctionCall_EncodeDecode(t *testing.T) {
@@ -30,7 +32,8 @@ func TestFunctionCall_EncodeDecode(t *testing.T) {
 				Arguments:        tt.fields.Arguments,
 				ResultFormatCode: tt.fields.ResultFormatCode,
 			}
-			encoded := src.Encode([]byte{})
+			encoded, err := src.Encode([]byte{})
+			require.NoError(t, err)
 			dst := &FunctionCall{}
 			// Check the header
 			msgTypeCode := encoded[0]
@@ -44,7 +47,7 @@ func TestFunctionCall_EncodeDecode(t *testing.T) {
 				t.Errorf("Incorrect message length, got = %v, wanted = %v", l, len(encoded))
 			}
 			// Check decoding works as expected
-			err := dst.Decode(encoded[5:])
+			err = dst.Decode(encoded[5:])
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("FunctionCall.Decode() error = %v, wantErr %v", err, tt.wantErr)

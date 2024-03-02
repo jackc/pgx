@@ -3363,9 +3363,9 @@ func TestSNISupport(t *testing.T) {
 					return
 				}
 
-				srv.Write((&pgproto3.AuthenticationOk{}).Encode(nil))
-				srv.Write((&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}).Encode(nil))
-				srv.Write((&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(nil))
+				srv.Write(mustEncode((&pgproto3.AuthenticationOk{}).Encode(nil)))
+				srv.Write(mustEncode((&pgproto3.BackendKeyData{ProcessID: 0, SecretKey: 0}).Encode(nil)))
+				srv.Write(mustEncode((&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(nil)))
 
 				serverSNINameChan <- sniHost
 			}()
@@ -3471,4 +3471,11 @@ func TestFatalErrorReceivedInPipelineMode(t *testing.T) {
 
 	err = pipeline.Close()
 	require.Error(t, err)
+}
+
+func mustEncode(buf []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return buf
 }

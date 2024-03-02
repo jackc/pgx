@@ -46,7 +46,7 @@ func (p *PgFortuneBackend) Run() error {
 				return fmt.Errorf("error generating query response: %w", err)
 			}
 
-			buf := (&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
+			buf := mustEncode((&pgproto3.RowDescription{Fields: []pgproto3.FieldDescription{
 				{
 					Name:                 []byte("fortune"),
 					TableOID:             0,
@@ -56,10 +56,10 @@ func (p *PgFortuneBackend) Run() error {
 					TypeModifier:         -1,
 					Format:               0,
 				},
-			}}).Encode(nil)
-			buf = (&pgproto3.DataRow{Values: [][]byte{response}}).Encode(buf)
-			buf = (&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}).Encode(buf)
-			buf = (&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(buf)
+			}}).Encode(nil))
+			buf = mustEncode((&pgproto3.DataRow{Values: [][]byte{response}}).Encode(buf))
+			buf = mustEncode((&pgproto3.CommandComplete{CommandTag: []byte("SELECT 1")}).Encode(buf))
+			buf = mustEncode((&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(buf))
 			_, err = p.conn.Write(buf)
 			if err != nil {
 				return fmt.Errorf("error writing query response: %w", err)
@@ -80,8 +80,8 @@ func (p *PgFortuneBackend) handleStartup() error {
 
 	switch startupMessage.(type) {
 	case *pgproto3.StartupMessage:
-		buf := (&pgproto3.AuthenticationOk{}).Encode(nil)
-		buf = (&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(buf)
+		buf := mustEncode((&pgproto3.AuthenticationOk{}).Encode(nil))
+		buf = mustEncode((&pgproto3.ReadyForQuery{TxStatus: 'I'}).Encode(buf))
 		_, err = p.conn.Write(buf)
 		if err != nil {
 			return fmt.Errorf("error sending ready for query: %w", err)
@@ -101,4 +101,11 @@ func (p *PgFortuneBackend) handleStartup() error {
 
 func (p *PgFortuneBackend) Close() error {
 	return p.conn.Close()
+}
+
+func mustEncode(buf []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return buf
 }

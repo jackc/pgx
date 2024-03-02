@@ -99,10 +99,8 @@ func (dst *RowDescription) Decode(src []byte) error {
 }
 
 // Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
-func (src *RowDescription) Encode(dst []byte) []byte {
-	dst = append(dst, 'T')
-	sp := len(dst)
-	dst = pgio.AppendInt32(dst, -1)
+func (src *RowDescription) Encode(dst []byte) ([]byte, error) {
+	dst, sp := beginMessage(dst, 'T')
 
 	dst = pgio.AppendUint16(dst, uint16(len(src.Fields)))
 	for _, fd := range src.Fields {
@@ -117,9 +115,7 @@ func (src *RowDescription) Encode(dst []byte) []byte {
 		dst = pgio.AppendInt16(dst, fd.Format)
 	}
 
-	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
-
-	return dst
+	return finishMessage(dst, sp)
 }
 
 // MarshalJSON implements encoding/json.Marshaler.

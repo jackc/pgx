@@ -1674,25 +1674,55 @@ func (rr *ResultReader) concludeCommand(commandTag CommandTag, err error) {
 // Batch is a collection of queries that can be sent to the PostgreSQL server in a single round-trip.
 type Batch struct {
 	buf []byte
+	err error
 }
 
 // ExecParams appends an ExecParams command to the batch. See PgConn.ExecParams for parameter descriptions.
 func (batch *Batch) ExecParams(sql string, paramValues [][]byte, paramOIDs []uint32, paramFormats []int16, resultFormats []int16) {
-	batch.buf = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+
+	batch.buf, batch.err = (&pgproto3.Parse{Query: sql, ParameterOIDs: paramOIDs}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
 	batch.ExecPrepared("", paramValues, paramFormats, resultFormats)
 }
 
 // ExecPrepared appends an ExecPrepared e command to the batch. See PgConn.ExecPrepared for parameter descriptions.
 func (batch *Batch) ExecPrepared(stmtName string, paramValues [][]byte, paramFormats []int16, resultFormats []int16) {
-	batch.buf = (&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(batch.buf)
-	batch.buf = (&pgproto3.Describe{ObjectType: 'P'}).Encode(batch.buf)
-	batch.buf = (&pgproto3.Execute{}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+
+	batch.buf, batch.err = (&pgproto3.Bind{PreparedStatement: stmtName, ParameterFormatCodes: paramFormats, Parameters: paramValues, ResultFormatCodes: resultFormats}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+
+	batch.buf, batch.err = (&pgproto3.Describe{ObjectType: 'P'}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
+
+	batch.buf, batch.err = (&pgproto3.Execute{}).Encode(batch.buf)
+	if batch.err != nil {
+		return
+	}
 }
 
 // ExecBatch executes all the queries in batch in a single round-trip. Execution is implicitly transactional unless a
 // transaction is already in progress or SQL contains transaction control statements. This is a simpler way of executing
 // multiple queries in a single round trip than using pipeline mode.
 func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultReader {
+	if batch.err != nil {
+		return &MultiResultReader{
+			closed: true,
+			err:    batch.err,
+		}
+	}
+
 	if err := pgConn.lock(); err != nil {
 		return &MultiResultReader{
 			closed: true,
@@ -1718,7 +1748,13 @@ func (pgConn *PgConn) ExecBatch(ctx context.Context, batch *Batch) *MultiResultR
 		pgConn.contextWatcher.Watch(ctx)
 	}
 
-	batch.buf = (&pgproto3.Sync{}).Encode(batch.buf)
+	batch.buf, batch.err = (&pgproto3.Sync{}).Encode(batch.buf)
+	if batch.err != nil {
+		multiResult.closed = true
+		multiResult.err = batch.err
+		pgConn.unlock()
+		return multiResult
+	}
 
 	pgConn.enterPotentialWriteReadDeadlock()
 	defer pgConn.exitPotentialWriteReadDeadlock()

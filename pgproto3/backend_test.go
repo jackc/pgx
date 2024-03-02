@@ -71,8 +71,8 @@ func TestStartupMessage(t *testing.T) {
 				"username": "tester",
 			},
 		}
-		dst := []byte{}
-		dst = want.Encode(dst)
+		dst, err := want.Encode([]byte{})
+		require.NoError(t, err)
 
 		server := &interruptReader{}
 		server.push(dst)

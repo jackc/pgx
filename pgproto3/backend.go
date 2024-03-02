@@ -16,7 +16,8 @@ type Backend struct {
 	// before it is actually transmitted (i.e. before Flush).
 	tracer *tracer
 
-	wbuf []byte
+	wbuf        []byte
+	encodeError error
 
 	// Frontend message flyweights
 	bind           Bind
@@ -55,11 +56,21 @@ func NewBackend(r io.Reader, w io.Writer) *Backend {
 	return &Backend{cr: cr, w: w}
 }
 
-// Send sends a message to the frontend (i.e. the client). The message is not guaranteed to be written until Flush is
-// called.
+// Send sends a message to the frontend (i.e. the client). The message is buffered until Flush is called. Any error
+// encountered will be returned from Flush.
 func (b *Backend) Send(msg BackendMessage) {
+	if b.encodeError != nil {
+		return
+	}
+
 	prevLen := len(b.wbuf)
-	b.wbuf = msg.Encode(b.wbuf)
+	newBuf, err := msg.Encode(b.wbuf)
+	if err != nil {
+		b.encodeError = err
+		return
+	}
+	b.wbuf = newBuf
+
 	if b.tracer != nil {
 		b.tracer.traceMessage('B', int32(len(b.wbuf)-prevLen), msg)
 	}
@@ -67,6 +78,12 @@ func (b *Backend) Send(msg BackendMessage) {
 
 // Flush writes any pending messages to the frontend (i.e. the client).
 func (b *Backend) Flush() error {
+	if err := b.encodeError; err != nil {
+		b.encodeError = nil
+		b.wbuf = b.wbuf[:0]
+		return &writeError{err: err, safeToRetry: true}
+	}
+
 	n, err := b.w.Write(b.wbuf)
 
 	const maxLen = 1024
