@@ -108,10 +108,8 @@ func (dst *Bind) Decode(src []byte) error {
 }
 
 // Encode encodes src into dst. dst will include the 1 byte message type identifier and the 4 byte message length.
-func (src *Bind) Encode(dst []byte) []byte {
-	dst = append(dst, 'B')
-	sp := len(dst)
-	dst = pgio.AppendInt32(dst, -1)
+func (src *Bind) Encode(dst []byte) ([]byte, error) {
+	dst, sp := beginMessage(dst, 'B')
 
 	dst = append(dst, src.DestinationPortal...)
 	dst = append(dst, 0)
@@ -139,9 +137,7 @@ func (src *Bind) Encode(dst []byte) []byte {
 		dst = pgio.AppendInt16(dst, fc)
 	}
 
-	pgio.SetInt32(dst[sp:], int32(len(dst[sp:])))
-
-	return dst
+	return finishMessage(dst, sp)
 }
 
 // MarshalJSON implements encoding/json.Marshaler.
