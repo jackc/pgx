@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -60,6 +62,9 @@ func (src *Parse) Encode(dst []byte) ([]byte, error) {
 	dst = append(dst, src.Query...)
 	dst = append(dst, 0)
 
+	if len(src.ParameterOIDs) > math.MaxUint16 {
+		return nil, errors.New("too many parameter oids")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterOIDs)))
 	for _, oid := range src.ParameterOIDs {
 		dst = pgio.AppendUint32(dst, oid)

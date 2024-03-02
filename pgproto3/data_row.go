@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -66,6 +68,9 @@ func (dst *DataRow) Decode(src []byte) error {
 func (src *DataRow) Encode(dst []byte) ([]byte, error) {
 	dst, sp := beginMessage(dst, 'D')
 
+	if len(src.Values) > math.MaxUint16 {
+		return nil, errors.New("too many values")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Values)))
 	for _, v := range src.Values {
 		if v == nil {
