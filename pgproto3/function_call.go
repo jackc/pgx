@@ -2,6 +2,8 @@ package pgproto3
 
 import (
 	"encoding/binary"
+	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -74,9 +76,17 @@ func (dst *FunctionCall) Decode(src []byte) error {
 func (src *FunctionCall) Encode(dst []byte) ([]byte, error) {
 	dst, sp := beginMessage(dst, 'F')
 	dst = pgio.AppendUint32(dst, src.Function)
+
+	if len(src.ArgFormatCodes) > math.MaxUint16 {
+		return nil, errors.New("too many arg format codes")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ArgFormatCodes)))
 	for _, argFormatCode := range src.ArgFormatCodes {
 		dst = pgio.AppendUint16(dst, argFormatCode)
+	}
+
+	if len(src.Arguments) > math.MaxUint16 {
+		return nil, errors.New("too many arguments")
 	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Arguments)))
 	for _, argument := range src.Arguments {

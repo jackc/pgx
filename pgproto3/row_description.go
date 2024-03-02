@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -102,6 +104,9 @@ func (dst *RowDescription) Decode(src []byte) error {
 func (src *RowDescription) Encode(dst []byte) ([]byte, error) {
 	dst, sp := beginMessage(dst, 'T')
 
+	if len(src.Fields) > math.MaxUint16 {
+		return nil, errors.New("too many fields")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Fields)))
 	for _, fd := range src.Fields {
 		dst = append(dst, fd.Name...)

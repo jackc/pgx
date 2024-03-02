@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -48,6 +49,9 @@ func (src *CopyOutResponse) Encode(dst []byte) ([]byte, error) {
 
 	dst = append(dst, src.OverallFormat)
 
+	if len(src.ColumnFormatCodes) > math.MaxUint16 {
+		return nil, errors.New("too many column format codes")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ColumnFormatCodes)))
 	for _, fc := range src.ColumnFormatCodes {
 		dst = pgio.AppendUint16(dst, fc)

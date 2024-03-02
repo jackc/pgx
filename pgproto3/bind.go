@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
 
 	"github.com/jackc/pgx/v5/internal/pgio"
 )
@@ -116,11 +118,17 @@ func (src *Bind) Encode(dst []byte) ([]byte, error) {
 	dst = append(dst, src.PreparedStatement...)
 	dst = append(dst, 0)
 
+	if len(src.ParameterFormatCodes) > math.MaxUint16 {
+		return nil, errors.New("too many parameter format codes")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ParameterFormatCodes)))
 	for _, fc := range src.ParameterFormatCodes {
 		dst = pgio.AppendInt16(dst, fc)
 	}
 
+	if len(src.Parameters) > math.MaxUint16 {
+		return nil, errors.New("too many parameters")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.Parameters)))
 	for _, p := range src.Parameters {
 		if p == nil {
@@ -132,6 +140,9 @@ func (src *Bind) Encode(dst []byte) ([]byte, error) {
 		dst = append(dst, p...)
 	}
 
+	if len(src.ResultFormatCodes) > math.MaxUint16 {
+		return nil, errors.New("too many result format codes")
+	}
 	dst = pgio.AppendUint16(dst, uint16(len(src.ResultFormatCodes)))
 	for _, fc := range src.ResultFormatCodes {
 		dst = pgio.AppendInt16(dst, fc)
