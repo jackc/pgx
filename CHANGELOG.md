@@ -1,3 +1,22 @@
+# 5.5.4 (March 4, 2024)
+
+Fix CVE-2024-27304
+
+SQL injection can occur if an attacker can cause a single query or bind message to exceed 4 GB in size. An integer
+overflow in the calculated message size can cause the one large message to be sent as multiple messages under the
+attacker's control.
+
+Thanks to Paul Gerste for reporting this issue.
+
+* Fix behavior of CollectRows to return empty slice if Rows are empty (Felix)
+* Fix simple protocol encoding of json.RawMessage
+* Fix *Pipeline.getResults should close pipeline on error
+* Fix panic in TryFindUnderlyingTypeScanPlan (David Kurman)
+* Fix deallocation of invalidated cached statements in a transaction
+* Handle invalid sslkey file
+* Fix scan float4 into sql.Scanner
+* Fix pgtype.Bits not making copy of data from read buffer. This would cause the data to be corrupted by future reads.
+
 # 5.5.3 (February 3, 2024)
 
 * Fix: prepared statement already exists
