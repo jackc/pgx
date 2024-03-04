@@ -127,7 +127,7 @@ func TestQuerySanitize(t *testing.T) {
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 42"}},
 			args:     []interface{}{},
-			expected: `select (42)`,
+			expected: `select 42`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
