@@ -175,6 +175,21 @@ func TestCollectRows(t *testing.T) {
 	})
 }
 
+func TestCollectRowsEmpty(t *testing.T) {
+	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		rows, _ := conn.Query(ctx, `select n from generate_series(1, 0) n`)
+		numbers, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (int32, error) {
+			var n int32
+			err := row.Scan(&n)
+			return n, err
+		})
+		require.NoError(t, err)
+		require.NotNil(t, numbers)
+
+		assert.Empty(t, numbers)
+	})
+}
+
 // This example uses CollectRows with a manually written collector function. In most cases RowTo, RowToAddrOf,
 // RowToStructByPos, RowToAddrOfStructByPos, or another generic function would be used.
 func ExampleCollectRows() {
