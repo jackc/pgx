@@ -132,48 +132,49 @@ func TestQuerySanitize(t *testing.T) {
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{int64(42)},
-			expected: `select (42)`,
+			expected: `select 42`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{float64(1.23)},
-			expected: `select (1.23)`,
+			expected: `select 1.23`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{true},
-			expected: `select (true)`,
+			expected: `select true`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{[]byte{0, 1, 2, 3, 255}},
-			expected: `select ('\x00010203ff')`,
+			expected: `select '\x00010203ff'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{nil},
-			expected: `select (null)`,
+			expected: `select null`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{"foobar"},
-			expected: `select ('foobar')`,
+			expected: `select 'foobar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{"foo'bar"},
-			expected: `select ('foo''bar')`,
+			expected: `select 'foo''bar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{`foo\'bar`},
-			expected: `select ('foo\''bar')`,
+			expected: `select 'foo\''bar'`,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
 			args:     []any{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
-			expected: `insert ('2020-03-01 23:59:59.999999Z')`,
+			expected: `insert '2020-03-01 23:59:59.999999Z'`,
 		},
+		// https://github.com/advisories/GHSA-m7wr-2xf7-cm9p
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
 			args:     []any{int64(-1)},
@@ -181,8 +182,54 @@ func TestQuerySanitize(t *testing.T) {
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
-			args:     []any{float64(-1)},
-			expected: `select 1-(-1)`,
+			args:     []any{int64(1)},
+			expected: `select 1-1`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1, " from test where secure=", 2}},
+			args:     []any{"* -- \n from secrets\n --", true},
+			expected: `select E'* -- \n from secrets\n --' from test where secure=true`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select * from example where result=-", 1, " OR name=", 2}},
+			args:     []any{float64(-42), "foo\n 1 AND 1=0 UNION SELECT * FROM secrets; --"},
+			expected: `select * from example where result=-(-42) OR name=E'foo\n 1 AND 1=0 UNION SELECT * FROM secrets; --'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select * from example where result=-", 1, " OR name=", 2}},
+			args:     []any{"-42", "foo\n 1 AND 1=0 UNION SELECT * FROM secrets; --"},
+			expected: `select * from example where result=-'-42' OR name=E'foo\n 1 AND 1=0 UNION SELECT * FROM secrets; --'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []any{"\b\f\n\r\t"},
+			expected: `select E'\b\f\n\r\t'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []any{`\b\f\n\r\t`},
+			expected: `select '\b\f\n\r\t'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []any{`\b\f\n\r\t` + "\n"},
+			expected: `select E'\\b\\f\\n\\r\\t\n'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
+			args:     []any{`\` + "\n"},
+			expected: `select E'\\\n'`,
+		},
+		// https://github.com/jackc/pgx/issues/1928
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"set local someMeta to ", 1}},
+			args:     []any{"some metadata"},
+			expected: `set local someMeta to 'some metadata'`,
+		},
+		{
+			query:    sanitize.Query{Parts: []sanitize.Part{"select INTERVAL ", 1}},
+			args:     []any{"1 day"},
+			expected: `select INTERVAL '1 day'`,
 		},
 	}
 

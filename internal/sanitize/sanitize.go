@@ -66,7 +66,24 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 
 			// Prevent SQL injection via Line Comment Creation
 			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
-			str = "(" + str + ")"
+			// If the value starts with a dash then we need to put parens around it
+			if strings.HasPrefix(str, "-") {
+				str = "(" + str + ")"
+			}
+
+			// Convert problematic line breaks to escape form
+			// See: https://www.postgresql.org/docs/9.0/sql-syntax-lexical.html Table 4.1
+			if strings.ContainsAny(str, "\b\f\n\r\t") {
+				str = "E" + str
+				// Escape existing escapes
+				str = strings.ReplaceAll(str, `\`, `\\`)
+				// Convert existing line breaks to escaped
+				str = strings.ReplaceAll(str, "\b", `\b`)
+				str = strings.ReplaceAll(str, "\f", `\f`)
+				str = strings.ReplaceAll(str, "\n", `\n`)
+				str = strings.ReplaceAll(str, "\r", `\r`)
+				str = strings.ReplaceAll(str, "\t", `\t`)
+			}
 		default:
 			return "", fmt.Errorf("invalid Part type: %T", part)
 		}
