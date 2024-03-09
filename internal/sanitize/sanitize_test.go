@@ -132,57 +132,57 @@ func TestQuerySanitize(t *testing.T) {
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{int64(42)},
-			expected: `select (42)`,
+			expected: `select  42 `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{float64(1.23)},
-			expected: `select (1.23)`,
+			expected: `select  1.23 `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{true},
-			expected: `select (true)`,
+			expected: `select  true `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{[]byte{0, 1, 2, 3, 255}},
-			expected: `select ('\x00010203ff')`,
+			expected: `select  '\x00010203ff' `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{nil},
-			expected: `select (null)`,
+			expected: `select  null `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{"foobar"},
-			expected: `select ('foobar')`,
+			expected: `select  'foobar' `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{"foo'bar"},
-			expected: `select ('foo''bar')`,
+			expected: `select  'foo''bar' `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select ", 1}},
 			args:     []any{`foo\'bar`},
-			expected: `select ('foo\''bar')`,
+			expected: `select  'foo\''bar' `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"insert ", 1}},
 			args:     []any{time.Date(2020, time.March, 1, 23, 59, 59, 999999999, time.UTC)},
-			expected: `insert ('2020-03-01 23:59:59.999999Z')`,
+			expected: `insert  '2020-03-01 23:59:59.999999Z' `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
 			args:     []any{int64(-1)},
-			expected: `select 1-(-1)`,
+			expected: `select 1- -1 `,
 		},
 		{
 			query:    sanitize.Query{Parts: []sanitize.Part{"select 1-", 1}},
 			args:     []any{float64(-1)},
-			expected: `select 1-(-1)`,
+			expected: `select 1- -1 `,
 		},
 	}
 
