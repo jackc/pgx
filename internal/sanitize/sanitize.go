@@ -66,7 +66,7 @@ func (q *Query) Sanitize(args ...any) (string, error) {
 
 			// Prevent SQL injection via Line Comment Creation
 			// https://github.com/jackc/pgx/security/advisories/GHSA-m7wr-2xf7-cm9p
-			str = "(" + str + ")"
+			str = " " + str + " "
 		default:
 			return "", fmt.Errorf("invalid Part type: %T", part)
 		}
