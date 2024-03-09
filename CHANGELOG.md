@@ -1,3 +1,10 @@
+# 5.5.5 (March 9, 2024)
+
+Use spaces instead of parentheses for SQL sanitization.
+
+This still solves the problem of negative numbers creating a line comment, but this avoids breaking edge cases such as
+`set foo to $1` where the substition is taking place in a location where an arbitrary expression is not allowed.
+
 # 5.5.4 (March 4, 2024)
 
 Fix CVE-2024-27304
