@@ -59,14 +59,15 @@ func (pe *PgError) SQLState() string {
 
 // ConnectError is the error returned when a connection attempt fails.
 type ConnectError struct {
-	Config *Config // The configuration that was used in the connection attempt.
-	msg    string
-	err    error
+	Config         *Config // The configuration that was used in the connection attempt.
+	fallbackConfig *FallbackConfig
+	msg            string
+	err            error
 }
 
 func (e *ConnectError) Error() string {
 	sb := &strings.Builder{}
-	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.Config.Host, e.Config.User, e.Config.Database, e.msg)
+	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.fallbackConfig.Host, e.Config.User, e.Config.Database, e.msg)
 	if e.err != nil {
 		fmt.Fprintf(sb, " (%s)", e.err.Error())
 	}
@@ -230,3 +231,18 @@ func (e *NotPreferredError) SafeToRetry() bool {
 func (e *NotPreferredError) Unwrap() error {
 	return e.err
 }
+
+type lookupError struct {
+	err            error
+	fallbackConfig *FallbackConfig
+}
+
+func (e *lookupError) Error() string {
+	return e.err.Error()
+}
+
+func (e *lookupError) Unwrap() error {
+	return e.err
+}
+
+var errIPAddrNotFound = errors.New("ip address not found")

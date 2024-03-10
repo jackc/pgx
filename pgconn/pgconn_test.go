@@ -379,6 +379,22 @@ func TestConnectWithConnectionRefused(t *testing.T) {
 	}
 }
 
+func TestConnectErrorHasCorrectHost(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	// Presumably nothing is listening on 127.0.0.1:1 and 127.0.0.1:2
+	conn, err := pgconn.Connect(ctx, "postgresql://user:password@localhost:1,127.0.0.1:2/database")
+	if err == nil {
+		conn.Close(ctx)
+		t.Fatal("Expected error establishing connection to bad port")
+	}
+	require.ErrorContains(t, err, "host=127.0.0.1")
+	require.ErrorContains(t, err, "dial tcp 127.0.0.1:2")
+}
+
 func TestConnectCustomDialer(t *testing.T) {
 	t.Parallel()
 
