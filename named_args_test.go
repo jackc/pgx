@@ -93,6 +93,18 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 			where id = $1;`,
 			expectedArgs: []any{int32(42)},
 		},
+		{
+			sql:          "extra provided argument",
+			namedArgs:    pgx.NamedArgs{"extra": int32(1)},
+			expectedSQL:  "extra provided argument",
+			expectedArgs: []any{},
+		},
+		{
+			sql:          "@missing argument",
+			namedArgs:    pgx.NamedArgs{},
+			expectedSQL:  "$1 argument",
+			expectedArgs: []any{nil},
+		},
 
 		// test comments and quotes
 	} {
@@ -100,5 +112,51 @@ func TestNamedArgsRewriteQuery(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equalf(t, tt.expectedSQL, sql, "%d", i)
 		assert.Equalf(t, tt.expectedArgs, args, "%d", i)
+	}
+}
+
+func TestStrictNamedArgsRewriteQuery(t *testing.T) {
+	t.Parallel()
+
+	for i, tt := range []struct {
+		sql             string
+		namedArgs       pgx.StrictNamedArgs
+		expectedSQL     string
+		expectedArgs    []any
+		isExpectedError bool
+	}{
+		{
+			sql:             "no arguments",
+			namedArgs:       pgx.StrictNamedArgs{},
+			expectedSQL:     "no arguments",
+			expectedArgs:    []any{},
+			isExpectedError: false,
+		},
+		{
+			sql:             "@all @matches",
+			namedArgs:       pgx.StrictNamedArgs{"all": int32(1), "matches": int32(2)},
+			expectedSQL:     "$1 $2",
+			expectedArgs:    []any{int32(1), int32(2)},
+			isExpectedError: false,
+		},
+		{
+			sql:             "extra provided argument",
+			namedArgs:       pgx.StrictNamedArgs{"extra": int32(1)},
+			isExpectedError: true,
+		},
+		{
+			sql:             "@missing argument",
+			namedArgs:       pgx.StrictNamedArgs{},
+			isExpectedError: true,
+		},
+	} {
+		sql, args, err := tt.namedArgs.RewriteQuery(context.Background(), nil, tt.sql, nil)
+		if tt.isExpectedError {
+			assert.Errorf(t, err, "%d", i)
+		} else {
+			require.NoErrorf(t, err, "%d", i)
+			assert.Equalf(t, tt.expectedSQL, sql, "%d", i)
+			assert.Equalf(t, tt.expectedArgs, args, "%d", i)
+		}
 	}
 }
