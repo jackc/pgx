@@ -193,6 +193,10 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 			if _, ok := cerr.err.(*NotPreferredError); ok {
 				fallbackConfig = fc
 			}
+			if _, ok := cerr.err.(*errTimeout); ok {
+				// once we reach timeout it's useless to check other fallbacks
+				break
+			}
 		}
 	}
 
