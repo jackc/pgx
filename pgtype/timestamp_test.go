@@ -38,6 +38,42 @@ func TestTimestampCodec(t *testing.T) {
 	})
 }
 
+func TestTimestampCodecWithScanLocationUTC(t *testing.T) {
+	skipCockroachDB(t, "Server does not support infinite timestamps (see https://github.com/cockroachdb/cockroach/issues/41564)")
+
+	connTestRunner := defaultConnTestRunner
+	connTestRunner.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		conn.TypeMap().RegisterType(&pgtype.Type{
+			Name:  "timestamp",
+			OID:   pgtype.TimestampOID,
+			Codec: &pgtype.TimestampCodec{ScanLocation: time.UTC},
+		})
+	}
+
+	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, nil, "timestamp", []pgxtest.ValueRoundTripTest{
+		// Have to use pgtype.Timestamp instead of time.Time as source because otherwise the simple and exec query exec
+		// modes will encode the time for timestamptz. That is, they will convert it from local time zone.
+		{pgtype.Timestamp{Time: time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local), Valid: true}, new(time.Time), isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC))},
+	})
+}
+
+func TestTimestampCodecWithScanLocationLocal(t *testing.T) {
+	skipCockroachDB(t, "Server does not support infinite timestamps (see https://github.com/cockroachdb/cockroach/issues/41564)")
+
+	connTestRunner := defaultConnTestRunner
+	connTestRunner.AfterConnect = func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
+		conn.TypeMap().RegisterType(&pgtype.Type{
+			Name:  "timestamp",
+			OID:   pgtype.TimestampOID,
+			Codec: &pgtype.TimestampCodec{ScanLocation: time.Local},
+		})
+	}
+
+	pgxtest.RunValueRoundTripTests(context.Background(), t, connTestRunner, nil, "timestamp", []pgxtest.ValueRoundTripTest{
+		{time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC), new(time.Time), isExpectedEq(time.Date(2000, 1, 1, 0, 0, 0, 0, time.Local))},
+	})
+}
+
 // https://github.com/jackc/pgx/v4/pgtype/pull/128
 func TestTimestampTranscodeBigTimeBinary(t *testing.T) {
 	defaultConnTestRunner.RunTest(context.Background(), t, func(ctx context.Context, t testing.TB, conn *pgx.Conn) {
