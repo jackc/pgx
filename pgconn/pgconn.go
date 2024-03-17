@@ -177,6 +177,7 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 		pgConn, fberr = connect(ctx, config, fc, false)
 		if fberr == nil {
 			foundBestServer = true
+			err = nil
 			break
 		} else if pgerr, ok := fberr.(*PgError); ok {
 			err = &ConnectError{Config: config, msg: "server error", err: pgerr}
