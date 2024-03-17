@@ -173,11 +173,12 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 		} else {
 			ctx = octx
 		}
-		pgConn, err = connect(ctx, config, fc, false)
-		if err == nil {
+		var fberr error
+		pgConn, fberr = connect(ctx, config, fc, false)
+		if fberr == nil {
 			foundBestServer = true
 			break
-		} else if pgerr, ok := err.(*PgError); ok {
+		} else if pgerr, ok := fberr.(*PgError); ok {
 			err = &ConnectError{Config: config, msg: "server error", err: pgerr}
 			const ERRCODE_INVALID_PASSWORD = "28P01"                    // wrong password
 			const ERRCODE_INVALID_AUTHORIZATION_SPECIFICATION = "28000" // wrong password or bad pg_hba.conf settings
@@ -189,14 +190,18 @@ func ConnectConfig(octx context.Context, config *Config) (pgConn *PgConn, err er
 				pgerr.Code == ERRCODE_INSUFFICIENT_PRIVILEGE {
 				break
 			}
-		} else if cerr, ok := err.(*ConnectError); ok {
+		} else if cerr, ok := fberr.(*ConnectError); ok {
+			if _, ok := cerr.err.(*errTimeout); ok && err != nil {
+				// once we reach first `context.DeadlineExceeded` it's useless to check other fallbacks
+				// we should keep first error before deadline exceeded as resulted error to keep root cause message
+				break
+			}
+			err = fberr
 			if _, ok := cerr.err.(*NotPreferredError); ok {
 				fallbackConfig = fc
 			}
-			if _, ok := cerr.err.(*errTimeout); ok {
-				// once we reach timeout it's useless to check other fallbacks
-				break
-			}
+		} else {
+			err = fberr
 		}
 	}
 
