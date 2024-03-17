@@ -45,7 +45,12 @@ func (t *Time) Scan(src any) error {
 
 	switch src := src.(type) {
 	case string:
-		return scanPlanTextAnyToTimeScanner{}.Scan([]byte(src), t)
+		err := scanPlanTextAnyToTimeScanner{}.Scan([]byte(src), t)
+		if err != nil {
+			t.Microseconds = 0
+			t.Valid = false
+		}
+		return err
 	}
 
 	return fmt.Errorf("cannot scan %T", src)
@@ -176,7 +181,7 @@ func (scanPlanTextAnyToTimeScanner) Scan(src []byte, dst any) error {
 
 	s := string(src)
 
-	if len(s) < 8 {
+	if len(s) < 8 || s[2] != ':' || s[5] != ':' {
 		return fmt.Errorf("cannot decode %v into Time", s)
 	}
 
@@ -199,6 +204,10 @@ func (scanPlanTextAnyToTimeScanner) Scan(src []byte, dst any) error {
 	usec += seconds * microsecondsPerSecond
 
 	if len(s) > 9 {
+		if s[8] != '.' || len(s) > 15 {
+			return fmt.Errorf("cannot decode %v into Time", s)
+		}
+
 		fraction := s[9:]
 		n, err := strconv.ParseInt(fraction, 10, 64)
 		if err != nil {
