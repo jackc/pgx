@@ -46,6 +46,11 @@ func TestMacaddrCodec(t *testing.T) {
 			new(string),
 			isExpectedEq("01:23:45:67:89:ab"),
 		},
+		{
+			mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
+			new(string),
+			isExpectedEq("01:23:45:67:89:ab:01:08"),
+		},
 		{nil, new(*net.HardwareAddr), isExpectedEq((*net.HardwareAddr)(nil))},
 	})
 }
