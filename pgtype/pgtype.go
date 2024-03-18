@@ -41,6 +41,7 @@ const (
 	CircleOID              = 718
 	CircleArrayOID         = 719
 	UnknownOID             = 705
+	Macaddr8OID            = 774
 	MacaddrOID             = 829
 	InetOID                = 869
 	BoolArrayOID           = 1000
