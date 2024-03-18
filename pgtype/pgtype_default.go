@@ -70,6 +70,7 @@ func initDefaultMap() {
 	defaultMap.RegisterType(&Type{Name: "jsonpath", OID: JSONPathOID, Codec: &TextFormatOnlyCodec{TextCodec{}}})
 	defaultMap.RegisterType(&Type{Name: "line", OID: LineOID, Codec: LineCodec{}})
 	defaultMap.RegisterType(&Type{Name: "lseg", OID: LsegOID, Codec: LsegCodec{}})
+	defaultMap.RegisterType(&Type{Name: "macaddr8", OID: Macaddr8OID, Codec: MacaddrCodec{}})
 	defaultMap.RegisterType(&Type{Name: "macaddr", OID: MacaddrOID, Codec: MacaddrCodec{}})
 	defaultMap.RegisterType(&Type{Name: "name", OID: NameOID, Codec: TextCodec{}})
 	defaultMap.RegisterType(&Type{Name: "numeric", OID: NumericOID, Codec: NumericCodec{}})
