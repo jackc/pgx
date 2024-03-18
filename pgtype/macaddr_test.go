@@ -46,6 +46,20 @@ func TestMacaddrCodec(t *testing.T) {
 			new(string),
 			isExpectedEq("01:23:45:67:89:ab"),
 		},
+		{nil, new(*net.HardwareAddr), isExpectedEq((*net.HardwareAddr)(nil))},
+	})
+
+	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, pgxtest.KnownOIDQueryExecModes, "macaddr8", []pgxtest.ValueRoundTripTest{
+		{
+			mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
+			new(net.HardwareAddr),
+			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
+		},
+		{
+			"01:23:45:67:89:ab:01:08",
+			new(net.HardwareAddr),
+			isExpectedEqHardwareAddr(mustParseMacaddr(t, "01:23:45:67:89:ab:01:08")),
+		},
 		{
 			mustParseMacaddr(t, "01:23:45:67:89:ab:01:08"),
 			new(string),
