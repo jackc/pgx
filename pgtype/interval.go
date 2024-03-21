@@ -132,22 +132,31 @@ func (encodePlanIntervalCodecText) Encode(value any, buf []byte) (newBuf []byte,
 
 	if interval.Days != 0 {
 		buf = append(buf, strconv.FormatInt(int64(interval.Days), 10)...)
-		buf = append(buf, " day "...)
+		buf = append(buf, " day"...)
 	}
 
-	absMicroseconds := interval.Microseconds
-	if absMicroseconds < 0 {
-		absMicroseconds = -absMicroseconds
-		buf = append(buf, '-')
+	if interval.Microseconds != 0 {
+		buf = append(buf, " "...)
+
+		absMicroseconds := interval.Microseconds
+		if absMicroseconds < 0 {
+			absMicroseconds = -absMicroseconds
+			buf = append(buf, '-')
+		}
+
+		hours := absMicroseconds / microsecondsPerHour
+		minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
+		seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
+
+		timeStr := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
+		buf = append(buf, timeStr...)
+
+		microseconds := absMicroseconds % microsecondsPerSecond
+		if microseconds != 0 {
+			buf = append(buf, fmt.Sprintf(".%06d", microseconds)...)
+		}
 	}
 
-	hours := absMicroseconds / microsecondsPerHour
-	minutes := (absMicroseconds % microsecondsPerHour) / microsecondsPerMinute
-	seconds := (absMicroseconds % microsecondsPerMinute) / microsecondsPerSecond
-	microseconds := absMicroseconds % microsecondsPerSecond
-
-	timeStr := fmt.Sprintf("%02d:%02d:%02d.%06d", hours, minutes, seconds, microseconds)
-	buf = append(buf, timeStr...)
 	return buf, nil
 }
 
