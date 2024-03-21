@@ -15,23 +15,15 @@ type Conn struct {
 	p   *Pool
 }
 
-// Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
-// However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
-func (c *Conn) Release() {
-	if c.res == nil {
-		return
-	}
+func (c *Conn) destroyResource(conn *pgx.Conn, res *puddle.Resource[*connResource]) (resourceDestroyed bool) {
+	pgConn := conn.PgConn()
 
-	conn := c.Conn()
-	res := c.res
-	c.res = nil
-
-	if conn.IsClosed() || conn.PgConn().IsBusy() || conn.PgConn().TxStatus() != 'I' {
+	if conn.IsClosed() || pgConn.IsBusy() || pgConn.TxStatus() != 'I' {
 		res.Destroy()
 		// Signal to the health check to run since we just destroyed a connections
 		// and we might be below minConns now
 		c.p.triggerHealthCheck()
-		return
+		return true
 	}
 
 	// If the pool is consistently being used, we might never get to check the
@@ -43,6 +35,18 @@ func (c *Conn) Release() {
 		// Signal to the health check to run since we just destroyed a connections
 		// and we might be below minConns now
 		c.p.triggerHealthCheck()
+		return true
+	}
+
+	return false
+}
+
+func (c *Conn) handleRecover(conn *pgx.Conn, res *puddle.Resource[*connResource]) {
+	pgConn := conn.PgConn()
+
+	pgConn.WaitForRecover()
+
+	if c.destroyResource(conn, res) {
 		return
 	}
 
@@ -51,16 +55,47 @@ func (c *Conn) Release() {
 		return
 	}
 
-	go func() {
-		if c.p.afterRelease(conn) {
-			res.Release()
-		} else {
-			res.Destroy()
-			// Signal to the health check to run since we just destroyed a connections
-			// and we might be below minConns now
-			c.p.triggerHealthCheck()
-		}
-	}()
+	c.afterRelease(conn, res)
+}
+
+// Release returns c to the pool it was acquired from. Once Release has been called, other methods must not be called.
+// However, it is safe to call Release multiple times. Subsequent calls after the first will be ignored.
+func (c *Conn) Release() {
+	if c.res == nil {
+		return
+	}
+
+	conn := c.Conn()
+	res := c.res
+	c.res = nil
+	pgConn := conn.PgConn()
+
+	if pgConn.IsRecovering() {
+		go c.handleRecover(conn, res)
+		return
+	}
+
+	if c.destroyResource(conn, res) {
+		return
+	}
+
+	if c.p.afterRelease == nil {
+		res.Release()
+		return
+	}
+
+	go c.afterRelease(conn, res)
+}
+
+func (c *Conn) afterRelease(conn *pgx.Conn, res *puddle.Resource[*connResource]) {
+	if c.p.afterRelease(conn) {
+		res.Release()
+	} else {
+		res.Destroy()
+		// Signal to the health check to run since we just destroyed a connections
+		// and we might be below minConns now
+		c.p.triggerHealthCheck()
+	}
 }
 
 // Hijack assumes ownership of the connection from the pool. Caller is responsible for closing the connection. Hijack
