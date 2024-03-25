@@ -665,7 +665,7 @@ func (rs *namedStructRowScanner) ScanRow(rows CollectableRow) error {
 	if err != nil {
 		return err
 	}
-	if rs.lax && namedStructFields.missingField != "" {
+	if !rs.lax && namedStructFields.missingField != "" {
 		return fmt.Errorf("cannot find field %s in returned row", namedStructFields.missingField)
 	}
 	fields := namedStructFields.fields
