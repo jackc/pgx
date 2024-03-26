@@ -14,6 +14,7 @@ func (e errRows) Err() error                                 { return e.err }
 func (errRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
 func (errRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
 func (errRows) Next() bool                                   { return false }
+func (e errRows) NextE() (bool, error)                       { return false, e.err }
 func (e errRows) Scan(dest ...any) error                     { return e.err }
 func (e errRows) Values() ([]any, error)                     { return nil, e.err }
 func (e errRows) RawValues() [][]byte                        { return nil }
@@ -55,15 +56,27 @@ func (rows *poolRows) FieldDescriptions() []pgconn.FieldDescription {
 }
 
 func (rows *poolRows) Next() bool {
+	next, _ := rows.NextE()
+
+	return next
+}
+
+func (rows *poolRows) NextE() (bool, error) {
 	if rows.err != nil {
-		return false
+		return false, rows.err
 	}
 
-	n := rows.r.Next()
+	n, err := rows.r.NextE()
+	if err != nil {
+		rows.Close()
+		return false, err
+	}
+
 	if !n {
 		rows.Close()
 	}
-	return n
+
+	return n, rows.Err()
 }
 
 func (rows *poolRows) Scan(dest ...any) error {

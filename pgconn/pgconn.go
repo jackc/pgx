@@ -1536,20 +1536,25 @@ func (rr *ResultReader) Read() *Result {
 
 // NextRow advances the ResultReader to the next row and returns true if a row is available.
 func (rr *ResultReader) NextRow() bool {
+	next, _ := rr.NextRowE()
+	return next
+}
+
+func (rr *ResultReader) NextRowE() (bool, error) {
 	for !rr.commandConcluded {
 		msg, err := rr.receiveMessage()
 		if err != nil {
-			return false
+			return false, err
 		}
 
 		switch msg := msg.(type) {
 		case *pgproto3.DataRow:
 			rr.rowValues = msg.Values
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
 // FieldDescriptions returns the field descriptions for the current result set. The returned slice is only valid until

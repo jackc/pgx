@@ -52,6 +52,9 @@ type Rows interface {
 	// CollectRows() and ForEachRow() helpers instead.
 	Next() bool
 
+	// NextE Same with Next but returns error
+	NextE() (bool, error)
+
 	// Scan reads the values from the current row into dest values positionally.
 	// dest can include pointers to core types, values implementing the Scanner
 	// interface, and nil. nil will skip the value entirely. It is an error to
@@ -220,6 +223,23 @@ func (rows *baseRows) Next() bool {
 	} else {
 		rows.Close()
 		return false
+	}
+}
+
+func (rows *baseRows) NextE() (bool, error) {
+	if rows.closed {
+		return false, nil
+	}
+
+	if next, err := rows.resultReader.NextRowE(); err != nil {
+		return false, err
+	} else if next {
+		rows.rowCount++
+		rows.values = rows.resultReader.Values()
+		return true, nil
+	} else {
+		rows.Close()
+		return false, rows.Err()
 	}
 }
 
