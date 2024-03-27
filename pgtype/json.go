@@ -15,7 +15,7 @@ func (JSONCodec) FormatSupported(format int16) bool {
 }
 
 func (JSONCodec) PreferredFormat() int16 {
-	return TextFormatCode
+	return BinaryFormatCode
 }
 
 func (c JSONCodec) PlanEncode(m *Map, oid uint32, format int16, value any) EncodePlan {
