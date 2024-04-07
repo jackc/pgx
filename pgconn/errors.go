@@ -29,23 +29,24 @@ func Timeout(err error) bool {
 // http://www.postgresql.org/docs/11/static/protocol-error-fields.html for
 // detailed field description.
 type PgError struct {
-	Severity         string
-	Code             string
-	Message          string
-	Detail           string
-	Hint             string
-	Position         int32
-	InternalPosition int32
-	InternalQuery    string
-	Where            string
-	SchemaName       string
-	TableName        string
-	ColumnName       string
-	DataTypeName     string
-	ConstraintName   string
-	File             string
-	Line             int32
-	Routine          string
+	Severity            string
+	SeverityUnlocalized string
+	Code                string
+	Message             string
+	Detail              string
+	Hint                string
+	Position            int32
+	InternalPosition    int32
+	InternalQuery       string
+	Where               string
+	SchemaName          string
+	TableName           string
+	ColumnName          string
+	DataTypeName        string
+	ConstraintName      string
+	File                string
+	Line                int32
+	Routine             string
 }
 
 func (pe *PgError) Error() string {
