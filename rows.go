@@ -461,7 +461,6 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 		return value, err
 	}
 
-	rows.Close()
 	return value, rows.Err()
 }
 

@@ -28,7 +28,6 @@ func (qq *QueuedQuery) Query(fn func(rows Rows) error) {
 		if err != nil {
 			return err
 		}
-		rows.Close()
 
 		return rows.Err()
 	}
