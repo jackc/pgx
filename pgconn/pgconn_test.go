@@ -1556,9 +1556,9 @@ func TestConnOnNotice(t *testing.T) {
 	config, err := pgconn.ParseConfig(os.Getenv("PGX_TEST_DATABASE"))
 	require.NoError(t, err)
 
-	var msg string
-	config.OnNotice = func(c *pgconn.PgConn, notice *pgconn.Notice) {
-		msg = notice.Message
+	var notice *pgconn.Notice
+	config.OnNotice = func(c *pgconn.PgConn, n *pgconn.Notice) {
+		notice = n
 	}
 	config.RuntimeParams["client_min_messages"] = "notice" // Ensure we only get the message we expect.
 
@@ -1576,7 +1576,8 @@ begin
 end$$;`)
 	err = multiResult.Close()
 	require.NoError(t, err)
-	assert.Equal(t, "hello, world", msg)
+	assert.Equal(t, "NOTICE", notice.SeverityUnlocalized)
+	assert.Equal(t, "hello, world", notice.Message)
 
 	ensureConnValid(t, pgConn)
 }
