@@ -1134,6 +1134,100 @@ func BenchmarkSelectRowsPgConnExecParams(b *testing.B) {
 	}
 }
 
+func BenchmarkSelectRowsSimpleCollectRowsRowToStructByPos(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				rows, _ := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", rowCount)
+				benchRows, err := pgx.CollectRows(rows, pgx.RowToStructByPos[BenchRowSimple])
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(benchRows) != int(rowCount) {
+					b.Fatalf("Expected %d rows, got %d", rowCount, len(benchRows))
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsSimpleAppendRowsRowToStructByPos(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			benchRows := make([]BenchRowSimple, 0, rowCount)
+			for i := 0; i < b.N; i++ {
+				benchRows = benchRows[:0]
+				rows, _ := conn.Query(context.Background(), "select n, 'Adam', 'Smith ' || n, 'male', '1952-06-16'::date, 258, 72, '2001-01-28 01:02:03-05'::timestamptz from generate_series(100001, 100000 + $1) n", rowCount)
+				var err error
+				benchRows, err = pgx.AppendRows(benchRows, rows, pgx.RowToStructByPos[BenchRowSimple])
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(benchRows) != int(rowCount) {
+					b.Fatalf("Expected %d rows, got %d", rowCount, len(benchRows))
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsSimpleCollectRowsRowToStructByName(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				rows, _ := conn.Query(context.Background(), "select n as id, 'Adam' as first_name, 'Smith ' || n as last_name, 'male' as sex, '1952-06-16'::date as birth_date, 258 as weight, 72 as height, '2001-01-28 01:02:03-05'::timestamptz as update_time from generate_series(100001, 100000 + $1) n", rowCount)
+				benchRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[BenchRowSimple])
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(benchRows) != int(rowCount) {
+					b.Fatalf("Expected %d rows, got %d", rowCount, len(benchRows))
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkSelectRowsSimpleAppendRowsRowToStructByName(b *testing.B) {
+	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
+	defer closeConn(b, conn)
+
+	rowCounts := getSelectRowsCounts(b)
+
+	for _, rowCount := range rowCounts {
+		b.Run(fmt.Sprintf("%d rows", rowCount), func(b *testing.B) {
+			benchRows := make([]BenchRowSimple, 0, rowCount)
+			for i := 0; i < b.N; i++ {
+				benchRows = benchRows[:0]
+				rows, _ := conn.Query(context.Background(), "select n as id, 'Adam' as first_name, 'Smith ' || n as last_name, 'male' as sex, '1952-06-16'::date as birth_date, 258 as weight, 72 as height, '2001-01-28 01:02:03-05'::timestamptz as update_time from generate_series(100001, 100000 + $1) n", rowCount)
+				var err error
+				benchRows, err = pgx.AppendRows(benchRows, rows, pgx.RowToStructByPos[BenchRowSimple])
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(benchRows) != int(rowCount) {
+					b.Fatalf("Expected %d rows, got %d", rowCount, len(benchRows))
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSelectRowsPgConnExecPrepared(b *testing.B) {
 	conn := mustConnectString(b, os.Getenv("PGX_TEST_DATABASE"))
 	defer closeConn(b, conn)
