@@ -70,7 +70,7 @@ type Config struct {
 
 // ParseConfigOptions contains options that control how a config is built such as GetSSLPassword.
 type ParseConfigOptions struct {
-	// GetSSLPassword gets the password to decrypt a SSL client certificate. This is analogous to the the libpq function
+	// GetSSLPassword gets the password to decrypt a SSL client certificate. This is analogous to the libpq function
 	// PQsetSSLKeyPassHook_OpenSSL.
 	GetSSLPassword GetSSLPasswordFunc
 }
