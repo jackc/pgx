@@ -30,7 +30,7 @@ func TestConfigError(t *testing.T) {
 		},
 		{
 			name:        "weird url",
-			err:         pgconn.NewParseConfigError("postgresql://foo::pasword@host:1:", "msg", nil),
+			err:         pgconn.NewParseConfigError("postgresql://foo::password@host:1:", "msg", nil),
 			expectedMsg: "cannot parse `postgresql://foo:xxxxx@host:1:`: msg",
 		},
 		{

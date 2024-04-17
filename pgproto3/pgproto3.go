@@ -99,7 +99,7 @@ func getValueFromJSON(v map[string]string) ([]byte, error) {
 	return nil, errors.New("unknown protocol representation")
 }
 
-// beginMessage begines a new message of type t. It appends the message type and a placeholder for the message length to
+// beginMessage begins a new message of type t. It appends the message type and a placeholder for the message length to
 // dst. It returns the new buffer and the position of the message length placeholder.
 func beginMessage(dst []byte, t byte) ([]byte, int) {
 	dst = append(dst, t)

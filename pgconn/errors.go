@@ -18,7 +18,7 @@ func SafeToRetry(err error) bool {
 	return false
 }
 
-// Timeout checks if err was was caused by a timeout. To be specific, it is true if err was caused within pgconn by a
+// Timeout checks if err was caused by a timeout. To be specific, it is true if err was caused within pgconn by a
 // context.DeadlineExceeded or an implementer of net.Error where Timeout() is true.
 func Timeout(err error) bool {
 	var timeoutErr *errTimeout
