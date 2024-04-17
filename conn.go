@@ -624,7 +624,7 @@ const (
 	// to execute. It does not use named prepared statements. But it does use the unnamed prepared statement to get the
 	// statement description on the first round trip and then uses it to execute the query on the second round trip. This
 	// may cause problems with connection poolers that switch the underlying connection between round trips. It is safe
-	// even when the the database schema is modified concurrently.
+	// even when the database schema is modified concurrently.
 	QueryExecModeDescribeExec
 
 	// Assume the PostgreSQL query parameter types based on the Go type of the arguments. This uses the extended protocol
