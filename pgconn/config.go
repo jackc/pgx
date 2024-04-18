@@ -817,7 +817,8 @@ func parsePort(s string) (uint16, error) {
 }
 
 func makeDefaultDialer() *net.Dialer {
-	return &net.Dialer{KeepAlive: 5 * time.Minute}
+	// rely on GOLANG KeepAlive settings
+	return &net.Dialer{}
 }
 
 func makeDefaultResolver() *net.Resolver {
