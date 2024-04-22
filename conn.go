@@ -17,6 +17,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AfterPgxConnectFunc func(ctx context.Context, pgxconn *Conn) error
+
 // ConnConfig contains all the options used to establish a connection. It must be created by ParseConfig and
 // then it can be modified. A manually initialized ConnConfig will cause ConnectConfig to panic.
 type ConnConfig struct {
@@ -40,6 +42,11 @@ type ConnConfig struct {
 	// PGBouncer. In this case it may be preferable to use QueryExecModeExec or QueryExecModeSimpleProtocol. The same
 	// functionality can be controlled on a per query basis by passing a QueryExecMode as the first query argument.
 	DefaultQueryExecMode QueryExecMode
+
+	// AfterPgxConnect is utilized to modify the pgx.Conn value, such as adding options to the TypeMap value.  This is
+	// called after the AfterConnect function is called, if supplied.  If this returns an error, the connection attempt
+	// fails.
+	AfterPgxConnect AfterPgxConnectFunc
 
 	createdByParseConfig bool // Used to enforce created by ParseConfig rule.
 }
@@ -257,6 +264,13 @@ func connect(ctx context.Context, config *ConnConfig) (c *Conn, err error) {
 	c.pgConn, err = pgconn.ConnectConfig(ctx, &config.Config)
 	if err != nil {
 		return nil, err
+	}
+
+	if config.AfterPgxConnect != nil {
+		if err := config.AfterPgxConnect(ctx, c); err != nil {
+			c.Close(ctx)
+			return nil, err
+		}
 	}
 
 	c.preparedStatements = make(map[string]*pgconn.StatementDescription)

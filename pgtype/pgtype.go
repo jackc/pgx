@@ -212,6 +212,10 @@ type Map struct {
 	// to be built up. There are default functions placed in this slice by NewMap(). In most cases these functions
 	// should run last. i.e. Additional functions should typically be prepended not appended.
 	TryWrapScanPlanFuncs []TryWrapScanPlanFunc
+
+	// NilHandlers is a slice of functions that is utilized to handle the case where a driver.NamedValue instance is considered
+	// nil by pgx, but may need to be subsituted for a different value.
+	NilHandlers []NilHandler
 }
 
 func NewMap() *Map {
@@ -1035,6 +1039,17 @@ func (plan *wrapPtrArrayReflectScanPlan) SetNext(next ScanPlan) { plan.next = ne
 
 func (plan *wrapPtrArrayReflectScanPlan) Scan(src []byte, target any) error {
 	return plan.next.Scan(src, &anyArrayArrayReflect{array: reflect.ValueOf(target).Elem()})
+}
+
+type NilHandler func(*driver.NamedValue) error
+
+func (m *Map) TryNilHandling(nv *driver.NamedValue) error {
+	for _, f := range m.NilHandlers {
+		if err := f(nv); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // PlanScan prepares a plan to scan a value into target.

@@ -81,6 +81,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/internal/anynil"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -533,8 +534,15 @@ func (c *Conn) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (c *Conn) CheckNamedValue(*driver.NamedValue) error {
-	// Underlying pgx supports sql.Scanner and driver.Valuer interfaces natively. So everything can be passed through directly.
+func (c *Conn) CheckNamedValue(nv *driver.NamedValue) error {
+	// Underlying pgx supports sql.Scanner and driver.Valuer interfaces natively. If the Value itself is not nil, but
+	// can be considered nil, check to see if an option has been set up to handle it explicitly
+	if nv.Value != nil && anynil.Is(nv.Value) {
+		tm := c.conn.TypeMap()
+		if err := tm.TryNilHandling(nv); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
