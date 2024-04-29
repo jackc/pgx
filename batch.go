@@ -12,7 +12,7 @@ import (
 type QueuedQuery struct {
 	SQL       string
 	Arguments []any
-	fn        batchItemFunc
+	Fn        batchItemFunc
 	sd        *pgconn.StatementDescription
 }
 
@@ -20,7 +20,7 @@ type batchItemFunc func(br BatchResults) error
 
 // Query sets fn to be called when the response to qq is received.
 func (qq *QueuedQuery) Query(fn func(rows Rows) error) {
-	qq.fn = func(br BatchResults) error {
+	qq.Fn = func(br BatchResults) error {
 		rows, _ := br.Query()
 		defer rows.Close()
 
@@ -36,7 +36,7 @@ func (qq *QueuedQuery) Query(fn func(rows Rows) error) {
 
 // Query sets fn to be called when the response to qq is received.
 func (qq *QueuedQuery) QueryRow(fn func(row Row) error) {
-	qq.fn = func(br BatchResults) error {
+	qq.Fn = func(br BatchResults) error {
 		row := br.QueryRow()
 		return fn(row)
 	}
@@ -44,7 +44,7 @@ func (qq *QueuedQuery) QueryRow(fn func(row Row) error) {
 
 // Exec sets fn to be called when the response to qq is received.
 func (qq *QueuedQuery) Exec(fn func(ct pgconn.CommandTag) error) {
-	qq.fn = func(br BatchResults) error {
+	qq.Fn = func(br BatchResults) error {
 		ct, err := br.Exec()
 		if err != nil {
 			return err
@@ -228,8 +228,8 @@ func (br *batchResults) Close() error {
 
 	// Read and run fn for all remaining items
 	for br.err == nil && !br.closed && br.b != nil && br.qqIdx < len(br.b.QueuedQueries) {
-		if br.b.QueuedQueries[br.qqIdx].fn != nil {
-			err := br.b.QueuedQueries[br.qqIdx].fn(br)
+		if br.b.QueuedQueries[br.qqIdx].Fn != nil {
+			err := br.b.QueuedQueries[br.qqIdx].Fn(br)
 			if err != nil {
 				br.err = err
 			}
@@ -397,8 +397,8 @@ func (br *pipelineBatchResults) Close() error {
 
 	// Read and run fn for all remaining items
 	for br.err == nil && !br.closed && br.b != nil && br.qqIdx < len(br.b.QueuedQueries) {
-		if br.b.QueuedQueries[br.qqIdx].fn != nil {
-			err := br.b.QueuedQueries[br.qqIdx].fn(br)
+		if br.b.QueuedQueries[br.qqIdx].Fn != nil {
+			err := br.b.QueuedQueries[br.qqIdx].Fn(br)
 			if err != nil {
 				br.err = err
 			}
