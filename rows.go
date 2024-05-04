@@ -419,6 +419,8 @@ type CollectableRow interface {
 type RowToFunc[T any] func(row CollectableRow) (T, error)
 
 // AppendRows iterates through rows, calling fn for each row, and appending the results into a slice of T.
+//
+// This function closes the rows automatically on return.
 func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 	defer rows.Close()
 
@@ -438,12 +440,16 @@ func AppendRows[T any, S ~[]T](slice S, rows Rows, fn RowToFunc[T]) (S, error) {
 }
 
 // CollectRows iterates through rows, calling fn for each row, and collecting the results into a slice of T.
+//
+// This function closes the rows automatically on return.
 func CollectRows[T any](rows Rows, fn RowToFunc[T]) ([]T, error) {
 	return AppendRows([]T{}, rows, fn)
 }
 
 // CollectOneRow calls fn for the first row in rows and returns the result. If no rows are found returns an error where errors.Is(ErrNoRows) is true.
 // CollectOneRow is to CollectRows as QueryRow is to Query.
+//
+// This function closes the rows automatically on return.
 func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	defer rows.Close()
 
@@ -469,6 +475,8 @@ func CollectOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 // CollectExactlyOneRow calls fn for the first row in rows and returns the result.
 //   - If no rows are found returns an error where errors.Is(ErrNoRows) is true.
 //   - If more than 1 row is found returns an error where errors.Is(ErrTooManyRows) is true.
+//
+// This function closes the rows automatically on return.
 func CollectExactlyOneRow[T any](rows Rows, fn RowToFunc[T]) (T, error) {
 	defer rows.Close()
 

@@ -23,7 +23,7 @@ github.com/jackc/pgx/v5/pgxpool for a concurrency safe connection pool.
 Query Interface
 
 pgx implements Query in the familiar database/sql style. However, pgx provides generic functions such as CollectRows and
-ForEachRow that are a simpler and safer way of processing rows than manually calling rows.Next(), rows.Scan, and
+ForEachRow that are a simpler and safer way of processing rows than manually calling defer rows.Close(), rows.Next(), rows.Scan, and
 rows.Err().
 
 CollectRows can be used collect all returned rows into a slice.
