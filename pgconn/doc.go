@@ -20,13 +20,17 @@ result. The ReadAll method reads all query results into memory.
 
 Pipeline Mode
 
-Pipeline mode allows sending queries without having read the results of previously sent queries. It allows
-control of exactly how many and when network round trips occur.
+Pipeline mode allows sending queries without having read the results of previously sent queries. It allows control of
+exactly how many and when network round trips occur.
 
 Context Support
 
-All potentially blocking operations take a context.Context. If a context is canceled while the method is in progress the
-method immediately returns. In most circumstances, this will close the underlying connection.
+All potentially blocking operations take a context.Context. The default behavior when a context is canceled is for the
+method to immediately return. In most circumstances, this will also close the underlying connection. This behavior can
+be customized by using BuildContextWatcherHandler on the Config to create a ctxwatch.Handler with different behavior.
+This can be especially useful when queries that are frequently canceled and the overhead of creating new connections is
+a problem. DeadlineContextWatcherHandler and CancelRequestContextWatcherHandler can be used to introduce a delay before
+interrupting the query in such a way as to close the connection.
 
 The CancelRequest method may be used to request the PostgreSQL server cancel an in-progress query without forcing the
 client to abort.
