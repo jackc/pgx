@@ -3185,6 +3185,22 @@ func TestConnOnPgError(t *testing.T) {
 	assert.True(t, pgConn.IsClosed())
 }
 
+func TestConnCustomData(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	pgConn.CustomData()["foo"] = "bar"
+	assert.Equal(t, "bar", pgConn.CustomData()["foo"])
+
+	ensureConnValid(t, pgConn)
+}
+
 func Example() {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()

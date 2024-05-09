@@ -82,6 +82,8 @@ type PgConn struct {
 	slowWriteTimer    *time.Timer
 	bgReaderStarted   chan struct{}
 
+	customData map[string]any
+
 	config *Config
 
 	status byte // One of connStatus* constants
@@ -278,6 +280,7 @@ func connect(ctx context.Context, config *Config, fallbackConfig *FallbackConfig
 	pgConn := new(PgConn)
 	pgConn.config = config
 	pgConn.cleanupDone = make(chan struct{})
+	pgConn.customData = make(map[string]any)
 
 	var err error
 	network, address := NetworkAddress(fallbackConfig.Host, fallbackConfig.Port)
@@ -1868,6 +1871,11 @@ func (pgConn *PgConn) SyncConn(ctx context.Context) error {
 	return errors.New("SyncConn: conn never synchronized")
 }
 
+// CustomData returns a map that can be used to associate custom data with the connection.
+func (pgConn *PgConn) CustomData() map[string]any {
+	return pgConn.customData
+}
+
 // HijackedConn is the result of hijacking a connection.
 //
 // Due to the necessary exposure of internal implementation details, it is not covered by the semantic versioning
@@ -1880,6 +1888,7 @@ type HijackedConn struct {
 	TxStatus          byte
 	Frontend          *pgproto3.Frontend
 	Config            *Config
+	CustomData        map[string]any
 }
 
 // Hijack extracts the internal connection data. pgConn must be in an idle state. SyncConn should be called immediately
@@ -1902,6 +1911,7 @@ func (pgConn *PgConn) Hijack() (*HijackedConn, error) {
 		TxStatus:          pgConn.txStatus,
 		Frontend:          pgConn.frontend,
 		Config:            pgConn.config,
+		CustomData:        pgConn.customData,
 	}, nil
 }
 
@@ -1921,6 +1931,7 @@ func Construct(hc *HijackedConn) (*PgConn, error) {
 		txStatus:          hc.TxStatus,
 		frontend:          hc.Frontend,
 		config:            hc.Config,
+		customData:        hc.CustomData,
 
 		status: connStatusIdle,
 
