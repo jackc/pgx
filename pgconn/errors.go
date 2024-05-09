@@ -12,8 +12,9 @@ import (
 
 // SafeToRetry checks if the err is guaranteed to have occurred before sending any data to the server.
 func SafeToRetry(err error) bool {
-	if e, ok := err.(interface{ SafeToRetry() bool }); ok {
-		return e.SafeToRetry()
+	var retryableErr interface{ SafeToRetry() bool }
+	if errors.As(err, &retryableErr) {
+		return retryableErr.SafeToRetry()
 	}
 	return false
 }
