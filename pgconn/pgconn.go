@@ -1515,8 +1515,10 @@ func (rr *ResultReader) Read() *Result {
 		values := rr.Values()
 		row := make([][]byte, len(values))
 		for i := range row {
-			row[i] = make([]byte, len(values[i]))
-			copy(row[i], values[i])
+			if values[i] != nil {
+				row[i] = make([]byte, len(values[i]))
+				copy(row[i], values[i])
+			}
 		}
 		br.Rows = append(br.Rows, row)
 	}

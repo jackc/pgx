@@ -1176,6 +1176,24 @@ func TestResultReaderValuesHaveSameCapacityAsLength(t *testing.T) {
 	ensureConnValid(t, pgConn)
 }
 
+// https://github.com/jackc/pgx/issues/1987
+func TestResultReaderReadNil(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	pgConn, err := pgconn.Connect(ctx, os.Getenv("PGX_TEST_DATABASE"))
+	require.NoError(t, err)
+	defer closeConn(t, pgConn)
+
+	result := pgConn.ExecParams(ctx, "select null::text", nil, nil, nil, nil).Read()
+	require.NoError(t, result.Err)
+	require.Nil(t, result.Rows[0][0])
+
+	ensureConnValid(t, pgConn)
+}
+
 func TestConnExecPrepared(t *testing.T) {
 	t.Parallel()
 
