@@ -141,6 +141,8 @@ func (TimeCodec) PlanScan(m *Map, oid uint32, format int16, target any) ScanPlan
 		switch target.(type) {
 		case TimeScanner:
 			return scanPlanBinaryTimeToTimeScanner{}
+		case TextScanner:
+			return scanPlanBinaryTimeToTextScanner{}
 		}
 	case TextFormatCode:
 		switch target.(type) {
@@ -168,6 +170,34 @@ func (scanPlanBinaryTimeToTimeScanner) Scan(src []byte, dst any) error {
 	usec := int64(binary.BigEndian.Uint64(src))
 
 	return scanner.ScanTime(Time{Microseconds: usec, Valid: true})
+}
+
+type scanPlanBinaryTimeToTextScanner struct{}
+
+func (scanPlanBinaryTimeToTextScanner) Scan(src []byte, dst any) error {
+	ts, ok := (dst).(TextScanner)
+	if !ok {
+		return ErrScanTargetTypeChanged
+	}
+
+	if src == nil {
+		return ts.ScanText(Text{})
+	}
+
+	if len(src) != 8 {
+		return fmt.Errorf("invalid length for time: %v", len(src))
+	}
+
+	usec := int64(binary.BigEndian.Uint64(src))
+
+	tim := Time{Microseconds: usec, Valid: true}
+
+	buf, err := TimeCodec{}.PlanEncode(nil, 0, TextFormatCode, tim).Encode(tim, nil)
+	if err != nil {
+		return err
+	}
+
+	return ts.ScanText(Text{String: string(buf), Valid: true})
 }
 
 type scanPlanTextAnyToTimeScanner struct{}
