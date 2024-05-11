@@ -118,6 +118,14 @@ type FallbackConfig struct {
 	TLSConfig *tls.Config // nil disables TLS
 }
 
+// connectOneConfig is the configuration for a single attempt to connect to a single host.
+type connectOneConfig struct {
+	network          string
+	address          string
+	originalHostname string      // original hostname before resolving
+	tlsConfig        *tls.Config // nil disables TLS
+}
+
 // isAbsolutePath checks if the provided value is an absolute path either
 // beginning with a forward slash (as on Linux-based systems) or with a capital
 // letter A-Z followed by a colon and a backslash, e.g., "C:\", (as on Windows).

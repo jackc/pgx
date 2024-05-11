@@ -62,20 +62,34 @@ func (pe *PgError) SQLState() string {
 // ConnectError is the error returned when a connection attempt fails.
 type ConnectError struct {
 	Config *Config // The configuration that was used in the connection attempt.
-	msg    string
 	err    error
 }
 
 func (e *ConnectError) Error() string {
-	sb := &strings.Builder{}
-	fmt.Fprintf(sb, "failed to connect to `host=%s user=%s database=%s`: %s", e.Config.Host, e.Config.User, e.Config.Database, e.msg)
-	if e.err != nil {
-		fmt.Fprintf(sb, " (%s)", e.err.Error())
+	prefix := fmt.Sprintf("failed to connect to `user=%s database=%s`:", e.Config.User, e.Config.Database)
+	details := e.err.Error()
+	if strings.Contains(details, "\n") {
+		return prefix + "\n\t" + strings.ReplaceAll(details, "\n", "\n\t")
+	} else {
+		return prefix + " " + details
 	}
-	return sb.String()
 }
 
 func (e *ConnectError) Unwrap() error {
+	return e.err
+}
+
+type perDialConnectError struct {
+	address          string
+	originalHostname string
+	err              error
+}
+
+func (e *perDialConnectError) Error() string {
+	return fmt.Sprintf("%s (%s): %s", e.address, e.originalHostname, e.err.Error())
+}
+
+func (e *perDialConnectError) Unwrap() error {
 	return e.err
 }
 
