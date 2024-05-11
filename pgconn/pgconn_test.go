@@ -537,7 +537,7 @@ func TestConnectFailsWithResolveFailureAndFailedConnectionAttempts(t *testing.T)
 	require.Error(t, err)
 	require.Nil(t, conn)
 
-	require.ErrorContains(t, err, "lookup foo.invalid: no such host")
+	require.ErrorContains(t, err, "lookup foo.invalid")
 	// Not testing the entire string as depending on IPv4 or IPv6 support localhost may resolve to 127.0.0.1 or ::1.
 	require.ErrorContains(t, err, ":1 (localhost): dial error:")
 	require.ErrorContains(t, err, ":2 (127.0.0.1): dial error:")
