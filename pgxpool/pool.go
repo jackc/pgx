@@ -279,7 +279,7 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 //
 // See Config for definitions of these arguments.
 //
-//	# Example DSN
+//	# Example Keyword/Value
 //	user=jack password=secret host=pg.example.com port=5432 dbname=mydb sslmode=verify-ca pool_max_conns=10
 //
 //	# Example URL

@@ -211,10 +211,10 @@ func redactPW(connString string) string {
 			return redactURL(u)
 		}
 	}
-	quotedDSN := regexp.MustCompile(`password='[^']*'`)
-	connString = quotedDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
-	plainDSN := regexp.MustCompile(`password=[^ ]*`)
-	connString = plainDSN.ReplaceAllLiteralString(connString, "password=xxxxx")
+	quotedKV := regexp.MustCompile(`password='[^']*'`)
+	connString = quotedKV.ReplaceAllLiteralString(connString, "password=xxxxx")
+	plainKV := regexp.MustCompile(`password=[^ ]*`)
+	connString = plainKV.ReplaceAllLiteralString(connString, "password=xxxxx")
 	brokenURL := regexp.MustCompile(`:[^:@]+?@`)
 	connString = brokenURL.ReplaceAllLiteralString(connString, ":xxxxxx@")
 	return connString

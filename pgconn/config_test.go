@@ -336,7 +336,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN everything",
+			name:       "Key/value everything",
 			connString: "user=jack password=secret host=localhost port=5432 dbname=mydb sslmode=disable application_name=pgxtest search_path=myschema connect_timeout=5",
 			config: &pgconn.Config{
 				User:           "jack",
@@ -353,7 +353,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with escaped single quote",
+			name:       "Key/value with escaped single quote",
 			connString: "user=jack\\'s password=secret host=localhost port=5432 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack's",
@@ -366,7 +366,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with escaped backslash",
+			name:       "Key/value with escaped backslash",
 			connString: "user=jack password=sooper\\\\secret host=localhost port=5432 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -379,7 +379,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with single quoted values",
+			name:       "Key/value with single quoted values",
 			connString: "user='jack' host='localhost' dbname='mydb' sslmode='disable'",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -391,7 +391,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with single quoted value with escaped single quote",
+			name:       "Key/value with single quoted value with escaped single quote",
 			connString: "user='jack\\'s' host='localhost' dbname='mydb' sslmode='disable'",
 			config: &pgconn.Config{
 				User:          "jack's",
@@ -403,7 +403,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with empty single quoted value",
+			name:       "Key/value with empty single quoted value",
 			connString: "user='jack' password='' host='localhost' dbname='mydb' sslmode='disable'",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -415,7 +415,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN with space between key and value",
+			name:       "Key/value with space between key and value",
 			connString: "user = 'jack' password = '' host = 'localhost' dbname = 'mydb' sslmode='disable'",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -491,7 +491,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN multiple hosts one port",
+			name:       "Key/value multiple hosts one port",
 			connString: "user=jack password=secret host=foo,bar,baz port=5432 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -516,7 +516,7 @@ func TestParseConfig(t *testing.T) {
 			},
 		},
 		{
-			name:       "DSN multiple hosts multiple ports",
+			name:       "Key/value multiple hosts multiple ports",
 			connString: "user=jack password=secret host=foo,bar,baz port=1,2,3 dbname=mydb sslmode=disable",
 			config: &pgconn.Config{
 				User:          "jack",
@@ -772,18 +772,18 @@ func TestParseConfig(t *testing.T) {
 }
 
 // https://github.com/jackc/pgconn/issues/47
-func TestParseConfigDSNWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
+func TestParseConfigKVWithTrailingEmptyEqualDoesNotPanic(t *testing.T) {
 	_, err := pgconn.ParseConfig("host= user= password= port= database=")
 	require.NoError(t, err)
 }
 
-func TestParseConfigDSNLeadingEqual(t *testing.T) {
+func TestParseConfigKVLeadingEqual(t *testing.T) {
 	_, err := pgconn.ParseConfig("= user=jack")
 	require.Error(t, err)
 }
 
 // https://github.com/jackc/pgconn/issues/49
-func TestParseConfigDSNTrailingBackslash(t *testing.T) {
+func TestParseConfigKVTrailingBackslash(t *testing.T) {
 	_, err := pgconn.ParseConfig(`x=x\`)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid backslash")
