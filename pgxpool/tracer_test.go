@@ -12,22 +12,22 @@ import (
 )
 
 type testTracer struct {
-	traceAcquireStart func(ctx context.Context, data pgxpool.TraceAcquireStartData) context.Context
-	traceAcquireEnd   func(ctx context.Context, data pgxpool.TraceAcquireEndData)
+	traceAcquireStart func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireStartData) context.Context
+	traceAcquireEnd   func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData)
 }
 
 type ctxKey string
 
-func (tt *testTracer) TraceAcquireStart(ctx context.Context, data pgxpool.TraceAcquireStartData) context.Context {
+func (tt *testTracer) TraceAcquireStart(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireStartData) context.Context {
 	if tt.traceAcquireStart != nil {
-		return tt.traceAcquireStart(ctx, data)
+		return tt.traceAcquireStart(ctx, pool, data)
 	}
 	return ctx
 }
 
-func (tt *testTracer) TraceAcquireEnd(ctx context.Context, data pgxpool.TraceAcquireEndData) {
+func (tt *testTracer) TraceAcquireEnd(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData) {
 	if tt.traceAcquireEnd != nil {
-		tt.traceAcquireEnd(ctx, data)
+		tt.traceAcquireEnd(ctx, pool, data)
 	}
 }
 
@@ -55,16 +55,18 @@ func TestTraceAcquire(t *testing.T) {
 	defer pool.Close()
 
 	traceAcquireStartCalled := false
-	tracer.traceAcquireStart = func(ctx context.Context, data pgxpool.TraceAcquireStartData) context.Context {
+	tracer.traceAcquireStart = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireStartData) context.Context {
 		traceAcquireStartCalled = true
-		require.NotNil(t, data.ConnConfig)
+		require.NotNil(t, pool)
 		return context.WithValue(ctx, ctxKey("fromTraceAcquireStart"), "foo")
 	}
 
 	traceAcquireEndCalled := false
-	tracer.traceAcquireEnd = func(ctx context.Context, data pgxpool.TraceAcquireEndData) {
+	tracer.traceAcquireEnd = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData) {
 		traceAcquireEndCalled = true
 		require.Equal(t, "foo", ctx.Value(ctxKey(ctxKey("fromTraceAcquireStart"))))
+		require.NotNil(t, pool)
+		require.NotNil(t, data.Conn)
 		require.NoError(t, data.Err)
 	}
 
@@ -76,14 +78,16 @@ func TestTraceAcquire(t *testing.T) {
 
 	traceAcquireStartCalled = false
 	traceAcquireEndCalled = false
-	tracer.traceAcquireEnd = func(ctx context.Context, data pgxpool.TraceAcquireEndData) {
+	tracer.traceAcquireEnd = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData) {
 		traceAcquireEndCalled = true
+		require.NotNil(t, pool)
+		require.Nil(t, data.Conn)
 		require.Error(t, data.Err)
 	}
 
 	ctx, cancel = context.WithCancel(ctx)
 	cancel()
-	c, err = pool.Acquire(ctx)
+	_, err = pool.Acquire(ctx)
 	require.ErrorIs(t, err, context.Canceled)
 	require.True(t, traceAcquireStartCalled)
 	require.True(t, traceAcquireEndCalled)

@@ -10,14 +10,14 @@ import (
 type AcquireTracer interface {
 	// TraceAcquireStart is called at the beginning of Acquire.
 	// The returned context is used for the rest of the call and will be passed to the TraceAcquireEnd.
-	TraceAcquireStart(ctx context.Context, data TraceAcquireStartData) context.Context
-	TraceAcquireEnd(ctx context.Context, data TraceAcquireEndData)
+	TraceAcquireStart(ctx context.Context, pool *Pool, data TraceAcquireStartData) context.Context
+	// TraceAcquireEnd is called when a connection has been acquired
+	TraceAcquireEnd(ctx context.Context, pool *Pool, data TraceAcquireEndData)
 }
 
-type TraceAcquireStartData struct {
-	ConnConfig *pgx.ConnConfig
-}
+type TraceAcquireStartData struct{}
 
 type TraceAcquireEndData struct {
-	Err error
+	Conn *pgx.Conn
+	Err  error
 }
