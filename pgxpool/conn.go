@@ -26,6 +26,13 @@ func (c *Conn) Release() {
 	res := c.res
 	c.res = nil
 
+	if c.p.releaseTracer != nil {
+		ctx := c.p.releaseTracer.TraceReleaseStart(context.Background(), c.p, TraceReleaseStartData{Conn: conn})
+		defer func() {
+			c.p.releaseTracer.TraceReleaseEnd(ctx, c.p, TraceReleaseEndData{})
+		}()
+	}
+
 	if conn.IsClosed() || conn.PgConn().IsBusy() || conn.PgConn().TxStatus() != 'I' {
 		res.Destroy()
 		// Signal to the health check to run since we just destroyed a connections

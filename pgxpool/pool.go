@@ -96,6 +96,7 @@ type Pool struct {
 	healthCheckChan chan struct{}
 
 	acquireTracer AcquireTracer
+	releaseTracer ReleaseTracer
 
 	closeOnce sync.Once
 	closeChan chan struct{}
@@ -199,6 +200,10 @@ func NewWithConfig(ctx context.Context, config *Config) (*Pool, error) {
 
 	if t, ok := config.ConnConfig.Tracer.(AcquireTracer); ok {
 		p.acquireTracer = t
+	}
+
+	if t, ok := config.ConnConfig.Tracer.(ReleaseTracer); ok {
+		p.releaseTracer = t
 	}
 
 	var err error
