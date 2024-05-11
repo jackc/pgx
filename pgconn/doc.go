@@ -5,8 +5,8 @@ nearly the same level is the C library libpq.
 
 Establishing a Connection
 
-Use Connect to establish a connection. It accepts a connection string in URL or DSN and will read the environment for
-libpq style environment variables.
+Use Connect to establish a connection. It accepts a connection string in URL or keyword/value format and will read the
+environment for libpq style environment variables.
 
 Executing a Query
 
