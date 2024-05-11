@@ -357,10 +357,8 @@ func TestConnectInvalidUser(t *testing.T) {
 
 	_, err = pgconn.ConnectConfig(ctx, config)
 	require.Error(t, err)
-	pgErr, ok := errors.Unwrap(err).(*pgconn.PgError)
-	if !ok {
-		t.Fatalf("Expected to receive a wrapped PgError, instead received: %v", err)
-	}
+	var pgErr *pgconn.PgError
+	require.ErrorAs(t, err, &pgErr)
 	if pgErr.Code != "28000" && pgErr.Code != "28P01" {
 		t.Fatalf("Expected to receive a PgError with code 28000 or 28P01, instead received: %v", pgErr)
 	}
@@ -527,6 +525,22 @@ func TestConnectWithFallback(t *testing.T) {
 	conn, err := pgconn.ConnectConfig(ctx, config)
 	require.NoError(t, err)
 	closeConn(t, conn)
+}
+
+func TestConnectFailsWithResolveFailureAndFailedConnectionAttempts(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := pgconn.Connect(ctx, "host=localhost,127.0.0.1,foo.invalid port=1,2,3 sslmode=disable")
+	require.Error(t, err)
+	require.Nil(t, conn)
+
+	require.ErrorContains(t, err, "lookup foo.invalid: no such host")
+	// Not testing the entire string as depending on IPv4 or IPv6 support localhost may resolve to 127.0.0.1 or ::1.
+	require.ErrorContains(t, err, ":1 (localhost): dial error:")
+	require.ErrorContains(t, err, ":2 (127.0.0.1): dial error:")
 }
 
 func TestConnectWithValidateConnect(t *testing.T) {
