@@ -506,9 +506,13 @@ func (p *Pool) createIdleResources(parentCtx context.Context, targetResources in
 // Acquire returns a connection (*Conn) from the Pool
 func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 	if p.acquireTracer != nil {
-		ctx = p.acquireTracer.TraceAcquireStart(ctx, TraceAcquireStartData{ConnConfig: p.config.ConnConfig})
+		ctx = p.acquireTracer.TraceAcquireStart(ctx, p, TraceAcquireStartData{})
 		defer func() {
-			p.acquireTracer.TraceAcquireEnd(ctx, TraceAcquireEndData{Err: err})
+			var conn *pgx.Conn
+			if c != nil {
+				conn = c.Conn()
+			}
+			p.acquireTracer.TraceAcquireEnd(ctx, p, TraceAcquireEndData{Conn: conn, Err: err})
 		}()
 	}
 
