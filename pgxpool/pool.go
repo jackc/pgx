@@ -29,7 +29,7 @@ type connResource struct {
 	maxAgeTime time.Time
 }
 
-func (cr *connResource) getConn(ctx context.Context, p *Pool, res *puddle.Resource[*connResource]) *Conn {
+func (cr *connResource) getConn(p *Pool, res *puddle.Resource[*connResource]) *Conn {
 	if len(cr.conns) == 0 {
 		cr.conns = make([]Conn, 128)
 	}
@@ -39,7 +39,6 @@ func (cr *connResource) getConn(ctx context.Context, p *Pool, res *puddle.Resour
 
 	c.res = res
 	c.p = p
-	c.ctx = ctx
 
 	return c
 }
@@ -539,7 +538,7 @@ func (p *Pool) Acquire(ctx context.Context) (c *Conn, err error) {
 		}
 
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
-			return cr.getConn(ctx, p, res), nil
+			return cr.getConn(p, res), nil
 		}
 
 		res.Destroy()
@@ -567,7 +566,7 @@ func (p *Pool) AcquireAllIdle(ctx context.Context) []*Conn {
 	for _, res := range resources {
 		cr := res.Value()
 		if p.beforeAcquire == nil || p.beforeAcquire(ctx, cr.conn) {
-			conns = append(conns, cr.getConn(ctx, p, res))
+			conns = append(conns, cr.getConn(p, res))
 		} else {
 			res.Destroy()
 		}
