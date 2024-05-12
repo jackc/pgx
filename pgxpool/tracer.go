@@ -24,15 +24,11 @@ type TraceAcquireEndData struct {
 
 // ReleaseTracer traces Release.
 type ReleaseTracer interface {
-	// TraceReleaseStart is called at the beginning of Release.
-	// The returned context will be passed to the TraceReleaseEnd.
-	TraceReleaseStart(ctx context.Context, pool *Pool, data TraceReleaseStartData) context.Context
-	// TraceReleaseEnd is called when a connection has been released.
-	TraceReleaseEnd(ctx context.Context, pool *Pool, data TraceReleaseEndData)
+	// TraceRelease is called at the beginning of Release.
+	// The passed context is coming from Acquire.
+	TraceRelease(ctx context.Context, pool *Pool, data TraceReleaseData)
 }
 
-type TraceReleaseStartData struct {
+type TraceReleaseData struct {
 	Conn *pgx.Conn
 }
-
-type TraceReleaseEndData struct{}
