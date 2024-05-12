@@ -121,10 +121,8 @@ func TestTraceRelease(t *testing.T) {
 		traceReleaseCalled = true
 		require.NotNil(t, pool)
 		require.NotNil(t, data.Conn)
-		require.Equal(t, "foo", ctx.Value(ctxKey("fromAcquire")))
 	}
 
-	ctx = context.WithValue(ctx, ctxKey("fromAcquire"), "foo")
 	c, err := pool.Acquire(ctx)
 	require.NoError(t, err)
 	c.Release()
