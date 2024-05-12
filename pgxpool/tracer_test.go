@@ -14,7 +14,7 @@ import (
 type testTracer struct {
 	traceAcquireStart func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireStartData) context.Context
 	traceAcquireEnd   func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceAcquireEndData)
-	traceRelease      func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData)
+	traceRelease      func(pool *pgxpool.Pool, data pgxpool.TraceReleaseData)
 }
 
 type ctxKey string
@@ -32,9 +32,9 @@ func (tt *testTracer) TraceAcquireEnd(ctx context.Context, pool *pgxpool.Pool, d
 	}
 }
 
-func (tt *testTracer) TraceRelease(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
+func (tt *testTracer) TraceRelease(pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
 	if tt.traceRelease != nil {
-		tt.traceRelease(ctx, pool, data)
+		tt.traceRelease(pool, data)
 	}
 }
 
@@ -117,7 +117,7 @@ func TestTraceRelease(t *testing.T) {
 	defer pool.Close()
 
 	traceReleaseCalled := false
-	tracer.traceRelease = func(ctx context.Context, pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
+	tracer.traceRelease = func(pool *pgxpool.Pool, data pgxpool.TraceReleaseData) {
 		traceReleaseCalled = true
 		require.NotNil(t, pool)
 		require.NotNil(t, data.Conn)

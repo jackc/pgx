@@ -25,8 +25,7 @@ type TraceAcquireEndData struct {
 // ReleaseTracer traces Release.
 type ReleaseTracer interface {
 	// TraceRelease is called at the beginning of Release.
-	// The passed context is coming from Acquire.
-	TraceRelease(ctx context.Context, pool *Pool, data TraceReleaseData)
+	TraceRelease(pool *Pool, data TraceReleaseData)
 }
 
 type TraceReleaseData struct {
